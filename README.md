@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/banner.png" alt="Orchestra" width="100%">
+</p>
+
 # 🎼 Orchestra — AI Agent Orchestrator
 
 **v1.0.0** | [Changelog](CHANGELOG.md)
