@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.manager import manager
-from app.db import get_worker_logs, get_worker as db_get_worker, delete_worker
+from app.db import get_worker_logs, get_worker as db_get_worker, delete_worker, add_callback, get_unread_callbacks, mark_callbacks_read
 
 
 @asynccontextmanager
@@ -94,3 +94,22 @@ async def api_remove(name: str):
 @app.get("/api/stats")
 async def api_stats():
     return manager.stats()
+
+
+@app.post("/api/workers/{name}/callback")
+async def api_callback(name: str, request: Request):
+    body = await request.json()
+    msg = body.get("message", "")
+    cb_id = add_callback(name, msg)
+    return {"ok": True, "id": cb_id}
+
+
+@app.get("/api/callbacks")
+async def api_get_callbacks():
+    return get_unread_callbacks()
+
+
+@app.post("/api/callbacks/read")
+async def api_mark_read():
+    count = mark_callbacks_read()
+    return {"marked": count}

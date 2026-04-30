@@ -30,6 +30,9 @@
         <div>
             <h1 class="text-2xl font-bold">🎼 Orchestra</h1>
             <p class="text-xs text-slate-500 mt-0.5" id="stats-line">{{ active }} active</p>
+            <div id="callbacks-bar" class="hidden mt-2 px-3 py-2 bg-amber-900/50 border border-amber-700 rounded-lg text-sm cursor-pointer" onclick="showCallbacks()">
+                🔔 <span id="cb-count">0</span> notifications from workers
+            </div>
         </div>
     </header>
 
@@ -219,6 +222,31 @@
                 status.textContent = r.ok ? '✅ Sent' : '❌ Failed (worker not running?)';
                 if (r.ok) input.value = '';
             } catch (e) { status.textContent = '❌ ' + e.message; }
+        }
+
+        async function checkCallbacks() {
+            try {
+                const cbs = await (await fetch('/api/callbacks')).json();
+                const bar = document.getElementById('callbacks-bar');
+                const count = document.getElementById('cb-count');
+                if (cbs.length > 0) {
+                    bar.classList.remove('hidden');
+                    count.textContent = cbs.length;
+                } else {
+                    bar.classList.add('hidden');
+                }
+            } catch {}
+        }
+        setInterval(checkCallbacks, 3000);
+        checkCallbacks();
+
+        async function showCallbacks() {
+            const cbs = await (await fetch('/api/callbacks')).json();
+            if (!cbs.length) return;
+            const msgs = cbs.map(c => `[${c.worker_name}] ${c.message}`).join('\n\n');
+            alert(msgs);
+            await fetch('/api/callbacks/read', { method: 'POST' });
+            document.getElementById('callbacks-bar').classList.add('hidden');
         }
 
         // Auto-refresh worker list

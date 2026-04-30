@@ -48,6 +48,15 @@ def init_db():
             c.execute("ALTER TABLE workers ADD COLUMN system_prompt TEXT DEFAULT ''")
         except sqlite3.OperationalError:
             pass
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS callbacks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                worker_name TEXT NOT NULL,
+                ts TEXT NOT NULL,
+                message TEXT NOT NULL,
+                read INTEGER DEFAULT 0
+            )
+        """)
 
 
 def save_worker(w) -> None:
@@ -114,6 +123,25 @@ def get_stats() -> dict:
             "errors": errors, "total_cost_usd": round(total_cost, 4),
             "total_logs": total_logs,
         }
+
+
+def add_callback(worker_name: str, message: str) -> int:
+    with _conn() as c:
+        cur = c.execute("INSERT INTO callbacks (worker_name, ts, message) VALUES (?, ?, ?)",
+                        (worker_name, datetime.utcnow().isoformat(), message))
+        return cur.lastrowid
+
+
+def get_unread_callbacks() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute("SELECT * FROM callbacks WHERE read = 0 ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+
+
+def mark_callbacks_read() -> int:
+    with _conn() as c:
+        cur = c.execute("UPDATE callbacks SET read = 1 WHERE read = 0")
+        return cur.rowcount
 
 
 init_db()
