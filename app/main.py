@@ -1,5 +1,6 @@
 """Orchestra — AI Agent Orchestrator."""
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -7,6 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.manager import manager
+from app.orchestrator import orchestrator
 from app.db import get_worker_logs, get_worker as db_get_worker, delete_worker, add_callback, get_unread_callbacks, mark_callbacks_read
 
 
@@ -14,6 +16,7 @@ from app.db import get_worker_logs, get_worker as db_get_worker, delete_worker, 
 async def lifespan(app: FastAPI):
     yield
     await manager.kill_all()
+    await orchestrator.stop()
 
 
 app = FastAPI(title="Orchestra", lifespan=lifespan)
@@ -113,3 +116,42 @@ async def api_get_callbacks():
 async def api_mark_read():
     count = mark_callbacks_read()
     return {"marked": count}
+
+
+# === Orchestrator endpoints ===
+
+@app.post("/api/orchestrator/start")
+async def api_orch_start(request: Request):
+    body = await request.json() if await request.body() else {}
+    cwd = body.get("cwd", "/mnt/data/Projects/Python/Parsing")
+    await orchestrator.start(cwd)
+    return {"ok": True, "status": "connected"}
+
+
+@app.post("/api/orchestrator/spawn")
+async def api_orch_spawn(request: Request):
+    body = await request.json()
+    info = await orchestrator.spawn_worker(
+        name=body["name"],
+        task=body["task"],
+        repo_path=body["repo_path"],
+        model=body.get("model", "claude-sonnet-4-6"),
+    )
+    asyncio.create_task(orchestrator.listen())
+    return info
+
+
+@app.post("/api/orchestrator/send")
+async def api_orch_send(request: Request):
+    body = await request.json()
+    await orchestrator.send(body["message"])
+    return {"ok": True}
+
+
+@app.get("/api/orchestrator/status")
+async def api_orch_status():
+    return {
+        "connected": orchestrator._connected,
+        "session_id": orchestrator._session_id,
+        "workers": orchestrator._workers,
+    }
