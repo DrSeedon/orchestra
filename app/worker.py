@@ -90,7 +90,7 @@ class Worker:
         self._setup_worktree()
 
         options = ClaudeAgentOptions(
-            model=f"{self.model}[1m]",
+            model=f"{self.model}[1m]" if "opus" in self.model else self.model,
             cwd=self.worktree_path,
             max_turns=50,
             permission_mode="default",

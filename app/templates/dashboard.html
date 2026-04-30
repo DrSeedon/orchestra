@@ -35,22 +35,38 @@
         </div>
 
         <!-- Spawn Modal -->
-        <div id="spawn-modal" class="hidden card p-6 mb-6">
-            <h3 class="text-lg font-semibold mb-4">Spawn New Worker</h3>
-            <form id="spawn-form" class="space-y-3">
-                <input id="s-name" placeholder="Worker name" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm" required>
-                <input id="s-repo" placeholder="Repo path (e.g. /mnt/data/Projects/Python/Parsing/zahoron-mobile)" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm" required>
-                <textarea id="s-task" placeholder="Task description" rows="3" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm" required></textarea>
-                <select id="s-model" class="px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm">
-                    <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-                    <option value="claude-opus-4-6">Opus 4.6</option>
-                </select>
-                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium">Spawn</button>
+        <div id="spawn-modal" class="hidden card p-6 mb-6" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Spawn New Worker</h3>
+                <button onclick="document.getElementById('spawn-modal').classList.add('hidden')" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <form id="spawn-form" class="space-y-3" onsubmit="return false;">
+                <div>
+                    <label class="text-xs text-slate-400 mb-1 block">Name</label>
+                    <input id="s-name" value="test-worker" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 mb-1 block">Repo Path</label>
+                    <input id="s-repo" value="/mnt/data/Projects/Python/Parsing/zahoron-mobile" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 mb-1 block">Task</label>
+                    <textarea id="s-task" rows="3" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm" placeholder="Describe what the worker should do..."></textarea>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 mb-1 block">Model</label>
+                    <select id="s-model" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm">
+                        <option value="claude-sonnet-4-6">Sonnet 4.6 · 200k · fast, 3% hallucination</option>
+                        <option value="claude-opus-4-6">Opus 4.6 · 1M · powerful, 8% hallucination</option>
+                        <option value="claude-haiku-4-5">Haiku 4.5 · cheap, read-only tasks</option>
+                    </select>
+                </div>
+                <button type="button" onclick="doSpawn()" class="w-full px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium">🚀 Spawn</button>
             </form>
         </div>
 
         <!-- Workers Grid -->
-        <div id="workers-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4" hx-get="/api/workers" hx-trigger="every 3s" hx-swap="none">
+        <div id="workers-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {% for w in workers %}
             <div class="card p-4">
                 <div class="flex items-center justify-between mb-2">
@@ -94,18 +110,26 @@
     </div>
 
     <script>
-        document.getElementById('spawn-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const body = {
-                name: document.getElementById('s-name').value,
-                repo_path: document.getElementById('s-repo').value,
-                task: document.getElementById('s-task').value,
-                model: document.getElementById('s-model').value,
-            };
-            await fetch('/api/workers/spawn', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-            document.getElementById('spawn-modal').classList.add('hidden');
-            location.reload();
-        });
+        async function doSpawn() {
+            const name = document.getElementById('s-name').value.trim();
+            const repo = document.getElementById('s-repo').value.trim();
+            const task = document.getElementById('s-task').value.trim();
+            const model = document.getElementById('s-model').value;
+            if (!name || !repo || !task) { alert('Fill all fields'); return; }
+            const btn = event.target;
+            btn.disabled = true; btn.textContent = 'Spawning...';
+            try {
+                const resp = await fetch('/api/workers/spawn', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ name, repo_path: repo, task, model }),
+                });
+                if (!resp.ok) { const e = await resp.json(); alert(e.detail || 'Error'); return; }
+                document.getElementById('spawn-modal').classList.add('hidden');
+                location.reload();
+            } catch (e) { alert('Error: ' + e.message); }
+            finally { btn.disabled = false; btn.textContent = '🚀 Spawn'; }
+        }
 
         let currentWorker = null;
 
@@ -146,13 +170,38 @@
             location.reload();
         }
 
-        // Auto-refresh workers grid
+        // Auto-refresh workers grid (without page reload)
         setInterval(async () => {
-            const resp = await fetch('/api/workers');
-            const workers = await resp.json();
-            // Simple refresh - reload page if worker count changed
-            const cards = document.querySelectorAll('#workers-grid .card').length;
-            if (cards !== workers.length) location.reload();
+            if (!document.getElementById('spawn-modal').classList.contains('hidden')) return;
+            if (!document.getElementById('worker-detail').classList.contains('hidden')) return;
+            try {
+                const resp = await fetch('/api/workers');
+                const workers = await resp.json();
+                const grid = document.getElementById('workers-grid');
+                if (workers.length === 0) {
+                    grid.innerHTML = '<div class="card p-8 text-center text-slate-500 col-span-2">No workers running. Click "Spawn Worker" to start.</div>';
+                    return;
+                }
+                grid.innerHTML = workers.map(w => `
+                    <div class="card p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-semibold">${w.name}</h3>
+                            <span class="text-xs font-mono status-${w.status}">${w.status}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-2 truncate">${w.task}</p>
+                        <div class="flex items-center gap-3 text-xs text-slate-500">
+                            <span>🌿 ${w.branch}</span>
+                            <span>💰 $${w.cost_usd}</span>
+                            <span>📝 ${w.logs_count} logs</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2 truncate">${w.last_log}</p>
+                        <div class="flex gap-2 mt-3">
+                            <button onclick="openWorker('${w.name}')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Logs</button>
+                            <button onclick="killWorker('${w.name}')" class="px-2 py-1 bg-red-900 hover:bg-red-800 rounded text-xs">Kill</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch {}
         }, 5000);
     </script>
 </body>
