@@ -1,0 +1,16 @@
+[project]
+name = "orchestra"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk",
+    "fastapi>=0.115",
+    "uvicorn[standard]",
+    "jinja2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]

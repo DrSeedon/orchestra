@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+*.db
+workers/*/
+!workers/.gitkeep
+.claude/
+_screenshots/

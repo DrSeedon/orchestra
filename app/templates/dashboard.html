@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Orchestra — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .status-working { color: #22c55e; }
+        .status-done { color: #3b82f6; }
+        .status-error { color: #ef4444; }
+        .status-idle { color: #eab308; }
+        .status-killed { color: #6b7280; }
+        .status-pending { color: #a855f7; }
+        .status-spawning { color: #f97316; }
+        .log-text { color: #94a3b8; }
+        .log-tool { color: #38bdf8; }
+        .log-error { color: #f87171; }
+        .log-status { color: #a78bfa; }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold">🎼 Orchestra</h1>
+                <p class="text-sm text-slate-400 mt-1">AI Agent Orchestrator · {{ active }} active</p>
+            </div>
+            <button onclick="document.getElementById('spawn-modal').classList.toggle('hidden')"
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium">
+                + Spawn Worker
+            </button>
+        </div>
+
+        <!-- Spawn Modal -->
+        <div id="spawn-modal" class="hidden card p-6 mb-6">
+            <h3 class="text-lg font-semibold mb-4">Spawn New Worker</h3>
+            <form id="spawn-form" class="space-y-3">
+                <input id="s-name" placeholder="Worker name" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm" required>
+                <input id="s-repo" placeholder="Repo path (e.g. /mnt/data/Projects/Python/Parsing/zahoron-mobile)" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm" required>
+                <textarea id="s-task" placeholder="Task description" rows="3" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm" required></textarea>
+                <select id="s-model" class="px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm">
+                    <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+                    <option value="claude-opus-4-6">Opus 4.6</option>
+                </select>
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium">Spawn</button>
+            </form>
+        </div>
+
+        <!-- Workers Grid -->
+        <div id="workers-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4" hx-get="/api/workers" hx-trigger="every 3s" hx-swap="none">
+            {% for w in workers %}
+            <div class="card p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-semibold">{{ w.name }}</h3>
+                    <span class="text-xs font-mono status-{{ w.status }}">{{ w.status }}</span>
+                </div>
+                <p class="text-xs text-slate-400 mb-2 truncate">{{ w.task }}</p>
+                <div class="flex items-center gap-3 text-xs text-slate-500">
+                    <span>🌿 {{ w.branch }}</span>
+                    <span>💰 ${{ w.cost_usd }}</span>
+                    <span>📝 {{ w.logs_count }} logs</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-2 truncate">{{ w.last_log }}</p>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="openWorker('{{ w.name }}')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Logs</button>
+                    <button onclick="killWorker('{{ w.name }}')" class="px-2 py-1 bg-red-900 hover:bg-red-800 rounded text-xs">Kill</button>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not workers %}
+            <div class="card p-8 text-center text-slate-500 col-span-2">
+                No workers running. Click "Spawn Worker" to start.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Worker Detail Modal -->
+        <div id="worker-detail" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-6 z-50">
+            <div class="card p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 id="detail-name" class="text-lg font-semibold"></h3>
+                    <button onclick="document.getElementById('worker-detail').classList.add('hidden')" class="text-slate-400 hover:text-white">✕</button>
+                </div>
+                <div class="mb-4">
+                    <input id="inject-input" placeholder="Send message to worker..." class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm">
+                    <button onclick="injectMessage()" class="mt-2 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-xs">Send</button>
+                </div>
+                <div id="detail-logs" class="font-mono text-xs space-y-1 max-h-96 overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('spawn-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                name: document.getElementById('s-name').value,
+                repo_path: document.getElementById('s-repo').value,
+                task: document.getElementById('s-task').value,
+                model: document.getElementById('s-model').value,
+            };
+            await fetch('/api/workers/spawn', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            document.getElementById('spawn-modal').classList.add('hidden');
+            location.reload();
+        });
+
+        let currentWorker = null;
+
+        async function openWorker(name) {
+            currentWorker = name;
+            document.getElementById('detail-name').textContent = name;
+            document.getElementById('worker-detail').classList.remove('hidden');
+            refreshLogs();
+        }
+
+        async function refreshLogs() {
+            if (!currentWorker) return;
+            const resp = await fetch(`/api/workers/${currentWorker}`);
+            const data = await resp.json();
+            const el = document.getElementById('detail-logs');
+            el.innerHTML = data.logs.map(l =>
+                `<div class="log-${l.type}"><span class="text-slate-600">${l.ts.slice(11,19)}</span> [${l.type}] ${l.content}</div>`
+            ).join('');
+            el.scrollTop = el.scrollHeight;
+            if (!document.getElementById('worker-detail').classList.contains('hidden')) {
+                setTimeout(refreshLogs, 2000);
+            }
+        }
+
+        async function injectMessage() {
+            const input = document.getElementById('inject-input');
+            if (!input.value || !currentWorker) return;
+            await fetch(`/api/workers/${currentWorker}/inject`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ message: input.value }),
+            });
+            input.value = '';
+        }
+
+        async function killWorker(name) {
+            if (!confirm(`Kill worker "${name}"?`)) return;
+            await fetch(`/api/workers/${name}/kill`, { method: 'POST' });
+            location.reload();
+        }
+
+        // Auto-refresh workers grid
+        setInterval(async () => {
+            const resp = await fetch('/api/workers');
+            const workers = await resp.json();
+            // Simple refresh - reload page if worker count changed
+            const cards = document.querySelectorAll('#workers-grid .card').length;
+            if (cards !== workers.length) location.reload();
+        }, 5000);
+    </script>
+</body>
+</html>
