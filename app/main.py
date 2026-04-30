@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from app.manager import manager
+from app.db import get_worker_logs, get_worker as db_get_worker, delete_worker
 
 
 @asynccontextmanager
@@ -36,12 +37,15 @@ async def api_workers():
 @app.get("/api/workers/{name}")
 async def api_worker(name: str):
     w = manager.get(name)
-    if not w:
-        return JSONResponse({"error": "not found"}, 404)
-    return {
-        **w.to_dict(),
-        "logs": [{"ts": l.ts.isoformat(), "type": l.type, "content": l.content} for l in w.logs[-50:]],
-    }
+    if w:
+        data = w.to_dict()
+        logs = [{"ts": l.ts.isoformat(), "type": l.type, "content": l.content} for l in w.logs[-100:]]
+    else:
+        data = db_get_worker(name)
+        if not data:
+            return JSONResponse({"error": "not found"}, 404)
+        logs = get_worker_logs(name, limit=100)
+    return {**data, "logs": logs}
 
 
 @app.post("/api/workers/spawn")
@@ -72,3 +76,15 @@ async def api_interrupt(name: str):
 async def api_kill(name: str):
     await manager.kill(name)
     return {"ok": True}
+
+
+@app.delete("/api/workers/{name}")
+async def api_remove(name: str):
+    await manager.remove(name)
+    delete_worker(name)
+    return {"ok": True}
+
+
+@app.get("/api/stats")
+async def api_stats():
+    return manager.stats()

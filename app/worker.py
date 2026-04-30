@@ -19,6 +19,8 @@ from claude_agent_sdk import (
     PermissionResultAllow,
 )
 
+from app.db import save_worker, add_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,9 +60,11 @@ class Worker:
     _task: Optional[asyncio.Task] = field(default=None, repr=False)
 
     def _log(self, type: str, content: str):
-        self.logs.append(WorkerLog(ts=datetime.utcnow(), type=type, content=content))
+        now = datetime.utcnow()
+        self.logs.append(WorkerLog(ts=now, type=type, content=content))
         if len(self.logs) > 500:
             self.logs = self.logs[-300:]
+        add_log(self.name, now, type, content)
 
     def _setup_worktree(self):
         wt_base = Path(self.repo_path) / "workers"
@@ -83,9 +87,13 @@ class Worker:
             )
         self._log("status", f"worktree created: {self.worktree_path}")
 
+    def _save(self):
+        save_worker(self)
+
     async def spawn(self):
         self.status = WorkerStatus.SPAWNING
         self._log("status", "spawning")
+        self._save()
 
         self._setup_worktree()
 
@@ -106,6 +114,7 @@ class Worker:
         await self._client.connect()
         self.status = WorkerStatus.WORKING
         self._log("status", "connected, sending task")
+        self._save()
 
         self._task = asyncio.create_task(self._run_loop())
 
@@ -116,7 +125,7 @@ class Worker:
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, TextBlock) and block.text:
-                            self._log("text", block.text[:500])
+                            self._log("text", block.text)
                         elif isinstance(block, ToolUseBlock):
                             self._log("tool", f"{block.name}: {str(block.input)[:200]}")
                 elif isinstance(msg, ResultMessage):
@@ -125,10 +134,12 @@ class Worker:
                     self.cost_usd += getattr(msg, 'total_cost_usd', 0) or 0
                     self.status = WorkerStatus.DONE
                     self._log("status", f"done, cost=${self.cost_usd:.4f}")
+                    self._save()
                     break
         except Exception as e:
             self.status = WorkerStatus.ERROR
             self._log("error", str(e))
+            self._save()
             logger.error(f"Worker {self.name} error: {e}", exc_info=True)
 
     async def inject(self, message: str) -> bool:
@@ -160,6 +171,7 @@ class Worker:
                 pass
         self.status = WorkerStatus.KILLED
         self._log("status", "killed")
+        self._save()
         self._cleanup_worktree()
 
     def _cleanup_worktree(self):
