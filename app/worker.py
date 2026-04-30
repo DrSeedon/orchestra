@@ -86,7 +86,19 @@ class Worker:
                 ["git", "worktree", "add", self.worktree_path, self.branch],
                 cwd=self.repo_path, capture_output=True, text=True,
             )
+        self._copy_project_files()
         self._log("status", f"worktree created: {self.worktree_path}")
+
+    def _copy_project_files(self):
+        import shutil
+        repo = Path(self.repo_path)
+        wt = Path(self.worktree_path)
+        for name in ("CLAUDE.md", ".mcp.json", ".env", ".worktreeinclude"):
+            src = repo / name
+            if not src.exists():
+                src = repo.parent / name
+            if src.exists():
+                shutil.copy2(str(src), str(wt / name))
 
     def _save(self):
         save_worker(self)
