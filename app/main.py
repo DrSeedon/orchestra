@@ -45,7 +45,13 @@ async def api_worker(name: str):
         if not data:
             return JSONResponse({"error": "not found"}, 404)
         logs = get_worker_logs(name, limit=100)
-    return {**data, "logs": logs}
+    sysprompt = ""
+    live = manager.get(name)
+    if live and live.system_prompt:
+        sysprompt = live.system_prompt
+    elif data.get("system_prompt"):
+        sysprompt = data["system_prompt"]
+    return {**data, "logs": logs, "system_prompt": sysprompt}
 
 
 @app.post("/api/workers/spawn")

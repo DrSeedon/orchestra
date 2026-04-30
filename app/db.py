@@ -31,7 +31,8 @@ def init_db():
                 cost_usd REAL DEFAULT 0.0,
                 context_pct REAL DEFAULT 0.0,
                 created_at TEXT NOT NULL,
-                finished_at TEXT
+                finished_at TEXT,
+                system_prompt TEXT DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,18 +44,23 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_logs_worker ON logs(worker_name);
         """)
+        try:
+            c.execute("ALTER TABLE workers ADD COLUMN system_prompt TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
 
 
 def save_worker(w) -> None:
     with _conn() as c:
         c.execute("""
             INSERT OR REPLACE INTO workers (name, task, repo_path, branch, model, status,
-                worktree_path, session_id, cost_usd, context_pct, created_at, finished_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                worktree_path, session_id, cost_usd, context_pct, created_at, finished_at, system_prompt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (w.name, w.task, w.repo_path, w.branch, w.model, w.status.value,
               w.worktree_path, w.session_id, w.cost_usd, w.context_pct,
               w.created_at.isoformat(),
-              datetime.utcnow().isoformat() if w.status.value in ('done', 'error', 'killed') else None))
+              datetime.utcnow().isoformat() if w.status.value in ('done', 'error', 'killed') else None,
+              w.system_prompt or ''))
 
 
 def add_log(worker_name: str, ts: datetime, type: str, content: str) -> None:

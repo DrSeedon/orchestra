@@ -58,6 +58,7 @@ class Worker:
     context_pct: float = 0.0
     _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
     _task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _expected_results: int = field(default=1, repr=False)
 
     def _log(self, type: str, content: str):
         now = datetime.utcnow()
@@ -132,10 +133,12 @@ class Worker:
                     if msg.session_id:
                         self.session_id = msg.session_id
                     self.cost_usd += getattr(msg, 'total_cost_usd', 0) or 0
-                    self.status = WorkerStatus.DONE
-                    self._log("status", f"done, cost=${self.cost_usd:.4f}")
-                    self._save()
-                    break
+                    self._expected_results -= 1
+                    if self._expected_results <= 0:
+                        self.status = WorkerStatus.IDLE
+                        self._log("status", f"idle, cost=${self.cost_usd:.4f}")
+                        self._save()
+                        break
         except Exception as e:
             self.status = WorkerStatus.ERROR
             self._log("error", str(e))
@@ -143,15 +146,32 @@ class Worker:
             logger.error(f"Worker {self.name} error: {e}", exc_info=True)
 
     async def inject(self, message: str) -> bool:
-        if not self._client or self.status != WorkerStatus.WORKING:
+        if not self._client:
             return False
-        try:
-            await self._client.query(message)
-            self._log("status", f"injected: {message[:100]}")
-            return True
-        except Exception as e:
-            self._log("error", f"inject failed: {e}")
-            return False
+        if self.status == WorkerStatus.WORKING:
+            try:
+                await self._client.query(message)
+                self._expected_results += 1
+                self._log("status", f"injected: {message[:100]}")
+                return True
+            except Exception as e:
+                self._log("error", f"inject failed: {e}")
+                return False
+        elif self.status == WorkerStatus.IDLE:
+            self.status = WorkerStatus.WORKING
+            self._expected_results = 1
+            self._log("status", f"resumed: {message[:100]}")
+            self._save()
+            try:
+                await self._client.query(message)
+                self._task = asyncio.create_task(self._run_loop())
+                return True
+            except Exception as e:
+                self.status = WorkerStatus.ERROR
+                self._log("error", f"resume failed: {e}")
+                self._save()
+                return False
+        return False
 
     async def interrupt(self):
         if self._client:

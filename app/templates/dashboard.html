@@ -4,159 +4,252 @@
     <meta charset="UTF-8">
     <title>Orchestra — Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <style>
-        body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
-        .status-working { color: #22c55e; }
-        .status-done { color: #3b82f6; }
-        .status-error { color: #ef4444; }
-        .status-idle { color: #eab308; }
-        .status-killed { color: #6b7280; }
-        .status-pending { color: #a855f7; }
+        body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; margin: 0; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; cursor: pointer; transition: border-color 0.15s; }
+        .card:hover { border-color: #6366f1; }
+        .card.selected { border-color: #818cf8; border-width: 2px; }
+        .status-working { color: #22c55e; } .status-done { color: #3b82f6; }
+        .status-error { color: #ef4444; } .status-idle { color: #eab308; }
+        .status-killed { color: #6b7280; } .status-pending { color: #a855f7; }
         .status-spawning { color: #f97316; }
-        .log-text { color: #94a3b8; }
+        .log-text { color: #c8d6e5; white-space: pre-wrap; word-break: break-word; }
         .log-tool { color: #38bdf8; }
         .log-error { color: #f87171; }
-        .log-status { color: #a78bfa; }
+        .log-status { color: #a78bfa; font-style: italic; }
+        .sidebar { width: 50%; min-width: 500px; max-width: 800px; }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid #1a2332; }
+        .tab { padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab.active { border-color: #818cf8; color: #fff; }
+        .tab:not(.active) { color: #64748b; }
     </style>
 </head>
-<body class="min-h-screen p-6">
-    <div class="max-w-6xl mx-auto">
-        <div class="flex items-center justify-between mb-8">
-            <div>
-                <h1 class="text-3xl font-bold">🎼 Orchestra</h1>
-                <p class="text-sm text-slate-400 mt-1" id="stats-line">AI Agent Orchestrator · {{ active }} active</p>
-            </div>
+<body class="h-screen flex flex-col">
+    <!-- Header -->
+    <header class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div>
+            <h1 class="text-2xl font-bold">🎼 Orchestra</h1>
+            <p class="text-xs text-slate-500 mt-0.5" id="stats-line">{{ active }} active</p>
         </div>
+    </header>
 
-        <!-- Workers Grid -->
-        <div id="workers-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Left: Worker List -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="workers-list">
             {% for w in workers %}
-            <div class="card p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="font-semibold">{{ w.name }}</h3>
-                    <span class="text-xs font-mono status-{{ w.status }}">{{ w.status }}</span>
+            <div class="card p-4" onclick="selectWorker('{{ w.name }}')">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="font-semibold text-sm">{{ w.name }}</span>
+                    <span class="text-xs font-mono status-{{ w.status }}">● {{ w.status }}</span>
                 </div>
-                <p class="text-xs text-slate-400 mb-2 truncate">{{ w.task }}</p>
-                <div class="flex items-center gap-3 text-xs text-slate-500">
+                <p class="text-xs text-slate-500 truncate">{{ w.task }}</p>
+                <div class="flex items-center gap-3 text-xs text-slate-600 mt-2">
                     <span>🌿 {{ w.branch }}</span>
                     <span>💰 ${{ w.cost_usd }}</span>
-                    <span>📝 {{ w.logs_count }} logs</span>
-                </div>
-                <p class="text-xs text-slate-400 mt-2 truncate">{{ w.last_log }}</p>
-                <div class="flex gap-2 mt-3">
-                    <button onclick="openWorker('{{ w.name }}')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Logs</button>
-                    <button onclick="killWorker('{{ w.name }}')" class="px-2 py-1 bg-red-900 hover:bg-red-800 rounded text-xs">Kill</button>
+                    <span>📝 {{ w.logs_count }}</span>
                 </div>
             </div>
             {% endfor %}
             {% if not workers %}
-            <div class="card p-8 text-center text-slate-500 col-span-2">
-                No workers running. Click "Spawn Worker" to start.
-            </div>
+            <div class="text-center text-slate-600 py-12">No workers yet</div>
             {% endif %}
         </div>
 
-        <!-- Worker Detail Modal -->
-        <div id="worker-detail" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-6 z-50">
-            <div class="card p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 id="detail-name" class="text-lg font-semibold"></h3>
-                    <button onclick="document.getElementById('worker-detail').classList.add('hidden')" class="text-slate-400 hover:text-white">✕</button>
+        <!-- Right: Worker Detail Sidebar -->
+        <div id="sidebar" class="sidebar border-l border-slate-800 flex-col hidden">
+            <!-- Sidebar Header -->
+            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800">
+                <div>
+                    <h2 id="sb-name" class="font-bold text-lg"></h2>
+                    <span id="sb-status" class="text-xs font-mono"></span>
                 </div>
-                <div class="mb-4">
-                    <input id="inject-input" placeholder="Send message to worker..." class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm">
-                    <button onclick="injectMessage()" class="mt-2 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-xs">Send</button>
+                <div class="flex gap-2">
+                    <button id="sb-action-btn" onclick="workerAction()" class="px-3 py-1 rounded text-xs font-medium"></button>
+                    <button onclick="closeSidebar()" class="text-slate-500 hover:text-white text-lg">✕</button>
                 </div>
-                <div id="detail-logs" class="font-mono text-xs space-y-1 max-h-96 overflow-y-auto"></div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-800 px-5">
+                <div class="tab active" onclick="switchTab('logs')">Logs</div>
+                <div class="tab" onclick="switchTab('info')">Info</div>
+                <div class="tab" onclick="switchTab('inject')">Inject</div>
+            </div>
+
+            <!-- Tab: Logs -->
+            <div id="tab-logs" class="flex-1 overflow-y-auto p-4 font-mono text-xs">
+            </div>
+
+            <!-- Tab: Info -->
+            <div id="tab-info" class="flex-1 overflow-y-auto p-5 hidden">
+                <div class="space-y-3 text-sm">
+                    <div><span class="text-slate-500">Task:</span> <span id="sb-task" class="text-slate-300"></span></div>
+                    <div><span class="text-slate-500">Branch:</span> <span id="sb-branch" class="text-indigo-400 font-mono"></span></div>
+                    <div><span class="text-slate-500">Model:</span> <span id="sb-model" class="text-slate-300"></span></div>
+                    <div><span class="text-slate-500">Cost:</span> <span id="sb-cost" class="text-green-400"></span></div>
+                    <div><span class="text-slate-500">Created:</span> <span id="sb-created" class="text-slate-400"></span></div>
+                    <div><span class="text-slate-500">Logs:</span> <span id="sb-logcount" class="text-slate-400"></span></div>
+                    <div class="pt-3 border-t border-slate-700">
+                        <span class="text-slate-500 text-xs">System Prompt (worker.md):</span>
+                        <pre id="sb-sysprompt" class="mt-2 text-xs text-slate-500 bg-slate-900 p-3 rounded-lg overflow-y-auto max-h-60 whitespace-pre-wrap"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Inject -->
+            <div id="tab-inject" class="flex-1 overflow-y-auto p-5 hidden">
+                <p class="text-xs text-slate-500 mb-3">Send a message to the running worker. Only works while status = working.</p>
+                <textarea id="inject-input" rows="4" placeholder="Type message..." class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm resize-none"></textarea>
+                <button onclick="doInject()" class="mt-2 w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium">Send Message</button>
+                <div id="inject-status" class="mt-2 text-xs text-slate-500"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Spawn removed from UI — orchestrator (CTO) spawns via API
-
         let currentWorker = null;
+        let currentTab = 'logs';
+        let renderedLogCount = 0;
 
-        async function openWorker(name) {
+        function selectWorker(name) {
             currentWorker = name;
-            document.getElementById('detail-name').textContent = name;
-            document.getElementById('worker-detail').classList.remove('hidden');
-            refreshLogs();
+            renderedLogCount = 0;
+            document.getElementById('tab-logs').innerHTML = '';
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('sidebar').classList.add('flex');
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            switchTab('logs');
+            refreshDetail();
         }
 
-        async function refreshLogs() {
+        function closeSidebar() {
+            currentWorker = null;
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('flex');
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            ['logs', 'info', 'inject'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+            });
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        async function refreshDetail() {
             if (!currentWorker) return;
-            const resp = await fetch(`/api/workers/${currentWorker}`);
-            const data = await resp.json();
-            const el = document.getElementById('detail-logs');
-            el.innerHTML = data.logs.map(l =>
-                `<div class="log-${l.type}"><span class="text-slate-600">${l.ts.slice(11,19)}</span> [${l.type}] ${l.content}</div>`
-            ).join('');
-            el.scrollTop = el.scrollHeight;
-            if (!document.getElementById('worker-detail').classList.contains('hidden')) {
-                setTimeout(refreshLogs, 2000);
+            try {
+                const resp = await fetch(`/api/workers/${currentWorker}`);
+                const d = await resp.json();
+
+                document.getElementById('sb-name').textContent = d.name;
+                const statusEl = document.getElementById('sb-status');
+                statusEl.textContent = `● ${d.status}`;
+                statusEl.className = `text-xs font-mono status-${d.status}`;
+
+                const btn = document.getElementById('sb-action-btn');
+                if (d.status === 'working' || d.status === 'spawning') {
+                    btn.textContent = 'Kill';
+                    btn.className = 'px-3 py-1 rounded text-xs font-medium bg-red-900 hover:bg-red-800';
+                    btn.dataset.action = 'kill';
+                } else {
+                    btn.textContent = 'Remove';
+                    btn.className = 'px-3 py-1 rounded text-xs font-medium bg-slate-700 hover:bg-slate-600';
+                    btn.dataset.action = 'remove';
+                }
+
+                // Info tab
+                document.getElementById('sb-task').textContent = d.task || '';
+                document.getElementById('sb-branch').textContent = d.branch || '';
+                document.getElementById('sb-model').textContent = d.model || '';
+                document.getElementById('sb-cost').textContent = `$${d.cost_usd || 0}`;
+                document.getElementById('sb-created').textContent = d.created_at || '';
+                document.getElementById('sb-logcount').textContent = (d.logs || []).length;
+                document.getElementById('sb-sysprompt').textContent = d.system_prompt || '(not available from DB)';
+
+                // Logs tab — append only new entries
+                const logsEl = document.getElementById('tab-logs');
+                const allLogs = d.logs || [];
+                if (allLogs.length > renderedLogCount) {
+                    const wasAtBottom = logsEl.scrollHeight - logsEl.scrollTop - logsEl.clientHeight < 50;
+                    const newLogs = allLogs.slice(renderedLogCount);
+                    for (const l of newLogs) {
+                        const div = document.createElement('div');
+                        div.className = `log-entry log-${l.type}`;
+                        div.innerHTML = `<span class="text-slate-700 select-none">${(l.ts||'').slice(11,19)} </span><span class="text-slate-600">[${l.type}]</span> ${escapeHtml(l.content)}`;
+                        logsEl.appendChild(div);
+                    }
+                    renderedLogCount = allLogs.length;
+                    if (wasAtBottom) logsEl.scrollTop = logsEl.scrollHeight;
+                }
+            } catch {}
+            setTimeout(refreshDetail, 2000);
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        async function workerAction() {
+            const btn = document.getElementById('sb-action-btn');
+            if (btn.dataset.action === 'kill') {
+                if (!confirm(`Kill "${currentWorker}"?`)) return;
+                await fetch(`/api/workers/${currentWorker}/kill`, { method: 'POST' });
+            } else {
+                await fetch(`/api/workers/${currentWorker}`, { method: 'DELETE' });
+                closeSidebar();
             }
         }
 
-        async function injectMessage() {
+        async function doInject() {
             const input = document.getElementById('inject-input');
-            if (!input.value || !currentWorker) return;
-            await fetch(`/api/workers/${currentWorker}/inject`, {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ message: input.value }),
-            });
-            input.value = '';
-        }
-
-        async function killWorker(name) {
-            if (!confirm(`Kill worker "${name}"?`)) return;
-            await fetch(`/api/workers/${name}/kill`, { method: 'POST' });
-        }
-
-        async function removeWorker(name) {
-            await fetch(`/api/workers/${name}`, { method: 'DELETE' });
-        }
-
-        // Auto-refresh workers grid (without page reload)
-        setInterval(async () => {
-            if (!document.getElementById('spawn-modal').classList.contains('hidden')) return;
-            if (!document.getElementById('worker-detail').classList.contains('hidden')) return;
+            const status = document.getElementById('inject-status');
+            if (!input.value.trim() || !currentWorker) return;
             try {
-                const resp = await fetch('/api/workers');
-                const workers = await resp.json();
-                const grid = document.getElementById('workers-grid');
+                const resp = await fetch(`/api/workers/${currentWorker}/inject`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ message: input.value }),
+                });
+                const r = await resp.json();
+                status.textContent = r.ok ? '✅ Sent' : '❌ Failed (worker not running?)';
+                if (r.ok) input.value = '';
+            } catch (e) { status.textContent = '❌ ' + e.message; }
+        }
+
+        // Auto-refresh worker list
+        setInterval(async () => {
+            try {
+                const [wResp, sResp] = await Promise.all([fetch('/api/workers'), fetch('/api/stats')]);
+                const workers = await wResp.json();
+                const stats = await sResp.json();
+
+                document.getElementById('stats-line').textContent =
+                    `${stats.active} active · ${stats.total_workers} total · $${stats.total_cost_usd}`;
+
+                const list = document.getElementById('workers-list');
                 if (workers.length === 0) {
-                    grid.innerHTML = '<div class="card p-8 text-center text-slate-500 col-span-2">No workers running. Click "Spawn Worker" to start.</div>';
+                    list.innerHTML = '<div class="text-center text-slate-600 py-12">No workers yet</div>';
                     return;
                 }
-                grid.innerHTML = workers.map(w => `
-                    <div class="card p-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="font-semibold">${w.name}</h3>
-                            <span class="text-xs font-mono status-${w.status}">${w.status}</span>
+                list.innerHTML = workers.map(w => `
+                    <div class="card p-4 ${currentWorker === w.name ? 'selected' : ''}" onclick="selectWorker('${w.name}')">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-semibold text-sm">${escapeHtml(w.name)}</span>
+                            <span class="text-xs font-mono status-${w.status}">● ${w.status}</span>
                         </div>
-                        <p class="text-xs text-slate-400 mb-2 truncate">${w.task}</p>
-                        <div class="flex items-center gap-3 text-xs text-slate-500">
-                            <span>🌿 ${w.branch}</span>
-                            <span>💰 $${w.cost_usd}</span>
-                            <span>📝 ${w.logs_count} logs</span>
-                        </div>
-                        <p class="text-xs text-slate-400 mt-2 truncate">${w.last_log}</p>
-                        <div class="flex gap-2 mt-3">
-                            <button onclick="openWorker('${w.name}')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Logs</button>
-                            ${w.status === 'working' || w.status === 'spawning'
-                                ? `<button onclick="killWorker('${w.name}')" class="px-2 py-1 bg-red-900 hover:bg-red-800 rounded text-xs">Kill</button>`
-                                : `<button onclick="removeWorker('${w.name}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs">Remove</button>`
-                            }
+                        <p class="text-xs text-slate-500 truncate">${escapeHtml(w.task || '')}</p>
+                        <div class="flex items-center gap-3 text-xs text-slate-600 mt-2">
+                            <span>🌿 ${w.branch || ''}</span>
+                            <span>💰 $${w.cost_usd || 0}</span>
+                            <span>📝 ${w.logs_count || 0}</span>
                         </div>
                     </div>
                 `).join('');
-                // Update stats
-                const stats = await (await fetch('/api/stats')).json();
-                document.getElementById('stats-line').textContent =
-                    `AI Agent Orchestrator · ${stats.active} active · ${stats.total_workers} total · $${stats.total_cost_usd}`;
             } catch {}
         }, 5000);
     </script>
