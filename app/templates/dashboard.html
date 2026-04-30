@@ -176,15 +176,22 @@
         }
 
         async function pollOrchestratorResponse() {
-            // Poll callbacks for orchestrator responses
-            for (let i = 0; i < 60; i++) {
-                await new Promise(r => setTimeout(r, 2000));
+            for (let i = 0; i < 120; i++) {
+                await new Promise(r => setTimeout(r, 1500));
                 try {
                     const cbs = await (await fetch('/api/callbacks')).json();
                     if (cbs.length > 0) {
                         removeThinking();
                         for (const cb of cbs) {
-                            addChatMessage('notification', `[${cb.worker_name}] ${cb.message}`);
+                            if (cb.worker_name === 'orchestrator') {
+                                if (cb.message.startsWith('🔧 ')) {
+                                    addChatMessage('system', cb.message);
+                                } else {
+                                    addChatMessage('bot', cb.message);
+                                }
+                            } else {
+                                addChatMessage('notification', `[${cb.worker_name}] ${cb.message}`);
+                            }
                         }
                         await fetch('/api/callbacks/read', { method: 'POST' });
                         return;

@@ -23,8 +23,7 @@ from claude_agent_sdk.types import (
     RateLimitEvent,
 )
 
-from app.db import add_log, save_worker, add_callback, get_all_workers
-from app.worker import WorkerStatus
+from app.db import add_callback
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +174,10 @@ After spawning, report back what you did."""
                 for block in msg.content:
                     if isinstance(block, TextBlock) and block.text:
                         logger.info(f"Orchestrator: {block.text[:200]}")
+                        add_callback("orchestrator", block.text)
                     elif isinstance(block, ToolUseBlock):
                         logger.info(f"Orchestrator tool: {block.name}")
+                        add_callback("orchestrator", f"🔧 {block.name}")
 
             elif isinstance(msg, ResultMessage):
                 if msg.session_id:
