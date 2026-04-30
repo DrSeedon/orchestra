@@ -68,7 +68,7 @@ class Worker:
         add_log(self.name, now, type, content)
 
     def _setup_worktree(self):
-        wt_base = Path(self.repo_path) / "workers"
+        wt_base = Path(__file__).parent.parent / "worktrees"
         wt_base.mkdir(exist_ok=True)
         self.worktree_path = str(wt_base / self.name)
         self.branch = f"feat/{self.name}"
