@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 .env
 *.db
+*.db-shm
+*.db-wal
+*.db.bak
 workers/*/
 !workers/.gitkeep
 worktrees/
