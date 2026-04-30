@@ -1,157 +1,179 @@
-"""Orchestra — AI Agent Orchestrator."""
+"""Orchestra — AI Agent Orchestrator API."""
 
-import asyncio
+import re
+import sqlite3
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, field_validator, model_validator
 
-from app.manager import manager
-from app.orchestrator import orchestrator
-from app.db import get_worker_logs, get_worker as db_get_worker, delete_worker, add_callback, get_unread_callbacks, mark_callbacks_read
+from app.db import init_db, get_logs, get_orchestrators
+from app.manager import SessionManager
+
+manager = SessionManager()
+templates = Jinja2Templates(directory="app/templates")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
+    await manager.auto_resume_orchestrators()
     yield
-    await manager.kill_all()
-    await orchestrator.stop()
+    await manager.shutdown_all()
 
 
 app = FastAPI(title="Orchestra", lifespan=lifespan)
-templates = Jinja2Templates(directory="app/templates")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+class CreateSessionRequest(BaseModel):
+    name: str
+    cwd: str
+    model: str = "claude-sonnet-4-6"
+    scope: Optional[str] = None
+    system_prompt: str = ""
+    use_worktree: bool = False
+    repo_path: Optional[str] = None
+    is_orchestrator: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", v):
+            raise ValueError("name must be alphanumeric with ._- allowed, 1-50 chars")
+        return v
+
+    @field_validator("cwd")
+    @classmethod
+    def validate_cwd(cls, v):
+        if not Path(v).is_dir():
+            raise ValueError(f"cwd does not exist: {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_worktree(self):
+        if self.use_worktree and not self.repo_path:
+            raise ValueError("repo_path required when use_worktree=True")
+        return self
+
+
+class SendRequest(BaseModel):
+    message: str
+    scope: str
+
+
+class ScopeRequest(BaseModel):
+    scope: str
 
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    workers = manager.list_all()
-    return templates.TemplateResponse(request, "dashboard.html", {
-        "workers": workers,
-        "active": manager.active_count(),
-    })
+    return templates.TemplateResponse(request, "dashboard.html")
 
 
-@app.get("/api/workers")
-async def api_workers():
-    return manager.list_all()
+@app.get("/api/sessions")
+async def list_sessions(scope: Optional[str] = None):
+    return manager.list_sessions(scope)
 
 
-@app.get("/api/workers/{name}")
-async def api_worker(name: str):
-    w = manager.get(name)
-    if w:
-        data = w.to_dict()
-        logs = [{"ts": l.ts.isoformat(), "type": l.type, "content": l.content} for l in w.logs[-100:]]
-    else:
-        data = db_get_worker(name)
-        if not data:
-            return JSONResponse({"error": "not found"}, 404)
-        logs = get_worker_logs(name, limit=100)
-    sysprompt = ""
-    live = manager.get(name)
-    if live and live.system_prompt:
-        sysprompt = live.system_prompt
-    elif data.get("system_prompt"):
-        sysprompt = data["system_prompt"]
-    return {**data, "logs": logs, "system_prompt": sysprompt}
+@app.post("/api/sessions", status_code=201)
+async def create_session(req: CreateSessionRequest):
+    scope = req.scope or req.cwd
+    try:
+        session = await manager.create_session(
+            name=req.name,
+            scope=scope,
+            cwd=req.cwd,
+            model=req.model,
+            system_prompt=req.system_prompt,
+            use_worktree=req.use_worktree,
+            repo_path=req.repo_path,
+            is_orchestrator=req.is_orchestrator,
+        )
+        return session.to_dict()
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=409)
+    except sqlite3.IntegrityError:
+        return JSONResponse({"error": f"session '{req.name}' already exists"}, status_code=409)
 
 
-@app.post("/api/workers/spawn")
-async def api_spawn(request: Request):
-    body = await request.json()
-    name = body["name"]
-    task = body["task"]
-    repo_path = body["repo_path"]
-    model = body.get("model", "claude-sonnet-4-6")
-    worker = await manager.spawn(name, task, repo_path, model)
-    return worker.to_dict()
+@app.get("/api/sessions/{name}")
+async def get_session(name: str, scope: str):
+    session = manager.get_by_name(name, scope)
+    if not session:
+        from app.db import get_session_by_name
+        db_session = get_session_by_name(name, scope)
+        if not db_session:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return db_session
+    return session.to_dict()
 
 
-@app.post("/api/workers/{name}/inject")
-async def api_inject(name: str, request: Request):
-    body = await request.json()
-    ok = await manager.inject(name, body["message"])
-    return {"ok": ok}
+@app.get("/api/sessions/{name}/context")
+async def get_session_context(name: str, scope: str):
+    session = await manager.ensure_loaded(name, scope)
+    if not session:
+        return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+    return await session.get_context()
 
 
-@app.post("/api/workers/{name}/interrupt")
-async def api_interrupt(name: str):
-    await manager.interrupt(name)
+@app.get("/api/sessions/{name}/logs")
+async def get_session_logs(name: str, scope: str, after_id: int = 0):
+    session = manager.get_by_name(name, scope)
+    if session:
+        return get_logs(session.id, after_id=after_id)
+    from app.db import get_session_by_name
+    db_session = get_session_by_name(name, scope)
+    if not db_session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return get_logs(db_session["id"], after_id=after_id)
+
+
+@app.post("/api/sessions/{name}/send")
+async def send_message(name: str, req: SendRequest):
+    session = await manager.ensure_loaded(name, req.scope)
+    if not session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    try:
+        await manager.send(session.id, req.message)
+        return {"ok": True}
+    except RuntimeError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/api/sessions/{name}/interrupt")
+async def interrupt_session(name: str, req: ScopeRequest):
+    session = await manager.ensure_loaded(name, req.scope)
+    if not session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    await manager.interrupt(session.id)
     return {"ok": True}
 
 
-@app.post("/api/workers/{name}/kill")
-async def api_kill(name: str):
-    await manager.kill(name)
-    return {"ok": True}
-
-
-@app.delete("/api/workers/{name}")
-async def api_remove(name: str):
-    await manager.remove(name)
-    delete_worker(name)
+@app.delete("/api/sessions/{name}")
+async def delete_session(name: str, scope: str):
+    session = manager.get_by_name(name, scope)
+    if not session:
+        from app.db import get_session_by_name, delete_session as db_delete
+        db_session = get_session_by_name(name, scope)
+        if not db_session:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        db_delete(db_session["id"])
+        return {"ok": True}
+    await manager.remove(session.id)
     return {"ok": True}
 
 
 @app.get("/api/stats")
-async def api_stats():
-    return manager.stats()
+async def stats(scope: Optional[str] = None):
+    return manager.stats(scope)
 
 
-@app.post("/api/workers/{name}/callback")
-async def api_callback(name: str, request: Request):
-    body = await request.json()
-    msg = body.get("message", "")
-    cb_id = add_callback(name, msg)
-    return {"ok": True, "id": cb_id}
-
-
-@app.get("/api/callbacks")
-async def api_get_callbacks():
-    return get_unread_callbacks()
-
-
-@app.post("/api/callbacks/read")
-async def api_mark_read():
-    count = mark_callbacks_read()
-    return {"marked": count}
-
-
-# === Orchestrator endpoints ===
-
-@app.post("/api/orchestrator/start")
-async def api_orch_start(request: Request):
-    body = await request.json() if await request.body() else {}
-    cwd = body.get("cwd", "/mnt/data/Projects/Python/Parsing")
-    await orchestrator.start(cwd)
-    return {"ok": True, "status": "connected"}
-
-
-@app.post("/api/orchestrator/spawn")
-async def api_orch_spawn(request: Request):
-    body = await request.json()
-    info = await orchestrator.spawn_worker(
-        name=body["name"],
-        task=body["task"],
-        repo_path=body["repo_path"],
-        model=body.get("model", "claude-sonnet-4-6"),
-    )
-    asyncio.create_task(orchestrator.listen())
-    return info
-
-
-@app.post("/api/orchestrator/send")
-async def api_orch_send(request: Request):
-    body = await request.json()
-    await orchestrator.send(body["message"])
-    return {"ok": True}
-
-
-@app.get("/api/orchestrator/status")
-async def api_orch_status():
-    return {
-        "connected": orchestrator._connected,
-        "session_id": orchestrator._session_id,
-        "workers": orchestrator._workers,
-    }
+@app.get("/api/orchestrators")
+async def list_orchestrators():
+    return get_orchestrators()

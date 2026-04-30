@@ -1,384 +1,91 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>🎼 Orchestra</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background: #0f172a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; margin: 0; }
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; transition: border-color 0.15s; }
-        .card:hover { border-color: #6366f1; }
-        .card.selected { border-color: #818cf8; border-width: 2px; }
-        .status-working { color: #22c55e; } .status-done { color: #3b82f6; }
-        .status-error { color: #ef4444; } .status-idle { color: #eab308; }
-        .status-killed { color: #6b7280; } .status-pending { color: #a855f7; }
-        .status-spawning { color: #f97316; }
-        .log-text { color: #c8d6e5; white-space: pre-wrap; word-break: break-word; }
-        .log-tool { color: #38bdf8; } .log-error { color: #f87171; }
-        .log-status { color: #a78bfa; font-style: italic; }
-        .log-entry { padding: 4px 0; border-bottom: 1px solid #1a2332; }
-        .chat-msg-user { background: #312e81; border-radius: 12px 12px 4px 12px; }
-        .chat-msg-bot { background: #1e293b; border-radius: 12px 12px 12px 4px; }
-        .chat-msg-notification { background: #422006; border: 1px solid #92400e; border-radius: 8px; }
-        .tab { padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 13px; }
-        .tab.active { border-color: #818cf8; color: #fff; }
-        .tab:not(.active) { color: #64748b; }
-        .dot-pulse { display: inline-flex; gap: 4px; }
-        .dot-pulse span { width: 6px; height: 6px; background: #818cf8; border-radius: 50%; animation: pulse 1.2s infinite; }
-        .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
-        .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes pulse { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="h-screen flex flex-col">
-    <!-- Header -->
-    <header class="flex items-center justify-between px-6 py-3 border-b border-slate-800">
+    <header class="flex items-center justify-between px-5 py-2.5 border-b border-slate-800/50">
         <div class="flex items-center gap-4">
-            <h1 class="text-xl font-bold">🎼 Orchestra</h1>
-            <div id="orch-status" class="text-xs px-2 py-1 rounded-full bg-slate-800 text-slate-500">disconnected</div>
-            <p class="text-xs text-slate-600" id="stats-line"></p>
+            <h1 class="text-lg font-bold tracking-tight">🎼 Orchestra</h1>
+            <select id="orch-picker" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1 text-xs cursor-pointer pr-6"></select>
+            <button id="new-orch-btn" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors">+ New</button>
         </div>
-        <div class="flex gap-2">
-            <button onclick="startOrchestrator()" id="start-btn" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-medium">Start Orchestrator</button>
+        <div class="flex items-center gap-3 text-xs text-slate-600">
+            <span id="stats-line"></span>
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
-        <!-- Left: Chat + Workers -->
-        <div class="flex-1 flex flex-col border-r border-slate-800">
-            <!-- Tabs -->
-            <div class="flex border-b border-slate-800 px-4">
-                <div class="tab active" onclick="switchMainTab('chat', this)">💬 Chat</div>
-                <div class="tab" onclick="switchMainTab('workers', this)">👥 Workers <span id="worker-count" class="text-xs text-slate-600"></span></div>
-                <div class="tab" onclick="switchMainTab('notifications', this)">🔔 <span id="notif-count"></span></div>
+    <!-- New Orchestrator Modal -->
+    <div id="new-orch-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
+        <div class="glass glow rounded-xl p-6 w-[420px]">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-bold">New Orchestrator</h2>
+                <button id="modal-close" class="text-slate-500 hover:text-white text-lg">✕</button>
             </div>
-
-            <!-- Chat Tab -->
-            <div id="main-chat" class="flex-1 flex flex-col">
-                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3">
-                    <div class="text-center text-slate-600 py-8">
-                        <p class="text-lg mb-2">🎼 Orchestra Orchestrator</p>
-                        <p class="text-xs">Start the orchestrator and send commands.</p>
-                        <p class="text-xs mt-1 text-slate-700">Spawn workers, give tasks, monitor progress.</p>
-                    </div>
-                </div>
-                <div class="p-4 border-t border-slate-800">
-                    <div class="flex gap-2">
-                        <textarea id="chat-input" rows="2" placeholder="Send command to orchestrator..."
-                            class="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm resize-none"
-                            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
-                        <button onclick="sendChat()" class="px-4 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium self-end">Send</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Workers Tab -->
-            <div id="main-workers" class="flex-1 overflow-y-auto p-4 space-y-3 hidden">
-            </div>
-
-            <!-- Notifications Tab -->
-            <div id="main-notifications" class="flex-1 overflow-y-auto p-4 space-y-2 hidden">
-            </div>
-        </div>
-
-        <!-- Right: Worker Detail Sidebar -->
-        <div id="sidebar" class="w-[45%] min-w-[400px] border-l border-slate-800 flex-col hidden">
-            <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800">
+            <div class="space-y-3">
                 <div>
-                    <h2 id="sb-name" class="font-bold text-lg"></h2>
-                    <span id="sb-status" class="text-xs font-mono"></span>
+                    <label class="text-xs text-slate-500 block mb-1">Name</label>
+                    <input id="orch-name" type="text" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
                 </div>
-                <div class="flex gap-2">
-                    <button id="sb-action-btn" onclick="workerAction()" class="px-3 py-1 rounded text-xs font-medium"></button>
-                    <button onclick="closeSidebar()" class="text-slate-500 hover:text-white text-lg">✕</button>
+                <div>
+                    <label class="text-xs text-slate-500 block mb-1">Project path</label>
+                    <input id="orch-cwd" type="text" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
                 </div>
-            </div>
-            <div class="flex border-b border-slate-800 px-5">
-                <div class="tab active" onclick="switchSideTab('logs', this)">Logs</div>
-                <div class="tab" onclick="switchSideTab('info', this)">Info</div>
-                <div class="tab" onclick="switchSideTab('inject', this)">Inject</div>
-            </div>
-            <div id="side-logs" class="flex-1 overflow-y-auto p-4 font-mono text-xs"></div>
-            <div id="side-info" class="flex-1 overflow-y-auto p-5 hidden">
-                <div class="space-y-3 text-sm">
-                    <div><span class="text-slate-500">Task:</span> <span id="sb-task" class="text-slate-300"></span></div>
-                    <div><span class="text-slate-500">Branch:</span> <span id="sb-branch" class="text-indigo-400 font-mono"></span></div>
-                    <div><span class="text-slate-500">Model:</span> <span id="sb-model" class="text-slate-300"></span></div>
-                    <div><span class="text-slate-500">Cost:</span> <span id="sb-cost" class="text-green-400"></span></div>
-                    <div><span class="text-slate-500">Created:</span> <span id="sb-created" class="text-slate-400"></span></div>
+                <div>
+                    <label class="text-xs text-slate-500 block mb-1">Model</label>
+                    <select id="orch-model" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+                        <option value="claude-opus-4-6[1m]">Opus 4.6 (1M)</option>
+                        <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+                        <option value="claude-haiku-4-5">Haiku 4.5</option>
+                    </select>
                 </div>
-            </div>
-            <div id="side-inject" class="flex-1 overflow-y-auto p-5 hidden">
-                <textarea id="inject-input" rows="4" placeholder="Message to worker..." class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm resize-none"></textarea>
-                <button onclick="doInject()" class="mt-2 w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium">Send to Worker</button>
+                <div id="orch-error" class="text-xs text-red-400 hidden"></div>
+                <button id="create-orch-btn" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Create Orchestrator</button>
             </div>
         </div>
     </div>
 
-    <script>
-        let currentWorker = null;
-        let renderedLogCount = 0;
-        let chatHistory = [];
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Chat -->
+        <div class="flex-1 flex flex-col min-w-0">
+            <div id="chat" class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2"></div>
+            <div class="p-3 border-t border-slate-800/50">
+                <div class="flex gap-2">
+                    <textarea id="chat-input" rows="2" placeholder="Message..."
+                        class="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm resize-none focus:border-indigo-500 focus:outline-none transition-colors"></textarea>
+                    <button id="send-btn" class="px-4 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium self-end transition-colors">Send</button>
+                </div>
+            </div>
+        </div>
 
-        function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+        <!-- Right Panel -->
+        <div class="w-[320px] border-l border-slate-800/50 flex flex-col overflow-hidden">
+            <!-- Agent Info -->
+            <div id="agent-info" class="px-4 py-3 border-b border-slate-800/50 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span id="ai-name" class="font-semibold text-sm"></span>
+                    <span id="ai-status" class="text-xs font-mono"></span>
+                </div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <span class="text-slate-500">Model</span><span id="ai-model" class="text-slate-300 truncate"></span>
+                    <span class="text-slate-500">Cost</span><span id="ai-cost" class="text-green-400"></span>
+                    <span class="text-slate-500">Branch</span><span id="ai-branch" class="text-indigo-400 truncate font-mono"></span>
+                    <span class="text-slate-500">Scope</span><span id="ai-scope" class="text-slate-400 text-xs break-all"></span>
+                </div>
+            </div>
 
-        // === Main Tabs ===
-        function switchMainTab(tab, el) {
-            ['chat', 'workers', 'notifications'].forEach(t => {
-                document.getElementById(`main-${t}`).classList.toggle('hidden', t !== tab);
-            });
-            el.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-        }
+            <!-- Agent List -->
+            <div class="flex-1 overflow-y-auto">
+                <div id="agent-list" class="p-2 space-y-1"></div>
+            </div>
+        </div>
+    </div>
 
-        // === Side Tabs ===
-        function switchSideTab(tab, el) {
-            ['logs', 'info', 'inject'].forEach(t => {
-                document.getElementById(`side-${t}`).classList.toggle('hidden', t !== tab);
-            });
-            el.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-        }
-
-        // === Orchestrator ===
-        async function startOrchestrator() {
-            const btn = document.getElementById('start-btn');
-            btn.disabled = true; btn.textContent = 'Connecting...';
-            try {
-                await fetch('/api/orchestrator/start', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
-                document.getElementById('orch-status').textContent = '● connected';
-                document.getElementById('orch-status').className = 'text-xs px-2 py-1 rounded-full bg-green-900/50 text-green-400';
-                btn.textContent = 'Connected';
-                addChatMessage('system', 'Orchestrator connected. Send commands to manage workers.');
-            } catch(e) { addChatMessage('error', 'Failed to connect: ' + e.message); }
-            finally { btn.disabled = false; }
-        }
-
-        async function sendChat() {
-            const input = document.getElementById('chat-input');
-            const msg = input.value.trim();
-            if (!msg) return;
-            input.value = '';
-            addChatMessage('user', msg);
-
-            try {
-                const resp = await fetch('/api/orchestrator/send', {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ message: msg }),
-                });
-                if (!resp.ok) {
-                    addChatMessage('error', 'Not connected. Click "Start Orchestrator" first.');
-                    return;
-                }
-                addChatMessage('thinking', '');
-                pollOrchestratorResponse();
-            } catch(e) { addChatMessage('error', e.message); }
-        }
-
-        async function pollOrchestratorResponse() {
-            for (let i = 0; i < 120; i++) {
-                await new Promise(r => setTimeout(r, 1500));
-                try {
-                    const cbs = await (await fetch('/api/callbacks')).json();
-                    if (cbs.length > 0) {
-                        removeThinking();
-                        for (const cb of cbs) {
-                            if (cb.worker_name === 'orchestrator') {
-                                if (cb.message.startsWith('🔧 ')) {
-                                    addChatMessage('system', cb.message);
-                                } else {
-                                    addChatMessage('bot', cb.message);
-                                }
-                            } else {
-                                addChatMessage('notification', `[${cb.worker_name}] ${cb.message}`);
-                            }
-                        }
-                        await fetch('/api/callbacks/read', { method: 'POST' });
-                        return;
-                    }
-                } catch {}
-            }
-            removeThinking();
-        }
-
-        function addChatMessage(type, content) {
-            const container = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-
-            if (type === 'user') {
-                div.className = 'chat-msg-user px-4 py-2 ml-12 text-sm';
-                div.textContent = content;
-            } else if (type === 'notification') {
-                div.className = 'chat-msg-notification px-4 py-2 text-sm';
-                div.innerHTML = '🔔 ' + escapeHtml(content);
-            } else if (type === 'system') {
-                div.className = 'text-center text-xs text-slate-500 py-2';
-                div.textContent = content;
-            } else if (type === 'error') {
-                div.className = 'text-center text-xs text-red-400 py-2';
-                div.textContent = '❌ ' + content;
-            } else if (type === 'thinking') {
-                div.className = 'text-xs text-slate-500 py-2 flex items-center gap-2';
-                div.id = 'thinking-indicator';
-                div.innerHTML = '<div class="dot-pulse"><span></span><span></span><span></span></div> Orchestrator working...';
-            } else {
-                div.className = 'chat-msg-bot px-4 py-2 mr-12 text-sm';
-                div.innerHTML = escapeHtml(content);
-            }
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function removeThinking() {
-            const el = document.getElementById('thinking-indicator');
-            if (el) el.remove();
-        }
-
-        // === Workers ===
-        function selectWorker(name) {
-            currentWorker = name;
-            renderedLogCount = 0;
-            document.getElementById('side-logs').innerHTML = '';
-            document.getElementById('sidebar').classList.remove('hidden');
-            document.getElementById('sidebar').classList.add('flex');
-            refreshWorkerDetail();
-        }
-
-        function closeSidebar() {
-            currentWorker = null;
-            document.getElementById('sidebar').classList.add('hidden');
-            document.getElementById('sidebar').classList.remove('flex');
-        }
-
-        async function refreshWorkerDetail() {
-            if (!currentWorker) return;
-            try {
-                const d = await (await fetch(`/api/workers/${currentWorker}`)).json();
-                if (d.error) return;
-
-                document.getElementById('sb-name').textContent = d.name;
-                const statusEl = document.getElementById('sb-status');
-                statusEl.textContent = `● ${d.status}`;
-                statusEl.className = `text-xs font-mono status-${d.status}`;
-
-                const btn = document.getElementById('sb-action-btn');
-                if (d.status === 'working' || d.status === 'spawning') {
-                    btn.textContent = 'Kill'; btn.className = 'px-3 py-1 rounded text-xs font-medium bg-red-900 hover:bg-red-800'; btn.dataset.action = 'kill';
-                } else {
-                    btn.textContent = 'Remove'; btn.className = 'px-3 py-1 rounded text-xs font-medium bg-slate-700 hover:bg-slate-600'; btn.dataset.action = 'remove';
-                }
-
-                document.getElementById('sb-task').textContent = d.task || '';
-                document.getElementById('sb-branch').textContent = d.branch || '';
-                document.getElementById('sb-model').textContent = d.model || '';
-                document.getElementById('sb-cost').textContent = `$${d.cost_usd || 0}`;
-                document.getElementById('sb-created').textContent = d.created_at || '';
-
-                const logsEl = document.getElementById('side-logs');
-                const allLogs = d.logs || [];
-                if (allLogs.length > renderedLogCount) {
-                    const wasAtBottom = logsEl.scrollHeight - logsEl.scrollTop - logsEl.clientHeight < 50;
-                    for (const l of allLogs.slice(renderedLogCount)) {
-                        const div = document.createElement('div');
-                        div.className = `log-entry log-${l.type}`;
-                        div.innerHTML = `<span class="text-slate-700 select-none">${(l.ts||'').slice(11,19)} </span><span class="text-slate-600">[${l.type}]</span> ${escapeHtml(l.content)}`;
-                        logsEl.appendChild(div);
-                    }
-                    renderedLogCount = allLogs.length;
-                    if (wasAtBottom) logsEl.scrollTop = logsEl.scrollHeight;
-                }
-            } catch {}
-            setTimeout(refreshWorkerDetail, 2000);
-        }
-
-        async function workerAction() {
-            const btn = document.getElementById('sb-action-btn');
-            if (btn.dataset.action === 'kill') {
-                if (!confirm(`Kill "${currentWorker}"?`)) return;
-                await fetch(`/api/workers/${currentWorker}/kill`, { method: 'POST' });
-            } else {
-                await fetch(`/api/workers/${currentWorker}`, { method: 'DELETE' });
-                closeSidebar();
-            }
-        }
-
-        async function doInject() {
-            const input = document.getElementById('inject-input');
-            if (!input.value.trim() || !currentWorker) return;
-            const resp = await fetch(`/api/workers/${currentWorker}/inject`, {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ message: input.value }),
-            });
-            const r = await resp.json();
-            if (r.ok) input.value = '';
-        }
-
-        // === Auto-refresh ===
-        setInterval(async () => {
-            try {
-                const [wResp, sResp] = await Promise.all([fetch('/api/workers'), fetch('/api/stats')]);
-                const workers = await wResp.json();
-                const stats = await sResp.json();
-
-                document.getElementById('stats-line').textContent = `${stats.active} active · ${stats.total_workers} total · $${stats.total_cost_usd}`;
-                document.getElementById('worker-count').textContent = workers.length ? `(${workers.length})` : '';
-
-                const wList = document.getElementById('main-workers');
-                if (workers.length === 0) {
-                    wList.innerHTML = '<div class="text-center text-slate-600 py-8">No workers</div>';
-                } else {
-                    wList.innerHTML = workers.map(w => `
-                        <div class="card p-4 cursor-pointer ${currentWorker === w.name ? 'selected' : ''}" onclick="selectWorker('${escapeHtml(w.name)}')">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="font-semibold text-sm">${escapeHtml(w.name)}</span>
-                                <span class="text-xs font-mono status-${w.status}">● ${w.status}</span>
-                            </div>
-                            <p class="text-xs text-slate-500 truncate">${escapeHtml(w.task || '')}</p>
-                            <div class="flex items-center gap-3 text-xs text-slate-600 mt-2">
-                                <span>🌿 ${w.branch || ''}</span>
-                                <span>💰 $${w.cost_usd || 0}</span>
-                                <span>📝 ${w.logs_count || 0}</span>
-                            </div>
-                        </div>
-                    `).join('');
-                }
-
-                // Check notifications
-                const cbs = await (await fetch('/api/callbacks')).json();
-                const notifTab = document.getElementById('notif-count');
-                notifTab.textContent = cbs.length > 0 ? `(${cbs.length})` : '';
-
-                const nList = document.getElementById('main-notifications');
-                if (cbs.length === 0) {
-                    nList.innerHTML = '<div class="text-center text-slate-600 py-8">No notifications</div>';
-                } else {
-                    nList.innerHTML = cbs.map(c => `
-                        <div class="chat-msg-notification px-4 py-2 text-sm">
-                            <span class="text-xs text-amber-500">${(c.ts||'').slice(11,19)}</span>
-                            <span class="font-medium">[${escapeHtml(c.worker_name)}]</span>
-                            ${escapeHtml(c.message)}
-                        </div>
-                    `).join('');
-                }
-
-                // Orchestrator status
-                const orch = await (await fetch('/api/orchestrator/status')).json();
-                const orchEl = document.getElementById('orch-status');
-                if (orch.connected) {
-                    orchEl.textContent = '● connected';
-                    orchEl.className = 'text-xs px-2 py-1 rounded-full bg-green-900/50 text-green-400';
-                }
-            } catch {}
-        }, 5000);
-
-        // Check orchestrator on load
-        fetch('/api/orchestrator/status').then(r => r.json()).then(d => {
-            if (d.connected) {
-                document.getElementById('orch-status').textContent = '● connected';
-                document.getElementById('orch-status').className = 'text-xs px-2 py-1 rounded-full bg-green-900/50 text-green-400';
-                document.getElementById('start-btn').textContent = 'Connected';
-            }
-        });
-    </script>
+    <script src="/static/js/app.js"></script>
 </body>
 </html>
