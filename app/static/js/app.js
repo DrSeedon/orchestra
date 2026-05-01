@@ -14,6 +14,7 @@ const $ = (s) => document.querySelector(s);
 
 document.addEventListener('DOMContentLoaded', () => {
     $('#send-btn').addEventListener('click', sendChat);
+    $('#stop-btn').addEventListener('click', stopAgent);
     $('#chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
@@ -360,6 +361,25 @@ function removeWaitingIndicator() {
     if (el) el.remove();
 }
 
+async function stopAgent() {
+    if (!selectedAgent || !currentScope) return;
+    try {
+        await api(`/api/sessions/${selectedAgent}/interrupt`, {
+            method: 'POST',
+            body: JSON.stringify({ scope: currentScope }),
+        });
+    } catch {}
+}
+
+function updateStopButton(status) {
+    const stopBtn = $('#stop-btn');
+    if (status === 'running') {
+        stopBtn.classList.remove('hidden');
+    } else {
+        stopBtn.classList.add('hidden');
+    }
+}
+
 function addTimestamp(el, ts) {
     if (!el || !ts || el.querySelector('.chat-time')) return;
     const d = new Date(ts);
@@ -504,6 +524,7 @@ async function refresh() {
                     if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
                 }
 
+                updateStopButton(agentSession.status);
                 if (agentSession.status === 'running' && !$('#waiting-indicator')) {
                     showWaitingIndicator();
                 } else if (agentSession.status !== 'running') {
