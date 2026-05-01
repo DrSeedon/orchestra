@@ -78,6 +78,7 @@ class AgentSession:
     branch: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_orchestrator: bool = False
+    color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
 
     _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
@@ -295,6 +296,7 @@ class AgentSession:
             "worktree_path": self.worktree_path,
             "branch": self.branch,
             "is_orchestrator": self.is_orchestrator,
+            "color": self.color,
             "created_at": self.created_at.isoformat(),
             "finished_at": datetime.now(timezone.utc).isoformat()
                 if self.status in (AgentStatus.STOPPED, AgentStatus.ERROR) else None,
@@ -319,6 +321,7 @@ class AgentSession:
             "cost_usd": round(self.cost_usd, 4),
             "branch": self.branch,
             "is_orchestrator": self.is_orchestrator,
+            "color": self.color,
             "created_at": self.created_at.isoformat(),
         }
 

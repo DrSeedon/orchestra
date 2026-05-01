@@ -31,6 +31,7 @@ def sample_session():
         "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/parsing/worker-1",
         "branch": "feat/parsing/worker-1",
         "is_orchestrator": False,
+        "color": "#818cf8",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "finished_at": None,
     }

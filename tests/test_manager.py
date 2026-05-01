@@ -179,7 +179,7 @@ class TestAutoResume:
             "cwd": "/tmp", "model": "claude-opus-4-6", "system_prompt": "",
             "status": "idle", "session_id": "sdk-123",
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
-            "is_orchestrator": True, "created_at": datetime.now(timezone.utc).isoformat(),
+            "is_orchestrator": True, "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
             "finished_at": None,
         })
         with patch("app.session._create_client", return_value=AsyncMock(
@@ -195,7 +195,7 @@ class TestAutoResume:
         save_session({
             "id": "stale-1", "name": "worker-stale", "scope": "/tmp",
             "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",             "status": "running", "session_id": None, "cost_usd": 0.0,
-            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "worktree_path": None, "branch": None, "is_orchestrator": False, "color": "#34d399",
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
         })
         with patch("app.session._create_client", return_value=AsyncMock(

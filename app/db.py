@@ -33,6 +33,7 @@ def init_db() -> None:
                 worktree_path TEXT,
                 branch TEXT,
                 is_orchestrator INTEGER DEFAULT 0,
+                color TEXT DEFAULT '',
                 created_at TEXT NOT NULL,
                 finished_at TEXT,
                 UNIQUE(name, scope)
@@ -54,10 +55,10 @@ def save_session(s: dict) -> None:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
-                created_at, finished_at)
+                color, created_at, finished_at)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
-                :created_at, :finished_at)
+                :color, :created_at, :finished_at)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 status=excluded.status,
@@ -66,6 +67,7 @@ def save_session(s: dict) -> None:
                 worktree_path=excluded.worktree_path,
                 branch=excluded.branch,
                 cwd=excluded.cwd,
+                color=excluded.color,
                 finished_at=excluded.finished_at
         """, s)
 

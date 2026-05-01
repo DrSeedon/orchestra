@@ -18,6 +18,11 @@ from app.db import (
 
 logger = logging.getLogger(__name__)
 
+COLOR_PALETTE = [
+    "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
+    "#a78bfa", "#fbbf24", "#2dd4bf", "#fb7185", "#4ade80",
+]
+
 
 _ORCH_PROMPT_PATH = Path(__file__).parent / "orchestrator_prompt.md"
 _WORKER_PROMPT_PATH = Path(__file__).parent / "worker_prompt.md"
@@ -69,6 +74,7 @@ class SessionManager:
             model=model,
             system_prompt=final_prompt,
             is_orchestrator=is_orchestrator,
+            color=COLOR_PALETTE[len(self.sessions) % len(COLOR_PALETTE)],
             mcp_servers=mcp,
         )
         save_session(session._to_db_dict())

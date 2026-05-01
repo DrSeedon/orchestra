@@ -179,12 +179,6 @@ async def restart_worker(args):
         return {"content": [{"type": "text", "text": f"Restart failed: {e}"}], "is_error": True}
 
 
-orchestra_server = create_sdk_mcp_server(
-    name="orchestra",
-    tools=[spawn_worker, send_to_worker, list_workers, get_worker_logs, kill_worker, restart_worker],
-)
-
-
 @tool("send_message", "Send a message to any agent (orchestrator or worker) by name.", {
     "to": str,
     "message": str,
@@ -201,11 +195,38 @@ async def send_message(args):
             break
     if not session:
         return {"content": [{"type": "text", "text": f"Agent '{name}' not found"}], "is_error": True}
+    sender = None
+    for s in _manager.sessions.values():
+        if hasattr(s, '_client') and s._client and s.name != name:
+            sender = s.name
+            break
+    prefixed = f"[from:{sender or 'unknown'}] {message}" if sender else message
     try:
-        await session.send(message)
+        await session.send(prefixed)
         return {"content": [{"type": "text", "text": f"Message sent to '{name}'"}]}
     except Exception as e:
         return {"content": [{"type": "text", "text": f"Send failed: {e}"}], "is_error": True}
+
+
+@tool("set_agent_color", "Set color for an agent. Hex format like #34d399.", {
+    "name": str,
+    "color": str,
+})
+async def set_agent_color(args):
+    if not _manager:
+        return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
+    name = args["name"]
+    color = args["color"]
+    session = None
+    for s in _manager.sessions.values():
+        if s.name == name:
+            session = s
+            break
+    if not session:
+        return {"content": [{"type": "text", "text": f"Agent '{name}' not found"}], "is_error": True}
+    session.color = color
+    session._persist()
+    return {"content": [{"type": "text", "text": f"Color for '{name}' set to {color}"}]}
 
 
 @tool("list_agents", "List all agents (orchestrators and workers) with their status.", {})
@@ -220,6 +241,11 @@ async def list_agents(args):
         lines.append(f"- **{s.name}** ({role}) | {s.status.value} | {s.model} | ${s.cost_usd:.4f}")
     return {"content": [{"type": "text", "text": "\n".join(lines)}]}
 
+
+orchestra_server = create_sdk_mcp_server(
+    name="orchestra",
+    tools=[spawn_worker, send_to_worker, list_workers, get_worker_logs, kill_worker, restart_worker, set_agent_color],
+)
 
 worker_server = create_sdk_mcp_server(
     name="orchestra",

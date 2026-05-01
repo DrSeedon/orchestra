@@ -160,6 +160,7 @@ function updateInputState() {
 }
 
 let contextCache = {};
+let agentColors = {};
 
 function updateAgentInfo(session) {
     if (!session) {
@@ -233,6 +234,7 @@ function renderAgentList(sessions) {
     const archive = sessions.filter(s => s.status === 'stopped' || s.status === 'error');
 
     for (const s of active) {
+        if (s.color) agentColors[s.name] = s.color;
         list.appendChild(createAgentItem(s));
     }
 
@@ -256,6 +258,8 @@ function createAgentItem(s) {
         isDead ? 'opacity-50 hover:opacity-70' : 'hover:bg-slate-800/50'
     }`;
     item.addEventListener('click', () => selectAgent(s.name));
+
+    if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
 
     const icon = document.createElement('span');
     icon.textContent = s.is_orchestrator ? '🎯' : isDead ? '🪦' : '⚙️';
@@ -395,6 +399,8 @@ function addChatEntry(type, content, ts) {
             streamBubble = document.createElement('div');
             streamBubble.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body';
             streamBubble.style.position = 'relative';
+            const agentColor = agentColors[selectedAgent];
+            if (agentColor) streamBubble.style.borderLeft = `3px solid ${agentColor}`;
             chat.appendChild(streamBubble);
         }
         streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
@@ -426,11 +432,34 @@ function addChatEntry(type, content, ts) {
         type === 'error' ? 'text-red-400 text-xs' :
         'chat-bot markdown-body'
     }`;
-    if (type === 'user_message') { div.textContent = content; }
+    if (type === 'user_message') {
+        const fromMatch = content.match(/^\[from:(.+?)\]\s*([\s\S]*)$/);
+        if (fromMatch) {
+            const sender = fromMatch[1];
+            const msg = fromMatch[2];
+            const senderColor = agentColors[sender] || '#64748b';
+            div.style.borderLeft = `3px solid ${senderColor}`;
+            div.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot';
+            const label = document.createElement('div');
+            label.className = 'text-xs mb-1';
+            label.style.color = senderColor;
+            label.textContent = `${sender} → ${selectedAgent}`;
+            div.appendChild(label);
+            const body = document.createElement('div');
+            body.textContent = msg;
+            div.appendChild(body);
+        } else {
+            div.textContent = content;
+        }
+    }
     else if (type === 'tool') { div.textContent = `🔧 ${content}`; }
     else if (type === 'tool_result') { div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(content)); }
     else if (type === 'error') { div.textContent = content; }
-    else { div.innerHTML = DOMPurify.sanitize(marked.parse(content)); }
+    else {
+        div.innerHTML = DOMPurify.sanitize(marked.parse(content));
+        const agentColor = agentColors[selectedAgent];
+        if (agentColor) div.style.borderLeft = `3px solid ${agentColor}`;
+    }
 
     addCopyBtn(div, content);
     addTimestamp(div, ts);
