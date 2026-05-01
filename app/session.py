@@ -16,7 +16,7 @@ from claude_agent_sdk import (
     ToolUseBlock,
     PermissionResultAllow,
 )
-from claude_agent_sdk.types import StreamEvent
+from claude_agent_sdk.types import StreamEvent, ToolResultBlock
 
 from app.db import save_session, add_log
 
@@ -204,6 +204,9 @@ class AgentSession:
                         self._log("text", block.text)
                     elif isinstance(block, ToolUseBlock):
                         self._log("tool", f"{block.name}: {str(block.input)[:200]}")
+                    elif isinstance(block, ToolResultBlock):
+                        content = str(getattr(block, 'content', ''))[:500]
+                        self._log("tool_result", content)
             elif isinstance(msg, ResultMessage):
                 if _stream_buf:
                     self._log("stream", _stream_buf)

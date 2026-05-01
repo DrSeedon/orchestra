@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.1.0 — 2026-05-01
+
+### Added
+- 📡 **Streaming text** — responses appear live as chunks, not after full generation. `StreamEvent` + `content_block_delta` handling
+- 📎 **Tool results visible** — MCP tool outputs (`ToolResultBlock`) shown in chat with 📎 prefix
+- 🪦 **Agent archive** — stopped/killed workers get hash suffix (e.g. `worker-1-abc123`), move to archive section. Name freed for reuse. Chat history preserved, read-only
+- 🏷️ **Model registry** — `app/models.py` single source of truth. Aliases resolved (`sonnet` → `claude-sonnet-4-6`). API validates, dropdown loads from `/api/models`
+- 🔄 **restart_worker** MCP tool — kill + respawn in one call
+- 📊 **Context display** — `5% (12k/200k)` format, cached on agent switch
+
+### Fixed
+- **Worktree preserved on stop** — `stop()` no longer deletes worktree. Only explicit `kill/remove` does
+- **Auto-resume rehydrate** — all fields restored from DB (worktree_path, branch, created_at)
+- **`_run_turn()` exceptions** — done callback logs errors, sets ERROR status
+- **Error UX** — no "waiting for response" after 404/error. Debounce cancelled on failure
+- **Stopped agent resume** — writing to stopped agent auto-resumes it (fallback cwd if worktree missing)
+- **Duplicate names** — stopped agents archived with hash, name freed for new workers
+- **`list_workers`** — shows active + archived workers
+
+### Changed
+- `shutdown_all` — orchestrators stay `idle` (not stopped) for auto-resume. Workers get stopped with worktrees intact
+
 ## v1.0.0 — 2026-04-30
 
 Complete rewrite from MVP v0.4. One class, one way, Apple-level simplicity.

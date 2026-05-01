@@ -4,7 +4,7 @@
 
 # 🎼 Orchestra — AI Agent Orchestrator
 
-**v1.0.0** | [Changelog](CHANGELOG.md)
+**v1.1.0** | [Changelog](CHANGELOG.md)
 
 Your own AI agent orchestrator. Opus orchestrator manages a team of Sonnet workers, each in isolated git worktrees. Dashboard shows everything in real-time.
 

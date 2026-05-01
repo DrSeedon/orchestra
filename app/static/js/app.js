@@ -128,7 +128,7 @@ function selectAgent(name) {
     updateInputState();
     renderAgentList();
     fetchAgentContext(name);
-    refresh();
+    refresh().then(() => { $('#chat').scrollTop = $('#chat').scrollHeight; });
 }
 
 function updateInputState() {
@@ -389,11 +389,13 @@ function addChatEntry(type, content) {
     div.className = `px-3 py-2 rounded-lg text-sm break-words ${
         type === 'user_message' ? 'chat-user ml-16' :
         type === 'tool' ? 'chat-tool' :
+        type === 'tool_result' ? 'chat-tool-result' :
         type === 'error' ? 'text-red-400 text-xs' :
         'chat-bot markdown-body'
     }`;
     if (type === 'user_message') { div.textContent = content; }
     else if (type === 'tool') { div.textContent = `🔧 ${content}`; }
+    else if (type === 'tool_result') { div.textContent = `📎 ${content}`; }
     else if (type === 'error') { div.textContent = content; }
     else { div.innerHTML = marked.parse(content); }
 
