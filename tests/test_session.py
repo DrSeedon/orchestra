@@ -143,7 +143,7 @@ class TestSend:
             await session.send("task")
 
     @pytest.mark.asyncio
-    async def test_idle_creates_new_client(self, session, mock_sdk):
+    async def test_idle_reuses_client(self, session, mock_sdk):
         session.debounce_sec = 0.1
         with patch("app.session._create_client", return_value=mock_sdk) as factory:
             await session.start()
@@ -152,7 +152,7 @@ class TestSend:
             await asyncio.sleep(0.3)
             if session._turn_task:
                 await session._turn_task
-            assert factory.call_count >= 2
+            assert factory.call_count == 1
 
 
 class TestListenLoop:
