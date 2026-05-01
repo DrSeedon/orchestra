@@ -53,7 +53,7 @@ class TestCreateSession:
             "name": "worker/bad",
             "scope": "/tmp",
             "cwd": "/tmp",
-            "model": "m",
+            "model": "claude-sonnet-4-6",
         })
         assert r.status_code == 422
 
@@ -62,12 +62,12 @@ class TestCreateSession:
             "name": "",
             "scope": "/tmp",
             "cwd": "/tmp",
-            "model": "m",
+            "model": "claude-sonnet-4-6",
         })
         assert r.status_code == 422
 
     def test_409_duplicate(self, client):
-        body = {"name": "w1", "scope": "/tmp", "cwd": "/tmp", "model": "m"}
+        body = {"name": "w1", "scope": "/tmp", "cwd": "/tmp", "model": "claude-sonnet-4-6"}
         r1 = client.post("/api/sessions", json=body)
         assert r1.status_code == 201
         r2 = client.post("/api/sessions", json=body)
@@ -78,7 +78,7 @@ class TestCreateSession:
             "name": "w1",
             "scope": "/tmp",
             "cwd": "/nonexistent/path",
-            "model": "m",
+            "model": "claude-sonnet-4-6",
         })
         assert r.status_code == 422
 
@@ -90,8 +90,8 @@ class TestGetSessions:
         assert r.json() == []
 
     def test_list_with_scope(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/a", "cwd": "/tmp", "model": "m"})
-        client.post("/api/sessions", json={"name": "w2", "scope": "/b", "cwd": "/tmp", "model": "m"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/a", "cwd": "/tmp", "model": "claude-sonnet-4-6"})
+        client.post("/api/sessions", json={"name": "w2", "scope": "/b", "cwd": "/tmp", "model": "claude-sonnet-4-6"})
         r = client.get("/api/sessions", params={"scope": "/a"})
         assert r.status_code == 200
         data = r.json()
@@ -99,7 +99,7 @@ class TestGetSessions:
         assert data[0]["name"] == "w1"
 
     def test_get_by_name(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "m"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-4-6"})
         r = client.get("/api/sessions/w1", params={"scope": "/s"})
         assert r.status_code == 200
         assert r.json()["name"] == "w1"
@@ -111,7 +111,7 @@ class TestGetSessions:
 
 class TestSendMessage:
     def test_send(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "m"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-4-6"})
         r = client.post("/api/sessions/w1/send", json={"message": "hello", "scope": "/s"})
         assert r.status_code == 200
 
@@ -122,14 +122,14 @@ class TestSendMessage:
 
 class TestInterrupt:
     def test_interrupt(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "m"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-4-6"})
         r = client.post("/api/sessions/w1/interrupt", json={"scope": "/s"})
         assert r.status_code == 200
 
 
 class TestDeleteSession:
     def test_delete(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "m"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-4-6"})
         r = client.delete("/api/sessions/w1", params={"scope": "/s"})
         assert r.status_code == 200
         r2 = client.get("/api/sessions/w1", params={"scope": "/s"})
@@ -142,7 +142,7 @@ class TestDeleteSession:
 
 class TestLogs:
     def test_logs_empty(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "m"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-4-6"})
         r = client.get("/api/sessions/w1/logs", params={"scope": "/s"})
         assert r.status_code == 200
         assert isinstance(r.json(), list)

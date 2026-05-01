@@ -18,7 +18,7 @@ def set_manager(mgr):
     "name": str,
     "task": str,
     "repo_path": str,
-    "model": {"type": "string", "description": "Model: claude-sonnet-4-6 (default), claude-opus-4-6, claude-haiku-4-5"},
+    "model": {"type": "string", "description": "Model ID. Must be one of: claude-sonnet-4-6 (default), claude-opus-4-6[1m], claude-haiku-4-5. Always use full ID, not aliases."},
     "system_prompt": {"type": "string", "description": "Optional system prompt for the worker"},
 })
 async def spawn_worker(args):
@@ -69,16 +69,30 @@ async def send_to_worker(args):
         return {"content": [{"type": "text", "text": f"Send failed: {e}"}], "is_error": True}
 
 
-@tool("list_workers", "List all active worker sessions with their status.", {})
+@tool("list_workers", "List all worker sessions (active + archived) with their status.", {})
 async def list_workers(args):
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
-    workers = [s for s in _manager.sessions.values() if not s.is_orchestrator]
-    if not workers:
-        return {"content": [{"type": "text", "text": "No active workers"}]}
+    active = [s for s in _manager.sessions.values() if not s.is_orchestrator]
+    from app.db import get_all_sessions
+    all_scopes = set(s.scope for s in _manager.sessions.values())
+    archived = []
+    for scope in all_scopes:
+        for s in get_all_sessions(scope):
+            if not s.get("is_orchestrator") and s["status"] in ("stopped", "error"):
+                if not any(a.id == s["id"] for a in active):
+                    archived.append(s)
+    if not active and not archived:
+        return {"content": [{"type": "text", "text": "No workers (active or archived)"}]}
     lines = []
-    for w in workers:
-        lines.append(f"- **{w.name}** | {w.status.value} | {w.model} | ${w.cost_usd:.4f} | {w.branch or 'no branch'}")
+    if active:
+        lines.append("**Active:**")
+        for w in active:
+            lines.append(f"- **{w.name}** | {w.status.value} | {w.model} | ${w.cost_usd:.4f}")
+    if archived:
+        lines.append("\n**Archived:**")
+        for s in archived:
+            lines.append(f"- **{s['name']}** | {s['status']} | {s['model']} | ${s.get('cost_usd', 0):.4f}")
     return {"content": [{"type": "text", "text": "\n".join(lines)}]}
 
 
@@ -120,8 +134,9 @@ async def kill_worker(args):
             break
     if session:
         try:
+            archived_name = f"{name}-{session.id[:6]}"
             await _manager.remove(session.id)
-            return {"content": [{"type": "text", "text": f"Worker '{name}' killed and removed"}]}
+            return {"content": [{"type": "text", "text": f"Worker '{name}' killed. Archived as '{archived_name}' — you can still read its logs with get_worker_logs(name='{archived_name}')."}]}
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Kill failed: {e}"}], "is_error": True}
     from app.db import get_session_by_name, delete_session

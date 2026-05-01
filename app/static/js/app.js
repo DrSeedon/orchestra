@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#create-orch-btn').addEventListener('click', createOrchestrator);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#orch-cwd').focus(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
+    loadModels();
     loadOrchestrators();
     scheduleRefresh();
 });
@@ -41,6 +42,21 @@ function scheduleRefresh() {
         await refresh();
         scheduleRefresh();
     }, delay);
+}
+
+// === Models ===
+async function loadModels() {
+    try {
+        const models = await api('/api/models');
+        const select = $('#orch-model');
+        select.innerHTML = '';
+        for (const m of models) {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${m.name} (${m.id})`;
+            select.appendChild(opt);
+        }
+    } catch {}
 }
 
 // === Modal ===
@@ -105,18 +121,43 @@ function onOrchestratorChange() {
 // === Agent Selection ===
 function selectAgent(name) {
     selectedAgent = name;
+    streamBubble = null;
+    streamContent = '';
     $('#chat').innerHTML = '';
     if (chatLogs[name]) chatLogs[name].lastId = 0;
-    updatePlaceholder();
+    updateInputState();
     renderAgentList();
+    fetchAgentContext(name);
     refresh();
 }
 
-function updatePlaceholder() {
-    $('#chat-input').placeholder = selectedAgent ? `Message ${selectedAgent}...` : 'Message...';
+function updateInputState() {
+    const input = $('#chat-input');
+    const btn = $('#send-btn');
+    if (!selectedAgent) {
+        input.placeholder = 'Message...';
+        input.disabled = false;
+        btn.disabled = false;
+        return;
+    }
+    const sessions = [...document.querySelectorAll('.agent-item')];
+    const agentEl = sessions.find(el => {
+        const nameEl = el.querySelector('.text-xs.font-medium');
+        return nameEl && nameEl.textContent === selectedAgent;
+    });
+    const isDead = agentEl && (agentEl.classList.contains('opacity-50'));
+    if (isDead) {
+        input.placeholder = `${selectedAgent} — archived (read-only)`;
+        input.disabled = true;
+        btn.disabled = true;
+    } else {
+        input.placeholder = `Message ${selectedAgent}...`;
+        input.disabled = false;
+        btn.disabled = false;
+    }
 }
 
-let agentDetailCache = null;
+let contextCache = {};
 
 function updateAgentInfo(session) {
     if (!session) {
@@ -126,7 +167,7 @@ function updateAgentInfo(session) {
         $('#ai-cost').textContent = '-';
         $('#ai-branch').textContent = '-';
         $('#ai-scope').textContent = '-';
-        $('#ai-context')?.remove();
+        setContextDisplay('-');
         return;
     }
     $('#ai-name').textContent = session.name;
@@ -137,31 +178,45 @@ function updateAgentInfo(session) {
     $('#ai-cost').textContent = `$${session.cost_usd || 0}`;
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
+    if (contextCache[session.name]) {
+        setContextDisplay(contextCache[session.name]);
+    } else {
+        setContextDisplay('...');
+    }
     fetchAgentContext(session.name);
+}
+
+function setContextDisplay(text) {
+    let ctxEl = $('#ai-context');
+    if (!ctxEl) {
+        const grid = $('#agent-info .grid');
+        const label = document.createElement('span');
+        label.className = 'text-slate-500';
+        label.textContent = 'Context';
+        ctxEl = document.createElement('span');
+        ctxEl.id = 'ai-context';
+        ctxEl.className = 'text-amber-400';
+        grid.append(label, ctxEl);
+    }
+    ctxEl.textContent = text;
+}
+
+function formatContext(ctx) {
+    const pct = Math.round(ctx.percentage || 0);
+    const total = ctx.total_tokens || 0;
+    const max = ctx.max_tokens || 0;
+    const totalK = total > 1000 ? `${(total/1000).toFixed(0)}k` : total;
+    const maxK = max > 1000 ? `${(max/1000).toFixed(0)}k` : max;
+    return `${pct}% (${totalK}/${maxK})`;
 }
 
 async function fetchAgentContext(name) {
     if (!currentScope) return;
     try {
         const ctx = await api(`/api/sessions/${name}/context?scope=${encodeURIComponent(currentScope)}`);
-        if (name !== selectedAgent) return;
-        let ctxEl = $('#ai-context');
-        if (!ctxEl) {
-            const grid = $('#agent-info .grid');
-            const label = document.createElement('span');
-            label.className = 'text-slate-500';
-            label.textContent = 'Context';
-            ctxEl = document.createElement('span');
-            ctxEl.id = 'ai-context';
-            ctxEl.className = 'text-amber-400';
-            grid.append(label, ctxEl);
-        }
-        const pct = Math.round(ctx.percentage || 0);
-        const total = ctx.total_tokens || 0;
-        const max = ctx.max_tokens || 0;
-        const totalK = total > 1000 ? `${(total/1000).toFixed(0)}k` : total;
-        const maxK = max > 1000 ? `${(max/1000).toFixed(0)}k` : max;
-        ctxEl.textContent = `${pct}% (${totalK}/${maxK})`;
+        const text = formatContext(ctx);
+        contextCache[name] = text;
+        if (name === selectedAgent) setContextDisplay(text);
     } catch {}
 }
 
@@ -170,40 +225,60 @@ function renderAgentList(sessions) {
     if (!sessions) return;
     const list = $('#agent-list');
     list.innerHTML = '';
-    for (const s of sessions) {
-        const item = document.createElement('div');
-        const isSelected = s.name === selectedAgent;
-        item.className = `agent-item flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-            isSelected ? 'bg-indigo-900/30 border border-indigo-500/30' : 'hover:bg-slate-800/50'
-        }`;
-        item.addEventListener('click', () => selectAgent(s.name));
 
-        const icon = document.createElement('span');
-        icon.textContent = s.is_orchestrator ? '🎯' : '⚙️';
-        icon.className = 'text-sm';
+    const active = sessions.filter(s => s.status !== 'stopped' && s.status !== 'error');
+    const archive = sessions.filter(s => s.status === 'stopped' || s.status === 'error');
 
-        const info = document.createElement('div');
-        info.className = 'flex-1 min-w-0';
-        const nameRow = document.createElement('div');
-        nameRow.className = 'flex items-center justify-between';
-        const nameEl = document.createElement('span');
-        nameEl.className = 'text-xs font-medium truncate';
-        nameEl.textContent = s.name;
-        const statusEl = document.createElement('span');
-        statusEl.className = `text-xs font-mono status-${s.status}`;
-        statusEl.textContent = `● ${s.status}`;
-        nameRow.append(nameEl, statusEl);
-
-        const lastLog = document.createElement('div');
-        lastLog.className = 'text-xs text-slate-600 truncate mt-0.5';
-        lastLog.textContent = s.model || '';
-
-        info.append(nameRow, lastLog);
-        item.append(icon, info);
-        list.appendChild(item);
-
-        if (isSelected) updateAgentInfo(s);
+    for (const s of active) {
+        list.appendChild(createAgentItem(s));
     }
+
+    if (archive.length > 0) {
+        const divider = document.createElement('div');
+        divider.className = 'text-xs text-slate-700 uppercase tracking-wider px-3 pt-3 pb-1';
+        divider.textContent = `Archive (${archive.length})`;
+        list.appendChild(divider);
+        for (const s of archive) {
+            list.appendChild(createAgentItem(s));
+        }
+    }
+}
+
+function createAgentItem(s) {
+    const isSelected = s.name === selectedAgent;
+    const isDead = s.status === 'stopped' || s.status === 'error';
+    const item = document.createElement('div');
+    item.className = `agent-item flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+        isSelected ? 'bg-indigo-900/30 border border-indigo-500/30' :
+        isDead ? 'opacity-50 hover:opacity-70' : 'hover:bg-slate-800/50'
+    }`;
+    item.addEventListener('click', () => selectAgent(s.name));
+
+    const icon = document.createElement('span');
+    icon.textContent = s.is_orchestrator ? '🎯' : isDead ? '🪦' : '⚙️';
+    icon.className = 'text-sm';
+
+    const info = document.createElement('div');
+    info.className = 'flex-1 min-w-0';
+    const nameRow = document.createElement('div');
+    nameRow.className = 'flex items-center justify-between';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'text-xs font-medium truncate';
+    nameEl.textContent = s.name;
+    const statusEl = document.createElement('span');
+    statusEl.className = `text-xs font-mono status-${s.status}`;
+    statusEl.textContent = `● ${s.status}`;
+    nameRow.append(nameEl, statusEl);
+
+    const meta = document.createElement('div');
+    meta.className = 'text-xs text-slate-600 mt-0.5';
+    meta.textContent = s.model || '';
+
+    info.append(nameRow, meta);
+    item.append(icon, info);
+
+    if (isSelected) updateAgentInfo(s);
+    return item;
 }
 
 // === Chat ===
@@ -226,6 +301,10 @@ async function sendChat() {
             body: JSON.stringify({ message: msg, scope: currentScope }),
         });
     } catch (e) {
+        if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+        if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
+        pendingBubble = null; pendingUserMsgs = [];
+        removeWaitingIndicator();
         addChatEntry('error', e.message);
     }
 }
@@ -274,9 +353,38 @@ function removeWaitingIndicator() {
     if (el) el.remove();
 }
 
+let streamBubble = null;
+let streamContent = '';
+
 function addChatEntry(type, content) {
-    if (type !== 'user_message') removeWaitingIndicator();
+    if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
+
+    if (type === 'stream') {
+        removeWaitingIndicator();
+        streamContent += content;
+        if (!streamBubble) {
+            streamBubble = document.createElement('div');
+            streamBubble.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body';
+            chat.appendChild(streamBubble);
+        }
+        streamBubble.innerHTML = marked.parse(streamContent);
+        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        return;
+    }
+
+    if (type === 'text' && streamBubble) {
+        streamBubble = null;
+        streamContent = '';
+        return;
+    }
+
+    if (streamBubble && type !== 'text') {
+        streamBubble = null;
+        streamContent = '';
+    }
+
     const div = document.createElement('div');
     div.className = `px-3 py-2 rounded-lg text-sm break-words ${
         type === 'user_message' ? 'chat-user ml-16' :

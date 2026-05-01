@@ -96,6 +96,11 @@ def get_all_sessions(scope: str | None = None) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def rename_session(session_id: str, new_name: str) -> None:
+    with _conn() as c:
+        c.execute("UPDATE sessions SET name = ? WHERE id = ?", (new_name, session_id))
+
+
 def delete_session(session_id: str) -> None:
     with _conn() as c:
         c.execute("DELETE FROM sessions WHERE id = ?", (session_id,))

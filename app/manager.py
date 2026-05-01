@@ -1,16 +1,17 @@
 """SessionManager — registry, lifecycle, persistence for all agent sessions."""
 
-import asyncio
 import logging
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from app.session import AgentSession, AgentStatus, _create_client
+from app.session import AgentSession, AgentStatus
 from app.workspace import create_worktree, remove_worktree
 from app.tools import orchestra_server, worker_server, set_manager
+from app.models import resolve_model
 from app.db import (
-    save_session, get_session, get_session_by_name, get_all_sessions,
+    save_session, get_session_by_name, get_all_sessions,
     delete_session, get_stats, get_resumable_orchestrators, mark_stale_sessions,
 )
 
@@ -39,10 +40,12 @@ class SessionManager:
         repo_path: str | None = None,
         is_orchestrator: bool = False,
     ) -> AgentSession:
+        model = resolve_model(model)
         if not Path(cwd).is_dir():
             raise ValueError(f"cwd does not exist: {cwd}")
 
-        if get_session_by_name(name, scope):
+        existing = get_session_by_name(name, scope)
+        if existing:
             raise ValueError(f"session '{name}' already exists in scope '{scope}'")
 
         session_id = str(uuid.uuid4())
@@ -121,6 +124,9 @@ class SessionManager:
         if session:
             if session.status in (AgentStatus.RUNNING, AgentStatus.STARTING):
                 await session.stop()
+            if session.worktree_path:
+                from app.workspace import remove_worktree
+                remove_worktree(session.scope, session.worktree_path)
             del self.sessions[session_id]
         delete_session(session_id)
 
@@ -140,8 +146,6 @@ class SessionManager:
         db_row = get_session_by_name(name, scope)
         if not db_row:
             return None
-        if db_row["status"] in ("stopped", "error"):
-            return None
         is_orch = bool(db_row.get("is_orchestrator"))
         if is_orch:
             mcp = {"orchestra": orchestra_server}
@@ -149,17 +153,24 @@ class SessionManager:
         else:
             mcp = {"orchestra": worker_server}
             prompt = db_row.get("system_prompt", "") or WORKER_SYSTEM_PROMPT
+        cwd = db_row["cwd"]
+        wt_path = db_row.get("worktree_path")
+        if cwd and not Path(cwd).is_dir():
+            logger.warning(f"Session {name} cwd missing: {cwd}, falling back to scope")
+            cwd = db_row["scope"]
+            wt_path = None
         session = AgentSession(
             id=db_row["id"],
             name=db_row["name"],
             scope=db_row["scope"],
-            cwd=db_row["cwd"],
+            cwd=cwd,
             model=db_row["model"],
             system_prompt=prompt,
             session_id=db_row.get("session_id"),
             cost_usd=db_row.get("cost_usd", 0),
-            worktree_path=db_row.get("worktree_path"),
+            worktree_path=wt_path,
             branch=db_row.get("branch"),
+            created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
             is_orchestrator=is_orch,
             mcp_servers=mcp,
         )
@@ -211,6 +222,9 @@ class SessionManager:
                     system_prompt=orch.get("system_prompt", "") or ORCHESTRATOR_SYSTEM_PROMPT,
                     session_id=orch["session_id"],
                     cost_usd=orch.get("cost_usd", 0),
+                    worktree_path=orch.get("worktree_path"),
+                    branch=orch.get("branch"),
+                    created_at=datetime.fromisoformat(orch["created_at"]) if orch.get("created_at") else datetime.now(timezone.utc),
                     is_orchestrator=True,
                     mcp_servers={"orchestra": orchestra_server},
                 )

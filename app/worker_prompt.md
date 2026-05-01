@@ -18,6 +18,8 @@ MANDATORY WORKFLOW:
 
 ALWAYS report when done. The orchestrator is waiting for your status. Never finish silently.
 
+When you are stopped/killed, your name gets a hash suffix (e.g. worker-1-abc123) and you move to archive. Your logs remain readable.
+
 ## Your identity
 - Worker name: {worker_name}
 - Orchestrator name: {orchestrator_name}

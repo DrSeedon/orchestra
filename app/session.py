@@ -5,7 +5,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Optional
 
 from claude_agent_sdk import (
@@ -17,6 +16,7 @@ from claude_agent_sdk import (
     ToolUseBlock,
     PermissionResultAllow,
 )
+from claude_agent_sdk.types import StreamEvent
 
 from app.db import save_session, add_log
 
@@ -67,7 +67,7 @@ class AgentSession:
     name: str
     scope: str
     cwd: str
-    model: str = "claude-sonnet-4-6"
+    model: str = "claude-sonnet-4-6"  # full ID, resolved by manager
     system_prompt: str = ""
     status: AgentStatus = AgentStatus.STARTING
     session_id: str | None = None
@@ -86,6 +86,18 @@ class AgentSession:
     _is_connected: bool = field(default=False, repr=False)
     debounce_sec: float = 2.0
 
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        try:
+            exc = task.exception()
+        except asyncio.CancelledError:
+            return
+        if exc:
+            logger.error(f"Session {self.name} task error: {exc}", exc_info=exc)
+            if self.status != AgentStatus.ERROR:
+                self.status = AgentStatus.ERROR
+                self._log("error", str(exc))
+                self._persist()
+
     async def start(self, initial_message: str | None = None) -> None:
         self._client = _create_client(
             self.model, self.cwd,
@@ -96,6 +108,7 @@ class AgentSession:
             self.status = AgentStatus.RUNNING
             self._persist()
             self._turn_task = asyncio.create_task(self._run_turn(initial_message))
+            self._turn_task.add_done_callback(self._on_task_done)
         else:
             await self._client.connect()
             self._is_connected = True
@@ -148,6 +161,7 @@ class AgentSession:
         )
         self.status = AgentStatus.RUNNING
         self._turn_task = asyncio.create_task(self._run_turn(combined))
+        self._turn_task.add_done_callback(self._on_task_done)
 
     async def _run_turn(self, message: str) -> None:
         async with self._lock:
@@ -166,14 +180,34 @@ class AgentSession:
                 raise
 
     async def _listen_loop(self) -> None:
+        _stream_buf = ""
         async for msg in self._client.receive_messages():
-            if isinstance(msg, AssistantMessage):
+            if isinstance(msg, StreamEvent):
+                ev = msg.event
+                if ev.get("type") == "content_block_delta":
+                    delta = ev.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        _stream_buf += delta.get("text", "")
+                        if len(_stream_buf) > 50 or "\n" in delta.get("text", ""):
+                            self._log("stream", _stream_buf)
+                            _stream_buf = ""
+                elif ev.get("type") == "content_block_stop":
+                    if _stream_buf:
+                        self._log("stream", _stream_buf)
+                        _stream_buf = ""
+            elif isinstance(msg, AssistantMessage):
+                if _stream_buf:
+                    self._log("stream", _stream_buf)
+                    _stream_buf = ""
                 for block in msg.content:
                     if isinstance(block, TextBlock) and block.text:
                         self._log("text", block.text)
                     elif isinstance(block, ToolUseBlock):
                         self._log("tool", f"{block.name}: {str(block.input)[:200]}")
             elif isinstance(msg, ResultMessage):
+                if _stream_buf:
+                    self._log("stream", _stream_buf)
+                    _stream_buf = ""
                 if msg.session_id:
                     self.session_id = msg.session_id
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
@@ -203,10 +237,13 @@ class AgentSession:
                 pass
             self._is_connected = False
         self.status = AgentStatus.STOPPED
+        self._archive_name()
         self._persist()
-        if self.worktree_path:
-            from app.workspace import remove_worktree
-            remove_worktree(self.cwd, self.worktree_path)
+
+    def _archive_name(self) -> None:
+        if not self.is_orchestrator:
+            short_id = self.id[:6]
+            self.name = f"{self.name}-{short_id}"
 
     def _client_connected(self) -> bool:
         return self._client is not None and self._is_connected

@@ -14,6 +14,7 @@ from pydantic import BaseModel, field_validator, model_validator
 
 from app.db import init_db, get_logs, get_orchestrators
 from app.manager import SessionManager
+from app.models import resolve_model, MODELS
 
 manager = SessionManager()
 templates = Jinja2Templates(directory="app/templates")
@@ -47,6 +48,14 @@ class CreateSessionRequest(BaseModel):
         if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", v):
             raise ValueError("name must be alphanumeric with ._- allowed, 1-50 chars")
         return v
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, v):
+        resolved = resolve_model(v)
+        if resolved not in MODELS:
+            raise ValueError(f"unknown model '{v}'. Available: {', '.join(MODELS.keys())}")
+        return resolved
 
     @field_validator("cwd")
     @classmethod
@@ -177,3 +186,8 @@ async def stats(scope: Optional[str] = None):
 @app.get("/api/orchestrators")
 async def list_orchestrators():
     return get_orchestrators()
+
+
+@app.get("/api/models")
+async def list_models():
+    return [{"id": k, "name": v} for k, v in MODELS.items()]

@@ -28,7 +28,7 @@ def mgr(db, tmp_path, monkeypatch):
 class TestCreateSession:
     @pytest.mark.asyncio
     async def test_returns_session(self, mgr):
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -44,7 +44,7 @@ class TestCreateSession:
 
     @pytest.mark.asyncio
     async def test_generates_uuid(self, mgr):
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -61,7 +61,7 @@ class TestCreateSession:
 
     @pytest.mark.asyncio
     async def test_duplicate_name_scope_raises(self, mgr):
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -72,7 +72,7 @@ class TestCreateSession:
     @pytest.mark.asyncio
     async def test_persists_to_db(self, mgr):
         from app.db import get_session_by_name
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -93,7 +93,7 @@ class TestCreateSession:
         subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "i"], cwd=repo, capture_output=True, check=True)
 
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -108,7 +108,7 @@ class TestCreateSession:
 class TestSendAndControl:
     @pytest.mark.asyncio
     async def test_send_routes(self, mgr):
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -124,7 +124,7 @@ class TestSendAndControl:
 
     @pytest.mark.asyncio
     async def test_stop_and_remove(self, mgr):
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -136,7 +136,7 @@ class TestSendAndControl:
     @pytest.mark.asyncio
     async def test_remove_deletes_from_dict_and_db(self, mgr):
         from app.db import get_session
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -149,7 +149,7 @@ class TestSendAndControl:
 class TestListSessions:
     @pytest.mark.asyncio
     async def test_scope_filter(self, mgr):
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -161,7 +161,7 @@ class TestListSessions:
 
     @pytest.mark.asyncio
     async def test_merges_active_and_db(self, mgr):
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
             receive_messages=AsyncMock(return_value=iter([])),
         )):
@@ -194,11 +194,11 @@ class TestAutoResume:
         from app.db import save_session, get_session
         save_session({
             "id": "stale-1", "name": "worker-stale", "scope": "/tmp",
-            "cwd": "/tmp", "model": "m", "system_prompt": "",             "status": "running", "session_id": None, "cost_usd": 0.0,
+            "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",             "status": "running", "session_id": None, "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
         })
-        with patch("app.manager._create_client", return_value=AsyncMock(
+        with patch("app.session._create_client", return_value=AsyncMock(
             connect=AsyncMock())):
             await mgr.auto_resume_orchestrators()
         got = get_session("stale-1")

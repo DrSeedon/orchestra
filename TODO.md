@@ -3,8 +3,8 @@
 ## From Codex Round 5
 
 - [ ] DB calls через `asyncio.to_thread()` — sync SQLite блокирует event loop (до 5с с busy_timeout). Для dev tool не критично, но правильнее обернуть
-- [ ] `_run_turn()` exceptions в background task — unobserved. Добавить done callback для логирования. Сейчас status → ERROR виден в poll, но exception теряется
-- [ ] Auto-resume rehydrate все поля из DB (worktree_path, branch, created_at)
+- [x] `_run_turn()` exceptions — done callback логирует + ставит ERROR
+- [x] Auto-resume rehydrate все поля из DB (worktree_path, branch, created_at)
 - [ ] `.claude/agents/*.md` парсинг frontmatter — в спеке обещано, не реализовано. Либо добавить, либо убрать из спеки
 
 ## UX

@@ -38,9 +38,6 @@
                 <div>
                     <label class="text-xs text-slate-500 block mb-1">Model</label>
                     <select id="orch-model" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-                        <option value="claude-opus-4-6[1m]">Opus 4.6 (1M)</option>
-                        <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-                        <option value="claude-haiku-4-5">Haiku 4.5</option>
                     </select>
                 </div>
                 <div id="orch-error" class="text-xs text-red-400 hidden"></div>
@@ -72,9 +69,9 @@
                     <span id="ai-status" class="text-xs font-mono"></span>
                 </div>
                 <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <span class="text-slate-500">Model</span><span id="ai-model" class="text-slate-300 truncate"></span>
+                    <span class="text-slate-500">Model</span><span id="ai-model" class="text-slate-300 break-all"></span>
                     <span class="text-slate-500">Cost</span><span id="ai-cost" class="text-green-400"></span>
-                    <span class="text-slate-500">Branch</span><span id="ai-branch" class="text-indigo-400 truncate font-mono"></span>
+                    <span class="text-slate-500">Branch</span><span id="ai-branch" class="text-indigo-400 break-all font-mono"></span>
                     <span class="text-slate-500">Scope</span><span id="ai-scope" class="text-slate-400 text-xs break-all"></span>
                 </div>
             </div>
