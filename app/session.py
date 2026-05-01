@@ -89,6 +89,23 @@ class AgentSession:
     _is_connected: bool = field(default=False, repr=False)
     debounce_sec: float = 2.0
 
+    async def _cleanup_client(self) -> None:
+        if self._debounce_task and not self._debounce_task.done():
+            self._debounce_task.cancel()
+        if self._turn_task and not self._turn_task.done():
+            self._turn_task.cancel()
+            try:
+                await self._turn_task
+            except (asyncio.CancelledError, Exception):
+                pass
+        if self._client:
+            try:
+                await self._client.disconnect()
+            except Exception:
+                pass
+            self._client = None
+            self._is_connected = False
+
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
             exc = task.exception()
@@ -102,12 +119,7 @@ class AgentSession:
                 self._persist()
 
     async def start(self, initial_message: str | None = None) -> None:
-        if self._client:
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
-            self._is_connected = False
+        await self._cleanup_client()
         self._client = _create_client(
             self.model, self.cwd,
             self.system_prompt, self.session_id, self._auto_approve,
@@ -243,20 +255,7 @@ class AgentSession:
 
     async def stop(self) -> None:
         self._pending.clear()
-        if self._debounce_task and not self._debounce_task.done():
-            self._debounce_task.cancel()
-        if self._turn_task and not self._turn_task.done():
-            self._turn_task.cancel()
-            try:
-                await self._turn_task
-            except (asyncio.CancelledError, Exception):
-                pass
-        if self._client:
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
-            self._is_connected = False
+        await self._cleanup_client()
         self.status = AgentStatus.STOPPED
         self._archive_name()
         self._persist()

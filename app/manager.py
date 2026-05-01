@@ -102,6 +102,7 @@ class SessionManager:
             return session
 
         except Exception:
+            await session._cleanup_client()
             if session.worktree_path and repo_path:
                 try:
                     remove_worktree(repo_path, session.worktree_path)
@@ -194,6 +195,7 @@ class SessionManager:
                 self.sessions[session.id] = session
                 return session
             except Exception as e:
+                await session._cleanup_client()
                 logger.error(f"Failed to load session {name}: {e}")
                 return None
 
@@ -224,6 +226,10 @@ class SessionManager:
         orchestrators = get_resumable_orchestrators()
         resumed_ids = []
         for orch in orchestrators:
+            if orch["id"] in self.sessions:
+                logger.info(f"Orchestrator {orch['name']} already loaded, skipping")
+                resumed_ids.append(orch["id"])
+                continue
             if not Path(orch["cwd"]).is_dir():
                 logger.warning(f"Skipping orchestrator {orch['name']}: cwd gone")
                 continue
@@ -248,6 +254,7 @@ class SessionManager:
                 resumed_ids.append(session.id)
                 logger.info(f"Resumed orchestrator: {orch['name']}")
             except Exception as e:
+                await session._cleanup_client()
                 logger.error(f"Failed to resume {orch['name']}: {e}")
 
         stale = mark_stale_sessions(resumed_ids)
@@ -258,19 +265,7 @@ class SessionManager:
         for session in list(self.sessions.values()):
             try:
                 if session.is_orchestrator:
-                    if session._debounce_task and not session._debounce_task.done():
-                        session._debounce_task.cancel()
-                    if session._turn_task and not session._turn_task.done():
-                        session._turn_task.cancel()
-                        try:
-                            await session._turn_task
-                        except Exception:
-                            pass
-                    if session._client:
-                        try:
-                            await session._client.disconnect()
-                        except Exception:
-                            pass
+                    await session._cleanup_client()
                     session.status = AgentStatus.IDLE
                     session._persist()
                 else:
