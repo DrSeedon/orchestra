@@ -102,6 +102,12 @@ class AgentSession:
                 self._persist()
 
     async def start(self, initial_message: str | None = None) -> None:
+        if self._client:
+            try:
+                await self._client.disconnect()
+            except Exception:
+                pass
+            self._is_connected = False
         self._client = _create_client(
             self.model, self.cwd,
             self.system_prompt, self.session_id, self._auto_approve,
