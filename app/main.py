@@ -125,7 +125,7 @@ async def get_session(name: str, scope: str):
 
 @app.get("/api/sessions/{name}/context")
 async def get_session_context(name: str, scope: str):
-    session = await manager.ensure_loaded(name, scope)
+    session = manager.get_by_name(name, scope)
     if not session:
         return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
     return await session.get_context()

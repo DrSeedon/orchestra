@@ -74,14 +74,11 @@ async def list_workers(args):
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
     active = [s for s in _manager.sessions.values() if not s.is_orchestrator]
+    active_ids = {s.id for s in active}
     from app.db import get_all_sessions
-    all_scopes = set(s.scope for s in _manager.sessions.values())
-    archived = []
-    for scope in all_scopes:
-        for s in get_all_sessions(scope):
-            if not s.get("is_orchestrator") and s["status"] in ("stopped", "error"):
-                if not any(a.id == s["id"] for a in active):
-                    archived.append(s)
+    archived = [s for s in get_all_sessions()
+                if not s.get("is_orchestrator") and s["status"] in ("stopped", "error")
+                and s["id"] not in active_ids]
     if not active and not archived:
         return {"content": [{"type": "text", "text": "No workers (active or archived)"}]}
     lines = []
@@ -112,12 +109,9 @@ async def get_worker_logs(args):
             session_id = s.id
             break
     if not session_id:
-        for scope in set(s.scope for s in _manager.sessions.values()):
-            for s in get_all_sessions(scope):
-                if s["name"] == name:
-                    session_id = s["id"]
-                    break
-            if session_id:
+        for s in get_all_sessions():
+            if s["name"] == name:
+                session_id = s["id"]
                 break
     if not session_id:
         return {"content": [{"type": "text", "text": f"Worker '{name}' not found (active or archived)"}], "is_error": True}
@@ -148,11 +142,10 @@ async def kill_worker(args):
             return {"content": [{"type": "text", "text": f"Worker '{name}' killed. Archived as '{archived_name}' — read logs with get_worker_logs(name='{archived_name}')."}]}
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Kill failed: {e}"}], "is_error": True}
-    from app.db import get_session_by_name
-    for scope in set(s.scope for s in _manager.sessions.values()):
-        db_row = get_session_by_name(name, scope)
-        if db_row:
-            return {"content": [{"type": "text", "text": f"Worker '{name}' already archived in DB (status: {db_row['status']})"}]}
+    from app.db import get_all_sessions
+    for s in get_all_sessions():
+        if s["name"] == name:
+            return {"content": [{"type": "text", "text": f"Worker '{name}' already archived in DB (status: {s['status']})"}]}
     return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
 
 
