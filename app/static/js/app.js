@@ -11,7 +11,6 @@ const UI_DEBOUNCE_MS = 2500;
 let scrollAfterLoad = true;
 
 const $ = (s) => document.querySelector(s);
-const $$ = (s) => document.querySelectorAll(s);
 
 document.addEventListener('DOMContentLoaded', () => {
     $('#send-btn').addEventListener('click', sendChat);
@@ -181,8 +180,9 @@ function updateAgentInfo(session) {
     $('#ai-cost').textContent = `$${session.cost_usd || 0}`;
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
-    if (contextCache[session.name]) {
-        setContextDisplay(contextCache[session.name]);
+    const ctxKey = `${currentScope}:${session.name}`;
+    if (contextCache[ctxKey]) {
+        setContextDisplay(contextCache[ctxKey]);
     } else {
         setContextDisplay('...');
     }
@@ -218,7 +218,7 @@ async function fetchAgentContext(name) {
     try {
         const ctx = await api(`/api/sessions/${name}/context?scope=${encodeURIComponent(currentScope)}`);
         const text = formatContext(ctx);
-        contextCache[name] = text;
+        contextCache[`${currentScope}:${name}`] = text;
         if (name === selectedAgent) setContextDisplay(text);
     } catch {}
 }
@@ -397,7 +397,7 @@ function addChatEntry(type, content, ts) {
             streamBubble.style.position = 'relative';
             chat.appendChild(streamBubble);
         }
-        streamBubble.innerHTML = marked.parse(streamContent);
+        streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
@@ -428,9 +428,9 @@ function addChatEntry(type, content, ts) {
     }`;
     if (type === 'user_message') { div.textContent = content; }
     else if (type === 'tool') { div.textContent = `🔧 ${content}`; }
-    else if (type === 'tool_result') { div.innerHTML = '📎 ' + marked.parse(content); }
+    else if (type === 'tool_result') { div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(content)); }
     else if (type === 'error') { div.textContent = content; }
-    else { div.innerHTML = marked.parse(content); }
+    else { div.innerHTML = DOMPurify.sanitize(marked.parse(content)); }
 
     addCopyBtn(div, content);
     addTimestamp(div, ts);

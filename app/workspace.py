@@ -65,9 +65,22 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
     wt = Path(worktree_path)
     if not wt.exists():
         return
+    cwd = repo_path
+    git_file = wt / ".git"
+    if git_file.exists() and git_file.is_file():
+        try:
+            content = git_file.read_text().strip()
+            if content.startswith("gitdir:"):
+                git_dir = Path(content.split("gitdir:", 1)[1].strip()).resolve()
+                for parent in git_dir.parents:
+                    if (parent / ".git").is_dir():
+                        cwd = str(parent)
+                        break
+        except Exception:
+            pass
     result = subprocess.run(
         ["git", "worktree", "remove", str(wt), "--force"],
-        cwd=repo_path, capture_output=True, text=True,
+        cwd=cwd, capture_output=True, text=True,
     )
     if result.returncode != 0:
         logger.warning(f"worktree remove failed: {result.stderr}")

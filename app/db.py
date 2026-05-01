@@ -59,6 +59,7 @@ def save_session(s: dict) -> None:
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :created_at, :finished_at)
             ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name,
                 status=excluded.status,
                 session_id=excluded.session_id,
                 cost_usd=excluded.cost_usd,
@@ -117,11 +118,18 @@ def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
 
 def get_logs(session_id: str, after_id: int = 0, limit: int = 200) -> list[dict]:
     with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM logs WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
-            (session_id, after_id, limit),
-        ).fetchall()
-        return [dict(r) for r in rows]
+        if after_id > 0:
+            rows = c.execute(
+                "SELECT * FROM logs WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
+                (session_id, after_id, limit),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        else:
+            rows = c.execute(
+                "SELECT * FROM logs WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+                (session_id, limit),
+            ).fetchall()
+            return [dict(r) for r in reversed(rows)]
 
 
 def get_stats(scope: str | None = None) -> dict:

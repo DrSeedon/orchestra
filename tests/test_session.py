@@ -133,7 +133,7 @@ class TestSend:
             await asyncio.sleep(0.05)
             assert session.status == AgentStatus.RUNNING
             await session.send("queued task")
-            assert len(session._pending) >= 0
+            assert session._pending or session.status == AgentStatus.RUNNING
 
     @pytest.mark.asyncio
     async def test_stopped_raises(self, session, mock_sdk):

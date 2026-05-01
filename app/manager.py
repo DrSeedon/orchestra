@@ -1,5 +1,6 @@
 """SessionManager — registry, lifecycle, persistence for all agent sessions."""
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -27,6 +28,7 @@ WORKER_SYSTEM_PROMPT = _WORKER_PROMPT_PATH.read_text() if _WORKER_PROMPT_PATH.ex
 class SessionManager:
     def __init__(self):
         self.sessions: dict[str, AgentSession] = {}
+        self._load_locks: dict[str, asyncio.Lock] = {}
         set_manager(self)
 
     async def create_session(
@@ -143,44 +145,51 @@ class SessionManager:
         session = self.get_by_name(name, scope)
         if session:
             return session
-        db_row = get_session_by_name(name, scope)
-        if not db_row:
-            return None
-        is_orch = bool(db_row.get("is_orchestrator"))
-        if is_orch:
-            mcp = {"orchestra": orchestra_server}
-            prompt = db_row.get("system_prompt", "") or ORCHESTRATOR_SYSTEM_PROMPT
-        else:
-            mcp = {"orchestra": worker_server}
-            prompt = db_row.get("system_prompt", "") or WORKER_SYSTEM_PROMPT
-        cwd = db_row["cwd"]
-        wt_path = db_row.get("worktree_path")
-        if cwd and not Path(cwd).is_dir():
-            logger.warning(f"Session {name} cwd missing: {cwd}, falling back to scope")
-            cwd = db_row["scope"]
-            wt_path = None
-        session = AgentSession(
-            id=db_row["id"],
-            name=db_row["name"],
-            scope=db_row["scope"],
-            cwd=cwd,
-            model=db_row["model"],
-            system_prompt=prompt,
-            session_id=db_row.get("session_id"),
-            cost_usd=db_row.get("cost_usd", 0),
-            worktree_path=wt_path,
-            branch=db_row.get("branch"),
-            created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
-            is_orchestrator=is_orch,
-            mcp_servers=mcp,
-        )
-        try:
-            await session.start()
-            self.sessions[session.id] = session
-            return session
-        except Exception as e:
-            logger.error(f"Failed to load session {name}: {e}")
-            return None
+        key = f"{scope}:{name}"
+        if key not in self._load_locks:
+            self._load_locks[key] = asyncio.Lock()
+        async with self._load_locks[key]:
+            session = self.get_by_name(name, scope)
+            if session:
+                return session
+            db_row = get_session_by_name(name, scope)
+            if not db_row:
+                return None
+            is_orch = bool(db_row.get("is_orchestrator"))
+            if is_orch:
+                mcp = {"orchestra": orchestra_server}
+                prompt = db_row.get("system_prompt", "") or ORCHESTRATOR_SYSTEM_PROMPT
+            else:
+                mcp = {"orchestra": worker_server}
+                prompt = db_row.get("system_prompt", "") or WORKER_SYSTEM_PROMPT
+            cwd = db_row["cwd"]
+            wt_path = db_row.get("worktree_path")
+            if cwd and not Path(cwd).is_dir():
+                logger.warning(f"Session {name} cwd missing: {cwd}, falling back to scope")
+                cwd = db_row["scope"]
+                wt_path = None
+            session = AgentSession(
+                id=db_row["id"],
+                name=db_row["name"],
+                scope=db_row["scope"],
+                cwd=cwd,
+                model=db_row["model"],
+                system_prompt=prompt,
+                session_id=db_row.get("session_id"),
+                cost_usd=db_row.get("cost_usd", 0),
+                worktree_path=wt_path,
+                branch=db_row.get("branch"),
+                created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
+                is_orchestrator=is_orch,
+                mcp_servers=mcp,
+            )
+            try:
+                await session.start()
+                self.sessions[session.id] = session
+                return session
+            except Exception as e:
+                logger.error(f"Failed to load session {name}: {e}")
+                return None
 
     def _find_orchestrator_name(self, scope: str) -> str | None:
         for s in self.sessions.values():

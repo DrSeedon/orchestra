@@ -144,24 +144,26 @@ class AgentSession:
         except asyncio.CancelledError:
             return
 
-        batch = list(self._pending)
-        self._pending.clear()
-        if not batch:
-            return
+        async with self._lock:
+            batch = list(self._pending)
+            self._pending.clear()
+            if not batch:
+                return
 
-        combined = "\n".join(batch)
-        if self._client:
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
-            self._is_connected = False
-        self._client = _create_client(
-            self.model, self.cwd,
-            self.system_prompt, self.session_id, self._auto_approve,
-            self.mcp_servers or None,
-        )
-        self.status = AgentStatus.RUNNING
+            combined = "\n".join(batch)
+            if self._client:
+                try:
+                    await self._client.disconnect()
+                except Exception:
+                    pass
+                self._is_connected = False
+            self._client = _create_client(
+                self.model, self.cwd,
+                self.system_prompt, self.session_id, self._auto_approve,
+                self.mcp_servers or None,
+            )
+            self.status = AgentStatus.RUNNING
+
         self._turn_task = asyncio.create_task(self._run_turn(combined))
         self._turn_task.add_done_callback(self._on_task_done)
 

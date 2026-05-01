@@ -96,24 +96,32 @@ async def list_workers(args):
     return {"content": [{"type": "text", "text": "\n".join(lines)}]}
 
 
-@tool("get_worker_logs", "Get recent logs from a worker.", {
+@tool("get_worker_logs", "Get recent logs from a worker (active or archived).", {
     "name": str,
     "limit": {"type": "integer", "description": "Max logs to return (default 20)"},
 })
 async def get_worker_logs(args):
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
-    from app.db import get_logs, get_session_by_name
+    from app.db import get_logs, get_all_sessions
     name = args["name"]
     limit = args.get("limit", 20)
-    session = None
+    session_id = None
     for s in _manager.sessions.values():
         if s.name == name:
-            session = s
+            session_id = s.id
             break
-    if not session:
-        return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
-    logs = get_logs(session.id, limit=limit)
+    if not session_id:
+        for scope in set(s.scope for s in _manager.sessions.values()):
+            for s in get_all_sessions(scope):
+                if s["name"] == name:
+                    session_id = s["id"]
+                    break
+            if session_id:
+                break
+    if not session_id:
+        return {"content": [{"type": "text", "text": f"Worker '{name}' not found (active or archived)"}], "is_error": True}
+    logs = get_logs(session_id, limit=limit)
     if not logs:
         return {"content": [{"type": "text", "text": f"No logs for '{name}'"}]}
     lines = [f"[{l['type']}] {l['content'][:200]}" for l in logs]
@@ -134,17 +142,17 @@ async def kill_worker(args):
             break
     if session:
         try:
-            archived_name = f"{name}-{session.id[:6]}"
-            await _manager.remove(session.id)
-            return {"content": [{"type": "text", "text": f"Worker '{name}' killed. Archived as '{archived_name}' — you can still read its logs with get_worker_logs(name='{archived_name}')."}]}
+            await _manager.stop(session.id)
+            archived_name = session.name
+            del _manager.sessions[session.id]
+            return {"content": [{"type": "text", "text": f"Worker '{name}' killed. Archived as '{archived_name}' — read logs with get_worker_logs(name='{archived_name}')."}]}
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Kill failed: {e}"}], "is_error": True}
-    from app.db import get_session_by_name, delete_session
+    from app.db import get_session_by_name
     for scope in set(s.scope for s in _manager.sessions.values()):
         db_row = get_session_by_name(name, scope)
         if db_row:
-            delete_session(db_row["id"])
-            return {"content": [{"type": "text", "text": f"Worker '{name}' removed from DB"}]}
+            return {"content": [{"type": "text", "text": f"Worker '{name}' already archived in DB (status: {db_row['status']})"}]}
     return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
 
 
