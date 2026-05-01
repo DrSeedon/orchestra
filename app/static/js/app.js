@@ -356,6 +356,16 @@ function removeWaitingIndicator() {
     if (el) el.remove();
 }
 
+function addTimestamp(el, ts) {
+    if (!el || !ts || el.querySelector('.chat-time')) return;
+    const d = new Date(ts);
+    const local = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const time = document.createElement('span');
+    time.className = 'chat-time';
+    time.textContent = local;
+    el.appendChild(time);
+}
+
 function addCopyBtn(el, text) {
     if (!el || el.querySelector('.copy-btn')) return;
     el.style.position = 'relative';
@@ -374,7 +384,7 @@ function addCopyBtn(el, text) {
 let streamBubble = null;
 let streamContent = '';
 
-function addChatEntry(type, content) {
+function addChatEntry(type, content, ts) {
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
 
@@ -395,6 +405,7 @@ function addChatEntry(type, content) {
 
     if (type === 'text' && streamBubble) {
         addCopyBtn(streamBubble, streamContent);
+        addTimestamp(streamBubble, ts);
         streamBubble = null;
         streamContent = '';
         return;
@@ -402,6 +413,7 @@ function addChatEntry(type, content) {
 
     if (streamBubble && type !== 'text') {
         addCopyBtn(streamBubble, streamContent);
+        addTimestamp(streamBubble, ts);
         streamBubble = null;
         streamContent = '';
     }
@@ -421,6 +433,7 @@ function addChatEntry(type, content) {
     else { div.innerHTML = marked.parse(content); }
 
     addCopyBtn(div, content);
+    addTimestamp(div, ts);
     const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
     chat.appendChild(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
@@ -457,7 +470,7 @@ async function refresh() {
                     if (l.type === 'user_message' && localMessages.has(l.content)) {
                         localMessages.delete(l.content);
                     } else {
-                        addChatEntry(l.type, l.content);
+                        addChatEntry(l.type, l.content, l.ts);
                     }
                     if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
                 }
