@@ -73,7 +73,13 @@ async def send_to_worker(args):
     if not session:
         return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
     try:
-        await session.send(message)
+        orch_name = None
+        for s in _manager.sessions.values():
+            if s.is_orchestrator:
+                orch_name = s.name
+                break
+        prefixed = f"[from:{orch_name or 'orchestrator'}] {message}"
+        await session.send(prefixed)
         return {"content": [{"type": "text", "text": f"Message sent to '{name}'"}]}
     except Exception as e:
         return {"content": [{"type": "text", "text": f"Send failed: {e}"}], "is_error": True}

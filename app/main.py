@@ -157,9 +157,9 @@ async def send_message(name: str, req: SendRequest):
 
 @app.post("/api/sessions/{name}/interrupt")
 async def interrupt_session(name: str, req: ScopeRequest):
-    session = await manager.ensure_loaded(name, req.scope)
+    session = manager.get_by_name(name, req.scope)
     if not session:
-        return JSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({"error": "agent not running"}, status_code=404)
     await manager.interrupt(session.id)
     return {"ok": True}
 
