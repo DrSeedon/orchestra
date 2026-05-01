@@ -65,6 +65,12 @@ async def send_to_worker(args):
             session = s
             break
     if not session:
+        from app.db import get_all_sessions
+        for scope in set(s.scope for s in _manager.sessions.values()):
+            session = await _manager.ensure_loaded(name, scope)
+            if session:
+                break
+    if not session:
         return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
     try:
         await session.send(message)

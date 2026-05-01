@@ -372,11 +372,11 @@ async function stopAgent() {
 }
 
 function updateStopButton(status) {
-    const stopBtn = $('#stop-btn');
+    const btn = $('#stop-btn');
     if (status === 'running') {
-        stopBtn.classList.remove('hidden');
+        btn.classList.remove('hidden');
     } else {
-        stopBtn.classList.add('hidden');
+        btn.classList.add('hidden');
     }
 }
 
