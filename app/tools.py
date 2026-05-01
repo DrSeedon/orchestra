@@ -86,19 +86,18 @@ async def list_workers(args):
     active = [s for s in _manager.sessions.values() if not s.is_orchestrator]
     active_ids = {s.id for s in active}
     from app.db import get_all_sessions
-    archived = [s for s in get_all_sessions()
-                if not s.get("is_orchestrator") and s["status"] in ("stopped", "error")
-                and s["id"] not in active_ids]
-    if not active and not archived:
+    db_workers = [s for s in get_all_sessions()
+                  if not s.get("is_orchestrator") and s["id"] not in active_ids]
+    if not active and not db_workers:
         return {"content": [{"type": "text", "text": "No workers (active or archived)"}]}
     lines = []
     if active:
         lines.append("**Active:**")
         for w in active:
             lines.append(f"- **{w.name}** | {w.status.value} | {w.model} | ${w.cost_usd:.4f}")
-    if archived:
-        lines.append("\n**Archived:**")
-        for s in archived:
+    if db_workers:
+        lines.append("\n**In DB (not in memory):**")
+        for s in db_workers:
             lines.append(f"- **{s['name']}** | {s['status']} | {s['model']} | ${s.get('cost_usd', 0):.4f}")
     return {"content": [{"type": "text", "text": "\n".join(lines)}]}
 

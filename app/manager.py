@@ -64,7 +64,7 @@ class SessionManager:
             final_prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT
         else:
             mcp = {"orchestra": worker_server}
-            final_prompt = system_prompt or WORKER_SYSTEM_PROMPT
+            final_prompt = WORKER_SYSTEM_PROMPT + ("\n\n" + system_prompt if system_prompt else "")
 
         session = AgentSession(
             id=session_id,
