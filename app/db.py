@@ -48,6 +48,13 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
             CREATE INDEX IF NOT EXISTS idx_sessions_scope ON sessions(scope, is_orchestrator, status);
         """)
+        _migrate(c)
+
+
+def _migrate(c) -> None:
+    cols = {row[1] for row in c.execute("PRAGMA table_info(sessions)").fetchall()}
+    if "color" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN color TEXT DEFAULT ''")
 
 
 def save_session(s: dict) -> None:
