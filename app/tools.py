@@ -151,10 +151,15 @@ async def kill_worker(args):
             return {"content": [{"type": "text", "text": f"Worker '{name}' killed. Archived as '{archived_name}' — read logs with get_worker_logs(name='{archived_name}')."}]}
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Kill failed: {e}"}], "is_error": True}
-    from app.db import get_all_sessions
+    from app.db import get_all_sessions, save_session, rename_session
     for s in get_all_sessions():
         if s["name"] == name:
-            return {"content": [{"type": "text", "text": f"Worker '{name}' already archived in DB (status: {s['status']})"}]}
+            archived_name = f"{name}-{s['id'][:6]}"
+            rename_session(s["id"], archived_name)
+            s["status"] = "stopped"
+            s["name"] = archived_name
+            save_session(s)
+            return {"content": [{"type": "text", "text": f"Worker '{name}' archived as '{archived_name}'. Logs readable via get_worker_logs(name='{archived_name}')."}]}
     return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
 
 
