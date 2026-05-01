@@ -14,3 +14,4 @@
 - [x] **Streaming text** — StreamEvent chunks rendered live
 - [ ] **Worker templates** — `.claude/agents/*.md` файлы как шаблоны воркеров. При `spawn_worker` можно указать template (необязательно). Оркестратор может создавать новые шаблоны через filesystem. Dashboard: dropdown с доступными шаблонами + MCP тул `list_templates`
 - [ ] **Custom system prompt при спавне** — оркестратор может дописать доп. инструкции поверх шаблона при создании воркера (параметр `extra_instructions` в `spawn_worker`). Шаблон + доп. инструкции = финальный system prompt
+- [ ] **Media in chat** — MCP тул для агентов чтобы показывать картинки/файлы/диаграммы в дашборде. Агент вызывает `show_media(path="/tmp/screenshot.png")` → dashboard рендерит `<img>`. Поддержка: PNG, JPG, SVG, может markdown с mermaid

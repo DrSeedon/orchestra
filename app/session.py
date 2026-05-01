@@ -16,7 +16,9 @@ from claude_agent_sdk import (
     ToolUseBlock,
     PermissionResultAllow,
 )
-from claude_agent_sdk.types import StreamEvent, ToolResultBlock
+from claude_agent_sdk.types import (
+    StreamEvent, ToolResultBlock, ServerToolResultBlock, UserMessage,
+)
 
 from app.db import save_session, add_log
 
@@ -195,6 +197,19 @@ class AgentSession:
                     if _stream_buf:
                         self._log("stream", _stream_buf)
                         _stream_buf = ""
+            elif isinstance(msg, UserMessage):
+                if hasattr(msg, 'content') and isinstance(msg.content, list):
+                    for block in msg.content:
+                        if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
+                            raw = getattr(block, 'content', '')
+                            if isinstance(raw, list):
+                                parts = [item.get('text', str(item)) if isinstance(item, dict) else str(item) for item in raw]
+                                result_text = '\n'.join(parts)[:500]
+                            elif isinstance(raw, dict):
+                                result_text = raw.get('text', str(raw))[:500]
+                            else:
+                                result_text = str(raw)[:500]
+                            self._log("tool_result", result_text)
             elif isinstance(msg, AssistantMessage):
                 if _stream_buf:
                     self._log("stream", _stream_buf)
@@ -204,8 +219,15 @@ class AgentSession:
                         self._log("text", block.text)
                     elif isinstance(block, ToolUseBlock):
                         self._log("tool", f"{block.name}: {str(block.input)[:200]}")
-                    elif isinstance(block, ToolResultBlock):
-                        content = str(getattr(block, 'content', ''))[:500]
+                    elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
+                        raw = getattr(block, 'content', '')
+                        if isinstance(raw, list):
+                            parts = [item.get('text', str(item)) if isinstance(item, dict) else str(item) for item in raw]
+                            content = '\n'.join(parts)[:500]
+                        elif isinstance(raw, dict):
+                            content = raw.get('text', str(raw))[:500]
+                        else:
+                            content = str(raw)[:500]
                         self._log("tool_result", content)
             elif isinstance(msg, ResultMessage):
                 if _stream_buf:

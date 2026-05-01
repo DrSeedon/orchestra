@@ -8,6 +8,7 @@ let pendingBubble = null;
 let uiDebounceTimer = null;
 let refreshController = null;
 const UI_DEBOUNCE_MS = 2500;
+let scrollAfterLoad = true;
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -114,6 +115,7 @@ function onOrchestratorChange() {
     pendingBubble = null;
     selectedAgent = opt?.dataset?.name || null;
     $('#chat').innerHTML = '';
+    scrollAfterLoad = true;
     updateAgentInfo(null);
     refresh();
 }
@@ -125,10 +127,11 @@ function selectAgent(name) {
     streamContent = '';
     $('#chat').innerHTML = '';
     if (chatLogs[name]) chatLogs[name].lastId = 0;
+    scrollAfterLoad = true;
     updateInputState();
     renderAgentList();
     fetchAgentContext(name);
-    refresh().then(() => { $('#chat').scrollTop = $('#chat').scrollHeight; });
+    refresh();
 }
 
 function updateInputState() {
@@ -353,6 +356,21 @@ function removeWaitingIndicator() {
     if (el) el.remove();
 }
 
+function addCopyBtn(el, text) {
+    if (!el || el.querySelector('.copy-btn')) return;
+    el.style.position = 'relative';
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = '📋';
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        btn.textContent = '✅';
+        setTimeout(() => btn.textContent = '📋', 1500);
+    });
+    el.appendChild(btn);
+}
+
 let streamBubble = null;
 let streamContent = '';
 
@@ -366,6 +384,7 @@ function addChatEntry(type, content) {
         if (!streamBubble) {
             streamBubble = document.createElement('div');
             streamBubble.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body';
+            streamBubble.style.position = 'relative';
             chat.appendChild(streamBubble);
         }
         streamBubble.innerHTML = marked.parse(streamContent);
@@ -375,12 +394,14 @@ function addChatEntry(type, content) {
     }
 
     if (type === 'text' && streamBubble) {
+        addCopyBtn(streamBubble, streamContent);
         streamBubble = null;
         streamContent = '';
         return;
     }
 
     if (streamBubble && type !== 'text') {
+        addCopyBtn(streamBubble, streamContent);
         streamBubble = null;
         streamContent = '';
     }
@@ -395,23 +416,11 @@ function addChatEntry(type, content) {
     }`;
     if (type === 'user_message') { div.textContent = content; }
     else if (type === 'tool') { div.textContent = `🔧 ${content}`; }
-    else if (type === 'tool_result') { div.textContent = `📎 ${content}`; }
+    else if (type === 'tool_result') { div.innerHTML = '📎 ' + marked.parse(content); }
     else if (type === 'error') { div.textContent = content; }
     else { div.innerHTML = marked.parse(content); }
 
-    if (type !== 'error') {
-        div.style.position = 'relative';
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.textContent = '📋';
-        copyBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            navigator.clipboard.writeText(content);
-            copyBtn.textContent = '✅';
-            setTimeout(() => copyBtn.textContent = '📋', 1500);
-        });
-        div.appendChild(copyBtn);
-    }
+    addCopyBtn(div, content);
     const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
     chat.appendChild(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
@@ -457,6 +466,11 @@ async function refresh() {
                     showWaitingIndicator();
                 } else if (agentSession.status !== 'running') {
                     removeWaitingIndicator();
+                }
+
+                if (scrollAfterLoad) {
+                    scrollAfterLoad = false;
+                    $('#chat').scrollTop = $('#chat').scrollHeight;
                 }
             }
         }
