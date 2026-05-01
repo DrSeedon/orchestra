@@ -30,20 +30,24 @@ async def spawn_worker(args):
     model = args.get("model", "claude-sonnet-4-6")
     system_prompt = args.get("system_prompt", "")
     scope = repo_path
-    try:
-        session = await _manager.create_session(
-            name=name,
-            scope=scope,
-            cwd=repo_path,
-            model=model,
-            system_prompt=system_prompt,
-            use_worktree=True,
-            repo_path=repo_path,
-        )
-        await session.send(task)
-        return {"content": [{"type": "text", "text": f"Worker '{name}' spawned on {repo_path}\nBranch: {session.branch}\nModel: {model}\nTask sent."}]}
-    except Exception as e:
-        return {"content": [{"type": "text", "text": f"Spawn failed: {e}"}], "is_error": True}
+    import asyncio
+    async def _do_spawn():
+        try:
+            session = await _manager.create_session(
+                name=name,
+                scope=scope,
+                cwd=repo_path,
+                model=model,
+                system_prompt=system_prompt,
+                use_worktree=True,
+                repo_path=repo_path,
+            )
+            await session.send(task)
+            logger.info(f"Worker '{name}' spawned and task sent")
+        except Exception as e:
+            logger.error(f"Spawn '{name}' failed: {e}")
+    asyncio.create_task(_do_spawn())
+    return {"content": [{"type": "text", "text": f"Worker '{name}' spawning in background on {repo_path}.\nModel: {model}\nCheck status with list_workers."}]}
 
 
 @tool("send_to_worker", "Send a message to an existing worker.", {
