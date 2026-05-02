@@ -203,3 +203,136 @@ class TestAutoResume:
             await mgr.auto_resume_orchestrators()
         got = get_session("stale-1")
         assert got["status"] == "error"
+
+
+class TestArchivedSessions:
+    """Data layer refactor: manager.archived holds stopped/error sessions in memory."""
+
+    @pytest.mark.asyncio
+    async def test_stop_moves_to_archived(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
+            sid = session.id
+            await mgr.stop(sid)
+        assert mgr.get(sid) is None
+        assert sid in mgr.archived
+
+    @pytest.mark.asyncio
+    async def test_archived_has_correct_status(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
+            await mgr.stop(session.id)
+        assert mgr.archived[session.id]["status"] == "stopped"
+
+    @pytest.mark.asyncio
+    async def test_list_sessions_includes_archived(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            s1 = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
+            s2 = await mgr.create_session(name="w2", scope="/s", cwd="/tmp", model="m")
+            await mgr.stop(s1.id)
+        result = mgr.list_sessions()
+        names = {s["name"] for s in result}
+        assert "w2" in names
+        assert any(s1.id[:6] in s["name"] for s in result)
+
+    @pytest.mark.asyncio
+    async def test_list_sessions_no_db_call(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
+        with patch("app.db.get_all_sessions", side_effect=RuntimeError("should not call DB")):
+            result = mgr.list_sessions()
+        assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_by_name_finds_archived(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
+            await mgr.stop(session.id)
+        archived_name = session.name
+        found = mgr.get_by_name(archived_name, "/s")
+        assert found is not None
+        assert found["id"] == session.id
+
+    @pytest.mark.asyncio
+    async def test_remove_deletes_from_archived(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
+            sid = session.id
+            await mgr.stop(sid)
+        assert sid in mgr.archived
+        await mgr.remove(sid)
+        assert sid not in mgr.archived
+
+    @pytest.mark.asyncio
+    async def test_load_archived_at_startup(self, mgr):
+        from app.db import save_session
+        save_session({
+            "id": "arch-1", "name": "old-worker-abc123", "scope": "/tmp",
+            "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",
+            "status": "stopped", "session_id": None, "cost_usd": 0.5,
+            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+        })
+        mgr.load_archived()
+        assert "arch-1" in mgr.archived
+        assert mgr.archived["arch-1"]["name"] == "old-worker-abc123"
+
+    @pytest.mark.asyncio
+    async def test_load_archived_skips_active(self, mgr):
+        from app.db import save_session
+        save_session({
+            "id": "idle-1", "name": "orch", "scope": "/tmp",
+            "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",
+            "status": "idle", "session_id": "sdk-123", "cost_usd": 0,
+            "worktree_path": None, "branch": None, "is_orchestrator": True,
+            "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+        mgr.load_archived()
+        assert "idle-1" not in mgr.archived
+
+    @pytest.mark.asyncio
+    async def test_list_sessions_scope_filter_on_archived(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            s1 = await mgr.create_session(name="w1", scope="/a", cwd="/tmp", model="m")
+            s2 = await mgr.create_session(name="w2", scope="/b", cwd="/tmp", model="m")
+            await mgr.stop(s1.id)
+            await mgr.stop(s2.id)
+        result_a = mgr.list_sessions(scope="/a")
+        result_b = mgr.list_sessions(scope="/b")
+        assert len(result_a) == 1
+        assert len(result_b) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_session_id_for_archived(self, mgr):
+        with patch("app.session._create_client", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
+            sid = session.id
+            await mgr.stop(sid)
+        found = mgr.get_session_id(session.name, "/s")
+        assert found == sid

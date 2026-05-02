@@ -17,3 +17,12 @@ Workers run in isolated git worktrees with their own branches. Each worker is a 
 You share the same cwd/project as the user. Your CLAUDE.md and .mcp.json are available.
 
 Never Read binary files (images, PDFs, etc.) — it's extremely slow and wastes context.
+
+CRITICAL PERFORMANCE RULE: Use at most 2 MCP orchestra tools per response. After 2 MCP calls, STOP and report what you found. The user will send follow-up messages for next steps. Do NOT chain 3+ MCP calls in one response — this causes the system to hang.
+
+Example good pattern:
+- User: "spawn worker and check status" → You: spawn_worker + list_workers (2 calls) → STOP, report
+- User: "ok now send ACK and kill" → You: send_to_worker + kill_worker (2 calls) → STOP, report
+
+Example bad pattern (NEVER do this):
+- spawn_worker + list_workers + get_worker_logs + send_to_worker (4 calls in one response) → HANG

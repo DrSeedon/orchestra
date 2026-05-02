@@ -33,8 +33,50 @@ WORKER_SYSTEM_PROMPT = _WORKER_PROMPT_PATH.read_text() if _WORKER_PROMPT_PATH.ex
 class SessionManager:
     def __init__(self):
         self.sessions: dict[str, AgentSession] = {}
+        self.archived: dict[str, dict] = {}
         self._load_locks: dict[str, asyncio.Lock] = {}
+        self._spawn_queue: asyncio.Queue = asyncio.Queue()
+        self._spawn_task: asyncio.Task | None = None
         set_manager(self)
+
+    def start_background_tasks(self) -> None:
+        if not self._spawn_task or self._spawn_task.done():
+            self._spawn_task = asyncio.create_task(self._spawn_worker_loop())
+
+    async def enqueue_worker_spawn(self, **job) -> None:
+        await self._spawn_queue.put(job)
+
+    async def _spawn_worker_loop(self) -> None:
+        while True:
+            job = await self._spawn_queue.get()
+            try:
+                await asyncio.sleep(0.5)
+                session = await self.create_session(
+                    name=job["name"],
+                    scope=job["repo_path"],
+                    cwd=job["repo_path"],
+                    model=job["model"],
+                    system_prompt=job.get("system_prompt", ""),
+                    use_worktree=True,
+                    repo_path=job["repo_path"],
+                )
+                await session.send(job["task"])
+                logger.info(f"Worker '{job['name']}' spawned via queue")
+            except Exception as e:
+                logger.error(f"Spawn '{job.get('name')}' failed: {e}")
+            finally:
+                self._spawn_queue.task_done()
+
+    def _on_session_error(self, session_id: str) -> None:
+        session = self.sessions.pop(session_id, None)
+        if session:
+            self.archived[session_id] = session._to_db_dict()
+            asyncio.create_task(session._cleanup_client())
+
+    def load_archived(self) -> None:
+        for row in get_all_sessions():
+            if row["status"] in ("stopped", "error") and row["id"] not in self.sessions:
+                self.archived[row["id"]] = row
 
     async def create_session(
         self,
@@ -81,7 +123,7 @@ class SessionManager:
 
         try:
             if use_worktree and repo_path:
-                wt = create_worktree(repo_path, name, scope)
+                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
@@ -97,6 +139,7 @@ class SessionManager:
 
             save_session(session._to_db_dict())
 
+            session.on_error = self._on_session_error
             await session.start()
             self.sessions[session.id] = session
             return session
@@ -126,41 +169,53 @@ class SessionManager:
     async def stop(self, session_id: str) -> None:
         session = self.sessions.get(session_id)
         if session:
-            await session.stop()
+            try:
+                await session.stop()
+                self.archived[session_id] = session._to_db_dict()
+                self.sessions.pop(session_id, None)
+            except Exception:
+                session._persist()
+                raise
 
     async def remove(self, session_id: str) -> None:
-        session = self.sessions.get(session_id)
+        session = self.sessions.pop(session_id, None)
         if session:
-            if session.status in (AgentStatus.RUNNING, AgentStatus.STARTING):
-                await session.stop()
+            await session._cleanup_client()
             if session.worktree_path:
                 from app.workspace import remove_worktree
                 remove_worktree(session.scope, session.worktree_path)
-            del self.sessions[session_id]
+        self.archived.pop(session_id, None)
         delete_session(session_id)
 
     def get(self, session_id: str) -> Optional[AgentSession]:
         return self.sessions.get(session_id)
 
-    def get_by_name(self, name: str, scope: str) -> Optional[AgentSession]:
+    def get_by_name(self, name: str, scope: str) -> AgentSession | dict | None:
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
                 return s
+        for a in self.archived.values():
+            if a["name"] == name and a["scope"] == scope:
+                return a
         return None
 
     async def ensure_loaded(self, name: str, scope: str) -> Optional[AgentSession]:
-        session = self.get_by_name(name, scope)
-        if session:
-            return session
+        for s in self.sessions.values():
+            if s.name == name and s.scope == scope:
+                return s
+        if any(a["name"] == name and a["scope"] == scope for a in self.archived.values()):
+            return None
         key = f"{scope}:{name}"
         if key not in self._load_locks:
             self._load_locks[key] = asyncio.Lock()
         async with self._load_locks[key]:
-            session = self.get_by_name(name, scope)
-            if session:
-                return session
+            for s in self.sessions.values():
+                if s.name == name and s.scope == scope:
+                    return s
             db_row = get_session_by_name(name, scope)
             if not db_row:
+                return None
+            if db_row["status"] in ("stopped", "error"):
                 return None
             is_orch = bool(db_row.get("is_orchestrator"))
             if is_orch:
@@ -191,6 +246,7 @@ class SessionManager:
                 mcp_servers=mcp,
             )
             try:
+                session.on_error = self._on_session_error
                 await session.start()
                 self.sessions[session.id] = session
                 return session
@@ -206,18 +262,52 @@ class SessionManager:
         return None
 
     def list_sessions(self, scope: str | None = None) -> list[dict]:
-        active = {s.id: s.to_dict() for s in self.sessions.values()
-                  if scope is None or s.scope == scope}
-        db_sessions = get_all_sessions(scope)
         result = []
-        seen = set()
-        for s in active.values():
-            result.append(s)
-            seen.add(s["id"])
-        for s in db_sessions:
-            if s["id"] not in seen:
-                result.append(s)
+        for s in self.sessions.values():
+            if scope is None or s.scope == scope:
+                result.append(s.to_dict())
+        for a in self.archived.values():
+            if scope is None or a["scope"] == scope:
+                result.append(a.copy())
         return result
+
+    def get_session_id(self, name: str, scope: str) -> str | None:
+        for s in self.sessions.values():
+            if s.name == name and s.scope == scope:
+                return s.id
+        for a in self.archived.values():
+            if a["name"] == name and a["scope"] == scope:
+                return a["id"]
+        return None
+
+    def find_worker(self, name: str) -> AgentSession | None:
+        for s in self.sessions.values():
+            if s.name == name and not s.is_orchestrator:
+                return s
+        return None
+
+    def find_session_id_by_name(self, name: str) -> str | None:
+        for s in self.sessions.values():
+            if s.name == name:
+                return s.id
+        for a in self.archived.values():
+            if a["name"] == name:
+                return a["id"]
+        return None
+
+    def archive_by_id(self, session_id: str, new_name: str) -> bool:
+        if session_id in self.sessions:
+            return False
+        entry = self.archived.get(session_id)
+        if not entry:
+            from app.db import get_session
+            entry = get_session(session_id)
+        if not entry:
+            return False
+        updated = {**entry, "name": new_name, "status": "stopped"}
+        save_session(updated)
+        self.archived[session_id] = updated
+        return True
 
     def stats(self, scope: str | None = None) -> dict:
         return get_stats(scope)
@@ -248,6 +338,7 @@ class SessionManager:
                     created_at=datetime.fromisoformat(orch["created_at"]) if orch.get("created_at") else datetime.now(timezone.utc),
                     is_orchestrator=True,
                     mcp_servers={"orchestra": orchestra_server},
+                    on_error=self._on_session_error,
                 )
                 await session.start()
                 self.sessions[session.id] = session
@@ -260,6 +351,7 @@ class SessionManager:
         stale = mark_stale_sessions(resumed_ids)
         if stale:
             logger.info(f"Marked {stale} stale sessions as error")
+        self.load_archived()
 
     async def shutdown_all(self) -> None:
         for session in list(self.sessions.values()):
@@ -270,6 +362,7 @@ class SessionManager:
                     session._persist()
                 else:
                     await session.stop()
+                    self.archived[session.id] = session._to_db_dict()
             except Exception:
                 pass
         self.sessions.clear()

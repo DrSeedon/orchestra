@@ -24,30 +24,14 @@ def set_manager(mgr):
 async def spawn_worker(args):
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
-    name = args["name"]
-    task = args["task"]
-    repo_path = args["repo_path"]
-    model = args.get("model", "claude-sonnet-4-6")
-    system_prompt = args.get("system_prompt", "")
-    scope = repo_path
-    import asyncio
-    async def _do_spawn():
-        try:
-            session = await _manager.create_session(
-                name=name,
-                scope=scope,
-                cwd=repo_path,
-                model=model,
-                system_prompt=system_prompt,
-                use_worktree=True,
-                repo_path=repo_path,
-            )
-            await session.send(task)
-            logger.info(f"Worker '{name}' spawned and task sent")
-        except Exception as e:
-            logger.error(f"Spawn '{name}' failed: {e}")
-    asyncio.create_task(_do_spawn())
-    return {"content": [{"type": "text", "text": f"Worker '{name}' spawning in background on {repo_path}.\nModel: {model}\nCheck status with list_workers."}]}
+    await _manager.enqueue_worker_spawn(
+        name=args["name"],
+        task=args["task"],
+        repo_path=args["repo_path"],
+        model=args.get("model", "claude-sonnet-4-6"),
+        system_prompt=args.get("system_prompt", ""),
+    )
+    return {"content": [{"type": "text", "text": f"Worker '{args['name']}' spawn queued on {args['repo_path']}.\nModel: {args.get('model', 'claude-sonnet-4-6')}\nCheck status with list_workers."}]}
 
 
 @tool("send_to_worker", "Send a message to an existing worker.", {
@@ -59,13 +43,8 @@ async def send_to_worker(args):
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
     name = args["name"]
     message = args["message"]
-    session = None
-    for s in _manager.sessions.values():
-        if s.name == name and not s.is_orchestrator:
-            session = s
-            break
+    session = _manager.find_worker(name)
     if not session:
-        from app.db import get_all_sessions
         for scope in set(s.scope for s in _manager.sessions.values()):
             session = await _manager.ensure_loaded(name, scope)
             if session:
@@ -87,23 +66,21 @@ async def send_to_worker(args):
 
 @tool("list_workers", "List all worker sessions (active + archived) with their status.", {})
 async def list_workers(args):
+    logger.info("MCP list_workers called")
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
     active = [s for s in _manager.sessions.values() if not s.is_orchestrator]
-    active_ids = {s.id for s in active}
-    from app.db import get_all_sessions
-    db_workers = [s for s in get_all_sessions()
-                  if not s.get("is_orchestrator") and s["id"] not in active_ids]
-    if not active and not db_workers:
+    archived = [a for a in _manager.archived.values() if not a.get("is_orchestrator")]
+    if not active and not archived:
         return {"content": [{"type": "text", "text": "No workers (active or archived)"}]}
     lines = []
     if active:
         lines.append("**Active:**")
         for w in active:
             lines.append(f"- **{w.name}** | {w.status.value} | {w.model} | ${w.cost_usd:.4f}")
-    if db_workers:
-        lines.append("\n**In DB (not in memory):**")
-        for s in db_workers:
+    if archived:
+        lines.append("\n**Archived:**")
+        for s in archived:
             lines.append(f"- **{s['name']}** | {s['status']} | {s['model']} | ${s.get('cost_usd', 0):.4f}")
     return {"content": [{"type": "text", "text": "\n".join(lines)}]}
 
@@ -115,19 +92,10 @@ async def list_workers(args):
 async def get_worker_logs(args):
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
-    from app.db import get_logs, get_all_sessions
+    from app.db import get_logs
     name = args["name"]
     limit = args.get("limit", 20)
-    session_id = None
-    for s in _manager.sessions.values():
-        if s.name == name:
-            session_id = s.id
-            break
-    if not session_id:
-        for s in get_all_sessions():
-            if s["name"] == name:
-                session_id = s["id"]
-                break
+    session_id = _manager.find_session_id_by_name(name)
     if not session_id:
         return {"content": [{"type": "text", "text": f"Worker '{name}' not found (active or archived)"}], "is_error": True}
     logs = get_logs(session_id, limit=limit)
@@ -144,28 +112,19 @@ async def kill_worker(args):
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
     name = args["name"]
-    session = None
-    for s in _manager.sessions.values():
-        if s.name == name and not s.is_orchestrator:
-            session = s
-            break
+    session = _manager.find_worker(name)
     if session:
         try:
             await _manager.stop(session.id)
             archived_name = session.name
-            del _manager.sessions[session.id]
             return {"content": [{"type": "text", "text": f"Worker '{name}' killed. Archived as '{archived_name}' — read logs with get_worker_logs(name='{archived_name}')."}]}
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Kill failed: {e}"}], "is_error": True}
-    from app.db import get_all_sessions, save_session, rename_session
-    for s in get_all_sessions():
-        if s["name"] == name:
-            archived_name = f"{name}-{s['id'][:6]}"
-            rename_session(s["id"], archived_name)
-            s["status"] = "stopped"
-            s["name"] = archived_name
-            save_session(s)
-            return {"content": [{"type": "text", "text": f"Worker '{name}' archived as '{archived_name}'. Logs readable via get_worker_logs(name='{archived_name}')."}]}
+    session_id = _manager.find_session_id_by_name(name)
+    if session_id:
+        archived_name = f"{name}-{session_id[:6]}"
+        _manager.archive_by_id(session_id, archived_name)
+        return {"content": [{"type": "text", "text": f"Worker '{name}' archived as '{archived_name}'. Logs readable via get_worker_logs(name='{archived_name}')."}]}
     return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
 
 
@@ -178,11 +137,7 @@ async def restart_worker(args):
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
     name = args["name"]
     task = args["task"]
-    session = None
-    for s in _manager.sessions.values():
-        if s.name == name and not s.is_orchestrator:
-            session = s
-            break
+    session = _manager.find_worker(name)
     if not session:
         return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
     repo_path = session.scope

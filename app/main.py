@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import init_db, get_logs, get_orchestrators
+from app.db import init_db, get_logs
 from app.manager import SessionManager
 from app.models import resolve_model, MODELS
 
@@ -24,6 +24,7 @@ templates = Jinja2Templates(directory="app/templates")
 async def lifespan(app: FastAPI):
     init_db()
     await manager.auto_resume_orchestrators()
+    manager.start_background_tasks()
     yield
     await manager.shutdown_all()
 
@@ -113,34 +114,28 @@ async def create_session(req: CreateSessionRequest):
 
 @app.get("/api/sessions/{name}")
 async def get_session(name: str, scope: str):
-    session = manager.get_by_name(name, scope)
-    if not session:
-        from app.db import get_session_by_name
-        db_session = get_session_by_name(name, scope)
-        if not db_session:
-            return JSONResponse({"error": "not found"}, status_code=404)
-        return db_session
-    return session.to_dict()
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if isinstance(found, dict):
+        return found
+    return found.to_dict()
 
 
 @app.get("/api/sessions/{name}/context")
 async def get_session_context(name: str, scope: str):
-    session = manager.get_by_name(name, scope)
-    if not session:
+    found = manager.get_by_name(name, scope)
+    if not found or isinstance(found, dict):
         return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
-    return await session.get_context()
+    return await found.get_context()
 
 
 @app.get("/api/sessions/{name}/logs")
 async def get_session_logs(name: str, scope: str, after_id: int = 0):
-    session = manager.get_by_name(name, scope)
-    if session:
-        return get_logs(session.id, after_id=after_id)
-    from app.db import get_session_by_name
-    db_session = get_session_by_name(name, scope)
-    if not db_session:
+    session_id = manager.get_session_id(name, scope)
+    if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
-    return get_logs(db_session["id"], after_id=after_id)
+    return get_logs(session_id, after_id=after_id)
 
 
 @app.post("/api/sessions/{name}/send")
@@ -157,24 +152,20 @@ async def send_message(name: str, req: SendRequest):
 
 @app.post("/api/sessions/{name}/interrupt")
 async def interrupt_session(name: str, req: ScopeRequest):
-    session = manager.get_by_name(name, req.scope)
-    if not session:
+    found = manager.get_by_name(name, req.scope)
+    if not found or isinstance(found, dict):
         return JSONResponse({"error": "agent not running"}, status_code=404)
-    await manager.interrupt(session.id)
+    await manager.interrupt(found.id)
     return {"ok": True}
 
 
 @app.delete("/api/sessions/{name}")
 async def delete_session(name: str, scope: str):
-    session = manager.get_by_name(name, scope)
-    if not session:
-        from app.db import get_session_by_name, delete_session as db_delete
-        db_session = get_session_by_name(name, scope)
-        if not db_session:
-            return JSONResponse({"error": "not found"}, status_code=404)
-        db_delete(db_session["id"])
-        return {"ok": True}
-    await manager.remove(session.id)
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    await manager.remove(sid)
     return {"ok": True}
 
 
@@ -185,7 +176,7 @@ async def stats(scope: Optional[str] = None):
 
 @app.get("/api/orchestrators")
 async def list_orchestrators():
-    return get_orchestrators()
+    return [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
 
 
 @app.get("/api/models")

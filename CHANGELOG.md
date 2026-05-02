@@ -1,5 +1,56 @@
 # Changelog
 
+## v1.3.0 — 2026-05-02
+
+### Fixed
+- **SDK MCP tool hang — root cause found and workarounds applied** — in-process MCP tool calls
+  (`create_sdk_mcp_server`) hung after 2-3 calls per turn. Root cause: SDK `Query._read_messages`
+  single read task handles both control_request routing AND bounded message stream (`max_buffer_size=100`).
+  When buffer fills, read task blocks on `send()` → control_requests never reach Python MCP handlers → CLI
+  waits for control_response forever → deadlock. SDK issue #425 (open, no PR).
+  - **SDK patch: buffer 100→10000** — `query.py` monkey-patch, prevents backpressure up to 10000 messages
+  - **SDK patch: stdin kept open** — `wait_for_result_and_end_input()` no longer closes stdin when SDK MCP
+    servers present. Needed for persistent connections with multiple query() calls
+  - **Spawn queue** — `spawn_worker` MCP tool no longer does heavy work (git worktree + session start)
+    inside the MCP handler. Jobs enqueued to `asyncio.Queue`, processed by background supervisor task
+    with 0.5s delay to let control_response flush first (Codex review finding)
+  - **git worktree via to_thread** — `create_worktree()` sync subprocess moved to `asyncio.to_thread()`
+    to avoid blocking event loop during MCP response path
+  - **Inject removed** — `session.send()` no longer calls `client.query()` inject on RUNNING sessions.
+    Messages queue in `_pending`, processed as new turn when session goes IDLE. Inject caused transport
+    deadlock (both directions: worker→orch and orch→worker)
+  - **Worker HTTP callback** — workers send reports via `curl POST /api/sessions/{name}/send` instead of
+    MCP `send_message` inject. Eliminates transport deadlock entirely for worker→orchestrator communication
+  - **Async DB writes** — `_log()` and `_persist()` via `run_in_executor()` to avoid blocking event loop
+  - **include_partial_messages=False** — reduces stream event volume in SDK bounded buffer
+  - **Orchestrator prompt: max 2 MCP calls per response** — prevents hitting CLI tool call limit per turn
+  - Triggered case: every test with orchestrator + worker — spawn→list_workers→get_worker_logs chain hung
+    on 3rd MCP call every time. Single MCP calls worked fine (5s). Multiple calls = deadlock.
+
+### Changed
+- **SDK pinned** — `claude-agent-sdk>=0.1.72` in pyproject.toml. Was unpinned, any `uv sync` could
+  break everything. v0.1.72 fixes silent MCP tool result loss (v0.1.70+)
+
+### Added
+- **Spawn queue** — `SessionManager.enqueue_worker_spawn()`, `_spawn_worker_loop()` background task
+- **Session error callback** — `AgentSession.on_error` + `SessionManager._on_session_error()` moves
+  errored sessions from active to archived automatically
+
+## v1.2.0 — 2026-05-01
+
+### Changed
+- **Data layer refactor — single source of truth** — `SessionManager` is now the sole data gateway.
+  `manager.archived: dict[str, dict]` holds stopped/error sessions in memory. `list_sessions()` reads
+  purely from memory (active + archived), zero DB merges. `stop()` moves session from active → archived.
+  `tools.py` has zero direct DB imports (except `get_logs`). `main.py` reduced from 4 DB fallback paths to 0.
+  - `load_archived()` at startup populates archived dict from DB
+  - `find_worker()`, `find_session_id_by_name()`, `archive_by_id()`, `get_session_id()` — new manager methods
+  - `ensure_loaded()` skips archived sessions (no zombie resurrections)
+  - `kill_worker` for DB-only sessions now properly archives via `archive_by_id()`
+  - 10 new TDD tests for archived dict behavior (107 total)
+  - **Before**: 8 code paths with direct DB access scattered across tools.py + main.py, different formats (AgentSession vs dict), merge logic, fallback reconnects
+  - **After**: manager = memory cache, DB = write-through backup + logs storage. One path, one format
+
 ## v1.1.0 — 2026-05-01
 
 ### Added

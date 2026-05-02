@@ -54,7 +54,8 @@ def _create_client(model: str, cwd: str, system_prompt: str,
         permission_mode="default",
         can_use_tool=auto_approve,
         system_prompt=system_prompt,
-        include_partial_messages=True,
+        include_partial_messages=False,
+        max_turns=25,
     )
     if session_id:
         options.resume = session_id
@@ -80,6 +81,8 @@ class AgentSession:
     is_orchestrator: bool = False
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
+
+    on_error: Optional[callable] = field(default=None, repr=False)
 
     _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
     _turn_task: Optional[asyncio.Task] = field(default=None, repr=False)
@@ -113,10 +116,11 @@ class AgentSession:
             return
         if exc:
             logger.error(f"Session {self.name} task error: {exc}", exc_info=exc)
-            if self.status != AgentStatus.ERROR:
-                self.status = AgentStatus.ERROR
-                self._log("error", str(exc))
-                self._persist()
+            self.status = AgentStatus.ERROR
+            self._log("error", str(exc))
+            self._persist()
+            if self.on_error:
+                self.on_error(self.id)
 
     async def start(self, initial_message: str | None = None) -> None:
         await self._cleanup_client()
@@ -140,17 +144,10 @@ class AgentSession:
         if self.status in (AgentStatus.STOPPED, AgentStatus.ERROR):
             raise RuntimeError(f"cannot send to session in {self.status} state")
 
-        if self.status == AgentStatus.RUNNING:
-            self._log("user_message", message)
-            if self._client and self._is_connected:
-                try:
-                    await self._client.query(message)
-                except Exception as e:
-                    logger.warning(f"inject failed: {e}")
-            return
-
+        self._log("user_message", message)
         self._pending.append(message)
-        self._arm_debounce()
+        if self.status != AgentStatus.RUNNING:
+            self._arm_debounce()
 
     def _arm_debounce(self) -> None:
         if self._debounce_task and not self._debounce_task.done():
@@ -178,11 +175,16 @@ class AgentSession:
             try:
                 self._persist()
                 self._log("user_message", message)
+                logger.info(f"[{self.name}] turn start, pending={len(self._pending)}")
                 if not self._client_connected():
                     await self._client.connect()
                     self._is_connected = True
+                import time
+                t0 = time.monotonic()
                 await self._client.query(message)
+                logger.info(f"[{self.name}] query sent in {time.monotonic()-t0:.1f}s")
                 await self._listen_loop()
+                logger.info(f"[{self.name}] turn done in {time.monotonic()-t0:.1f}s, cost=${self.cost_usd:.4f}")
             except Exception as e:
                 self.status = AgentStatus.ERROR
                 self._log("error", str(e))
@@ -190,8 +192,12 @@ class AgentSession:
                 raise
 
     async def _listen_loop(self) -> None:
+        import time
         _stream_buf = ""
+        _msg_count = 0
+        _t0 = time.monotonic()
         async for msg in self._client.receive_messages():
+            _msg_count += 1
             if isinstance(msg, StreamEvent):
                 ev = msg.event
                 if ev.get("type") == "content_block_delta":
@@ -245,7 +251,10 @@ class AgentSession:
                     self.session_id = msg.session_id
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
                 self.status = AgentStatus.IDLE
+                logger.info(f"[{self.name}] ResultMessage after {time.monotonic()-_t0:.1f}s, {_msg_count} msgs, pending={len(self._pending)}")
                 self._persist()
+                if self._pending:
+                    self._arm_debounce()
                 break
 
     async def interrupt(self) -> None:
@@ -269,10 +278,14 @@ class AgentSession:
         return self._client is not None and self._is_connected
 
     def _persist(self) -> None:
-        save_session(self._to_db_dict())
+        asyncio.get_event_loop().run_in_executor(
+            None, save_session, self._to_db_dict()
+        )
 
     def _log(self, type: str, content: str) -> None:
-        add_log(self.id, datetime.now(timezone.utc), type, content)
+        asyncio.get_event_loop().run_in_executor(
+            None, add_log, self.id, datetime.now(timezone.utc), type, content
+        )
 
     def _to_db_dict(self) -> dict:
         return {
