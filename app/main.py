@@ -165,6 +165,15 @@ async def interrupt_session(name: str, req: ScopeRequest):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/stop")
+async def stop_session(name: str, req: ScopeRequest):
+    found = manager.get_by_name(name, req.scope)
+    if not found or isinstance(found, dict):
+        return JSONResponse({"error": "not found or already stopped"}, status_code=404)
+    await manager.stop(found.id)
+    return {"ok": True}
+
+
 @app.delete("/api/sessions/{name}")
 async def delete_session(name: str, scope: str):
     found = manager.get_by_name(name, scope)

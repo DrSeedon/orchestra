@@ -44,12 +44,18 @@ def create_worktree(repo_path: str, name: str, scope: str) -> Worktree:
         cwd=str(repo), capture_output=True, text=True,
     )
     if result.returncode != 0:
+        subprocess.run(["git", "branch", "-D", branch], cwd=str(repo), capture_output=True)
         result = subprocess.run(
-            ["git", "worktree", "add", str(wt_path), branch],
+            ["git", "worktree", "add", str(wt_path), "-b", branch],
             cwd=str(repo), capture_output=True, text=True,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"git worktree add failed: {result.stderr}")
+            result = subprocess.run(
+                ["git", "worktree", "add", str(wt_path), branch],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"git worktree add failed: {result.stderr}")
 
     for fname in PROJECT_FILES:
         src = repo / fname

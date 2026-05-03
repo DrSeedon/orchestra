@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.0.0 — 2026-05-03
+
+### Changed
+- **External stdio MCP server** — MCP tools now run as separate process (`app/mcp_stdio.py`)
+  via FastMCP, communicating with Orchestra API over HTTP. Replaces in-process `create_sdk_mcp_server`
+  which caused deadlocks (SDK issue #425). External process = no shared event loop = no hang.
+- **Simplified session.py** — removed persistent client, locks, _is_connected, _cleanup_client.
+  Each turn: create fresh ClaudeSDKClient → connect → query → receive → disconnect (in finally).
+  Root cause of ALL hangs was accumulated state in persistent connection.
+  Proven: direct SDK test = 5 MCP calls in 17s. Old session.py = hang on 3rd call.
+  New session.py = 18 MCP calls in 85s, zero hangs. -328 lines, +166 lines.
+- **Worker communication via HTTP** — workers send reports via `curl POST /api/sessions/{name}/send`.
+  Orchestrator receives via debounce → new turn. No MCP inject needed.
+- **System CLI** — uses system Claude CLI 2.1.126 via `cli_path` instead of bundled 2.1.117
+
+### Added
+- 📬 **Worker Inbox** — `inbox` DB table + `GET /api/sessions/{name}/inbox` endpoint.
+  `send_to_worker` queues messages in inbox. Real delivery semantics.
+- 📋 **Job Registry** — `jobs` DB table + `GET /api/jobs` endpoint + `list_jobs` MCP tool.
+  spawn/kill create tracked jobs with status (queued/executing/succeeded/failed).
+- ⏱️ **Turn timeout** — 300s hard deadline on `_listen()`, 60s on `connect()`.
+  TimeoutError → ERROR status. No more infinite hangs.
+- 🔒 **Scoped lookups** — `find_worker(name, scope)`, `find_session_id_by_name(name, scope)`.
+- 🧪 **`.mcp.json`** — project-level MCP config for local testing from Claude Code
+- `alwaysLoad: true` — MCP tools skip ToolSearch deferral (v2.1.121 feature)
+
+### Removed
+- `create_sdk_mcp_server` in-process MCP (deadlock source)
+- Persistent client connection in session.py (accumulation source)
+- `.env` copy to worktrees (security fix)
+- Prompt rule "max 2 MCP calls" (no longer needed)
+- SDK monkey-patches (buffer, stdin) — no longer needed
+
+### Fixed
+- **Duplicate user_message logs** — send() logs once, _run_turn no longer duplicates
+- **Timestamps** always visible in white on dashboard
+- **pytest discovery** — testpaths=["tests"], norecursedirs for worktrees
+
 ## v1.3.0 — 2026-05-02
 
 ### Fixed

@@ -101,10 +101,10 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
 @mcp.tool()
 async def kill_worker(name: str) -> str:
     """Stop and archive a worker."""
-    result = await _api("DELETE", f"/api/sessions/{name}", params={"scope": SCOPE})
+    result = await _api("POST", f"/api/sessions/{name}/stop", json={"scope": SCOPE})
     if isinstance(result, dict) and result.get("error"):
         return f"Kill failed: {result['error']}"
-    return f"Worker '{name}' killed."
+    return f"Worker '{name}' stopped and archived."
 
 
 @mcp.tool()
