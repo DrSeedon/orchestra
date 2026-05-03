@@ -173,7 +173,6 @@ class AgentSession:
         async with self._lock:
             try:
                 self._persist()
-                self._log("user_message", message)
                 logger.info(f"[{self.name}] turn start, pending={len(self._pending)}")
                 if not self._client_connected():
                     await self._client.connect()

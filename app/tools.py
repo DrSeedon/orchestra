@@ -51,17 +51,14 @@ async def send_to_worker(args):
                 break
     if not session:
         return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
-    try:
-        orch_name = None
-        for s in _manager.sessions.values():
-            if s.is_orchestrator:
-                orch_name = s.name
-                break
-        prefixed = f"[from:{orch_name or 'orchestrator'}] {message}"
-        await session.send(prefixed)
-        return {"content": [{"type": "text", "text": f"Message sent to '{name}'"}]}
-    except Exception as e:
-        return {"content": [{"type": "text", "text": f"Send failed: {e}"}], "is_error": True}
+    orch_name = None
+    for s in _manager.sessions.values():
+        if s.is_orchestrator:
+            orch_name = s.name
+            break
+    prefixed = f"[from:{orch_name or 'orchestrator'}] {message}"
+    session._log("user_message", prefixed)
+    return {"content": [{"type": "text", "text": f"Message logged to '{name}'. Worker will see it in next turn."}]}
 
 
 @tool("list_workers", "List all worker sessions (active + archived) with their status.", {})
