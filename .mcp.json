@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "orchestra": {
+      "type": "stdio",
+      "command": "/mnt/data/Projects/Python/orchestra/.venv/bin/python",
+      "args": ["-m", "app.mcp_stdio"],
+      "env": {
+        "PYTHONPATH": "/mnt/data/Projects/Python/orchestra",
+        "ORCHESTRA_URL": "http://127.0.0.1:8888",
+        "ORCHESTRA_SCOPE": "/mnt/data/Projects/Python/test-project",
+        "ORCHESTRA_ROLE": "claude-code-test"
+      },
+      "alwaysLoad": true
+    }
+  }
+}
