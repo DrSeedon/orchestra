@@ -111,12 +111,9 @@ async def kill_worker(args):
     name = args["name"]
     session = _manager.find_worker(name)
     if session:
-        try:
-            await _manager.stop(session.id)
-            archived_name = session.name
-            return {"content": [{"type": "text", "text": f"Worker '{name}' killed. Archived as '{archived_name}' — read logs with get_worker_logs(name='{archived_name}')."}]}
-        except Exception as e:
-            return {"content": [{"type": "text", "text": f"Kill failed: {e}"}], "is_error": True}
+        import asyncio
+        asyncio.create_task(_manager.stop(session.id))
+        return {"content": [{"type": "text", "text": f"Worker '{name}' kill queued. Will be archived shortly."}]}
     session_id = _manager.find_session_id_by_name(name)
     if session_id:
         archived_name = f"{name}-{session_id[:6]}"
