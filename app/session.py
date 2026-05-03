@@ -55,6 +55,7 @@ def _create_client(model: str, cwd: str, system_prompt: str,
     options = ClaudeAgentOptions(
         model=model,
         cwd=cwd,
+        cli_path="/home/maxim/.local/bin/claude",
         permission_mode="default",
         can_use_tool=_auto_approve,
         system_prompt=system_prompt,

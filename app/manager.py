@@ -117,7 +117,7 @@ class SessionManager:
             "ORCHESTRA_ROLE": name if is_orchestrator else "worker",
             "WORKER_NAME": name,
         }
-        mcp = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV, **mcp_env}}}
+        mcp = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV, **mcp_env}, "alwaysLoad": True}}
         if is_orchestrator:
             final_prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT
         else:
@@ -239,7 +239,7 @@ class SessionManager:
                 "ORCHESTRA_ROLE": db_row["name"] if is_orch else "worker",
                 "WORKER_NAME": db_row["name"],
             }
-            mcp = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV, **mcp_env}}}
+            mcp = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV, **mcp_env}, "alwaysLoad": True}}
             if is_orch:
                 prompt = db_row.get("system_prompt", "") or ORCHESTRATOR_SYSTEM_PROMPT
             else:
@@ -358,7 +358,7 @@ class SessionManager:
                     branch=orch.get("branch"),
                     created_at=datetime.fromisoformat(orch["created_at"]) if orch.get("created_at") else datetime.now(timezone.utc),
                     is_orchestrator=True,
-                    mcp_servers={"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV,
+                    mcp_servers={"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "alwaysLoad": True, "env": {**MCP_BASE_ENV,
                         "ORCHESTRA_URL": "http://127.0.0.1:8888",
                         "ORCHESTRA_SCOPE": orch["scope"],
                         "ORCHESTRA_ROLE": orch["name"],
