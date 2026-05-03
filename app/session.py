@@ -1,4 +1,4 @@
-"""AgentSession — single SDK wrapper for both orchestrator and worker sessions."""
+"""AgentSession — SDK wrapper, one client per turn (connect→query→receive→disconnect)."""
 
 import asyncio
 import logging
@@ -35,38 +35,13 @@ class AgentStatus(str, Enum):
 
 def _make_result_message(session_id: str = "", cost: float = 0.0) -> ResultMessage:
     return ResultMessage(
-        subtype="result",
-        duration_ms=0,
-        duration_api_ms=0,
-        is_error=False,
-        num_turns=1,
-        session_id=session_id,
-        total_cost_usd=cost,
+        subtype="result", duration_ms=0, duration_api_ms=0,
+        is_error=False, num_turns=1, session_id=session_id, total_cost_usd=cost,
     )
 
 
 async def _auto_approve(tool_name, tool_input, _context=None):
     return PermissionResultAllow(updated_input=tool_input)
-
-
-def _create_client(model: str, cwd: str, system_prompt: str,
-                   session_id: str | None,
-                   mcp_servers: dict | None = None) -> ClaudeSDKClient:
-    options = ClaudeAgentOptions(
-        model=model,
-        cwd=cwd,
-        cli_path="/home/maxim/.local/bin/claude",
-        permission_mode="default",
-        can_use_tool=_auto_approve,
-        system_prompt=system_prompt,
-        include_partial_messages=False,
-        max_turns=25,
-    )
-    if session_id:
-        options.resume = session_id
-    if mcp_servers:
-        options.mcp_servers = mcp_servers
-    return ClaudeSDKClient(options=options)
 
 
 @dataclass
@@ -75,7 +50,7 @@ class AgentSession:
     name: str
     scope: str
     cwd: str
-    model: str = "claude-sonnet-4-6"  # full ID, resolved by manager
+    model: str = "claude-sonnet-4-6"
     system_prompt: str = ""
     status: AgentStatus = AgentStatus.STARTING
     session_id: str | None = None
@@ -86,69 +61,45 @@ class AgentSession:
     is_orchestrator: bool = False
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
-
     on_error: Optional[callable] = field(default=None, repr=False)
-
-    _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
-    _turn_task: Optional[asyncio.Task] = field(default=None, repr=False)
-    _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
-    _pending: list = field(default_factory=list, repr=False)
-    _debounce_task: Optional[asyncio.Task] = field(default=None, repr=False)
-    _is_connected: bool = field(default=False, repr=False)
     debounce_sec: float = 2.0
 
-    async def _cleanup_client(self) -> None:
-        if self._debounce_task and not self._debounce_task.done():
-            self._debounce_task.cancel()
-        if self._turn_task and not self._turn_task.done():
-            self._turn_task.cancel()
-            try:
-                await self._turn_task
-            except (asyncio.CancelledError, Exception):
-                pass
-        if self._client:
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
-            self._client = None
-            self._is_connected = False
+    _turn_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _debounce_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _pending: list = field(default_factory=list, repr=False)
 
-    def _on_task_done(self, task: asyncio.Task) -> None:
-        try:
-            exc = task.exception()
-        except asyncio.CancelledError:
-            return
-        if exc:
-            logger.error(f"Session {self.name} task error: {exc}", exc_info=exc)
-            self.status = AgentStatus.ERROR
-            self._log("error", str(exc))
-            self._persist()
-            if self.on_error:
-                self.on_error(self.id)
+    TURN_TIMEOUT = 300
+
+    def _make_client(self) -> ClaudeSDKClient:
+        options = ClaudeAgentOptions(
+            model=self.model,
+            cwd=self.cwd,
+            cli_path="/home/maxim/.local/bin/claude",
+            permission_mode="default",
+            can_use_tool=_auto_approve,
+            system_prompt=self.system_prompt,
+            include_partial_messages=False,
+            max_turns=25,
+        )
+        if self.session_id:
+            options.resume = self.session_id
+        if self.mcp_servers:
+            options.mcp_servers = self.mcp_servers
+        return ClaudeSDKClient(options=options)
 
     async def start(self, initial_message: str | None = None) -> None:
-        await self._cleanup_client()
-        self._client = _create_client(
-            self.model, self.cwd,
-            self.system_prompt, self.session_id,
-            self.mcp_servers or None,
-        )
         if initial_message:
             self.status = AgentStatus.RUNNING
             self._persist()
             self._turn_task = asyncio.create_task(self._run_turn(initial_message))
             self._turn_task.add_done_callback(self._on_task_done)
         else:
-            await self._client.connect()
-            self._is_connected = True
             self.status = AgentStatus.IDLE
             self._persist()
 
     async def send(self, message: str) -> None:
         if self.status in (AgentStatus.STOPPED, AgentStatus.ERROR):
             raise RuntimeError(f"cannot send to session in {self.status} state")
-
         self._log("user_message", message)
         self._pending.append(message)
         if self.status != AgentStatus.RUNNING:
@@ -164,193 +115,123 @@ class AgentSession:
             await asyncio.sleep(self.debounce_sec)
         except asyncio.CancelledError:
             return
-
         batch = list(self._pending)
         self._pending.clear()
         if not batch:
             return
-
         combined = "\n".join(batch)
         self.status = AgentStatus.RUNNING
         self._turn_task = asyncio.create_task(self._run_turn(combined))
         self._turn_task.add_done_callback(self._on_task_done)
 
-    TURN_TIMEOUT = 300
-
     async def _run_turn(self, message: str) -> None:
-        async with self._lock:
+        """One turn = create client → connect → query → receive → disconnect."""
+        client = self._make_client()
+        try:
+            self._persist()
+            await asyncio.wait_for(client.connect(), timeout=60)
+            await client.query(message)
+            await asyncio.wait_for(self._listen(client), timeout=self.TURN_TIMEOUT)
+        except asyncio.TimeoutError:
+            logger.error(f"[{self.name}] turn timeout")
+            self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
+            self.status = AgentStatus.ERROR
+            self._persist()
+        except Exception as e:
+            logger.error(f"[{self.name}] turn error: {e}")
+            self._log("error", str(e))
+            self.status = AgentStatus.ERROR
+            self._persist()
+        finally:
             try:
-                self._persist()
-                logger.info(f"[{self.name}] turn start, reconnecting client")
-                if self._client:
-                    try:
-                        await self._client.disconnect()
-                    except Exception:
-                        pass
-                self._client = _create_client(
-                    self.model, self.cwd, self.system_prompt,
-                    self.session_id, self.mcp_servers or None,
-                )
-                await asyncio.wait_for(self._client.connect(), timeout=60)
-                self._is_connected = True
-                await self._client.query(message)
-                await asyncio.wait_for(self._listen_loop(), timeout=self.TURN_TIMEOUT)
-            except asyncio.TimeoutError:
-                logger.error(f"[{self.name}] turn timeout after {self.TURN_TIMEOUT}s")
-                self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
-                self._is_connected = False
-                self._client = None
-                self.status = AgentStatus.ERROR
-                self._persist()
-                raise
-            except Exception as e:
-                self._is_connected = False
-                self._client = None
-                self.status = AgentStatus.ERROR
-                self._log("error", str(e))
-                self._persist()
-                raise
+                await client.disconnect()
+            except Exception:
+                pass
 
-    async def _listen_loop(self) -> None:
-        import time
-        _stream_buf = ""
-        _msg_count = 0
-        _t0 = time.monotonic()
-        async for msg in self._client.receive_messages():
-            _msg_count += 1
-            if isinstance(msg, StreamEvent):
-                ev = msg.event
-                if ev.get("type") == "content_block_delta":
-                    delta = ev.get("delta", {})
-                    if delta.get("type") == "text_delta":
-                        _stream_buf += delta.get("text", "")
-                        if len(_stream_buf) > 50 or "\n" in delta.get("text", ""):
-                            self._log("stream", _stream_buf)
-                            _stream_buf = ""
-                elif ev.get("type") == "content_block_stop":
-                    if _stream_buf:
-                        self._log("stream", _stream_buf)
-                        _stream_buf = ""
-            elif isinstance(msg, UserMessage):
-                if hasattr(msg, 'content') and isinstance(msg.content, list):
-                    for block in msg.content:
-                        if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                            raw = getattr(block, 'content', '')
-                            if isinstance(raw, list):
-                                parts = [item.get('text', str(item)) if isinstance(item, dict) else str(item) for item in raw]
-                                result_text = '\n'.join(parts)[:500]
-                            elif isinstance(raw, dict):
-                                result_text = raw.get('text', str(raw))[:500]
-                            else:
-                                result_text = str(raw)[:500]
-                            self._log("tool_result", result_text)
-            elif isinstance(msg, AssistantMessage):
-                if _stream_buf:
-                    self._log("stream", _stream_buf)
-                    _stream_buf = ""
+    async def _listen(self, client: ClaudeSDKClient) -> None:
+        async for msg in client.receive_messages():
+            if isinstance(msg, AssistantMessage):
                 for block in msg.content:
                     if isinstance(block, TextBlock) and block.text:
                         self._log("text", block.text)
                     elif isinstance(block, ToolUseBlock):
                         self._log("tool", f"{block.name}: {str(block.input)[:200]}")
                     elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                        raw = getattr(block, 'content', '')
-                        if isinstance(raw, list):
-                            parts = [item.get('text', str(item)) if isinstance(item, dict) else str(item) for item in raw]
-                            content = '\n'.join(parts)[:500]
-                        elif isinstance(raw, dict):
-                            content = raw.get('text', str(raw))[:500]
-                        else:
-                            content = str(raw)[:500]
-                        self._log("tool_result", content)
+                        self._log("tool_result", str(getattr(block, 'content', ''))[:500])
+            elif isinstance(msg, UserMessage):
+                if hasattr(msg, 'content') and isinstance(msg.content, list):
+                    for block in msg.content:
+                        if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
+                            self._log("tool_result", str(getattr(block, 'content', ''))[:500])
             elif isinstance(msg, ResultMessage):
-                if _stream_buf:
-                    self._log("stream", _stream_buf)
-                    _stream_buf = ""
                 if msg.session_id:
                     self.session_id = msg.session_id
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
                 self.status = AgentStatus.IDLE
-                logger.info(f"[{self.name}] ResultMessage after {time.monotonic()-_t0:.1f}s, {_msg_count} msgs, pending={len(self._pending)}")
                 self._persist()
                 if self._pending:
                     self._arm_debounce()
                 break
 
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        try:
+            exc = task.exception()
+        except asyncio.CancelledError:
+            return
+        if exc:
+            logger.error(f"[{self.name}] task error: {exc}")
+            self.status = AgentStatus.ERROR
+            self._log("error", str(exc))
+            self._persist()
+            if self.on_error:
+                self.on_error(self.id)
+
     async def interrupt(self) -> None:
-        if self._client:
-            await self._client.interrupt()
+        if self._turn_task and not self._turn_task.done():
+            self._turn_task.cancel()
             self._log("status", "interrupted")
 
     async def stop(self) -> None:
         self._pending.clear()
-        await self._cleanup_client()
+        if self._debounce_task and not self._debounce_task.done():
+            self._debounce_task.cancel()
+        if self._turn_task and not self._turn_task.done():
+            self._turn_task.cancel()
+            try:
+                await self._turn_task
+            except (asyncio.CancelledError, Exception):
+                pass
         self.status = AgentStatus.STOPPED
-        self._archive_name()
+        if not self.is_orchestrator:
+            self.name = f"{self.name}-{self.id[:6]}"
         self._persist()
 
-    def _archive_name(self) -> None:
-        if not self.is_orchestrator:
-            short_id = self.id[:6]
-            self.name = f"{self.name}-{short_id}"
-
-    def _client_connected(self) -> bool:
-        return self._client is not None and self._is_connected
-
     def _persist(self) -> None:
-        asyncio.get_event_loop().run_in_executor(
-            None, save_session, self._to_db_dict()
-        )
+        asyncio.get_event_loop().run_in_executor(None, save_session, self._to_db_dict())
 
     def _log(self, type: str, content: str) -> None:
-        asyncio.get_event_loop().run_in_executor(
-            None, add_log, self.id, datetime.now(timezone.utc), type, content
-        )
+        asyncio.get_event_loop().run_in_executor(None, add_log, self.id, datetime.now(timezone.utc), type, content)
 
     def _to_db_dict(self) -> dict:
         return {
-            "id": self.id,
-            "name": self.name,
-            "scope": self.scope,
-            "cwd": self.cwd,
-            "model": self.model,
-            "system_prompt": self.system_prompt,
-            "status": self.status.value,
-            "session_id": self.session_id,
-            "cost_usd": self.cost_usd,
-            "worktree_path": self.worktree_path,
-            "branch": self.branch,
-            "is_orchestrator": self.is_orchestrator,
-            "color": self.color,
-            "created_at": self.created_at.isoformat(),
+            "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
+            "model": self.model, "system_prompt": self.system_prompt,
+            "status": self.status.value, "session_id": self.session_id,
+            "cost_usd": self.cost_usd, "worktree_path": self.worktree_path,
+            "branch": self.branch, "is_orchestrator": self.is_orchestrator,
+            "color": self.color, "created_at": self.created_at.isoformat(),
             "finished_at": datetime.now(timezone.utc).isoformat()
                 if self.status in (AgentStatus.STOPPED, AgentStatus.ERROR) else None,
         }
 
     async def get_context(self) -> dict:
-        if self._client and self._is_connected:
-            try:
-                usage = await self._client.get_context_usage()
-                return {"percentage": usage.get("percentage", 0), "total_tokens": usage.get("totalTokens", 0), "max_tokens": usage.get("maxTokens", 0)}
-            except Exception:
-                pass
         return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
-            "name": self.name,
-            "scope": self.scope,
-            "status": self.status.value,
-            "model": self.model,
-            "cost_usd": round(self.cost_usd, 4),
-            "branch": self.branch,
-            "is_orchestrator": self.is_orchestrator,
-            "color": self.color,
+            "id": self.id, "name": self.name, "scope": self.scope,
+            "status": self.status.value, "model": self.model,
+            "cost_usd": round(self.cost_usd, 4), "branch": self.branch,
+            "is_orchestrator": self.is_orchestrator, "color": self.color,
             "created_at": self.created_at.isoformat(),
         }
-
-    @staticmethod
-    async def _auto_approve(tool_name, tool_input, _context=None):
-        logger.info(f"auto-approve: {tool_name}")
-        return PermissionResultAllow(updated_input=tool_input)

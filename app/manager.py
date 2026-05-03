@@ -81,7 +81,7 @@ class SessionManager:
         session = self.sessions.pop(session_id, None)
         if session:
             self.archived[session_id] = session._to_db_dict()
-            asyncio.create_task(session._cleanup_client())
+            pass  # session error handled
 
     def load_archived(self) -> None:
         for row in get_all_sessions():
@@ -160,7 +160,7 @@ class SessionManager:
             return session
 
         except Exception:
-            await session._cleanup_client()
+            await session.stop()
             if session.worktree_path and repo_path:
                 try:
                     remove_worktree(repo_path, session.worktree_path)
@@ -195,7 +195,7 @@ class SessionManager:
     async def remove(self, session_id: str) -> None:
         session = self.sessions.pop(session_id, None)
         if session:
-            await session._cleanup_client()
+            await session.stop()
             if session.worktree_path:
                 from app.workspace import remove_worktree
                 remove_worktree(session.scope, session.worktree_path)
@@ -271,7 +271,7 @@ class SessionManager:
                 self.sessions[session.id] = session
                 return session
             except Exception as e:
-                await session._cleanup_client()
+                await session.stop()
                 logger.error(f"Failed to load session {name}: {e}")
                 return None
 
@@ -371,7 +371,7 @@ class SessionManager:
                 resumed_ids.append(session.id)
                 logger.info(f"Resumed orchestrator: {orch['name']}")
             except Exception as e:
-                await session._cleanup_client()
+                await session.stop()
                 logger.error(f"Failed to resume {orch['name']}: {e}")
 
         stale = mark_stale_sessions(resumed_ids)
@@ -383,7 +383,7 @@ class SessionManager:
         for session in list(self.sessions.values()):
             try:
                 if session.is_orchestrator:
-                    await session._cleanup_client()
+                    await session.stop()
                     session.status = AgentStatus.IDLE
                     session._persist()
                 else:

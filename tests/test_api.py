@@ -19,7 +19,7 @@ def db(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client(db):
-    with patch("app.session._create_client", return_value=AsyncMock(
+    with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
         connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
         receive_messages=AsyncMock(return_value=iter([])),
     )):
