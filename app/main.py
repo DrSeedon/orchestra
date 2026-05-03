@@ -86,6 +86,12 @@ async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
 
 
+@app.get("/api/jobs")
+async def list_api_jobs(scope: str | None = None):
+    from app.db import get_jobs
+    return get_jobs(scope=scope)
+
+
 @app.get("/api/sessions")
 async def list_sessions(scope: Optional[str] = None):
     return manager.list_sessions(scope)
@@ -179,12 +185,6 @@ async def get_session_inbox(name: str, scope: str):
     for m in messages:
         ack_inbox(m["id"])
     return messages
-
-
-@app.get("/api/jobs")
-async def list_api_jobs(scope: str | None = None):
-    from app.db import get_jobs
-    return get_jobs(scope=scope)
 
 
 @app.get("/api/stats")
