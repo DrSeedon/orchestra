@@ -169,20 +169,28 @@ class AgentSession:
         self._turn_task = asyncio.create_task(self._run_turn(combined))
         self._turn_task.add_done_callback(self._on_task_done)
 
+    TURN_TIMEOUT = 300
+
     async def _run_turn(self, message: str) -> None:
         async with self._lock:
             try:
                 self._persist()
-                logger.info(f"[{self.name}] turn start, pending={len(self._pending)}")
+                logger.info(f"[{self.name}] turn start")
                 if not self._client_connected():
-                    await self._client.connect()
+                    await asyncio.wait_for(self._client.connect(), timeout=60)
                     self._is_connected = True
-                import time
-                t0 = time.monotonic()
                 await self._client.query(message)
-                logger.info(f"[{self.name}] query sent in {time.monotonic()-t0:.1f}s")
-                await self._listen_loop()
-                logger.info(f"[{self.name}] turn done in {time.monotonic()-t0:.1f}s, cost=${self.cost_usd:.4f}")
+                await asyncio.wait_for(self._listen_loop(), timeout=self.TURN_TIMEOUT)
+            except asyncio.TimeoutError:
+                logger.error(f"[{self.name}] turn timeout after {self.TURN_TIMEOUT}s")
+                self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
+                try:
+                    await asyncio.wait_for(self._client.interrupt(), timeout=10)
+                except Exception:
+                    pass
+                self.status = AgentStatus.ERROR
+                self._persist()
+                raise
             except Exception as e:
                 self.status = AgentStatus.ERROR
                 self._log("error", str(e))

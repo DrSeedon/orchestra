@@ -47,9 +47,12 @@ class SessionManager:
         await self._spawn_queue.put(job)
 
     async def _spawn_worker_loop(self) -> None:
+        from app.db import update_job
         while True:
             job = await self._spawn_queue.get()
+            job_id = job.get("job_id", "?")
             try:
+                update_job(job_id, "executing")
                 await asyncio.sleep(0.5)
                 session = await self.create_session(
                     name=job["name"],
@@ -61,9 +64,11 @@ class SessionManager:
                     repo_path=job["repo_path"],
                 )
                 await session.send(job["task"])
-                logger.info(f"Worker '{job['name']}' spawned via queue")
+                update_job(job_id, "succeeded")
+                logger.info(f"Worker '{job['name']}' spawned (job {job_id})")
             except Exception as e:
-                logger.error(f"Spawn '{job.get('name')}' failed: {e}")
+                update_job(job_id, "failed", str(e))
+                logger.error(f"Spawn '{job.get('name')}' failed (job {job_id}): {e}")
             finally:
                 self._spawn_queue.task_done()
 
@@ -280,18 +285,19 @@ class SessionManager:
                 return a["id"]
         return None
 
-    def find_worker(self, name: str) -> AgentSession | None:
+    def find_worker(self, name: str, scope: str | None = None) -> AgentSession | None:
         for s in self.sessions.values():
             if s.name == name and not s.is_orchestrator:
-                return s
+                if scope is None or s.scope == scope:
+                    return s
         return None
 
-    def find_session_id_by_name(self, name: str) -> str | None:
+    def find_session_id_by_name(self, name: str, scope: str | None = None) -> str | None:
         for s in self.sessions.values():
-            if s.name == name:
+            if s.name == name and (scope is None or s.scope == scope):
                 return s.id
         for a in self.archived.values():
-            if a["name"] == name:
+            if a["name"] == name and (scope is None or a["scope"] == scope):
                 return a["id"]
         return None
 

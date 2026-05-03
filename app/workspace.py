@@ -10,7 +10,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
-PROJECT_FILES = ("CLAUDE.md", ".mcp.json", ".env", ".worktreeinclude")
+PROJECT_FILES = ("CLAUDE.md", ".mcp.json", ".worktreeinclude")
 
 
 @dataclass

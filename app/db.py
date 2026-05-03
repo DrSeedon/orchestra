@@ -1,7 +1,7 @@
 """SQLite storage for sessions and logs."""
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
@@ -47,6 +47,27 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
             CREATE INDEX IF NOT EXISTS idx_sessions_scope ON sessions(scope, is_orchestrator, status);
+
+            CREATE TABLE IF NOT EXISTS inbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                sender TEXT NOT NULL,
+                message TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_inbox_session ON inbox(session_id, status);
+
+            CREATE TABLE IF NOT EXISTS jobs (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                status TEXT DEFAULT 'queued',
+                error TEXT,
+                created_at TEXT NOT NULL,
+                finished_at TEXT
+            );
         """)
         _migrate(c)
 
@@ -203,3 +224,60 @@ def mark_stale_sessions(exclude_ids: list[str]) -> int:
                 "WHERE status = 'running' AND is_orchestrator = 0"
             )
         return cur.rowcount
+
+
+def add_inbox(session_id: str, sender: str, message: str) -> int:
+    with _conn() as c:
+        cur = c.execute(
+            "INSERT INTO inbox (session_id, sender, message, created_at) VALUES (?, ?, ?, ?)",
+            (session_id, sender, message, datetime.now(timezone.utc).isoformat()),
+        )
+        return cur.lastrowid
+
+
+def get_inbox(session_id: str) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM inbox WHERE session_id = ? AND status = 'pending' ORDER BY id ASC",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def ack_inbox(inbox_id: int) -> None:
+    with _conn() as c:
+        c.execute("UPDATE inbox SET status = 'delivered' WHERE id = ?", (inbox_id,))
+
+
+def add_job(job_id: str, job_type: str, name: str, scope: str) -> None:
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO jobs (id, type, name, scope, created_at) VALUES (?, ?, ?, ?, ?)",
+            (job_id, job_type, name, scope, datetime.now(timezone.utc).isoformat()),
+        )
+
+
+def update_job(job_id: str, status: str, error: str | None = None) -> None:
+    with _conn() as c:
+        finished = datetime.now(timezone.utc).isoformat() if status in ("succeeded", "failed", "timed_out") else None
+        c.execute(
+            "UPDATE jobs SET status = ?, error = ?, finished_at = ? WHERE id = ?",
+            (status, error, finished, job_id),
+        )
+
+
+def get_jobs(scope: str | None = None, status: str | None = None) -> list[dict]:
+    with _conn() as c:
+        query = "SELECT * FROM jobs"
+        params = []
+        clauses = []
+        if scope:
+            clauses.append("scope = ?")
+            params.append(scope)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY created_at DESC LIMIT 20"
+        return [dict(r) for r in c.execute(query, params).fetchall()]

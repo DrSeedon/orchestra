@@ -169,6 +169,24 @@ async def delete_session(name: str, scope: str):
     return {"ok": True}
 
 
+@app.get("/api/sessions/{name}/inbox")
+async def get_session_inbox(name: str, scope: str):
+    from app.db import get_inbox, ack_inbox
+    session_id = manager.get_session_id(name, scope)
+    if not session_id:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    messages = get_inbox(session_id)
+    for m in messages:
+        ack_inbox(m["id"])
+    return messages
+
+
+@app.get("/api/jobs")
+async def list_api_jobs(scope: str | None = None):
+    from app.db import get_jobs
+    return get_jobs(scope=scope)
+
+
 @app.get("/api/stats")
 async def stats(scope: Optional[str] = None):
     return manager.stats(scope)
