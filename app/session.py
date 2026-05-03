@@ -46,13 +46,12 @@ def _make_result_message(session_id: str = "", cost: float = 0.0) -> ResultMessa
 
 
 def _create_client(model: str, cwd: str, system_prompt: str,
-                   session_id: str | None, auto_approve,
+                   session_id: str | None,
                    mcp_servers: dict | None = None) -> ClaudeSDKClient:
     options = ClaudeAgentOptions(
         model=model,
         cwd=cwd,
-        permission_mode="default",
-        can_use_tool=auto_approve,
+        permission_mode="bypassPermissions",
         system_prompt=system_prompt,
         include_partial_messages=False,
         max_turns=25,
@@ -126,7 +125,7 @@ class AgentSession:
         await self._cleanup_client()
         self._client = _create_client(
             self.model, self.cwd,
-            self.system_prompt, self.session_id, self._auto_approve,
+            self.system_prompt, self.session_id,
             self.mcp_servers or None,
         )
         if initial_message:
