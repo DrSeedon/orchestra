@@ -45,13 +45,18 @@ def _make_result_message(session_id: str = "", cost: float = 0.0) -> ResultMessa
     )
 
 
+async def _auto_approve(tool_name, tool_input, _context=None):
+    return PermissionResultAllow(updated_input=tool_input)
+
+
 def _create_client(model: str, cwd: str, system_prompt: str,
                    session_id: str | None,
                    mcp_servers: dict | None = None) -> ClaudeSDKClient:
     options = ClaudeAgentOptions(
         model=model,
         cwd=cwd,
-        permission_mode="bypassPermissions",
+        permission_mode="default",
+        can_use_tool=_auto_approve,
         system_prompt=system_prompt,
         include_partial_messages=False,
         max_turns=25,
@@ -175,23 +180,31 @@ class AgentSession:
         async with self._lock:
             try:
                 self._persist()
-                logger.info(f"[{self.name}] turn start")
-                if not self._client_connected():
-                    await asyncio.wait_for(self._client.connect(), timeout=60)
-                    self._is_connected = True
+                logger.info(f"[{self.name}] turn start, reconnecting client")
+                if self._client:
+                    try:
+                        await self._client.disconnect()
+                    except Exception:
+                        pass
+                self._client = _create_client(
+                    self.model, self.cwd, self.system_prompt,
+                    self.session_id, self.mcp_servers or None,
+                )
+                await asyncio.wait_for(self._client.connect(), timeout=60)
+                self._is_connected = True
                 await self._client.query(message)
                 await asyncio.wait_for(self._listen_loop(), timeout=self.TURN_TIMEOUT)
             except asyncio.TimeoutError:
                 logger.error(f"[{self.name}] turn timeout after {self.TURN_TIMEOUT}s")
                 self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
-                try:
-                    await asyncio.wait_for(self._client.interrupt(), timeout=10)
-                except Exception:
-                    pass
+                self._is_connected = False
+                self._client = None
                 self.status = AgentStatus.ERROR
                 self._persist()
                 raise
             except Exception as e:
+                self._is_connected = False
+                self._client = None
                 self.status = AgentStatus.ERROR
                 self._log("error", str(e))
                 self._persist()
