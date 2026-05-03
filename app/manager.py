@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,7 +10,7 @@ from typing import Optional
 
 from app.session import AgentSession, AgentStatus
 from app.workspace import create_worktree, remove_worktree
-from app.tools import orchestra_server, worker_server, set_manager
+from app.tools import set_manager
 from app.models import resolve_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
@@ -17,6 +18,10 @@ from app.db import (
 )
 
 logger = logging.getLogger(__name__)
+
+_PROJECT_ROOT = str(Path(__file__).parent.parent)
+MCP_STDIO_CMD = [sys.executable, "-m", "app.mcp_stdio"]
+MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
 
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
@@ -106,11 +111,16 @@ class SessionManager:
         worktree_path = None
         branch = None
 
+        mcp_env = {
+            "ORCHESTRA_URL": "http://127.0.0.1:8888",
+            "ORCHESTRA_SCOPE": scope,
+            "ORCHESTRA_ROLE": name if is_orchestrator else "worker",
+            "WORKER_NAME": name,
+        }
+        mcp = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV, **mcp_env}}}
         if is_orchestrator:
-            mcp = {"orchestra": orchestra_server}
             final_prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT
         else:
-            mcp = {"orchestra": worker_server}
             final_prompt = WORKER_SYSTEM_PROMPT + ("\n\n" + system_prompt if system_prompt else "")
 
         session = AgentSession(
@@ -223,11 +233,16 @@ class SessionManager:
             if db_row["status"] in ("stopped", "error"):
                 return None
             is_orch = bool(db_row.get("is_orchestrator"))
+            mcp_env = {
+                "ORCHESTRA_URL": "http://127.0.0.1:8888",
+                "ORCHESTRA_SCOPE": db_row["scope"],
+                "ORCHESTRA_ROLE": db_row["name"] if is_orch else "worker",
+                "WORKER_NAME": db_row["name"],
+            }
+            mcp = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV, **mcp_env}}}
             if is_orch:
-                mcp = {"orchestra": orchestra_server}
                 prompt = db_row.get("system_prompt", "") or ORCHESTRATOR_SYSTEM_PROMPT
             else:
-                mcp = {"orchestra": worker_server}
                 prompt = db_row.get("system_prompt", "") or WORKER_SYSTEM_PROMPT
             cwd = db_row["cwd"]
             wt_path = db_row.get("worktree_path")
@@ -343,7 +358,12 @@ class SessionManager:
                     branch=orch.get("branch"),
                     created_at=datetime.fromisoformat(orch["created_at"]) if orch.get("created_at") else datetime.now(timezone.utc),
                     is_orchestrator=True,
-                    mcp_servers={"orchestra": orchestra_server},
+                    mcp_servers={"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV,
+                        "ORCHESTRA_URL": "http://127.0.0.1:8888",
+                        "ORCHESTRA_SCOPE": orch["scope"],
+                        "ORCHESTRA_ROLE": orch["name"],
+                        "WORKER_NAME": orch["name"],
+                    }}},
                     on_error=self._on_session_error,
                 )
                 await session.start()
