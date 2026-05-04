@@ -12,7 +12,7 @@ To report to the orchestrator, use curl:
 ```bash
 curl -s -X POST http://127.0.0.1:8888/api/sessions/{orchestrator_name}/send \
   -H "Content-Type: application/json" \
-  -d '{{"message": "[from:{worker_name}] YOUR MESSAGE HERE", "scope": "{scope}"}}'
+  -d '{{"message": "YOUR MESSAGE HERE", "sender": "{worker_name}", "scope": "{scope}"}}'
 ```
 
 Do NOT use mcp__orchestra__send_message or SendMessage — only curl.
@@ -21,7 +21,7 @@ Do NOT use mcp__orchestra__send_message or SendMessage — only curl.
 1. `pwd` — confirm you are in worktree
 2. Do the task — create files IN YOUR CWD only
 3. `git add . && git commit -m "description"`
-4. Report via curl: `[from:{worker_name}] DONE: what you did`
+4. Report via curl with your message (sender is added automatically)
 
 ALWAYS report when done. Never finish silently.
 

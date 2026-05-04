@@ -75,6 +75,7 @@ class CreateSessionRequest(BaseModel):
 class SendRequest(BaseModel):
     message: str
     scope: str
+    sender: str | None = None
 
 
 class ScopeRequest(BaseModel):
@@ -150,7 +151,8 @@ async def send_message(name: str, req: SendRequest):
     if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
     try:
-        await manager.send(session.id, req.message)
+        msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
+        await manager.send(session.id, msg)
         return {"ok": True}
     except RuntimeError as e:
         return JSONResponse({"error": str(e)}, status_code=400)

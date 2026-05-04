@@ -133,7 +133,7 @@ async def list_jobs() -> str:
 async def send_message(to: str, message: str) -> str:
     """Send a message to any agent (worker→orchestrator)."""
     await _api("POST", f"/api/sessions/{to}/send", json={
-        "message": f"[from:{WORKER_NAME}] {message}", "scope": SCOPE,
+        "message": message, "sender": WORKER_NAME, "scope": SCOPE,
     })
     return f"Message sent to '{to}'"
 
