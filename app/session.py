@@ -44,6 +44,30 @@ async def _auto_approve(tool_name, tool_input, _context=None):
     return PermissionResultAllow(updated_input=tool_input)
 
 
+def _extract_tool_result(block) -> str:
+    import json as _json
+    raw = getattr(block, 'content', '')
+    if isinstance(raw, list):
+        parts = []
+        for item in raw:
+            if isinstance(item, dict):
+                parts.append(item.get('text', str(item)))
+            else:
+                parts.append(str(item))
+        text = '\n'.join(parts)
+    elif isinstance(raw, dict):
+        text = raw.get('text', str(raw))
+    else:
+        text = str(raw)
+    try:
+        parsed = _json.loads(text)
+        if isinstance(parsed, dict) and 'result' in parsed:
+            return str(parsed['result'])[:500]
+    except (ValueError, TypeError):
+        pass
+    return text[:500]
+
+
 @dataclass
 class AgentSession:
     id: str
@@ -157,12 +181,12 @@ class AgentSession:
                     elif isinstance(block, ToolUseBlock):
                         self._log("tool", f"{block.name}: {str(block.input)[:200]}")
                     elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                        self._log("tool_result", str(getattr(block, 'content', ''))[:500])
+                        self._log("tool_result", _extract_tool_result(block))
             elif isinstance(msg, UserMessage):
                 if hasattr(msg, 'content') and isinstance(msg.content, list):
                     for block in msg.content:
                         if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                            self._log("tool_result", str(getattr(block, 'content', ''))[:500])
+                            self._log("tool_result", _extract_tool_result(block))
             elif isinstance(msg, ResultMessage):
                 if msg.session_id:
                     self.session_id = msg.session_id

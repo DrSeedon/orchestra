@@ -95,7 +95,18 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
         return f"Error: {logs['error']}"
     if not logs:
         return f"No logs for '{name}'"
-    return "\n".join(f"[{l['type']}] {l['content'][:200]}" for l in logs[-limit:])
+    lines = []
+    for l in logs[-limit:]:
+        t, c = l['type'], l['content'][:200]
+        if t == 'text':
+            lines.append(f"💬 {c}")
+        elif t == 'user_message':
+            lines.append(f"👤 {c}")
+        elif t == 'tool':
+            lines.append(f"🔧 {c}")
+        elif t == 'error':
+            lines.append(f"❌ {c}")
+    return "\n".join(lines) if lines else f"No meaningful logs for '{name}'"
 
 
 @mcp.tool()
