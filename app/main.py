@@ -1,5 +1,6 @@
 """Orchestra — AI Agent Orchestrator API."""
 
+import asyncio
 import re
 import sqlite3
 from contextlib import asynccontextmanager
@@ -8,6 +9,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from starlette.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
@@ -135,6 +137,23 @@ async def get_session_context(name: str, scope: str):
     if not found or isinstance(found, dict):
         return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
     return await found.get_context()
+
+
+@app.get("/api/sessions/{name}/stream")
+async def stream_session_logs(name: str, scope: str):
+    import json
+    session_id = manager.get_session_id(name, scope)
+    if not session_id:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    async def event_generator():
+        last_id = 0
+        while True:
+            logs = get_logs(session_id, after_id=last_id)
+            for log in logs:
+                yield f"data: {json.dumps(log)}\n\n"
+                last_id = log["id"]
+            await asyncio.sleep(0.5)
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @app.get("/api/sessions/{name}/logs")

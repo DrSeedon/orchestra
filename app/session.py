@@ -95,10 +95,12 @@ class AgentSession:
     TURN_TIMEOUT = 300
 
     def _make_client(self) -> ClaudeSDKClient:
+        import shutil
+        cli = shutil.which("claude") or "/home/maxim/.local/bin/claude"
         options = ClaudeAgentOptions(
             model=self.model,
             cwd=self.cwd,
-            cli_path="/home/maxim/.local/bin/claude",
+            cli_path=cli,
             permission_mode="default",
             can_use_tool=_auto_approve,
             system_prompt=self.system_prompt,

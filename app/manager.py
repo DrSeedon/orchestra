@@ -47,6 +47,21 @@ class SessionManager:
     def start_background_tasks(self) -> None:
         if not self._spawn_task or self._spawn_task.done():
             self._spawn_task = asyncio.create_task(self._spawn_worker_loop())
+        asyncio.create_task(self._health_check_loop())
+
+    async def _health_check_loop(self) -> None:
+        while True:
+            await asyncio.sleep(60)
+            for session in list(self.sessions.values()):
+                if session.status == AgentStatus.RUNNING and session._turn_task:
+                    if session._turn_task.done():
+                        try:
+                            session._turn_task.result()
+                        except Exception:
+                            session.status = AgentStatus.ERROR
+                            session._persist()
+                            logger.warning(f"Health check: {session.name} task crashed")
+                            self._on_session_error(session.id)
 
     async def enqueue_worker_spawn(self, **job) -> None:
         await self._spawn_queue.put(job)
@@ -344,6 +359,9 @@ class SessionManager:
         return get_stats(scope)
 
     async def auto_resume_orchestrators(self) -> None:
+        from app.db import _conn
+        with _conn() as c:
+            c.execute("UPDATE sessions SET status='stopped' WHERE status='error'")
         orchestrators = get_resumable_orchestrators()
         resumed_ids = []
         for orch in orchestrators:
