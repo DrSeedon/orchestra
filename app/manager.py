@@ -131,7 +131,7 @@ class SessionManager:
             model=model,
             system_prompt=final_prompt,
             is_orchestrator=is_orchestrator,
-            color=COLOR_PALETTE[len(self.sessions) % len(COLOR_PALETTE)],
+            color=self._pick_color(),
             mcp_servers=mcp,
         )
         save_session(session._to_db_dict())
@@ -274,6 +274,16 @@ class SessionManager:
                 await session.stop()
                 logger.error(f"Failed to load session {name}: {e}")
                 return None
+
+    def _pick_color(self) -> str:
+        used = [s.color for s in self.sessions.values()]
+        used += [a.get("color", "") for a in self.archived.values()]
+        for c in COLOR_PALETTE:
+            if c not in used:
+                return c
+        from collections import Counter
+        counts = Counter(used)
+        return min(COLOR_PALETTE, key=lambda c: counts.get(c, 0))
 
     def _find_orchestrator_name(self, scope: str) -> str | None:
         for s in self.sessions.values():
