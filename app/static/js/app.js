@@ -457,7 +457,7 @@ function addChatEntry(type, content, ts) {
         if (fromMatch) {
             const sender = fromMatch[1];
             const msg = fromMatch[2];
-            const senderColor = agentColors[sender] || '#64748b';
+            const senderColor = agentColors[sender] || Object.entries(agentColors).find(([k]) => k.startsWith(sender))?.[1] || '#64748b';
             div.style.borderLeft = `3px solid ${senderColor}`;
             div.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot';
             const label = document.createElement('div');
