@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.1.0 — 2026-05-04
+
+### Added
+- 📡 **SSE realtime logs** — `GET /api/sessions/{name}/stream` replaces polling for chat
+- 🏥 **Health check loop** — detects crashed worker tasks every 60s
+- 🔌 **Systemd service** — `orchestra.service` with auto-restart and Hiddify proxy
+- 🎨 **Smart color picker** — unique color per worker, least-used fallback
+- 🏷️ **Auto sender tag** — server adds `[from:name]`, workers send plain text
+- 📴 **Offline CSS** — Tailwind/marked/DOMPurify bundled locally
+
+### Fixed
+- **Auto-resume crash** — error sessions marked stopped on startup
+- **cli_path** — dynamic via `shutil.which("claude")`
+- **Worker logs** — filtered (text/tool/error only), no raw dumps
+- **tool_result parsing** — unwraps `{"result":"..."}` wrapper
+- **Proxy** — `HTTPS_PROXY` set in session.py, manager.py, service file
+
 ## v2.0.0 — 2026-05-03
 
 ### Changed

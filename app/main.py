@@ -140,20 +140,21 @@ async def get_session_context(name: str, scope: str):
 
 
 @app.get("/api/sessions/{name}/stream")
-async def stream_session_logs(name: str, scope: str):
+async def stream_session_logs(name: str, scope: str, after_id: int = 0):
     import json
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     async def event_generator():
-        last_id = 0
+        last_id = after_id
         while True:
             logs = get_logs(session_id, after_id=last_id)
             for log in logs:
                 yield f"data: {json.dumps(log)}\n\n"
                 last_id = log["id"]
             await asyncio.sleep(0.5)
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(event_generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/sessions/{name}/logs")

@@ -36,13 +36,39 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleRefresh();
 });
 
+let eventSource = null;
+
 function scheduleRefresh() {
-    const isWaiting = !!$('#waiting-indicator');
-    const delay = isWaiting ? 500 : 3000;
     setTimeout(async () => {
-        await refresh();
+        await refreshSessions();
         scheduleRefresh();
-    }, delay);
+    }, 3000);
+}
+
+function connectSSE() {
+    if (eventSource) { eventSource.close(); eventSource = null; }
+    if (!selectedAgent || !currentScope) return;
+    const lastId = chatLogs[selectedAgent]?.lastId || 0;
+    const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}`;
+    eventSource = new EventSource(url);
+    eventSource.onmessage = (event) => {
+        try {
+            const l = JSON.parse(event.data);
+            if (l.type === 'user_message' && localMessages.has(l.content)) {
+                localMessages.delete(l.content);
+            } else {
+                addChatEntry(l.type, l.content, l.ts);
+            }
+            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0 };
+            if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
+            $('#chat').scrollTop = $('#chat').scrollHeight;
+        } catch (e) { console.warn('SSE parse:', e); }
+    };
+    eventSource.onerror = () => {
+        eventSource.close();
+        eventSource = null;
+        setTimeout(connectSSE, 2000);
+    };
 }
 
 // === Models ===
@@ -117,7 +143,7 @@ function onOrchestratorChange() {
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
     updateAgentInfo(null);
-    refresh();
+    refreshSessions(); connectSSE();
 }
 
 // === Agent Selection ===
@@ -131,7 +157,7 @@ function selectAgent(name) {
     updateInputState();
     renderAgentList();
     fetchAgentContext(name);
-    refresh();
+    refreshSessions(); connectSSE();
 }
 
 function updateInputState() {
@@ -491,7 +517,7 @@ function addChatEntry(type, content, ts) {
 
 // === Refresh Loop ===
 let refreshInProgress = false;
-async function refresh() {
+async function refreshSessions() {
     if (refreshInProgress) return;
     refreshInProgress = true;
     if (refreshController) refreshController.abort();
@@ -512,30 +538,14 @@ async function refresh() {
         if (selectedAgent) {
             const agentSession = sessions.find(s => s.name === selectedAgent);
             if (agentSession) {
-                if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0 };
-                const afterId = chatLogs[selectedAgent].lastId;
-                const logs = await api(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&after_id=${afterId}`, { signal });
-                for (const l of logs) {
-                    if (l.type === 'user_message' && localMessages.has(l.content)) {
-                        localMessages.delete(l.content);
-                    } else {
-                        addChatEntry(l.type, l.content, l.ts);
-                    }
-                    if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
-                }
-
                 updateStopButton(agentSession.status);
                 if (agentSession.status === 'running' && !$('#waiting-indicator')) {
                     showWaitingIndicator();
                 } else if (agentSession.status !== 'running') {
                     removeWaitingIndicator();
                 }
-
-                if (scrollAfterLoad) {
-                    scrollAfterLoad = false;
-                    $('#chat').scrollTop = $('#chat').scrollHeight;
-                }
             }
+            if (!eventSource) connectSSE();
         }
     } catch (e) {
         if (e.name !== 'AbortError') console.warn('refresh error:', e);

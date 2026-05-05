@@ -1,36 +1,44 @@
 # Orchestra — AI Agent Orchestrator
 
+**v2.1.0** | [Changelog](CHANGELOG.md)
+
 ## Что это
-Свой оркестратор AI-агентов. Замена Agent Teams (Claude Code built-in) и AO (ComposioHQ).
-Каждый worker = ClaudeSDKClient в отдельном git worktree. Оркестратор = FastAPI + HTMX dashboard.
+Свой оркестратор AI-агентов. Opus оркестратор управляет Haiku/Sonnet воркерами через MCP tools.
+Каждый worker = Claude CLI в отдельном git worktree. Dashboard = FastAPI + HTMX + SSE.
 
 ## Стек
-- Python 3.12+, FastAPI, HTMX, Jinja2
+- Python 3.12+, FastAPI, Jinja2, SSE
 - `claude-agent-sdk` — SDK для Claude Code sessions
-- SQLite — task queue, worker state, logs
+- External stdio MCP server (FastMCP) — tools как отдельный процесс
+- SQLite — sessions, logs, inbox, jobs
 - `git worktree` — изоляция работников
 
 ## Архитектура
 
 ```
-Оркестратор (FastAPI)
-├── Dashboard (HTMX) — http://localhost:8888
-├── Task Queue (SQLite) — задачи + статусы
-├── Worker Manager — spawn/inject/interrupt/kill
+Оркестратор (FastAPI :8888)
+├── Dashboard (HTMX + SSE) — http://localhost:8888
+├── SQLite — sessions, logs, inbox, jobs
+├── External MCP Server (app/mcp_stdio.py) — tools для Claude CLI
+├── Session Manager — spawn/stop/archive
 └── Workers (N штук)
-    ├── ClaudeSDKClient — Claude Code session
+    ├── Claude CLI (fresh client per turn via SDK)
     ├── git worktree — изолированная рабочая копия
-    └── worker.md — протокол работы (scorecard, Codex, фидбек)
+    └── HTTP callback — curl POST /api/sessions/{name}/send
 ```
 
 ## Dev Commands
 ```bash
 uv sync
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
+
+# Systemd
+sudo systemctl start orchestra
+sudo systemctl status orchestra
 ```
 
-## Принципы (Pit of Success)
-- Минимальный код, линейный, явный
-- Crash > corrupt state
-- Один способ
-- Никакой обратной совместимости
+## Принципы
+- Fresh client per turn (connect → query → receive → disconnect)
+- External MCP (no in-process deadlocks)
+- Workers communicate via HTTP callback, not MCP inject
+- Proxy через Hiddify (127.0.0.1:12334) everywhere
