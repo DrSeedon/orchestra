@@ -104,7 +104,7 @@ class SessionManager:
 
     def load_archived(self) -> None:
         for row in get_all_sessions():
-            if row["status"] in ("stopped", "error") and row["id"] not in self.sessions:
+            if row["id"] not in self.sessions:
                 self.archived[row["id"]] = row
 
     async def create_session(
