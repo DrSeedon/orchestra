@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#new-orch-btn').addEventListener('click', () => {
         $('#new-orch-modal').classList.remove('hidden');
         $('#new-orch-modal').classList.add('flex');
-        loadProjects();
+        $('#project-picker').classList.add('hidden');
         $('#orch-cwd').focus();
     });
     $('#modal-close').addEventListener('click', closeModal);
@@ -40,13 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const path = $('#orch-cwd').value.trim();
         if (path) $('#orch-name').value = autoNameFromPath(path);
     });
-    $('#browse-btn')?.addEventListener('click', () => {
-        const datalist = $('#project-list');
-        if (datalist.options.length > 0) {
-            $('#orch-cwd').focus();
-            $('#orch-cwd').click();
-        }
-    });
+    $('#browse-btn')?.addEventListener('click', showProjectPicker);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     loadModels();
@@ -111,20 +105,25 @@ function closeModal() {
     $('#orch-error').classList.add('hidden');
 }
 
-let projectsList = [];
-
-async function loadProjects() {
+async function showProjectPicker() {
+    const picker = $('#project-picker');
+    picker.innerHTML = '<div class="p-2 text-xs text-slate-500">Loading...</div>';
+    picker.classList.remove('hidden');
     try {
-        projectsList = await api('/api/projects');
-        const datalist = $('#project-list');
-        datalist.innerHTML = '';
-        for (const p of projectsList) {
-            const opt = document.createElement('option');
-            opt.value = p.path;
-            opt.textContent = p.name;
-            datalist.appendChild(opt);
+        const projects = await api('/api/projects');
+        picker.innerHTML = '';
+        for (const p of projects) {
+            const item = document.createElement('div');
+            item.className = 'px-3 py-2 text-sm cursor-pointer hover:bg-slate-800 border-b border-slate-800/50';
+            item.innerHTML = `<span class="text-white font-medium">${p.name}</span> <span class="text-slate-500 text-xs">${p.path}</span>`;
+            item.addEventListener('click', () => {
+                $('#orch-cwd').value = p.path;
+                $('#orch-name').value = p.name;
+                picker.classList.add('hidden');
+            });
+            picker.appendChild(item);
         }
-    } catch {}
+    } catch { picker.innerHTML = '<div class="p-2 text-xs text-red-400">Failed to load</div>'; }
 }
 
 function autoNameFromPath(path) {

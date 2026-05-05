@@ -95,18 +95,45 @@ async def list_api_jobs(scope: str | None = None):
     return get_jobs(scope=scope)
 
 
+def _encode_path(path: str) -> str:
+    return "".join("-" if (c == "/" or c == " " or ord(c) > 127) else c for c in path)
+
+
+def _build_path_map() -> dict[str, str]:
+    scan_roots = [
+        "/mnt/data/Projects/Python",
+        "/mnt/data/Projects/Unity",
+        "/mnt/data/Projects",
+        str(Path.home()),
+    ]
+    mapping = {}
+    for root in scan_roots:
+        if not Path(root).is_dir():
+            continue
+        mapping[_encode_path(root)] = root
+        for entry in Path(root).iterdir():
+            if entry.is_dir() and not entry.name.startswith("."):
+                mapping[_encode_path(str(entry))] = str(entry)
+    return mapping
+
+
 @app.get("/api/projects")
 async def list_projects():
     projects_dir = Path.home() / ".claude" / "projects"
     if not projects_dir.is_dir():
         return []
+    path_map = _build_path_map()
     results = []
     for entry in sorted(projects_dir.iterdir()):
-        parts = entry.name.split("-")
-        candidate = "/" + "/".join(parts[1:])
-        if Path(candidate).is_dir() and candidate != "/":
-            folder = candidate.rstrip("/").split("/")[-1]
-            results.append({"path": candidate, "name": folder})
+        if not entry.is_dir():
+            continue
+        real_path = path_map.get(entry.name)
+        if not real_path or not Path(real_path).is_dir():
+            continue
+        if real_path == str(Path.home()):
+            continue
+        folder = real_path.rstrip("/").split("/")[-1]
+        results.append({"path": real_path, "name": folder})
     return results
 
 
