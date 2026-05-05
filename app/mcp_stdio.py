@@ -58,29 +58,29 @@ async def spawn_worker(name: str, task: str, repo_path: str,
 
 
 @mcp.tool()
-async def send_to_worker(name: str, message: str) -> str:
-    """Send a message to a worker (triggers a new turn)."""
-    result = await _api("POST", f"/api/sessions/{name}/send", json={
-        "message": message, "sender": ROLE, "scope": SCOPE,
+async def send_message(to: str, message: str) -> str:
+    """Send a message to any agent by name. Triggers a new turn."""
+    result = await _api("POST", f"/api/sessions/{to}/send", json={
+        "message": message, "sender": WORKER_NAME or ROLE, "scope": SCOPE,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Send failed: {result['error']}"
-    return f"Message sent to '{name}'"
+    return f"Message sent to '{to}'"
 
 
 @mcp.tool()
-async def list_workers() -> str:
-    """List all worker sessions."""
+async def list_agents() -> str:
+    """List all agents (orchestrators and workers)."""
     sessions = await _api("GET", "/api/sessions", params={"scope": SCOPE} if SCOPE else None)
     if not isinstance(sessions, list):
         return f"Error: {sessions}"
-    workers = [s for s in sessions if not s.get("is_orchestrator") and s.get("is_orchestrator") != 1]
-    if not workers:
-        return "No workers"
+    if not sessions:
+        return "No agents"
     lines = []
-    for w in workers:
-        st = w.get("status", "?")
-        lines.append(f"{'🟢' if st in ('running','idle') else '🪦'} **{w['name']}** | {st} | {w.get('model','?')} | ${w.get('cost_usd',0):.4f}")
+    for s in sessions:
+        role = "🎯" if s.get("is_orchestrator") else "⚙️"
+        st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
+        lines.append(f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')} | ${s.get('cost_usd',0):.4f}")
     return "\n".join(lines)
 
 
@@ -126,25 +126,7 @@ async def list_jobs() -> str:
     return "\n".join(f"- {j['id']}: {j['type']} {j['name']} = {j['status']}" for j in jobs)
 
 
-@mcp.tool()
-async def send_message(to: str, message: str) -> str:
-    """Send a message to any agent (worker→orchestrator)."""
-    await _api("POST", f"/api/sessions/{to}/send", json={
-        "message": message, "sender": WORKER_NAME, "scope": SCOPE,
-    })
-    return f"Message sent to '{to}'"
 
-
-@mcp.tool()
-async def list_agents() -> str:
-    """List all active agents."""
-    sessions = await _api("GET", "/api/sessions", params={"scope": SCOPE} if SCOPE else None)
-    if not isinstance(sessions, list):
-        return f"Error: {sessions}"
-    active = [s for s in sessions if s.get("status") in ("running", "idle")]
-    if not active:
-        return "No active agents"
-    return "\n".join(f"- **{s['name']}** ({'orch' if s.get('is_orchestrator') else 'worker'}) | {s['status']}" for s in active)
 
 
 if __name__ == "__main__":

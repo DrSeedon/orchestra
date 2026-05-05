@@ -10,7 +10,6 @@ from typing import Optional
 
 from app.session import AgentSession, AgentStatus
 from app.workspace import create_worktree, remove_worktree
-from app.tools import set_manager
 from app.models import resolve_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
@@ -55,7 +54,6 @@ class SessionManager:
         self.sessions: dict[str, AgentSession] = {}
         self._spawn_queue: asyncio.Queue = asyncio.Queue()
         self._spawn_task: asyncio.Task | None = None
-        set_manager(self)
 
     def start_background_tasks(self) -> None:
         if not self._spawn_task or self._spawn_task.done():
