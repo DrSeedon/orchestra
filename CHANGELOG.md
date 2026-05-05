@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.2.0 — 2026-05-05
+
+### Added
+- 🗑️ **Delete orchestrator** — `DELETE /api/orchestrators/{name}` removes orchestrator + all
+  workers in scope (active sessions, worktrees, DB records). Dashboard button `✕ Delete` with
+  confirm dialog. `manager.remove_scope(scope)` handles cleanup.
+- 💾 **Remember last orchestrator** — `localStorage` saves `lastOrchScope`/`lastOrchName` on
+  switch, restores on page load. No more "always opens first in list".
+
+### Fixed
+- **Stop deleted logs (critical)** — `POST /stop` called `manager.remove()` which ran
+  `DELETE FROM sessions` → `ON DELETE CASCADE` wiped all logs. Now stop calls `unload()`
+  (stops session, removes from memory, preserves DB). Only explicit Delete removes from DB.
+  - Triggered case: kesha-tg-bot orchestrator stuck running after interrupt, used stop to
+    unstick it → 2318 log entries deleted by cascade. User saw empty chat.
+- **Scroll hijack on history read** — three sources of forced scroll-to-bottom:
+  1. `showWaitingIndicator()` unconditionally set `scrollTop` — now checks `wasAtBottom`
+  2. SSE handler had duplicate scroll check after `addChatEntry` (which already handles it)
+  3. `refreshSessions` re-created waiting indicator every 3s (SSE removed it → refresh
+     recreated → scroll). Removed re-creation from refresh loop.
+
 ## v2.1.0 — 2026-05-04
 
 ### Added
