@@ -118,7 +118,7 @@ async function showProjectPicker() {
             item.innerHTML = `<span class="text-white font-medium">${p.name}</span> <span class="text-slate-500 text-xs">${p.path}</span>`;
             item.addEventListener('click', () => {
                 $('#orch-cwd').value = p.path;
-                $('#orch-name').value = p.name;
+                $('#orch-name').value = p.name + '-orchestrator';
                 picker.classList.add('hidden');
             });
             picker.appendChild(item);
@@ -128,7 +128,8 @@ async function showProjectPicker() {
 
 function autoNameFromPath(path) {
     const parts = path.replace(/\/+$/, '').split('/');
-    return parts[parts.length - 1] || '';
+    const folder = parts[parts.length - 1] || '';
+    return folder + '-orchestrator';
 }
 
 async function createOrchestrator() {
