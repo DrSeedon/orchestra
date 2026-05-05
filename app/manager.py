@@ -140,6 +140,11 @@ class SessionManager:
         if session:
             await session.interrupt()
 
+    async def unload(self, session_id: str) -> None:
+        session = self.sessions.pop(session_id, None)
+        if session:
+            await session.stop()
+
     async def remove(self, session_id: str) -> None:
         session = self.sessions.pop(session_id, None)
         if session:
@@ -150,6 +155,13 @@ class SessionManager:
                 except Exception:
                     pass
         delete_session(session_id)
+
+    async def remove_scope(self, scope: str) -> None:
+        to_remove = [s for s in self.sessions.values() if s.scope == scope]
+        for s in to_remove:
+            await self.remove(s.id)
+        for row in get_all_sessions(scope):
+            delete_session(row["id"])
 
     # ── Lookups ──
 

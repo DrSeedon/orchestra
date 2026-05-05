@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (path) $('#orch-name').value = autoNameFromPath(path);
     });
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
+    $('#delete-orch-btn').addEventListener('click', deleteOrchestrator);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     loadModels();
@@ -75,9 +76,6 @@ function connectSSE() {
             }
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0 };
             if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
-            const chat = $('#chat');
-            const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
-            if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
         } catch (e) { console.warn('SSE parse:', e); }
     };
     eventSource.onerror = () => {
@@ -153,6 +151,19 @@ async function createOrchestrator() {
     finally { btn.disabled = false; btn.textContent = 'Create Orchestrator'; }
 }
 
+async function deleteOrchestrator() {
+    if (!currentScope || !selectedAgent) return;
+    if (!confirm(`Delete "${selectedAgent}" and all its workers?`)) return;
+    try {
+        await api(`/api/orchestrators/${selectedAgent}?scope=${encodeURIComponent(currentScope)}`, { method: 'DELETE' });
+        localStorage.removeItem('lastOrchScope');
+        localStorage.removeItem('lastOrchName');
+        currentScope = null;
+        selectedAgent = null;
+        await loadOrchestrators();
+    } catch (e) { alert(`Delete failed: ${e.message}`); }
+}
+
 // === Orchestrator Picker ===
 async function loadOrchestrators() {
     try {
@@ -168,7 +179,14 @@ async function loadOrchestrators() {
             picker.appendChild(opt);
         }
         if (data.length > 0 && !currentScope) {
-            picker.value = data[0].scope;
+            const lastScope = localStorage.getItem('lastOrchScope');
+            const lastName = localStorage.getItem('lastOrchName');
+            const match = data.find(o => o.scope === lastScope && o.name === lastName);
+            if (match) {
+                picker.value = match.scope;
+            } else {
+                picker.value = data[0].scope;
+            }
             onOrchestratorChange();
         }
     } catch {}
@@ -183,6 +201,10 @@ function onOrchestratorChange() {
     pendingUserMsgs = [];
     pendingBubble = null;
     selectedAgent = opt?.dataset?.name || null;
+    if (currentScope && selectedAgent) {
+        localStorage.setItem('lastOrchScope', currentScope);
+        localStorage.setItem('lastOrchName', selectedAgent);
+    }
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
     updateAgentInfo(null);
@@ -417,12 +439,13 @@ function finalizePending() {
 function showWaitingIndicator() {
     removeWaitingIndicator();
     const chat = $('#chat');
+    const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
     const div = document.createElement('div');
     div.id = 'waiting-indicator';
     div.className = 'flex items-center gap-2 text-xs text-slate-500 py-2 px-3';
     div.innerHTML = '<span class="waiting-dots"><span>.</span><span>.</span><span>.</span></span> waiting for response';
     chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+    if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }
 
 function removeWaitingIndicator() {
@@ -696,9 +719,7 @@ async function refreshSessions() {
             const agentSession = sessions.find(s => s.name === selectedAgent);
             if (agentSession) {
                 updateStopButton(agentSession.status);
-                if (agentSession.status === 'running' && !$('#waiting-indicator')) {
-                    showWaitingIndicator();
-                } else if (agentSession.status !== 'running') {
+                if (agentSession.status !== 'running') {
                     removeWaitingIndicator();
                 }
             }
