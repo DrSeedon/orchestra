@@ -237,8 +237,13 @@ class SessionManager:
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
                 return s
-        if any(a["name"] == name and a["scope"] == scope for a in self.archived.values()):
-            return None
+        # Check archived — if idle/error, promote to active
+        for aid, a in list(self.archived.items()):
+            if a["name"] == name and a["scope"] == scope:
+                if a["status"] == "stopped":
+                    return None
+                # Promote idle/error back to active
+                return await self._promote_archived(aid, a)
         key = f"{scope}:{name}"
         if key not in self._load_locks:
             self._load_locks[key] = asyncio.Lock()
@@ -249,7 +254,7 @@ class SessionManager:
             db_row = get_session_by_name(name, scope)
             if not db_row:
                 return None
-            if db_row["status"] in ("stopped", "error"):
+            if db_row["status"] == "stopped":
                 return None
             is_orch = bool(db_row.get("is_orchestrator"))
             mcp_env = {
@@ -303,6 +308,30 @@ class SessionManager:
         from collections import Counter
         counts = Counter(used)
         return min(COLOR_PALETTE, key=lambda c: counts.get(c, 0))
+
+    async def _promote_archived(self, session_id: str, db_row: dict) -> Optional[AgentSession]:
+        is_orch = bool(db_row.get("is_orchestrator"))
+        mcp_env = {
+            "ORCHESTRA_URL": "http://127.0.0.1:8888",
+            "ORCHESTRA_SCOPE": db_row["scope"],
+            "ORCHESTRA_ROLE": db_row["name"] if is_orch else "worker",
+            "WORKER_NAME": db_row["name"],
+        }
+        mcp = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": {**MCP_BASE_ENV, **mcp_env}, "alwaysLoad": True}}
+        prompt = db_row.get("system_prompt", "") or (ORCHESTRATOR_SYSTEM_PROMPT if is_orch else WORKER_SYSTEM_PROMPT)
+        session = AgentSession(
+            id=db_row["id"], name=db_row["name"], scope=db_row["scope"],
+            cwd=db_row.get("cwd") or db_row["scope"], model=db_row["model"],
+            system_prompt=prompt, session_id=db_row.get("session_id"),
+            cost_usd=db_row.get("cost_usd", 0),
+            worktree_path=db_row.get("worktree_path"), branch=db_row.get("branch"),
+            is_orchestrator=is_orch, mcp_servers=mcp, on_error=self._on_session_error,
+        )
+        session.status = AgentStatus.IDLE
+        await session.start()
+        self.sessions[session.id] = session
+        self.archived.pop(session_id, None)
+        return session
 
     def _find_orchestrator_name(self, scope: str) -> str | None:
         for s in self.sessions.values():
