@@ -78,7 +78,7 @@ class AgentSession:
     _pending: list = field(default_factory=list, repr=False)
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
 
-    TURN_TIMEOUT = 300
+    TURN_TIMEOUT = 600
 
     def _make_client(self) -> ClaudeSDKClient:
         import shutil
