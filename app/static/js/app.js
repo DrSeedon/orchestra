@@ -295,8 +295,8 @@ function renderAgentList(sessions) {
     const list = $('#agent-list');
     list.innerHTML = '';
 
-    const active = sessions.filter(s => s.status !== 'stopped' && s.status !== 'error');
-    const archive = sessions.filter(s => s.status === 'stopped' || s.status === 'error');
+    const active = sessions.filter(s => s.status !== 'stopped');
+    const archive = sessions.filter(s => s.status === 'stopped');
 
     for (const s of active) {
         if (s.color) agentColors[s.name] = s.color;

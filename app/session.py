@@ -129,8 +129,10 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
-        if self.status in (AgentStatus.STOPPED, AgentStatus.ERROR):
-            raise RuntimeError(f"cannot send to session in {self.status} state")
+        if self.status == AgentStatus.STOPPED:
+            raise RuntimeError(f"cannot send to stopped session")
+        if self.status == AgentStatus.ERROR:
+            self.status = AgentStatus.IDLE
         self._log("user_message", message)
         self._pending.append(message)
         if self.status != AgentStatus.RUNNING:

@@ -98,10 +98,9 @@ class SessionManager:
                 self._spawn_queue.task_done()
 
     def _on_session_error(self, session_id: str) -> None:
-        session = self.sessions.pop(session_id, None)
+        session = self.sessions.get(session_id)
         if session:
-            self.archived[session_id] = session._to_db_dict()
-            pass  # session error handled
+            logger.warning(f"Session {session.name} entered error state")
 
     def load_archived(self) -> None:
         for row in get_all_sessions():
@@ -366,8 +365,7 @@ class SessionManager:
     async def auto_resume_orchestrators(self) -> None:
         from app.db import _conn
         with _conn() as c:
-            c.execute("UPDATE sessions SET status='stopped' WHERE status='error' AND is_orchestrator=0")
-            c.execute("UPDATE sessions SET status='idle' WHERE status IN ('error','running') AND is_orchestrator=1")
+            c.execute("UPDATE sessions SET status='idle' WHERE status IN ('error','running')")
         orchestrators = get_resumable_orchestrators()
         resumed_ids = []
         for orch in orchestrators:
