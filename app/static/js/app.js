@@ -536,17 +536,24 @@ function addChatEntry(type, content, ts) {
             div.textContent = content;
         }
     }
-    else if (type === 'tool') {
-        const toolName = content.split(':')[0].trim();
-        div.textContent = `🔧 ${toolName}`;
-        div.title = content;
-    }
+    else if (type === 'tool') { div.textContent = `🔧 ${content}`; }
     else if (type === 'tool_result') {
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-        if (clean.length > 300) {
-            div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(clean.slice(0, 300) + '...'));
-        } else {
-            div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(clean));
+        const preview = clean.length > 200 ? clean.slice(0, 200) : clean;
+        const full = clean.length > 200 ? clean : null;
+        div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(preview));
+        if (full) {
+            const toggle = document.createElement('button');
+            toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
+            toggle.textContent = '▸ show full';
+            let expanded = false;
+            toggle.addEventListener('click', () => {
+                expanded = !expanded;
+                div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(expanded ? full : preview));
+                toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
+                div.appendChild(toggle);
+            });
+            div.appendChild(toggle);
         }
     }
     else if (type === 'error') { div.textContent = content; }
