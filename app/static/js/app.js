@@ -66,14 +66,18 @@ function connectSSE() {
     eventSource.onmessage = (event) => {
         try {
             const l = JSON.parse(event.data);
-            if (l.type === 'user_message' && localMessages.has(l.content)) {
+            const isLocal = l.type === 'user_message' && (localMessages.has(l.content) || [...localMessages].some(m => l.content.endsWith(m)));
+            if (isLocal) {
                 localMessages.delete(l.content);
+                for (const m of localMessages) { if (l.content.endsWith(m)) { localMessages.delete(m); break; } }
             } else {
                 addChatEntry(l.type, l.content, l.ts);
             }
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0 };
             if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
-            $('#chat').scrollTop = $('#chat').scrollHeight;
+            const chat = $('#chat');
+            const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+            if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
         } catch (e) { console.warn('SSE parse:', e); }
     };
     eventSource.onerror = () => {
