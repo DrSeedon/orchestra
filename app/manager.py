@@ -252,7 +252,7 @@ class SessionManager:
     async def auto_resume_orchestrators(self) -> None:
         from app.db import _conn
         with _conn() as c:
-            c.execute("UPDATE sessions SET status='idle' WHERE status IN ('error','running','starting')")
+            c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
         for orch in get_resumable_orchestrators():
             if orch["id"] in self.sessions:
                 continue
