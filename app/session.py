@@ -1,4 +1,4 @@
-"""AgentSession — SDK wrapper, one client per turn (connect→query→receive→disconnect)."""
+"""AgentSession — SDK wrapper, one client per turn."""
 
 import asyncio
 import logging
@@ -17,7 +17,7 @@ from claude_agent_sdk import (
     PermissionResultAllow,
 )
 from claude_agent_sdk.types import (
-    StreamEvent, ToolResultBlock, ServerToolResultBlock, UserMessage,
+    ToolResultBlock, ServerToolResultBlock, UserMessage,
 )
 
 from app.db import save_session, add_log
@@ -26,18 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class AgentStatus(str, Enum):
-    STARTING = "starting"
-    RUNNING = "running"
     IDLE = "idle"
-    STOPPED = "stopped"
-    ERROR = "error"
-
-
-def _make_result_message(session_id: str = "", cost: float = 0.0) -> ResultMessage:
-    return ResultMessage(
-        subtype="result", duration_ms=0, duration_api_ms=0,
-        is_error=False, num_turns=1, session_id=session_id, total_cost_usd=cost,
-    )
+    RUNNING = "running"
 
 
 async def _auto_approve(tool_name, tool_input, _context=None):
@@ -48,12 +38,7 @@ def _extract_tool_result(block) -> str:
     import json as _json
     raw = getattr(block, 'content', '')
     if isinstance(raw, list):
-        parts = []
-        for item in raw:
-            if isinstance(item, dict):
-                parts.append(item.get('text', str(item)))
-            else:
-                parts.append(str(item))
+        parts = [item.get('text', str(item)) if isinstance(item, dict) else str(item) for item in raw]
         text = '\n'.join(parts)
     elif isinstance(raw, dict):
         text = raw.get('text', str(raw))
@@ -76,7 +61,7 @@ class AgentSession:
     cwd: str
     model: str = "claude-sonnet-4-6"
     system_prompt: str = ""
-    status: AgentStatus = AgentStatus.STARTING
+    status: AgentStatus = AgentStatus.IDLE
     session_id: str | None = None
     cost_usd: float = 0.0
     worktree_path: str | None = None
@@ -91,6 +76,7 @@ class AgentSession:
     _turn_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _debounce_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _pending: list = field(default_factory=list, repr=False)
+    _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
 
     TURN_TIMEOUT = 300
 
@@ -98,19 +84,11 @@ class AgentSession:
         import shutil
         cli = shutil.which("claude") or "/home/maxim/.local/bin/claude"
         options = ClaudeAgentOptions(
-            model=self.model,
-            cwd=self.cwd,
-            cli_path=cli,
-            permission_mode="default",
-            can_use_tool=_auto_approve,
+            model=self.model, cwd=self.cwd, cli_path=cli,
+            permission_mode="default", can_use_tool=_auto_approve,
             system_prompt=self.system_prompt,
-            include_partial_messages=False,
-            max_turns=25,
-            env={
-                "HTTPS_PROXY": "http://127.0.0.1:12334",
-                "HTTP_PROXY": "http://127.0.0.1:12334",
-                "NO_PROXY": "localhost,127.0.0.1",
-            },
+            include_partial_messages=False, max_turns=25,
+            env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},
         )
         if self.session_id:
             options.resume = self.session_id
@@ -129,10 +107,6 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
-        if self.status == AgentStatus.STOPPED:
-            raise RuntimeError(f"cannot send to stopped session")
-        if self.status == AgentStatus.ERROR:
-            self.status = AgentStatus.IDLE
         self._log("user_message", message)
         self._pending.append(message)
         if self.status != AgentStatus.RUNNING:
@@ -158,7 +132,6 @@ class AgentSession:
         self._turn_task.add_done_callback(self._on_task_done)
 
     async def _run_turn(self, message: str) -> None:
-        """One turn = create client → connect → query → receive → disconnect."""
         client = self._make_client()
         try:
             self._persist()
@@ -168,12 +141,12 @@ class AgentSession:
         except asyncio.TimeoutError:
             logger.error(f"[{self.name}] turn timeout")
             self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
-            self.status = AgentStatus.ERROR
+            self.status = AgentStatus.IDLE
             self._persist()
         except Exception as e:
             logger.error(f"[{self.name}] turn error: {e}")
             self._log("error", str(e))
-            self.status = AgentStatus.ERROR
+            self.status = AgentStatus.IDLE
             self._persist()
         finally:
             try:
@@ -218,11 +191,9 @@ class AgentSession:
             return
         if exc:
             logger.error(f"[{self.name}] task error: {exc}")
-            self.status = AgentStatus.ERROR
+            self.status = AgentStatus.IDLE
             self._log("error", str(exc))
             self._persist()
-            if self.on_error:
-                self.on_error(self.id)
 
     async def interrupt(self) -> None:
         if self._turn_task and not self._turn_task.done():
@@ -239,9 +210,7 @@ class AgentSession:
                 await self._turn_task
             except (asyncio.CancelledError, Exception):
                 pass
-        self.status = AgentStatus.STOPPED
-        if not self.is_orchestrator:
-            self.name = f"{self.name}-{self.id[:6]}"
+        self.status = AgentStatus.IDLE
         self._persist()
 
     def _persist(self) -> None:
@@ -258,11 +227,8 @@ class AgentSession:
             "cost_usd": self.cost_usd, "worktree_path": self.worktree_path,
             "branch": self.branch, "is_orchestrator": self.is_orchestrator,
             "color": self.color, "created_at": self.created_at.isoformat(),
-            "finished_at": datetime.now(timezone.utc).isoformat()
-                if self.status in (AgentStatus.STOPPED, AgentStatus.ERROR) else None,
+            "finished_at": None,
         }
-
-    _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
 
     async def get_context(self) -> dict:
         return self._last_context

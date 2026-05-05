@@ -25,7 +25,6 @@ def client(db):
     )):
         from app.main import app, manager
         manager.sessions.clear()
-        manager.archived.clear()
         with TestClient(app) as c:
             yield c
 

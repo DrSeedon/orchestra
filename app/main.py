@@ -255,7 +255,8 @@ async def stop_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
     if not found or isinstance(found, dict):
         return JSONResponse({"error": "not found or already stopped"}, status_code=404)
-    await manager.stop(found.id)
+    sid = found.id if hasattr(found, 'id') else found["id"]
+    await manager.remove(sid)
     return {"ok": True}
 
 
