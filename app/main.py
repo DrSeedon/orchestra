@@ -137,6 +137,27 @@ async def list_projects():
     return results
 
 
+@app.get("/api/files")
+async def list_files(path: str):
+    target = Path(path)
+    if not target.is_dir():
+        return JSONResponse({"error": "not a directory"}, status_code=400)
+    items = []
+    try:
+        for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
+            if entry.name.startswith('.'):
+                continue
+            items.append({
+                "name": entry.name,
+                "path": str(entry),
+                "is_dir": entry.is_dir(),
+                "size": entry.stat().st_size if entry.is_file() else None,
+            })
+    except PermissionError:
+        pass
+    return items
+
+
 @app.get("/api/sessions")
 async def list_sessions(scope: Optional[str] = None):
     return manager.list_sessions(scope)
@@ -272,28 +293,6 @@ async def list_orchestrators():
     active_ids = {s["id"] for s in active}
     db_orchs = [s for s in get_all_sessions() if s.get("is_orchestrator") and s["id"] not in active_ids]
     return active + db_orchs
-
-
-@app.get("/api/files")
-async def list_files(path: str):
-    import os
-    target = Path(path)
-    if not target.is_dir():
-        return JSONResponse({"error": "not a directory"}, status_code=400)
-    items = []
-    try:
-        for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
-            if entry.name.startswith('.'):
-                continue
-            items.append({
-                "name": entry.name,
-                "path": str(entry),
-                "is_dir": entry.is_dir(),
-                "size": entry.stat().st_size if entry.is_file() else None,
-            })
-    except PermissionError:
-        pass
-    return items
 
 
 @app.get("/api/models")
