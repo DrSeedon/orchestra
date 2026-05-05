@@ -240,7 +240,11 @@ async def stats(scope: Optional[str] = None):
 
 @app.get("/api/orchestrators")
 async def list_orchestrators():
-    return [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
+    from app.db import get_all_sessions
+    active = [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
+    active_ids = {s["id"] for s in active}
+    db_orchs = [s for s in get_all_sessions() if s.get("is_orchestrator") and s["id"] not in active_ids]
+    return active + db_orchs
 
 
 @app.get("/api/models")

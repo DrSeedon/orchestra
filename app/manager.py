@@ -366,7 +366,8 @@ class SessionManager:
     async def auto_resume_orchestrators(self) -> None:
         from app.db import _conn
         with _conn() as c:
-            c.execute("UPDATE sessions SET status='stopped' WHERE status='error'")
+            c.execute("UPDATE sessions SET status='stopped' WHERE status='error' AND is_orchestrator=0")
+            c.execute("UPDATE sessions SET status='idle' WHERE status IN ('error','running') AND is_orchestrator=1")
         orchestrators = get_resumable_orchestrators()
         resumed_ids = []
         for orch in orchestrators:
