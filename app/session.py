@@ -62,10 +62,10 @@ def _extract_tool_result(block) -> str:
     try:
         parsed = _json.loads(text)
         if isinstance(parsed, dict) and 'result' in parsed:
-            return str(parsed['result'])[:500]
+            return str(parsed['result'])[:2000]
     except (ValueError, TypeError):
         pass
-    return text[:500]
+    return text[:2000]
 
 
 @dataclass
@@ -198,6 +198,11 @@ class AgentSession:
                 if msg.session_id:
                     self.session_id = msg.session_id
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
+                usage = getattr(msg, "usage", None)
+                if usage:
+                    total = getattr(usage, "input_tokens", 0) or 0
+                    max_t = 200000
+                    self._last_context = {"percentage": int(total * 100 / max_t) if max_t else 0, "total_tokens": total, "max_tokens": max_t}
                 self.status = AgentStatus.IDLE
                 self._persist()
                 if self._pending:
@@ -255,8 +260,10 @@ class AgentSession:
                 if self.status in (AgentStatus.STOPPED, AgentStatus.ERROR) else None,
         }
 
+    _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
+
     async def get_context(self) -> dict:
-        return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+        return self._last_context
 
     def to_dict(self) -> dict:
         return {
