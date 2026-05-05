@@ -15,7 +15,8 @@
 - [x] Auto sender tag
 
 ## Next
-- [ ] **File browser panel** — VS Code-style tree view слева. Показывает файлы/папки проекта (scope cwd). Раскрытие папок, иконки по типу файла. Drag-and-drop файла/папки в chat input → отправляется как "прочитай /path/to/file" или "посмотри /path/to/dir". Можно кликнуть на файл → показать содержимое в чате
+- [x] **File browser panel** — tree view слева, drag-and-drop в chat, иконки по типу файла
+- [ ] **Orchestra skill** — Claude Code skill `/orchestra` для запуска задач из любого проекта. Триггеры: "запусти оркестратор", "создай воркеров", "/orchestra". Skill проверяет что сервер запущен, создаёт/находит orchestrator для текущего проекта, отправляет задачу. Можно из любой Claude Code сессии без открытия dashboard
 - [ ] SSE for session list/stats (not just logs)
 - [ ] Worker templates — `.claude/agents/*.md` as presets
 - [ ] Auto-compact at 30% context
