@@ -15,6 +15,7 @@
 - [x] Auto sender tag
 
 ## Next
+- [ ] **File browser panel** — VS Code-style tree view слева. Показывает файлы/папки проекта (scope cwd). Раскрытие папок, иконки по типу файла. Drag-and-drop файла/папки в chat input → отправляется как "прочитай /path/to/file" или "посмотри /path/to/dir". Можно кликнуть на файл → показать содержимое в чате
 - [ ] SSE for session list/stats (not just logs)
 - [ ] Worker templates — `.claude/agents/*.md` as presets
 - [ ] Auto-compact at 30% context
