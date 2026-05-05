@@ -59,16 +59,13 @@ async def spawn_worker(name: str, task: str, repo_path: str,
 
 @mcp.tool()
 async def send_to_worker(name: str, message: str) -> str:
-    """Send a message to worker's inbox."""
-    sessions = await _api("GET", "/api/sessions", params={"scope": SCOPE} if SCOPE else None)
-    if not isinstance(sessions, list):
-        return f"Error: {sessions}"
-    sid = next((s["id"] for s in sessions if s["name"] == name), None)
-    if not sid:
-        return f"Worker '{name}' not found"
-    from app.db import add_inbox
-    add_inbox(sid, ROLE, message)
-    return f"Message queued in '{name}' inbox."
+    """Send a message to a worker (triggers a new turn)."""
+    result = await _api("POST", f"/api/sessions/{name}/send", json={
+        "message": message, "sender": ROLE, "scope": SCOPE,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Send failed: {result['error']}"
+    return f"Message sent to '{name}'"
 
 
 @mcp.tool()
