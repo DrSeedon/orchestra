@@ -95,6 +95,21 @@ async def list_api_jobs(scope: str | None = None):
     return get_jobs(scope=scope)
 
 
+@app.get("/api/projects")
+async def list_projects():
+    projects_dir = Path.home() / ".claude" / "projects"
+    if not projects_dir.is_dir():
+        return []
+    results = []
+    for entry in sorted(projects_dir.iterdir()):
+        parts = entry.name.split("-")
+        candidate = "/" + "/".join(parts[1:])
+        if Path(candidate).is_dir() and candidate != "/":
+            folder = candidate.rstrip("/").split("/")[-1]
+            results.append({"path": candidate, "name": folder})
+    return results
+
+
 @app.get("/api/sessions")
 async def list_sessions(scope: Optional[str] = None):
     return manager.list_sessions(scope)
@@ -226,22 +241,6 @@ async def stats(scope: Optional[str] = None):
 @app.get("/api/orchestrators")
 async def list_orchestrators():
     return [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
-
-
-@app.get("/api/projects")
-async def list_projects():
-    import os
-    projects_dir = Path.home() / ".claude" / "projects"
-    if not projects_dir.is_dir():
-        return []
-    results = []
-    for name in sorted(projects_dir.iterdir()):
-        parts = name.name.split("-")
-        candidate = "/" + "/".join(parts[1:])
-        if Path(candidate).is_dir() and candidate != "/":
-            folder = candidate.rstrip("/").split("/")[-1]
-            results.append({"path": candidate, "name": folder})
-    return results
 
 
 @app.get("/api/models")
