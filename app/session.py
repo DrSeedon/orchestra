@@ -106,6 +106,11 @@ class AgentSession:
             system_prompt=self.system_prompt,
             include_partial_messages=False,
             max_turns=25,
+            env={
+                "HTTPS_PROXY": "http://127.0.0.1:12334",
+                "HTTP_PROXY": "http://127.0.0.1:12334",
+                "NO_PROXY": "localhost,127.0.0.1",
+            },
         )
         if self.session_id:
             options.resume = self.session_id

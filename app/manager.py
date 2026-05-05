@@ -21,7 +21,12 @@ logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = str(Path(__file__).parent.parent)
 MCP_STDIO_CMD = [sys.executable, "-m", "app.mcp_stdio"]
-MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
+MCP_BASE_ENV = {
+    "PYTHONPATH": _PROJECT_ROOT,
+    "HTTPS_PROXY": "http://127.0.0.1:12334",
+    "HTTP_PROXY": "http://127.0.0.1:12334",
+    "NO_PROXY": "localhost,127.0.0.1",
+}
 
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
