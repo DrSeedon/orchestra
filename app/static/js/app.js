@@ -181,7 +181,7 @@ function onOrchestratorChange() {
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
     updateAgentInfo(null);
-    refreshSessions(); connectSSE();
+    refreshSessions(); connectSSE(); initFilePanel();
 }
 
 // === Agent Selection ===
@@ -569,6 +569,102 @@ function addChatEntry(type, content, ts) {
     chat.appendChild(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
     if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+}
+
+// === File Browser ===
+const FILE_ICONS = {
+    py: '🐍', js: '📜', ts: '📜', json: '📋', md: '📝', html: '🌐', css: '🎨',
+    txt: '📄', yml: '⚙️', yaml: '⚙️', toml: '⚙️', sh: '🖥', sql: '🗃',
+    png: '🖼', jpg: '🖼', svg: '🖼', gif: '🖼',
+};
+
+function getFileIcon(name, isDir) {
+    if (isDir) return '📁';
+    const ext = name.split('.').pop().toLowerCase();
+    return FILE_ICONS[ext] || '📄';
+}
+
+async function loadFileTree(path, container) {
+    container.innerHTML = '<div class="text-slate-600 px-2">Loading...</div>';
+    try {
+        const files = await api(`/api/files?path=${encodeURIComponent(path)}`);
+        container.innerHTML = '';
+        for (const f of files) {
+            const item = document.createElement('div');
+            item.className = `file-item ${f.is_dir ? 'file-dir' : 'file-file'}`;
+            item.draggable = true;
+            item.dataset.path = f.path;
+            item.dataset.isDir = f.is_dir;
+            item.textContent = `${getFileIcon(f.name, f.is_dir)} ${f.name}`;
+            item.title = f.path;
+
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', f.path);
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+
+            if (f.is_dir) {
+                let expanded = false;
+                const children = document.createElement('div');
+                children.className = 'file-children hidden';
+                item.addEventListener('click', async () => {
+                    expanded = !expanded;
+                    if (expanded && children.children.length === 0) {
+                        await loadFileTree(f.path, children);
+                    }
+                    children.classList.toggle('hidden', !expanded);
+                    item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+                });
+                const wrapper = document.createElement('div');
+                wrapper.appendChild(item);
+                wrapper.appendChild(children);
+                container.appendChild(wrapper);
+            } else {
+                item.addEventListener('click', () => {
+                    const input = $('#chat-input');
+                    input.value += (input.value ? '\n' : '') + f.path;
+                    input.focus();
+                });
+                container.appendChild(item);
+            }
+        }
+        if (files.length === 0) {
+            container.innerHTML = '<div class="text-slate-600 px-2 italic">empty</div>';
+        }
+    } catch (e) {
+        container.innerHTML = `<div class="text-red-400 px-2">${e.message}</div>`;
+    }
+}
+
+function initFilePanel() {
+    const panel = $('#file-panel');
+    const tree = $('#file-tree');
+    const toggle = $('#file-panel-toggle');
+
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            panel.classList.toggle('hidden');
+            toggle.textContent = panel.classList.contains('hidden') ? '▶' : '◀';
+        });
+    }
+
+    // Drag over chat input
+    const chatInput = $('#chat-input');
+    chatInput.addEventListener('dragover', (e) => { e.preventDefault(); chatInput.classList.add('border-indigo-400'); });
+    chatInput.addEventListener('dragleave', () => chatInput.classList.remove('border-indigo-400'));
+    chatInput.addEventListener('drop', (e) => {
+        e.preventDefault();
+        chatInput.classList.remove('border-indigo-400');
+        const path = e.dataTransfer.getData('text/plain');
+        if (path) {
+            chatInput.value += (chatInput.value ? '\n' : '') + path;
+            chatInput.focus();
+        }
+    });
+
+    if (currentScope) {
+        loadFileTree(currentScope, tree);
+    }
 }
 
 // === Refresh Loop ===

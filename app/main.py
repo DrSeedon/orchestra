@@ -274,6 +274,28 @@ async def list_orchestrators():
     return active + db_orchs
 
 
+@app.get("/api/files")
+async def list_files(path: str):
+    import os
+    target = Path(path)
+    if not target.is_dir():
+        return JSONResponse({"error": "not a directory"}, status_code=400)
+    items = []
+    try:
+        for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
+            if entry.name.startswith('.'):
+                continue
+            items.append({
+                "name": entry.name,
+                "path": str(entry),
+                "is_dir": entry.is_dir(),
+                "size": entry.stat().st_size if entry.is_file() else None,
+            })
+    except PermissionError:
+        pass
+    return items
+
+
 @app.get("/api/models")
 async def list_models():
     return [{"id": k, "name": v} for k, v in MODELS.items()]

@@ -54,6 +54,15 @@
 
     <!-- Main Layout -->
     <div class="flex flex-1 overflow-hidden">
+        <!-- File Browser -->
+        <div id="file-panel" class="w-[250px] border-r border-slate-800/50 flex flex-col overflow-hidden">
+            <div class="px-3 py-2 border-b border-slate-800/50 flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400">FILES</span>
+                <button id="file-panel-toggle" class="text-slate-500 hover:text-white text-xs">◀</button>
+            </div>
+            <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1"></div>
+        </div>
+
         <!-- Chat -->
         <div class="flex-1 flex flex-col min-w-0">
             <div id="chat" class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2"></div>
