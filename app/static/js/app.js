@@ -22,15 +22,33 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#new-orch-btn').addEventListener('click', () => {
         $('#new-orch-modal').classList.remove('hidden');
         $('#new-orch-modal').classList.add('flex');
-        $('#orch-name').focus();
+        loadProjects();
+        $('#orch-cwd').focus();
     });
     $('#modal-close').addEventListener('click', closeModal);
     $('#new-orch-modal').addEventListener('click', (e) => {
         if (e.target === $('#new-orch-modal')) closeModal();
     });
     $('#create-orch-btn').addEventListener('click', createOrchestrator);
-    $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#orch-cwd').focus(); });
-    $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
+    $('#orch-cwd').addEventListener('input', () => {
+        const path = $('#orch-cwd').value.trim();
+        if (path && !$('#orch-name').value.trim()) {
+            $('#orch-name').value = autoNameFromPath(path);
+        }
+    });
+    $('#orch-cwd').addEventListener('change', () => {
+        const path = $('#orch-cwd').value.trim();
+        if (path) $('#orch-name').value = autoNameFromPath(path);
+    });
+    $('#browse-btn')?.addEventListener('click', () => {
+        const datalist = $('#project-list');
+        if (datalist.options.length > 0) {
+            $('#orch-cwd').focus();
+            $('#orch-cwd').click();
+        }
+    });
+    $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
+    $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     loadModels();
     loadOrchestrators();
     scheduleRefresh();
@@ -91,6 +109,27 @@ function closeModal() {
     $('#new-orch-modal').classList.add('hidden');
     $('#new-orch-modal').classList.remove('flex');
     $('#orch-error').classList.add('hidden');
+}
+
+let projectsList = [];
+
+async function loadProjects() {
+    try {
+        projectsList = await api('/api/projects');
+        const datalist = $('#project-list');
+        datalist.innerHTML = '';
+        for (const p of projectsList) {
+            const opt = document.createElement('option');
+            opt.value = p.path;
+            opt.textContent = p.name;
+            datalist.appendChild(opt);
+        }
+    } catch {}
+}
+
+function autoNameFromPath(path) {
+    const parts = path.replace(/\/+$/, '').split('/');
+    return parts[parts.length - 1] || '';
 }
 
 async function createOrchestrator() {

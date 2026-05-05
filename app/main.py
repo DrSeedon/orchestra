@@ -228,6 +228,22 @@ async def list_orchestrators():
     return [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
 
 
+@app.get("/api/projects")
+async def list_projects():
+    import os
+    projects_dir = Path.home() / ".claude" / "projects"
+    if not projects_dir.is_dir():
+        return []
+    results = []
+    for name in sorted(projects_dir.iterdir()):
+        parts = name.name.split("-")
+        candidate = "/" + "/".join(parts[1:])
+        if Path(candidate).is_dir() and candidate != "/":
+            folder = candidate.rstrip("/").split("/")[-1]
+            results.append({"path": candidate, "name": folder})
+    return results
+
+
 @app.get("/api/models")
 async def list_models():
     return [{"id": k, "name": v} for k, v in MODELS.items()]

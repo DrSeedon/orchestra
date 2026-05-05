@@ -34,7 +34,11 @@
                 </div>
                 <div>
                     <label class="text-xs text-slate-500 block mb-1">Project path</label>
-                    <input id="orch-cwd" type="text" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+                    <div class="flex gap-2">
+                        <input id="orch-cwd" type="text" list="project-list" class="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" placeholder="Select or type path...">
+                        <button id="browse-btn" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors" title="Browse projects">📂</button>
+                    </div>
+                    <datalist id="project-list"></datalist>
                 </div>
                 <div>
                     <label class="text-xs text-slate-500 block mb-1">Model</label>
