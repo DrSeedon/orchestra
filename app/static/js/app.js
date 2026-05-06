@@ -565,12 +565,45 @@ function addChatEntry(type, content, ts) {
         }
     }
     else if (type === 'tool') {
-        div.style.whiteSpace = 'pre-wrap';
-        div.textContent = `🔧 ${content}`;
+        const preview = content.length > 200 ? content.slice(0, 200) + '…' : content;
+        const full = content.length > 200 ? content : null;
+        div.textContent = `🔧 ${preview}`;
+        if (full) {
+            const toggle = document.createElement('button');
+            toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
+            toggle.textContent = '▸ show full';
+            let expanded = false;
+            toggle.addEventListener('click', () => {
+                expanded = !expanded;
+                div.innerHTML = '';
+                const text = document.createElement('span');
+                text.style.whiteSpace = 'pre-wrap';
+                text.textContent = `🔧 ${expanded ? full : preview}`;
+                div.appendChild(text);
+                toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
+                div.appendChild(toggle);
+            });
+            div.appendChild(toggle);
+        }
     }
     else if (type === 'tool_result') {
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-        div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(clean));
+        const preview = clean.length > 200 ? clean.slice(0, 200) + '…' : clean;
+        const full = clean.length > 200 ? clean : null;
+        div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(preview));
+        if (full) {
+            const toggle = document.createElement('button');
+            toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
+            toggle.textContent = '▸ show full';
+            let expanded = false;
+            toggle.addEventListener('click', () => {
+                expanded = !expanded;
+                div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(expanded ? full : preview));
+                toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
+                div.appendChild(toggle);
+            });
+            div.appendChild(toggle);
+        }
     }
     else if (type === 'error') { div.textContent = content; }
     else {
