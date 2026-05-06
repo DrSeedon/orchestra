@@ -126,6 +126,21 @@ async def list_jobs() -> str:
     return "\n".join(f"- {j['id']}: {j['type']} {j['name']} = {j['status']}" for j in jobs)
 
 
+KESHA_INBOX_URL = os.environ.get("KESHA_INBOX_URL", "http://127.0.0.1:18081")
+
+
+@mcp.tool()
+async def notify_kesha(message: str, sender: str = "") -> str:
+    """Send a message to Kesha (Telegram bot). He will see it in TG and can respond."""
+    who = sender or WORKER_NAME or ROLE
+    async with httpx.AsyncClient(base_url=KESHA_INBOX_URL, timeout=10) as client:
+        try:
+            r = await client.post("/inbox", json={"message": message, "sender": who})
+            if r.status_code >= 400:
+                return f"Failed: {r.text}"
+            return f"Kesha notified by {who}"
+        except Exception as e:
+            return f"Failed to reach Kesha: {e}"
 
 
 
