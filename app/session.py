@@ -1,4 +1,4 @@
-"""AgentSession — SDK wrapper, persistent client with reconnect."""
+"""AgentSession — SDK wrapper, one client per turn."""
 
 import asyncio
 import logging
@@ -73,8 +73,6 @@ class AgentSession:
     on_error: Optional[callable] = field(default=None, repr=False)
     debounce_sec: float = 2.0
 
-    _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
-    _connected: bool = field(default=False, repr=False)
     _turn_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _debounce_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _pending: list = field(default_factory=list, repr=False)
@@ -82,7 +80,7 @@ class AgentSession:
 
     TURN_TIMEOUT = 600
 
-    def _make_options(self) -> ClaudeAgentOptions:
+    def _make_client(self) -> ClaudeSDKClient:
         import shutil
         cli = shutil.which("claude") or "/home/maxim/.local/bin/claude"
         options = ClaudeAgentOptions(
@@ -97,30 +95,7 @@ class AgentSession:
             options.system_prompt = self.system_prompt
         if self.mcp_servers:
             options.mcp_servers = self.mcp_servers
-        return options
-
-    async def _ensure_client(self) -> ClaudeSDKClient:
-        if self._client and self._connected:
-            return self._client
-        if self._client:
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
-        self._client = ClaudeSDKClient(options=self._make_options())
-        await asyncio.wait_for(self._client.connect(), timeout=60)
-        self._connected = True
-        logger.info(f"[{self.name}] client connected (resume={bool(self.session_id)})")
-        return self._client
-
-    async def _drop_client(self) -> None:
-        self._connected = False
-        if self._client:
-            try:
-                await self._client.disconnect()
-            except Exception:
-                pass
-            self._client = None
+        return ClaudeSDKClient(options=options)
 
     async def start(self, initial_message: str | None = None) -> None:
         if initial_message:
@@ -158,19 +133,27 @@ class AgentSession:
         self._turn_task.add_done_callback(self._on_task_done)
 
     async def _run_turn(self, message: str) -> None:
-        self._persist()
+        client = self._make_client()
         try:
-            client = await self._ensure_client()
+            self._persist()
+            await asyncio.wait_for(client.connect(), timeout=60)
             await client.query(message)
             await asyncio.wait_for(self._listen(client), timeout=self.TURN_TIMEOUT)
-        except (BaseExceptionGroup, asyncio.TimeoutError, Exception) as e:
-            is_timeout = isinstance(e, asyncio.TimeoutError)
-            label = "turn timeout" if is_timeout else f"turn error: {e}"
-            logger.error(f"[{self.name}] {label}")
-            self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)" if is_timeout else str(e))
-            await self._drop_client()
+        except asyncio.TimeoutError:
+            logger.error(f"[{self.name}] turn timeout")
+            self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
             self.status = AgentStatus.IDLE
             self._persist()
+        except Exception as e:
+            logger.error(f"[{self.name}] turn error: {e}")
+            self._log("error", str(e))
+            self.status = AgentStatus.IDLE
+            self._persist()
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
 
     async def _listen(self, client: ClaudeSDKClient) -> None:
         async for msg in client.receive_messages():
@@ -235,7 +218,6 @@ class AgentSession:
                 await self._turn_task
             except (asyncio.CancelledError, Exception):
                 pass
-        await self._drop_client()
         self.status = AgentStatus.IDLE
         self._persist()
 
