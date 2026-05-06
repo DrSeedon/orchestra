@@ -216,7 +216,14 @@ class AgentSession:
     async def interrupt(self) -> None:
         if self._turn_task and not self._turn_task.done():
             self._turn_task.cancel()
-            self._log("status", "interrupted")
+            try:
+                await self._turn_task
+            except (asyncio.CancelledError, Exception):
+                pass
+        await self._drop_client()
+        self.status = AgentStatus.IDLE
+        self._log("status", "interrupted")
+        self._persist()
 
     async def stop(self) -> None:
         self._pending.clear()
