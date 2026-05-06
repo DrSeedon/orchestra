@@ -79,6 +79,7 @@ class AgentSession:
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
+    _active_client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
 
     TURN_TIMEOUT = 600
@@ -112,6 +113,13 @@ class AgentSession:
 
     async def send(self, message: str) -> None:
         self._log("user_message", message)
+        if self.status == AgentStatus.RUNNING and self._active_client:
+            try:
+                await self._active_client.query(message)
+                logger.info(f"[{self.name}] injected message ({len(message)} chars)")
+                return
+            except Exception as e:
+                logger.warning(f"[{self.name}] inject failed, queuing: {e}")
         self._pending.append(message)
         if self.status != AgentStatus.RUNNING:
             self._arm_debounce()
@@ -139,6 +147,7 @@ class AgentSession:
         self._did_report = False
         self._turn_logs = []
         client = self._make_client()
+        self._active_client = client
         try:
             self._persist()
             await asyncio.wait_for(client.connect(), timeout=60)
@@ -155,6 +164,7 @@ class AgentSession:
             self.status = AgentStatus.IDLE
             self._persist()
         finally:
+            self._active_client = None
             try:
                 await client.disconnect()
             except Exception:
