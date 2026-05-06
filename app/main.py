@@ -315,7 +315,7 @@ async def list_models():
 async def restart_server():
     import subprocess
     result = subprocess.run(
-        ["sudo", "systemctl", "restart", "orchestra"],
+        ["sudo", "-n", "systemctl", "restart", "orchestra"],
         capture_output=True, text=True, timeout=10,
     )
     if result.returncode != 0:
