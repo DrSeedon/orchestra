@@ -47,10 +47,10 @@ def _extract_tool_result(block) -> str:
     try:
         parsed = _json.loads(text)
         if isinstance(parsed, dict) and 'result' in parsed:
-            return str(parsed['result'])[:2000]
+            return str(parsed['result'])
     except (ValueError, TypeError):
         pass
-    return text[:2000]
+    return text
 
 
 @dataclass
@@ -77,6 +77,9 @@ class AgentSession:
     _debounce_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _pending: list = field(default_factory=list, repr=False)
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
+    _did_report: bool = field(default=False, repr=False)
+    _turn_logs: list = field(default_factory=list, repr=False)
+    on_idle: Optional[callable] = field(default=None, repr=False)
 
     TURN_TIMEOUT = 600
 
@@ -133,6 +136,8 @@ class AgentSession:
         self._turn_task.add_done_callback(self._on_task_done)
 
     async def _run_turn(self, message: str) -> None:
+        self._did_report = False
+        self._turn_logs = []
         client = self._make_client()
         try:
             self._persist()
@@ -161,8 +166,11 @@ class AgentSession:
                 for block in msg.content:
                     if isinstance(block, TextBlock) and block.text:
                         self._log("text", block.text)
+                        self._turn_logs.append(block.text)
                     elif isinstance(block, ToolUseBlock):
-                        self._log("tool", f"{block.name}: {str(block.input)[:200]}")
+                        self._log("tool", f"{block.name}: {str(block.input)}")
+                        if block.name in ("mcp__orchestra__send_message", "send_message"):
+                            self._did_report = True
                     elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
                         self._log("tool_result", _extract_tool_result(block))
             elif isinstance(msg, UserMessage):
@@ -183,6 +191,12 @@ class AgentSession:
                 self._persist()
                 if self._pending:
                     self._arm_debounce()
+                elif self.on_idle and not self._did_report:
+                    last_texts = self._turn_logs[-3:] if self._turn_logs else []
+                    try:
+                        asyncio.create_task(self.on_idle(self.name, self.scope, last_texts))
+                    except Exception:
+                        pass
                 break
 
     def _on_task_done(self, task: asyncio.Task) -> None:

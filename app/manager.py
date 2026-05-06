@@ -122,6 +122,7 @@ class SessionManager:
                     worker_name=name, orchestrator_name=orch_name or "orchestrator",
                     scope=scope, branch=session.branch or "main",
                 )
+                session.on_idle = self._make_idle_callback(scope)
 
             save_session(session._to_db_dict())
             await session.start()
@@ -207,6 +208,8 @@ class SessionManager:
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": 200000}
+        if not is_orch:
+            session.on_idle = self._make_idle_callback(db_row["scope"])
         await session.start()
         self.sessions[session.id] = session
         return session
@@ -216,6 +219,20 @@ class SessionManager:
             if s.is_orchestrator and s.scope == scope:
                 return s.name
         return None
+
+    def _make_idle_callback(self, scope: str):
+        async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str]):
+            orch = self._find_orchestrator_name(scope)
+            if not orch:
+                return
+            orch_session = next((s for s in self.sessions.values() if s.name == orch), None)
+            if not orch_session:
+                return
+            summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
+            msg = f"[auto-report from {worker_name}] Worker finished without reporting. Last output:\n{summary}"
+            logger.info(f"Auto-report: {worker_name} → {orch}")
+            await orch_session.send(msg)
+        return _on_worker_idle
 
     # ── Listings ──
 
