@@ -168,7 +168,12 @@ class AgentSession:
                         self._log("text", block.text)
                         self._turn_logs.append(block.text)
                     elif isinstance(block, ToolUseBlock):
-                        self._log("tool", f"{block.name}: {str(block.input)}")
+                        import json as _j
+                        try:
+                            inp = _j.dumps(block.input, ensure_ascii=False, indent=2)
+                        except Exception:
+                            inp = str(block.input)
+                        self._log("tool", f"{block.name}: {inp}")
                         if block.name in ("mcp__orchestra__send_message", "send_message"):
                             self._did_report = True
                     elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):

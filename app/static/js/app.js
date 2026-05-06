@@ -576,6 +576,7 @@ function addChatEntry(type, content, ts) {
         }
     }
     else if (type === 'tool') {
+        div.style.whiteSpace = 'pre-wrap';
         const preview = content.length > 200 ? content.slice(0, 200) + '…' : content;
         const full = content.length > 200 ? content : null;
         div.textContent = `🔧 ${preview}`;
@@ -598,6 +599,7 @@ function addChatEntry(type, content, ts) {
         }
     }
     else if (type === 'tool_result') {
+        div.style.whiteSpace = 'pre-wrap';
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
         const preview = clean.length > 200 ? clean.slice(0, 200) + '…' : clean;
         const full = clean.length > 200 ? clean : null;
