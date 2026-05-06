@@ -309,3 +309,15 @@ async def delete_orchestrator(name: str, scope: str):
 @app.get("/api/models")
 async def list_models():
     return [{"id": k, "name": v} for k, v in MODELS.items()]
+
+
+@app.post("/api/restart")
+async def restart_server():
+    import subprocess
+    result = subprocess.run(
+        ["sudo", "systemctl", "restart", "orchestra"],
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        return JSONResponse({"error": result.stderr.strip()}, status_code=500)
+    return {"ok": True}

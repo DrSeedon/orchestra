@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
     $('#delete-orch-btn').addEventListener('click', deleteOrchestrator);
+    $('#restart-btn').addEventListener('click', restartServer);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     loadModels();
@@ -149,6 +150,16 @@ async function createOrchestrator() {
         $('#orch-picker').value = cwd; onOrchestratorChange();
     } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
     finally { btn.disabled = false; btn.textContent = 'Create Orchestrator'; }
+}
+
+async function restartServer() {
+    if (!confirm('Restart Orchestra server?')) return;
+    const btn = $('#restart-btn');
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+        await api('/api/restart', { method: 'POST' });
+    } catch {}
+    setTimeout(() => location.reload(), 3000);
 }
 
 async function deleteOrchestrator() {
