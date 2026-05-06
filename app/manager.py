@@ -199,6 +199,10 @@ class SessionManager:
             is_orchestrator=is_orch,
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], is_orch),
         )
+        pct = db_row.get("context_pct", 0) or 0
+        tokens = db_row.get("context_tokens", 0) or 0
+        if pct or tokens:
+            session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": 200000}
         await session.start()
         self.sessions[session.id] = session
         return session

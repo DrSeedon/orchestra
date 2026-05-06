@@ -229,6 +229,8 @@ class AgentSession:
             "branch": self.branch, "is_orchestrator": self.is_orchestrator,
             "color": self.color, "created_at": self.created_at.isoformat(),
             "finished_at": None,
+            "context_pct": self._last_context.get("percentage", 0),
+            "context_tokens": self._last_context.get("total_tokens", 0),
         }
 
     async def get_context(self) -> dict:

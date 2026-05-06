@@ -197,8 +197,12 @@ async def get_session(name: str, scope: str):
 @app.get("/api/sessions/{name}/context")
 async def get_session_context(name: str, scope: str):
     found = manager.get_by_name(name, scope)
-    if not found or isinstance(found, dict):
+    if not found:
         return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+    if isinstance(found, dict):
+        pct = found.get("context_pct", 0) or 0
+        tokens = found.get("context_tokens", 0) or 0
+        return {"percentage": pct, "total_tokens": tokens, "max_tokens": 200000}
     return await found.get_context()
 
 

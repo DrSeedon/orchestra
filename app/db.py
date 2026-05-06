@@ -76,6 +76,10 @@ def _migrate(c) -> None:
     cols = {row[1] for row in c.execute("PRAGMA table_info(sessions)").fetchall()}
     if "color" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN color TEXT DEFAULT ''")
+    if "context_pct" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN context_pct INTEGER DEFAULT 0")
+    if "context_tokens" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN context_tokens INTEGER DEFAULT 0")
 
 
 def save_session(s: dict) -> None:
@@ -83,10 +87,10 @@ def save_session(s: dict) -> None:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
-                color, created_at, finished_at)
+                color, created_at, finished_at, context_pct, context_tokens)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
-                :color, :created_at, :finished_at)
+                :color, :created_at, :finished_at, :context_pct, :context_tokens)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 status=excluded.status,
@@ -96,7 +100,9 @@ def save_session(s: dict) -> None:
                 branch=excluded.branch,
                 cwd=excluded.cwd,
                 color=excluded.color,
-                finished_at=excluded.finished_at
+                finished_at=excluded.finished_at,
+                context_pct=excluded.context_pct,
+                context_tokens=excluded.context_tokens
         """, s)
 
 
