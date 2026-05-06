@@ -89,6 +89,8 @@ class SessionManager:
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False) -> AgentSession:
+        scope = scope.rstrip("/")
+        cwd = cwd.rstrip("/")
         model = resolve_model(model)
         if not Path(cwd).is_dir():
             raise ValueError(f"cwd does not exist: {cwd}")
@@ -169,6 +171,7 @@ class SessionManager:
         return self.sessions.get(session_id)
 
     def get_by_name(self, name: str, scope: str) -> AgentSession | dict | None:
+        scope = scope.rstrip("/")
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
                 return s
@@ -176,6 +179,7 @@ class SessionManager:
         return db_row
 
     async def ensure_loaded(self, name: str, scope: str) -> Optional[AgentSession]:
+        scope = scope.rstrip("/")
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
                 return s
