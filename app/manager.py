@@ -229,7 +229,7 @@ class SessionManager:
             if not orch_session:
                 return
             summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
-            msg = f"[auto-report from {worker_name}] Worker finished without reporting. Last output:\n{summary}"
+            msg = f"[from:{worker_name}] [auto-report] Finished without explicit report. Last output:\n{summary}"
             logger.info(f"Auto-report: {worker_name} → {orch}")
             await orch_session.send(msg)
         return _on_worker_idle
