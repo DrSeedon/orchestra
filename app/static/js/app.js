@@ -73,6 +73,8 @@ function connectSSE() {
             if (isLocal) {
                 localMessages.delete(l.content);
                 for (const m of localMessages) { if (l.content.endsWith(m)) { localMessages.delete(m); break; } }
+                if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; pendingUserMsgs = []; }
+                addChatEntry(l.type, l.content, l.ts);
             } else {
                 addChatEntry(l.type, l.content, l.ts);
             }
