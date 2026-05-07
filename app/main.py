@@ -322,14 +322,16 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile):
-    import uuid
+    import hashlib
     ext = Path(file.filename or "image.png").suffix or ".png"
-    name = f"{uuid.uuid4().hex[:12]}{ext}"
-    path = UPLOADS_DIR / name
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         return JSONResponse({"error": "file too large (max 10MB)"}, status_code=400)
-    path.write_bytes(content)
+    h = hashlib.md5(content).hexdigest()[:12]
+    name = f"{h}{ext}"
+    path = UPLOADS_DIR / name
+    if not path.exists():
+        path.write_bytes(content)
     return {"path": str(path), "url": f"/uploads/{name}"}
 
 
