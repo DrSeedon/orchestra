@@ -42,6 +42,7 @@ sudo systemctl status orchestra
 - External MCP (no in-process deadlocks)
 - Workers communicate via HTTP callback, not MCP inject
 - Proxy через Hiddify (127.0.0.1:12334) everywhere
+- **НЕ рестартить сервер при изменении фронта** (JS/CSS/HTML) — статика подтягивается автоматически. Рестарт только при изменении Python-кода
 
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool
