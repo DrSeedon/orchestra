@@ -68,3 +68,9 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .file-file { color: #94a3b8; }
 .file-children { padding-left: 12px; }
 select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.orch-tab { padding: 4px 12px; border-radius: 9999px; font-size: 11px; cursor: pointer; white-space: nowrap; transition: all 0.15s; border: 1px solid transparent; }
+.orch-tab:hover { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.2); }
+.orch-tab.active { background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.4); color: #a5b4fc; }
+.orch-tab .tab-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }

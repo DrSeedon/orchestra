@@ -177,31 +177,81 @@ async function deleteOrchestrator() {
 }
 
 // === Orchestrator Picker ===
+let orchData = [];
+
 async function loadOrchestrators() {
     try {
-        const data = await api('/api/orchestrators');
+        orchData = await api('/api/orchestrators');
         const picker = $('#orch-picker');
         picker.innerHTML = '';
-        for (const o of data) {
+        for (const o of orchData) {
             const opt = document.createElement('option');
             opt.value = o.scope;
             opt.dataset.id = o.id;
             opt.dataset.name = o.name;
-            opt.textContent = `${o.name} — ${o.scope.split('/').slice(-2).join('/')}`;
+            opt.textContent = o.name;
             picker.appendChild(opt);
         }
-        if (data.length > 0 && !currentScope) {
-            const lastScope = localStorage.getItem('lastOrchScope');
-            const lastName = localStorage.getItem('lastOrchName');
-            const match = data.find(o => o.scope === lastScope && o.name === lastName);
+
+        const lastScope = localStorage.getItem('lastOrchScope');
+        const lastName = localStorage.getItem('lastOrchName');
+        const recentRaw = localStorage.getItem('recentOrchs');
+        const recent = recentRaw ? JSON.parse(recentRaw) : [];
+
+        const sorted = [...orchData].sort((a, b) => {
+            const ai = recent.indexOf(a.name);
+            const bi = recent.indexOf(b.name);
+            if (ai >= 0 && bi >= 0) return ai - bi;
+            if (ai >= 0) return -1;
+            if (bi >= 0) return 1;
+            return 0;
+        });
+
+        renderOrchTabs(sorted);
+
+        if (orchData.length > 0 && !currentScope) {
+            const match = orchData.find(o => o.scope === lastScope && o.name === lastName);
             if (match) {
-                picker.value = match.scope;
+                selectOrchestrator(match.name, match.scope);
             } else {
-                picker.value = data[0].scope;
+                selectOrchestrator(sorted[0].name, sorted[0].scope);
             }
-            onOrchestratorChange();
         }
     } catch {}
+}
+
+function renderOrchTabs(sorted) {
+    const tabs = $('#orch-tabs');
+    tabs.innerHTML = '';
+    for (const o of sorted) {
+        const tab = document.createElement('button');
+        tab.className = `orch-tab ${o.name === selectedAgent && o.scope === currentScope ? 'active' : ''}`;
+        const dot = document.createElement('span');
+        dot.className = 'tab-dot';
+        dot.style.backgroundColor = o.status === 'running' ? '#22c55e' : '#eab308';
+        const label = document.createElement('span');
+        const shortName = o.name.replace(/-orchestrator$/, '');
+        label.textContent = shortName;
+        tab.append(dot, label);
+        tab.title = o.scope;
+        tab.addEventListener('click', () => selectOrchestrator(o.name, o.scope));
+        tabs.appendChild(tab);
+    }
+}
+
+function selectOrchestrator(name, scope) {
+    const picker = $('#orch-picker');
+    picker.value = scope;
+    const opt = [...picker.options].find(o => o.dataset.name === name);
+    if (opt) picker.selectedIndex = opt.index;
+
+    const recent = JSON.parse(localStorage.getItem('recentOrchs') || '[]');
+    const filtered = recent.filter(n => n !== name);
+    filtered.unshift(name);
+    localStorage.setItem('recentOrchs', JSON.stringify(filtered.slice(0, 10)));
+
+    onOrchestratorChange();
+    renderOrchTabs(orchData);
 }
 
 function onOrchestratorChange() {

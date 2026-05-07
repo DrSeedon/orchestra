@@ -10,14 +10,15 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="h-screen flex flex-col">
-    <header class="flex items-center justify-between px-5 py-2.5 border-b border-slate-800/50">
-        <div class="flex items-center gap-4">
-            <h1 class="text-lg font-bold tracking-tight">🎼 Orchestra</h1>
-            <select id="orch-picker" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1 text-xs cursor-pointer pr-6"></select>
-            <button id="new-orch-btn" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors">+ New</button>
-            <button id="delete-orch-btn" class="px-3 py-1 bg-slate-800 hover:bg-red-900/60 border border-slate-700 rounded-lg text-xs transition-colors text-red-400" title="Delete orchestrator and all its workers">✕ Delete</button>
+    <header class="flex items-center justify-between px-5 py-2 border-b border-slate-800/50">
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+            <h1 class="text-lg font-bold tracking-tight shrink-0">🎼</h1>
+            <div id="orch-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar"></div>
+            <select id="orch-picker" class="hidden"></select>
+            <button id="new-orch-btn" class="px-2.5 py-1.5 bg-slate-800/50 hover:bg-slate-700 border border-dashed border-slate-700 rounded-full text-xs transition-colors shrink-0" title="New orchestrator">+</button>
+            <button id="delete-orch-btn" class="px-2 py-1.5 hover:bg-red-900/40 rounded-full text-xs transition-colors text-red-400/60 hover:text-red-400 shrink-0" title="Delete current">✕</button>
         </div>
-        <div class="flex items-center gap-3 text-xs text-slate-600">
+        <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
             <span id="stats-line"></span>
             <button id="restart-btn" class="px-2 py-1 bg-slate-800 hover:bg-amber-900/60 border border-slate-700 rounded-lg transition-colors text-amber-400" title="Restart Orchestra server">⟳</button>
         </div>
