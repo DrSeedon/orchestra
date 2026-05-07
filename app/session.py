@@ -198,7 +198,7 @@ class AgentSession:
                     self.session_id = msg.session_id
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
                 usage = getattr(msg, "usage", None)
-                logger.info(f"[{self.name}] ResultMessage usage={usage} cost={getattr(msg, 'total_cost_usd', None)}")
+                self._log("status", f"turn done | cost=${getattr(msg, 'total_cost_usd', 0) or 0:.4f} | usage={usage}")
                 if usage:
                     total = usage.get("input_tokens", 0) if isinstance(usage, dict) else getattr(usage, "input_tokens", 0)
                     total = total or 0
