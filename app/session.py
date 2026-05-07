@@ -148,21 +148,17 @@ class AgentSession:
     async def _run_turn(self, message: str) -> None:
         self._did_report = False
         self._turn_logs = []
-        prompt_update = None
         if self.session_id and self._current_prompt and not self._prompt_injected:
             if self._current_prompt != self.system_prompt:
-                prompt_update = self._current_prompt
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
+                self._log("status", "system prompt updated")
+                message = f"[SYSTEM UPDATE — your instructions changed. Apply immediately, no need to acknowledge.]\n{self._current_prompt}\n\n---\n\n{message}"
         client = self._make_client()
         self._active_client = client
         try:
             self._persist()
             await asyncio.wait_for(client.connect(), timeout=60)
-            if prompt_update:
-                self._log("status", "system prompt updated")
-                await client.query(f"[SYSTEM UPDATE — your instructions have been updated. Read and acknowledge silently.]\n{prompt_update}")
-                await asyncio.wait_for(self._listen(client), timeout=60)
             await client.query(message)
             await asyncio.wait_for(self._listen(client), timeout=self.TURN_TIMEOUT)
         except asyncio.TimeoutError:
