@@ -32,10 +32,12 @@ COLOR_PALETTE = [
     "#a78bfa", "#fbbf24", "#2dd4bf", "#fb7185", "#4ade80",
 ]
 
-_ORCH_PROMPT_PATH = Path(__file__).parent / "orchestrator_prompt.md"
-_WORKER_PROMPT_PATH = Path(__file__).parent / "worker_prompt.md"
-ORCHESTRATOR_SYSTEM_PROMPT = _ORCH_PROMPT_PATH.read_text() if _ORCH_PROMPT_PATH.exists() else ""
-WORKER_SYSTEM_PROMPT = _WORKER_PROMPT_PATH.read_text() if _WORKER_PROMPT_PATH.exists() else ""
+_PROMPTS_DIR = Path(__file__).parent / "prompts"
+_BASE_PROMPT = (_PROMPTS_DIR / "base.md").read_text() if (_PROMPTS_DIR / "base.md").exists() else ""
+_ORCH_EXTRA = (_PROMPTS_DIR / "orchestrator.md").read_text() if (_PROMPTS_DIR / "orchestrator.md").exists() else ""
+_WORKER_EXTRA = (_PROMPTS_DIR / "worker.md").read_text() if (_PROMPTS_DIR / "worker.md").exists() else ""
+ORCHESTRATOR_SYSTEM_PROMPT = f"{_BASE_PROMPT}\n\n{_ORCH_EXTRA}"
+WORKER_SYSTEM_PROMPT = f"{_BASE_PROMPT}\n\n{_WORKER_EXTRA}"
 
 
 def _make_mcp_config(name: str, scope: str, is_orch: bool) -> dict:
