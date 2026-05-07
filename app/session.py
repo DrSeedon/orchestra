@@ -200,7 +200,8 @@ class AgentSession:
                 usage = getattr(msg, "usage", None)
                 if usage and isinstance(usage, dict):
                     total = (usage.get("input_tokens", 0) or 0) + (usage.get("cache_creation_input_tokens", 0) or 0) + (usage.get("cache_read_input_tokens", 0) or 0)
-                    max_t = 200000
+                    from app.models import CONTEXT_LIMITS
+                    max_t = CONTEXT_LIMITS.get(self.model, 200000)
                     self._last_context = {"percentage": int(total * 100 / max_t) if max_t else 0, "total_tokens": total, "max_tokens": max_t}
                 self.status = AgentStatus.IDLE
                 self._persist()

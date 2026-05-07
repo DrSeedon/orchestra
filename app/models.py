@@ -6,6 +6,12 @@ MODELS = {
     "claude-haiku-4-5": "Haiku 4.5",
 }
 
+CONTEXT_LIMITS = {
+    "claude-opus-4-6[1m]": 1000000,
+    "claude-sonnet-4-6": 200000,
+    "claude-haiku-4-5": 200000,
+}
+
 ALIASES = {
     "opus": "claude-opus-4-6[1m]",
     "sonnet": "claude-sonnet-4-6",
