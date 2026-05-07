@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -314,6 +314,26 @@ async def delete_orchestrator(name: str, scope: str):
 @app.get("/api/models")
 async def list_models():
     return [{"id": k, "name": v} for k, v in MODELS.items()]
+
+
+UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile):
+    import uuid
+    ext = Path(file.filename or "image.png").suffix or ".png"
+    name = f"{uuid.uuid4().hex[:12]}{ext}"
+    path = UPLOADS_DIR / name
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        return JSONResponse({"error": "file too large (max 10MB)"}, status_code=400)
+    path.write_bytes(content)
+    return {"path": str(path), "url": f"/uploads/{name}"}
+
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 @app.post("/api/restart")

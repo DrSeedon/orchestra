@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
+    $('#chat-input').addEventListener('paste', handlePaste);
     $('#orch-picker').addEventListener('change', onOrchestratorChange);
     $('#new-orch-btn').addEventListener('click', () => {
         $('#new-orch-modal').classList.remove('hidden');
@@ -412,6 +413,7 @@ async function sendChat() {
     const msg = input.value.trim();
     if (!msg || !currentScope || !selectedAgent) return;
     input.value = '';
+    clearPastePreview();
 
     pendingUserMsgs.push(msg);
     localMessages.add(msg);
@@ -472,6 +474,83 @@ function showWaitingIndicator() {
     div.innerHTML = '<span class="waiting-dots"><span>.</span><span>.</span><span>.</span></span> waiting for response';
     chat.appendChild(div);
     if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+}
+
+let pastedImages = [];
+
+async function handlePaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+        if (!item.type.startsWith('image/')) continue;
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+        const input = $('#chat-input');
+        const oldText = input.value;
+        input.value = oldText + (oldText ? '\n' : '') + '⏳ uploading image...';
+        const formData = new FormData();
+        formData.append('file', file, `paste-${Date.now()}.png`);
+        try {
+            const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await resp.json();
+            if (data.path) {
+                pastedImages.push(data.url);
+                input.value = oldText + (oldText ? '\n' : '') + data.path;
+                showImagePreview(data.url);
+            }
+        } catch (err) {
+            input.value = oldText;
+        }
+        input.focus();
+        break;
+    }
+}
+
+function showImagePreview(url) {
+    let container = $('#paste-preview');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'paste-preview';
+        container.className = 'flex gap-2 px-3 py-1';
+        $('#chat-input').parentElement.insertBefore(container, $('#chat-input'));
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'relative';
+    const img = document.createElement('img');
+    img.src = url;
+    img.className = 'h-16 rounded border border-slate-700';
+    const rm = document.createElement('button');
+    rm.className = 'absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-xs leading-none';
+    rm.textContent = '×';
+    rm.addEventListener('click', () => {
+        wrap.remove();
+        pastedImages = pastedImages.filter(u => u !== url);
+        if (!container.children.length) container.remove();
+    });
+    wrap.append(img, rm);
+    container.appendChild(wrap);
+}
+
+function clearPastePreview() {
+    pastedImages = [];
+    const el = $('#paste-preview');
+    if (el) el.remove();
+}
+
+function renderImages(el, content) {
+    const re = /(\/\S+\.(png|jpg|jpeg|gif|webp|svg))/gi;
+    const matches = content.match(re);
+    if (!matches) return;
+    for (const path of matches) {
+        const url = path.startsWith('/data/uploads/') ? '/uploads/' + path.split('/').pop() : null;
+        if (!url) continue;
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'max-h-48 rounded mt-2';
+        img.onerror = () => img.remove();
+        el.appendChild(img);
+    }
 }
 
 function removeWaitingIndicator() {
@@ -600,6 +679,7 @@ function addChatEntry(type, content, ts) {
             div.appendChild(body);
         } else {
             div.textContent = content;
+            renderImages(div, content);
         }
     }
     else if (type === 'tool') {
