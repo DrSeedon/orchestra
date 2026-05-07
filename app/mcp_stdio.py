@@ -70,7 +70,7 @@ async def send_message(to: str, message: str) -> str:
 
 @mcp.tool()
 async def list_agents() -> str:
-    """List all agents (orchestrators and workers)."""
+    """List all agents in your project (orchestrators and workers)."""
     sessions = await _api("GET", "/api/sessions", params={"scope": SCOPE} if SCOPE else None)
     if not isinstance(sessions, list):
         return f"Error: {sessions}"
@@ -83,6 +83,23 @@ async def list_agents() -> str:
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
         lines.append(f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')} | ${s.get('cost_usd',0):.4f}{ctx_str}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def list_orchestrators() -> str:
+    """List ALL orchestrators across all projects. Use to find agents you can talk to from other projects."""
+    orchs = await _api("GET", "/api/orchestrators")
+    if not isinstance(orchs, list):
+        return f"Error: {orchs}"
+    if not orchs:
+        return "No orchestrators"
+    lines = []
+    for o in orchs:
+        scope_short = o.get("scope", "").rstrip("/").split("/")[-1]
+        ctx = o.get('context_pct', 0)
+        ctx_str = f" | ctx:{ctx}%" if ctx else ""
+        lines.append(f"🎯 **{o['name']}** | {o.get('status','?')} | {scope_short} | ${o.get('cost_usd',0):.4f}{ctx_str}")
     return "\n".join(lines)
 
 
