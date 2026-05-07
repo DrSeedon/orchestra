@@ -19,7 +19,8 @@ from app.db import (
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = str(Path(__file__).parent.parent)
-MCP_STDIO_CMD = [sys.executable, "-m", "app.mcp_stdio"]
+_MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
+MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
 MCP_BASE_ENV = {
     "PYTHONPATH": _PROJECT_ROOT,
     "HTTPS_PROXY": "http://127.0.0.1:12334",
