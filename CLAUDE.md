@@ -42,3 +42,8 @@ sudo systemctl status orchestra
 - External MCP (no in-process deadlocks)
 - Workers communicate via HTTP callback, not MCP inject
 - Proxy через Hiddify (127.0.0.1:12334) everywhere
+
+## BUGS.md — баг-репорты от агентов
+- Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool
+- Баги пишутся в `BUGS.md` в корне проекта
+- **При старте сессии** — чекни `BUGS.md`, если есть новые баги — разбери или упомяни

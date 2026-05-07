@@ -236,6 +236,8 @@ async def get_session_logs(name: str, scope: str, after_id: int = 0):
 async def send_message(name: str, req: SendRequest):
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
+        session = await manager.ensure_loaded_any(name)
+    if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
     try:
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message

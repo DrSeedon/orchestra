@@ -191,6 +191,15 @@ class SessionManager:
             return None
         return await self._load_from_db(db_row)
 
+    async def ensure_loaded_any(self, name: str) -> Optional[AgentSession]:
+        for s in self.sessions.values():
+            if s.name == name:
+                return s
+        for row in get_all_sessions():
+            if row["name"] == name:
+                return await self._load_from_db(row)
+        return None
+
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         is_orch = bool(db_row.get("is_orchestrator"))
         old_prompt = db_row.get("system_prompt", "")
