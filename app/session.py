@@ -199,7 +199,9 @@ class AgentSession:
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
                 usage = getattr(msg, "usage", None)
                 if usage and isinstance(usage, dict):
-                    total = (usage.get("input_tokens", 0) or 0) + (usage.get("cache_creation_input_tokens", 0) or 0) + (usage.get("cache_read_input_tokens", 0) or 0)
+                    iters = usage.get("iterations", [])
+                    last = iters[-1] if iters else usage
+                    total = (last.get("input_tokens", 0) or 0) + (last.get("cache_creation_input_tokens", 0) or 0) + (last.get("cache_read_input_tokens", 0) or 0)
                     from app.models import CONTEXT_LIMITS
                     max_t = CONTEXT_LIMITS.get(self.model, 200000)
                     self._last_context = {"percentage": int(total * 100 / max_t) if max_t else 0, "total_tokens": total, "max_tokens": max_t}
