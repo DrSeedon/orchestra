@@ -153,7 +153,7 @@ class AgentSession:
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
                 self._log("status", "system prompt updated")
-                message = f"[SYSTEM UPDATE — your instructions changed. Apply immediately, no need to acknowledge.]\n{self._current_prompt}\n\n---\n\n{message}"
+                message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
         client = self._make_client()
         self._active_client = client
         try:
