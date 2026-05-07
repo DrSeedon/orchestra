@@ -314,7 +314,9 @@ function formatContext(ctx) {
     const max = ctx.max_tokens || 0;
     const totalK = total > 1000 ? `${(total/1000).toFixed(0)}k` : total;
     const maxK = max > 1000 ? `${(max/1000).toFixed(0)}k` : max;
-    return `${pct}% (${totalK}/${maxK})`;
+    let s = `${pct}% (${totalK}/${maxK})`;
+    if (ctx.cache_hit !== undefined) s += ` · cache ${ctx.cache_hit}%`;
+    return s;
 }
 
 async function fetchAgentContext(name) {
@@ -558,6 +560,18 @@ function addChatEntry(type, content, ts) {
         addTimestamp(streamBubble, ts);
         streamBubble = null;
         streamContent = '';
+    }
+
+    if (type === 'status') {
+        const badge = document.createElement('div');
+        badge.className = 'text-center text-xs py-1 text-slate-500 italic';
+        badge.textContent = `⚡ ${content}`;
+        addTimestamp(badge, ts);
+        const chat = $('#chat');
+        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        chat.appendChild(badge);
+        if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        return;
     }
 
     const div = document.createElement('div');
