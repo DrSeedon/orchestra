@@ -280,4 +280,5 @@ class AgentSession:
             "cost_usd": round(self.cost_usd, 4), "branch": self.branch,
             "is_orchestrator": self.is_orchestrator, "color": self.color,
             "created_at": self.created_at.isoformat(),
+            "context_pct": self._last_context.get("percentage", 0),
         }

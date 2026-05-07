@@ -384,6 +384,19 @@ function createAgentItem(s) {
     meta.className = 'text-xs text-slate-600 mt-0.5';
     meta.textContent = s.model || '';
 
+    const pct = s.context_pct || 0;
+    if (pct > 0) {
+        const bar = document.createElement('div');
+        bar.className = 'w-full h-1 bg-slate-800 rounded-full mt-1';
+        const fill = document.createElement('div');
+        fill.className = 'h-1 rounded-full transition-all';
+        fill.style.width = `${Math.min(pct, 100)}%`;
+        fill.style.backgroundColor = pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : '#22c55e';
+        fill.title = `${pct}% context`;
+        bar.appendChild(fill);
+        meta.appendChild(bar);
+    }
+
     info.append(nameRow, meta);
     item.append(icon, info);
 

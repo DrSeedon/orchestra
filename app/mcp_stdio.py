@@ -80,7 +80,9 @@ async def list_agents() -> str:
     for s in sessions:
         role = "🎯" if s.get("is_orchestrator") else "⚙️"
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
-        lines.append(f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')} | ${s.get('cost_usd',0):.4f}")
+        ctx = s.get('context_pct', 0)
+        ctx_str = f" | ctx:{ctx}%" if ctx else ""
+        lines.append(f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')} | ${s.get('cost_usd',0):.4f}{ctx_str}")
     return "\n".join(lines)
 
 
