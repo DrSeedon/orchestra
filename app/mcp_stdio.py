@@ -44,15 +44,16 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "claude-sonnet-4-6",
                        system_prompt: str = "") -> str:
     """Spawn a new worker agent in a git worktree."""
+    scope = SCOPE or repo_path
     result = await _api("POST", "/api/sessions", json={
-        "name": name, "scope": repo_path, "cwd": repo_path,
+        "name": name, "scope": scope, "cwd": repo_path,
         "model": model, "system_prompt": system_prompt,
         "use_worktree": True, "repo_path": repo_path,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Spawn failed: {result['error']}"
     await _api("POST", f"/api/sessions/{name}/send", json={
-        "message": task, "scope": repo_path,
+        "message": task, "scope": scope,
     })
     return f"Worker '{name}' spawned. Model: {model}. Task sent."
 
