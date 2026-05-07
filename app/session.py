@@ -80,6 +80,8 @@ class AgentSession:
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
     _active_client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
+    _prompt_injected: bool = field(default=False, repr=False)
+    _current_prompt: str = field(default="", repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
 
     TURN_TIMEOUT = 600
@@ -146,6 +148,10 @@ class AgentSession:
     async def _run_turn(self, message: str) -> None:
         self._did_report = False
         self._turn_logs = []
+        if self.session_id and self._current_prompt and not self._prompt_injected:
+            if self._current_prompt != self.system_prompt:
+                message = f"[SYSTEM UPDATE — your instructions have been updated]\n{self._current_prompt}\n\n---\n{message}"
+                self._prompt_injected = True
         client = self._make_client()
         self._active_client = client
         try:

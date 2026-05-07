@@ -193,13 +193,14 @@ class SessionManager:
 
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         is_orch = bool(db_row.get("is_orchestrator"))
-        prompt = db_row.get("system_prompt", "") or (ORCHESTRATOR_SYSTEM_PROMPT if is_orch else WORKER_SYSTEM_PROMPT)
+        old_prompt = db_row.get("system_prompt", "")
+        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT if is_orch else WORKER_SYSTEM_PROMPT
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
-            model=db_row["model"], system_prompt=prompt,
+            model=db_row["model"], system_prompt=old_prompt or current_prompt,
             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
             worktree_path=db_row.get("worktree_path"), branch=db_row.get("branch"),
             created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
@@ -210,6 +211,7 @@ class SessionManager:
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": 200000}
+        session._current_prompt = current_prompt
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])
         await session.start()
