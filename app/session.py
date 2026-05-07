@@ -198,8 +198,10 @@ class AgentSession:
                     self.session_id = msg.session_id
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
                 usage = getattr(msg, "usage", None)
+                logger.info(f"[{self.name}] ResultMessage usage={usage} cost={getattr(msg, 'total_cost_usd', None)}")
                 if usage:
-                    total = getattr(usage, "input_tokens", 0) or 0
+                    total = usage.get("input_tokens", 0) if isinstance(usage, dict) else getattr(usage, "input_tokens", 0)
+                    total = total or 0
                     max_t = 200000
                     self._last_context = {"percentage": int(total * 100 / max_t) if max_t else 0, "total_tokens": total, "max_tokens": max_t}
                 self.status = AgentStatus.IDLE
