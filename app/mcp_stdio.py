@@ -145,6 +145,18 @@ async def list_jobs() -> str:
     return "\n".join(f"- {j['id']}: {j['type']} {j['name']} = {j['status']}" for j in jobs)
 
 
+@mcp.tool()
+async def report_bug(title: str, description: str) -> str:
+    """Report a bug or issue with the Orchestra platform. Saves to bugs.md for the developer."""
+    from datetime import datetime, timezone
+    bugs_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "BUGS.md")
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    entry = f"\n## [{ts}] {title}\n- **Reporter:** {WORKER_NAME}\n- **Scope:** {SCOPE}\n{description}\n"
+    with open(bugs_path, "a") as f:
+        f.write(entry)
+    return f"Bug reported: {title}"
+
+
 KESHA_INBOX_URL = os.environ.get("KESHA_INBOX_URL", "http://127.0.0.1:18081")
 
 
