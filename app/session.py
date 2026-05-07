@@ -153,6 +153,7 @@ class AgentSession:
             if self._current_prompt != self.system_prompt:
                 prompt_update = self._current_prompt
                 self._prompt_injected = True
+                self.system_prompt = self._current_prompt
         client = self._make_client()
         self._active_client = client
         try:
