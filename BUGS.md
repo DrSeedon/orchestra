@@ -46,3 +46,6 @@ $ diff main/backend/main.py worktree/backend/main.py
 - Worktree-изоляция не работает — воркер пишет прямо в main
 - Оркестратор не может проверить и одобрить изменения перед мержем
 - Race condition: если два воркера спавнятся на один repo — оба пишут в main, конфликты
+
+## ~~[2026-05-09 04:59 UTC] Draft message hangs~~ ❌ NOT ORCHESTRA BUG
+- Kesha TG bot bug, not Orchestra. Already tracked in kesha-tg-bot/TODO.md as "Draft ghost".
