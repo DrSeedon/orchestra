@@ -178,11 +178,15 @@ class AgentSession:
             self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
             self.status = AgentStatus.IDLE
             self._persist()
+            if self._pending:
+                self._arm_debounce()
         except Exception as e:
             logger.error(f"[{self.name}] turn error: {e}")
             self._log("error", str(e))
             self.status = AgentStatus.IDLE
             self._persist()
+            if self._pending:
+                self._arm_debounce()
         finally:
             self._active_client = None
             try:

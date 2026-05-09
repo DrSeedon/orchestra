@@ -31,3 +31,35 @@ nit: app/prompts/base.md:13 — prompt учит распознавать тег 
 ## Вердикт
 
 No-go: hot-reload и cache tracking требуют фикса blocking issues перед merge.
+
+## Round 2
+
+### Tests
+
+`pytest tests/test_session.py tests/test_manager.py -q` -> 19 errors на импорте: `ModuleNotFoundError: No module named 'claude_agent_sdk'`.
+
+### Fixed / Still Broken
+
+FIXED: app/session.py:230 — cache metrics больше не теряются: `percentage`, `total_tokens`, `max_tokens`, `cache_hit`, `cache_read`, `cache_create` теперь записываются одним `_last_context = {...}`.
+
+FIXED: app/session.py:169 — прежняя race, где `_active_client` публиковался до `connect()` и initial `query()`, закрыта: `_active_client = client` теперь после `client.query(message)`.
+
+FIXED: app/session.py:156 — прежний false positive с хешем и lifecycle `_prompt_injected` после failed `query()` исправлены: сравнение идет до изменения `system_prompt`, а `_prompt_injected=True` ставится после успешного `client.query(message)`.
+
+FIXED: app/db.py:96 — `system_prompt=excluded.system_prompt` добавлен в UPSERT, поэтому обновленный prompt теперь может пережить restart.
+
+FIXED: app/manager.py:223 — persisted context rehydrate теперь берет `max_tokens` из `CONTEXT_LIMITS`, а не всегда `200000`.
+
+STILL BROKEN: app/manager.py:207 — worker placeholders теперь форматируются, но custom `system_prompt` все еще теряется. `create_session()` собирает `WORKER_SYSTEM_PROMPT + custom` на app/manager.py:106, а `_load_from_db()` строит `current_prompt` только из `WORKER_SYSTEM_PROMPT`; при первом reload worker с custom prompt получит false prompt update даже без изменения platform prompt, а затем `app/session.py:174` и `app/db.py:96` перезапишут DB без custom-инструкций. Фикс: хранить custom prompt отдельно или извлекать/сохранять custom tail при сборке `_current_prompt`; то же решение нужно для custom orchestrator prompts на app/manager.py:104.
+
+### New Bugs
+
+blocking: app/session.py:123 — после переноса `_active_client = client` за initial `query()`, сообщения, пришедшие во время `connect()` или initial `query()`, попадают в `_pending`, но debounce не армится из-за `status == RUNNING`. Если текущий turn упадет до `ResultMessage`, ветки exception на app/session.py:176 и app/session.py:181 ставят `IDLE`, но не запускают pending queue; сообщение застрянет до следующего user send. Фикс: после любого error/timeout при переходе в `IDLE` проверять `_pending` и вызывать `_arm_debounce()`.
+
+suggestion: app/session.py:222 — старый edge case не закрыт: пустой/missing `iterations` все еще fallback'ится на top-level `usage`, что может снова считать сумму вместо последней API iteration. Фикс: если `iterations` пустой, не обновлять context или явно логировать unsupported usage shape.
+
+suggestion: app/manager.py:225 — после restart cache metrics теряются, потому что DB хранит только `context_pct/context_tokens`, а rehydrate восстанавливает только `percentage/total_tokens/max_tokens`. Если cache tracking должен быть виден после reload, добавьте persisted `cache_hit/cache_read/cache_create` или явно обнуляйте их в `_last_context`.
+
+### Verdict
+
+No-go: один старый blocking по custom prompts все еще открыт, плюс новый blocking с застревающей `_pending` queue после failed turn.
