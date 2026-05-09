@@ -244,6 +244,8 @@ async def send_message(name: str, req: SendRequest):
         return JSONResponse({"error": "not found"}, status_code=404)
     try:
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
+        if req.sender:
+            msg += manager._context_warning(req.sender)
         await manager.send(session.id, msg)
         return {"ok": True}
     except RuntimeError as e:

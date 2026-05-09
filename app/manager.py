@@ -253,6 +253,15 @@ class SessionManager:
                 return s.name
         return None
 
+    def _context_warning(self, worker_name: str) -> str:
+        session = next((s for s in self.sessions.values() if s.name == worker_name), None)
+        if not session:
+            return ""
+        pct = session._last_context.get("percentage", 0)
+        if pct >= 90:
+            return f"\n⚠️ CONTEXT CRITICAL: {pct}% — do NOT send more tasks to this worker"
+        return ""
+
     def _make_idle_callback(self, scope: str):
         async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str]):
             orch = self._find_orchestrator_name(scope)
@@ -262,7 +271,8 @@ class SessionManager:
             if not orch_session:
                 return
             summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
-            msg = f"[from:{worker_name}] [auto-report] Finished without explicit report. Last output:\n{summary}"
+            ctx = self._context_warning(worker_name)
+            msg = f"[from:{worker_name}] [auto-report] Finished without explicit report. Last output:\n{summary}{ctx}"
             logger.info(f"Auto-report: {worker_name} → {orch}")
             await orch_session.send(msg)
         return _on_worker_idle
