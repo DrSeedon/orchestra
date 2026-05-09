@@ -45,7 +45,10 @@
 
 ## Next
 - [ ] **Global SSE stream** — один endpoint для session list, stats, orch status. Заменит polling `/api/orchestrators` + `/api/sessions` + `/api/stats`. Сейчас polling 3s — работает, но не масштабируется
+- [ ] **Diff view for Edit tool** — парсить old_string/new_string из Edit input, рендерить как diff с красным/зелёным (как в Claude Code). file_path как заголовок
+- [ ] **System prompt viewer** — кнопка в agent info показывает полный system_prompt агента
 - [ ] **File preview in dashboard** — клик на .md/.txt/.png открывает содержимое в модалке, отдельная кнопка "отправить в чат" рядом с файлом
+- [ ] **TG media support** — фото/документы/голосовые в TG bridge (план в docs/tg-media/PLAN.md, Codex review done)
 - [ ] **Orchestra skill** — `/orchestra` для запуска задач из любого проекта
 - [ ] Worker templates — `.claude/agents/*.md` as presets
 - [ ] Auto-compact at context threshold
