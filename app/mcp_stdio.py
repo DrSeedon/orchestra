@@ -127,6 +127,17 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
 
 
 @mcp.tool()
+async def compact_worker(name: str) -> str:
+    """Compact a worker's context — summarize, reset session, continue fresh. Use when worker context >80%. Returns summary."""
+    result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Compact failed: {result['error']}"
+    if isinstance(result, dict) and result.get("ok"):
+        return f"Compact done: {result.get('before_pct', '?')}% → {result.get('after_pct', '?')}%. Summary ({result.get('summary_chars', 0)} chars): {result.get('summary', '')}"
+    return f"Compact result: {result}"
+
+
+@mcp.tool()
 async def kill_worker(name: str) -> str:
     """Stop and archive a worker."""
     result = await _api("POST", f"/api/sessions/{name}/stop", json={"scope": SCOPE})

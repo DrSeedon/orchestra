@@ -252,6 +252,19 @@ async def send_message(name: str, req: SendRequest):
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
+@app.post("/api/sessions/{name}/compact")
+async def compact_session(name: str, req: ScopeRequest):
+    session = await manager.ensure_loaded(name, req.scope)
+    if not session:
+        session = await manager.ensure_loaded_any(name)
+    if not session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if session.status.value == "running":
+        return JSONResponse({"error": "agent is running, wait for idle"}, status_code=400)
+    result = await session.compact()
+    return result
+
+
 @app.post("/api/sessions/{name}/interrupt")
 async def interrupt_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)

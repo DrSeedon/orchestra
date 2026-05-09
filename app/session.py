@@ -311,6 +311,62 @@ class AgentSession:
         self._persist()
         self._persist()
 
+    async def compact(self) -> dict:
+        COMPACT_PROMPT = (
+            "[SYSTEM: Context compaction requested]\n\n"
+            "Summarize our conversation so far. Output plain text, ~800 tokens max:\n\n"
+            "INTENT: What you are working on (1-2 sentences).\n"
+            "DECISIONS: Key decisions made (bullet points).\n"
+            "FILES: Files touched with brief notes (path — what was done).\n"
+            "PENDING: Open questions, TODOs, next steps.\n"
+            "RECENT: Last 3-5 exchanges for continuity.\n\n"
+            "Output ONLY the summary. No commentary."
+        )
+        PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
+
+        before_pct = self._last_context.get("percentage", 0)
+        self._log("status", f"compact started (context {before_pct}%)")
+
+        summary_parts = []
+        client = self._make_client()
+        try:
+            await asyncio.wait_for(client.connect(), timeout=60)
+            await client.query(COMPACT_PROMPT)
+            async for msg in client.receive_messages():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock) and block.text:
+                            summary_parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    break
+        except Exception as e:
+            self._log("error", f"compact failed: {e}")
+            return {"ok": False, "error": str(e), "before_pct": before_pct}
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+
+        summary = "".join(summary_parts).strip()
+        if not summary:
+            self._log("error", "compact returned empty summary")
+            return {"ok": False, "error": "empty summary", "before_pct": before_pct}
+
+        old_session_id = self.session_id
+        self.session_id = None
+        self._persist()
+
+        preamble = PREAMBLE.format(summary=summary)
+        await self.send(preamble + "Acknowledge briefly.")
+
+        while self.status == AgentStatus.RUNNING:
+            await asyncio.sleep(1)
+
+        after_pct = self._last_context.get("percentage", 0)
+        self._log("status", f"compact done: {before_pct}% → {after_pct}%")
+        return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary[:500]}
+
     async def stop(self) -> None:
         self._pending.clear()
         if self._debounce_task and not self._debounce_task.done():
