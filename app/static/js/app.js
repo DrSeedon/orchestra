@@ -9,8 +9,16 @@ let uiDebounceTimer = null;
 let refreshController = null;
 const UI_DEBOUNCE_MS = 2500;
 let scrollAfterLoad = true;
+let drafts = {};
 
 const $ = (s) => document.querySelector(s);
+
+function saveDraft() {
+    if (selectedAgent) drafts[selectedAgent] = $('#chat-input').value;
+}
+function restoreDraft() {
+    $('#chat-input').value = drafts[selectedAgent] || '';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     $('#send-btn').addEventListener('click', sendChat);
@@ -269,6 +277,7 @@ function selectOrchestrator(name, scope) {
 }
 
 function onOrchestratorChange() {
+    saveDraft();
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
     currentScope = picker.value || null;
@@ -284,11 +293,13 @@ function onOrchestratorChange() {
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
     updateAgentInfo(null);
+    restoreDraft();
     refreshSessions(); connectSSE(); initFilePanel();
 }
 
 // === Agent Selection ===
 function selectAgent(name) {
+    saveDraft();
     selectedAgent = name;
     streamBubble = null;
     streamContent = '';
@@ -296,6 +307,7 @@ function selectAgent(name) {
     if (chatLogs[name]) chatLogs[name].lastId = 0;
     scrollAfterLoad = true;
     updateInputState();
+    restoreDraft();
     renderAgentList();
     fetchAgentContext(name);
     refreshSessions(); connectSSE();
