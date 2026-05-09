@@ -770,30 +770,36 @@ function addChatEntry(type, content, ts) {
         const isOrch = rawName.startsWith('mcp__orchestra__');
 
         div.dataset.lastTool = '1';
+        div.dataset.toolContent = content;
+        div.style.cursor = 'pointer';
+
         const header = document.createElement('div');
         header.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
         header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
         header.textContent = `${icon} ${short}`;
         div.appendChild(header);
 
+        const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+        const toolFull = body.length > 200 ? body : null;
         if (body) {
-            const preview = body.length > 200 ? body.slice(0, 200) + '…' : body;
-            const full = body.length > 200 ? body : null;
             const bodyEl = document.createElement('div');
             bodyEl.style.whiteSpace = 'pre-wrap';
-            bodyEl.className = 'text-xs opacity-70';
-            bodyEl.textContent = preview;
+            bodyEl.className = 'text-xs opacity-70 tool-body';
+            bodyEl.textContent = toolPreview;
+            bodyEl.dataset.preview = toolPreview;
+            if (toolFull) bodyEl.dataset.full = toolFull;
             div.appendChild(bodyEl);
-            if (full) {
-                div.style.cursor = 'pointer';
-                let expanded = false;
-                div.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-                    expanded = !expanded;
-                    bodyEl.textContent = expanded ? full : preview;
-                });
-            }
         }
+
+        let expanded = false;
+        div.addEventListener('click', (e) => {
+            if (e.target.tagName === 'A') return;
+            expanded = !expanded;
+            const tb = div.querySelector('.tool-body');
+            if (tb && tb.dataset.full) tb.textContent = expanded ? tb.dataset.full : tb.dataset.preview;
+            const rb = div.querySelector('.result-body');
+            if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
+        });
     }
     else if (type === 'tool_result') {
         const chat = $('#chat');
@@ -805,21 +811,19 @@ function addChatEntry(type, content, ts) {
 
         if (lastTool) {
             delete lastTool.dataset.lastTool;
+            lastTool.dataset.toolContent += '\n\n' + content;
+            const oldCopy = lastTool.querySelector('.copy-btn');
+            if (oldCopy) oldCopy.remove();
+            addCopyBtn(lastTool, lastTool.dataset.toolContent);
+
             const sep = document.createElement('div');
             sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
             const resultEl = document.createElement('div');
-            resultEl.className = 'text-xs';
+            resultEl.className = 'text-xs result-body';
             resultEl.style.whiteSpace = 'pre-wrap';
             resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
-            if (full) {
-                resultEl.style.cursor = 'pointer';
-                let expanded = false;
-                resultEl.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'A') return;
-                    expanded = !expanded;
-                    resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? full : preview, {ADD_ATTR: ['target']});
-                });
-            }
+            resultEl.dataset.preview = preview;
+            if (full) resultEl.dataset.full = full;
             sep.appendChild(resultEl);
             lastTool.appendChild(sep);
             addTimestamp(lastTool, ts);
@@ -827,10 +831,10 @@ function addChatEntry(type, content, ts) {
         }
 
         div.style.whiteSpace = 'pre-wrap';
+        div.style.cursor = 'pointer';
         div.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
+        let expanded = false;
         if (full) {
-            div.style.cursor = 'pointer';
-            let expanded = false;
             div.addEventListener('click', (e) => {
                 if (e.target.tagName === 'A') return;
                 expanded = !expanded;
