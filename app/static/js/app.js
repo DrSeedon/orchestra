@@ -149,8 +149,9 @@ async function createOrchestrator() {
     try {
         await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, is_orchestrator: true }) });
         closeModal(); $('#orch-name').value = ''; $('#orch-cwd').value = '';
+        currentScope = null;
         await loadOrchestrators();
-        $('#orch-picker').value = cwd; onOrchestratorChange();
+        selectOrchestrator(name, cwd.replace(/\/+$/, ''));
     } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
     finally { btn.disabled = false; btn.textContent = 'Create Orchestrator'; }
 }
