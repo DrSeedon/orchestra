@@ -360,8 +360,10 @@ class AgentSession:
         preamble = PREAMBLE.format(summary=summary)
         await self.send(preamble + "Acknowledge briefly.")
 
-        while self.status == AgentStatus.RUNNING:
+        for _ in range(60):
             await asyncio.sleep(1)
+            if self.status == AgentStatus.IDLE and self._last_context.get("percentage", before_pct) < before_pct:
+                break
 
         after_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
