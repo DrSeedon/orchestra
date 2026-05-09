@@ -65,7 +65,6 @@ async def ensure_topics():
 
 
 async def stream_logs(orch_name: str, thread_id: int):
-    last_id = 0
     scope = None
     orchs = await orchestra_api("GET", "/api/orchestrators")
     if orchs:
@@ -75,6 +74,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                 break
     if not scope:
         return
+
+    # Skip old logs — only stream new ones
+    logs = await orchestra_api("GET", f"/api/sessions/{orch_name}/logs",
+                               params={"scope": scope, "after_id": 0})
+    last_id = logs[-1]["id"] if logs else 0
 
     while True:
         try:
