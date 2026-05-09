@@ -88,6 +88,34 @@ async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str)
             logger.warning(f"TG send failed: {e}")
 
 
+_TG_TOOL_ICONS = {
+    'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
+    'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
+    'Agent': '🤖', 'ToolSearch': '🔍', 'AskUserQuestion': '❓',
+}
+_TG_MCP_ICONS = {
+    'orchestra': '🎼', 'websearch': '🌐', 'kesha': '🦜',
+    'yougile': '📋', 'serena': '🧠', 'mailru': '📧',
+}
+
+
+def _tg_tool_icon(name: str) -> str:
+    if name.startswith('mcp__'):
+        parts = name.split('__')
+        return _TG_MCP_ICONS.get(parts[1], '🔌') if len(parts) >= 2 else '🔌'
+    for key, icon in _TG_TOOL_ICONS.items():
+        if name == key or name.startswith(key):
+            return icon
+    return '🔧'
+
+
+def _tg_tool_short(name: str) -> str:
+    if name.startswith('mcp__'):
+        parts = name.split('__', 2)
+        return parts[2] if len(parts) >= 3 else name
+    return name
+
+
 def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
@@ -157,7 +185,9 @@ async def stream_logs(orch_name: str, thread_id: int):
                 elif t == "tool":
                     tool_name = c.split(":")[0].strip() if ":" in c else "tool"
                     tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
-                    header = f"🔧 {tool_name}"
+                    icon = _tg_tool_icon(tool_name)
+                    short = _tg_tool_short(tool_name)
+                    header = f"{icon} {short}"
                     _last_tool_text = f"{header}\n{tool_body}"
                     _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
                     continue

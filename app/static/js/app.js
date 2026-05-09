@@ -747,26 +747,39 @@ function addChatEntry(type, content, ts) {
         }
     }
     else if (type === 'tool') {
-        div.style.whiteSpace = 'pre-wrap';
-        const preview = content.length > 200 ? content.slice(0, 200) + '…' : content;
-        const full = content.length > 200 ? content : null;
-        div.textContent = `🔧 ${preview}`;
-        if (full) {
-            const toggle = document.createElement('button');
-            toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
-            toggle.textContent = '▸ show full';
-            let expanded = false;
-            toggle.addEventListener('click', () => {
-                expanded = !expanded;
-                div.innerHTML = '';
-                const text = document.createElement('span');
-                text.style.whiteSpace = 'pre-wrap';
-                text.textContent = `🔧 ${expanded ? full : preview}`;
-                div.appendChild(text);
-                toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
+        const colonIdx = content.indexOf(':');
+        const rawName = colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30);
+        const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
+        const icon = toolIcon(rawName);
+        const short = toolShortName(rawName);
+        const isOrch = rawName.startsWith('mcp__orchestra__');
+
+        const header = document.createElement('div');
+        header.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
+        header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
+        header.textContent = `${icon} ${short}`;
+        div.appendChild(header);
+
+        if (body) {
+            const preview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+            const full = body.length > 200 ? body : null;
+            const bodyEl = document.createElement('div');
+            bodyEl.style.whiteSpace = 'pre-wrap';
+            bodyEl.className = 'text-xs opacity-70';
+            bodyEl.textContent = preview;
+            div.appendChild(bodyEl);
+            if (full) {
+                const toggle = document.createElement('button');
+                toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
+                toggle.textContent = '▸ show full';
+                let expanded = false;
+                toggle.addEventListener('click', () => {
+                    expanded = !expanded;
+                    bodyEl.textContent = expanded ? full : preview;
+                    toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
+                });
                 div.appendChild(toggle);
-            });
-            div.appendChild(toggle);
+            }
         }
     }
     else if (type === 'tool_result') {
@@ -805,6 +818,37 @@ function addChatEntry(type, content, ts) {
 }
 
 // === File Browser ===
+const TOOL_ICONS = {
+    'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
+    'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
+    'Agent': '🤖', 'Task': '🤖', 'TodoWrite': '📝', 'NotebookEdit': '📓',
+    'ToolSearch': '🔍', 'AskUserQuestion': '❓', 'SendMessage': '💬',
+};
+const MCP_ICONS = {
+    'orchestra': '🎼', 'websearch': '🌐', 'kesha': '🦜',
+    'yougile': '📋', 'pandoc': '📄', 'aperant': '🏠',
+    'github': '🐙', 'serena': '🧠', 'mailru': '📧',
+};
+
+function toolIcon(name) {
+    if (name.startsWith('mcp__')) {
+        const server = name.split('__')[1];
+        return MCP_ICONS[server] || '🔌';
+    }
+    for (const [key, icon] of Object.entries(TOOL_ICONS)) {
+        if (name === key || name.startsWith(key)) return icon;
+    }
+    return '🔧';
+}
+
+function toolShortName(name) {
+    if (name.startsWith('mcp__')) {
+        const parts = name.split('__');
+        return parts.length >= 3 ? parts[2] : name;
+    }
+    return name;
+}
+
 const FILE_ICONS = {
     py: '🐍', js: '📜', ts: '📜', json: '📋', md: '📝', html: '🌐', css: '🎨',
     txt: '📄', yml: '⚙️', yaml: '⚙️', toml: '⚙️', sh: '🖥', sql: '🗃',
