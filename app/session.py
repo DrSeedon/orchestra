@@ -25,6 +25,11 @@ from app.db import save_session, add_log
 logger = logging.getLogger(__name__)
 
 
+def _prompt_hash(text: str) -> str:
+    import hashlib
+    return hashlib.md5(text.encode()).hexdigest()[:8]
+
+
 class AgentStatus(str, Enum):
     IDLE = "idle"
     RUNNING = "running"
@@ -152,7 +157,9 @@ class AgentSession:
             if self._current_prompt != self.system_prompt:
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
-                self._log("status", "system prompt updated")
+                old_h = _prompt_hash(self.system_prompt)
+                new_h = _prompt_hash(self._current_prompt)
+                self._log("status", f"prompt updated: {old_h} → {new_h}")
                 message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
         client = self._make_client()
         self._active_client = client
