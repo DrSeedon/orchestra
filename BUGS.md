@@ -49,3 +49,53 @@ $ diff main/backend/main.py worktree/backend/main.py
 
 ## ~~[2026-05-09 04:59 UTC] Draft message hangs~~ ❌ NOT ORCHESTRA BUG
 - Kesha TG bot bug, not Orchestra. Already tracked in kesha-tg-bot/TODO.md as "Draft ghost".
+
+## [2026-05-09 08:45 UTC] Workers skip Codex CLI on follow-up rounds unless explicitly reminded each time
+- **Reporter:** Parsing-orchestrator
+- **Scope:** /mnt/data/Projects/Python/Parsing
+codex-reviewer worker correctly used `codex exec` for Round 1 (as explicitly stated in the initial task). But for Rounds 2-3, the orchestrator sent follow-up messages like "check the updated plan, append Round N" without repeating "use codex exec". The worker optimized by doing the review itself (Sonnet reviewing Sonnet's own plan = no adversarial value).
+
+Root cause: workers treat the initial task prompt as one-time instructions. Follow-up messages via send_message don't carry the "use codex exec" constraint forward.
+
+Fix options:
+1. system_prompt should contain persistent rules like "ALWAYS use codex exec for reviews" (not just in the task message)
+2. Orchestrator must repeat critical tool requirements in EVERY follow-up message
+3. Worker should have a rule: "if Round 1 used tool X, all subsequent rounds use tool X unless told otherwise"
+
+Impact: Rounds 2-3 review was still high quality (found real bugs in routes/web.php:96 and AuthenticatedSessionController), but lost the adversarial cross-LLM benefit. The whole point of Codex review is GPT-5.5 checking Claude's work — not Claude checking Claude's work.
+
+## [2026-05-09 09:45 UTC] Auto-report misleads orchestrator — no way to distinguish "still working" from "hung/crashed"
+- **Reporter:** Parsing-orchestrator
+- **Scope:** /mnt/data/Projects/Python/Parsing
+When a worker goes idle mid-task, Orchestra sends an auto-report with the last output. The orchestrator has no way to tell if:
+- Worker finished successfully (should have sent explicit send_message but didn't)
+- Worker hung/crashed mid-task (partial output looks like it's still analyzing)
+
+Current behavior: orchestrator waits forever for a "DONE:" message that never comes because the worker already went idle.
+
+Suggested fix for orchestrator system_prompt — add rule:
+"When you receive an auto-report (prefixed with [auto-report]), check the message content. If it does NOT contain a clear completion signal (DONE, finished, committed, etc.), the worker likely hung mid-task. Either:
+1. Ping the worker via send_message asking to continue
+2. Check worker logs via get_worker_logs for debugging
+Do NOT just wait — auto-report means the worker's turn ended."
+
+Also consider: worker system_prompt should emphasize "NEVER go idle mid-task. If you need more turns — send_message asking for guidance, don't just stop."
+
+## [2026-05-09 09:53 UTC] Workers go idle mid-task without sending explicit report — need stronger system_prompt enforcement
+- **Reporter:** Parsing-orchestrator
+- **Scope:** /mnt/data/Projects/Python/Parsing
+seo-worker went idle twice during S7 task:
+1. First idle: mid-analysis of DB migrations — auto-report with partial output, had to ping to continue
+2. Second idle: after completing work and committing — auto-report instead of explicit send_message
+
+Root cause: worker's system_prompt says "send_message to report" but doesn't emphasize it strongly enough. Workers treat it as optional.
+
+Observed pattern across ALL workers in this session:
+- test-worker, worker-parsing, worker-seo, worker-zahoron — all used auto-report
+- codex-reviewer — sometimes used send_message, sometimes not
+- Only test-final consistently used send_message (after being told explicitly in task)
+
+Suggested fixes:
+1. Worker system_prompt should have MANDATORY section: "BEFORE going idle, you MUST call mcp__orchestra__send_message. Auto-report is a FALLBACK, not the primary channel."
+2. Consider platform-level enforcement: if worker goes idle without send_message AND task is not marked complete — auto-ping with "you went idle without reporting, continue or send DONE"
+3. Orchestrator system_prompt should say: "auto-report without DONE/finished/committed = worker hung. Ping immediately."

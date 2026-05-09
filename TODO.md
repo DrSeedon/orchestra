@@ -51,5 +51,8 @@
 - [ ] **TG media support** — фото/документы/голосовые в TG bridge (план в docs/tg-media/PLAN.md, Codex review done)
 - [ ] **Orchestra skill** — `/orchestra` для запуска задач из любого проекта
 - [ ] Worker templates — `.claude/agents/*.md` as presets
-- [ ] Auto-compact at context threshold
+- [ ] **Auto-compact** — summary → reset session_id → continue with summary as first message. Kesha pattern (compact.py). Trigger: context >80%. Need reset_session() in AgentSession
+- [ ] **Auto-merge** — MCP tool for orchestrator to merge worker branch into main. `git merge --no-ff feat/...`
+- [ ] **Auto-deploy** — MCP tool: `ssh deploy@vps 'cd /opt/project && git pull'`. Per-project config
+- [ ] **Watchdog** — if worker idle >10min without send_message after task → auto-ping
 - [ ] Worker restart with retry on failure
