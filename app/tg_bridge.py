@@ -56,6 +56,30 @@ async def _send_expandable_return(chat_id: int, thread_id: int, header: str, bod
             return None
 
 
+async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_header: str, result_body: str):
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+    tool_header_end = tool_text.index("\n")
+    tool_header = tool_text[:tool_header_end]
+    tool_body = tool_text[tool_header_end + 1:]
+    text = f"{tool_header}\n{tool_body}\n\n{result_header}\n{result_body}"
+    e1_offset = _utf16_len(tool_header) + 1
+    e1_length = _utf16_len(tool_body)
+    e2_offset = e1_offset + e1_length + 1 + _utf16_len(result_header) + 1
+    e2_length = _utf16_len(result_body)
+    try:
+        entities = [
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=e1_offset, length=e1_length),
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=e2_offset, length=e2_length),
+        ]
+        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+    except Exception:
+        try:
+            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+        except Exception as e:
+            logger.warning(f"TG edit failed: {e}")
+
+
 async def _edit_expandable(msg, chat_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
@@ -195,11 +219,10 @@ async def stream_logs(orch_name: str, thread_id: int):
                     result_preview = c[:80].replace("\n", " ").strip()
                     result_body = c[:800]
                     if _last_tool_msg:
-                        combined = f"{_last_tool_text}\n\n📎 {result_preview}\n{result_body}"
-                        header_end = combined.index("\n")
-                        body = combined[header_end+1:]
-                        header = combined[:header_end]
-                        await _edit_expandable(_last_tool_msg, config["group_id"], header, body)
+                        await _edit_tool_with_result(
+                            _last_tool_msg, config["group_id"],
+                            _last_tool_text, f"📎 {result_preview}", result_body,
+                        )
                         _last_tool_msg = None
                         _last_tool_text = ""
                     else:
