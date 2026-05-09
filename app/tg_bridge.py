@@ -118,7 +118,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                 elif t == "user_message":
                     text = f"👤 {c[:3000]}"
                 elif t == "text":
-                    text = c[:3900]
+                    text = f"💬\n{c[:3900]}"
                 elif t == "tool":
                     tool_name = c.split(":")[0].strip() if ":" in c else "tool"
                     tool_body = c[len(tool_name)+1:].strip()[:1500] if ":" in c else c[:1500]
