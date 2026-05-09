@@ -94,10 +94,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                         prefix = c.split("]")[0] + "]"
                         body = c[len(prefix):].strip()
                         text = f"📨 {prefix}\n{body[:3000]}"
+                    elif t == "user_message":
+                        text = f"👤 {c[:3000]}"
                     elif t == "text":
-                        text = f"💬 {c[:3000]}"
+                        text = c[:3900]
                     elif t == "tool":
                         text = f"🔧 {c[:500]}"
+                    elif t == "tool_result":
+                        text = f"📎 {c[:1000]}"
                     elif t == "error":
                         text = f"❌ {c[:1000]}"
                     elif t == "status":
@@ -105,10 +109,17 @@ async def stream_logs(orch_name: str, thread_id: int):
                     else:
                         continue
                     try:
-                        await bot.send_message(
-                            config["group_id"], text,
-                            message_thread_id=thread_id,
-                        )
+                        try:
+                            await bot.send_message(
+                                config["group_id"], text,
+                                message_thread_id=thread_id,
+                                parse_mode="Markdown",
+                            )
+                        except Exception:
+                            await bot.send_message(
+                                config["group_id"], text,
+                                message_thread_id=thread_id,
+                            )
                     except Exception as e:
                         logger.warning(f"TG send failed: {e}")
         except Exception as e:
