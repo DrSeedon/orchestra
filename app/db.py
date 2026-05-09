@@ -93,6 +93,7 @@ def save_session(s: dict) -> None:
                 :color, :created_at, :finished_at, :context_pct, :context_tokens)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
+                system_prompt=excluded.system_prompt,
                 status=excluded.status,
                 session_id=excluded.session_id,
                 cost_usd=excluded.cost_usd,

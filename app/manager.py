@@ -220,7 +220,9 @@ class SessionManager:
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
-            session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": 200000}
+            from app.models import CONTEXT_LIMITS
+            max_t = CONTEXT_LIMITS.get(db_row["model"], 200000)
+            session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
         session._current_prompt = current_prompt
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])

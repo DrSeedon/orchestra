@@ -45,6 +45,7 @@
 
 ## Next
 - [ ] **Global SSE stream** — один endpoint для session list, stats, orch status. Заменит polling `/api/orchestrators` + `/api/sessions` + `/api/stats`. Сейчас polling 3s — работает, но не масштабируется
+- [ ] **File preview in dashboard** — клик на .md/.txt/.png открывает содержимое в модалке, отдельная кнопка "отправить в чат" рядом с файлом
 - [ ] **Orchestra skill** — `/orchestra` для запуска задач из любого проекта
 - [ ] Worker templates — `.claude/agents/*.md` as presets
 - [ ] Auto-compact at context threshold

@@ -153,22 +153,25 @@ class AgentSession:
     async def _run_turn(self, message: str) -> None:
         self._did_report = False
         self._turn_logs = []
+        prompt_refresh = False
         if self.session_id and self._current_prompt and not self._prompt_injected:
             old_h = _prompt_hash(self.system_prompt)
             new_h = _prompt_hash(self._current_prompt)
             if old_h != new_h:
-                self._prompt_injected = True
+                prompt_refresh = True
                 self._log("status", f"prompt updated: {old_h} → {new_h}")
-                self.system_prompt = self._current_prompt
                 message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
             else:
                 self._prompt_injected = True
         client = self._make_client()
-        self._active_client = client
         try:
             self._persist()
             await asyncio.wait_for(client.connect(), timeout=60)
             await client.query(message)
+            self._active_client = client
+            if prompt_refresh:
+                self._prompt_injected = True
+                self.system_prompt = self._current_prompt
             await asyncio.wait_for(self._listen(client), timeout=self.TURN_TIMEOUT)
         except asyncio.TimeoutError:
             logger.error(f"[{self.name}] turn timeout")
@@ -222,12 +225,14 @@ class AgentSession:
                     cache_read = (last.get("cache_read_input_tokens", 0) or 0)
                     total = (last.get("input_tokens", 0) or 0) + cache_create + cache_read
                     cache_total = cache_create + cache_read
-                    self._last_context["cache_hit"] = int(cache_read * 100 / cache_total) if cache_total else 0
-                    self._last_context["cache_read"] = cache_read
-                    self._last_context["cache_create"] = cache_create
                     from app.models import CONTEXT_LIMITS
                     max_t = CONTEXT_LIMITS.get(self.model, 200000)
-                    self._last_context = {"percentage": int(total * 100 / max_t) if max_t else 0, "total_tokens": total, "max_tokens": max_t}
+                    self._last_context = {
+                        "percentage": int(total * 100 / max_t) if max_t else 0,
+                        "total_tokens": total, "max_tokens": max_t,
+                        "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
+                        "cache_read": cache_read, "cache_create": cache_create,
+                    }
                 self.status = AgentStatus.IDLE
                 self._persist()
                 if self._pending:
