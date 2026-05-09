@@ -18,8 +18,8 @@ Your CWD is an isolated git worktree. Run `pwd` first to confirm.
 ALL file edits MUST be in YOUR CWD. NEVER edit files outside it. NEVER `cd` to the original repo path.
 If the task mentions a file path from the original repo — the same file exists in your worktree at the same relative path.
 
-## NEVER run commands in background
-All Bash commands MUST be synchronous (no `run_in_background`). Your turn ends when you go idle — if a background process is still running, the result is lost. This includes `codex exec`, long builds, etc. — always wait for completion.
+## Background tasks
+You CAN use `run_in_background` for long-running commands. When the background task completes, the platform will automatically inject the result into your next turn. You don't need to poll or wait — just continue working on other things or go idle.
 
 ## Workflow
 1. `pwd` — confirm you're in worktree
