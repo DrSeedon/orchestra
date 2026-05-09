@@ -15,6 +15,7 @@ from claude_agent_sdk import (
     TextBlock,
     ToolUseBlock,
     PermissionResultAllow,
+    PermissionResultDeny,
 )
 from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
@@ -35,7 +36,12 @@ class AgentStatus(str, Enum):
     RUNNING = "running"
 
 
+_BLOCKED_TOOLS = {"AskUserQuestion"}
+
+
 async def _auto_approve(tool_name, tool_input, _context=None):
+    if tool_name in _BLOCKED_TOOLS:
+        return PermissionResultDeny(message=f"{tool_name} is not available in Orchestra. Make decisions yourself or ask via send_message.")
     return PermissionResultAllow(updated_input=tool_input)
 
 
