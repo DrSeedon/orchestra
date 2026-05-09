@@ -8,6 +8,10 @@
 
 Your own AI agent orchestrator. Opus orchestrator manages Sonnet/Haiku workers via MCP tools. Each worker in isolated git worktree. Dashboard + Telegram bridge for full visibility.
 
+<p align="center">
+  <img src="docs/dashboard.png" alt="Dashboard" width="100%">
+</p>
+
 ## Quick Start
 
 ```bash
