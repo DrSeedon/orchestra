@@ -22,7 +22,8 @@ If the task mentions a file path from the original repo — the same file exists
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)
 3. `git add` and `git commit` your changes
-4. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
+4. Check your context: `list_agents()` — if YOUR context >70%, add `⚠️ Context: N%` to your DONE message
+5. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
 
 ## Your identity
 - Worker name: {worker_name}
