@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import init_db, get_logs, delete_session
+from app.db import init_db, get_logs, delete_session as db_delete_session
 from app.manager import SessionManager
 from app.models import resolve_model, MODELS
 
@@ -281,7 +281,7 @@ async def stop_session(name: str, req: ScopeRequest):
         return JSONResponse({"error": "not found"}, status_code=404)
     sid = found["id"] if isinstance(found, dict) else found.id
     if isinstance(found, dict):
-        delete_session(sid)
+        db_delete_session(sid)
     else:
         await manager.unload(sid)
     return {"ok": True}

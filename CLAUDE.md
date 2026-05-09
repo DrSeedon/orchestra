@@ -1,6 +1,6 @@
 # Orchestra — AI Agent Orchestrator
 
-**v2.3.0** | [Changelog](CHANGELOG.md)
+**v2.3.1** | [Changelog](CHANGELOG.md)
 
 ## Что это
 Свой оркестратор AI-агентов. Opus оркестратор управляет Haiku/Sonnet воркерами через MCP tools.
@@ -48,3 +48,4 @@ sudo systemctl status orchestra
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool
 - Баги пишутся в `BUGS.md` в корне проекта
 - **При старте сессии** — чекни `BUGS.md`, если есть новые баги — разбери или упомяни
+- **Чистка**: fixed/closed баги — удалять из BUGS.md. TODO.md — done items удалять. Держать оба файла компактными

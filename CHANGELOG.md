@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.3.1 — 2026-05-09
+
+### Added
+- 🗜 **compact_worker MCP tool** — orchestrator can compact a worker's context (summary → reset session → continue fresh). Tested: 81%→17%, 56%→16%, 20%→16%
+- ⚠️ **Context warning >90%** — platform auto-appends `⚠️ CONTEXT CRITICAL` to worker messages
+- 🚫 **AskUserQuestion + run_in_background denied** — blocked via `can_use_tool` deny
+- 🔧 **Tool+result merged** — one bubble on frontend, one expandable on TG
+- 🎨 **Tool icons** — 🖥 Bash, 📖 Read, 🎼 orchestra, 🔌 MCP
+- 📝 **Draft per agent** — unsent text preserved when switching
+- 🔗 **URL linkify** — clickable links in tool_result
+- 💊 **Status badge** — pill with colored bg on idle/running text
+
+### Fixed
+- **compact_worker timeout** — was 30s, compact takes ~40s → empty error → double compact. Now 120s
+- **Prompt placeholders** — `{orchestrator_name}` was literal in hot-reload for workers
+- **Scroll on switch** — chat now scrolls to bottom when opening agent
+- **Timestamps overlap** — inline block instead of absolute positioning
+
 ## v2.3.0 — 2026-05-09
 
 ### Added
