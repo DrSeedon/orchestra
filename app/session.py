@@ -154,13 +154,15 @@ class AgentSession:
         self._did_report = False
         self._turn_logs = []
         if self.session_id and self._current_prompt and not self._prompt_injected:
-            if self._current_prompt != self.system_prompt:
+            old_h = _prompt_hash(self.system_prompt)
+            new_h = _prompt_hash(self._current_prompt)
+            if old_h != new_h:
                 self._prompt_injected = True
-                self.system_prompt = self._current_prompt
-                old_h = _prompt_hash(self.system_prompt)
-                new_h = _prompt_hash(self._current_prompt)
                 self._log("status", f"prompt updated: {old_h} → {new_h}")
+                self.system_prompt = self._current_prompt
                 message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
+            else:
+                self._prompt_injected = True
         client = self._make_client()
         self._active_client = client
         try:
