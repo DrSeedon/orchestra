@@ -435,10 +435,12 @@ function createAgentItem(s) {
     const isSelected = s.name === selectedAgent;
     const isDead = s.status === 'stopped' || s.status === 'error';
     const item = document.createElement('div');
+    const statusBg = s.status === 'running' ? 'rgba(34,197,94,0.08)' : s.status === 'idle' ? 'rgba(234,179,8,0.05)' : '';
     item.className = `agent-item flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-        isSelected ? 'bg-indigo-900/30 border border-indigo-500/30' :
+        isSelected ? 'border border-indigo-500/30' :
         isDead ? 'opacity-50 hover:opacity-70' : 'hover:bg-slate-800/50'
     }`;
+    item.style.backgroundColor = isSelected ? 'rgba(99,102,241,0.12)' : statusBg;
     item.addEventListener('click', () => selectAgent(s.name));
 
     if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
