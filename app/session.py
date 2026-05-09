@@ -42,6 +42,8 @@ _BLOCKED_TOOLS = {"AskUserQuestion"}
 async def _auto_approve(tool_name, tool_input, _context=None):
     if tool_name in _BLOCKED_TOOLS:
         return PermissionResultDeny(message=f"{tool_name} is not available in Orchestra. Make decisions yourself or ask via send_message.")
+    if isinstance(tool_input, dict) and tool_input.get("run_in_background"):
+        return PermissionResultDeny(message="run_in_background is disabled in Orchestra — background processes are killed when your turn ends. Run synchronously instead.")
     return PermissionResultAllow(updated_input=tool_input)
 
 
