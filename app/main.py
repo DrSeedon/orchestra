@@ -27,7 +27,10 @@ async def lifespan(app: FastAPI):
     init_db()
     await manager.auto_resume_orchestrators()
     manager.start_background_tasks()
+    from app.tg_bridge import start_bridge, stop_bridge
+    await start_bridge(manager)
     yield
+    await stop_bridge()
     await manager.shutdown_all()
 
 
