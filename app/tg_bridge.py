@@ -39,6 +39,39 @@ def _utf16_len(s: str) -> int:
     return len(s.encode("utf-16-le")) // 2
 
 
+async def _send_expandable_return(chat_id: int, thread_id: int, header: str, body: str):
+    from aiogram.types import MessageEntity, Message
+    from aiogram.enums import MessageEntityType
+    text = f"{header}\n{body}"
+    offset = _utf16_len(header) + 1
+    length = _utf16_len(body)
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+    except Exception:
+        try:
+            return await bot.send_message(chat_id, text, message_thread_id=thread_id)
+        except Exception as e:
+            logger.warning(f"TG send failed: {e}")
+            return None
+
+
+async def _edit_expandable(msg, chat_id: int, header: str, body: str):
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+    text = f"{header}\n{body}"
+    offset = _utf16_len(header) + 1
+    length = _utf16_len(body)
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+    except Exception:
+        try:
+            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+        except Exception as e:
+            logger.warning(f"TG edit failed: {e}")
+
+
 async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
@@ -102,6 +135,8 @@ async def stream_logs(orch_name: str, thread_id: int):
 
     logs = get_logs(session_id, after_id=0)
     last_id = logs[-1]["id"] if logs else 0
+    _last_tool_msg = None
+    _last_tool_text = ""
 
     while True:
         try:
@@ -121,12 +156,24 @@ async def stream_logs(orch_name: str, thread_id: int):
                     text = f"💬\n{c[:3900]}"
                 elif t == "tool":
                     tool_name = c.split(":")[0].strip() if ":" in c else "tool"
-                    tool_body = c[len(tool_name)+1:].strip()[:1500] if ":" in c else c[:1500]
-                    await _send_expandable(config["group_id"], thread_id, f"🔧 {tool_name}", tool_body)
+                    tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
+                    header = f"🔧 {tool_name}"
+                    _last_tool_text = f"{header}\n{tool_body}"
+                    _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
                     continue
                 elif t == "tool_result":
-                    preview = c[:80].replace("\n", " ").strip()
-                    await _send_expandable(config["group_id"], thread_id, f"📎 {preview}", c[:1500])
+                    result_preview = c[:80].replace("\n", " ").strip()
+                    result_body = c[:800]
+                    if _last_tool_msg:
+                        combined = f"{_last_tool_text}\n\n📎 {result_preview}\n{result_body}"
+                        header_end = combined.index("\n")
+                        body = combined[header_end+1:]
+                        header = combined[:header_end]
+                        await _edit_expandable(_last_tool_msg, config["group_id"], header, body)
+                        _last_tool_msg = None
+                        _last_tool_text = ""
+                    else:
+                        await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
                     continue
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
