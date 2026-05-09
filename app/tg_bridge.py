@@ -35,6 +35,19 @@ def load_config():
         config = json.loads(CONFIG_PATH.read_text())
 
 
+async def _send_expandable(chat_id: int, thread_id: int, text: str):
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=0, length=len(text))]
+        await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+    except Exception:
+        try:
+            await bot.send_message(chat_id, text, message_thread_id=thread_id)
+        except Exception as e:
+            logger.warning(f"TG send failed: {e}")
+
+
 def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
@@ -100,13 +113,13 @@ async def stream_logs(orch_name: str, thread_id: int):
                 elif t == "text":
                     text = c[:3900]
                 elif t == "tool":
-                    tool_name = c.split(":")[0] if ":" in c else c[:50]
-                    tool_body = c[len(tool_name)+1:].strip()[:400] if ":" in c else ""
-                    text = f"🔧 `{tool_name}`" + (f"\n||{tool_body}||" if tool_body else "")
+                    text = f"🔧 {c[:1500]}"
+                    await _send_expandable(config["group_id"], thread_id, text)
+                    continue
                 elif t == "tool_result":
-                    preview = c[:100].replace("\n", " ")
-                    full = c[:800] if len(c) > 100 else ""
-                    text = f"📎 {preview}" + (f"\n||{full}||" if full else "")
+                    text = f"📎 {c[:1500]}"
+                    await _send_expandable(config["group_id"], thread_id, text)
+                    continue
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
                 elif t == "status":
