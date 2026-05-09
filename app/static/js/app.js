@@ -88,6 +88,11 @@ function connectSSE() {
             }
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0 };
             if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
+            if (scrollAfterLoad) {
+                $('#chat').scrollTop = $('#chat').scrollHeight;
+                clearTimeout(window._scrollResetTimer);
+                window._scrollResetTimer = setTimeout(() => { scrollAfterLoad = false; }, 500);
+            }
         } catch (e) { console.warn('SSE parse:', e); }
     };
     eventSource.onerror = () => {
