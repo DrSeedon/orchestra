@@ -241,6 +241,17 @@ function renderOrchTabs(sorted) {
     }
 }
 
+function updateOrchTabDots() {
+    const dots = document.querySelectorAll('#orch-tabs .orch-tab');
+    dots.forEach(tab => {
+        const name = tab.title;
+        const o = orchData.find(x => x.scope === name);
+        if (!o) return;
+        const dot = tab.querySelector('.tab-dot');
+        if (dot) dot.style.backgroundColor = o.status === 'running' ? '#22c55e' : '#eab308';
+    });
+}
+
 function selectOrchestrator(name, scope) {
     const picker = $('#orch-picker');
     picker.value = scope;
@@ -907,6 +918,15 @@ async function refreshSessions() {
 
         $('#stats-line').textContent = `${stats.active} active · ${stats.total_sessions} total · $${stats.total_cost_usd}`;
         renderAgentList(sessions);
+
+        try {
+            const freshOrchs = await api('/api/orchestrators', { signal });
+            for (const fo of freshOrchs) {
+                const existing = orchData.find(o => o.name === fo.name);
+                if (existing) { existing.status = fo.status; existing.cost_usd = fo.cost_usd; }
+            }
+            updateOrchTabDots();
+        } catch {}
 
         if (selectedAgent) {
             const agentSession = sessions.find(s => s.name === selectedAgent);
