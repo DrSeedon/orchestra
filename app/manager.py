@@ -34,11 +34,19 @@ COLOR_PALETTE = [
 ]
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
-_BASE_PROMPT = (_PROMPTS_DIR / "base.md").read_text() if (_PROMPTS_DIR / "base.md").exists() else ""
-_ORCH_EXTRA = (_PROMPTS_DIR / "orchestrator.md").read_text() if (_PROMPTS_DIR / "orchestrator.md").exists() else ""
-_WORKER_EXTRA = (_PROMPTS_DIR / "worker.md").read_text() if (_PROMPTS_DIR / "worker.md").exists() else ""
-ORCHESTRATOR_SYSTEM_PROMPT = f"{_BASE_PROMPT}\n\n{_ORCH_EXTRA}"
-WORKER_SYSTEM_PROMPT = f"{_BASE_PROMPT}\n\n{_WORKER_EXTRA}"
+
+
+def _read_prompt(name: str) -> str:
+    p = _PROMPTS_DIR / name
+    return p.read_text() if p.exists() else ""
+
+
+def ORCHESTRATOR_SYSTEM_PROMPT() -> str:
+    return f"{_read_prompt('base.md')}\n\n{_read_prompt('orchestrator.md')}"
+
+
+def WORKER_SYSTEM_PROMPT() -> str:
+    return f"{_read_prompt('base.md')}\n\n{_read_prompt('worker.md')}"
 
 
 def _make_mcp_config(name: str, scope: str, is_orch: bool) -> dict:
@@ -101,9 +109,9 @@ class SessionManager:
             raise ValueError(f"session '{name}' already exists in scope '{scope}'")
 
         if is_orchestrator:
-            prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT
+            prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT()
         else:
-            prompt = WORKER_SYSTEM_PROMPT + ("\n\n" + system_prompt if system_prompt else "")
+            prompt = WORKER_SYSTEM_PROMPT() + ("\n\n" + system_prompt if system_prompt else "")
 
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
@@ -204,7 +212,7 @@ class SessionManager:
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         is_orch = bool(db_row.get("is_orchestrator"))
         old_prompt = db_row.get("system_prompt", "")
-        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT if is_orch else WORKER_SYSTEM_PROMPT
+        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT()
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
