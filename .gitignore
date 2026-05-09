@@ -9,5 +9,6 @@ __pycache__/
 workers/*/
 !workers/.gitkeep
 worktrees/
+data/
 .claude/
 _screenshots/

@@ -1,6 +1,6 @@
 # Orchestra — AI Agent Orchestrator
 
-**v2.2.0** | [Changelog](CHANGELOG.md)
+**v2.3.0** | [Changelog](CHANGELOG.md)
 
 ## Что это
 Свой оркестратор AI-агентов. Opus оркестратор управляет Haiku/Sonnet воркерами через MCP tools.

@@ -1,5 +1,52 @@
 # Changelog
 
+## v2.3.0 — 2026-05-09
+
+### Added
+- 📱 **TG Bridge** (`app/tg_bridge.py`) — mirrors orchestrators to Telegram group topics.
+  Auto-creates topic per orchestrator, bidirectional messaging, real-time log streaming.
+  Separate bot (`@orchestraClaude_bot`), config in `.env` / `data/tg_bridge.json`
+- 📬 **Kesha inbox server** (`inbox_server.py` in kesha-tg-bot) — HTTP endpoint :18081,
+  Orchestra → Kesha via `notify_kesha` MCP tool → shows in Telegram chat
+- 🔄 **Auto-report** — workers that finish without `send_message` get force-reported to
+  orchestrator with last 3 text outputs. `[from:worker] [auto-report]` format
+- 💉 **Message inject** — messages to RUNNING agents injected via `client.query()` immediately,
+  no waiting for turn end. Fallback to pending queue on failure
+- 🔥 **Prompt hot-reload** — updated `app/prompts/*.md` injected on first turn after restart.
+  `[Orchestra platform note]` tag avoids prompt injection detection
+- 📊 **Context tracking** — `input + cache_creation + cache_read` from last iteration,
+  per-model limits (Opus 1M, Sonnet 200k), cache hit % in agent info panel
+- 📈 **Context bar** — colored progress bar per agent in sidebar (green/yellow/red)
+- 🌐 **Cross-project messaging** — `list_orchestrators()` discovers all orchestrators,
+  `send_message` fallback searches by name across all scopes (`ensure_loaded_any`)
+- 🐛 **report_bug MCP tool** — agents file bugs to `BUGS.md` with timestamp/reporter/scope
+- ⟳ **Restart button** — dashboard header, `sudo -n systemctl restart orchestra`
+- 💊 **Orchestrator tabs** — pill buttons replace dropdown, recent-first, live status dots
+- 🖼 **Image paste** — Ctrl+V upload with md5 dedup, preview under input, render in chat
+- ⚡ **Status badges** — `⚡ interrupted`, `⚡ system prompt updated` as centered badges in chat
+- 📐 **Shared prompts** — `app/prompts/base.md` + `orchestrator.md` + `worker.md`, shared platform knowledge
+
+### Fixed
+- **Stop deleted logs** — `POST /stop` now calls `unload()` (preserves DB), not `remove()` (cascade)
+- **Scroll hijack** — `showWaitingIndicator` respects `wasAtBottom`, no re-creation in refresh loop
+- **Context 0%** — usage is dict not object (`.get()` not `getattr()`), last iteration not sum
+- **Context 227%** — top-level usage sums all API calls, context = last iteration only
+- **Trailing slash** — scope normalized with `rstrip("/")` at creation and lookup
+- **Ghost workers** — `kill_worker` for DB-only sessions deletes from DB directly
+- **MCP not visible** — `.mcp.json` no longer copied to worktrees (was overriding Orchestra MCP);
+  `mcp_stdio.py` invoked by absolute path (was failing with `-m` from non-orchestra CWD)
+- **SendMessage vs send_message** — prompts explicitly say `mcp__orchestra__send_message`
+- **Interrupt stuck** — now awaits task cancellation, drops client, sets IDLE + persist
+- **Newlines lost** — tool input via `json.dumps(indent=2)`, `white-space: pre-wrap` on frontend
+- **Lost messages** — SSE user_message replaces pending bubble instead of skipping
+- **Prompt injection** — `[SYSTEM UPDATE]` tag softened to `[Orchestra platform note]`
+- **Repeated prompt inject** — `system_prompt` synced after inject, no more every-turn spam
+
+### Changed
+- **spawn_worker scope** — uses orchestrator's ORCHESTRA_SCOPE, not repo_path (workers visible in list_agents)
+- **Prompts split** — old `orchestrator_prompt.md` + `worker_prompt.md` → `prompts/base.md` + role-specific
+- **SDK 0.1.74** — updated from 0.1.72
+
 ## v2.2.0 — 2026-05-05
 
 ### Added

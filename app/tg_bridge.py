@@ -147,15 +147,18 @@ async def handle_group_message(msg: types.Message):
 
 async def main():
     global bot
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python -m app.tg_bridge <BOT_TOKEN> [GROUP_ID]")
-        sys.exit(1)
+    import os, sys
+    from dotenv import load_dotenv
+    load_dotenv()
 
     load_config()
-    config["token"] = sys.argv[1]
-    if len(sys.argv) > 2:
-        config["group_id"] = int(sys.argv[2])
+    token = sys.argv[1] if len(sys.argv) > 1 else os.getenv("TG_BRIDGE_TOKEN", config.get("token", ""))
+    group = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.getenv("TG_BRIDGE_GROUP", config.get("group_id", 0)))
+    if not token:
+        print("Set TG_BRIDGE_TOKEN in .env or pass as arg")
+        sys.exit(1)
+    config["token"] = token
+    config["group_id"] = group
     save_config()
 
     bot = Bot(token=config["token"], default=DefaultBotProperties(parse_mode=None))
