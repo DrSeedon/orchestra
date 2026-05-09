@@ -223,6 +223,15 @@ class SessionManager:
             from app.models import CONTEXT_LIMITS
             max_t = CONTEXT_LIMITS.get(db_row["model"], 200000)
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
+        if not is_orch:
+            orch_name = self._find_orchestrator_name(db_row["scope"])
+            try:
+                current_prompt = current_prompt.format(
+                    worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
+                    scope=db_row["scope"], branch=db_row.get("branch") or "main",
+                )
+            except (KeyError, ValueError):
+                pass
         session._current_prompt = current_prompt
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])
