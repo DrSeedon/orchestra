@@ -138,7 +138,7 @@ async def handle_group_message(msg: types.Message):
                 break
 
     result = await orchestra_api("POST", f"/api/sessions/{orch_name}/send",
-                                  json={"message": msg.text, "scope": scope, "sender": "tg"})
+                                  json={"message": msg.text, "scope": scope})
     if result and result.get("ok"):
         await msg.react([types.ReactionTypeEmoji(emoji="👍")])
     else:
