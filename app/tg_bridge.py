@@ -100,9 +100,13 @@ async def stream_logs(orch_name: str, thread_id: int):
                 elif t == "text":
                     text = c[:3900]
                 elif t == "tool":
-                    text = f"🔧 {c[:500]}"
+                    tool_name = c.split(":")[0] if ":" in c else c[:50]
+                    tool_body = c[len(tool_name)+1:].strip()[:400] if ":" in c else ""
+                    text = f"🔧 `{tool_name}`" + (f"\n||{tool_body}||" if tool_body else "")
                 elif t == "tool_result":
-                    text = f"📎 {c[:1000]}"
+                    preview = c[:100].replace("\n", " ")
+                    full = c[:800] if len(c) > 100 else ""
+                    text = f"📎 {preview}" + (f"\n||{full}||" if full else "")
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
                 elif t == "status":
