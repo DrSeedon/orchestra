@@ -40,8 +40,9 @@ def _utf16_len(s: str) -> int:
 
 
 async def _send_expandable_return(chat_id: int, thread_id: int, header: str, body: str):
-    from aiogram.types import MessageEntity, Message
+    from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
+    body = body.rstrip()
     text = f"{header}\n{body}"
     offset = _utf16_len(header) + 1
     length = _utf16_len(body)
@@ -59,18 +60,21 @@ async def _send_expandable_return(chat_id: int, thread_id: int, header: str, bod
 async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_header: str, result_body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
-    tool_header_end = tool_text.index("\n")
-    tool_header = tool_text[:tool_header_end]
-    tool_body = tool_text[tool_header_end + 1:]
-    text = f"{tool_header}\n{tool_body}\n\n{result_header}\n{result_body}"
-    e1_offset = _utf16_len(tool_header) + 1
-    e1_length = _utf16_len(tool_body)
-    e2_offset = e1_offset + e1_length + 1 + _utf16_len(result_header) + 1
-    e2_length = _utf16_len(result_body)
+    nl = tool_text.index("\n")
+    tool_header = tool_text[:nl]
+    tool_body = tool_text[nl + 1:].rstrip()
+    result_body = result_body.rstrip()
+    parts = [tool_header, "\n", tool_body, "\n\n", result_header, "\n", result_body]
+    text = "".join(parts)
+    offsets = []
+    pos = 0
+    for p in parts:
+        offsets.append(pos)
+        pos += _utf16_len(p)
     try:
         entities = [
-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=e1_offset, length=e1_length),
-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=e2_offset, length=e2_length),
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(tool_body)),
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(result_body)),
         ]
         await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
     except Exception:
