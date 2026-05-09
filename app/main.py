@@ -305,7 +305,11 @@ async def list_orchestrators():
     active = [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
     active_ids = {s["id"] for s in active}
     db_orchs = [s for s in get_all_sessions() if s.get("is_orchestrator") and s["id"] not in active_ids]
-    return active + db_orchs
+    result = active + db_orchs
+    running_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "running"}
+    for o in result:
+        o["any_running"] = o.get("scope", "") in running_scopes
+    return result
 
 
 @app.delete("/api/orchestrators/{name}")

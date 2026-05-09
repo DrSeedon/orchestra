@@ -231,7 +231,7 @@ function renderOrchTabs(sorted) {
         tab.className = `orch-tab ${o.name === selectedAgent && o.scope === currentScope ? 'active' : ''}`;
         const dot = document.createElement('span');
         dot.className = 'tab-dot';
-        dot.style.backgroundColor = o.status === 'running' ? '#22c55e' : '#eab308';
+        dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
         const label = document.createElement('span');
         const shortName = o.name.replace(/-orchestrator$/, '');
         label.textContent = shortName;
@@ -249,7 +249,7 @@ function updateOrchTabDots() {
         const o = orchData.find(x => x.scope === name);
         if (!o) return;
         const dot = tab.querySelector('.tab-dot');
-        if (dot) dot.style.backgroundColor = o.status === 'running' ? '#22c55e' : '#eab308';
+        if (dot) dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
     });
 }
 
@@ -924,7 +924,7 @@ async function refreshSessions() {
             const freshOrchs = await api('/api/orchestrators', { signal });
             for (const fo of freshOrchs) {
                 const existing = orchData.find(o => o.name === fo.name);
-                if (existing) { existing.status = fo.status; existing.cost_usd = fo.cost_usd; }
+                if (existing) { existing.status = fo.status; existing.cost_usd = fo.cost_usd; existing.any_running = fo.any_running; }
             }
             updateOrchTabDots();
         } catch {}
