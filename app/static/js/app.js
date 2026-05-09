@@ -797,9 +797,10 @@ function addChatEntry(type, content, ts) {
     else if (type === 'tool_result') {
         div.style.whiteSpace = 'pre-wrap';
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-        const preview = clean.length > 200 ? clean.slice(0, 200) + '…' : clean;
-        const full = clean.length > 200 ? clean : null;
-        div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(preview));
+        const linked = clean.replace(/(https?:\/\/[^\s\])"<>]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
+        const preview = linked.length > 300 ? linked.slice(0, 300) + '…' : linked;
+        const full = linked.length > 300 ? linked : null;
+        div.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
         if (full) {
             const toggle = document.createElement('button');
             toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
@@ -807,7 +808,7 @@ function addChatEntry(type, content, ts) {
             let expanded = false;
             toggle.addEventListener('click', () => {
                 expanded = !expanded;
-                div.innerHTML = '📎 ' + DOMPurify.sanitize(marked.parse(expanded ? full : preview));
+                div.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? full : preview, {ADD_ATTR: ['target']});
                 toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
                 div.appendChild(toggle);
             });
