@@ -35,11 +35,18 @@ def load_config():
         config = json.loads(CONFIG_PATH.read_text())
 
 
-async def _send_expandable(chat_id: int, thread_id: int, text: str):
+def _utf16_len(s: str) -> int:
+    return len(s.encode("utf-16-le")) // 2
+
+
+async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
+    text = f"{header}\n{body}"
+    offset = _utf16_len(header) + 1
+    length = _utf16_len(body)
     try:
-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=0, length=len(text))]
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
         await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
     except Exception:
         try:
@@ -113,12 +120,13 @@ async def stream_logs(orch_name: str, thread_id: int):
                 elif t == "text":
                     text = c[:3900]
                 elif t == "tool":
-                    text = f"🔧 {c[:1500]}"
-                    await _send_expandable(config["group_id"], thread_id, text)
+                    tool_name = c.split(":")[0].strip() if ":" in c else "tool"
+                    tool_body = c[len(tool_name)+1:].strip()[:1500] if ":" in c else c[:1500]
+                    await _send_expandable(config["group_id"], thread_id, f"🔧 {tool_name}", tool_body)
                     continue
                 elif t == "tool_result":
-                    text = f"📎 {c[:1500]}"
-                    await _send_expandable(config["group_id"], thread_id, text)
+                    preview = c[:80].replace("\n", " ").strip()
+                    await _send_expandable(config["group_id"], thread_id, f"📎 {preview}", c[:1500])
                     continue
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
