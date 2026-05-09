@@ -440,12 +440,10 @@ function createAgentItem(s) {
     const isSelected = s.name === selectedAgent;
     const isDead = s.status === 'stopped' || s.status === 'error';
     const item = document.createElement('div');
-    const statusBg = s.status === 'running' ? 'rgba(34,197,94,0.08)' : s.status === 'idle' ? 'rgba(234,179,8,0.05)' : '';
     item.className = `agent-item flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-        isSelected ? 'border border-indigo-500/30' :
+        isSelected ? 'bg-indigo-900/30 border border-indigo-500/30' :
         isDead ? 'opacity-50 hover:opacity-70' : 'hover:bg-slate-800/50'
     }`;
-    item.style.backgroundColor = isSelected ? 'rgba(99,102,241,0.12)' : statusBg;
     item.addEventListener('click', () => selectAgent(s.name));
 
     if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
@@ -463,9 +461,12 @@ function createAgentItem(s) {
     nameEl.textContent = s.name;
     const statusEl = document.createElement('span');
     const statusColor = s.status === 'running' ? '#22c55e' : s.status === 'idle' ? '#eab308' : '#6b7280';
-    statusEl.className = 'text-xs font-mono font-bold';
+    const statusBg = s.status === 'running' ? 'rgba(34,197,94,0.15)' : s.status === 'idle' ? 'rgba(234,179,8,0.12)' : 'rgba(107,114,128,0.1)';
+    statusEl.className = 'text-xs font-mono font-bold shrink-0';
     statusEl.style.color = statusColor;
-    statusEl.style.textShadow = `0 0 6px ${statusColor}40`;
+    statusEl.style.backgroundColor = statusBg;
+    statusEl.style.padding = '1px 6px';
+    statusEl.style.borderRadius = '4px';
     statusEl.textContent = `● ${s.status}`;
     nameRow.append(nameEl, statusEl);
 
