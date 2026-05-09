@@ -455,7 +455,10 @@ function createAgentItem(s) {
     nameEl.className = 'text-xs font-medium truncate';
     nameEl.textContent = s.name;
     const statusEl = document.createElement('span');
-    statusEl.className = `text-xs font-mono status-${s.status}`;
+    const statusColor = s.status === 'running' ? '#22c55e' : s.status === 'idle' ? '#eab308' : '#6b7280';
+    statusEl.className = 'text-xs font-mono font-bold';
+    statusEl.style.color = statusColor;
+    statusEl.style.textShadow = `0 0 6px ${statusColor}40`;
     statusEl.textContent = `● ${s.status}`;
     nameRow.append(nameEl, statusEl);
 
@@ -766,6 +769,7 @@ function addChatEntry(type, content, ts) {
         const short = toolShortName(rawName);
         const isOrch = rawName.startsWith('mcp__orchestra__');
 
+        div.dataset.lastTool = '1';
         const header = document.createElement('div');
         header.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
         header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
@@ -781,38 +785,57 @@ function addChatEntry(type, content, ts) {
             bodyEl.textContent = preview;
             div.appendChild(bodyEl);
             if (full) {
-                const toggle = document.createElement('button');
-                toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
-                toggle.textContent = '▸ show full';
+                div.style.cursor = 'pointer';
                 let expanded = false;
-                toggle.addEventListener('click', () => {
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
                     expanded = !expanded;
                     bodyEl.textContent = expanded ? full : preview;
-                    toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
                 });
-                div.appendChild(toggle);
             }
         }
     }
     else if (type === 'tool_result') {
-        div.style.whiteSpace = 'pre-wrap';
+        const chat = $('#chat');
+        const lastTool = chat.querySelector('[data-last-tool]');
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
         const linked = clean.replace(/(https?:\/\/[^\s\])"<>]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
-        const preview = linked.length > 300 ? linked.slice(0, 300) + '…' : linked;
-        const full = linked.length > 300 ? linked : null;
+        const preview = linked.length > 200 ? linked.slice(0, 200) + '…' : linked;
+        const full = linked.length > 200 ? linked : null;
+
+        if (lastTool) {
+            delete lastTool.dataset.lastTool;
+            const sep = document.createElement('div');
+            sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+            const resultEl = document.createElement('div');
+            resultEl.className = 'text-xs';
+            resultEl.style.whiteSpace = 'pre-wrap';
+            resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
+            if (full) {
+                resultEl.style.cursor = 'pointer';
+                let expanded = false;
+                resultEl.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    expanded = !expanded;
+                    resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? full : preview, {ADD_ATTR: ['target']});
+                });
+            }
+            sep.appendChild(resultEl);
+            lastTool.appendChild(sep);
+            addTimestamp(lastTool, ts);
+            return;
+        }
+
+        div.style.whiteSpace = 'pre-wrap';
         div.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
         if (full) {
-            const toggle = document.createElement('button');
-            toggle.className = 'text-xs text-indigo-400 hover:text-indigo-300 mt-1 block';
-            toggle.textContent = '▸ show full';
+            div.style.cursor = 'pointer';
             let expanded = false;
-            toggle.addEventListener('click', () => {
+            div.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
                 expanded = !expanded;
                 div.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? full : preview, {ADD_ATTR: ['target']});
-                toggle.textContent = expanded ? '▾ collapse' : '▸ show full';
-                div.appendChild(toggle);
             });
-            div.appendChild(toggle);
         }
     }
     else if (type === 'error') { div.textContent = content; }
