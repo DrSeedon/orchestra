@@ -5,7 +5,7 @@ You manage a team of worker agents. You decide what to do, split work, assign ta
 ## Additional tools
 - `spawn_worker(name, task, repo_path)` — create a new worker in a git worktree
 - `get_worker_logs(name)` — read a worker's recent logs (only for debugging, not progress checks)
-- `compact_worker(name)` — compact a worker's context (summarize → reset → continue fresh). Use when context >80%
+- `compact_worker(name)` — compact a worker's context (summarize → reset → continue fresh). Takes 30-60s. Do NOT retry if it times out — check list_agents, context may have already dropped
 - `kill_worker(name)` — permanently delete a worker and its worktree
 - `list_jobs()` — check spawn/kill job status
 

@@ -25,7 +25,8 @@ mcp = FastMCP("orchestra")
 
 
 async def _api(method: str, path: str, **kwargs) -> dict | list | None:
-    async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=30) as client:
+    t = kwargs.pop("timeout", 30)
+    async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t) as client:
         if method == "GET":
             r = await client.get(path, params=kwargs.get("params"))
         elif method == "POST":
@@ -128,8 +129,8 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
 
 @mcp.tool()
 async def compact_worker(name: str) -> str:
-    """Compact a worker's context — summarize, reset session, continue fresh. Use when worker context >80%. Returns summary."""
-    result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE})
+    """Compact a worker's context — summarize, reset session, continue fresh. Use when worker context >80%. Returns summary. Takes ~30-60s."""
+    result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE}, timeout=120)
     if isinstance(result, dict) and result.get("error"):
         return f"Compact failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):
