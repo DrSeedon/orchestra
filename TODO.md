@@ -14,12 +14,38 @@
 - [x] Dynamic cli_path
 - [x] Auto sender tag
 
+## Done (this session) ✅
+- [x] **File browser panel** — tree view слева, drag-and-drop в chat
+- [x] **Delete orchestrator** — `DELETE /api/orchestrators/{name}`, кнопка ✕ в хедере
+- [x] **Remember last orchestrator** — localStorage
+- [x] **Stop vs Delete** — stop = unload (сохраняет логи), delete = remove (каскад)
+- [x] **Scroll fix** — не дёргает при чтении истории
+- [x] **Context %** — правильный подсчёт (last iteration, per-model limit, cache stats)
+- [x] **Context bar** — цветная полоска в списке агентов
+- [x] **Cache hit %** — в agent info panel
+- [x] **Auto-report** — воркеры без send_message автоматически отчитываются
+- [x] **Inject messages** — сообщения running агентам доставляются мгновенно
+- [x] **Prompt hot-reload** — обновлённые промпты инжектятся при первом turn'е
+- [x] **Base/orchestrator/worker промпты** — shared platform knowledge
+- [x] **Cross-project messaging** — list_orchestrators, send_message across scopes
+- [x] **notify_kesha** — оркестраторы шлют результат в Telegram
+- [x] **Kesha inbox server** — HTTP endpoint для обратной связи Orchestra → Kesha
+- [x] **report_bug** — агенты файлят баги в BUGS.md
+- [x] **Restart button** — ⟳ в дашборде, sudo -n
+- [x] **Orchestrator tabs** — pill buttons вместо dropdown
+- [x] **Image paste** — Ctrl+V upload с дедупликацией по md5
+- [x] **Newlines in tool/result** — json.dumps + pre-wrap
+- [x] **Status badges** — ⚡ в чате для system events
+- [x] **MCP absolute path** — работает из любого CWD (worktrees)
+- [x] **No .mcp.json copy** — worktrees не override'ят Orchestra MCP
+- [x] **Interrupt fix** — реально ставит IDLE + persist
+- [x] **Trailing slash fix** — scope нормализация
+- [x] **Ghost workers fix** — kill DB-only sessions
+- [x] **Multi-repo tested** — Parsing (5 sub-repos), worktree isolation OK
+
 ## Next
-- [x] **File browser panel** — tree view слева, drag-and-drop в chat, иконки по типу файла
-- [ ] **Orchestra skill** — Claude Code skill `/orchestra` для запуска задач из любого проекта. Триггеры: "запусти оркестратор", "создай воркеров", "/orchestra". Skill проверяет что сервер запущен, создаёт/находит orchestrator для текущего проекта, отправляет задачу. Можно из любой Claude Code сессии без открытия dashboard
-- [ ] SSE for session list/stats (not just logs)
+- [ ] **Global SSE stream** — один endpoint для session list, stats, orch status. Заменит polling `/api/orchestrators` + `/api/sessions` + `/api/stats`. Сейчас polling 3s — работает, но не масштабируется
+- [ ] **Orchestra skill** — `/orchestra` для запуска задач из любого проекта
 - [ ] Worker templates — `.claude/agents/*.md` as presets
-- [ ] Auto-compact at 30% context
-- [ ] Media in chat (images/files from workers)
-- [ ] Multi-orchestrator support in dashboard
+- [ ] Auto-compact at context threshold
 - [ ] Worker restart with retry on failure
