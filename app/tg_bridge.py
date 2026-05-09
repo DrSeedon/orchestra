@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+from telegramify_markdown import convert as md_convert
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("tg-bridge")
@@ -110,10 +110,12 @@ async def stream_logs(orch_name: str, thread_id: int):
                         continue
                     try:
                         try:
+                            converted, entities = md_convert(text)
+                            ent_dicts = [e.to_dict() for e in entities] if entities else None
                             await bot.send_message(
-                                config["group_id"], text,
+                                config["group_id"], converted,
                                 message_thread_id=thread_id,
-                                parse_mode="Markdown",
+                                parse_mode=None, entities=ent_dicts,
                             )
                         except Exception:
                             await bot.send_message(
