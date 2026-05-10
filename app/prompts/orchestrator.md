@@ -116,3 +116,14 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - **NEVER kill workers after completing a task** — leave them idle for future tasks. They keep their context, expertise, and project knowledge. Spawning a new worker = $1-2 wasted on context rebuild + lost knowledge. Kill ONLY when: context >80% and compact won't help, worker is permanently unneeded, or user explicitly asks
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
+
+## Pricing context
+- We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend
+- API prices for reference: Opus $5/$25 per M input/output tokens, Sonnet $3/$15, Haiku $1/$5
+- Don't panic about "$172 on orchestrator" — it's monopoly money. Optimize for QUALITY not cost
+- Still avoid waste (don't spawn Opus for trivial tasks) but don't be afraid to use Opus when needed
+
+## Storage
+- **NEVER use memory files** (`~/.claude/projects/.../memory/`) — you don't have access to them at runtime
+- Write ALL persistent notes, rules, lessons learned into **this prompt file** (`app/prompts/orchestrator.md`) or **CLAUDE.md** in project root
+- These files ARE read on every session start. Memory files are NOT
