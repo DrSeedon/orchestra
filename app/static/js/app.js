@@ -1916,7 +1916,21 @@ function renderGrepResults(raw, pattern) {
 // === WebSearch Results Renderer ===
 function renderWebSearchResults(raw) {
     let data;
-    try { data = JSON.parse(raw); } catch { return null; }
+    try { data = JSON.parse(raw); } catch {
+        const linksMatch = raw.match(/Links:\s*(\[[\s\S]*\])/);
+        if (linksMatch) {
+            try {
+                const links = JSON.parse(linksMatch[1]);
+                data = { results: links };
+            } catch { return null; }
+            const textBefore = raw.slice(0, raw.indexOf('Links:')).replace(/^Web search results for query:.*\n+/i, '').trim();
+            if (textBefore) data.result = textBefore;
+        } else if (raw.length > 50) {
+            data = { result: raw };
+        } else {
+            return null;
+        }
+    }
 
     if (data.result && typeof data.result === 'string') {
         const el = document.createElement('div');
