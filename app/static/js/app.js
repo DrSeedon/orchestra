@@ -1216,10 +1216,36 @@ function addChatEntry(type, content, ts) {
                 const msg = d.message || '';
                 header.textContent = `📨 → ${to}`;
                 header.style.color = '#a78bfa';
-                const msgEl = document.createElement('div');
-                msgEl.className = 'text-xs opacity-80 markdown-body';
-                msgEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.length > 300 ? msg.slice(0, 300) + '…' : msg));
-                div.appendChild(msgEl);
+                const previewText = msg.length > 200 ? msg.slice(0, 200) : msg;
+                const hasMore = msg.length > 200;
+                const previewEl = document.createElement('div');
+                previewEl.className = 'text-xs opacity-80 markdown-body';
+                previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
+                div.appendChild(previewEl);
+                if (hasMore) {
+                    const restEl = document.createElement('div');
+                    restEl.className = 'text-xs opacity-80 markdown-body';
+                    restEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.slice(200)));
+                    restEl.style.display = 'none';
+                    restEl.dataset.role = 'send-rest';
+                    div.appendChild(restEl);
+                    const restLines = msg.slice(200).split('\n').length;
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.color = '#a78bfa';
+                    hint.style.cursor = 'pointer';
+                    hint.textContent = `▼ ${restLines} more lines`;
+                    hint.dataset.role = 'send-hint';
+                    div.appendChild(hint);
+                    div.style.cursor = 'pointer';
+                    let sendExpanded = false;
+                    div.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        sendExpanded = !sendExpanded;
+                        restEl.style.display = sendExpanded ? 'block' : 'none';
+                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
+                    });
+                }
                 div.dataset.isEdit = '1';
             } catch {}
         }
