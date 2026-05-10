@@ -97,9 +97,9 @@
         <div class="w-[320px] border-l border-slate-800/50 flex flex-col overflow-hidden">
             <!-- Agent Info -->
             <div id="agent-info" class="px-4 py-3 border-b border-slate-800/50 space-y-2">
-                <div class="flex items-center justify-between">
-                    <span id="ai-name" class="font-semibold text-sm"></span>
-                    <div class="flex items-center gap-2">
+                <div class="flex items-center justify-between gap-2">
+                    <span id="ai-name" class="font-semibold text-sm truncate min-w-0"></span>
+                    <div class="flex items-center gap-2 shrink-0">
                         <button id="compact-btn" class="text-slate-500 hover:text-amber-300 text-xs hidden" title="Compact context">🗜</button>
                         <button id="view-prompt-btn" class="text-slate-500 hover:text-indigo-300 text-xs hidden" title="View system prompt">📜</button>
                         <span id="ai-status" class="text-xs font-mono"></span>
