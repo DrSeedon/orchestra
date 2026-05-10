@@ -45,15 +45,6 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-.markdown-body { overflow-wrap: break-word; word-break: break-word; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; }
-.markdown-body p { margin: 0.4em 0; }
-.markdown-body ul, .markdown-body ol { margin: 0.3em 0; }
-.markdown-body h1 { margin: 0.5em 0 0.3em; }
-.markdown-body h2 { margin: 0.8em 0 0.3em; }
-.markdown-body h3 { margin: 0.5em 0 0.2em; }
-.markdown-body pre { margin: 0.4em 0; }
-.markdown-body blockquote { margin: 0.4em 0; }
-.markdown-body a { color: #38bdf8; }
 .waiting-dots span { animation: dot-blink 1.4s infinite; opacity: 0.2; font-size: 18px; line-height: 1; }
 .waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
 .waiting-dots span:nth-child(3) { animation-delay: 0.4s; }

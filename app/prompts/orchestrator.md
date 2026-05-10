@@ -35,6 +35,13 @@ Constraints: [what NOT to touch, scope limits].
 
 Workers with a role are reusable — send_message them new tasks later without re-explaining who they are.
 
+### Sending screenshots to workers
+You can send image paths in `send_message` — workers can Read them to see screenshots:
+```
+send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
+```
+Worker reads the image with Read tool and sees the visual context.
+
 ## Workflow
 1. Decide if you need workers or can do it yourself
 2. Spawn workers with role (system_prompt) + task (message)
