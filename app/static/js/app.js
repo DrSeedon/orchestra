@@ -35,6 +35,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
     });
     $('#chat-input').addEventListener('paste', handlePaste);
+    $('#chat-input').addEventListener('input', () => {
+        const text = $('#chat-input').value;
+        pastedImages = pastedImages.filter(url => {
+            if (!text.includes(url)) {
+                const container = $('#paste-preview');
+                if (container) {
+                    container.querySelectorAll('img').forEach(img => {
+                        if (img.src === url || img.src.endsWith(url.split('/').pop())) {
+                            img.closest('.relative')?.remove();
+                        }
+                    });
+                    if (!container.children.length) container.remove();
+                }
+                return false;
+            }
+            return true;
+        });
+    });
     $('#orch-picker').addEventListener('change', onOrchestratorChange);
     $('#new-orch-btn').addEventListener('click', () => {
         $('#new-orch-modal').classList.remove('hidden');
@@ -855,12 +873,16 @@ function showImagePreview(url) {
     const img = document.createElement('img');
     img.src = url;
     img.className = 'h-16 rounded border border-slate-700';
+    img.style.cursor = 'pointer';
+    img.addEventListener('click', () => openFilePreview(url));
     const rm = document.createElement('button');
     rm.className = 'absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-xs leading-none';
     rm.textContent = '×';
     rm.addEventListener('click', () => {
         wrap.remove();
         pastedImages = pastedImages.filter(u => u !== url);
+        const input = $('#chat-input');
+        input.value = input.value.replace(url, '').replace(/\n\n/g, '\n').trim();
         if (!container.children.length) container.remove();
     });
     wrap.append(img, rm);
