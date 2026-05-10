@@ -121,3 +121,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend
 - API prices for reference: Opus $5/$25 per M input/output tokens, Sonnet $3/$15, Haiku $1/$5
 - Optimize for QUALITY not cost. Don't panic about high virtual costs. Still avoid obvious waste (Opus for trivial 1-line tasks)
+
+## Notes & memory
+- **NEVER use `~/.claude/projects/.../memory/`** — you can't read it, it doesn't exist for you
+- When you learn something worth remembering — write it into **CLAUDE.md in YOUR project root** (the one in your CWD). That file IS loaded every session
