@@ -1,8 +1,10 @@
 """Orchestra — AI Agent Orchestrator API."""
 
 import asyncio
+import json
 import re
 import sqlite3
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -381,6 +383,123 @@ async def get_session_inbox(name: str, scope: str):
 @app.get("/api/stats")
 async def stats(scope: Optional[str] = None):
     return manager.stats(scope)
+
+
+_usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
+_USAGE_CACHE_TTL = 120
+_CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
+
+
+def _read_oauth_credentials() -> tuple[str | None, str | None, str | None]:
+    """Read accessToken, refreshToken, and rateLimitTier from credentials file."""
+    try:
+        creds = json.loads(_CREDENTIALS_PATH.read_text())
+        oauth = creds.get("claudeAiOauth", {})
+        return oauth.get("accessToken"), oauth.get("refreshToken"), oauth.get("rateLimitTier")
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        return None, None, None
+
+
+async def _fetch_anthropic_usage(token: str) -> dict:
+    """Call Anthropic OAuth usage API. Raises PermissionError on 401, RuntimeError on 429."""
+    import httpx
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://api.anthropic.com/api/oauth/usage",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "anthropic-beta": "oauth-2025-04-20",
+                "Accept": "application/json",
+            },
+        )
+        if resp.status_code == 401:
+            raise PermissionError("token_expired")
+        if resp.status_code == 429:
+            raise RuntimeError("rate_limited")
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def _refresh_oauth_token(refresh_token: str) -> str | None:
+    """Refresh expired OAuth token. Returns new access token or None."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://platform.claude.com/v1/oauth/token",
+                json={"grant_type": "refresh_token", "refresh_token": refresh_token},
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
+            )
+            if resp.status_code == 200:
+                return resp.json().get("access_token")
+    except Exception:
+        pass
+    return None
+
+
+def _get_agents_cost() -> dict:
+    """Get per-agent cost breakdown from DB."""
+    from app.db import _conn
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT name, model, cost_usd FROM sessions ORDER BY cost_usd DESC"
+        ).fetchall()
+        total = sum(r["cost_usd"] for r in rows)
+        agents = [
+            {"name": r["name"], "cost_usd": round(r["cost_usd"], 4), "model": r["model"]}
+            for r in rows if r["cost_usd"] > 0
+        ]
+        return {
+            "total_cost_usd": round(total, 4),
+            "agents_count": len(agents),
+            "agents": agents,
+        }
+
+
+@app.get("/api/usage")
+async def get_usage():
+    now = time.time()
+
+    if _usage_cache["data"] and (now - _usage_cache["ts"]) < _USAGE_CACHE_TTL:
+        anthropic_data = _usage_cache["data"]
+    else:
+        token, refresh_token, _tier = _read_oauth_credentials()
+        if not token:
+            return JSONResponse({"error": "no OAuth credentials found"}, status_code=500)
+
+        try:
+            anthropic_data = await _fetch_anthropic_usage(token)
+        except PermissionError:
+            if refresh_token:
+                new_token = await _refresh_oauth_token(refresh_token)
+                if new_token:
+                    try:
+                        anthropic_data = await _fetch_anthropic_usage(new_token)
+                        _usage_cache["token"] = new_token
+                    except Exception as e:
+                        return JSONResponse({"error": f"refresh succeeded but usage fetch failed: {e}"}, status_code=500)
+                else:
+                    return JSONResponse({"error": "token expired, refresh failed"}, status_code=500)
+            else:
+                return JSONResponse({"error": "token expired, no refresh token"}, status_code=500)
+        except RuntimeError:
+            if _usage_cache["data"]:
+                anthropic_data = _usage_cache["data"]
+            else:
+                return JSONResponse({"error": "rate limited by Anthropic, no cached data"}, status_code=429)
+        except Exception as e:
+            if _usage_cache["data"]:
+                anthropic_data = _usage_cache["data"]
+            else:
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        _usage_cache["data"] = anthropic_data
+        _usage_cache["ts"] = now
+
+    return {
+        "anthropic": anthropic_data,
+        "orchestra": _get_agents_cost(),
+    }
 
 
 @app.get("/api/orchestrators")
