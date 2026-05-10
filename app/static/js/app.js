@@ -14,10 +14,16 @@ let drafts = {};
 const $ = (s) => document.querySelector(s);
 
 function saveDraft() {
-    if (selectedAgent) drafts[selectedAgent] = $('#chat-input').value;
+    if (selectedAgent) drafts[selectedAgent] = { text: $('#chat-input').value, images: [...pastedImages] };
 }
 function restoreDraft() {
-    $('#chat-input').value = drafts[selectedAgent] || '';
+    const d = drafts[selectedAgent] || {};
+    $('#chat-input').value = d.text || '';
+    clearPastePreview();
+    if (d.images && d.images.length) {
+        pastedImages = [...d.images];
+        d.images.forEach(url => showImagePreview(url));
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
