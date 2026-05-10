@@ -1678,73 +1678,84 @@ function renderGrepResults(raw, pattern) {
     if (!lines.length) return null;
 
     const PREVIEW = 5;
-    const container = document.createElement('div');
-    container.className = 'diff-view';
-    container.style.marginTop = '6px';
 
-    // detect file headers (output_mode files_with_matches) or line:content format
-    function buildRow(text, isFileHeader) {
+    // highlight pattern in escaped text
+    function highlightPattern(text) {
+        if (!pattern) return _escHtml(text);
+        try {
+            const escaped = _escHtml(text);
+            const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            return escaped.replace(re, s => `<span style="background:rgba(234,179,8,0.3);color:#fef08a;border-radius:2px">${s}</span>`);
+        } catch { return _escHtml(text); }
+    }
+
+    // parse line: file:linenum:content OR linenum:content OR bare filename
+    function parseLine(text) {
+        // file:linenum:content  (file may contain path separators)
+        const m = text.match(/^(.+?):(\d+):(.*)$/);
+        if (m) return { file: m[1], line: m[2], content: m[3] };
+        // linenum:content (files_with_matches w/ context)
+        const m2 = text.match(/^(\d+):(.*)$/);
+        if (m2) return { file: null, line: m2[1], content: m2[2] };
+        // bare filename
+        return { file: text, line: null, content: null };
+    }
+
+    function buildRow(text) {
+        const p = parseLine(text);
         const row = document.createElement('div');
-        row.className = 'diff-line diff-line-ctx';
-        const gutter = document.createElement('span');
-        gutter.className = 'diff-gutter';
+        row.className = 'grep-result-row';
 
-        const code = document.createElement('span');
-        code.className = 'diff-code';
-
-        if (isFileHeader) {
-            row.style.background = 'rgba(56,189,248,0.06)';
-            gutter.textContent = ' ';
-            code.style.color = '#38bdf8';
-            code.textContent = text;
-        } else {
-            const m = text.match(/^(\d+)([:|-])(.*)$/);
-            if (m) {
-                gutter.textContent = m[1];
-                const lineText = m[3];
-                if (pattern) {
-                    try {
-                        const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                        code.innerHTML = _escHtml(lineText).replace(
-                            new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
-                            s => `<span style="background:rgba(234,179,8,0.3);border-radius:2px">${_escHtml(s)}</span>`
-                        );
-                    } catch { code.textContent = lineText; }
-                } else {
-                    code.textContent = lineText;
-                }
+        if (p.content !== null) {
+            // match row: file:line on left, content on right
+            const meta = document.createElement('span');
+            meta.className = 'grep-meta';
+            if (p.file) {
+                const shortFile = p.file.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+                meta.textContent = `${shortFile}:${p.line}`;
+                meta.title = `${p.file}:${p.line}`;
             } else {
-                gutter.textContent = ' ';
-                code.textContent = text;
+                meta.textContent = p.line;
             }
+            const code = document.createElement('span');
+            code.className = 'grep-code';
+            code.innerHTML = highlightPattern(p.content.trimStart());
+            row.append(meta, code);
+        } else {
+            // bare filename (files_with_matches mode)
+            const meta = document.createElement('span');
+            meta.className = 'grep-meta';
+            meta.textContent = '';
+            const code = document.createElement('span');
+            code.className = 'grep-code';
+            code.style.color = '#38bdf8';
+            const shortFile = p.file.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+            code.textContent = shortFile;
+            row.append(meta, code);
         }
-        row.append(gutter, code);
         return row;
     }
+
+    const container = document.createElement('div');
+    container.className = 'grep-results';
+    container.style.marginTop = '6px';
 
     const previewLines = lines.slice(0, PREVIEW);
     const restLines = lines.slice(PREVIEW);
 
-    for (const l of previewLines) {
-        const isFile = !/^\d+[:|-]/.test(l);
-        container.appendChild(buildRow(l, isFile));
-    }
+    for (const l of previewLines) container.appendChild(buildRow(l));
 
     if (restLines.length > 0) {
         const restEl = document.createElement('div');
         restEl.dataset.role = 'read-rest';
         restEl.style.display = 'none';
-        for (const l of restLines) {
-            const isFile = !/^\d+[:|-]/.test(l);
-            restEl.appendChild(buildRow(l, isFile));
-        }
+        for (const l of restLines) restEl.appendChild(buildRow(l));
         container.appendChild(restEl);
 
         const moreEl = document.createElement('div');
-        moreEl.className = 'diff-file';
         moreEl.dataset.role = 'read-more';
         moreEl.dataset.count = restLines.length;
-        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px;padding:4px 0';
         moreEl.textContent = `▼ ${restLines.length} more lines`;
         container.appendChild(moreEl);
     }
