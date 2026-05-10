@@ -218,6 +218,9 @@ class AgentSession:
                         except Exception:
                             inp = str(block.input)
                         self._log("tool", f"{block.name}: {inp}")
+                        short_name = block.name.split('__')[-1] if '__' in block.name else block.name
+                        short_inp = str(block.input)[:80]
+                        self._turn_logs.append(f"[tool] {short_name}: {short_inp}")
                         if block.name in ("mcp__orchestra__send_message", "send_message"):
                             self._did_report = True
                     elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
@@ -266,7 +269,7 @@ class AgentSession:
                 if self._pending:
                     self._arm_debounce()
                 elif self.on_idle and not self._did_report:
-                    last_texts = self._turn_logs[-3:] if self._turn_logs else []
+                    last_texts = self._turn_logs[-5:] if self._turn_logs else []
                     try:
                         asyncio.create_task(self.on_idle(self.name, self.scope, last_texts))
                     except Exception:
