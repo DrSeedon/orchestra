@@ -862,7 +862,8 @@ function addChatEntry(type, content, ts) {
             body.innerHTML = DOMPurify.sanitize(marked.parse(msg));
             div.appendChild(body);
         } else {
-            div.textContent = content;
+            div.className += ' markdown-body';
+            div.innerHTML = DOMPurify.sanitize(marked.parse(content));
             renderImages(div, content);
         }
     }
