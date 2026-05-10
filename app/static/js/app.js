@@ -726,9 +726,7 @@ function renderImages(el, content) {
     const matches = content.match(re);
     if (!matches) return;
     for (const path of matches) {
-        const url = path.startsWith('/data/uploads/')
-            ? '/uploads/' + path.split('/').pop()
-            : `/api/files/raw?path=${encodeURIComponent(path)}`;
+        const url = `/api/files/raw?path=${encodeURIComponent(path)}`;
         const img = document.createElement('img');
         img.src = url;
         img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
