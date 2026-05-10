@@ -183,12 +183,10 @@ async function loadMoreLogs() {
         const oldHeight = chat.scrollHeight;
         if (btn) btn.remove();
         // prepend в правильном порядке (logs уже ASC из db)
+        // фиксируем anchor = текущий firstChild, вставляем все перед ним по порядку
         const anchor = chat.firstChild;
         for (const l of logs) {
-            const tempDiv = document.createElement('div');
-            // рендерим через addChatEntry — вставляем в начало, не в конец
-            // используем флаг prepend mode
-            _prependEntry(l.type, l.content, l.ts, chat, anchor);
+            addChatEntry(l.type, l.content, l.ts, anchor);
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
             if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
                 chatLogs[selectedAgent].firstId = l.id;
@@ -202,47 +200,6 @@ async function loadMoreLogs() {
     }
 }
 
-// Prepend helper — строит bubble и вставляет перед anchor
-function _prependEntry(type, content, ts, chat, anchor) {
-    // Для простоты: создаём div, наполняем минимальным рендером
-    const div = document.createElement('div');
-    div.className = `px-3 py-2 rounded-lg text-sm break-words ${
-        type === 'user_message' ? 'chat-user ml-16' :
-        type === 'tool' ? 'chat-tool' :
-        type === 'tool_result' ? 'chat-tool-result' :
-        type === 'status' ? 'text-center text-xs py-1 text-slate-500 italic' :
-        type === 'error' ? 'text-red-400 text-xs' :
-        'chat-bot markdown-body'
-    }`;
-    if (type === 'status') {
-        div.textContent = `⚡ ${content}`;
-    } else if (type === 'error') {
-        div.textContent = content;
-    } else if (type === 'tool') {
-        const colonIdx = content.indexOf(':');
-        const rawName = colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30);
-        const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
-        const isOrch = rawName.startsWith('mcp__orchestra__');
-        const hdr = document.createElement('div');
-        hdr.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
-        hdr.style.color = isOrch ? '#a78bfa' : '#38bdf8';
-        hdr.textContent = `${toolIcon(rawName)} ${toolShortName(rawName)}`;
-        div.appendChild(hdr);
-        const bodyEl = document.createElement('div');
-        bodyEl.style.whiteSpace = 'pre-wrap';
-        bodyEl.className = 'text-xs opacity-70';
-        bodyEl.textContent = body.length > 200 ? body.slice(0, 200) + '…' : body;
-        div.appendChild(bodyEl);
-    } else if (type === 'tool_result') {
-        const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-        div.style.whiteSpace = 'pre-wrap';
-        div.textContent = '📎 ' + (clean.length > 200 ? clean.slice(0, 200) + '…' : clean);
-    } else {
-        div.innerHTML = DOMPurify.sanitize(marked.parse(content));
-    }
-    addTimestamp(div, ts);
-    chat.insertBefore(div, anchor);
-}
 
 // === Models ===
 async function loadModels() {
@@ -1118,9 +1075,10 @@ function buildCompactToolLine(type, content, ts) {
     return line;
 }
 
-function addChatEntry(type, content, ts) {
+function addChatEntry(type, content, ts, anchor) {
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
+    const _insert = (el) => anchor ? chat.insertBefore(el, anchor) : chat.appendChild(el);
 
     if (window.compactMode && (type === 'tool' || type === 'tool_result')) {
         if (type === 'tool_result') {
@@ -1157,9 +1115,9 @@ function addChatEntry(type, content, ts) {
         }
         const line = buildCompactToolLine(type, content, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
-        chat.appendChild(line);
+        _insert(line);
         while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
-        if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
 
@@ -1172,7 +1130,7 @@ function addChatEntry(type, content, ts) {
             streamBubble.style.position = 'relative';
             const agentColor = agentColors[selectedAgent];
             if (agentColor) streamBubble.style.borderLeft = `3px solid ${agentColor}`;
-            chat.appendChild(streamBubble);
+            _insert(streamBubble);
         }
         streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
@@ -1200,10 +1158,9 @@ function addChatEntry(type, content, ts) {
         badge.className = 'text-center text-xs py-1 text-slate-500 italic';
         badge.textContent = `⚡ ${content}`;
         addTimestamp(badge, ts);
-        const chat = $('#chat');
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
-        chat.appendChild(badge);
-        if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        _insert(badge);
+        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
 
@@ -1811,9 +1768,9 @@ function addChatEntry(type, content, ts) {
     addCopyBtn(div, content);
     addTimestamp(div, ts);
     const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
-    chat.appendChild(div);
+    _insert(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
-    if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }
 
 // === Grep Results Renderer ===
