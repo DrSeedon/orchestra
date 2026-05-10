@@ -262,6 +262,9 @@ class AgentSession:
                 self._active_client = None
                 self.status = AgentStatus.IDLE
                 self._persist()
+                if self._last_context.get("percentage", 0) > 90 and not self.is_orchestrator and not getattr(self, "_compacting", False):
+                    self._log("status", f"auto-compact triggered ({self._last_context['percentage']}%)")
+                    asyncio.create_task(self._auto_compact())
                 if self._bg_outputs:
                     paths = list(self._bg_outputs)
                     self._bg_outputs.clear()
@@ -376,6 +379,16 @@ class AgentSession:
         after_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
         return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}
+
+    async def _auto_compact(self) -> None:
+        self._compacting = True
+        await asyncio.sleep(2)
+        try:
+            await self.compact()
+        except Exception as e:
+            logger.warning(f"[{self.name}] auto-compact failed: {e}")
+        finally:
+            self._compacting = False
 
     async def stop(self) -> None:
         self._pending.clear()
