@@ -1124,7 +1124,7 @@ function addChatEntry(type, content, ts) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else {
+        } else if (!isSendMsg) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
