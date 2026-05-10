@@ -42,11 +42,6 @@ Workers with a role are reusable — send_message them new tasks later without r
 4. When a worker reports, process results and continue
 5. Report to the user — just reply normally. Your response is visible everywhere (dashboard + Telegram)
 
-## When to use notify_kesha
-- Do NOT use it to reply to messages — your reply is already visible in dashboard and TG
-- ONLY use it when the task originally came from Kesha (Telegram bot) — notify on start and finish so the user gets a ping
-- If the user wrote directly in dashboard or TG bridge — do NOT use notify_kesha, just reply normally
-
 ## Context management
 - Platform auto-appends `⚠️ CONTEXT CRITICAL: N%` to worker messages when >90%
 - When you see this warning — either `compact_worker(name)` to reset context (wait for result), or spawn a fresh worker

@@ -1176,7 +1176,7 @@ function addChatEntry(type, content, ts) {
         header.textContent = `${icon} ${short}`;
         div.appendChild(header);
 
-        const isSendMsg = rawName === 'mcp__orchestra__send_message' || rawName === 'mcp__orchestra__notify_kesha';
+        const isSendMsg = rawName === 'mcp__orchestra__send_message';
         if (isSendMsg) {
             try {
                 const d = JSON.parse(body);
