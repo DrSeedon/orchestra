@@ -319,6 +319,14 @@ async function openFilePreview(path) {
             contentEl.style.overflowX = 'hidden';
             contentEl.style.wordWrap = 'break-word';
             contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content));
+            const dir = path.substring(0, path.lastIndexOf('/'));
+            contentEl.querySelectorAll('img').forEach(img => {
+                const src = img.getAttribute('src');
+                if (src && !src.startsWith('http') && !src.startsWith('/api/')) {
+                    img.src = `/api/files/raw?path=${encodeURIComponent(dir + '/' + src)}`;
+                    img.loading = 'lazy';
+                }
+            });
         } else {
             contentEl.className = 'flex-1 overflow-auto text-xs p-4 text-slate-300';
             contentEl.style.whiteSpace = 'pre';
