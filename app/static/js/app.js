@@ -1231,11 +1231,50 @@ function addChatEntry(type, content, ts) {
                 const msg = d.message || '';
                 header.textContent = `📨 → ${to}`;
                 header.style.color = '#a78bfa';
-                const msgEl = document.createElement('div');
-                msgEl.className = 'text-xs opacity-80 markdown-body';
-                msgEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.length > 300 ? msg.slice(0, 300) + '…' : msg));
-                div.appendChild(msgEl);
+                const previewText = msg.length > 200 ? msg.slice(0, 200) : msg;
+                const hasMore = msg.length > 200;
+                const previewEl = document.createElement('div');
+                previewEl.className = 'text-xs opacity-80 markdown-body';
+                previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
+                div.appendChild(previewEl);
+                if (hasMore) {
+                    const restEl = document.createElement('div');
+                    restEl.className = 'text-xs opacity-80 markdown-body';
+                    restEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.slice(200)));
+                    restEl.style.display = 'none';
+                    restEl.dataset.role = 'send-rest';
+                    div.appendChild(restEl);
+                    const restLines = msg.slice(200).split('\n').length;
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.color = '#a78bfa';
+                    hint.style.cursor = 'pointer';
+                    hint.textContent = `▼ ${restLines} more lines`;
+                    hint.dataset.role = 'send-hint';
+                    div.appendChild(hint);
+                    div.style.cursor = 'pointer';
+                    let sendExpanded = false;
+                    div.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        sendExpanded = !sendExpanded;
+                        restEl.style.display = sendExpanded ? 'block' : 'none';
+                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
+                    });
+                }
                 div.dataset.isEdit = '1';
+            } catch {}
+        }
+        const isGrepTool = rawName === 'Grep';
+        if (isGrepTool) {
+            try {
+                const d = JSON.parse(body);
+                const grepPath = d.path || d.glob || '';
+                const shortGrepPath = grepPath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || grepPath;
+                header.textContent = `🔎 Grep: ${d.pattern || ''}${shortGrepPath ? ' in ' + shortGrepPath : ''}`;
+                header.style.color = '#38bdf8';
+                div.dataset.isGrep = '1';
+                div.dataset.grepPattern = d.pattern || '';
+                div.dataset.grepPath = grepPath;
             } catch {}
         }
         const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
@@ -1270,7 +1309,7 @@ function addChatEntry(type, content, ts) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg) {
+        } else if (!isSendMsg && !isGrepTool) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
@@ -1332,6 +1371,24 @@ function addChatEntry(type, content, ts) {
                     addTimestamp(lastTool, ts);
                     return;
                 }
+            }
+            if (lastTool.dataset.isGrep) {
+                const grepEl = renderGrepResults(clean, lastTool.dataset.grepPattern);
+                if (grepEl) {
+                    lastTool.appendChild(grepEl);
+                    lastTool.style.cursor = 'pointer';
+                    lastTool.addEventListener('click', () => {
+                        const restEl = grepEl.querySelector('[data-role="read-rest"]');
+                        const moreEl = grepEl.querySelector('[data-role="read-more"]');
+                        if (restEl && moreEl) {
+                            const showing = restEl.style.display !== 'none';
+                            restEl.style.display = showing ? 'none' : 'block';
+                            moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
+                        }
+                    });
+                }
+                addTimestamp(lastTool, ts);
+                return;
             }
             if (lastTool.dataset.isRead) {
                 delete lastTool.dataset.lastTool;
@@ -1490,6 +1547,86 @@ function addChatEntry(type, content, ts) {
     chat.appendChild(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
     if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+}
+
+// === Grep Results Renderer ===
+function renderGrepResults(raw, pattern) {
+    const lines = raw.split('\n').filter(l => l.trim());
+    if (!lines.length) return null;
+
+    const PREVIEW = 5;
+    const container = document.createElement('div');
+    container.className = 'diff-view';
+    container.style.marginTop = '6px';
+
+    // detect file headers (output_mode files_with_matches) or line:content format
+    function buildRow(text, isFileHeader) {
+        const row = document.createElement('div');
+        row.className = 'diff-line diff-line-ctx';
+        const gutter = document.createElement('span');
+        gutter.className = 'diff-gutter';
+
+        const code = document.createElement('span');
+        code.className = 'diff-code';
+
+        if (isFileHeader) {
+            row.style.background = 'rgba(56,189,248,0.06)';
+            gutter.textContent = ' ';
+            code.style.color = '#38bdf8';
+            code.textContent = text;
+        } else {
+            const m = text.match(/^(\d+)([:|-])(.*)$/);
+            if (m) {
+                gutter.textContent = m[1];
+                const lineText = m[3];
+                if (pattern) {
+                    try {
+                        const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                        code.innerHTML = _escHtml(lineText).replace(
+                            new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+                            s => `<span style="background:rgba(234,179,8,0.3);border-radius:2px">${_escHtml(s)}</span>`
+                        );
+                    } catch { code.textContent = lineText; }
+                } else {
+                    code.textContent = lineText;
+                }
+            } else {
+                gutter.textContent = ' ';
+                code.textContent = text;
+            }
+        }
+        row.append(gutter, code);
+        return row;
+    }
+
+    const previewLines = lines.slice(0, PREVIEW);
+    const restLines = lines.slice(PREVIEW);
+
+    for (const l of previewLines) {
+        const isFile = !/^\d+[:|-]/.test(l);
+        container.appendChild(buildRow(l, isFile));
+    }
+
+    if (restLines.length > 0) {
+        const restEl = document.createElement('div');
+        restEl.dataset.role = 'read-rest';
+        restEl.style.display = 'none';
+        for (const l of restLines) {
+            const isFile = !/^\d+[:|-]/.test(l);
+            restEl.appendChild(buildRow(l, isFile));
+        }
+        container.appendChild(restEl);
+
+        const moreEl = document.createElement('div');
+        moreEl.className = 'diff-file';
+        moreEl.dataset.role = 'read-more';
+        moreEl.dataset.count = restLines.length;
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+        moreEl.textContent = `▼ ${restLines.length} more lines`;
+        container.appendChild(moreEl);
+    }
+
+    return container;
 }
 
 // === WebSearch Results Renderer ===
