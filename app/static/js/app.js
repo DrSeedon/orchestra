@@ -1264,6 +1264,114 @@ function addChatEntry(type, content, ts) {
                 div.dataset.isEdit = '1';
             } catch {}
         }
+        const isBashTool = rawName === 'Bash';
+        if (isBashTool) {
+            try {
+                const d = JSON.parse(body);
+                const cmd = d.command || body;
+                header.textContent = '🖥 Bash';
+                header.style.color = '#38bdf8';
+                const cmdLines = cmd.split('\n');
+                const PREVIEW_LINES = 3;
+                const previewCmd = cmdLines.slice(0, PREVIEW_LINES).join('\n');
+                const restCmd = cmdLines.slice(PREVIEW_LINES).join('\n');
+                const hasMoreCmd = cmdLines.length > PREVIEW_LINES;
+                const cmdWrap = document.createElement('div');
+                cmdWrap.className = 'diff-view';
+                cmdWrap.style.marginTop = '4px';
+                const previewPre = document.createElement('pre');
+                previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none';
+                previewPre.textContent = previewCmd;
+                cmdWrap.appendChild(previewPre);
+                if (hasMoreCmd) {
+                    const restPre = document.createElement('pre');
+                    restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;display:none';
+                    restPre.dataset.role = 'bash-rest';
+                    restPre.textContent = restCmd;
+                    cmdWrap.appendChild(restPre);
+                    const hint = document.createElement('div');
+                    hint.className = 'diff-file';
+                    hint.dataset.role = 'bash-hint';
+                    hint.dataset.count = cmdLines.length - PREVIEW_LINES;
+                    hint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                    hint.textContent = `▼ ${cmdLines.length - PREVIEW_LINES} more lines`;
+                    cmdWrap.appendChild(hint);
+                }
+                div.appendChild(cmdWrap);
+                div.dataset.isBash = '1';
+                div.style.cursor = 'pointer';
+                let bashExpanded = false;
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    bashExpanded = !bashExpanded;
+                    const restPre = cmdWrap.querySelector('[data-role="bash-rest"]');
+                    const hint = cmdWrap.querySelector('[data-role="bash-hint"]');
+                    if (restPre) restPre.style.display = bashExpanded ? 'block' : 'none';
+                    if (hint) hint.textContent = bashExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
+                    const resWrap = div.querySelector('[data-role="bash-result"]');
+                    const resHint = div.querySelector('[data-role="bash-result-hint"]');
+                    if (resWrap) resWrap.style.display = bashExpanded ? 'block' : 'none';
+                    if (resHint) resHint.textContent = bashExpanded ? '▲ collapse result' : `▼ ${resHint.dataset.count} more lines`;
+                });
+            } catch {}
+        }
+        const isAgentTool = rawName === 'Agent';
+        if (isAgentTool) {
+            try {
+                const d = JSON.parse(body);
+                const desc = d.description || '';
+                const prompt = d.prompt || '';
+                header.textContent = '🤖 Agent';
+                header.style.color = '#a78bfa';
+                if (desc) {
+                    const descEl = document.createElement('div');
+                    descEl.className = 'text-xs font-medium mb-1';
+                    descEl.style.color = '#c7d2fe';
+                    descEl.textContent = desc;
+                    div.appendChild(descEl);
+                }
+                if (prompt) {
+                    const promptLines = prompt.split('\n');
+                    const PREVIEW_LINES = 2;
+                    const previewPrompt = promptLines.slice(0, PREVIEW_LINES).join('\n');
+                    const restPrompt = promptLines.slice(PREVIEW_LINES).join('\n');
+                    const hasMorePrompt = promptLines.length > PREVIEW_LINES;
+                    const promptWrap = document.createElement('div');
+                    promptWrap.className = 'diff-view';
+                    promptWrap.style.marginTop = '4px';
+                    const previewPre = document.createElement('pre');
+                    previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;white-space:pre-wrap;word-break:break-word';
+                    previewPre.textContent = previewPrompt;
+                    promptWrap.appendChild(previewPre);
+                    if (hasMorePrompt) {
+                        const restPre = document.createElement('pre');
+                        restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;white-space:pre-wrap;word-break:break-word;display:none';
+                        restPre.dataset.role = 'agent-rest';
+                        restPre.textContent = restPrompt;
+                        promptWrap.appendChild(restPre);
+                        const hint = document.createElement('div');
+                        hint.className = 'diff-file';
+                        hint.dataset.role = 'agent-hint';
+                        hint.dataset.count = promptLines.length - PREVIEW_LINES;
+                        hint.style.cssText = 'cursor:pointer;text-align:center;color:#a78bfa;font-size:10px';
+                        hint.textContent = `▼ ${promptLines.length - PREVIEW_LINES} more lines`;
+                        promptWrap.appendChild(hint);
+                    }
+                    div.appendChild(promptWrap);
+                    div.style.cursor = 'pointer';
+                    let agentExpanded = false;
+                    div.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        agentExpanded = !agentExpanded;
+                        const restPre = promptWrap.querySelector('[data-role="agent-rest"]');
+                        const hint = promptWrap.querySelector('[data-role="agent-hint"]');
+                        if (restPre) restPre.style.display = agentExpanded ? 'block' : 'none';
+                        if (hint) hint.textContent = agentExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
+                    });
+                }
+                div.dataset.isEdit = '1';
+            } catch {}
+        }
         const isGrepTool = rawName === 'Grep';
         if (isGrepTool) {
             try {
@@ -1371,6 +1479,36 @@ function addChatEntry(type, content, ts) {
                     addTimestamp(lastTool, ts);
                     return;
                 }
+            }
+            if (lastTool.dataset.isBash) {
+                const sep = document.createElement('div');
+                sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+                const resLines = clean.split('\n');
+                const BASH_PREVIEW = 5;
+                const resWrap = document.createElement('div');
+                resWrap.className = 'diff-view';
+                const previewPre = document.createElement('pre');
+                previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none';
+                previewPre.textContent = resLines.slice(0, BASH_PREVIEW).join('\n');
+                resWrap.appendChild(previewPre);
+                if (resLines.length > BASH_PREVIEW) {
+                    const restPre = document.createElement('pre');
+                    restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;display:none';
+                    restPre.dataset.role = 'bash-result';
+                    restPre.textContent = resLines.slice(BASH_PREVIEW).join('\n');
+                    resWrap.appendChild(restPre);
+                    const resHint = document.createElement('div');
+                    resHint.className = 'diff-file';
+                    resHint.dataset.role = 'bash-result-hint';
+                    resHint.dataset.count = resLines.length - BASH_PREVIEW;
+                    resHint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                    resHint.textContent = `▼ ${resLines.length - BASH_PREVIEW} more lines`;
+                    resWrap.appendChild(resHint);
+                }
+                sep.appendChild(resWrap);
+                lastTool.appendChild(sep);
+                addTimestamp(lastTool, ts);
+                return;
             }
             if (lastTool.dataset.isGrep) {
                 const grepEl = renderGrepResults(clean, lastTool.dataset.grepPattern);
@@ -1555,73 +1693,84 @@ function renderGrepResults(raw, pattern) {
     if (!lines.length) return null;
 
     const PREVIEW = 5;
-    const container = document.createElement('div');
-    container.className = 'diff-view';
-    container.style.marginTop = '6px';
 
-    // detect file headers (output_mode files_with_matches) or line:content format
-    function buildRow(text, isFileHeader) {
+    // highlight pattern in escaped text
+    function highlightPattern(text) {
+        if (!pattern) return _escHtml(text);
+        try {
+            const escaped = _escHtml(text);
+            const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            return escaped.replace(re, s => `<span style="background:rgba(234,179,8,0.3);color:#fef08a;border-radius:2px">${s}</span>`);
+        } catch { return _escHtml(text); }
+    }
+
+    // parse line: file:linenum:content OR linenum:content OR bare filename
+    function parseLine(text) {
+        // file:linenum:content  (file may contain path separators)
+        const m = text.match(/^(.+?):(\d+):(.*)$/);
+        if (m) return { file: m[1], line: m[2], content: m[3] };
+        // linenum:content (files_with_matches w/ context)
+        const m2 = text.match(/^(\d+):(.*)$/);
+        if (m2) return { file: null, line: m2[1], content: m2[2] };
+        // bare filename
+        return { file: text, line: null, content: null };
+    }
+
+    function buildRow(text) {
+        const p = parseLine(text);
         const row = document.createElement('div');
-        row.className = 'diff-line diff-line-ctx';
-        const gutter = document.createElement('span');
-        gutter.className = 'diff-gutter';
+        row.className = 'grep-result-row';
 
-        const code = document.createElement('span');
-        code.className = 'diff-code';
-
-        if (isFileHeader) {
-            row.style.background = 'rgba(56,189,248,0.06)';
-            gutter.textContent = ' ';
-            code.style.color = '#38bdf8';
-            code.textContent = text;
-        } else {
-            const m = text.match(/^(\d+)([:|-])(.*)$/);
-            if (m) {
-                gutter.textContent = m[1];
-                const lineText = m[3];
-                if (pattern) {
-                    try {
-                        const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                        code.innerHTML = _escHtml(lineText).replace(
-                            new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
-                            s => `<span style="background:rgba(234,179,8,0.3);border-radius:2px">${_escHtml(s)}</span>`
-                        );
-                    } catch { code.textContent = lineText; }
-                } else {
-                    code.textContent = lineText;
-                }
+        if (p.content !== null) {
+            // match row: file:line on left, content on right
+            const meta = document.createElement('span');
+            meta.className = 'grep-meta';
+            if (p.file) {
+                const shortFile = p.file.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+                meta.textContent = `${shortFile}:${p.line}`;
+                meta.title = `${p.file}:${p.line}`;
             } else {
-                gutter.textContent = ' ';
-                code.textContent = text;
+                meta.textContent = p.line;
             }
+            const code = document.createElement('span');
+            code.className = 'grep-code';
+            code.innerHTML = highlightPattern(p.content.trimStart());
+            row.append(meta, code);
+        } else {
+            // bare filename (files_with_matches mode)
+            const meta = document.createElement('span');
+            meta.className = 'grep-meta';
+            meta.textContent = '';
+            const code = document.createElement('span');
+            code.className = 'grep-code';
+            code.style.color = '#38bdf8';
+            const shortFile = p.file.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+            code.textContent = shortFile;
+            row.append(meta, code);
         }
-        row.append(gutter, code);
         return row;
     }
+
+    const container = document.createElement('div');
+    container.className = 'grep-results';
+    container.style.marginTop = '6px';
 
     const previewLines = lines.slice(0, PREVIEW);
     const restLines = lines.slice(PREVIEW);
 
-    for (const l of previewLines) {
-        const isFile = !/^\d+[:|-]/.test(l);
-        container.appendChild(buildRow(l, isFile));
-    }
+    for (const l of previewLines) container.appendChild(buildRow(l));
 
     if (restLines.length > 0) {
         const restEl = document.createElement('div');
         restEl.dataset.role = 'read-rest';
         restEl.style.display = 'none';
-        for (const l of restLines) {
-            const isFile = !/^\d+[:|-]/.test(l);
-            restEl.appendChild(buildRow(l, isFile));
-        }
+        for (const l of restLines) restEl.appendChild(buildRow(l));
         container.appendChild(restEl);
 
         const moreEl = document.createElement('div');
-        moreEl.className = 'diff-file';
         moreEl.dataset.role = 'read-more';
         moreEl.dataset.count = restLines.length;
-        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px;padding:4px 0';
         moreEl.textContent = `▼ ${restLines.length} more lines`;
         container.appendChild(moreEl);
     }
