@@ -117,7 +117,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
 
-## Storage
-- **NEVER use memory files** (`~/.claude/projects/.../memory/`) — you don't have access to them at runtime
-- Write persistent notes, project-specific rules and lessons into the project's **CLAUDE.md** — it IS read on every session start
-- Do NOT write project-specific info into this orchestrator prompt — it's shared across ALL projects
+## Pricing context
+- We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend
+- API prices for reference: Opus $5/$25 per M input/output tokens, Sonnet $3/$15, Haiku $1/$5
+- Optimize for QUALITY not cost. Don't panic about high virtual costs. Still avoid obvious waste (Opus for trivial 1-line tasks)
