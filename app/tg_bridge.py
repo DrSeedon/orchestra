@@ -176,40 +176,133 @@ async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
     return orch_name, session
 
 
-_msg_buffer: dict[str, list[tuple[types.Message, str]]] = {}
-_debounce_tasks: dict[str, asyncio.Task] = {}
 DEBOUNCE_SEC = 5
+MEDIA_WAIT_MAX = 30
+
+from enum import Enum
+from dataclasses import dataclass, field
 
 
-async def _send_to_agent(msg: types.Message, session, content: str):
-    sid = session.id
-    if sid not in _msg_buffer:
-        _msg_buffer[sid] = []
-    _msg_buffer[sid].append((msg, content))
-    if sid in _debounce_tasks and not _debounce_tasks[sid].done():
-        _debounce_tasks[sid].cancel()
-    _debounce_tasks[sid] = asyncio.create_task(_flush_buffer(sid))
+class _Phase(Enum):
+    IDLE = "idle"
+    COLLECTING = "collecting"
+    WAITING_MEDIA = "waiting_media"
 
 
-async def _flush_buffer(sid: str):
+@dataclass
+class _BufState:
+    entries: list = field(default_factory=list)
+    pending_media: int = 0
+    phase: _Phase = _Phase.IDLE
+    debounce_task: asyncio.Task | None = None
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
+_buffers: dict[str, _BufState] = {}
+
+
+def _get_buf(sid: str) -> _BufState:
+    if sid not in _buffers:
+        _buffers[sid] = _BufState()
+    return _buffers[sid]
+
+
+async def _arm_debounce(sid: str, buf: "_BufState"):
+    if buf.debounce_task and not buf.debounce_task.done():
+        buf.debounce_task.cancel()
+    buf.phase = _Phase.COLLECTING
+    buf.debounce_task = asyncio.create_task(_debounce_elapsed(sid))
+
+
+async def _debounce_elapsed(sid: str):
     try:
         await asyncio.sleep(DEBOUNCE_SEC)
     except asyncio.CancelledError:
         return
-    entries = _msg_buffer.pop(sid, [])
-    _debounce_tasks.pop(sid, None)
-    if not entries:
+
+    waited = 0.0
+    buf = _get_buf(sid)
+    while True:
+        async with buf.lock:
+            if buf.pending_media <= 0:
+                break
+            if waited >= MEDIA_WAIT_MAX:
+                logger.warning(f"[{sid}] media wait timeout {waited:.1f}s, proceeding")
+                buf.pending_media = 0
+                break
+            buf.phase = _Phase.WAITING_MEDIA
+        await asyncio.sleep(0.3)
+        waited += 0.3
+
+    async with buf.lock:
+        buf.debounce_task = None
+        if buf.phase not in (_Phase.COLLECTING, _Phase.WAITING_MEDIA):
+            return
+        batch = list(buf.entries)
+        buf.entries.clear()
+        buf.phase = _Phase.IDLE
+
+    await _flush_batch(sid, batch)
+
+
+async def _flush_batch(sid: str, batch: list):
+    if not batch:
         return
-    if len(entries) == 1:
-        combined = entries[0][1]
+    valid = [(m, c) for m, c in batch if c is not None]
+    if not valid:
+        return
+    if len(valid) == 1:
+        combined = valid[0][1]
     else:
-        combined = "\n".join(f"--- message {i+1}/{len(entries)} ---\n{content}" for i, (_, content) in enumerate(entries))
+        combined = "\n".join(
+            f"--- message {i+1}/{len(valid)} ---\n{content}"
+            for i, (_, content) in enumerate(valid)
+        )
     await _manager.send(sid, combined)
-    for m, _ in entries:
+    for m, _ in valid:
         try:
             await m.react([types.ReactionTypeEmoji(emoji="👍")])
         except Exception:
             pass
+
+
+async def _send_to_agent(msg: types.Message, session, content: str):
+    sid = session.id
+    buf = _get_buf(sid)
+    async with buf.lock:
+        buf.entries.append((msg, content))
+        await _arm_debounce(sid, buf)
+
+
+async def _register_media(msg: types.Message, session) -> tuple[str, int]:
+    sid = session.id
+    buf = _get_buf(sid)
+    async with buf.lock:
+        idx = len(buf.entries)
+        buf.entries.append((msg, None))
+        buf.pending_media += 1
+        await _arm_debounce(sid, buf)
+    return sid, idx
+
+
+async def _resolve_media(sid: str, idx: int, content: str):
+    buf = _get_buf(sid)
+    flush_batch = None
+    async with buf.lock:
+        if idx < len(buf.entries):
+            m, _ = buf.entries[idx]
+            buf.entries[idx] = (m, content)
+        buf.pending_media = max(0, buf.pending_media - 1)
+        if buf.pending_media == 0 and buf.phase == _Phase.WAITING_MEDIA:
+            batch = list(buf.entries)
+            buf.entries.clear()
+            buf.phase = _Phase.IDLE
+            if buf.debounce_task and not buf.debounce_task.done():
+                buf.debounce_task.cancel()
+            buf.debounce_task = None
+            flush_batch = batch
+    if flush_batch is not None:
+        await _flush_batch(sid, flush_batch)
 
 
 async def _react_processing(msg: types.Message):
@@ -449,15 +542,16 @@ async def handle_voice(msg: types.Message):
     if not session:
         return
     await _react_processing(msg)
+    sid, idx = await _register_media(msg, session)
     path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
     if not path:
-        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[voice: file too large]")
+        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: file too large]")
         return
     text, err = await _transcribe_audio(path, msg.voice.file_unique_id)
     if text:
-        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[voice: {path} | {text}]")
+        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: {path} | {text}]")
     else:
-        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[voice: {path}]")
+        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.video_note)
@@ -466,9 +560,10 @@ async def handle_video_note(msg: types.Message):
     if not session:
         return
     await _react_processing(msg)
+    sid, idx = await _register_media(msg, session)
     path = await _download_file(msg.video_note.file_id, _media_name("videonote", ".mp4", msg), msg.video_note.file_unique_id)
     if not path:
-        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[video_note: file too large]")
+        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: file too large]")
         return
     audio_path = path.replace(".mp4", ".oga")
     p = await asyncio.create_subprocess_exec(
@@ -479,9 +574,9 @@ async def handle_video_note(msg: types.Message):
     if p.returncode == 0:
         text, err = await _transcribe_audio(audio_path, msg.video_note.file_unique_id)
         if text:
-            await _send_to_agent(msg, session, f"{_forward_meta(msg)}[video_note: {path} | {text}]")
+            await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: {path} | {text}]")
             return
-    await _send_to_agent(msg, session, f"{_forward_meta(msg)}[video_note: {path}]")
+    await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
