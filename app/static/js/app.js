@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     $('#view-prompt-btn').addEventListener('click', openPromptModal);
+    $('#compact-btn').addEventListener('click', compactAgent);
     $('#prompt-modal-close').addEventListener('click', closePromptModal);
     $('#prompt-modal').addEventListener('click', (e) => { if (e.target === $('#prompt-modal')) closePromptModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); } });
@@ -274,6 +275,28 @@ function _promptSection(title, color, content) {
     if (!content || !content.trim()) return '';
     const rendered = DOMPurify.sanitize(marked.parse(content));
     return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:${color};margin-bottom:6px;padding:3px 8px;border-radius:4px;background:rgba(0,0,0,0.3);display:inline-block">${title}</div><div class="markdown-body" style="padding-left:4px">${rendered}</div></div>`;
+}
+
+async function compactAgent() {
+    if (!selectedAgent || !currentScope) return;
+    const btn = $('#compact-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+        const res = await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/compact`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({scope: currentScope}),
+        });
+        if (res.error) throw new Error(res.error);
+        delete contextCache[`${currentScope}:${selectedAgent}`];
+        await fetchAgentContext(selectedAgent);
+        btn.textContent = '✅';
+        setTimeout(() => { btn.textContent = '🗜'; btn.disabled = false; }, 1500);
+    } catch (e) {
+        btn.textContent = '❌';
+        setTimeout(() => { btn.textContent = '🗜'; btn.disabled = false; }, 2000);
+    }
 }
 
 async function openPromptModal() {
@@ -607,9 +630,11 @@ function updateAgentInfo(session) {
         $('#ai-scope').textContent = '-';
         setContextDisplay('-');
         $('#view-prompt-btn').classList.add('hidden');
+        $('#compact-btn').classList.add('hidden');
         return;
     }
     $('#view-prompt-btn').classList.remove('hidden');
+    $('#compact-btn').classList.remove('hidden');
     $('#ai-name').textContent = session.name;
     const st = $('#ai-status');
     st.textContent = `● ${session.status}`;
