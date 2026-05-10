@@ -1313,12 +1313,14 @@ function addChatEntry(type, content, ts) {
                 header.style.color = '#a78bfa';
 
                 const MODEL_SHORT = {
+                    'claude-opus-4-6[1m]': 'Opus 4.6 1M',
                     'claude-opus-4-6': 'Opus 4.6',
                     'claude-sonnet-4-6': 'Sonnet 4.6',
                     'claude-haiku-4-5': 'Haiku 4.5',
                     'claude-haiku-4-6': 'Haiku 4.6',
                 };
                 const MODEL_COLOR = {
+                    'claude-opus-4-6[1m]': '#a78bfa',
                     'claude-opus-4-6': '#a78bfa',
                     'claude-sonnet-4-6': '#38bdf8',
                     'claude-haiku-4-5': '#4ade80',
@@ -1360,7 +1362,7 @@ function addChatEntry(type, content, ts) {
                             spawnExpanded = !spawnExpanded;
                             restEl.style.display = spawnExpanded ? 'block' : 'none';
                             hint.textContent = spawnExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
-                            if (spawnPromptEl) spawnPromptEl.style.display = spawnPromptExpanded ? 'block' : 'none';
+
                         });
                     }
                 }
