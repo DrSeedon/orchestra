@@ -237,15 +237,24 @@ async def get_session_prompt(name: str, scope: str):
     sp = (found.get("system_prompt", "") if isinstance(found, dict) else found.system_prompt) or ""
     is_orch = (found.get("is_orchestrator") if isinstance(found, dict) else found.is_orchestrator) or False
     base = _read_prompt("base.md")
-    role = _read_prompt("orchestrator.md" if is_orch else "worker.md")
+    base_len = len(base)
+    role = ""
     custom = ""
+    rest = sp[base_len:].lstrip("\n") if sp[:base_len] == base else sp
     if not is_orch:
         marker = "- Branch: "
-        idx = sp.rfind(marker)
+        idx = rest.rfind(marker)
         if idx != -1:
-            after_marker = sp.find("\n", idx)
-            if after_marker != -1 and after_marker + 1 < len(sp):
-                custom = sp[after_marker + 1:].strip()
+            after_marker = rest.find("\n", idx)
+            if after_marker != -1:
+                role = rest[:after_marker + 1].strip()
+                custom = rest[after_marker + 1:].strip()
+            else:
+                role = rest.strip()
+        else:
+            role = rest.strip()
+    else:
+        role = rest.strip()
     return {"system_prompt": sp, "base": base, "role": role, "custom": custom}
 
 

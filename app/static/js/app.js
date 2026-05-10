@@ -884,7 +884,7 @@ function addChatEntry(type, content, ts) {
         header.textContent = `${icon} ${short}`;
         div.appendChild(header);
 
-        const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit';
+        const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
         const isReadTool = rawName === 'Read';
         const diffEl = isEditTool ? renderEditDiff(body) : null;
         const readEl = isReadTool ? renderReadView(body) : null;
@@ -1170,10 +1170,13 @@ function _buildDiffEl(lines) {
 function renderEditDiff(body) {
     let data;
     try { data = JSON.parse(body); } catch { return null; }
-    if (data.old_string === undefined && data.new_string === undefined) return null;
+    const isWrite = data.content !== undefined && data.old_string === undefined;
+    if (!isWrite && data.old_string === undefined && data.new_string === undefined) return null;
 
     const PREVIEW_LINES = 5;
-    const lines = buildDiffLines(data.old_string || '', data.new_string || '');
+    const lines = isWrite
+        ? data.content.split('\n').map(l => ({type: 'add', html: _escHtml(l)}))
+        : buildDiffLines(data.old_string || '', data.new_string || '');
     const fp = data.file_path || '';
     const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
 

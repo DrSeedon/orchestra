@@ -129,13 +129,6 @@ class AgentSession:
 
     async def send(self, message: str) -> None:
         self._log("user_message", message)
-        if self.status == AgentStatus.RUNNING and self._active_client:
-            try:
-                await self._active_client.query(message)
-                logger.info(f"[{self.name}] injected message ({len(message)} chars)")
-                return
-            except Exception as e:
-                logger.warning(f"[{self.name}] inject failed, queuing: {e}")
         self._pending.append(message)
         if self.status != AgentStatus.RUNNING:
             self._arm_debounce()
