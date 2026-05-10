@@ -140,6 +140,28 @@ async def list_projects():
     return results
 
 
+BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
+                     '.zip', '.tar', '.gz', '.bz2', '.xz', '.rar', '.7z',
+                     '.exe', '.bin', '.so', '.whl', '.dll', '.dylib', '.pyc',
+                     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.mp3', '.mp4',
+                     '.wav', '.avi', '.mov', '.ttf', '.otf', '.woff', '.woff2'}
+
+@app.get("/api/files/content")
+async def get_file_content(path: str):
+    target = Path(path)
+    if not target.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if not target.is_file():
+        return JSONResponse({"error": "not a file"}, status_code=400)
+    size = target.stat().st_size
+    if target.suffix.lower() in BINARY_EXTENSIONS:
+        return JSONResponse({"error": "binary file", "size": size})
+    if size > 500 * 1024:
+        return JSONResponse({"error": "too large", "size": size})
+    content = target.read_text(encoding="utf-8", errors="replace")
+    return {"content": content, "size": size, "name": str(target)}
+
+
 @app.get("/api/files")
 async def list_files(path: str):
     target = Path(path)
