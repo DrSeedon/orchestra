@@ -1918,7 +1918,7 @@ function renderGrepResults(raw, pattern) {
 function renderWebSearchResults(raw) {
     let data;
     try { data = JSON.parse(raw); } catch {
-        const linksMatch = raw.match(/Links:\s*(\[[\s\S]*\])/);
+        const linksMatch = raw.match(/Links:\s*(\[\{.*?\}\])/s);
         if (linksMatch) {
             try {
                 const links = JSON.parse(linksMatch[1]);
