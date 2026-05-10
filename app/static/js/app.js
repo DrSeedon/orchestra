@@ -1194,6 +1194,34 @@ function addChatEntry(type, content, ts) {
                     const skeletonEl = readContainer.querySelector('[data-role="read-skeleton"]');
                     if (skeletonEl) skeletonEl.remove();
                     const readPath = readContainer.dataset.readPath || '';
+                    if (/\.md$/i.test(readPath)) {
+                        const PREVIEW_CHARS = 500;
+                        const previewMd = clean.length > PREVIEW_CHARS ? clean.slice(0, PREVIEW_CHARS) : clean;
+                        const previewEl = document.createElement('div');
+                        previewEl.className = 'markdown-body';
+                        previewEl.style.cssText = 'padding:6px 8px;font-size:11px';
+                        previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewMd));
+                        readContainer.appendChild(previewEl);
+                        if (clean.length > PREVIEW_CHARS) {
+                            const restMd = clean.slice(PREVIEW_CHARS);
+                            const restEl = document.createElement('div');
+                            restEl.className = 'markdown-body';
+                            restEl.style.cssText = 'padding:0 8px 6px;font-size:11px';
+                            restEl.dataset.role = 'read-rest';
+                            restEl.style.display = 'none';
+                            restEl.innerHTML = DOMPurify.sanitize(marked.parse(restMd));
+                            readContainer.appendChild(restEl);
+                            const moreEl = document.createElement('div');
+                            moreEl.className = 'diff-file';
+                            moreEl.dataset.role = 'read-more';
+                            moreEl.dataset.count = restMd.length;
+                            moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                            moreEl.textContent = `▼ more`;
+                            readContainer.appendChild(moreEl);
+                        }
+                        addTimestamp(lastTool, ts);
+                        return;
+                    }
                     if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
                         const img = document.createElement('img');
                         img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}`;
