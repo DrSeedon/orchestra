@@ -153,7 +153,7 @@ def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
         return cur.lastrowid
 
 
-def get_logs(session_id: str, after_id: int = 0, limit: int = 200) -> list[dict]:
+def get_logs(session_id: str, after_id: int = 0, limit: int = 5000) -> list[dict]:
     with _conn() as c:
         if after_id > 0:
             rows = c.execute(

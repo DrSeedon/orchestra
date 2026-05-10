@@ -1,4 +1,4 @@
-const MAX_CHAT_NODES = 500;
+const MAX_CHAT_NODES = Infinity;
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
@@ -1049,6 +1049,21 @@ function addChatEntry(type, content, ts) {
         header.textContent = `${icon} ${short}`;
         div.appendChild(header);
 
+        const isSendMsg = rawName === 'mcp__orchestra__send_message' || rawName === 'mcp__orchestra__notify_kesha';
+        if (isSendMsg) {
+            try {
+                const d = JSON.parse(body);
+                const to = d.to || d.message?.substring(0, 30) || '?';
+                const msg = d.message || '';
+                header.textContent = `📨 → ${to}`;
+                header.style.color = '#a78bfa';
+                const msgEl = document.createElement('div');
+                msgEl.className = 'text-xs opacity-80 markdown-body';
+                msgEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.length > 300 ? msg.slice(0, 300) + '…' : msg));
+                div.appendChild(msgEl);
+                div.dataset.isEdit = '1';
+            } catch {}
+        }
         const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
         const isReadTool = rawName === 'Read';
         const diffEl = isEditTool ? renderEditDiff(body) : null;
