@@ -974,6 +974,7 @@ function buildCompactToolLine(type, content, ts) {
             const parsed = JSON.parse(body);
             if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model] || parsed.model || '?'})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
+            else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
             else if (parsed.pattern) preview = parsed.pattern;
@@ -1090,8 +1091,17 @@ function addChatEntry(type, content, ts, anchor) {
                 const rawName = lastC.dataset.toolRaw || '';
                 const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
                 const isReadTool = rawName === 'Read';
+                const isToolSearch = rawName === 'ToolSearch';
+                const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
                 const resultSpan = lastC.querySelector('.compact-result');
-                if (resultSpan && !isEditTool && !isReadTool) {
+                if (resultSpan && isToolSearch) {
+                    let toolName = '';
+                    try { const d = JSON.parse(content); toolName = d.tool_name || ''; } catch {}
+                    if (!toolName) { const m = clean.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
+                    resultSpan.textContent = toolName ? `✅ ${toolName}` : '✅ loaded';
+                } else if (resultSpan && isWebSearchCompact) {
+                    resultSpan.textContent = '✅ results';
+                } else if (resultSpan && !isEditTool && !isReadTool) {
                     const short = clean.length > 40 ? clean.slice(0, 40).replace(/\n/g, ' ') + '…' : clean.replace(/\n/g, ' ');
                     resultSpan.textContent = '📎 ' + short;
                 } else if (resultSpan && isEditTool) {
@@ -1369,6 +1379,16 @@ function addChatEntry(type, content, ts, anchor) {
                 div.dataset.isEdit = '1';
             } catch {}
         }
+        const isToolSearchCall = rawName === 'ToolSearch';
+        if (isToolSearchCall) {
+            try {
+                const d = JSON.parse(body);
+                const q = d.query || '';
+                header.textContent = `🔍 Loading: ${q}`;
+                header.style.color = '#38bdf8';
+                div.dataset.isEdit = '1';
+            } catch {}
+        }
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
@@ -1520,7 +1540,7 @@ function addChatEntry(type, content, ts, anchor) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
@@ -1570,8 +1590,20 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
+            const isToolSearch = lastTool.dataset.toolRawName === 'ToolSearch';
+            if (isToolSearch) {
+                let toolName = '';
+                try { const d = JSON.parse(content); toolName = d.tool_name || ''; } catch {}
+                if (!toolName) { const m = content.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (hdr && toolName) hdr.textContent = `✅ Loaded: ${toolName}`;
+                else if (hdr) hdr.textContent = '✅ Tool loaded';
+                addTimestamp(lastTool, ts);
+                return;
+            }
             const isWebSearch = lastTool.dataset.toolRawName === 'mcp__websearch__search' ||
-                                lastTool.dataset.toolRawName === 'mcp__websearch__search_web';
+                                lastTool.dataset.toolRawName === 'mcp__websearch__search_web' ||
+                                lastTool.dataset.toolRawName === 'WebSearch';
             if (isWebSearch) {
                 const wsEl = renderWebSearchResults(content);
                 if (wsEl) {
@@ -1885,6 +1917,32 @@ function renderGrepResults(raw, pattern) {
 function renderWebSearchResults(raw) {
     let data;
     try { data = JSON.parse(raw); } catch { return null; }
+
+    if (data.result && typeof data.result === 'string') {
+        const el = document.createElement('div');
+        el.className = 'websearch-results';
+        const body = document.createElement('div');
+        body.className = 'text-xs markdown-body';
+        body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+        body.innerHTML = DOMPurify.sanitize(marked.parse(data.result));
+        el.appendChild(body);
+        if (Array.isArray(data.citations) && data.citations.length > 0) {
+            const citDiv = document.createElement('div');
+            citDiv.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5)';
+            data.citations.forEach((url, i) => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.target = '_blank';
+                a.className = 'websearch-title';
+                a.style.cssText = 'display:block;font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                a.textContent = `[${i + 1}] ${url}`;
+                citDiv.appendChild(a);
+            });
+            el.appendChild(citDiv);
+        }
+        return el;
+    }
+
     const results = data.results || data.web?.results || data.organic_results || null;
     if (!Array.isArray(results) || results.length === 0) return null;
 
