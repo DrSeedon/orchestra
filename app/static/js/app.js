@@ -1,4 +1,4 @@
-const MAX_CHAT_NODES = Infinity;
+const MAX_CHAT_NODES = 5000;
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
@@ -187,7 +187,11 @@ async function openPromptModal() {
             body.innerHTML = DOMPurify.sanitize(marked.parse(data.system_prompt));
         }
     } catch (e) {
-        body.innerHTML = `<span class="text-red-400 text-xs">${e.message}</span>`;
+        const errSpan = document.createElement('span');
+        errSpan.className = 'text-red-400 text-xs';
+        errSpan.textContent = e.message;
+        body.innerHTML = '';
+        body.appendChild(errSpan);
     }
 }
 
@@ -244,7 +248,13 @@ async function showProjectPicker() {
         for (const p of projects) {
             const item = document.createElement('div');
             item.className = 'px-3 py-2 text-sm cursor-pointer hover:bg-slate-800 border-b border-slate-800/50';
-            item.innerHTML = `<span class="text-white font-medium">${p.name}</span> <span class="text-slate-500 text-xs">${p.path}</span>`;
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'text-white font-medium';
+            nameSpan.textContent = p.name;
+            const pathSpan = document.createElement('span');
+            pathSpan.className = 'text-slate-500 text-xs';
+            pathSpan.textContent = ' ' + p.path;
+            item.append(nameSpan, pathSpan);
             item.addEventListener('click', () => {
                 $('#orch-cwd').value = p.path;
                 $('#orch-name').value = p.name + '-orchestrator';
@@ -399,6 +409,8 @@ function onOrchestratorChange() {
     localMessages.clear();
     pendingUserMsgs = [];
     pendingBubble = null;
+    streamBubble = null;
+    streamContent = '';
     selectedAgent = opt?.dataset?.name || null;
     if (currentScope && selectedAgent) {
         localStorage.setItem('lastOrchScope', currentScope);
@@ -1591,7 +1603,11 @@ async function loadFileTree(path, container) {
             container.innerHTML = '<div class="text-slate-600 px-2 italic">empty</div>';
         }
     } catch (e) {
-        container.innerHTML = `<div class="text-red-400 px-2">${e.message}</div>`;
+        const errDiv = document.createElement('div');
+        errDiv.className = 'text-red-400 px-2';
+        errDiv.textContent = e.message;
+        container.innerHTML = '';
+        container.appendChild(errDiv);
     }
 }
 
@@ -1599,17 +1615,20 @@ function initFilePanel() {
     const tree = $('#file-tree');
 
     const chatInput = $('#chat-input');
-    chatInput.addEventListener('dragover', (e) => { e.preventDefault(); chatInput.classList.add('border-indigo-400'); });
-    chatInput.addEventListener('dragleave', () => chatInput.classList.remove('border-indigo-400'));
-    chatInput.addEventListener('drop', (e) => {
-        e.preventDefault();
-        chatInput.classList.remove('border-indigo-400');
-        const path = e.dataTransfer.getData('text/plain');
-        if (path) {
-            chatInput.value += (chatInput.value ? '\n' : '') + path;
-            chatInput.focus();
-        }
-    });
+    if (!chatInput.dataset.fileDropReady) {
+        chatInput.dataset.fileDropReady = '1';
+        chatInput.addEventListener('dragover', (e) => { e.preventDefault(); chatInput.classList.add('border-indigo-400'); });
+        chatInput.addEventListener('dragleave', () => chatInput.classList.remove('border-indigo-400'));
+        chatInput.addEventListener('drop', (e) => {
+            e.preventDefault();
+            chatInput.classList.remove('border-indigo-400');
+            const path = e.dataTransfer.getData('text/plain');
+            if (path) {
+                chatInput.value += (chatInput.value ? '\n' : '') + path;
+                chatInput.focus();
+            }
+        });
+    }
 
     if (currentScope) {
         loadFileTree(currentScope, tree);
@@ -1624,14 +1643,17 @@ async function refreshSessions() {
     if (refreshController) refreshController.abort();
     refreshController = new AbortController();
     const signal = refreshController.signal;
+    const capturedScope = currentScope;
 
     try {
-        if (!currentScope) return;
+        if (!capturedScope) return;
 
         const [sessions, stats] = await Promise.all([
-            api(`/api/sessions?scope=${encodeURIComponent(currentScope)}`, { signal }),
-            api(`/api/stats?scope=${encodeURIComponent(currentScope)}`, { signal }),
+            api(`/api/sessions?scope=${encodeURIComponent(capturedScope)}`, { signal }),
+            api(`/api/stats?scope=${encodeURIComponent(capturedScope)}`, { signal }),
         ]);
+
+        if (capturedScope !== currentScope) return;
 
         $('#stats-line').textContent = `${stats.active} active · ${stats.total_sessions} total · $${stats.total_cost_usd}`;
         renderAgentList(sessions);
