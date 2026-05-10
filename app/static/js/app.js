@@ -315,18 +315,20 @@ async function openFilePreview(path) {
             }
         } else if (/\.md$/i.test(path)) {
             contentEl.className = 'flex-1 overflow-auto text-xs text-slate-300 markdown-body p-4';
-            contentEl.style.whiteSpace = 'pre-wrap';
+            contentEl.style.whiteSpace = '';
             contentEl.style.overflowX = 'hidden';
-            contentEl.style.wordWrap = 'break-word';
-            contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content));
+            contentEl.style.wordWrap = '';
             const dir = path.substring(0, path.lastIndexOf('/'));
-            contentEl.querySelectorAll('img').forEach(img => {
-                const src = img.getAttribute('src');
-                if (src && !src.startsWith('http') && !src.startsWith('/api/')) {
-                    img.src = `/api/files/raw?path=${encodeURIComponent(dir + '/' + src)}`;
-                    img.loading = 'lazy';
-                }
-            });
+            const renderer = new marked.Renderer();
+            renderer.image = (href, title, text) => {
+                const src = (href && !href.startsWith('http') && !href.startsWith('/api/'))
+                    ? `/api/files/raw?path=${encodeURIComponent(dir + '/' + href)}`
+                    : (href || '');
+                const titleAttr = title ? ` title="${title}"` : '';
+                const altAttr = text ? ` alt="${text}"` : '';
+                return `<img src="${src}"${altAttr}${titleAttr} loading="lazy" style="max-width:100%;border-radius:6px;margin:4px 0">`;
+            };
+            contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content, { renderer }), { ADD_ATTR: ['loading'] });
         } else {
             contentEl.className = 'flex-1 overflow-auto text-xs p-4 text-slate-300';
             contentEl.style.whiteSpace = 'pre';
