@@ -129,13 +129,6 @@ class AgentSession:
 
     async def send(self, message: str) -> None:
         self._log("user_message", message)
-        if self.status == AgentStatus.RUNNING and self._active_client:
-            try:
-                await self._active_client.query(message)
-                logger.info(f"[{self.name}] injected message ({len(message)} chars)")
-                return
-            except Exception as e:
-                logger.warning(f"[{self.name}] inject failed, queuing: {e}")
         self._pending.append(message)
         if self.status != AgentStatus.RUNNING:
             self._arm_debounce()
@@ -270,7 +263,12 @@ class AgentSession:
                     self._bg_outputs.clear()
                     asyncio.create_task(self._poll_bg_outputs(paths))
                 if self._pending:
-                    self._arm_debounce()
+                    batch = list(self._pending)
+                    self._pending.clear()
+                    combined = "\n".join(batch)
+                    self.status = AgentStatus.RUNNING
+                    self._turn_task = asyncio.create_task(self._run_turn(combined))
+                    self._turn_task.add_done_callback(self._on_task_done)
                 elif self.on_idle and not self._did_report:
                     last_texts = self._turn_logs[-5:] if self._turn_logs else []
                     try:
