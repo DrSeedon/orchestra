@@ -1360,10 +1360,10 @@ function addChatEntry(type, content, ts) {
                         let spawnExpanded = false;
                         div.addEventListener('click', (e) => {
                             if (e.target.tagName === 'A') return;
+                            if (e.target.closest('[data-role="spawn-prompt"]')) return;
                             spawnExpanded = !spawnExpanded;
                             restEl.style.display = spawnExpanded ? 'block' : 'none';
                             hint.textContent = spawnExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
-
                         });
                     }
                 }
@@ -1373,9 +1373,11 @@ function addChatEntry(type, content, ts) {
                 if (sysPrompt) {
                     const promptToggle = document.createElement('div');
                     promptToggle.className = 'text-xs mt-1';
+                    promptToggle.dataset.role = 'spawn-prompt';
                     promptToggle.style.cssText = 'color:#64748b;cursor:pointer;user-select:none';
                     promptToggle.textContent = '📋 Custom prompt';
                     spawnPromptEl = document.createElement('div');
+                    spawnPromptEl.dataset.role = 'spawn-prompt';
                     spawnPromptEl.style.cssText = 'display:none;margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid #1e293b;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#94a3b8;max-height:200px;overflow-y:auto';
                     spawnPromptEl.textContent = sysPrompt;
                     promptToggle.addEventListener('click', (e) => {
