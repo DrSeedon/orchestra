@@ -11,6 +11,8 @@ const UI_DEBOUNCE_MS = 2500;
 let scrollAfterLoad = true;
 let drafts = {};
 
+window.compactMode = localStorage.getItem('compactToolMode') === 'true';
+
 const $ = (s) => document.querySelector(s);
 
 function saveDraft() {
@@ -64,6 +66,21 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#prompt-modal-close').addEventListener('click', closePromptModal);
     $('#prompt-modal').addEventListener('click', (e) => { if (e.target === $('#prompt-modal')) closePromptModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); } });
+    const compactBtn = $('#compact-toggle-btn');
+    if (compactBtn) {
+        compactBtn.textContent = window.compactMode ? '📄' : '📋';
+        compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
+        compactBtn.addEventListener('click', () => {
+            window.compactMode = !window.compactMode;
+            localStorage.setItem('compactToolMode', window.compactMode);
+            compactBtn.textContent = window.compactMode ? '📄' : '📋';
+            compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
+            $('#chat').innerHTML = '';
+            if (chatLogs[selectedAgent]) chatLogs[selectedAgent].lastId = 0;
+            scrollAfterLoad = true;
+            connectSSE();
+        });
+    }
     loadModels();
     loadOrchestrators();
     scheduleRefresh();
@@ -794,9 +811,150 @@ function addCopyBtn(el, text) {
 let streamBubble = null;
 let streamContent = '';
 
+function buildCompactToolLine(type, content, ts) {
+    const line = document.createElement('div');
+    line.className = 'flex items-center gap-2 text-xs py-0.5 px-2 cursor-pointer rounded group';
+    line.style.color = '#64748b';
+
+    if (type === 'tool') {
+        const colonIdx = content.indexOf(':');
+        const rawName = colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30);
+        const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
+        const icon = toolIcon(rawName);
+        const short = toolShortName(rawName);
+
+        let preview = body;
+        try {
+            const parsed = JSON.parse(body);
+            if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
+            else if (parsed.command) preview = parsed.command;
+            else if (parsed.pattern) preview = parsed.pattern;
+            else if (parsed.path) preview = parsed.path;
+            else if (parsed.message) preview = parsed.message;
+            else if (parsed.content) preview = parsed.content.slice(0, 80);
+            else preview = body.slice(0, 80);
+        } catch { preview = body.slice(0, 120); }
+
+        const isOrch = rawName.startsWith('mcp__orchestra__');
+        const nameColor = isOrch ? '#a78bfa' : '#38bdf8';
+
+        const iconSpan = document.createElement('span');
+        iconSpan.textContent = icon;
+        iconSpan.style.minWidth = '1.2em';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = short;
+        nameSpan.style.color = nameColor;
+        nameSpan.style.minWidth = 'max-content';
+
+        const previewSpan = document.createElement('span');
+        previewSpan.className = 'truncate flex-1 opacity-60';
+        previewSpan.textContent = preview;
+
+        const resultSpan = document.createElement('span');
+        resultSpan.className = 'compact-result shrink-0';
+        resultSpan.style.color = '#475569';
+
+        line.append(iconSpan, nameSpan, previewSpan, resultSpan);
+        line.dataset.compactTool = '1';
+        line.dataset.toolContent = content;
+        line.dataset.toolRaw = rawName;
+
+        line.addEventListener('mouseenter', () => line.style.backgroundColor = 'rgba(30,41,59,0.5)');
+        line.addEventListener('mouseleave', () => line.style.backgroundColor = '');
+
+        let fullBubble = null;
+        line.addEventListener('click', () => {
+            if (fullBubble) {
+                fullBubble.remove();
+                fullBubble = null;
+                return;
+            }
+            fullBubble = document.createElement('div');
+            fullBubble.className = 'ml-4 mb-1';
+            const inner = document.createElement('div');
+            inner.className = 'px-3 py-2 rounded-lg text-sm break-words chat-tool';
+            const tempContent = line.dataset.toolContent;
+            const tempResult = line.dataset.resultContent || '';
+            const fakeDiv = { appendChild: (el) => inner.appendChild(el), dataset: {}, style: {}, querySelector: () => null };
+            const ci = tempContent.indexOf(':');
+            const rn = ci > 0 ? tempContent.slice(0, ci).trim() : tempContent.slice(0, 30);
+            const bd = ci > 0 ? tempContent.slice(ci + 1).trim() : '';
+            const fi = toolIcon(rn), sn = toolShortName(rn);
+            const isO = rn.startsWith('mcp__orchestra__');
+            const hdr = document.createElement('div');
+            hdr.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
+            hdr.style.color = isO ? '#a78bfa' : '#38bdf8';
+            hdr.textContent = `${fi} ${sn}`;
+            inner.appendChild(hdr);
+            const isEditTool = rn === 'Edit' || rn === 'MultiEdit' || rn === 'Write';
+            const isReadTool = rn === 'Read';
+            const diffEl = isEditTool ? renderEditDiff(bd) : null;
+            const readEl = isReadTool ? renderReadView(bd) : null;
+            if (readEl) inner.appendChild(readEl);
+            else if (diffEl) inner.appendChild(diffEl);
+            else if (bd) {
+                const bEl = document.createElement('div');
+                bEl.style.whiteSpace = 'pre-wrap';
+                bEl.className = 'text-xs opacity-70';
+                bEl.textContent = bd.length > 200 ? bd.slice(0, 200) + '…' : bd;
+                inner.appendChild(bEl);
+            }
+            if (tempResult) {
+                const sep = document.createElement('div');
+                sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+                const rEl = document.createElement('div');
+                rEl.className = 'text-xs';
+                rEl.style.whiteSpace = 'pre-wrap';
+                rEl.textContent = '📎 ' + (tempResult.length > 200 ? tempResult.slice(0, 200) + '…' : tempResult);
+                sep.appendChild(rEl);
+                inner.appendChild(sep);
+            }
+            fullBubble.appendChild(inner);
+            line.after(fullBubble);
+        });
+    } else {
+        line.textContent = '📎 ' + content.slice(0, 100);
+    }
+
+    return line;
+}
+
 function addChatEntry(type, content, ts) {
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
+
+    if (window.compactMode && (type === 'tool' || type === 'tool_result')) {
+        if (type === 'tool_result') {
+            const allCompact = chat.querySelectorAll('[data-compact-tool]');
+            const lastC = allCompact.length ? allCompact[allCompact.length - 1] : null;
+            if (lastC) {
+                const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
+                const rawName = lastC.dataset.toolRaw || '';
+                const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
+                const isReadTool = rawName === 'Read';
+                const resultSpan = lastC.querySelector('.compact-result');
+                if (resultSpan && !isEditTool && !isReadTool) {
+                    const short = clean.length > 40 ? clean.slice(0, 40).replace(/\n/g, ' ') + '…' : clean.replace(/\n/g, ' ');
+                    resultSpan.textContent = '📎 ' + short;
+                } else if (resultSpan && (isEditTool || isReadTool)) {
+                    resultSpan.textContent = isEditTool ? '📎 updated' : '📎 OK';
+                }
+                lastC.dataset.resultContent = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
+                return;
+            }
+        }
+        if (streamBubble) {
+            streamBubble = null;
+            streamContent = '';
+        }
+        const line = buildCompactToolLine(type, content, ts);
+        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        chat.appendChild(line);
+        while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
+        if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        return;
+    }
 
     if (type === 'stream') {
         removeWaitingIndicator();
