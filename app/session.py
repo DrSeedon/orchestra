@@ -255,10 +255,9 @@ class AgentSession:
                         "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
                         "cache_read": cache_read, "cache_create": cache_create,
                     }
-                self.status = AgentStatus.IDLE
                 self._active_client = None
+                self.status = AgentStatus.IDLE
                 self._persist()
-                await asyncio.sleep(0.5)
                 if self._bg_outputs:
                     paths = list(self._bg_outputs)
                     self._bg_outputs.clear()

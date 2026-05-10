@@ -181,7 +181,15 @@ async function openFilePreview(path) {
         const data = await res.json();
         if (data.error) {
             const sizeStr = data.size ? ` (${(data.size / 1024).toFixed(1)} KB)` : '';
-            contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
+            if (data.error === 'binary file' && /\.(png|jpg|jpeg|gif|webp|bmp|ico|svg)$/i.test(path)) {
+                contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
+            } else {
+                contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
+            }
+        } else if (/\.md$/i.test(path)) {
+            contentEl.innerHTML = '';
+            contentEl.className = 'flex-1 overflow-auto text-xs text-slate-300 markdown-body p-4';
+            contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content));
         } else {
             contentEl.textContent = data.content;
         }
@@ -551,8 +559,18 @@ function createAgentItem(s) {
     nameRow.append(nameEl, statusEl);
 
     const meta = document.createElement('div');
-    meta.className = 'text-xs text-slate-600 mt-0.5';
-    meta.textContent = s.model || '';
+    meta.className = 'text-xs text-slate-600 mt-0.5 flex justify-between';
+    const modelSpan = document.createElement('span');
+    modelSpan.textContent = s.model || '';
+    meta.appendChild(modelSpan);
+    if (s.cost_usd > 0) {
+        const costSpan = document.createElement('span');
+        costSpan.className = 'text-green-400';
+        costSpan.textContent = `$${s.cost_usd.toFixed(2)}`;
+        meta.appendChild(costSpan);
+    }
+
+    info.append(nameRow, meta);
 
     const pct = s.context_pct || 0;
     if (pct > 0) {
@@ -564,10 +582,8 @@ function createAgentItem(s) {
         fill.style.backgroundColor = pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : '#22c55e';
         fill.title = `${pct}% context`;
         bar.appendChild(fill);
-        meta.appendChild(bar);
+        info.appendChild(bar);
     }
-
-    info.append(nameRow, meta);
     item.append(icon, info);
 
     if (isSelected) updateAgentInfo(s);

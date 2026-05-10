@@ -146,6 +146,15 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
                      '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.mp3', '.mp4',
                      '.wav', '.avi', '.mov', '.ttf', '.otf', '.woff', '.woff2'}
 
+@app.get("/api/files/raw")
+async def get_file_raw(path: str):
+    from starlette.responses import FileResponse
+    target = Path(path)
+    if not target.is_file():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return FileResponse(str(target))
+
+
 @app.get("/api/files/content")
 async def get_file_content(path: str):
     target = Path(path)
