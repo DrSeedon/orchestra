@@ -287,7 +287,14 @@ class SessionManager:
                 return
             summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
             ctx = self._context_warning(worker_name)
-            msg = f"[from:{worker_name}] [auto-report] Finished without explicit report. Last output:\n{summary}{ctx}"
+            worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
+            sr = ""
+            if worker_session and worker_session._turn_logs:
+                for log in reversed(worker_session._turn_logs):
+                    if "stop_reason=" in log:
+                        sr = f" ({log.strip()})"
+                        break
+            msg = f"[from:{worker_name}] [auto-report]{sr} Finished without explicit report. Last output:\n{summary}{ctx}"
             logger.info(f"Auto-report: {worker_name} → {orch}")
             await orch_session.send(msg)
         return _on_worker_idle

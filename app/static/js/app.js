@@ -1011,6 +1011,14 @@ function buildCompactToolLine(type, content, ts) {
         nameSpan.style.color = nameColor;
         nameSpan.style.minWidth = 'max-content';
 
+        let desc = '';
+        try { desc = JSON.parse(body).description || ''; } catch {}
+
+        const descSpan = document.createElement('span');
+        descSpan.className = 'shrink-0';
+        descSpan.style.color = '#64748b';
+        descSpan.textContent = desc ? `— ${desc}` : '';
+
         const previewSpan = document.createElement('span');
         previewSpan.className = 'truncate flex-1 opacity-60';
         previewSpan.textContent = preview;
@@ -1019,7 +1027,7 @@ function buildCompactToolLine(type, content, ts) {
         resultSpan.className = 'compact-result shrink-0';
         resultSpan.style.color = '#475569';
 
-        line.append(iconSpan, nameSpan, previewSpan, resultSpan);
+        line.append(iconSpan, nameSpan, descSpan, previewSpan, resultSpan);
         line.dataset.compactTool = '1';
         line.dataset.toolContent = content;
         line.dataset.toolRaw = rawName;
@@ -1220,7 +1228,9 @@ function addChatEntry(type, content, ts) {
         const header = document.createElement('div');
         header.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
         header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
-        header.textContent = `${icon} ${short}`;
+        let toolDesc = '';
+        try { toolDesc = JSON.parse(body).description || ''; } catch {}
+        header.innerHTML = `${icon} ${DOMPurify.sanitize(short)}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
         div.appendChild(header);
 
         const isSendMsg = rawName === 'mcp__orchestra__send_message';
@@ -1269,8 +1279,6 @@ function addChatEntry(type, content, ts) {
             try {
                 const d = JSON.parse(body);
                 const cmd = d.command || body;
-                header.textContent = '🖥 Bash';
-                header.style.color = '#38bdf8';
                 const cmdLines = cmd.split('\n');
                 const PREVIEW_LINES = 3;
                 const previewCmd = cmdLines.slice(0, PREVIEW_LINES).join('\n');
@@ -1417,7 +1425,7 @@ function addChatEntry(type, content, ts) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
@@ -1699,7 +1707,7 @@ function renderGrepResults(raw, pattern) {
         if (!pattern) return _escHtml(text);
         try {
             const escaped = _escHtml(text);
-            const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            const re = new RegExp(pattern, 'gi');
             return escaped.replace(re, s => `<span style="background:rgba(234,179,8,0.3);color:#fef08a;border-radius:2px">${s}</span>`);
         } catch { return _escHtml(text); }
     }

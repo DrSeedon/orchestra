@@ -106,13 +106,13 @@ class AgentSession:
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_auto_approve,
-            include_partial_messages=False, max_turns=50,
+            include_partial_messages=False, max_turns=200,
             env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},
         )
         if self.session_id:
             options.resume = self.session_id
         else:
-            options.system_prompt = self.system_prompt
+            options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
         if self.mcp_servers:
             options.mcp_servers = self.mcp_servers
         return ClaudeSDKClient(options=options)
@@ -129,6 +129,13 @@ class AgentSession:
 
     async def send(self, message: str) -> None:
         self._log("user_message", message)
+        if self.status == AgentStatus.RUNNING and self._active_client:
+            try:
+                await self._active_client.query(message)
+                logger.info(f"[{self.name}] injected message ({len(message)} chars)")
+                return
+            except Exception as e:
+                logger.warning(f"[{self.name}] inject failed, queuing: {e}")
         self._pending.append(message)
         if self.status != AgentStatus.RUNNING:
             self._arm_debounce()
@@ -178,10 +185,11 @@ class AgentSession:
         except asyncio.TimeoutError:
             logger.error(f"[{self.name}] turn timeout")
             self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
+            self._active_client = None
             self.status = AgentStatus.IDLE
             self._persist()
-            if self._pending:
-                self._arm_debounce()
+            self._pending.append("[system] Turn timed out. Continue where you left off.")
+            self._arm_debounce()
         except Exception as e:
             logger.error(f"[{self.name}] turn error: {e}")
             self._log("error", str(e))
