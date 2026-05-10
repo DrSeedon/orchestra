@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 
+import aiohttp
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.client.default import DefaultBotProperties
 from telegramify_markdown import convert as md_convert
@@ -16,12 +17,17 @@ from telegramify_markdown import convert as md_convert
 logger = logging.getLogger("tg-bridge")
 
 CONFIG_PATH = Path(__file__).parent.parent / "data" / "tg_bridge.json"
+UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+MEDIA_CACHE_PATH = UPLOADS_DIR / ".media_cache.json"
+TRANSCRIPTION_CACHE_PATH = UPLOADS_DIR / ".transcription_cache.json"
 
 config = {"group_id": 0, "topics": {}, "token": ""}
 bot = None
 dp = Dispatcher()
 _manager = None
 _tasks = []
+DEEPGRAM_API_KEY = ""
 
 
 def save_config():
@@ -33,6 +39,184 @@ def load_config():
     global config
     if CONFIG_PATH.exists():
         config = json.loads(CONFIG_PATH.read_text())
+
+
+def _load_media_cache() -> dict[str, str]:
+    if MEDIA_CACHE_PATH.exists():
+        try:
+            data = json.loads(MEDIA_CACHE_PATH.read_text())
+            return {k: v for k, v in data.items() if Path(v).exists()}
+        except Exception:
+            pass
+    return {}
+
+
+def _save_media_cache(cache: dict[str, str]):
+    MEDIA_CACHE_PATH.write_text(json.dumps(cache))
+
+
+_media_cache: dict[str, str] = _load_media_cache()
+
+
+def _load_transcription_cache() -> dict[str, str]:
+    if TRANSCRIPTION_CACHE_PATH.exists():
+        try:
+            return json.loads(TRANSCRIPTION_CACHE_PATH.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _save_transcription_cache(cache: dict[str, str]):
+    TRANSCRIPTION_CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False))
+
+
+_transcription_cache: dict[str, str] = _load_transcription_cache()
+
+
+def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
+    ts = msg.date.strftime("%Y%m%d_%H%M%S") if msg.date else str(msg.message_id)
+    return f"{prefix}_{ts}_{msg.message_id}{ext}"
+
+
+async def _download_file(file_id: str, filename: str, unique_id: str = "") -> str | None:
+    global _media_cache
+    if unique_id and unique_id in _media_cache:
+        cached = _media_cache[unique_id]
+        if Path(cached).exists():
+            return cached
+        del _media_cache[unique_id]
+    try:
+        f = await bot.get_file(file_id)
+        name = Path(filename).name
+        path = UPLOADS_DIR / name
+        if path.exists():
+            stem, suffix = path.stem, path.suffix
+            i = 1
+            while path.exists():
+                path = UPLOADS_DIR / f"{stem}_{i}{suffix}"
+                i += 1
+        await bot.download_file(f.file_path, str(path))
+        if unique_id:
+            _media_cache[unique_id] = str(path)
+            _save_media_cache(_media_cache)
+        return str(path)
+    except Exception as e:
+        logger.warning(f"download_file failed for {filename}: {e}")
+        return None
+
+
+async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | None]:
+    if unique_id and unique_id in _transcription_cache:
+        cached = _transcription_cache[unique_id]
+        logger.info(f"Transcription cache hit: {unique_id}")
+        return cached, None
+    if not DEEPGRAM_API_KEY:
+        return "", "no DEEPGRAM_API_KEY"
+    try:
+        async with aiohttp.ClientSession() as http:
+            with open(path, "rb") as af:
+                audio_data = af.read()
+            async with http.post(
+                "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true",
+                headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg"},
+                data=audio_data,
+                timeout=aiohttp.ClientTimeout(total=120),
+            ) as resp:
+                out = await resp.read()
+    except Exception as e:
+        logger.error(f"Deepgram request error: {e}")
+        return "", str(e)
+    try:
+        data = json.loads(out)
+        if "error" in data:
+            return "", data["error"]
+        text = data["results"]["channels"][0]["alternatives"][0]["transcript"]
+        duration = data.get("metadata", {}).get("duration", 0)
+        logger.info(f"Deepgram: {duration:.1f}s, {len(text)} chars")
+        if unique_id and text:
+            _transcription_cache[unique_id] = text
+            _save_transcription_cache(_transcription_cache)
+        return text, None
+    except (json.JSONDecodeError, KeyError, IndexError) as e:
+        raw = out.decode(errors="replace")[:200]
+        logger.error(f"Deepgram parse error: {e}, raw: {raw}")
+        return "", str(e)
+
+
+def _forward_meta(msg: types.Message) -> str:
+    if not msg.forward_date:
+        return ""
+    fwd = "Forwarded"
+    if msg.forward_from:
+        name = msg.forward_from.first_name
+        if msg.forward_from.last_name:
+            name += " " + msg.forward_from.last_name
+        fwd += f" from {name}"
+    elif msg.forward_sender_name:
+        fwd += f" from {msg.forward_sender_name}"
+    return f"[{fwd}] "
+
+
+async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
+    if not msg.message_thread_id or not _manager:
+        return None, None
+    thread_id = msg.message_thread_id
+    orch_name = None
+    for name, tid in config["topics"].items():
+        if tid == thread_id:
+            orch_name = name
+            break
+    if not orch_name:
+        return None, None
+    session = await _manager.ensure_loaded_any(orch_name)
+    if not session:
+        await msg.reply(f"❌ {orch_name} not found")
+        return orch_name, None
+    return orch_name, session
+
+
+_msg_buffer: dict[str, list[tuple[types.Message, str]]] = {}
+_debounce_tasks: dict[str, asyncio.Task] = {}
+DEBOUNCE_SEC = 5
+
+
+async def _send_to_agent(msg: types.Message, session, content: str):
+    sid = session.id
+    if sid not in _msg_buffer:
+        _msg_buffer[sid] = []
+    _msg_buffer[sid].append((msg, content))
+    if sid in _debounce_tasks and not _debounce_tasks[sid].done():
+        _debounce_tasks[sid].cancel()
+    _debounce_tasks[sid] = asyncio.create_task(_flush_buffer(sid))
+
+
+async def _flush_buffer(sid: str):
+    try:
+        await asyncio.sleep(DEBOUNCE_SEC)
+    except asyncio.CancelledError:
+        return
+    entries = _msg_buffer.pop(sid, [])
+    _debounce_tasks.pop(sid, None)
+    if not entries:
+        return
+    if len(entries) == 1:
+        combined = entries[0][1]
+    else:
+        combined = "\n".join(f"--- message {i+1}/{len(entries)} ---\n{content}" for i, (_, content) in enumerate(entries))
+    await _manager.send(sid, combined)
+    for m, _ in entries:
+        try:
+            await m.react([types.ReactionTypeEmoji(emoji="👍")])
+        except Exception:
+            pass
+
+
+async def _react_processing(msg: types.Message):
+    try:
+        await msg.react([types.ReactionTypeEmoji(emoji="👂")])
+    except Exception:
+        pass
 
 
 def _utf16_len(s: str) -> int:
@@ -259,29 +443,114 @@ async def stream_logs(orch_name: str, thread_id: int):
         await asyncio.sleep(2)
 
 
-@dp.message(F.chat.type.in_({"group", "supergroup"}))
-async def handle_group_message(msg: types.Message):
-    if not msg.text or not msg.message_thread_id or not _manager:
-        return
-    thread_id = msg.message_thread_id
-    orch_name = None
-    for name, tid in config["topics"].items():
-        if tid == thread_id:
-            orch_name = name
-            break
-    if not orch_name:
-        return
-
-    session = await _manager.ensure_loaded_any(orch_name)
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.voice)
+async def handle_voice(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
     if not session:
-        await msg.reply(f"❌ {orch_name} not found")
         return
+    await _react_processing(msg)
+    path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
+    if not path:
+        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[voice: file too large]")
+        return
+    text, err = await _transcribe_audio(path, msg.voice.file_unique_id)
+    if text:
+        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[voice: {path} | {text}]")
+    else:
+        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[voice: {path}]")
 
-    await _manager.send(session.id, msg.text)
-    try:
-        await msg.react([types.ReactionTypeEmoji(emoji="👍")])
-    except Exception:
-        pass
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.video_note)
+async def handle_video_note(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    await _react_processing(msg)
+    path = await _download_file(msg.video_note.file_id, _media_name("videonote", ".mp4", msg), msg.video_note.file_unique_id)
+    if not path:
+        await _send_to_agent(msg, session, f"{_forward_meta(msg)}[video_note: file too large]")
+        return
+    audio_path = path.replace(".mp4", ".oga")
+    p = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-i", path, "-vn", "-acodec", "libopus", "-y", audio_path,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    await p.communicate()
+    if p.returncode == 0:
+        text, err = await _transcribe_audio(audio_path, msg.video_note.file_unique_id)
+        if text:
+            await _send_to_agent(msg, session, f"{_forward_meta(msg)}[video_note: {path} | {text}]")
+            return
+    await _send_to_agent(msg, session, f"{_forward_meta(msg)}[video_note: {path}]")
+
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
+async def handle_photo(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    await _react_processing(msg)
+    path = await _download_file(msg.photo[-1].file_id, _media_name("photo", ".jpg", msg), msg.photo[-1].file_unique_id)
+    caption = f"\n{msg.caption}" if msg.caption else ""
+    tag = f"[photo: {path}]" if path else "[photo: file too large]"
+    await _send_to_agent(msg, session, f"{_forward_meta(msg)}{tag}{caption}")
+
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.document)
+async def handle_document(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    await _react_processing(msg)
+    doc = msg.document
+    ext = os.path.splitext(doc.file_name or "file")[1] or ".bin"
+    path = await _download_file(doc.file_id, doc.file_name or _media_name("doc", ext, msg), doc.file_unique_id)
+    caption = f"\n{msg.caption}" if msg.caption else ""
+    tag = f"[file: {path} | {doc.file_name}]" if path else f"[file: too large | {doc.file_name}]"
+    await _send_to_agent(msg, session, f"{_forward_meta(msg)}{tag}{caption}")
+
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.video)
+async def handle_video(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    await _react_processing(msg)
+    path = await _download_file(msg.video.file_id, msg.video.file_name or _media_name("video", ".mp4", msg), msg.video.file_unique_id)
+    caption = f"\n{msg.caption}" if msg.caption else ""
+    tag = f"[video: {path}]" if path else "[video: file too large]"
+    await _send_to_agent(msg, session, f"{_forward_meta(msg)}{tag}{caption}")
+
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.audio)
+async def handle_audio(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    await _react_processing(msg)
+    name = msg.audio.file_name or _media_name("audio", ".mp3", msg)
+    path = await _download_file(msg.audio.file_id, name, msg.audio.file_unique_id)
+    caption = f"\n{msg.caption}" if msg.caption else ""
+    tag = f"[audio: {path} | {name}]" if path else f"[audio: too large | {name}]"
+    await _send_to_agent(msg, session, f"{_forward_meta(msg)}{tag}{caption}")
+
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.sticker)
+async def handle_sticker(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    emoji = msg.sticker.emoji or "?"
+    await _send_to_agent(msg, session, f"[sticker: {emoji}]")
+
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.text)
+async def handle_group_message(msg: types.Message):
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    content = f"{_forward_meta(msg)}{msg.text}"
+    await _send_to_agent(msg, session, content)
 
 
 async def topic_sync_loop():
@@ -294,9 +563,11 @@ async def topic_sync_loop():
 
 
 async def start_bridge(manager):
-    global bot, _manager
+    global bot, _manager, DEEPGRAM_API_KEY
     from dotenv import load_dotenv
     load_dotenv()
+
+    DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 
     load_config()
     token = os.getenv("TG_BRIDGE_TOKEN", config.get("token", ""))

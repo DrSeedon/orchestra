@@ -95,6 +95,15 @@ class SessionManager:
             finally:
                 self._spawn_queue.task_done()
 
+    @staticmethod
+    def _auto_commit_if_dirty(repo_path: str):
+        import subprocess
+        r = subprocess.run(["git", "status", "--porcelain"], cwd=repo_path, capture_output=True, text=True)
+        if r.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=repo_path, capture_output=True)
+            subprocess.run(["git", "commit", "-m", "wip: auto-save before worker spawn"], cwd=repo_path, capture_output=True)
+            logger.info(f"Auto-committed dirty working tree in {repo_path}")
+
     # ── Session CRUD ──
 
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
@@ -122,6 +131,7 @@ class SessionManager:
 
         try:
             if use_worktree and repo_path:
+                await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
                 wt = await asyncio.to_thread(create_worktree, repo_path, name, scope)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
@@ -240,6 +250,11 @@ class SessionManager:
                 )
             except (KeyError, ValueError):
                 pass
+        if old_prompt and old_prompt != current_prompt:
+            base_role = (ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT())
+            if old_prompt.startswith(base_role) and len(old_prompt) > len(base_role):
+                custom_part = old_prompt[len(base_role):]
+                current_prompt = current_prompt + custom_part
         session._current_prompt = current_prompt
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])

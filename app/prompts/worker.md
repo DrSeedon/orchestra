@@ -24,6 +24,7 @@ If the task mentions a file path from the original repo — the same file exists
 3. `git add` and `git commit` your changes
 4. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
 
+
 ## Your identity
 - Worker name: {worker_name}
 - Orchestrator: {orchestrator_name}

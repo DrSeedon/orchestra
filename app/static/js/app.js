@@ -54,9 +54,14 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#restart-btn').addEventListener('click', restartServer);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
+    $('#view-prompt-btn').addEventListener('click', openPromptModal);
+    $('#prompt-modal-close').addEventListener('click', closePromptModal);
+    $('#prompt-modal').addEventListener('click', (e) => { if (e.target === $('#prompt-modal')) closePromptModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); } });
     loadModels();
     loadOrchestrators();
     scheduleRefresh();
+    initFilePreviewModal();
 });
 
 let eventSource = null;
@@ -124,6 +129,80 @@ function closeModal() {
     $('#orch-error').classList.add('hidden');
 }
 
+function closePromptModal() {
+    $('#prompt-modal').classList.add('hidden');
+    $('#prompt-modal').classList.remove('flex');
+}
+
+function _promptSection(title, color, content) {
+    if (!content || !content.trim()) return '';
+    const rendered = DOMPurify.sanitize(marked.parse(content));
+    return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:${color};margin-bottom:6px;padding:3px 8px;border-radius:4px;background:rgba(0,0,0,0.3);display:inline-block">${title}</div><div class="markdown-body" style="padding-left:4px">${rendered}</div></div>`;
+}
+
+async function openPromptModal() {
+    if (!selectedAgent || !currentScope) return;
+    const modal = $('#prompt-modal');
+    const body = $('#prompt-modal-body');
+    $('#prompt-modal-name').textContent = selectedAgent;
+    body.innerHTML = '<span class="text-slate-500 text-xs">Loading...</span>';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    try {
+        const data = await api(`/api/sessions/${selectedAgent}/prompt?scope=${encodeURIComponent(currentScope)}`);
+        if (!data.system_prompt || !data.system_prompt.trim()) {
+            body.innerHTML = '<span class="text-slate-500 italic text-xs">No system prompt</span>';
+        } else if (data.base || data.role) {
+            body.innerHTML =
+                _promptSection('📦 Platform (base.md)', '#64748b', data.base) +
+                _promptSection('🎭 Role', '#818cf8', data.role) +
+                _promptSection('✨ Custom', '#22c55e', data.custom);
+            if (!data.custom) {
+                body.innerHTML += '<div style="font-size:10px;color:#475569;font-style:italic;margin-top:8px">No custom system prompt</div>';
+            }
+        } else {
+            body.innerHTML = DOMPurify.sanitize(marked.parse(data.system_prompt));
+        }
+    } catch (e) {
+        body.innerHTML = `<span class="text-red-400 text-xs">${e.message}</span>`;
+    }
+}
+
+async function openFilePreview(path) {
+    const modal = $('#file-preview-modal');
+    const pathEl = $('#file-preview-path');
+    const contentEl = $('#file-preview-content');
+    pathEl.textContent = path;
+    contentEl.textContent = 'Loading…';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    try {
+        const res = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
+        const data = await res.json();
+        if (data.error) {
+            const sizeStr = data.size ? ` (${(data.size / 1024).toFixed(1)} KB)` : '';
+            contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
+        } else {
+            contentEl.textContent = data.content;
+        }
+    } catch (e) {
+        contentEl.textContent = `Error: ${e.message}`;
+    }
+}
+
+function closeFilePreview() {
+    const modal = $('#file-preview-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function initFilePreviewModal() {
+    const modal = $('#file-preview-modal');
+    if (!modal) return;
+    $('#file-preview-close').addEventListener('click', closeFilePreview);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeFilePreview(); });
+}
+
 async function showProjectPicker() {
     const picker = $('#project-picker');
     picker.innerHTML = '<div class="p-2 text-xs text-slate-500">Loading...</div>';
@@ -170,7 +249,6 @@ async function createOrchestrator() {
 }
 
 async function restartServer() {
-    if (!confirm('Restart Orchestra server?')) return;
     const btn = $('#restart-btn');
     btn.disabled = true; btn.textContent = '⏳';
     try {
@@ -356,8 +434,10 @@ function updateAgentInfo(session) {
         $('#ai-branch').textContent = '-';
         $('#ai-scope').textContent = '-';
         setContextDisplay('-');
+        $('#view-prompt-btn').classList.add('hidden');
         return;
     }
+    $('#view-prompt-btn').classList.remove('hidden');
     $('#ai-name').textContent = session.name;
     const st = $('#ai-status');
     st.textContent = `● ${session.status}`;
@@ -762,7 +842,8 @@ function addChatEntry(type, content, ts) {
             label.textContent = `${sender} → ${selectedAgent}`;
             div.appendChild(label);
             const body = document.createElement('div');
-            body.textContent = msg;
+            body.className = 'markdown-body';
+            body.innerHTML = DOMPurify.sanitize(marked.parse(msg));
             div.appendChild(body);
         } else {
             div.textContent = content;
@@ -787,38 +868,137 @@ function addChatEntry(type, content, ts) {
         header.textContent = `${icon} ${short}`;
         div.appendChild(header);
 
-        const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
-        const toolFull = body.length > 200 ? body : null;
-        if (body) {
-            const bodyEl = document.createElement('div');
-            bodyEl.style.whiteSpace = 'pre-wrap';
-            bodyEl.className = 'text-xs opacity-70 tool-body';
-            bodyEl.textContent = toolPreview;
-            bodyEl.dataset.preview = toolPreview;
-            if (toolFull) bodyEl.dataset.full = toolFull;
-            div.appendChild(bodyEl);
-        }
+        const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit';
+        const isReadTool = rawName === 'Read';
+        const diffEl = isEditTool ? renderEditDiff(body) : null;
+        const readEl = isReadTool ? renderReadView(body) : null;
 
-        let expanded = false;
-        div.addEventListener('click', (e) => {
-            if (e.target.tagName === 'A') return;
-            expanded = !expanded;
-            const tb = div.querySelector('.tool-body');
-            if (tb && tb.dataset.full) tb.textContent = expanded ? tb.dataset.full : tb.dataset.preview;
-            const rb = div.querySelector('.result-body');
-            if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
-        });
+        if (readEl) {
+            div.appendChild(readEl);
+            div.dataset.isRead = '1';
+            div.style.cursor = 'pointer';
+            div.addEventListener('click', () => {
+                const restEl = readEl.querySelector('[data-role="read-rest"]');
+                const moreEl = readEl.querySelector('[data-role="read-more"]');
+                if (restEl && moreEl) {
+                    const showing = restEl.style.display !== 'none';
+                    restEl.style.display = showing ? 'none' : 'block';
+                    moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
+                }
+            });
+        } else if (diffEl) {
+            div.appendChild(diffEl);
+            div.dataset.isEdit = '1';
+            div.style.cursor = 'pointer';
+            div.addEventListener('click', () => {
+                const restEl = diffEl.querySelector('[style*="display"]');
+                const moreEl = diffEl.querySelector('.diff-file[style*="cursor"]');
+                if (restEl && moreEl) {
+                    const showing = restEl.style.display !== 'none';
+                    restEl.style.display = showing ? 'none' : 'block';
+                    const restCount = moreEl.dataset.count || '0';
+                    moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
+                }
+            });
+        } else {
+            const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+            const toolFull = body.length > 200 ? body : null;
+            if (body) {
+                const bodyEl = document.createElement('div');
+                bodyEl.style.whiteSpace = 'pre-wrap';
+                bodyEl.className = 'text-xs opacity-70 tool-body';
+                bodyEl.textContent = toolPreview;
+                bodyEl.dataset.preview = toolPreview;
+                if (toolFull) bodyEl.dataset.full = toolFull;
+                div.appendChild(bodyEl);
+                if (toolFull) {
+                    const remaining = body.split('\n').length - toolPreview.split('\n').length;
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.color = '#38bdf8';
+                    hint.textContent = `▼ ${remaining} more lines`;
+                    hint.dataset.role = 'expand-hint';
+                    div.appendChild(hint);
+                }
+            }
+
+            let expanded = false;
+            div.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                expanded = !expanded;
+                const tb = div.querySelector('.tool-body');
+                if (tb && tb.dataset.full) tb.textContent = expanded ? tb.dataset.full : tb.dataset.preview;
+                const hint = div.querySelector('[data-role="expand-hint"]');
+                if (hint) hint.style.display = expanded ? 'none' : 'block';
+                const rb = div.querySelector('.result-body');
+                if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
+            });
+        }
     }
     else if (type === 'tool_result') {
         const chat = $('#chat');
         const lastTool = chat.querySelector('[data-last-tool]');
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-        const linked = clean.replace(/(https?:\/\/[^\s\])"<>]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
+        const escaped = clean.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const linked = escaped.replace(/(https?:\/\/[^\s\])"&]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
         const preview = linked.length > 200 ? linked.slice(0, 200) + '…' : linked;
         const full = linked.length > 200 ? linked : null;
 
         if (lastTool) {
             delete lastTool.dataset.lastTool;
+            if (lastTool.dataset.isEdit) {
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.isRead) {
+                delete lastTool.dataset.lastTool;
+                const readContainer = lastTool.querySelector('.diff-view');
+                if (readContainer) {
+                    const lines = clean.split('\n').map(l => l.length > 200 ? l.slice(0, 200) + '…' : l);
+                    const PREVIEW = 5;
+                    const previewL = lines.slice(0, PREVIEW);
+                    const restL = lines.slice(PREVIEW);
+                    for (const line of previewL) {
+                        const row = document.createElement('div');
+                        row.className = 'diff-line diff-line-ctx';
+                        const gutter = document.createElement('span');
+                        gutter.className = 'diff-gutter';
+                        gutter.textContent = ' ';
+                        const code = document.createElement('span');
+                        code.className = 'diff-code';
+                        code.textContent = line;
+                        row.append(gutter, code);
+                        readContainer.appendChild(row);
+                    }
+                    if (restL.length > 0) {
+                        const restEl = document.createElement('div');
+                        restEl.dataset.role = 'read-rest';
+                        restEl.style.display = 'none';
+                        for (const line of restL) {
+                            const row = document.createElement('div');
+                            row.className = 'diff-line diff-line-ctx';
+                            const gutter = document.createElement('span');
+                            gutter.className = 'diff-gutter';
+                            gutter.textContent = ' ';
+                            const code = document.createElement('span');
+                            code.className = 'diff-code';
+                            code.textContent = line;
+                            row.append(gutter, code);
+                            restEl.appendChild(row);
+                        }
+                        readContainer.appendChild(restEl);
+                        const moreEl = document.createElement('div');
+                        moreEl.className = 'diff-file';
+                        moreEl.dataset.role = 'read-more';
+                        moreEl.dataset.count = restL.length;
+                        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                        moreEl.textContent = `▼ ${restL.length} more lines`;
+                        readContainer.appendChild(moreEl);
+                    }
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
             lastTool.dataset.toolContent += '\n\n' + content;
             const oldCopy = lastTool.querySelector('.copy-btn');
             if (oldCopy) oldCopy.remove();
@@ -831,7 +1011,15 @@ function addChatEntry(type, content, ts) {
             resultEl.style.whiteSpace = 'pre-wrap';
             resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
             resultEl.dataset.preview = preview;
-            if (full) resultEl.dataset.full = full;
+            if (full) {
+                resultEl.dataset.full = full;
+                const rHint = document.createElement('div');
+                rHint.className = 'text-xs mt-1';
+                rHint.style.color = '#38bdf8';
+                rHint.textContent = `▼ ${clean.split('\n').length - preview.split('\n').length} more lines`;
+                rHint.dataset.role = 'expand-hint';
+                sep.appendChild(rHint);
+            }
             sep.appendChild(resultEl);
             lastTool.appendChild(sep);
             addTimestamp(lastTool, ts);
@@ -841,12 +1029,26 @@ function addChatEntry(type, content, ts) {
         div.style.whiteSpace = 'pre-wrap';
         div.style.cursor = 'pointer';
         div.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
+        if (full) {
+            const sHint = document.createElement('div');
+            sHint.className = 'text-xs mt-1';
+            sHint.style.color = '#38bdf8';
+            sHint.textContent = `▼ ${clean.split('\n').length - preview.split('\n').length} more lines`;
+            div.appendChild(sHint);
+        }
         let expanded = false;
         if (full) {
             div.addEventListener('click', (e) => {
                 if (e.target.tagName === 'A') return;
                 expanded = !expanded;
                 div.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? full : preview, {ADD_ATTR: ['target']});
+                if (!expanded) {
+                    const h = document.createElement('div');
+                    h.className = 'text-xs mt-1';
+                    h.style.color = '#38bdf8';
+                    h.textContent = `▼ ${clean.split('\n').length - preview.split('\n').length} more lines`;
+                    div.appendChild(h);
+                }
             });
         }
     }
@@ -863,6 +1065,142 @@ function addChatEntry(type, content, ts) {
     chat.appendChild(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
     if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+}
+
+// === Diff View ===
+function _escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function _inlineDiff(oldLine, newLine) {
+    const dmp = new diff_match_patch();
+    const diffs = dmp.diff_main(oldLine, newLine);
+    dmp.diff_cleanupSemantic(diffs);
+    let common = 0, total = 0;
+    for (const [op, text] of diffs) { total += text.length; if (op === 0) common += text.length; }
+    if (total === 0 || common / total < 0.4) return null;
+    let delHtml = '', addHtml = '';
+    for (const [op, text] of diffs) {
+        const esc = _escHtml(text);
+        if (op === 0) { delHtml += esc; addHtml += esc; }
+        else if (op === -1) delHtml += `<span style="background:rgba(239,68,68,0.35);border-radius:2px">${esc}</span>`;
+        else addHtml += `<span style="background:rgba(34,197,94,0.35);border-radius:2px">${esc}</span>`;
+    }
+    return { delHtml, addHtml };
+}
+
+function buildDiffLines(oldStr, newStr) {
+    const a = oldStr.split('\n'), b = newStr.split('\n');
+    const n = a.length, m = b.length;
+    const dp = Array.from({length: n + 1}, () => new Uint16Array(m + 1));
+    for (let i = 1; i <= n; i++)
+        for (let j = 1; j <= m; j++)
+            dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+    const raw = [];
+    let i = n, j = m;
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && a[i-1] === b[j-1]) { raw.push({type:'ctx', text: a[i-1]}); i--; j--; }
+        else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) { raw.push({type:'add', text: b[j-1]}); j--; }
+        else { raw.push({type:'del', text: a[i-1]}); i--; }
+    }
+    raw.reverse();
+    const result = [];
+    let idx = 0;
+    while (idx < raw.length) {
+        if (raw[idx].type === 'del' && idx + 1 < raw.length && raw[idx+1].type === 'add') {
+            const inline = _inlineDiff(raw[idx].text, raw[idx+1].text);
+            if (inline) {
+                result.push({type:'del', html: inline.delHtml});
+                result.push({type:'add', html: inline.addHtml});
+            } else {
+                result.push({type:'del', html: _escHtml(raw[idx].text)});
+                result.push({type:'add', html: _escHtml(raw[idx+1].text)});
+            }
+            idx += 2;
+        } else {
+            result.push({type: raw[idx].type, html: _escHtml(raw[idx].text)});
+            idx++;
+        }
+    }
+    return result;
+}
+
+function _buildDiffEl(lines) {
+    const el = document.createElement('div');
+    for (const line of lines) {
+        const row = document.createElement('div');
+        row.className = `diff-line diff-line-${line.type}`;
+        const gutter = document.createElement('span');
+        gutter.className = 'diff-gutter';
+        gutter.textContent = line.type === 'del' ? '−' : line.type === 'add' ? '+' : ' ';
+        const code = document.createElement('span');
+        code.className = 'diff-code';
+        code.innerHTML = line.html;
+        row.append(gutter, code);
+        el.appendChild(row);
+    }
+    return el;
+}
+
+function renderEditDiff(body) {
+    let data;
+    try { data = JSON.parse(body); } catch { return null; }
+    if (data.old_string === undefined && data.new_string === undefined) return null;
+
+    const PREVIEW_LINES = 5;
+    const lines = buildDiffLines(data.old_string || '', data.new_string || '');
+    const fp = data.file_path || '';
+    const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
+
+    const container = document.createElement('div');
+    container.className = 'diff-view';
+
+    const fileEl = document.createElement('div');
+    fileEl.className = 'diff-file';
+    fileEl.textContent = shortPath;
+    fileEl.title = fp;
+    container.appendChild(fileEl);
+
+    const previewLines = lines.slice(0, PREVIEW_LINES);
+    const restLines = lines.slice(PREVIEW_LINES);
+
+    container.appendChild(_buildDiffEl(previewLines));
+
+    if (restLines.length > 0) {
+        const restEl = _buildDiffEl(restLines);
+        restEl.style.display = 'none';
+        container.appendChild(restEl);
+
+        const moreEl = document.createElement('div');
+        moreEl.className = 'diff-file';
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+        moreEl.textContent = `▼ ${restLines.length} more lines`;
+        moreEl.dataset.count = restLines.length;
+        container.appendChild(moreEl);
+    }
+
+    return container;
+}
+
+function renderReadView(body) {
+    let data;
+    try { data = JSON.parse(body); } catch { return null; }
+    if (!data.file_path) return null;
+
+    const PREVIEW_LINES = 5;
+    const fp = data.file_path || '';
+    const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
+    const offset = data.offset || 0;
+    const limit = data.limit || '';
+
+    const container = document.createElement('div');
+    container.className = 'diff-view';
+
+    const fileEl = document.createElement('div');
+    fileEl.className = 'diff-file';
+    fileEl.textContent = `${shortPath}${offset ? ` :${offset}` : ''}${limit ? ` (${limit} lines)` : ''}`;
+    fileEl.title = fp;
+    container.appendChild(fileEl);
+
+    return container;
 }
 
 // === File Browser ===
@@ -945,11 +1283,21 @@ async function loadFileTree(path, container) {
                 wrapper.appendChild(children);
                 container.appendChild(wrapper);
             } else {
-                item.addEventListener('click', () => {
+                item.style.position = 'relative';
+                const sendBtn = document.createElement('span');
+                sendBtn.textContent = '➜';
+                sendBtn.title = 'Send path to chat';
+                sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
+                sendBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     const input = $('#chat-input');
                     input.value += (input.value ? '\n' : '') + f.path;
                     input.focus();
                 });
+                item.appendChild(sendBtn);
+                item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
+                item.addEventListener('mouseleave', () => sendBtn.style.opacity = '0');
+                item.addEventListener('click', () => openFilePreview(f.path));
                 container.appendChild(item);
             }
         }
@@ -962,18 +1310,8 @@ async function loadFileTree(path, container) {
 }
 
 function initFilePanel() {
-    const panel = $('#file-panel');
     const tree = $('#file-tree');
-    const toggle = $('#file-panel-toggle');
 
-    if (toggle) {
-        toggle.addEventListener('click', () => {
-            panel.classList.toggle('hidden');
-            toggle.textContent = panel.classList.contains('hidden') ? '▶' : '◀';
-        });
-    }
-
-    // Drag over chat input
     const chatInput = $('#chat-input');
     chatInput.addEventListener('dragover', (e) => { e.preventDefault(); chatInput.classList.add('border-indigo-400'); });
     chatInput.addEventListener('dragleave', () => chatInput.classList.remove('border-indigo-400'));

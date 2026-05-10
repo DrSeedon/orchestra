@@ -197,6 +197,27 @@ async def get_session(name: str, scope: str):
     return found.to_dict()
 
 
+@app.get("/api/sessions/{name}/prompt")
+async def get_session_prompt(name: str, scope: str):
+    from app.manager import _read_prompt
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sp = (found.get("system_prompt", "") if isinstance(found, dict) else found.system_prompt) or ""
+    is_orch = (found.get("is_orchestrator") if isinstance(found, dict) else found.is_orchestrator) or False
+    base = _read_prompt("base.md")
+    role = _read_prompt("orchestrator.md" if is_orch else "worker.md")
+    custom = ""
+    if not is_orch:
+        marker = "- Branch: "
+        idx = sp.rfind(marker)
+        if idx != -1:
+            after_marker = sp.find("\n", idx)
+            if after_marker != -1 and after_marker + 1 < len(sp):
+                custom = sp[after_marker + 1:].strip()
+    return {"system_prompt": sp, "base": base, "role": role, "custom": custom}
+
+
 @app.get("/api/sessions/{name}/context")
 async def get_session_context(name: str, scope: str):
     found = manager.get_by_name(name, scope)

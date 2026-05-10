@@ -106,7 +106,7 @@ class AgentSession:
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_auto_approve,
-            include_partial_messages=False, max_turns=25,
+            include_partial_messages=False, max_turns=50,
             env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},
         )
         if self.session_id:
@@ -233,6 +233,9 @@ class AgentSession:
                         if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
                             self._log("tool_result", _extract_tool_result(block))
             elif isinstance(msg, ResultMessage):
+                sr = getattr(msg, "stop_reason", None) or "unknown"
+                nt = getattr(msg, "num_turns", 0) or 0
+                self._log("status", f"turn ended: stop_reason={sr}, num_turns={nt}")
                 if msg.session_id:
                     self.session_id = msg.session_id
                 self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
@@ -253,7 +256,9 @@ class AgentSession:
                         "cache_read": cache_read, "cache_create": cache_create,
                     }
                 self.status = AgentStatus.IDLE
+                self._active_client = None
                 self._persist()
+                await asyncio.sleep(0.5)
                 if self._bg_outputs:
                     paths = list(self._bg_outputs)
                     self._bg_outputs.clear()

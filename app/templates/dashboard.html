@@ -7,6 +7,7 @@
     <script src="/static/css/vendor/tailwind.js"></script>
     <script src="/static/css/vendor/marked.min.js"></script>
     <script src="/static/css/vendor/purify.min.js"></script>
+    <script src="/static/css/vendor/diff_match_patch.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body class="h-screen flex flex-col">
@@ -55,13 +56,23 @@
         </div>
     </div>
 
+    <!-- Prompt Modal -->
+    <div id="prompt-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
+      <div class="glass glow rounded-xl p-6 w-[90vw] max-w-4xl max-h-[85vh] flex flex-col">
+        <div class="flex justify-between items-center mb-3">
+          <span id="prompt-modal-name" class="text-indigo-300 font-bold text-sm"></span>
+          <button id="prompt-modal-close" class="text-slate-400 hover:text-white text-lg">✕</button>
+        </div>
+        <div id="prompt-modal-body" class="flex-1 overflow-auto text-xs text-slate-300 markdown-body bg-[#0f172a] rounded-lg p-4 border border-slate-800"></div>
+      </div>
+    </div>
+
     <!-- Main Layout -->
     <div class="flex flex-1 overflow-hidden">
         <!-- File Browser -->
         <div id="file-panel" class="w-[250px] border-r border-slate-800/50 flex flex-col overflow-hidden">
-            <div class="px-3 py-2 border-b border-slate-800/50 flex items-center justify-between">
+            <div class="px-3 py-2 border-b border-slate-800/50">
                 <span class="text-xs font-bold text-slate-400">FILES</span>
-                <button id="file-panel-toggle" class="text-slate-500 hover:text-white text-xs">◀</button>
             </div>
             <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1"></div>
         </div>
@@ -87,7 +98,10 @@
             <div id="agent-info" class="px-4 py-3 border-b border-slate-800/50 space-y-2">
                 <div class="flex items-center justify-between">
                     <span id="ai-name" class="font-semibold text-sm"></span>
-                    <span id="ai-status" class="text-xs font-mono"></span>
+                    <div class="flex items-center gap-2">
+                        <button id="view-prompt-btn" class="text-slate-500 hover:text-indigo-300 text-xs hidden" title="View system prompt">📜</button>
+                        <span id="ai-status" class="text-xs font-mono"></span>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     <span class="text-slate-500">Model</span><span id="ai-model" class="text-slate-300 break-all"></span>
@@ -101,6 +115,17 @@
             <div class="flex-1 overflow-y-auto">
                 <div id="agent-list" class="p-2 space-y-1"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- File Preview Modal -->
+    <div id="file-preview-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
+        <div class="glass glow rounded-xl flex flex-col w-[700px] max-w-[90vw] max-h-[80vh]">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800/50 shrink-0">
+                <span id="file-preview-path" class="text-xs font-mono text-slate-400 truncate max-w-[80%]"></span>
+                <button id="file-preview-close" class="text-slate-500 hover:text-white text-lg">✕</button>
+            </div>
+            <pre id="file-preview-content" class="flex-1 overflow-auto text-xs p-4 whitespace-pre-wrap break-all text-slate-300"></pre>
         </div>
     </div>
 
