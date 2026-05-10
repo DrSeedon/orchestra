@@ -1274,6 +1274,103 @@ function addChatEntry(type, content, ts) {
                 div.dataset.isEdit = '1';
             } catch {}
         }
+        const isSpawnWorker = rawName === 'mcp__orchestra__spawn_worker';
+        if (isSpawnWorker) {
+            try {
+                const d = JSON.parse(body);
+                const workerName = d.name || '?';
+                const task = d.task || '';
+                const model = d.model || '';
+                const sysPrompt = d.system_prompt || '';
+                const repoPath = d.repo_path || '';
+
+                header.textContent = `🚀 Spawning ${workerName}`;
+                header.style.color = '#a78bfa';
+
+                const MODEL_SHORT = {
+                    'claude-opus-4-6': 'Opus 4.6',
+                    'claude-sonnet-4-6': 'Sonnet 4.6',
+                    'claude-haiku-4-5': 'Haiku 4.5',
+                    'claude-haiku-4-6': 'Haiku 4.6',
+                };
+                const MODEL_COLOR = {
+                    'claude-opus-4-6': '#a78bfa',
+                    'claude-sonnet-4-6': '#38bdf8',
+                    'claude-haiku-4-5': '#4ade80',
+                    'claude-haiku-4-6': '#4ade80',
+                };
+                if (model) {
+                    const badge = document.createElement('span');
+                    badge.textContent = MODEL_SHORT[model] || model;
+                    badge.style.cssText = `font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:${MODEL_COLOR[model] || '#94a3b8'};border-color:${MODEL_COLOR[model] || '#94a3b8'};opacity:0.8;vertical-align:middle;margin-left:6px`;
+                    header.appendChild(badge);
+                }
+
+                if (task) {
+                    const PREVIEW = 200;
+                    const previewText = task.length > PREVIEW ? task.slice(0, PREVIEW) : task;
+                    const hasMore = task.length > PREVIEW;
+                    const taskEl = document.createElement('div');
+                    taskEl.className = 'text-xs opacity-80 markdown-body';
+                    taskEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
+                    div.appendChild(taskEl);
+                    if (hasMore) {
+                        const restEl = document.createElement('div');
+                        restEl.className = 'text-xs opacity-80 markdown-body';
+                        restEl.innerHTML = DOMPurify.sanitize(marked.parse(task.slice(PREVIEW)));
+                        restEl.style.display = 'none';
+                        restEl.dataset.role = 'spawn-rest';
+                        div.appendChild(restEl);
+                        const restLines = task.slice(PREVIEW).split('\n').length;
+                        const hint = document.createElement('div');
+                        hint.className = 'text-xs mt-1';
+                        hint.style.cssText = 'color:#a78bfa;cursor:pointer';
+                        hint.textContent = `▼ ${restLines} more lines`;
+                        hint.dataset.role = 'spawn-hint';
+                        div.appendChild(hint);
+                        div.style.cursor = 'pointer';
+                        let spawnExpanded = false;
+                        div.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            spawnExpanded = !spawnExpanded;
+                            restEl.style.display = spawnExpanded ? 'block' : 'none';
+                            hint.textContent = spawnExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
+                            if (spawnPromptEl) spawnPromptEl.style.display = spawnPromptExpanded ? 'block' : 'none';
+                        });
+                    }
+                }
+
+                let spawnPromptEl = null;
+                let spawnPromptExpanded = false;
+                if (sysPrompt) {
+                    const promptToggle = document.createElement('div');
+                    promptToggle.className = 'text-xs mt-1';
+                    promptToggle.style.cssText = 'color:#64748b;cursor:pointer;user-select:none';
+                    promptToggle.textContent = '📋 Custom prompt';
+                    spawnPromptEl = document.createElement('div');
+                    spawnPromptEl.style.cssText = 'display:none;margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid #1e293b;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#94a3b8;max-height:200px;overflow-y:auto';
+                    spawnPromptEl.textContent = sysPrompt;
+                    promptToggle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        spawnPromptExpanded = !spawnPromptExpanded;
+                        spawnPromptEl.style.display = spawnPromptExpanded ? 'block' : 'none';
+                        promptToggle.textContent = spawnPromptExpanded ? '📋 Custom prompt ▲' : '📋 Custom prompt';
+                    });
+                    div.appendChild(promptToggle);
+                    div.appendChild(spawnPromptEl);
+                }
+
+                if (repoPath) {
+                    const pathEl = document.createElement('div');
+                    pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                    pathEl.textContent = repoPath;
+                    pathEl.title = repoPath;
+                    div.appendChild(pathEl);
+                }
+
+                div.dataset.isEdit = '1';
+            } catch {}
+        }
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
