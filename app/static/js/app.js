@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             compactBtn.textContent = window.compactMode ? '📄' : '📋';
             compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
             $('#chat').innerHTML = '';
-            if (chatLogs[selectedAgent]) chatLogs[selectedAgent].lastId = 0;
+            if (chatLogs[selectedAgent]) { chatLogs[selectedAgent].lastId = 0; chatLogs[selectedAgent].firstId = null; }
             scrollAfterLoad = true;
             connectSSE();
         });
@@ -100,7 +100,8 @@ function connectSSE() {
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (!selectedAgent || !currentScope) return;
     const lastId = chatLogs[selectedAgent]?.lastId || 0;
-    const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}`;
+    const limitParam = lastId === 0 ? '&limit=100' : '';
+    const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
     eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
         try {
@@ -869,6 +870,7 @@ function renderImages(el, content) {
         const url = `/api/files/raw?path=${encodeURIComponent(path)}`;
         const img = document.createElement('img');
         img.src = url;
+        img.loading = 'lazy';
         img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
         img.onerror = () => img.remove();
         img.addEventListener('click', () => openFilePreview(path));
@@ -1324,6 +1326,7 @@ function addChatEntry(type, content, ts) {
                     if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
                         const img = document.createElement('img');
                         img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}`;
+                        img.loading = 'lazy';
                         img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
                         img.addEventListener('click', () => openFilePreview(readPath));
                         readContainer.appendChild(img);
