@@ -45,20 +45,26 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-.markdown-body p { margin: 0.4em 0; }
-.markdown-body ul, .markdown-body ol { margin: 0.3em 0; padding-left: 1.5em; }
-.markdown-body li { margin: 0.15em 0; }
+.markdown-body { overflow-wrap: break-word; word-break: break-word; }
+.markdown-body p { margin: 0.6em 0; }
+.markdown-body ul { margin: 0.4em 0; padding-left: 2em; list-style: disc; }
+.markdown-body ol { margin: 0.4em 0; padding-left: 2em; list-style: decimal; }
+.markdown-body li { margin: 0.2em 0; }
 .markdown-body strong { color: #f1f5f9; }
 .markdown-body em { color: #94a3b8; }
-.markdown-body code { background: rgba(99, 102, 241, 0.15); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
-.markdown-body pre { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 0.8em; margin: 0.4em 0; overflow-x: auto; max-width: 100%; }
+.markdown-body code { background: rgba(99, 102, 241, 0.2); padding: 0.2em 0.5em; border-radius: 4px; font-size: 0.9em; }
+.markdown-body pre { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 1em 1.2em; margin: 0.6em 0; overflow-x: auto; max-width: 100%; }
+.markdown-body pre code { background: none; padding: 0; }
 .markdown-body table { font-size: 0.85em; overflow-x: auto; display: block; max-width: 100%; border-collapse: collapse; }
 .markdown-body th, .markdown-body td { border: 1px solid #334155; padding: 0.4em 0.8em; text-align: left; }
 .markdown-body th { font-weight: 600; }
-.markdown-body { overflow-wrap: break-word; word-break: break-word; }
-.markdown-body pre code { background: none; padding: 0; }
-.markdown-body h1, .markdown-body h2, .markdown-body h3 { color: #f1f5f9; margin: 0.5em 0 0.3em; }
-.markdown-body blockquote { border-left: 3px solid #334155; padding-left: 0.8em; color: #94a3b8; margin: 0.4em 0; }
+.markdown-body h1 { color: #f1f5f9; font-size: 1.6em; margin: 0.8em 0 0.4em; padding-bottom: 0.3em; border-bottom: 1px solid #1e293b; }
+.markdown-body h2 { color: #f1f5f9; font-size: 1.3em; margin: 1.2em 0 0.4em; padding-bottom: 0.25em; border-bottom: 1px solid #1e293b; }
+.markdown-body h3 { color: #f1f5f9; font-size: 1.1em; margin: 0.8em 0 0.3em; }
+.markdown-body a { color: #38bdf8; text-decoration: none; }
+.markdown-body a:hover { text-decoration: underline; }
+.markdown-body hr { border: none; border-top: 1px solid #1e293b; margin: 1em 0; }
+.markdown-body blockquote { border-left: 4px solid #334155; padding-left: 1em; color: #94a3b8; margin: 0.6em 0; }
 .waiting-dots span { animation: dot-blink 1.4s infinite; opacity: 0.2; font-size: 18px; line-height: 1; }
 .waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
 .waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
