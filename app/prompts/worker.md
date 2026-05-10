@@ -18,6 +18,11 @@ Your CWD is an isolated git worktree. Run `pwd` first to confirm.
 ALL file edits MUST be in YOUR CWD. NEVER edit files outside it. NEVER `cd` to the original repo path.
 If the task mentions a file path from the original repo — the same file exists in your worktree at the same relative path.
 
+## Bash rules
+- NEVER use `until/while/sleep` loops to poll for external state (CI, deploy, API). One-shot check only
+- NEVER wait for CI in a loop — check status once, report, move on
+- Long-running commands (>60s) will timeout your turn. Keep Bash commands short
+
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)

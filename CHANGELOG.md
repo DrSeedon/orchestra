@@ -1,5 +1,54 @@
 # Changelog
 
+## v2.4.0 — 2026-05-10
+
+### Added
+- 🎤 **TG Voice** — Deepgram Nova-3 транскрипция голосовых в TG bridge
+- 📷 **TG Media** — полная поддержка: фото, документы, видео, video_note (ffmpeg), аудио, стикеры, forwards с caption. Кеши файлов + транскрипций
+- 🔄 **TG Debounce** — state machine IDLE→COLLECTING→WAITING_MEDIA. 5s debounce + 30s media timeout. Батч сообщений в один turn
+- 📂 **File preview** — клик по файлу → модалка. MD рендерится через marked.js, картинки через `<img>`, код с горизонтальным скроллом. `/api/files/content` + `/api/files/raw` endpoints
+- ✏️ **Diff view** — Google `diff-match-patch` для char-level inline подсветки. LCS line diff + inline highlight для похожих строк (>40% common). Preview 5 строк + expand
+- 📖 **Read view** — code viewer с shimmer skeleton, 5 строк preview + expand. Картинки рендерятся как `<img>`
+- ✍️ **Write view** — содержимое как diff (всё зелёное)
+- 📨 **send_message bubble** — `📨 → target` + markdown preview вместо сырого JSON
+- 📜 **Prompt viewer** — 3 секции (📦 Platform / 🎭 Role / ✨ Custom) с реальными подставленными именами
+- 📋 **Compact mode** — toggle 📋/📄 в header. Тулы в одну строку, клик раскрывает
+- 🖼 **Картинки везде** — user messages, Read tool, text — кликабельные → file preview
+- 💰 **Ценник в sidebar** — `$X.XX` зелёным рядом с моделью
+- 🌐 **WebSearch рендер** — title (ссылка) + snippet вместо JSON
+- 🔧 **Autocommit** — `git add -A && commit "wip:"` перед spawn_worker. Worktree создаётся от актуального кода — нет конфликтов
+- ⚡ **Seamless turn** — после ResultMessage если есть pending → сразу новый turn (0ms вместо 2.5s debounce)
+- 📊 **stop_reason логирование** — каждый turn пишет `stop_reason=X, num_turns=N`
+- 🎼 **Orchestra skill** — `/orchestra` Claude Code skill в `app/skills/orchestra/SKILL.md`
+- 🔒 **XSS fixes** — 3 innerHTML→textContent fixes (Codex review)
+
+### Changed
+- **max_turns 25→50** — воркеры не обрубаются на больших задачах
+- **kill_worker** — теперь `DELETE` (полное удаление), не `POST /stop` (воркеры-призраки больше не висят)
+- **Inject убран** — все сообщения в pending queue, нет потерянных/дублей
+- **Logs limit 200→5000** — старые сообщения видны в чате
+- **MAX_CHAT_NODES 500→5000** — DOM не обрезает историю
+- **Deepgram Nova-2→Nova-3** — точнее для русского, та же цена
+- **Orchestrator prompt** — обязательный system_prompt для воркеров (шаблон + примеры), file conflict rule, CTO delegation
+- **Worker prompt** — bash rules (no polling loops), identity placeholders
+
+### Fixed
+- **TG flood control** — retry с backoff вместо fallback на plain text
+- **TG error logging** — видно почему formatted send фейлится
+- **HTML injection в tool_result** — escape `<>` перед innerHTML
+- **Paste preview** — сохраняется/восстанавливается при переключении агентов
+- **Markdown everywhere** — user messages, [from:worker], все рендерятся через marked.js
+- **chat-bot border** — `#1e293b`→`rgba(99,102,241,0.1)` (видимый)
+- **diff-code overflow** — `break-all`→`overflow-wrap: anywhere`
+- **Read skeleton** — shimmer placeholder пока tool_result не пришёл
+- **Expand hint** — rHint перенесён, querySelector работает
+- **Restart без confirm** — убран confirm dialog
+- **Prompt viewer identity** — реальные имена вместо `{worker_name}` placeholder
+- **Custom prompt после ребута** — кастомная часть сохраняется при hot-reload
+- **streamBubble на смене orchestrator** — сброс при переключении
+- **initFilePanel drag listeners** — guard от накопления
+- **refreshSessions stale scope** — capturedScope проверка
+
 ## v2.3.1 — 2026-05-09
 
 ### Added
