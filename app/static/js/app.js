@@ -37,17 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#chat-input').addEventListener('paste', handlePaste);
     $('#chat-input').addEventListener('input', () => {
         const text = $('#chat-input').value;
+        const container = $('#paste-preview');
+        if (!container) return;
         pastedImages = pastedImages.filter(url => {
             if (!text.includes(url)) {
-                const container = $('#paste-preview');
-                if (container) {
-                    container.querySelectorAll('img').forEach(img => {
-                        if (img.src === url || img.src.endsWith(url.split('/').pop())) {
-                            img.closest('.relative')?.remove();
-                        }
-                    });
-                    if (!container.children.length) container.remove();
-                }
+                const wraps = container.querySelectorAll('[data-url]');
+                wraps.forEach(w => { if (w.dataset.url === url) w.remove(); });
+                if (!container.children.length) container.remove();
                 return false;
             }
             return true;
@@ -338,13 +334,14 @@ async function openFilePreview(path) {
             contentEl.style.wordWrap = '';
             const dir = path.substring(0, path.lastIndexOf('/'));
             const renderer = new marked.Renderer();
-            renderer.image = (href, title, text) => {
-                const src = (href && !href.startsWith('http') && !href.startsWith('/api/'))
-                    ? `/api/files/raw?path=${encodeURIComponent(dir + '/' + href)}`
-                    : (href || '');
-                const titleAttr = title ? ` title="${title}"` : '';
-                const altAttr = text ? ` alt="${text}"` : '';
-                return `<img src="${src}"${altAttr}${titleAttr} loading="lazy" style="max-width:100%;border-radius:6px;margin:4px 0">`;
+            renderer.image = (token) => {
+                const h = typeof token === 'object' ? (token.href || '') : (token || '');
+                const t = typeof token === 'object' ? (token.title || '') : '';
+                const a = typeof token === 'object' ? (token.text || '') : '';
+                const src = (h && !h.startsWith('http') && !h.startsWith('/api/'))
+                    ? `/api/files/raw?path=${encodeURIComponent(dir + '/' + h)}`
+                    : h;
+                return `<img src="${src}"${a ? ` alt="${a}"` : ''}${t ? ` title="${t}"` : ''} loading="lazy" style="max-width:100%;border-radius:6px;margin:4px 0;cursor:pointer" onclick="openFilePreview('${h}')">`;
             };
             contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content, { renderer }), { ADD_ATTR: ['loading'] });
         } else {
@@ -859,7 +856,7 @@ async function handlePaste(e) {
     }
 }
 
-function showImagePreview(url) {
+function showImagePreview(url, filePath) {
     let container = $('#paste-preview');
     if (!container) {
         container = document.createElement('div');
@@ -870,11 +867,25 @@ function showImagePreview(url) {
     }
     const wrap = document.createElement('div');
     wrap.className = 'relative';
-    const img = document.createElement('img');
-    img.src = url;
-    img.className = 'h-16 rounded border border-slate-700';
-    img.style.cursor = 'pointer';
-    img.addEventListener('click', () => openFilePreview(url));
+    wrap.dataset.url = url;
+    const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(filePath || url);
+    if (isImage) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'h-16 rounded border border-slate-700';
+        img.loading = 'lazy';
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', () => openFilePreview(filePath || url));
+        wrap.appendChild(img);
+    } else {
+        const name = (filePath || url).split('/').pop();
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-1 px-2 py-1 rounded border border-slate-700 text-xs text-slate-400 cursor-pointer hover:border-indigo-500';
+        chip.style.maxWidth = '180px';
+        chip.innerHTML = `<span>📄</span><span class="truncate">${DOMPurify.sanitize(name)}</span>`;
+        chip.addEventListener('click', () => openFilePreview(filePath || url));
+        wrap.appendChild(chip);
+    }
     const rm = document.createElement('button');
     rm.className = 'absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-xs leading-none';
     rm.textContent = '×';
@@ -882,10 +893,11 @@ function showImagePreview(url) {
         wrap.remove();
         pastedImages = pastedImages.filter(u => u !== url);
         const input = $('#chat-input');
-        input.value = input.value.replace(url, '').replace(/\n\n/g, '\n').trim();
+        const removePath = filePath || url;
+        input.value = input.value.split('\n').filter(line => line.trim() !== removePath.trim()).join('\n').trim();
         if (!container.children.length) container.remove();
     });
-    wrap.append(img, rm);
+    wrap.appendChild(rm);
     container.appendChild(wrap);
 }
 
@@ -1760,6 +1772,10 @@ async function loadFileTree(path, container) {
                     const input = $('#chat-input');
                     input.value += (input.value ? '\n' : '') + f.path;
                     input.focus();
+                    const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
+                        ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
+                    pastedImages.push(url);
+                    showImagePreview(url, f.path);
                 });
                 item.appendChild(sendBtn);
                 item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
@@ -1795,6 +1811,10 @@ function initFilePanel() {
             if (path) {
                 chatInput.value += (chatInput.value ? '\n' : '') + path;
                 chatInput.focus();
+                const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)
+                    ? `/api/files/raw?path=${encodeURIComponent(path)}` : path;
+                pastedImages.push(url);
+                showImagePreview(url, path);
             }
         });
     }

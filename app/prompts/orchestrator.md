@@ -61,6 +61,11 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - When in doubt — sequential is safer than parallel
 - After a worker finishes and their changes are merged, THEN spawn the next worker for the same files
 
+## Production safety
+- NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue
+- Wait for worker's DONE message before any prod action
+- If worker is idle/hung — ping first via send_message, don't bypass
+
 ## Rules
 - ALWAYS use `spawn_worker` to create workers. NEVER use the built-in Agent tool — it bypasses Orchestra
 - Idle workers use ZERO resources. Never kill them to "save memory" — there's nothing to save
