@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.5.0 — 2026-05-10
+
+### Added
+- 🚀 **Persistent client + mid-turn message injection** — replaced "fresh client per turn" with persistent client per session. `send()` now calls `client.query()` directly — messages inject via SDK stdin transport mid-turn. No more pending queue, no debounce, no turn boundary waiting. User sends message while agent is working → agent sees it IMMEDIATELY as system-reminder. Same mechanism Claude Code CLI uses natively
+  - `_ensure_client()` — connects once, reuses across all turns
+  - `_persistent_listen()` — infinite loop over `receive_messages()`, handles all message types, does NOT disconnect on ResultMessage
+  - `_disconnect_client()` — clean shutdown helper
+  - Removed: `_pending`, `_debounce_task`, `_turn_task`, `_run_turn()`, `_arm_debounce()`, `_on_debounce()`, `debounce_sec`
+  - Triggered case: user sent 4 messages during benchmark turn — all arrived as system-reminders mid-turn, visible in real-time
+- 🎯 **Spawn worker custom bubble** — card-style rendering instead of raw JSON. Shows `🚀 Spawning worker-name` header + model badge pill (color-coded: purple=Opus, blue=Sonnet, green=Haiku) + markdown task preview + system prompt under spoiler + repo path. Single click expands everything
+- 📋 **Compact mode spawn preview** — shows `🚀 worker-name (Opus 1M)` instead of raw JSON in compact mode
+
+### Changed
+- **`interrupt()`** now uses `client.interrupt()` SDK method (sends control signal) instead of asyncio task cancellation
+- **`compact()`** stops `_listen_task` first to prevent race condition (two consumers on one async generator), then iterates `receive_messages()` directly, disconnects, creates fresh session
+- **Turn timeout** tracked via `_turn_start` timestamp checked on each message instead of `asyncio.wait_for()` wrapper
+- **Orchestrator prompt** — "NEVER kill workers after task completion" rule added. Workers stay idle for reuse — spawning new = $1-2 wasted on context rebuild
+- **Base prompt** — mid-turn message reaction rule: when system-reminder arrives with user message → STOP and respond immediately
+
+### Fixed
+- **Load-more (500 more) rendering** — old messages now render through `addChatEntry()` with full custom bubbles (Bash, Edit, Read, Grep, spawn_worker, send_message) instead of plain text
+- **Spawn worker generic body duplication** — `isSpawnWorker` added to exclusion list in generic fallback renderer
+- **compact() race condition** — listener paused before iterating receive_messages() to prevent two consumers on same async generator
+
 ## v2.4.0 — 2026-05-10
 
 ### Added
