@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import init_db, get_logs, delete_session as db_delete_session
+from app.db import init_db, get_logs, get_logs_before, delete_session as db_delete_session
 from app.manager import SessionManager
 from app.models import resolve_model, MODELS
 
@@ -271,15 +271,21 @@ async def get_session_context(name: str, scope: str):
 
 
 @app.get("/api/sessions/{name}/stream")
-async def stream_session_logs(name: str, scope: str, after_id: int = 0):
+async def stream_session_logs(name: str, scope: str, after_id: int = 0, limit: int = 500):
     import json
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     async def event_generator():
         last_id = after_id
+        initial = True
         while True:
-            logs = get_logs(session_id, after_id=last_id)
+            if initial and after_id == 0:
+                logs = get_logs_before(session_id, before_id=2**31 - 1, limit=limit)
+                initial = False
+            else:
+                logs = get_logs(session_id, after_id=last_id)
+                initial = False
             for log in logs:
                 yield f"data: {json.dumps(log)}\n\n"
                 last_id = log["id"]
@@ -289,10 +295,12 @@ async def stream_session_logs(name: str, scope: str, after_id: int = 0):
 
 
 @app.get("/api/sessions/{name}/logs")
-async def get_session_logs(name: str, scope: str, after_id: int = 0):
+async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0, limit: int = 500):
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
+    if before_id > 0:
+        return get_logs_before(session_id, before_id, limit)
     return get_logs(session_id, after_id=after_id)
 
 

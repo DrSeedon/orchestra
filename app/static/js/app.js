@@ -1,4 +1,4 @@
-const MAX_CHAT_NODES = 5000;
+const MAX_CHAT_NODES = 500;
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
@@ -114,8 +114,12 @@ function connectSSE() {
             } else {
                 addChatEntry(l.type, l.content, l.ts);
             }
-            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0 };
+            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
             if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
+            if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
+                chatLogs[selectedAgent].firstId = l.id;
+                updateLoadMoreBtn();
+            }
             if (scrollAfterLoad) {
                 $('#chat').scrollTop = $('#chat').scrollHeight;
                 clearTimeout(window._scrollResetTimer);
@@ -128,6 +132,101 @@ function connectSSE() {
         eventSource = null;
         setTimeout(connectSSE, 2000);
     };
+}
+
+function updateLoadMoreBtn() {
+    const chat = $('#chat');
+    const existing = $('#load-more-btn');
+    const firstId = chatLogs[selectedAgent]?.firstId;
+    if (!firstId || firstId <= 1) {
+        if (existing) existing.remove();
+        return;
+    }
+    if (existing) return;
+    const btn = document.createElement('div');
+    btn.id = 'load-more-btn';
+    btn.className = 'text-xs text-slate-500 hover:text-indigo-300 py-2 text-center cursor-pointer select-none';
+    btn.textContent = '▲ Load 500 more';
+    btn.addEventListener('click', loadMoreLogs);
+    chat.prepend(btn);
+}
+
+async function loadMoreLogs() {
+    if (!selectedAgent || !currentScope) return;
+    const firstId = chatLogs[selectedAgent]?.firstId;
+    if (!firstId) return;
+    const btn = $('#load-more-btn');
+    if (btn) { btn.textContent = '⏳ Loading…'; btn.style.pointerEvents = 'none'; }
+    try {
+        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=500`);
+        const logs = await res.json();
+        if (!Array.isArray(logs) || logs.length === 0) {
+            if (btn) btn.remove();
+            return;
+        }
+        const chat = $('#chat');
+        const oldHeight = chat.scrollHeight;
+        if (btn) btn.remove();
+        // prepend в правильном порядке (logs уже ASC из db)
+        const anchor = chat.firstChild;
+        for (const l of logs) {
+            const tempDiv = document.createElement('div');
+            // рендерим через addChatEntry — вставляем в начало, не в конец
+            // используем флаг prepend mode
+            _prependEntry(l.type, l.content, l.ts, chat, anchor);
+            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
+            if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
+                chatLogs[selectedAgent].firstId = l.id;
+            }
+        }
+        chat.scrollTop = chat.scrollHeight - oldHeight;
+        updateLoadMoreBtn();
+    } catch (e) {
+        if (btn) { btn.textContent = '▲ Load 500 more'; btn.style.pointerEvents = ''; }
+        console.warn('loadMoreLogs error:', e);
+    }
+}
+
+// Prepend helper — строит bubble и вставляет перед anchor
+function _prependEntry(type, content, ts, chat, anchor) {
+    // Для простоты: создаём div, наполняем минимальным рендером
+    const div = document.createElement('div');
+    div.className = `px-3 py-2 rounded-lg text-sm break-words ${
+        type === 'user_message' ? 'chat-user ml-16' :
+        type === 'tool' ? 'chat-tool' :
+        type === 'tool_result' ? 'chat-tool-result' :
+        type === 'status' ? 'text-center text-xs py-1 text-slate-500 italic' :
+        type === 'error' ? 'text-red-400 text-xs' :
+        'chat-bot markdown-body'
+    }`;
+    if (type === 'status') {
+        div.textContent = `⚡ ${content}`;
+    } else if (type === 'error') {
+        div.textContent = content;
+    } else if (type === 'tool') {
+        const colonIdx = content.indexOf(':');
+        const rawName = colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30);
+        const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
+        const isOrch = rawName.startsWith('mcp__orchestra__');
+        const hdr = document.createElement('div');
+        hdr.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
+        hdr.style.color = isOrch ? '#a78bfa' : '#38bdf8';
+        hdr.textContent = `${toolIcon(rawName)} ${toolShortName(rawName)}`;
+        div.appendChild(hdr);
+        const bodyEl = document.createElement('div');
+        bodyEl.style.whiteSpace = 'pre-wrap';
+        bodyEl.className = 'text-xs opacity-70';
+        bodyEl.textContent = body.length > 200 ? body.slice(0, 200) + '…' : body;
+        div.appendChild(bodyEl);
+    } else if (type === 'tool_result') {
+        const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
+        div.style.whiteSpace = 'pre-wrap';
+        div.textContent = '📎 ' + (clean.length > 200 ? clean.slice(0, 200) + '…' : clean);
+    } else {
+        div.innerHTML = DOMPurify.sanitize(marked.parse(content));
+    }
+    addTimestamp(div, ts);
+    chat.insertBefore(div, anchor);
 }
 
 // === Models ===
