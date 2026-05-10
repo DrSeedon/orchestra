@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadOrchestrators();
     scheduleRefresh();
     initFilePreviewModal();
+    initUsageBar();
 });
 
 let eventSource = null;
@@ -2327,4 +2328,106 @@ async function api(url, opts = {}) {
     const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal: signals });
     if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
     return resp.json();
+}
+
+// === Usage Bar ===
+let _usageData = null;
+let _usageError = false;
+let _usageCountdownInterval = null;
+
+function _usageColor(pct) {
+    if (pct >= 80) return '#ef4444';
+    if (pct >= 50) return '#eab308';
+    return '#22c55e';
+}
+
+function _formatCountdown(isoStr) {
+    if (!isoStr) return '';
+    const diff = new Date(isoStr) - Date.now();
+    if (diff <= 0) return 'now';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function _miniBar(pct, color) {
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:40px;height:4px;border-radius:2px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:2px;background:${color}"></span></span><span style="color:${color}">${pct}%</span></span>`;
+}
+
+function renderUsageBar() {
+    const bar = document.getElementById('usage-bar');
+    if (!bar) return;
+    if (!_usageData) {
+        bar.innerHTML = '';
+        bar.style.display = 'none';
+        return;
+    }
+    bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:10px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
+
+    const a = _usageData.anthropic || {};
+    const o = _usageData.orchestra || {};
+    const parts = [];
+
+    if (_usageError) parts.push('<span style="color:#eab308" title="Using cached data">⚠️</span>');
+
+    const fh = a.five_hour;
+    if (fh) {
+        const c = _usageColor(fh.utilization);
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}</span>`);
+    }
+    const sd = a.seven_day;
+    if (sd) {
+        const c = _usageColor(sd.utilization);
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}</span>`);
+    }
+
+    const models = [
+        ['Opus', a.seven_day_opus],
+        ['Sonnet', a.seven_day_sonnet],
+        ['Haiku', a.seven_day_haiku],
+    ];
+    for (const [name, m] of models) {
+        if (!m) continue;
+        const c = _usageColor(m.utilization);
+        parts.push(`<span style="padding:0 5px;border:1px solid ${c};border-radius:9999px;color:${c};font-size:9px">${name}: ${m.utilization}%</span>`);
+    }
+
+    let nearestReset = null;
+    for (const tier of [fh, sd, a.seven_day_opus, a.seven_day_sonnet, a.seven_day_haiku]) {
+        if (!tier?.resets_at) continue;
+        const t = new Date(tier.resets_at);
+        if (!nearestReset || t < nearestReset) nearestReset = t;
+    }
+    if (nearestReset) {
+        parts.push(`<span style="color:#64748b">⏱ ${_formatCountdown(nearestReset.toISOString())}</span>`);
+    }
+
+    parts.push('<span style="flex:1"></span>');
+
+    if (typeof o.total_cost_usd === 'number') {
+        parts.push(`<span style="color:#22c55e">$${o.total_cost_usd.toFixed(2)}</span>`);
+    }
+    if (typeof o.agents_count === 'number') {
+        parts.push(`<span style="color:#64748b">${o.agents_count} agents</span>`);
+    }
+
+    bar.innerHTML = parts.join('');
+}
+
+async function fetchUsage() {
+    try {
+        _usageData = await api('/api/usage');
+        _usageError = false;
+    } catch {
+        _usageError = true;
+    }
+    renderUsageBar();
+}
+
+function initUsageBar() {
+    fetchUsage();
+    setInterval(fetchUsage, 120000);
+    _usageCountdownInterval = setInterval(() => {
+        if (_usageData) renderUsageBar();
+    }, 60000);
 }
