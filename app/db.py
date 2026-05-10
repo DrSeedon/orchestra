@@ -169,6 +169,15 @@ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000) -> list[dict
             return [dict(r) for r in reversed(rows)]
 
 
+def get_logs_before(session_id: str, before_id: int, limit: int = 500) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM logs WHERE session_id = ? AND id < ? ORDER BY id DESC LIMIT ?",
+            (session_id, before_id, limit),
+        ).fetchall()
+        return [dict(r) for r in reversed(rows)]
+
+
 def get_stats(scope: str | None = None) -> dict:
     with _conn() as c:
         where = "WHERE scope = ?" if scope else ""
