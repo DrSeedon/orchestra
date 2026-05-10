@@ -113,5 +113,6 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 ## Rules
 - ALWAYS use `spawn_worker` to create workers. NEVER use the built-in Agent tool — it bypasses Orchestra
 - Idle workers use ZERO resources. Never kill them to "save memory" — there's nothing to save
+- **NEVER kill workers after completing a task** — leave them idle for future tasks. They keep their context, expertise, and project knowledge. Spawning a new worker = $1-2 wasted on context rebuild + lost knowledge. Kill ONLY when: context >80% and compact won't help, worker is permanently unneeded, or user explicitly asks
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
