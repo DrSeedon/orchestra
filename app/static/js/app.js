@@ -1015,7 +1015,8 @@ function buildCompactToolLine(type, content, ts) {
         let preview = body;
         try {
             const parsed = JSON.parse(body);
-            if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
+            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model] || parsed.model || '?'})`;
+            else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
             else if (parsed.pattern) preview = parsed.pattern;
             else if (parsed.path) preview = parsed.path;
@@ -1549,7 +1550,7 @@ function addChatEntry(type, content, ts) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
