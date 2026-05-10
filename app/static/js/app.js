@@ -214,10 +214,16 @@ async function openFilePreview(path) {
                 contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
             }
         } else if (/\.md$/i.test(path)) {
-            contentEl.innerHTML = '';
             contentEl.className = 'flex-1 overflow-auto text-xs text-slate-300 markdown-body p-4';
+            contentEl.style.whiteSpace = 'pre-wrap';
+            contentEl.style.overflowX = 'hidden';
+            contentEl.style.wordWrap = 'break-word';
             contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content));
         } else {
+            contentEl.className = 'flex-1 overflow-auto text-xs p-4 text-slate-300';
+            contentEl.style.whiteSpace = 'pre';
+            contentEl.style.overflowX = 'auto';
+            contentEl.style.wordWrap = 'normal';
             contentEl.textContent = data.content;
         }
     } catch (e) {
