@@ -1,4 +1,4 @@
-"""AgentSession — SDK wrapper, one client per turn."""
+"""AgentSession — SDK wrapper, persistent client across turns."""
 
 import asyncio
 import logging
@@ -93,6 +93,7 @@ class AgentSession:
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
     _active_client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
+    _persistent_client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
     _bg_outputs: list = field(default_factory=list, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
@@ -116,6 +117,32 @@ class AgentSession:
         if self.mcp_servers:
             options.mcp_servers = self.mcp_servers
         return ClaudeSDKClient(options=options)
+
+    async def _get_client(self) -> ClaudeSDKClient:
+        """Return persistent client, connecting lazily. Recreates on dead connection."""
+        if self._persistent_client is not None:
+            return self._persistent_client
+        client = self._make_client()
+        try:
+            await asyncio.wait_for(client.connect(), timeout=60)
+        except Exception:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+            raise
+        self._persistent_client = client
+        return client
+
+    async def _drop_persistent_client(self) -> None:
+        """Disconnect and drop persistent client (on error or explicit stop)."""
+        client = self._persistent_client
+        self._persistent_client = None
+        if client is not None:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
 
     async def start(self, initial_message: str | None = None) -> None:
         if initial_message:
@@ -165,21 +192,29 @@ class AgentSession:
                 message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
             else:
                 self._prompt_injected = True
-        client = self._make_client()
         try:
             self._persist()
-            await asyncio.wait_for(client.connect(), timeout=60)
-            await client.query(message)
+            client = await self._get_client()
+            try:
+                await client.query(message)
+            except Exception as query_err:
+                # Stale persistent client — drop it and retry once with a fresh one
+                logger.warning(f"[{self.name}] query failed ({query_err}), retrying with fresh client")
+                await self._drop_persistent_client()
+                client = await self._get_client()
+                await client.query(message)
             self._active_client = client
             if prompt_refresh:
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
-            await asyncio.wait_for(self._listen(client), timeout=self.TURN_TIMEOUT)
+            await self._listen(client)
         except asyncio.TimeoutError:
             logger.error(f"[{self.name}] turn timeout")
             self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
             self.status = AgentStatus.IDLE
             self._persist()
+            # Drop persistent client on timeout — may be in broken state
+            await self._drop_persistent_client()
             if self._pending:
                 self._arm_debounce()
         except Exception as e:
@@ -187,17 +222,20 @@ class AgentSession:
             self._log("error", str(e))
             self.status = AgentStatus.IDLE
             self._persist()
+            # Drop persistent client on error so next turn gets a fresh one
+            await self._drop_persistent_client()
             if self._pending:
                 self._arm_debounce()
         finally:
             self._active_client = None
-            try:
-                await client.disconnect()
-            except Exception:
-                pass
 
     async def _listen(self, client: ClaudeSDKClient) -> None:
+        import time as _time
+        _turn_deadline = _time.monotonic() + self.TURN_TIMEOUT
         async for msg in client.receive_messages():
+            if _time.monotonic() > _turn_deadline:
+                self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
+                raise asyncio.TimeoutError()
             if isinstance(msg, AssistantMessage):
                 for block in msg.content:
                     if isinstance(block, TextBlock) and block.text:
@@ -248,7 +286,6 @@ class AgentSession:
                         "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
                         "cache_read": cache_read, "cache_create": cache_create,
                     }
-                self._active_client = None
                 self.status = AgentStatus.IDLE
                 self._persist()
                 if self._bg_outputs:
@@ -256,14 +293,37 @@ class AgentSession:
                     self._bg_outputs.clear()
                     asyncio.create_task(self._poll_bg_outputs(paths))
                 if self._pending:
-                    self._arm_debounce()
-                elif self.on_idle and not self._did_report:
-                    last_texts = self._turn_logs[-3:] if self._turn_logs else []
+                    # Seamless: pending arrived during this turn → start next turn immediately
+                    # without disconnect (persistent client stays alive), 0ms latency
+                    batch = list(self._pending)
+                    self._pending.clear()
+                    combined = "\n".join(batch)
+                    self.status = AgentStatus.RUNNING
+                    self._did_report = False
+                    self._turn_logs = []
+                    self._persist()
                     try:
-                        asyncio.create_task(self.on_idle(self.name, self.scope, last_texts))
-                    except Exception:
-                        pass
-                break
+                        await client.query(combined)
+                    except Exception as e:
+                        # query failed — requeue so messages aren't lost, exit loop
+                        logger.warning(f"[{self.name}] seamless query failed: {e}, requeuing")
+                        self._pending.insert(0, combined)
+                        self.status = AgentStatus.IDLE
+                        self._persist()
+                        break
+                    # Reset timeout for the next turn
+                    _turn_deadline = _time.monotonic() + self.TURN_TIMEOUT
+                    # _active_client stays set — continue reading next turn's messages
+                    continue
+                else:
+                    self._active_client = None
+                    if self.on_idle and not self._did_report:
+                        last_texts = self._turn_logs[-3:] if self._turn_logs else []
+                        try:
+                            asyncio.create_task(self.on_idle(self.name, self.scope, last_texts))
+                        except Exception:
+                            pass
+                    break
 
     async def _poll_bg_outputs(self, paths: list[str]) -> None:
         from pathlib import Path
@@ -303,9 +363,9 @@ class AgentSession:
                 await self._turn_task
             except (asyncio.CancelledError, Exception):
                 pass
+        await self._drop_persistent_client()
         self.status = AgentStatus.IDLE
         self._log("status", "interrupted")
-        self._persist()
         self._persist()
 
     async def compact(self) -> dict:
@@ -353,6 +413,8 @@ class AgentSession:
         old_session_id = self.session_id
         self.session_id = None
         self._persist()
+        # Drop persistent client so post-compact turn starts a fresh session (no old session_id)
+        await self._drop_persistent_client()
 
         preamble = PREAMBLE.format(summary=summary)
         await self.send(preamble + "Acknowledge briefly.")
@@ -376,6 +438,7 @@ class AgentSession:
                 await self._turn_task
             except (asyncio.CancelledError, Exception):
                 pass
+        await self._drop_persistent_client()
         self.status = AgentStatus.IDLE
         self._persist()
 
