@@ -973,6 +973,7 @@ function buildCompactToolLine(type, content, ts) {
         try {
             const parsed = JSON.parse(body);
             if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model] || parsed.model || '?'})`;
+            else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
             else if (parsed.pattern) preview = parsed.pattern;
@@ -1352,6 +1353,22 @@ function addChatEntry(type, content, ts, anchor) {
                 div.dataset.isEdit = '1';
             } catch {}
         }
+        const isWebSearchCall = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
+        if (isWebSearchCall) {
+            try {
+                const d = JSON.parse(body);
+                const q = d.query || '';
+                header.textContent = `🌐 Searching: "${q}"`;
+                header.style.color = '#38bdf8';
+                if (d.model) {
+                    const badge = document.createElement('span');
+                    badge.textContent = d.model;
+                    badge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid #38bdf8;color:#38bdf8;opacity:0.8;vertical-align:middle;margin-left:6px';
+                    header.appendChild(badge);
+                }
+                div.dataset.isEdit = '1';
+            } catch {}
+        }
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
@@ -1503,7 +1520,7 @@ function addChatEntry(type, content, ts, anchor) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
