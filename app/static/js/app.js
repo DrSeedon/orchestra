@@ -846,8 +846,9 @@ function showImagePreview(url) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'paste-preview';
-        container.className = 'flex gap-2 px-3 py-1';
-        $('#chat-input').parentElement.insertBefore(container, $('#chat-input'));
+        container.className = 'flex flex-wrap gap-2 px-1 pb-1';
+        const inputRow = $('#chat-input').parentElement;
+        inputRow.parentElement.insertBefore(container, inputRow);
     }
     const wrap = document.createElement('div');
     wrap.className = 'relative';
