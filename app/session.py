@@ -306,50 +306,44 @@ class AgentSession:
         before_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact started (context {before_pct}%)")
 
+        if self._listen_task and not self._listen_task.done():
+            self._listen_task.cancel()
+            try:
+                await self._listen_task
+            except (asyncio.CancelledError, Exception):
+                pass
+
         summary_parts = []
-        old_client = self._client
-        if old_client:
-            try:
-                await old_client.query(COMPACT_PROMPT)
-                async for msg in old_client.receive_messages():
-                    if isinstance(msg, AssistantMessage):
-                        for block in msg.content:
-                            if isinstance(block, TextBlock) and block.text:
-                                summary_parts.append(block.text)
-                    elif isinstance(msg, ResultMessage):
-                        if msg.session_id:
-                            self.session_id = msg.session_id
-                        break
-            except Exception as e:
-                self._log("error", f"compact failed: {e}")
-                return {"ok": False, "error": str(e), "before_pct": before_pct}
-        else:
-            client = self._make_client()
-            try:
+        client = self._client or self._make_client()
+        need_connect = self._client is None
+        try:
+            if need_connect:
                 await asyncio.wait_for(client.connect(), timeout=60)
-                await client.query(COMPACT_PROMPT)
-                async for msg in client.receive_messages():
-                    if isinstance(msg, AssistantMessage):
-                        for block in msg.content:
-                            if isinstance(block, TextBlock) and block.text:
-                                summary_parts.append(block.text)
-                    elif isinstance(msg, ResultMessage):
-                        break
-            except Exception as e:
-                self._log("error", f"compact failed: {e}")
-                return {"ok": False, "error": str(e), "before_pct": before_pct}
-            finally:
-                try:
-                    await client.disconnect()
-                except Exception:
-                    pass
+            await client.query(COMPACT_PROMPT)
+            async for msg in client.receive_messages():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock) and block.text:
+                            summary_parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    if msg.session_id:
+                        self.session_id = msg.session_id
+                    break
+        except Exception as e:
+            self._log("error", f"compact failed: {e}")
+            return {"ok": False, "error": str(e), "before_pct": before_pct}
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+            self._client = None
 
         summary = "".join(summary_parts).strip()
         if not summary:
             self._log("error", "compact returned empty summary")
             return {"ok": False, "error": "empty summary", "before_pct": before_pct}
 
-        await self._disconnect_client()
         self.session_id = None
         self._persist()
 
