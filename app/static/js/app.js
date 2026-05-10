@@ -937,8 +937,17 @@ function addChatEntry(type, content, ts) {
                 if (resultSpan && !isEditTool && !isReadTool) {
                     const short = clean.length > 40 ? clean.slice(0, 40).replace(/\n/g, ' ') + '…' : clean.replace(/\n/g, ' ');
                     resultSpan.textContent = '📎 ' + short;
-                } else if (resultSpan && (isEditTool || isReadTool)) {
-                    resultSpan.textContent = isEditTool ? '📎 updated' : '📎 OK';
+                } else if (resultSpan && isEditTool) {
+                    resultSpan.textContent = '📎 updated';
+                } else if (resultSpan && isReadTool) {
+                    let readShort = 'OK';
+                    try {
+                        const colonIdx = lastC.dataset.toolContent.indexOf(':');
+                        const bd = colonIdx > 0 ? lastC.dataset.toolContent.slice(colonIdx + 1).trim() : '';
+                        const parsed = JSON.parse(bd);
+                        if (parsed.file_path) readShort = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || parsed.file_path;
+                    } catch {}
+                    resultSpan.textContent = '📖 ' + readShort;
                 }
                 lastC.dataset.resultContent = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
                 return;
@@ -1041,6 +1050,7 @@ function addChatEntry(type, content, ts) {
 
         div.dataset.lastTool = '1';
         div.dataset.toolContent = content;
+        div.dataset.toolRawName = rawName;
         div.style.cursor = 'pointer';
 
         const header = document.createElement('div');
@@ -1146,10 +1156,25 @@ function addChatEntry(type, content, ts) {
                 addTimestamp(lastTool, ts);
                 return;
             }
+            const isWebSearch = lastTool.dataset.toolRawName === 'mcp__websearch__search' ||
+                                lastTool.dataset.toolRawName === 'mcp__websearch__search_web';
+            if (isWebSearch) {
+                const wsEl = renderWebSearchResults(content);
+                if (wsEl) {
+                    const sep = document.createElement('div');
+                    sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+                    sep.appendChild(wsEl);
+                    lastTool.appendChild(sep);
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+            }
             if (lastTool.dataset.isRead) {
                 delete lastTool.dataset.lastTool;
                 const readContainer = lastTool.querySelector('.diff-view');
                 if (readContainer) {
+                    const skeletonEl = readContainer.querySelector('[data-role="read-skeleton"]');
+                    if (skeletonEl) skeletonEl.remove();
                     const readPath = readContainer.dataset.readPath || '';
                     if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
                         const img = document.createElement('img');
@@ -1217,6 +1242,7 @@ function addChatEntry(type, content, ts) {
             resultEl.style.whiteSpace = 'pre-wrap';
             resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
             resultEl.dataset.preview = preview;
+            sep.appendChild(resultEl);
             if (full) {
                 resultEl.dataset.full = full;
                 const rHint = document.createElement('div');
@@ -1226,7 +1252,6 @@ function addChatEntry(type, content, ts) {
                 rHint.dataset.role = 'expand-hint';
                 sep.appendChild(rHint);
             }
-            sep.appendChild(resultEl);
             lastTool.appendChild(sep);
             addTimestamp(lastTool, ts);
             return;
@@ -1272,6 +1297,46 @@ function addChatEntry(type, content, ts) {
     chat.appendChild(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
     if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+}
+
+// === WebSearch Results Renderer ===
+function renderWebSearchResults(raw) {
+    let data;
+    try { data = JSON.parse(raw); } catch { return null; }
+    const results = data.results || data.web?.results || data.organic_results || null;
+    if (!Array.isArray(results) || results.length === 0) return null;
+
+    const el = document.createElement('div');
+    el.className = 'websearch-results';
+    for (const r of results.slice(0, 6)) {
+        const title = r.title || r.name || '';
+        const url = r.url || r.link || r.href || '';
+        const snippet = r.snippet || r.description || r.body || '';
+        if (!title && !snippet) continue;
+        const item = document.createElement('div');
+        item.className = 'websearch-item';
+        if (title && url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.className = 'websearch-title';
+            a.textContent = title;
+            item.appendChild(a);
+        } else if (title) {
+            const t = document.createElement('div');
+            t.className = 'websearch-title';
+            t.textContent = title;
+            item.appendChild(t);
+        }
+        if (snippet) {
+            const s = document.createElement('div');
+            s.className = 'websearch-snippet';
+            s.textContent = snippet.length > 160 ? snippet.slice(0, 160) + '…' : snippet;
+            item.appendChild(s);
+        }
+        el.appendChild(item);
+    }
+    return el.children.length > 0 ? el : null;
 }
 
 // === Diff View ===
@@ -1410,6 +1475,16 @@ function renderReadView(body) {
     fileEl.textContent = `${shortPath}${offset ? ` :${offset}` : ''}${limit ? ` (${limit} lines)` : ''}`;
     fileEl.title = fp;
     container.appendChild(fileEl);
+
+    const skeleton = document.createElement('div');
+    skeleton.className = 'read-skeleton';
+    skeleton.dataset.role = 'read-skeleton';
+    for (let i = 0; i < 3; i++) {
+        const row = document.createElement('div');
+        row.className = 'read-skeleton-line';
+        skeleton.appendChild(row);
+    }
+    container.appendChild(skeleton);
 
     return container;
 }
