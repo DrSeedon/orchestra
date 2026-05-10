@@ -37,21 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#chat-input').addEventListener('paste', handlePaste);
     $('#chat-input').addEventListener('input', () => {
         const text = $('#chat-input').value;
-        pastedImages = pastedImages.filter(url => {
-            if (!text.includes(url)) {
-                const container = $('#paste-preview');
-                if (container) {
-                    container.querySelectorAll('img').forEach(img => {
-                        if (img.src === url || img.src.endsWith(url.split('/').pop())) {
-                            img.closest('.relative')?.remove();
-                        }
-                    });
-                    if (!container.children.length) container.remove();
-                }
-                return false;
+        const container = $('#paste-preview');
+        if (!container) return;
+        for (const w of [...container.querySelectorAll('[data-url]')]) {
+            const fp = w.dataset.filePath || w.dataset.url;
+            if (!text.includes(fp)) {
+                w.remove();
+                pastedImages = pastedImages.filter(u => u !== w.dataset.url);
             }
-            return true;
-        });
+        }
+        if (!container.children.length) container.remove();
     });
     $('#orch-picker').addEventListener('change', onOrchestratorChange);
     $('#new-orch-btn').addEventListener('click', () => {
@@ -849,7 +844,7 @@ async function handlePaste(e) {
             if (data.path) {
                 pastedImages.push(data.url);
                 input.value = oldText + (oldText ? '\n' : '') + data.path;
-                showImagePreview(data.url);
+                showImagePreview(data.url, data.path);
             }
         } catch (err) {
             input.value = oldText;
@@ -859,7 +854,7 @@ async function handlePaste(e) {
     }
 }
 
-function showImagePreview(url) {
+function showImagePreview(url, filePath) {
     let container = $('#paste-preview');
     if (!container) {
         container = document.createElement('div');
@@ -870,6 +865,8 @@ function showImagePreview(url) {
     }
     const wrap = document.createElement('div');
     wrap.className = 'relative';
+    wrap.dataset.url = url;
+    wrap.dataset.filePath = filePath || url;
     const img = document.createElement('img');
     img.src = url;
     img.className = 'h-16 rounded border border-slate-700';
