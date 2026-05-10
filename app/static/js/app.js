@@ -726,12 +726,14 @@ function renderImages(el, content) {
     const matches = content.match(re);
     if (!matches) return;
     for (const path of matches) {
-        const url = path.startsWith('/data/uploads/') ? '/uploads/' + path.split('/').pop() : null;
-        if (!url) continue;
+        const url = path.startsWith('/data/uploads/')
+            ? '/uploads/' + path.split('/').pop()
+            : `/api/files/raw?path=${encodeURIComponent(path)}`;
         const img = document.createElement('img');
         img.src = url;
-        img.className = 'max-h-48 rounded mt-2';
+        img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
         img.onerror = () => img.remove();
+        img.addEventListener('click', () => openFilePreview(path));
         el.appendChild(img);
     }
 }
@@ -970,6 +972,16 @@ function addChatEntry(type, content, ts) {
                 delete lastTool.dataset.lastTool;
                 const readContainer = lastTool.querySelector('.diff-view');
                 if (readContainer) {
+                    const readPath = readContainer.dataset.readPath || '';
+                    if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
+                        const img = document.createElement('img');
+                        img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}`;
+                        img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
+                        img.addEventListener('click', () => openFilePreview(readPath));
+                        readContainer.appendChild(img);
+                        addTimestamp(lastTool, ts);
+                        return;
+                    }
                     const lines = clean.split('\n').map(l => l.length > 200 ? l.slice(0, 200) + '…' : l);
                     const PREVIEW = 5;
                     const previewL = lines.slice(0, PREVIEW);
@@ -1073,6 +1085,7 @@ function addChatEntry(type, content, ts) {
         div.innerHTML = DOMPurify.sanitize(marked.parse(content));
         const agentColor = agentColors[selectedAgent];
         if (agentColor) div.style.borderLeft = `3px solid ${agentColor}`;
+        renderImages(div, content);
     }
 
     addCopyBtn(div, content);
@@ -1209,6 +1222,7 @@ function renderReadView(body) {
 
     const container = document.createElement('div');
     container.className = 'diff-view';
+    container.dataset.readPath = fp;
 
     const fileEl = document.createElement('div');
     fileEl.className = 'diff-file';
