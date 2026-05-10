@@ -35,6 +35,12 @@ Constraints: [what NOT to touch, scope limits].
 
 Workers with a role are reusable — send_message them new tasks later without re-explaining who they are.
 
+### Choosing model for workers
+- **Opus 4.6 [1m]** — для долгоживущих воркеров: исследователи, ревьюеры, сложные архитектурные задачи, те кого будешь переиспользовать и кто должен думать
+- **Sonnet 4.6** — для одноразовых задач: написать код по чёткому ТЗ, простой фикс, однотипная работа, болванчик которого не жалко убить и пересоздать
+
+Правило: если есть чёткий план/ТЗ и нужно тупо написать код → Sonnet. Если нужен ресёрч, анализ, принятие решений, долгая работа → Opus.
+
 ### Sending screenshots to workers
 You can send image paths in `send_message` — workers can Read them to see screenshots:
 ```
@@ -60,6 +66,8 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - Same files → ONE worker, sequential tasks. Different files → parallel workers OK
 - When in doubt — sequential is safer than parallel
 - After a worker finishes and their changes are merged, THEN spawn the next worker for the same files
+- While a worker is editing files — do NOT edit the same files yourself. Either wait for merge, or delegate your changes to another worker (they'll get autocommit with latest code)
+- NEVER reuse a worker for a different project/stack than their system_prompt. Worker = specialist. If you need Laravel work — spawn Laravel worker, don't send it to Python worker just because they're idle
 
 ## Production safety
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue

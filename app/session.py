@@ -84,7 +84,7 @@ class AgentSession:
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
     on_error: Optional[callable] = field(default=None, repr=False)
-    debounce_sec: float = 2.0
+    debounce_sec: float = 1.0
 
     _turn_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _debounce_task: Optional[asyncio.Task] = field(default=None, repr=False)
