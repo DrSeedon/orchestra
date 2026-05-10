@@ -39,15 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = $('#chat-input').value;
         const container = $('#paste-preview');
         if (!container) return;
-        pastedImages = pastedImages.filter(url => {
-            if (!text.includes(url)) {
-                const wraps = container.querySelectorAll('[data-url]');
-                wraps.forEach(w => { if (w.dataset.url === url) w.remove(); });
-                if (!container.children.length) container.remove();
-                return false;
+        for (const w of [...container.querySelectorAll('[data-url]')]) {
+            const fp = w.dataset.filePath || w.dataset.url;
+            if (!text.includes(fp)) {
+                w.remove();
+                pastedImages = pastedImages.filter(u => u !== w.dataset.url);
             }
-            return true;
-        });
+        }
+        if (!container.children.length) container.remove();
     });
     $('#orch-picker').addEventListener('change', onOrchestratorChange);
     $('#new-orch-btn').addEventListener('click', () => {
@@ -846,7 +845,7 @@ async function handlePaste(e) {
             if (data.path) {
                 pastedImages.push(data.url);
                 input.value = oldText + (oldText ? '\n' : '') + data.path;
-                showImagePreview(data.url);
+                showImagePreview(data.url, data.path);
             }
         } catch (err) {
             input.value = oldText;
@@ -868,6 +867,7 @@ function showImagePreview(url, filePath) {
     const wrap = document.createElement('div');
     wrap.className = 'relative';
     wrap.dataset.url = url;
+    wrap.dataset.filePath = filePath || url;
     const isImage = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(filePath || url);
     if (isImage) {
         const img = document.createElement('img');
