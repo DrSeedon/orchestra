@@ -1334,60 +1334,38 @@ function addChatEntry(type, content, ts) {
                     header.appendChild(badge);
                 }
 
+                const PREVIEW = 200;
+                const hasMoreTask = task.length > PREVIEW;
+                const expandables = [];
+
                 if (task) {
-                    const PREVIEW = 200;
-                    const previewText = task.length > PREVIEW ? task.slice(0, PREVIEW) : task;
-                    const hasMore = task.length > PREVIEW;
                     const taskEl = document.createElement('div');
                     taskEl.className = 'text-xs opacity-80 markdown-body';
-                    taskEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
+                    taskEl.innerHTML = DOMPurify.sanitize(marked.parse(hasMoreTask ? task.slice(0, PREVIEW) : task));
                     div.appendChild(taskEl);
-                    if (hasMore) {
+                    if (hasMoreTask) {
                         const restEl = document.createElement('div');
                         restEl.className = 'text-xs opacity-80 markdown-body';
                         restEl.innerHTML = DOMPurify.sanitize(marked.parse(task.slice(PREVIEW)));
                         restEl.style.display = 'none';
-                        restEl.dataset.role = 'spawn-rest';
                         div.appendChild(restEl);
-                        const restLines = task.slice(PREVIEW).split('\n').length;
-                        const hint = document.createElement('div');
-                        hint.className = 'text-xs mt-1';
-                        hint.style.cssText = 'color:#a78bfa;cursor:pointer';
-                        hint.textContent = `▼ ${restLines} more lines`;
-                        hint.dataset.role = 'spawn-hint';
-                        div.appendChild(hint);
-                        div.style.cursor = 'pointer';
-                        let spawnExpanded = false;
-                        div.addEventListener('click', (e) => {
-                            if (e.target.tagName === 'A') return;
-                            if (e.target.closest('[data-role="spawn-prompt"]')) return;
-                            spawnExpanded = !spawnExpanded;
-                            restEl.style.display = spawnExpanded ? 'block' : 'none';
-                            hint.textContent = spawnExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
-                        });
+                        expandables.push(restEl);
                     }
                 }
 
-                let spawnPromptEl = null;
-                let spawnPromptExpanded = false;
                 if (sysPrompt) {
-                    const promptToggle = document.createElement('div');
-                    promptToggle.className = 'text-xs mt-1';
-                    promptToggle.dataset.role = 'spawn-prompt';
-                    promptToggle.style.cssText = 'color:#64748b;cursor:pointer;user-select:none';
-                    promptToggle.textContent = '📋 Custom prompt';
-                    spawnPromptEl = document.createElement('div');
-                    spawnPromptEl.dataset.role = 'spawn-prompt';
-                    spawnPromptEl.style.cssText = 'display:none;margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid #1e293b;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#94a3b8;max-height:200px;overflow-y:auto';
-                    spawnPromptEl.textContent = sysPrompt;
-                    promptToggle.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        spawnPromptExpanded = !spawnPromptExpanded;
-                        spawnPromptEl.style.display = spawnPromptExpanded ? 'block' : 'none';
-                        promptToggle.textContent = spawnPromptExpanded ? '📋 Custom prompt ▲' : '📋 Custom prompt';
-                    });
-                    div.appendChild(promptToggle);
-                    div.appendChild(spawnPromptEl);
+                    const promptLabel = document.createElement('div');
+                    promptLabel.className = 'text-xs mt-2';
+                    promptLabel.style.cssText = 'color:#64748b;font-weight:500';
+                    promptLabel.textContent = '📋 System prompt';
+                    promptLabel.style.display = 'none';
+                    div.appendChild(promptLabel);
+                    expandables.push(promptLabel);
+                    const promptEl = document.createElement('div');
+                    promptEl.style.cssText = 'margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid #1e293b;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#94a3b8;max-height:200px;overflow-y:auto;display:none';
+                    promptEl.textContent = sysPrompt;
+                    div.appendChild(promptEl);
+                    expandables.push(promptEl);
                 }
 
                 if (repoPath) {
@@ -1396,6 +1374,22 @@ function addChatEntry(type, content, ts) {
                     pathEl.textContent = repoPath;
                     pathEl.title = repoPath;
                     div.appendChild(pathEl);
+                }
+
+                if (expandables.length) {
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.cssText = 'color:#a78bfa;cursor:pointer';
+                    hint.textContent = `▼ expand`;
+                    div.appendChild(hint);
+                    div.style.cursor = 'pointer';
+                    let spawnExpanded = false;
+                    div.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        spawnExpanded = !spawnExpanded;
+                        expandables.forEach(el => el.style.display = spawnExpanded ? 'block' : 'none');
+                        hint.textContent = spawnExpanded ? '▲ collapse' : '▼ expand';
+                    });
                 }
 
                 div.dataset.isEdit = '1';
