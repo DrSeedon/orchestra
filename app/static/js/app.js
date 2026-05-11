@@ -1583,8 +1583,11 @@ function addChatEntry(type, content, ts, anchor) {
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
         const escaped = clean.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const linked = escaped.replace(/(https?:\/\/[^\s\])"&]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
-        const preview = linked.length > 200 ? linked.slice(0, 200) + '…' : linked;
-        const full = linked.length > 200 ? linked : null;
+        const _resultLines = linked.split('\n');
+        const _RESULT_PREVIEW = 5;
+        const _hasMore = _resultLines.length > _RESULT_PREVIEW;
+        const preview = _hasMore ? _resultLines.slice(0, _RESULT_PREVIEW).join('\n') : linked;
+        const full = _hasMore ? linked : null;
 
         if (lastTool) {
             delete lastTool.dataset.lastTool;
@@ -1760,24 +1763,25 @@ function addChatEntry(type, content, ts, anchor) {
             if (oldCopy) oldCopy.remove();
             addCopyBtn(lastTool, lastTool.dataset.toolContent);
 
-            const sep = document.createElement('div');
-            sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
             const resultEl = document.createElement('div');
             resultEl.className = 'text-xs result-body';
-            resultEl.style.whiteSpace = 'pre-wrap';
+            resultEl.style.cssText = 'white-space:pre-wrap;margin-top:6px';
             resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
-            resultEl.dataset.preview = preview;
-            sep.appendChild(resultEl);
+            lastTool.appendChild(resultEl);
             if (full) {
-                resultEl.dataset.full = full;
                 const rHint = document.createElement('div');
                 rHint.className = 'text-xs mt-1';
-                rHint.style.color = '#38bdf8';
-                rHint.textContent = `▼ ${clean.split('\n').length - preview.split('\n').length} more lines`;
-                rHint.dataset.role = 'expand-hint';
-                sep.appendChild(rHint);
+                rHint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                rHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+                lastTool.appendChild(rHint);
+                let rExpanded = false;
+                rHint.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    rExpanded = !rExpanded;
+                    resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(rExpanded ? full : preview, {ADD_ATTR: ['target']});
+                    rHint.textContent = rExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+                });
             }
-            lastTool.appendChild(sep);
             addTimestamp(lastTool, ts);
             return;
         }
@@ -1795,29 +1799,22 @@ function addChatEntry(type, content, ts, anchor) {
             return;
         }
 
-        div.style.whiteSpace = 'pre-wrap';
-        div.style.cursor = 'pointer';
-        div.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
+        const resultBody = document.createElement('div');
+        resultBody.style.whiteSpace = 'pre-wrap';
+        resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
+        div.appendChild(resultBody);
         if (full) {
             const sHint = document.createElement('div');
             sHint.className = 'text-xs mt-1';
-            sHint.style.color = '#38bdf8';
-            sHint.textContent = `▼ ${clean.split('\n').length - preview.split('\n').length} more lines`;
+            sHint.style.cssText = 'color:#38bdf8;cursor:pointer';
+            sHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
             div.appendChild(sHint);
-        }
-        let expanded = false;
-        if (full) {
-            div.addEventListener('click', (e) => {
-                if (e.target.tagName === 'A') return;
-                expanded = !expanded;
-                div.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? full : preview, {ADD_ATTR: ['target']});
-                if (!expanded) {
-                    const h = document.createElement('div');
-                    h.className = 'text-xs mt-1';
-                    h.style.color = '#38bdf8';
-                    h.textContent = `▼ ${clean.split('\n').length - preview.split('\n').length} more lines`;
-                    div.appendChild(h);
-                }
+            let sExpanded = false;
+            sHint.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sExpanded = !sExpanded;
+                resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(sExpanded ? full : preview, {ADD_ATTR: ['target']});
+                sHint.textContent = sExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
             });
         }
     }
