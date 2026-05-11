@@ -236,7 +236,7 @@ class AgentSession:
                         }
                     self.status = AgentStatus.IDLE
                     self._persist()
-                    if self._last_context.get("percentage", 0) > 90 and not self.is_orchestrator and not getattr(self, "_compacting", False):
+                    if self._last_context.get("percentage", 0) > 90 and not getattr(self, "_compacting", False):
                         self._log("status", f"auto-compact triggered ({self._last_context['percentage']}%)")
                         asyncio.create_task(self._auto_compact())
                     if self._bg_outputs:
