@@ -48,6 +48,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!container.children.length) container.remove();
     });
+    const _rh = $('#input-resize-handle');
+    if (_rh) {
+        const _ta = $('#chat-input');
+        let _ry, _rh0;
+        _rh.addEventListener('mousedown', (e) => {
+            _ry = e.clientY;
+            _rh0 = _ta.offsetHeight;
+            const onMove = (e) => { _ta.style.height = Math.max(40, Math.min(300, _rh0 + (_ry - e.clientY))) + 'px'; };
+            const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+            e.preventDefault();
+        });
+    }
     $('#orch-picker').addEventListener('change', onOrchestratorChange);
     $('#new-orch-btn').addEventListener('click', () => {
         $('#new-orch-modal').classList.remove('hidden');
