@@ -1787,6 +1787,19 @@ function addChatEntry(type, content, ts, anchor) {
             return;
         }
 
+        const wsStandalone = renderWebSearchResults(content);
+        if (wsStandalone) {
+            const sep = document.createElement('div');
+            sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+            sep.appendChild(wsStandalone);
+            div.appendChild(sep);
+            addTimestamp(div, ts);
+            const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+            _insert(div);
+            if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+            return;
+        }
+
         div.style.whiteSpace = 'pre-wrap';
         div.style.cursor = 'pointer';
         div.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
@@ -2026,13 +2039,19 @@ function renderWebSearchResults(raw) {
         }
     }
 
-    const linksMatch = raw.match(/Links:\s*(\[[\s\S]*?\])/);
-    if (linksMatch) {
-        try {
-            const links = JSON.parse(linksMatch[1]);
+    const linksIdx = raw.indexOf('Links: [');
+    if (linksIdx >= 0) {
+        const arrStart = raw.indexOf('[', linksIdx);
+        let depth = 0, arrEnd = -1;
+        for (let i = arrStart; i < raw.length; i++) {
+            if (raw[i] === '[') depth++;
+            else if (raw[i] === ']') { depth--; if (depth === 0) { arrEnd = i + 1; break; } }
+        }
+        if (arrEnd > arrStart) try {
+            const links = JSON.parse(raw.slice(arrStart, arrEnd));
             if (Array.isArray(links) && links.length > 0) {
                 const el = document.createElement('div');
-                const textAfterLinks = raw.slice(raw.indexOf(linksMatch[0]) + linksMatch[0].length).trim();
+                const textAfterLinks = raw.slice(arrEnd).trim();
                 const body = document.createElement('div');
                 body.className = 'text-xs markdown-body';
                 body.style.cssText = 'line-height:1.5;color:#cbd5e1';
@@ -2436,9 +2455,11 @@ function _usageColor(usagePct, resetPct) {
         if (usagePct >= 50) return '#eab308';
         return '#22c55e';
     }
-    if (usagePct > resetPct + 10) return '#ef4444';
-    if (usagePct > resetPct - 10) return '#eab308';
-    return '#22c55e';
+    const diff = usagePct - resetPct;
+    if (diff < -10) return '#22c55e';
+    if (diff > 10) return '#ef4444';
+    const hue = Math.max(0, Math.min(120, 60 - diff * 6));
+    return `hsl(${hue}, 80%, 50%)`;
 }
 
 function _resetPctNum(isoStr, windowMs) {
