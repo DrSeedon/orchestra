@@ -2422,21 +2422,26 @@ let _usageData = null;
 let _usageError = false;
 let _usageCountdownInterval = null;
 
-function _usageColor(pct) {
-    if (pct >= 80) return '#ef4444';
-    if (pct >= 50) return '#eab308';
+function _usageColor(usagePct, resetPct) {
+    if (resetPct == null) {
+        if (usagePct >= 80) return '#ef4444';
+        if (usagePct >= 50) return '#eab308';
+        return '#22c55e';
+    }
+    if (usagePct > resetPct + 10) return '#ef4444';
+    if (usagePct > resetPct - 10) return '#eab308';
     return '#22c55e';
 }
 
-function _resetPct(isoStr, windowMs) {
-    if (!isoStr) return '';
+function _resetPctNum(isoStr, windowMs) {
+    if (!isoStr) return null;
     const remaining = new Date(isoStr) - Date.now();
     const elapsed = windowMs - remaining;
-    return `${Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)))}%`;
+    return Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)));
 }
 
 function _miniBar(pct, color) {
-    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:40px;height:4px;border-radius:2px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:2px;background:${color}"></span></span><span style="color:${color}">${pct}%</span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
 }
 
 function renderUsageBar() {
@@ -2447,7 +2452,7 @@ function renderUsageBar() {
         bar.style.display = 'none';
         return;
     }
-    bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:10px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
+    bar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
 
     const a = _usageData.anthropic || {};
     const o = _usageData.orchestra || {};
@@ -2457,14 +2462,16 @@ function renderUsageBar() {
 
     const fh = a.five_hour;
     if (fh) {
-        const c = _usageColor(fh.utilization);
-        const rp = fh.resets_at ? ` <span style="color:#64748b">(${_resetPct(fh.resets_at, 5 * 3600000)})</span>` : '';
+        const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
+        const c = _usageColor(fh.utilization, rpNum);
+        const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
-        const c = _usageColor(sd.utilization);
-        const rp = sd.resets_at ? ` <span style="color:#64748b">(${_resetPct(sd.resets_at, 7 * 86400000)})</span>` : '';
+        const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
+        const c = _usageColor(sd.utilization, rpNum);
+        const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}</span>`);
     }
 
