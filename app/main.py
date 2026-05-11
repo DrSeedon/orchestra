@@ -358,6 +358,25 @@ async def stop_session(name: str, req: ScopeRequest):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/rename")
+async def rename_session(name: str, req: dict):
+    scope = req.get("scope", "")
+    new_name = req.get("new_name", "").strip()
+    if not new_name:
+        return JSONResponse({"error": "new_name required"}, status_code=400)
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    from app.db import _conn
+    with _conn() as c:
+        c.execute("UPDATE sessions SET name=? WHERE id=?", (new_name, sid))
+    session = manager.sessions.get(sid)
+    if session:
+        session.name = new_name
+    return {"ok": True, "old_name": name, "new_name": new_name}
+
+
 @app.delete("/api/sessions/{name}")
 async def delete_session(name: str, scope: str):
     found = manager.get_by_name(name, scope)

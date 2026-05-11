@@ -148,6 +148,15 @@ async def kill_worker(name: str) -> str:
 
 
 @mcp.tool()
+async def rename_worker(old_name: str, new_name: str) -> str:
+    """Rename a worker agent."""
+    result = await _api("POST", f"/api/sessions/{old_name}/rename", json={"new_name": new_name, "scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Rename failed: {result['error']}"
+    return f"Worker '{old_name}' renamed to '{new_name}'."
+
+
+@mcp.tool()
 async def list_jobs() -> str:
     """List recent spawn/kill jobs."""
     jobs = await _api("GET", "/api/jobs", params={"scope": SCOPE} if SCOPE else None)
