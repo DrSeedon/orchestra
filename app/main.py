@@ -548,6 +548,21 @@ async def upload_file(file: UploadFile):
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
+@app.post("/api/tg/send_file")
+async def tg_send_file(req: dict):
+    path = req.get("path", "")
+    caption = req.get("caption", "")
+    scope = req.get("scope", "")
+    sender = req.get("sender", "")
+    if not path:
+        return JSONResponse({"error": "path required"}, status_code=400)
+    from app.tg_bridge import send_file_to_tg
+    result = await send_file_to_tg(path, caption, scope, sender)
+    if result.get("error"):
+        return JSONResponse(result, status_code=500)
+    return result
+
+
 @app.post("/api/restart")
 async def restart_server():
     import subprocess
