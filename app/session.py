@@ -135,7 +135,13 @@ class AgentSession:
             else:
                 self._prompt_injected = True
         client = await self._ensure_client()
-        await client.query(message)
+        try:
+            await client.query(message)
+        except Exception as e:
+            self._log("error", f"query failed, reconnecting: {e}")
+            await self._disconnect_client()
+            client = await self._ensure_client()
+            await client.query(message)
         if self.status == AgentStatus.IDLE:
             self._did_report = False
             self._turn_logs = []
@@ -145,7 +151,12 @@ class AgentSession:
 
     async def _ensure_client(self) -> ClaudeSDKClient:
         if self._client is not None:
-            return self._client
+            if self._listen_task and self._listen_task.done():
+                self._log("status", "listener died, reconnecting")
+                self._client = None
+                self._listen_task = None
+            else:
+                return self._client
         client = self._make_client()
         try:
             await asyncio.wait_for(client.connect(), timeout=60)
