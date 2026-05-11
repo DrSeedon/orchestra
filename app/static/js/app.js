@@ -1078,6 +1078,15 @@ function buildCompactToolLine(type, content, ts) {
     return line;
 }
 
+function _findLastBefore(parent, selector, anchor) {
+    let node = anchor ? anchor.previousElementSibling : parent.lastElementChild;
+    while (node) {
+        if (node.matches(selector)) return node;
+        node = node.previousElementSibling;
+    }
+    return null;
+}
+
 function addChatEntry(type, content, ts, anchor) {
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
@@ -1085,8 +1094,7 @@ function addChatEntry(type, content, ts, anchor) {
 
     if (window.compactMode && (type === 'tool' || type === 'tool_result')) {
         if (type === 'tool_result') {
-            const allCompact = chat.querySelectorAll('[data-compact-tool]');
-            const lastC = allCompact.length ? allCompact[allCompact.length - 1] : null;
+            const lastC = _findLastBefore(chat, '[data-compact-tool]', anchor);
             if (lastC) {
                 const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
                 const rawName = lastC.dataset.toolRaw || '';
@@ -1576,7 +1584,7 @@ function addChatEntry(type, content, ts, anchor) {
     }
     else if (type === 'tool_result') {
         const chat = $('#chat');
-        const lastTool = chat.querySelector('[data-last-tool]');
+        const lastTool = _findLastBefore(chat, '[data-last-tool]', anchor);
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
         const escaped = clean.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const linked = escaped.replace(/(https?:\/\/[^\s\])"&]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
