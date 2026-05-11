@@ -242,6 +242,7 @@ class SessionManager:
             worktree_path=db_row.get("worktree_path"), branch=db_row.get("branch"),
             created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
             is_orchestrator=is_orch,
+            color=db_row.get("color") or self._pick_color(),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], is_orch),
         )
         pct = db_row.get("context_pct", 0) or 0
