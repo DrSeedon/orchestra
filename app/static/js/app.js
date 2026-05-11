@@ -484,12 +484,35 @@ async function loadOrchestrators() {
     } catch {}
 }
 
+function _applyTabOrder(list) {
+    const saved = JSON.parse(localStorage.getItem('tabOrder') || '[]');
+    if (!saved.length) return list;
+    return [...list].sort((a, b) => {
+        const ai = saved.indexOf(a.name);
+        const bi = saved.indexOf(b.name);
+        if (ai >= 0 && bi >= 0) return ai - bi;
+        if (ai >= 0) return -1;
+        if (bi >= 0) return 1;
+        return 0;
+    });
+}
+
+function _saveTabOrder() {
+    const tabs = $('#orch-tabs');
+    const order = [...tabs.querySelectorAll('.orch-tab')].map(t => t.dataset.orchName);
+    localStorage.setItem('tabOrder', JSON.stringify(order));
+}
+
 function renderOrchTabs(sorted) {
     const tabs = $('#orch-tabs');
     tabs.innerHTML = '';
-    for (const o of sorted) {
+    const ordered = _applyTabOrder(sorted);
+    let dragTab = null;
+    for (const o of ordered) {
         const tab = document.createElement('button');
         tab.className = `orch-tab ${o.name === selectedAgent && o.scope === currentScope ? 'active' : ''}`;
+        tab.dataset.orchName = o.name;
+        tab.draggable = true;
         const dot = document.createElement('span');
         dot.className = 'tab-dot';
         dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
@@ -499,6 +522,43 @@ function renderOrchTabs(sorted) {
         tab.append(dot, label);
         tab.title = o.scope;
         tab.addEventListener('click', () => selectOrchestrator(o.name, o.scope));
+        tab.addEventListener('dragstart', (e) => {
+            dragTab = tab;
+            tab.style.opacity = '0.4';
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        tab.addEventListener('dragend', () => {
+            tab.style.opacity = '';
+            dragTab = null;
+            tabs.querySelectorAll('.orch-tab').forEach(t => t.style.borderLeft = '');
+        });
+        tab.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (!dragTab || dragTab === tab) return;
+            const rect = tab.getBoundingClientRect();
+            const mid = rect.left + rect.width / 2;
+            tabs.querySelectorAll('.orch-tab').forEach(t => t.style.borderLeft = '');
+            if (e.clientX < mid) {
+                tab.style.borderLeft = '2px solid #6366f1';
+            } else {
+                const next = tab.nextElementSibling;
+                if (next) next.style.borderLeft = '2px solid #6366f1';
+            }
+        });
+        tab.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!dragTab || dragTab === tab) return;
+            const rect = tab.getBoundingClientRect();
+            const mid = rect.left + rect.width / 2;
+            if (e.clientX < mid) {
+                tabs.insertBefore(dragTab, tab);
+            } else {
+                tabs.insertBefore(dragTab, tab.nextSibling);
+            }
+            tabs.querySelectorAll('.orch-tab').forEach(t => t.style.borderLeft = '');
+            _saveTabOrder();
+        });
         tabs.appendChild(tab);
     }
 }
