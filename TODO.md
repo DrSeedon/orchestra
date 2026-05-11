@@ -7,6 +7,8 @@
 - [ ] **Git tree view** — git branches/commits visualization in dashboard
 - [ ] **Auto-merge worker** — auto merge worker branches with conflict detection
 - [ ] **Stop vs Kill** — `stop_worker` = interrupt + idle (can inspect), `kill_worker` = full delete
+- [ ] **HTML артефакты** — агент генерит HTML (отчёт, план, сравнение вариантов) → сохраняет в файл → preview в дашборде или send_file в TG. Идея из https://habr.com/ru/articles/1033326/
+- [ ] **Rename worker** — MCP tool для переименования воркера (name в DB, но branch/worktree проблематично)
 
 ## Done (v2.5.0)
 - [x] **Usage status bar** — OAuth API, 5h/7d bars, HSL gradient, `/api/usage` endpoint
