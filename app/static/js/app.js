@@ -1244,25 +1244,20 @@ function addChatEntry(type, content, ts, anchor) {
                 const msg = d.message || '';
                 header.textContent = `📨 → ${to}`;
                 header.style.color = '#a78bfa';
-                const previewText = msg.length > 200 ? msg.slice(0, 200) : msg;
-                const hasMore = msg.length > 200;
-                const previewEl = document.createElement('div');
-                previewEl.className = 'text-xs opacity-80 markdown-body';
-                previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
-                div.appendChild(previewEl);
+                const lines = msg.split('\n');
+                const PREVIEW_LINES = 5;
+                const hasMore = lines.length > PREVIEW_LINES;
+                const previewText = hasMore ? lines.slice(0, PREVIEW_LINES).join('\n') : msg;
+                const msgEl = document.createElement('div');
+                msgEl.className = 'text-xs opacity-80 markdown-body';
+                msgEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
+                div.appendChild(msgEl);
                 if (hasMore) {
-                    const restEl = document.createElement('div');
-                    restEl.className = 'text-xs opacity-80 markdown-body';
-                    restEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.slice(200)));
-                    restEl.style.display = 'none';
-                    restEl.dataset.role = 'send-rest';
-                    div.appendChild(restEl);
-                    const restLines = msg.slice(200).split('\n').length;
                     const hint = document.createElement('div');
                     hint.className = 'text-xs mt-1';
                     hint.style.color = '#a78bfa';
                     hint.style.cursor = 'pointer';
-                    hint.textContent = `▼ ${restLines} more lines`;
+                    hint.textContent = `▼ ${lines.length - PREVIEW_LINES} more lines`;
                     hint.dataset.role = 'send-hint';
                     div.appendChild(hint);
                     div.style.cursor = 'pointer';
@@ -1270,8 +1265,8 @@ function addChatEntry(type, content, ts, anchor) {
                     div.addEventListener('click', (e) => {
                         if (e.target.tagName === 'A') return;
                         sendExpanded = !sendExpanded;
-                        restEl.style.display = sendExpanded ? 'block' : 'none';
-                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
+                        msgEl.innerHTML = DOMPurify.sanitize(marked.parse(sendExpanded ? msg : previewText));
+                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${lines.length - PREVIEW_LINES} more lines`;
                     });
                 }
                 div.dataset.isEdit = '1';
