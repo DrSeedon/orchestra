@@ -1913,6 +1913,73 @@ function renderGrepResults(raw, pattern) {
 }
 
 // === WebSearch Results Renderer ===
+function _wsCompactLinks(links) {
+    const div = document.createElement('div');
+    div.style.cssText = 'margin-top:6px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5)';
+    for (const [i, r] of links.slice(0, 8).entries()) {
+        const title = r.title || r.name || '';
+        const url = r.url || r.link || r.href || '';
+        if (!url) continue;
+        let domain = '';
+        try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.style.cssText = 'display:block;font-size:10px;margin-top:2px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
+        a.onmouseenter = () => a.style.color = '#94a3b8';
+        a.onmouseleave = () => a.style.color = '#64748b';
+        a.textContent = `[${i + 1}] ${title || domain}${title && domain ? ' — ' + domain : ''}`;
+        div.appendChild(a);
+    }
+    return div.children.length > 0 ? div : null;
+}
+
+function _wsCollapsible(el) {
+    const PREVIEW_LINES = 5;
+    const PREVIEW_HEIGHT = PREVIEW_LINES * 18;
+    const body = el.querySelector('.markdown-body');
+    if (!body) return el;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'websearch-results';
+    while (el.firstChild) wrapper.appendChild(el.firstChild);
+
+    body.style.maxHeight = PREVIEW_HEIGHT + 'px';
+    body.style.overflow = 'hidden';
+
+    const hint = document.createElement('div');
+    hint.style.cssText = 'color:#38bdf8;font-size:10px;cursor:pointer;margin-top:4px';
+    hint.textContent = '▼ expand';
+    let expanded = false;
+
+    const linksEl = wrapper.querySelector('[style*="border-top"]');
+
+    if (linksEl) linksEl.style.display = 'none';
+
+    hint.addEventListener('click', (e) => {
+        e.stopPropagation();
+        expanded = !expanded;
+        body.style.maxHeight = expanded ? 'none' : PREVIEW_HEIGHT + 'px';
+        body.style.overflow = expanded ? 'visible' : 'hidden';
+        hint.textContent = expanded ? '▲ collapse' : '▼ expand';
+        if (linksEl) linksEl.style.display = expanded ? 'block' : 'none';
+    });
+
+    wrapper.appendChild(hint);
+    if (linksEl) wrapper.appendChild(linksEl);
+
+    requestAnimationFrame(() => {
+        if (body.scrollHeight <= PREVIEW_HEIGHT + 4) {
+            hint.style.display = 'none';
+            body.style.maxHeight = 'none';
+            body.style.overflow = 'visible';
+            if (linksEl) linksEl.style.display = 'block';
+        }
+    });
+
+    return wrapper;
+}
+
 function renderWebSearchResults(raw) {
     let data;
     try { data = JSON.parse(raw); } catch { data = null; }
@@ -1920,61 +1987,34 @@ function renderWebSearchResults(raw) {
     if (data) {
         if (data.result && typeof data.result === 'string') {
             const el = document.createElement('div');
-            el.className = 'websearch-results';
             const body = document.createElement('div');
             body.className = 'text-xs markdown-body';
             body.style.cssText = 'line-height:1.5;color:#cbd5e1';
             body.innerHTML = DOMPurify.sanitize(marked.parse(data.result));
             el.appendChild(body);
             if (Array.isArray(data.citations) && data.citations.length > 0) {
-                const citDiv = document.createElement('div');
-                citDiv.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5)';
-                data.citations.forEach((url, i) => {
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.target = '_blank';
-                    a.className = 'websearch-title';
-                    a.style.cssText = 'display:block;font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-                    a.textContent = `[${i + 1}] ${url}`;
-                    citDiv.appendChild(a);
-                });
-                el.appendChild(citDiv);
+                const links = data.citations.map((url, i) => ({ title: '', url }));
+                const linksEl = _wsCompactLinks(links);
+                if (linksEl) el.appendChild(linksEl);
             }
-            return el;
+            return _wsCollapsible(el);
         }
         const results = data.results || data.web?.results || data.organic_results || null;
         if (Array.isArray(results) && results.length > 0) {
             const el = document.createElement('div');
-            el.className = 'websearch-results';
-            for (const r of results.slice(0, 6)) {
+            const body = document.createElement('div');
+            body.className = 'text-xs markdown-body';
+            body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+            const md = results.slice(0, 6).map((r, i) => {
                 const title = r.title || r.name || '';
                 const url = r.url || r.link || r.href || '';
                 const snippet = r.snippet || r.description || r.body || '';
-                if (!title && !snippet) continue;
-                const item = document.createElement('div');
-                item.className = 'websearch-item';
-                if (title && url) {
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.target = '_blank';
-                    a.className = 'websearch-title';
-                    a.textContent = title;
-                    item.appendChild(a);
-                } else if (title) {
-                    const t = document.createElement('div');
-                    t.className = 'websearch-title';
-                    t.textContent = title;
-                    item.appendChild(t);
-                }
-                if (snippet) {
-                    const s = document.createElement('div');
-                    s.className = 'websearch-snippet';
-                    s.textContent = snippet.length > 160 ? snippet.slice(0, 160) + '…' : snippet;
-                    item.appendChild(s);
-                }
-                el.appendChild(item);
-            }
-            return el.children.length > 0 ? el : null;
+                const link = url ? `[${title || url}](${url})` : (title || '');
+                return `**${i + 1}.** ${link}${snippet ? '\n' + snippet : ''}`;
+            }).join('\n\n');
+            body.innerHTML = DOMPurify.sanitize(marked.parse(md));
+            el.appendChild(body);
+            return _wsCollapsible(el);
         }
     }
 
@@ -1984,44 +2024,44 @@ function renderWebSearchResults(raw) {
             const links = JSON.parse(linksMatch[1]);
             if (Array.isArray(links) && links.length > 0) {
                 const el = document.createElement('div');
-                el.className = 'websearch-results';
-                for (const r of links.slice(0, 6)) {
-                    const title = r.title || r.name || '';
-                    const url = r.url || r.link || '';
-                    if (!title && !url) continue;
-                    const item = document.createElement('div');
-                    item.className = 'websearch-item';
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.target = '_blank';
-                    a.className = 'websearch-title';
-                    a.textContent = title || url;
-                    item.appendChild(a);
-                    el.appendChild(item);
-                }
                 const textAfterLinks = raw.slice(raw.indexOf(linksMatch[0]) + linksMatch[0].length).trim();
+                const body = document.createElement('div');
+                body.className = 'text-xs markdown-body';
+                body.style.cssText = 'line-height:1.5;color:#cbd5e1';
                 if (textAfterLinks) {
-                    const body = document.createElement('div');
-                    body.className = 'text-xs markdown-body';
-                    body.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5);line-height:1.5;color:#cbd5e1';
                     body.innerHTML = DOMPurify.sanitize(marked.parse(textAfterLinks));
-                    el.appendChild(body);
+                } else {
+                    const md = links.slice(0, 8).map((r, i) => {
+                        const title = r.title || r.name || '';
+                        const url = r.url || r.link || '';
+                        return `**${i + 1}.** [${title || url}](${url})`;
+                    }).join('\n\n');
+                    body.innerHTML = DOMPurify.sanitize(marked.parse(md));
                 }
-                return el.children.length > 0 ? el : null;
+                el.appendChild(body);
+                const linksEl = _wsCompactLinks(links);
+                if (linksEl) el.appendChild(linksEl);
+                return _wsCollapsible(el);
             }
         } catch {}
     }
 
-    if (raw.match(/^_.*?\|.*?tokens.*?\|.*?\$[\d.]+_/m) || raw.match(/^#{1,3}\s/m)) {
+    const metaMatch = raw.match(/^_(.*?\|.*?tokens.*?\|.*?\$[\d.]+)_\s*/m);
+    if (metaMatch || raw.match(/^#{1,3}\s/m)) {
         const el = document.createElement('div');
-        el.className = 'websearch-results';
-        let text = raw.replace(/^_.*?\|.*?tokens.*?\|.*?\$[\d.]+_\s*/m, '').trim();
+        if (metaMatch) {
+            const meta = document.createElement('div');
+            meta.style.cssText = 'font-size:10px;color:#64748b;margin-bottom:4px';
+            meta.textContent = metaMatch[1].replace(/^_|_$/g, '').trim();
+            el.appendChild(meta);
+        }
+        const text = metaMatch ? raw.slice(raw.indexOf(metaMatch[0]) + metaMatch[0].length).trim() : raw;
         const body = document.createElement('div');
         body.className = 'text-xs markdown-body';
         body.style.cssText = 'line-height:1.5;color:#cbd5e1';
         body.innerHTML = DOMPurify.sanitize(marked.parse(text));
         el.appendChild(body);
-        return el;
+        return _wsCollapsible(el);
     }
 
     return null;
@@ -2382,21 +2422,26 @@ let _usageData = null;
 let _usageError = false;
 let _usageCountdownInterval = null;
 
-function _usageColor(pct) {
-    if (pct >= 80) return '#ef4444';
-    if (pct >= 50) return '#eab308';
+function _usageColor(usagePct, resetPct) {
+    if (resetPct == null) {
+        if (usagePct >= 80) return '#ef4444';
+        if (usagePct >= 50) return '#eab308';
+        return '#22c55e';
+    }
+    if (usagePct > resetPct + 10) return '#ef4444';
+    if (usagePct > resetPct - 10) return '#eab308';
     return '#22c55e';
 }
 
-function _resetPct(isoStr, windowMs) {
-    if (!isoStr) return '';
+function _resetPctNum(isoStr, windowMs) {
+    if (!isoStr) return null;
     const remaining = new Date(isoStr) - Date.now();
     const elapsed = windowMs - remaining;
-    return `${Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)))}%`;
+    return Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)));
 }
 
 function _miniBar(pct, color) {
-    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:40px;height:4px;border-radius:2px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:2px;background:${color}"></span></span><span style="color:${color}">${pct}%</span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
 }
 
 function renderUsageBar() {
@@ -2407,7 +2452,7 @@ function renderUsageBar() {
         bar.style.display = 'none';
         return;
     }
-    bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:10px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
+    bar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
 
     const a = _usageData.anthropic || {};
     const o = _usageData.orchestra || {};
@@ -2417,14 +2462,16 @@ function renderUsageBar() {
 
     const fh = a.five_hour;
     if (fh) {
-        const c = _usageColor(fh.utilization);
-        const rp = fh.resets_at ? ` <span style="color:#64748b">(${_resetPct(fh.resets_at, 5 * 3600000)})</span>` : '';
+        const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
+        const c = _usageColor(fh.utilization, rpNum);
+        const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
-        const c = _usageColor(sd.utilization);
-        const rp = sd.resets_at ? ` <span style="color:#64748b">(${_resetPct(sd.resets_at, 7 * 86400000)})</span>` : '';
+        const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
+        const c = _usageColor(sd.utilization, rpNum);
+        const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}</span>`);
     }
 
