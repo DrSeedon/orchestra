@@ -1106,9 +1106,17 @@ function addChatEntry(type, content, ts, anchor) {
     const chat = $('#chat');
     const _insert = (el) => anchor ? chat.insertBefore(el, anchor) : chat.appendChild(el);
 
+    const _isBase64Image = type === 'tool_result' && (content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"'));
+
     if (window.compactMode && (type === 'tool' || type === 'tool_result')) {
         if (type === 'tool_result') {
             const lastC = _findLastBefore(chat, '[data-compact-tool]', anchor);
+            if (lastC && _isBase64Image) {
+                const resultSpan = lastC.querySelector('.compact-result');
+                if (resultSpan) resultSpan.textContent = '🖼 image';
+                lastC.dataset.resultContent = '[image]';
+                return;
+            }
             if (lastC) {
                 const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
                 const rawName = lastC.dataset.toolRaw || '';
@@ -1599,6 +1607,31 @@ function addChatEntry(type, content, ts, anchor) {
     else if (type === 'tool_result') {
         const chat = $('#chat');
         const lastTool = _findLastBefore(chat, '[data-last-tool]', anchor);
+        if (_isBase64Image) {
+            const b64Match = content.match(/data['":\s]+['"]([A-Za-z0-9+/=\s]{100,})['"]/);
+            if (lastTool) delete lastTool.dataset.lastTool;
+            const target = lastTool || div;
+            if (b64Match) {
+                const img = document.createElement('img');
+                img.src = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
+                img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
+                img.addEventListener('click', () => { window.open(img.src, '_blank'); });
+                target.appendChild(img);
+            } else {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'text-xs';
+                placeholder.style.cssText = 'color:#64748b;margin-top:4px';
+                placeholder.textContent = '🖼 [Image result]';
+                target.appendChild(placeholder);
+            }
+            addTimestamp(target, ts);
+            if (!lastTool) {
+                const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+                _insert(div);
+                if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+            }
+            return;
+        }
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
         const escaped = clean.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const linked = escaped.replace(/(https?:\/\/[^\s\])"&]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
@@ -1795,17 +1828,17 @@ function addChatEntry(type, content, ts, anchor) {
             lastTool.appendChild(resultEl);
             if (full) {
                 const rHint = document.createElement('div');
-                rHint.className = 'text-xs mt-1';
+                rHint.className = 'text-xs mt-1 result-hint';
                 rHint.style.cssText = 'color:#38bdf8;cursor:pointer';
                 rHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
                 lastTool.appendChild(rHint);
                 let rExpanded = false;
-                rHint.addEventListener('click', (e) => {
-                    e.stopPropagation();
+                const toggleResult = () => {
                     rExpanded = !rExpanded;
                     resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(rExpanded ? full : preview, {ADD_ATTR: ['target']});
                     rHint.textContent = rExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
-                });
+                };
+                lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleResult(); });
             }
             addTimestamp(lastTool, ts);
             return;
@@ -1835,12 +1868,13 @@ function addChatEntry(type, content, ts, anchor) {
             sHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
             div.appendChild(sHint);
             let sExpanded = false;
-            sHint.addEventListener('click', (e) => {
-                e.stopPropagation();
+            const toggleStandalone = () => {
                 sExpanded = !sExpanded;
                 resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(sExpanded ? full : preview, {ADD_ATTR: ['target']});
                 sHint.textContent = sExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
-            });
+            };
+            div.style.cursor = 'pointer';
+            div.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleStandalone(); });
         }
     }
     else if (type === 'error') { div.textContent = content; }
