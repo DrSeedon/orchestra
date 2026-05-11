@@ -2021,10 +2021,12 @@ function renderWebSearchResults(raw) {
         }
     }
 
-    const linksMatch = raw.match(/Links:\s*(\[[\s\S]*?\])/);
+    const linksMatch = raw.match(/Links:\s*(\[[\s\S]*?\])/) || raw.match(/Links:\s*(\[[\s\S]*)/);
     if (linksMatch) {
         try {
-            const links = JSON.parse(linksMatch[1]);
+            let jsonStr = linksMatch[1];
+            if (!jsonStr.endsWith(']')) jsonStr = jsonStr.replace(/,?\s*\{[^}]*$/, '') + ']';
+            const links = JSON.parse(jsonStr);
             if (Array.isArray(links) && links.length > 0) {
                 const el = document.createElement('div');
                 const textAfterLinks = raw.slice(raw.indexOf(linksMatch[0]) + linksMatch[0].length).trim();
