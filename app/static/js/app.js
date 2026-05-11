@@ -15,6 +15,10 @@ window.compactMode = localStorage.getItem('compactToolMode') === 'true';
 
 const $ = (s) => document.querySelector(s);
 
+DOMPurify.addHook('uponSanitizeElement', (node) => {
+    if (['STYLE', 'HTML', 'HEAD', 'BODY', 'META', 'LINK', 'TITLE', 'SCRIPT'].includes(node.tagName)) node.remove();
+});
+
 function saveDraft() {
     if (selectedAgent) drafts[selectedAgent] = { text: $('#chat-input').value, images: [...pastedImages] };
 }
