@@ -1377,7 +1377,6 @@ function addChatEntry(type, content, ts, anchor) {
                     badge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid #38bdf8;color:#38bdf8;opacity:0.8;vertical-align:middle;margin-left:6px';
                     header.appendChild(badge);
                 }
-                div.dataset.isEdit = '1';
             } catch {}
         }
         const isToolSearchCall = rawName === 'ToolSearch';
@@ -1387,7 +1386,6 @@ function addChatEntry(type, content, ts, anchor) {
                 const q = d.query || '';
                 header.textContent = `🔍 Loading: ${q}`;
                 header.style.color = '#38bdf8';
-                div.dataset.isEdit = '1';
             } catch {}
         }
         const isBashTool = rawName === 'Bash';
@@ -1917,81 +1915,116 @@ function renderGrepResults(raw, pattern) {
 // === WebSearch Results Renderer ===
 function renderWebSearchResults(raw) {
     let data;
-    try { data = JSON.parse(raw); } catch {
-        const linksMatch = raw.match(/Links:\s*(\[\{.*?\}\])/s);
-        if (linksMatch) {
-            try {
-                const links = JSON.parse(linksMatch[1]);
-                data = { results: links };
-            } catch { return null; }
-            const textBefore = raw.slice(0, raw.indexOf('Links:')).replace(/^Web search results for query:.*\n+/i, '').trim();
-            if (textBefore) data.result = textBefore;
-        } else if (raw.length > 50) {
-            data = { result: raw };
-        } else {
-            return null;
+    try { data = JSON.parse(raw); } catch { data = null; }
+
+    if (data) {
+        if (data.result && typeof data.result === 'string') {
+            const el = document.createElement('div');
+            el.className = 'websearch-results';
+            const body = document.createElement('div');
+            body.className = 'text-xs markdown-body';
+            body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+            body.innerHTML = DOMPurify.sanitize(marked.parse(data.result));
+            el.appendChild(body);
+            if (Array.isArray(data.citations) && data.citations.length > 0) {
+                const citDiv = document.createElement('div');
+                citDiv.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5)';
+                data.citations.forEach((url, i) => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.className = 'websearch-title';
+                    a.style.cssText = 'display:block;font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                    a.textContent = `[${i + 1}] ${url}`;
+                    citDiv.appendChild(a);
+                });
+                el.appendChild(citDiv);
+            }
+            return el;
+        }
+        const results = data.results || data.web?.results || data.organic_results || null;
+        if (Array.isArray(results) && results.length > 0) {
+            const el = document.createElement('div');
+            el.className = 'websearch-results';
+            for (const r of results.slice(0, 6)) {
+                const title = r.title || r.name || '';
+                const url = r.url || r.link || r.href || '';
+                const snippet = r.snippet || r.description || r.body || '';
+                if (!title && !snippet) continue;
+                const item = document.createElement('div');
+                item.className = 'websearch-item';
+                if (title && url) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.className = 'websearch-title';
+                    a.textContent = title;
+                    item.appendChild(a);
+                } else if (title) {
+                    const t = document.createElement('div');
+                    t.className = 'websearch-title';
+                    t.textContent = title;
+                    item.appendChild(t);
+                }
+                if (snippet) {
+                    const s = document.createElement('div');
+                    s.className = 'websearch-snippet';
+                    s.textContent = snippet.length > 160 ? snippet.slice(0, 160) + '…' : snippet;
+                    item.appendChild(s);
+                }
+                el.appendChild(item);
+            }
+            return el.children.length > 0 ? el : null;
         }
     }
 
-    if (data.result && typeof data.result === 'string') {
+    const linksMatch = raw.match(/Links:\s*(\[[\s\S]*?\])/);
+    if (linksMatch) {
+        try {
+            const links = JSON.parse(linksMatch[1]);
+            if (Array.isArray(links) && links.length > 0) {
+                const el = document.createElement('div');
+                el.className = 'websearch-results';
+                for (const r of links.slice(0, 6)) {
+                    const title = r.title || r.name || '';
+                    const url = r.url || r.link || '';
+                    if (!title && !url) continue;
+                    const item = document.createElement('div');
+                    item.className = 'websearch-item';
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.className = 'websearch-title';
+                    a.textContent = title || url;
+                    item.appendChild(a);
+                    el.appendChild(item);
+                }
+                const textAfterLinks = raw.slice(raw.indexOf(linksMatch[0]) + linksMatch[0].length).trim();
+                if (textAfterLinks) {
+                    const body = document.createElement('div');
+                    body.className = 'text-xs markdown-body';
+                    body.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5);line-height:1.5;color:#cbd5e1';
+                    body.innerHTML = DOMPurify.sanitize(marked.parse(textAfterLinks));
+                    el.appendChild(body);
+                }
+                return el.children.length > 0 ? el : null;
+            }
+        } catch {}
+    }
+
+    if (raw.match(/^_.*?\|.*?tokens.*?\|.*?\$[\d.]+_/m) || raw.match(/^#{1,3}\s/m)) {
         const el = document.createElement('div');
         el.className = 'websearch-results';
+        let text = raw.replace(/^_.*?\|.*?tokens.*?\|.*?\$[\d.]+_\s*/m, '').trim();
         const body = document.createElement('div');
         body.className = 'text-xs markdown-body';
         body.style.cssText = 'line-height:1.5;color:#cbd5e1';
-        body.innerHTML = DOMPurify.sanitize(marked.parse(data.result));
+        body.innerHTML = DOMPurify.sanitize(marked.parse(text));
         el.appendChild(body);
-        if (Array.isArray(data.citations) && data.citations.length > 0) {
-            const citDiv = document.createElement('div');
-            citDiv.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5)';
-            data.citations.forEach((url, i) => {
-                const a = document.createElement('a');
-                a.href = url;
-                a.target = '_blank';
-                a.className = 'websearch-title';
-                a.style.cssText = 'display:block;font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-                a.textContent = `[${i + 1}] ${url}`;
-                citDiv.appendChild(a);
-            });
-            el.appendChild(citDiv);
-        }
         return el;
     }
 
-    const results = data.results || data.web?.results || data.organic_results || null;
-    if (!Array.isArray(results) || results.length === 0) return null;
-
-    const el = document.createElement('div');
-    el.className = 'websearch-results';
-    for (const r of results.slice(0, 6)) {
-        const title = r.title || r.name || '';
-        const url = r.url || r.link || r.href || '';
-        const snippet = r.snippet || r.description || r.body || '';
-        if (!title && !snippet) continue;
-        const item = document.createElement('div');
-        item.className = 'websearch-item';
-        if (title && url) {
-            const a = document.createElement('a');
-            a.href = url;
-            a.target = '_blank';
-            a.className = 'websearch-title';
-            a.textContent = title;
-            item.appendChild(a);
-        } else if (title) {
-            const t = document.createElement('div');
-            t.className = 'websearch-title';
-            t.textContent = title;
-            item.appendChild(t);
-        }
-        if (snippet) {
-            const s = document.createElement('div');
-            s.className = 'websearch-snippet';
-            s.textContent = snippet.length > 160 ? snippet.slice(0, 160) + '…' : snippet;
-            item.appendChild(s);
-        }
-        el.appendChild(item);
-    }
-    return el.children.length > 0 ? el : null;
+    return null;
 }
 
 // === Diff View ===
@@ -2359,8 +2392,10 @@ function _formatCountdown(isoStr) {
     if (!isoStr) return '';
     const diff = new Date(isoStr) - Date.now();
     if (diff <= 0) return 'now';
-    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
+    if (d > 0) return `${d}d ${h}h`;
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
@@ -2387,12 +2422,14 @@ function renderUsageBar() {
     const fh = a.five_hour;
     if (fh) {
         const c = _usageColor(fh.utilization);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}</span>`);
+        const reset = fh.resets_at ? ` <span style="color:#64748b">(${_formatCountdown(fh.resets_at)})</span>` : '';
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${reset}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
         const c = _usageColor(sd.utilization);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}</span>`);
+        const reset = sd.resets_at ? ` <span style="color:#64748b">(${_formatCountdown(sd.resets_at)})</span>` : '';
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${reset}</span>`);
     }
 
     const models = [
@@ -2404,16 +2441,6 @@ function renderUsageBar() {
         if (!m) continue;
         const c = _usageColor(m.utilization);
         parts.push(`<span style="padding:0 5px;border:1px solid ${c};border-radius:9999px;color:${c};font-size:9px">${name}: ${m.utilization}%</span>`);
-    }
-
-    let nearestReset = null;
-    for (const tier of [fh, sd, a.seven_day_opus, a.seven_day_sonnet, a.seven_day_haiku]) {
-        if (!tier?.resets_at) continue;
-        const t = new Date(tier.resets_at);
-        if (!nearestReset || t < nearestReset) nearestReset = t;
-    }
-    if (nearestReset) {
-        parts.push(`<span style="color:#64748b">⏱ ${_formatCountdown(nearestReset.toISOString())}</span>`);
     }
 
     parts.push('<span style="flex:1"></span>');
