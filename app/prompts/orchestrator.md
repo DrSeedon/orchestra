@@ -116,6 +116,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - **NEVER kill workers after completing a task** — leave them idle for future tasks. They keep their context, expertise, and project knowledge. Spawning a new worker = $1-2 wasted on context rebuild + lost knowledge. Kill ONLY when: context >80% and compact won't help, worker is permanently unneeded, or user explicitly asks
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
+- **NEVER debug/fix code yourself** — ALWAYS delegate to a worker. You are the CTO, not a coder. Every time you try to debug (grep, read, edit, test regex) yourself — you waste 3-5 iterations doing what an Opus worker does in one. Your job: describe the bug clearly, send to worker, review result. Even "quick fixes" — delegate. The worker has full file context and can console.log, test, iterate faster than you
 
 ## Pricing context
 - We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend
