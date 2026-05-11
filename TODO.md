@@ -1,17 +1,16 @@
 # Orchestra TODO
 
 ## Next
+- [ ] **Task Context Space** — `task_context` param in `spawn_worker()`. Points to a folder (e.g. `docs/tasks/victoria-fsm/`), Orchestra auto-adds "Read TASK.md and PLAN.md from <path> before starting" to worker system_prompt. Convention: `docs/tasks/<slug>/` with TASK.md, PLAN.md, RESEARCH.md, CONTEXT.md, REVIEW.md. Feature request from Parsing-orchestrator
 - [ ] **Global SSE stream** — replace polling with single EventSource for all dashboard updates
-- [ ] **Orchestra skill** — `/orchestra` slash command from any Claude Code session
-- [ ] **Watchdog** — auto-ping worker if idle >10min without send_message after receiving task
-- [ ] **TG images** — картинки из чата (screenshots, uploads) не отображаются в Telegram bridge. На фронте видны, в TG — нет. Нужно отправлять через bot.send_photo()
-- [ ] **Git tree view** — визуализация git веток/коммитов в дашборде (как в Cursor Source Control)
-- [ ] **Usage status bar** — в header дашборда показывать:
-  - Session % (5h block) — из OAuth API `https://api.anthropic.com/api/oauth/usage`
-  - Weekly % (7d rolling) — оттуда же
-  - Per-model: Opus %, Sonnet % — оттуда же
-  - Auth: OAuth token из `~/.claude/.credentials.json` + refresh через `https://platform.claude.com/v1/oauth/token`
-  - Кеш: 60 сек TTL, backend endpoint `/api/usage`
-  - Frontend: progress bars в header рядом со stats
-- [ ] **Auto-merge worker** — автоматический merge веток воркеров с conflict detection. Если конфликт → спросить оркестратора вместо тихого фейла
-- [ ] **Stop vs Kill разделение** — MCP tools: `stop_worker(name)` = interrupt текущий turn, воркер idle, можно посмотреть логи/diff. `kill_worker(name)` = полное удаление. Сейчас kill сразу удаляет без возможности проверить результат
+- [ ] **TG images** — send screenshots/uploads via bot.send_photo() to TG bridge
+- [ ] **Git tree view** — git branches/commits visualization in dashboard
+- [ ] **Auto-merge worker** — auto merge worker branches with conflict detection
+- [ ] **Stop vs Kill** — `stop_worker` = interrupt + idle (can inspect), `kill_worker` = full delete
+
+## Done (v2.5.0)
+- [x] **Usage status bar** — OAuth API, 5h/7d bars, HSL gradient, `/api/usage` endpoint
+- [x] **Persistent client** — mid-turn inject via `query()`, auto-reconnect
+- [x] **TG flood fix** — turn-based batching, 37→11 calls/turn
+- [x] **Custom bubbles** — spawn_worker, WebSearch, WebFetch, ToolSearch, report_bug
+- [x] **Auto-compact orchestrators** — enabled for all agents
