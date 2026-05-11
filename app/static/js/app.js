@@ -2388,15 +2388,11 @@ function _usageColor(pct) {
     return '#22c55e';
 }
 
-function _formatCountdown(isoStr) {
+function _resetPct(isoStr, windowMs) {
     if (!isoStr) return '';
-    const diff = new Date(isoStr) - Date.now();
-    if (diff <= 0) return 'now';
-    const d = Math.floor(diff / 86400000);
-    const h = Math.floor((diff % 86400000) / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    if (d > 0) return `${d}d ${h}h`;
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const remaining = new Date(isoStr) - Date.now();
+    const elapsed = windowMs - remaining;
+    return `${Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)))}%`;
 }
 
 function _miniBar(pct, color) {
@@ -2422,25 +2418,14 @@ function renderUsageBar() {
     const fh = a.five_hour;
     if (fh) {
         const c = _usageColor(fh.utilization);
-        const reset = fh.resets_at ? ` <span style="color:#64748b">(${_formatCountdown(fh.resets_at)})</span>` : '';
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${reset}</span>`);
+        const rp = fh.resets_at ? ` <span style="color:#64748b">(${_resetPct(fh.resets_at, 5 * 3600000)})</span>` : '';
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
         const c = _usageColor(sd.utilization);
-        const reset = sd.resets_at ? ` <span style="color:#64748b">(${_formatCountdown(sd.resets_at)})</span>` : '';
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${reset}</span>`);
-    }
-
-    const models = [
-        ['Opus', a.seven_day_opus],
-        ['Sonnet', a.seven_day_sonnet],
-        ['Haiku', a.seven_day_haiku],
-    ];
-    for (const [name, m] of models) {
-        if (!m) continue;
-        const c = _usageColor(m.utilization);
-        parts.push(`<span style="padding:0 5px;border:1px solid ${c};border-radius:9999px;color:${c};font-size:9px">${name}: ${m.utilization}%</span>`);
+        const rp = sd.resets_at ? ` <span style="color:#64748b">(${_resetPct(sd.resets_at, 7 * 86400000)})</span>` : '';
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}</span>`);
     }
 
     parts.push('<span style="flex:1"></span>');
