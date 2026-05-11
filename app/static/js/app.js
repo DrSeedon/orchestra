@@ -991,6 +991,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
+            else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
             else if (parsed.pattern) preview = parsed.pattern;
@@ -1125,9 +1126,13 @@ function addChatEntry(type, content, ts, anchor) {
                 const isReadTool = rawName === 'Read';
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
+                const isWebFetchCompact = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
                 const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
                 const resultSpan = lastC.querySelector('.compact-result');
-                if (resultSpan && isBugReportCompact) {
+                if (resultSpan && isWebFetchCompact) {
+                    const short = clean.length > 40 ? clean.replace(/\n/g, ' ').slice(0, 40) + '…' : clean.replace(/\n/g, ' ');
+                    resultSpan.textContent = '📎 ' + short;
+                } else if (resultSpan && isBugReportCompact) {
                     resultSpan.textContent = '✅ reported';
                 } else if (resultSpan && isToolSearch) {
                     let toolName = '';
@@ -1450,6 +1455,50 @@ function addChatEntry(type, content, ts, anchor) {
                 }
             } catch {}
         }
+        const isWebFetch = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
+        if (isWebFetch) {
+            try {
+                const d = JSON.parse(body);
+                const url = d.url || '';
+                let domain = '?';
+                try { domain = new URL(url).hostname; } catch {}
+                header.textContent = `🌐 Fetching: ${domain}`;
+                header.style.color = '#38bdf8';
+                if (url) {
+                    const linkEl = document.createElement('a');
+                    linkEl.href = url;
+                    linkEl.target = '_blank';
+                    linkEl.style.cssText = 'display:block;font-size:10px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
+                    linkEl.textContent = url;
+                    linkEl.onmouseenter = () => linkEl.style.color = '#94a3b8';
+                    linkEl.onmouseleave = () => linkEl.style.color = '#64748b';
+                    div.appendChild(linkEl);
+                }
+                if (d.prompt) {
+                    const promptEl = document.createElement('div');
+                    promptEl.className = 'text-xs';
+                    promptEl.style.cssText = 'margin-top:4px;color:#94a3b8;max-height:90px;overflow:hidden;white-space:pre-wrap';
+                    promptEl.textContent = d.prompt;
+                    div.appendChild(promptEl);
+                    if (d.prompt.split('\n').length > 5 || d.prompt.length > 300) {
+                        const hint = document.createElement('div');
+                        hint.className = 'text-xs mt-1';
+                        hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                        hint.textContent = '▼ expand';
+                        div.appendChild(hint);
+                        let fetchExpanded = false;
+                        div.style.cursor = 'pointer';
+                        div.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            fetchExpanded = !fetchExpanded;
+                            promptEl.style.maxHeight = fetchExpanded ? 'none' : '90px';
+                            promptEl.style.overflow = fetchExpanded ? 'visible' : 'hidden';
+                            hint.textContent = fetchExpanded ? '▲ collapse' : '▼ expand';
+                        });
+                    }
+                }
+            } catch {}
+        }
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
@@ -1601,7 +1650,7 @@ function addChatEntry(type, content, ts, anchor) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
@@ -1693,6 +1742,33 @@ function addChatEntry(type, content, ts, anchor) {
             if (lastTool.dataset.toolRawName === 'mcp__orchestra__report_bug') {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 if (hdr) { hdr.textContent = '✅ Bug reported'; hdr.style.color = '#22c55e'; }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            const isWebFetchResult = lastTool.dataset.toolRawName === 'WebFetch' || lastTool.dataset.toolRawName === 'mcp__websearch__web_fetch';
+            if (isWebFetchResult) {
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'text-xs markdown-body';
+                bodyEl.style.cssText = 'margin-top:6px;line-height:1.5;color:#cbd5e1;max-height:90px;overflow:hidden';
+                bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
+                lastTool.appendChild(bodyEl);
+                const fetchLines = clean.split('\n');
+                if (fetchLines.length > 5) {
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                    hint.textContent = `▼ ${fetchLines.length - 5} more lines`;
+                    lastTool.appendChild(hint);
+                    let wfExpanded = false;
+                    lastTool.style.cursor = 'pointer';
+                    lastTool.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        wfExpanded = !wfExpanded;
+                        bodyEl.style.maxHeight = wfExpanded ? 'none' : '90px';
+                        bodyEl.style.overflow = wfExpanded ? 'visible' : 'hidden';
+                        hint.textContent = wfExpanded ? '▲ collapse' : `▼ ${fetchLines.length - 5} more lines`;
+                    });
+                }
                 addTimestamp(lastTool, ts);
                 return;
             }
