@@ -1377,7 +1377,6 @@ function addChatEntry(type, content, ts, anchor) {
                     badge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid #38bdf8;color:#38bdf8;opacity:0.8;vertical-align:middle;margin-left:6px';
                     header.appendChild(badge);
                 }
-                div.dataset.isEdit = '1';
             } catch {}
         }
         const isToolSearchCall = rawName === 'ToolSearch';
@@ -1387,7 +1386,6 @@ function addChatEntry(type, content, ts, anchor) {
                 const q = d.query || '';
                 header.textContent = `🔍 Loading: ${q}`;
                 header.style.color = '#38bdf8';
-                div.dataset.isEdit = '1';
             } catch {}
         }
         const isBashTool = rawName === 'Bash';
@@ -1917,67 +1915,116 @@ function renderGrepResults(raw, pattern) {
 // === WebSearch Results Renderer ===
 function renderWebSearchResults(raw) {
     let data;
-    try { data = JSON.parse(raw); } catch { return null; }
+    try { data = JSON.parse(raw); } catch { data = null; }
 
-    if (data.result && typeof data.result === 'string') {
+    if (data) {
+        if (data.result && typeof data.result === 'string') {
+            const el = document.createElement('div');
+            el.className = 'websearch-results';
+            const body = document.createElement('div');
+            body.className = 'text-xs markdown-body';
+            body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+            body.innerHTML = DOMPurify.sanitize(marked.parse(data.result));
+            el.appendChild(body);
+            if (Array.isArray(data.citations) && data.citations.length > 0) {
+                const citDiv = document.createElement('div');
+                citDiv.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5)';
+                data.citations.forEach((url, i) => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.className = 'websearch-title';
+                    a.style.cssText = 'display:block;font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                    a.textContent = `[${i + 1}] ${url}`;
+                    citDiv.appendChild(a);
+                });
+                el.appendChild(citDiv);
+            }
+            return el;
+        }
+        const results = data.results || data.web?.results || data.organic_results || null;
+        if (Array.isArray(results) && results.length > 0) {
+            const el = document.createElement('div');
+            el.className = 'websearch-results';
+            for (const r of results.slice(0, 6)) {
+                const title = r.title || r.name || '';
+                const url = r.url || r.link || r.href || '';
+                const snippet = r.snippet || r.description || r.body || '';
+                if (!title && !snippet) continue;
+                const item = document.createElement('div');
+                item.className = 'websearch-item';
+                if (title && url) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.className = 'websearch-title';
+                    a.textContent = title;
+                    item.appendChild(a);
+                } else if (title) {
+                    const t = document.createElement('div');
+                    t.className = 'websearch-title';
+                    t.textContent = title;
+                    item.appendChild(t);
+                }
+                if (snippet) {
+                    const s = document.createElement('div');
+                    s.className = 'websearch-snippet';
+                    s.textContent = snippet.length > 160 ? snippet.slice(0, 160) + '…' : snippet;
+                    item.appendChild(s);
+                }
+                el.appendChild(item);
+            }
+            return el.children.length > 0 ? el : null;
+        }
+    }
+
+    const linksMatch = raw.match(/Links:\s*(\[[\s\S]*?\])/);
+    if (linksMatch) {
+        try {
+            const links = JSON.parse(linksMatch[1]);
+            if (Array.isArray(links) && links.length > 0) {
+                const el = document.createElement('div');
+                el.className = 'websearch-results';
+                for (const r of links.slice(0, 6)) {
+                    const title = r.title || r.name || '';
+                    const url = r.url || r.link || '';
+                    if (!title && !url) continue;
+                    const item = document.createElement('div');
+                    item.className = 'websearch-item';
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.className = 'websearch-title';
+                    a.textContent = title || url;
+                    item.appendChild(a);
+                    el.appendChild(item);
+                }
+                const textAfterLinks = raw.slice(raw.indexOf(linksMatch[0]) + linksMatch[0].length).trim();
+                if (textAfterLinks) {
+                    const body = document.createElement('div');
+                    body.className = 'text-xs markdown-body';
+                    body.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5);line-height:1.5;color:#cbd5e1';
+                    body.innerHTML = DOMPurify.sanitize(marked.parse(textAfterLinks));
+                    el.appendChild(body);
+                }
+                return el.children.length > 0 ? el : null;
+            }
+        } catch {}
+    }
+
+    if (raw.match(/^_.*?\|.*?tokens.*?\|.*?\$[\d.]+_/m) || raw.match(/^#{1,3}\s/m)) {
         const el = document.createElement('div');
         el.className = 'websearch-results';
+        let text = raw.replace(/^_.*?\|.*?tokens.*?\|.*?\$[\d.]+_\s*/m, '').trim();
         const body = document.createElement('div');
         body.className = 'text-xs markdown-body';
         body.style.cssText = 'line-height:1.5;color:#cbd5e1';
-        body.innerHTML = DOMPurify.sanitize(marked.parse(data.result));
+        body.innerHTML = DOMPurify.sanitize(marked.parse(text));
         el.appendChild(body);
-        if (Array.isArray(data.citations) && data.citations.length > 0) {
-            const citDiv = document.createElement('div');
-            citDiv.style.cssText = 'margin-top:8px;padding-top:6px;border-top:1px solid rgba(51,65,85,0.5)';
-            data.citations.forEach((url, i) => {
-                const a = document.createElement('a');
-                a.href = url;
-                a.target = '_blank';
-                a.className = 'websearch-title';
-                a.style.cssText = 'display:block;font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-                a.textContent = `[${i + 1}] ${url}`;
-                citDiv.appendChild(a);
-            });
-            el.appendChild(citDiv);
-        }
         return el;
     }
 
-    const results = data.results || data.web?.results || data.organic_results || null;
-    if (!Array.isArray(results) || results.length === 0) return null;
-
-    const el = document.createElement('div');
-    el.className = 'websearch-results';
-    for (const r of results.slice(0, 6)) {
-        const title = r.title || r.name || '';
-        const url = r.url || r.link || r.href || '';
-        const snippet = r.snippet || r.description || r.body || '';
-        if (!title && !snippet) continue;
-        const item = document.createElement('div');
-        item.className = 'websearch-item';
-        if (title && url) {
-            const a = document.createElement('a');
-            a.href = url;
-            a.target = '_blank';
-            a.className = 'websearch-title';
-            a.textContent = title;
-            item.appendChild(a);
-        } else if (title) {
-            const t = document.createElement('div');
-            t.className = 'websearch-title';
-            t.textContent = title;
-            item.appendChild(t);
-        }
-        if (snippet) {
-            const s = document.createElement('div');
-            s.className = 'websearch-snippet';
-            s.textContent = snippet.length > 160 ? snippet.slice(0, 160) + '…' : snippet;
-            item.appendChild(s);
-        }
-        el.appendChild(item);
-    }
-    return el.children.length > 0 ? el : null;
+    return null;
 }
 
 // === Diff View ===
