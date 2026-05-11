@@ -14,6 +14,7 @@ CONTEXT_LIMITS = {
 
 ALIASES = {
     "opus": "claude-opus-4-6[1m]",
+    "claude-opus-4-6": "claude-opus-4-6[1m]",
     "sonnet": "claude-sonnet-4-6",
     "haiku": "claude-haiku-4-5",
 }
