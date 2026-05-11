@@ -343,11 +343,64 @@ async function openFilePreview(path) {
             };
             contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content, { renderer }), { ADD_ATTR: ['loading'] });
         } else {
-            contentEl.className = 'flex-1 overflow-auto text-xs p-4 text-slate-300';
-            contentEl.style.whiteSpace = 'pre';
-            contentEl.style.overflowX = 'auto';
-            contentEl.style.wordWrap = 'normal';
-            contentEl.textContent = data.content;
+            const ext = (path.match(/\.(\w+)$/)?.[1] || '').toLowerCase();
+            const LANG_MAP = {
+                py:'python',js:'javascript',ts:'typescript',jsx:'javascript',tsx:'typescript',
+                html:'xml',css:'css',json:'json',xml:'xml',yaml:'yaml',yml:'yaml',
+                sh:'bash',bash:'bash',sql:'sql',go:'go',rs:'rust',php:'php',
+                rb:'ruby',java:'java',kt:'kotlin',swift:'swift',c:'c',cpp:'cpp',
+                toml:'ini',ini:'ini',dockerfile:'dockerfile',
+            };
+            const raw = data.content.replace(/^\s*\d+\t/gm, '');
+
+            if ((ext === 'csv' || ext === 'tsv') && raw.trim()) {
+                const sep = ext === 'tsv' ? '\t' : ',';
+                const rows = raw.trim().split('\n').map(r => r.split(sep));
+                contentEl.className = 'flex-1 overflow-auto text-xs p-4 markdown-body';
+                contentEl.style.cssText = '';
+                let html = '<table><thead><tr>';
+                for (const h of (rows[0] || [])) html += `<th>${DOMPurify.sanitize(h.trim())}</th>`;
+                html += '</tr></thead><tbody>';
+                for (const row of rows.slice(1)) {
+                    html += '<tr>';
+                    for (const cell of row) html += `<td>${DOMPurify.sanitize(cell.trim())}</td>`;
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+                contentEl.innerHTML = html;
+            } else if (ext === 'json') {
+                let pretty = raw;
+                try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch {}
+                contentEl.className = 'flex-1 overflow-auto text-xs p-4';
+                contentEl.style.cssText = '';
+                const pre = document.createElement('pre');
+                pre.style.cssText = 'margin:0;background:transparent';
+                const code = document.createElement('code');
+                code.className = 'language-json';
+                code.textContent = pretty;
+                pre.appendChild(code);
+                contentEl.innerHTML = '';
+                contentEl.appendChild(pre);
+                if (window.hljs) hljs.highlightElement(code);
+            } else if (LANG_MAP[ext] && window.hljs) {
+                contentEl.className = 'flex-1 overflow-auto text-xs p-4';
+                contentEl.style.cssText = '';
+                const pre = document.createElement('pre');
+                pre.style.cssText = 'margin:0;background:transparent';
+                const code = document.createElement('code');
+                code.className = `language-${LANG_MAP[ext]}`;
+                code.textContent = raw;
+                pre.appendChild(code);
+                contentEl.innerHTML = '';
+                contentEl.appendChild(pre);
+                hljs.highlightElement(code);
+            } else {
+                contentEl.className = 'flex-1 overflow-auto text-xs p-4 text-slate-300';
+                contentEl.style.whiteSpace = 'pre';
+                contentEl.style.overflowX = 'auto';
+                contentEl.style.wordWrap = 'normal';
+                contentEl.textContent = raw;
+            }
         }
     } catch (e) {
         contentEl.textContent = `Error: ${e.message}`;
