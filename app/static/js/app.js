@@ -990,6 +990,7 @@ function buildCompactToolLine(type, content, ts) {
             if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model] || parsed.model || '?'})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
+            else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
             else if (parsed.pattern) preview = parsed.pattern;
@@ -1123,9 +1124,12 @@ function addChatEntry(type, content, ts, anchor) {
                 const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
                 const isReadTool = rawName === 'Read';
                 const isToolSearch = rawName === 'ToolSearch';
+                const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
                 const resultSpan = lastC.querySelector('.compact-result');
-                if (resultSpan && isToolSearch) {
+                if (resultSpan && isBugReportCompact) {
+                    resultSpan.textContent = '✅ reported';
+                } else if (resultSpan && isToolSearch) {
                     let toolName = '';
                     try { const d = JSON.parse(content); toolName = d.tool_name || ''; } catch {}
                     if (!toolName) { const m = clean.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
@@ -1413,6 +1417,39 @@ function addChatEntry(type, content, ts, anchor) {
                 header.style.color = '#38bdf8';
             } catch {}
         }
+        const isBugReport = rawName === 'mcp__orchestra__report_bug';
+        if (isBugReport) {
+            try {
+                const d = JSON.parse(body);
+                header.textContent = `🐛 Bug: ${d.title || '?'}`;
+                header.style.color = '#f97316';
+                if (d.description) {
+                    const descLines = d.description.split('\n');
+                    const PREVIEW = 5;
+                    const descEl = document.createElement('div');
+                    descEl.className = 'text-xs markdown-body';
+                    descEl.style.cssText = 'margin-top:4px;max-height:90px;overflow:hidden;line-height:1.5;color:#cbd5e1';
+                    descEl.innerHTML = DOMPurify.sanitize(marked.parse(d.description));
+                    div.appendChild(descEl);
+                    if (descLines.length > PREVIEW) {
+                        const hint = document.createElement('div');
+                        hint.className = 'text-xs mt-1';
+                        hint.style.cssText = 'color:#f97316;cursor:pointer';
+                        hint.textContent = '▼ expand';
+                        div.appendChild(hint);
+                        let bugExpanded = false;
+                        div.style.cursor = 'pointer';
+                        div.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            bugExpanded = !bugExpanded;
+                            descEl.style.maxHeight = bugExpanded ? 'none' : '90px';
+                            descEl.style.overflow = bugExpanded ? 'visible' : 'hidden';
+                            hint.textContent = bugExpanded ? '▲ collapse' : '▼ expand';
+                        });
+                    }
+                }
+            } catch {}
+        }
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
@@ -1564,7 +1601,7 @@ function addChatEntry(type, content, ts, anchor) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
@@ -1650,6 +1687,12 @@ function addChatEntry(type, content, ts, anchor) {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 if (hdr && toolName) hdr.textContent = `✅ Loaded: ${toolName}`;
                 else if (hdr) hdr.textContent = '✅ Tool loaded';
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'mcp__orchestra__report_bug') {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (hdr) { hdr.textContent = '✅ Bug reported'; hdr.style.color = '#22c55e'; }
                 addTimestamp(lastTool, ts);
                 return;
             }
@@ -1746,13 +1789,14 @@ function addChatEntry(type, content, ts, anchor) {
                             }
                         });
                         let mdExpanded = false;
-                        moreEl.addEventListener('click', (e) => {
-                            e.stopPropagation();
+                        const toggleMd = () => {
                             mdExpanded = !mdExpanded;
                             mdEl.style.maxHeight = mdExpanded ? 'none' : MD_PREVIEW_H + 'px';
                             mdEl.style.overflow = mdExpanded ? 'visible' : 'hidden';
                             moreEl.textContent = mdExpanded ? '▲ collapse' : '▼ more';
-                        });
+                        };
+                        lastTool.style.cursor = 'pointer';
+                        lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleMd(); });
                         addTimestamp(lastTool, ts);
                         return;
                     }
@@ -2023,17 +2067,18 @@ function _wsCollapsible(el) {
 
     if (linksEl) linksEl.style.display = 'none';
 
-    hint.addEventListener('click', (e) => {
-        e.stopPropagation();
+    const toggleWs = () => {
         expanded = !expanded;
         body.style.maxHeight = expanded ? 'none' : PREVIEW_HEIGHT + 'px';
         body.style.overflow = expanded ? 'visible' : 'hidden';
         hint.textContent = expanded ? '▲ collapse' : '▼ expand';
         if (linksEl) linksEl.style.display = expanded ? 'block' : 'none';
-    });
+    };
 
     if (linksEl) wrapper.appendChild(linksEl);
     wrapper.appendChild(hint);
+    wrapper.style.cursor = 'pointer';
+    wrapper.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleWs(); });
 
     requestAnimationFrame(() => {
         if (body.scrollHeight <= PREVIEW_HEIGHT + 4) {
