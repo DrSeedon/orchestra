@@ -948,6 +948,18 @@ function updateStopButton(status) {
     }
 }
 
+function _showImageOverlay(src) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:9999;cursor:pointer';
+    const bigImg = document.createElement('img');
+    bigImg.src = src;
+    bigImg.style.cssText = 'max-width:90vw;max-height:90vh;object-fit:contain';
+    overlay.appendChild(bigImg);
+    overlay.addEventListener('click', () => overlay.remove());
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } });
+    document.body.appendChild(overlay);
+}
+
 function addTimestamp(el, ts) {
     if (!el || !ts || el.querySelector('.chat-time')) return;
     const d = new Date(ts);
@@ -1109,7 +1121,7 @@ function addChatEntry(type, content, ts, anchor) {
             const img = document.createElement('img');
             img.src = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
             img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;cursor:pointer';
-            img.addEventListener('click', () => { window.open(img.src, '_blank'); });
+            img.addEventListener('click', () => _showImageOverlay(img.src));
             div.appendChild(img);
         } else {
             div.textContent = '🖼 [Image]';
@@ -1717,7 +1729,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const img = document.createElement('img');
                 img.src = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
                 img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
-                img.addEventListener('click', () => { window.open(img.src, '_blank'); });
+                img.addEventListener('click', () => _showImageOverlay(img.src));
                 target.appendChild(img);
             } else {
                 const placeholder = document.createElement('div');
