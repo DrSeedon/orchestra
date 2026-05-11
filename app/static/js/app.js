@@ -1050,45 +1050,32 @@ function buildCompactToolLine(type, content, ts) {
             }
             fullBubble = document.createElement('div');
             fullBubble.className = 'ml-4 mb-1';
-            const inner = document.createElement('div');
-            inner.className = 'px-3 py-2 rounded-lg text-sm break-words chat-tool';
             const tempContent = line.dataset.toolContent;
             const tempResult = line.dataset.resultContent || '';
-            const fakeDiv = { appendChild: (el) => inner.appendChild(el), dataset: {}, style: {}, querySelector: () => null };
-            const ci = tempContent.indexOf(':');
-            const rn = ci > 0 ? tempContent.slice(0, ci).trim() : tempContent.slice(0, 30);
-            const bd = ci > 0 ? tempContent.slice(ci + 1).trim() : '';
-            const fi = toolIcon(rn), sn = toolShortName(rn);
-            const isO = rn.startsWith('mcp__orchestra__');
-            const hdr = document.createElement('div');
-            hdr.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
-            hdr.style.color = isO ? '#a78bfa' : '#38bdf8';
-            hdr.textContent = `${fi} ${sn}`;
-            inner.appendChild(hdr);
-            const isEditTool = rn === 'Edit' || rn === 'MultiEdit' || rn === 'Write';
-            const isReadTool = rn === 'Read';
-            const diffEl = isEditTool ? renderEditDiff(bd) : null;
-            const readEl = isReadTool ? renderReadView(bd) : null;
-            if (readEl) inner.appendChild(readEl);
-            else if (diffEl) inner.appendChild(diffEl);
-            else if (bd) {
-                const bEl = document.createElement('div');
-                bEl.style.whiteSpace = 'pre-wrap';
-                bEl.className = 'text-xs opacity-70';
-                bEl.textContent = bd.length > 200 ? bd.slice(0, 200) + '…' : bd;
-                inner.appendChild(bEl);
-            }
+            const savedCompact = window.compactMode;
+            window.compactMode = false;
+            const anchor = line.nextSibling;
+            const chat = $('#chat');
+            const sentinel = document.createElement('span');
+            sentinel.style.display = 'none';
+            if (anchor) chat.insertBefore(sentinel, anchor);
+            else chat.appendChild(sentinel);
+            addChatEntry('tool', tempContent, null, sentinel);
             if (tempResult) {
-                const sep = document.createElement('div');
-                sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-                const rEl = document.createElement('div');
-                rEl.className = 'text-xs';
-                rEl.style.whiteSpace = 'pre-wrap';
-                rEl.textContent = '📎 ' + (tempResult.length > 200 ? tempResult.slice(0, 200) + '…' : tempResult);
-                sep.appendChild(rEl);
-                inner.appendChild(sep);
+                addChatEntry('tool_result', tempResult, null, sentinel);
             }
-            fullBubble.appendChild(inner);
+            window.compactMode = savedCompact;
+            const rendered = [];
+            let node = line.nextSibling;
+            while (node && node !== sentinel) {
+                rendered.push(node);
+                node = node.nextSibling;
+            }
+            sentinel.remove();
+            for (const el of rendered) {
+                el.remove();
+                fullBubble.appendChild(el);
+            }
             line.after(fullBubble);
         });
     } else {
