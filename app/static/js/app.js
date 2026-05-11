@@ -1676,30 +1676,36 @@ function addChatEntry(type, content, ts, anchor) {
                     if (skeletonEl) skeletonEl.remove();
                     const readPath = readContainer.dataset.readPath || '';
                     if (/\.md$/i.test(readPath)) {
-                        const PREVIEW_CHARS = 500;
-                        const previewMd = clean.length > PREVIEW_CHARS ? clean.slice(0, PREVIEW_CHARS) : clean;
-                        const previewEl = document.createElement('div');
-                        previewEl.className = 'markdown-body';
-                        previewEl.style.cssText = 'padding:6px 8px;font-size:11px';
-                        previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewMd));
-                        readContainer.appendChild(previewEl);
-                        if (clean.length > PREVIEW_CHARS) {
-                            const restMd = clean.slice(PREVIEW_CHARS);
-                            const restEl = document.createElement('div');
-                            restEl.className = 'markdown-body';
-                            restEl.style.cssText = 'padding:0 8px 6px;font-size:11px';
-                            restEl.dataset.role = 'read-rest';
-                            restEl.style.display = 'none';
-                            restEl.innerHTML = DOMPurify.sanitize(marked.parse(restMd));
-                            readContainer.appendChild(restEl);
-                            const moreEl = document.createElement('div');
-                            moreEl.className = 'diff-file';
-                            moreEl.dataset.role = 'read-more';
-                            moreEl.dataset.count = restMd.length;
-                            moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                            moreEl.textContent = `▼ more`;
-                            readContainer.appendChild(moreEl);
-                        }
+                        const mdEl = document.createElement('div');
+                        mdEl.className = 'markdown-body';
+                        mdEl.style.cssText = 'padding:6px 8px;font-size:11px';
+                        mdEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
+                        const MD_PREVIEW_H = 90;
+                        mdEl.style.maxHeight = MD_PREVIEW_H + 'px';
+                        mdEl.style.overflow = 'hidden';
+                        readContainer.appendChild(mdEl);
+                        const moreEl = document.createElement('div');
+                        moreEl.className = 'diff-file';
+                        moreEl.dataset.role = 'read-more';
+                        moreEl.dataset.count = '0';
+                        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                        moreEl.textContent = '▼ more';
+                        readContainer.appendChild(moreEl);
+                        requestAnimationFrame(() => {
+                            if (mdEl.scrollHeight <= MD_PREVIEW_H + 4) {
+                                moreEl.style.display = 'none';
+                                mdEl.style.maxHeight = 'none';
+                                mdEl.style.overflow = 'visible';
+                            }
+                        });
+                        let mdExpanded = false;
+                        moreEl.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            mdExpanded = !mdExpanded;
+                            mdEl.style.maxHeight = mdExpanded ? 'none' : MD_PREVIEW_H + 'px';
+                            mdEl.style.overflow = mdExpanded ? 'visible' : 'hidden';
+                            moreEl.textContent = mdExpanded ? '▲ collapse' : '▼ more';
+                        });
                         addTimestamp(lastTool, ts);
                         return;
                     }
@@ -1978,8 +1984,8 @@ function _wsCollapsible(el) {
         if (linksEl) linksEl.style.display = expanded ? 'block' : 'none';
     });
 
-    wrapper.appendChild(hint);
     if (linksEl) wrapper.appendChild(linksEl);
+    wrapper.appendChild(hint);
 
     requestAnimationFrame(() => {
         if (body.scrollHeight <= PREVIEW_HEIGHT + 4) {
