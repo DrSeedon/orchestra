@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -34,6 +35,13 @@ COLOR_PALETTE = [
 ]
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
+
+_IDENTITY_PLACEHOLDERS = re.compile(r"\{(worker_name|orchestrator_name|scope|branch)\}")
+
+
+def _safe_format_prompt(template: str, **kwargs: str) -> str:
+    """Substitute only known identity placeholders, leaving other {braces} intact."""
+    return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
 
 
 def _read_prompt(name: str) -> str:
@@ -139,7 +147,8 @@ class SessionManager:
 
             if not is_orchestrator:
                 orch_name = self._find_orchestrator_name(scope)
-                session.system_prompt = session.system_prompt.format(
+                session.system_prompt = _safe_format_prompt(
+                    session.system_prompt,
                     worker_name=name, orchestrator_name=orch_name or "orchestrator",
                     scope=scope, branch=session.branch or "main",
                 )
@@ -241,19 +250,21 @@ class SessionManager:
             from app.models import CONTEXT_LIMITS
             max_t = CONTEXT_LIMITS.get(db_row["model"], 200000)
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
+        orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None
         if not is_orch:
-            orch_name = self._find_orchestrator_name(db_row["scope"])
-            try:
-                current_prompt = current_prompt.format(
-                    worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
-                    scope=db_row["scope"], branch=db_row.get("branch") or "main",
-                )
-            except (KeyError, ValueError):
-                pass
+            current_prompt = _safe_format_prompt(
+                current_prompt,
+                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
+                scope=db_row["scope"], branch=db_row.get("branch") or "main",
+            )
         if old_prompt and old_prompt != current_prompt:
-            base_role = (ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT())
-            if old_prompt.startswith(base_role) and len(old_prompt) > len(base_role):
-                custom_part = old_prompt[len(base_role):]
+            formatted_base = _safe_format_prompt(
+                (ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT()),
+                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
+                scope=db_row["scope"], branch=db_row.get("branch") or "main",
+            )
+            if old_prompt.startswith(formatted_base) and len(old_prompt) > len(formatted_base):
+                custom_part = old_prompt[len(formatted_base):]
                 current_prompt = current_prompt + custom_part
         session._current_prompt = current_prompt
         if not is_orch:
