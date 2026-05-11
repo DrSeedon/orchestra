@@ -114,3 +114,5 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .markdown-body td { background: transparent; color: #cbd5e1; font-size: 12px; }
 .markdown-body tr:nth-child(even) td { background: rgba(30,41,59,0.3); }
 .markdown-body input[type="checkbox"] { margin-right: 4px; accent-color: #6366f1; }
+#file-preview-content pre { background: transparent !important; margin: 0; }
+#file-preview-content code.hljs { background: transparent !important; padding: 0; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.5; }
