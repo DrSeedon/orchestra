@@ -2547,6 +2547,15 @@ function getFileIcon(name, isDir) {
     return FILE_ICONS[ext] || '📄';
 }
 
+function _getExpandedFolders() {
+    try { return new Set(JSON.parse(localStorage.getItem('expandedFolders_' + currentScope) || '[]')); } catch { return new Set(); }
+}
+function _saveExpandedFolder(path, expanded) {
+    const set = _getExpandedFolders();
+    if (expanded) set.add(path); else set.delete(path);
+    localStorage.setItem('expandedFolders_' + currentScope, JSON.stringify([...set]));
+}
+
 async function loadFileTree(path, container) {
     container.innerHTML = '<div class="text-slate-600 px-2">Loading...</div>';
     try {
@@ -2567,9 +2576,14 @@ async function loadFileTree(path, container) {
             });
 
             if (f.is_dir) {
-                let expanded = false;
+                const savedExpanded = _getExpandedFolders();
+                let expanded = savedExpanded.has(f.path);
                 const children = document.createElement('div');
-                children.className = 'file-children hidden';
+                children.className = 'file-children' + (expanded ? '' : ' hidden');
+                if (expanded) {
+                    item.textContent = `📂 ${f.name}`;
+                    loadFileTree(f.path, children);
+                }
                 item.addEventListener('click', async () => {
                     expanded = !expanded;
                     if (expanded && children.children.length === 0) {
@@ -2577,6 +2591,7 @@ async function loadFileTree(path, container) {
                     }
                     children.classList.toggle('hidden', !expanded);
                     item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+                    _saveExpandedFolder(f.path, expanded);
                 });
                 const wrapper = document.createElement('div');
                 wrapper.appendChild(item);
