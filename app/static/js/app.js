@@ -1108,7 +1108,28 @@ function addChatEntry(type, content, ts, anchor) {
     const chat = $('#chat');
     const _insert = (el) => anchor ? chat.insertBefore(el, anchor) : chat.appendChild(el);
 
-    const _isBase64Image = type === 'tool_result' && (content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"'));
+    const _isBase64Image = content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"') || /['"]?data['"]?\s*[:=]\s*['"][A-Za-z0-9+/=\s]{500,}['"]/.test(content);
+
+    if (_isBase64Image && type !== 'tool' && type !== 'tool_result') {
+        const div = document.createElement('div');
+        div.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot';
+        const b64Match = content.match(/['"]?data['"]?\s*[:=]\s*['"]([A-Za-z0-9+/=\s]{500,})['"]/);
+        if (b64Match) {
+            const img = document.createElement('img');
+            img.src = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
+            img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;cursor:pointer';
+            img.addEventListener('click', () => { window.open(img.src, '_blank'); });
+            div.appendChild(img);
+        } else {
+            div.textContent = '🖼 [Image]';
+            div.style.color = '#64748b';
+        }
+        addTimestamp(div, ts);
+        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        _insert(div);
+        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        return;
+    }
 
     if (window.compactMode && (type === 'tool' || type === 'tool_result')) {
         if (type === 'tool_result') {
@@ -1690,7 +1711,11 @@ function addChatEntry(type, content, ts, anchor) {
         const lastTool = _findLastBefore(chat, '[data-last-tool]', anchor);
         if (_isBase64Image) {
             const b64Match = content.match(/data['":\s]+['"]([A-Za-z0-9+/=\s]{100,})['"]/);
-            if (lastTool) delete lastTool.dataset.lastTool;
+            if (lastTool) {
+                delete lastTool.dataset.lastTool;
+                const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
+                if (skeleton) skeleton.remove();
+            }
             const target = lastTool || div;
             if (b64Match) {
                 const img = document.createElement('img');
@@ -1842,10 +1867,11 @@ function addChatEntry(type, content, ts, anchor) {
                     if (skeletonEl) skeletonEl.remove();
                     const readPath = readContainer.dataset.readPath || '';
                     if (/\.md$/i.test(readPath)) {
+                        const mdClean = clean.replace(/^\s*\d+\t/gm, '');
                         const mdEl = document.createElement('div');
                         mdEl.className = 'markdown-body';
                         mdEl.style.cssText = 'padding:6px 8px;font-size:11px';
-                        mdEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
+                        mdEl.innerHTML = DOMPurify.sanitize(marked.parse(mdClean), {ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'disabled', 'type']});
                         const MD_PREVIEW_H = 90;
                         mdEl.style.maxHeight = MD_PREVIEW_H + 'px';
                         mdEl.style.overflow = 'hidden';

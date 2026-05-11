@@ -354,11 +354,14 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
             MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(result_body)),
         ]
         await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
-    except Exception:
+    except Exception as e:
+        if "message is not modified" in str(e).lower():
+            return
         try:
             await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
-        except Exception as e:
-            logger.warning(f"TG edit failed: {e}")
+        except Exception as e2:
+            if "message is not modified" not in str(e2).lower():
+                logger.warning(f"TG edit failed: {e2}")
 
 
 async def _edit_expandable(msg, chat_id: int, header: str, body: str):
@@ -370,11 +373,14 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
     try:
         entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
         await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
-    except Exception:
+    except Exception as e:
+        if "message is not modified" in str(e).lower():
+            return
         try:
             await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
-        except Exception as e:
-            logger.warning(f"TG edit failed: {e}")
+        except Exception as e2:
+            if "message is not modified" not in str(e2).lower():
+                logger.warning(f"TG edit failed: {e2}")
 
 
 async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
