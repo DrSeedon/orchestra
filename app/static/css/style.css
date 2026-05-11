@@ -45,7 +45,7 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-.markdown-body { overflow-wrap: break-word; word-break: break-word; }
+.markdown-body { overflow-wrap: anywhere; word-break: break-word; overflow-x: hidden; }
 .markdown-body p { margin: 0.4em 0; }
 .markdown-body ul { margin: 0.3em 0; padding-left: 1.8em; list-style: disc; }
 .markdown-body ol { margin: 0.3em 0; padding-left: 1.8em; list-style: decimal; }
@@ -53,10 +53,10 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .markdown-body strong { color: #f1f5f9; }
 .markdown-body em { color: #94a3b8; }
 .markdown-body code { background: rgba(99, 102, 241, 0.15); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
-.markdown-body pre { background: #0d1117; border: 1px solid #1e293b; border-radius: 8px; padding: 0.8em; margin: 0.4em 0; overflow-x: auto; }
-.markdown-body pre code { background: none; padding: 0; }
-.markdown-body table { font-size: 0.85em; overflow-x: auto; display: block; max-width: 100%; border-collapse: collapse; }
-.markdown-body th, .markdown-body td { border: 1px solid #334155; padding: 0.4em 0.8em; text-align: left; }
+.markdown-body pre { background: #0d1117; border: 1px solid #1e293b; border-radius: 8px; padding: 0.8em; margin: 0.4em 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.markdown-body pre code { background: none; padding: 0; white-space: pre-wrap; word-break: break-all; }
+.markdown-body table { font-size: 0.85em; max-width: 100%; border-collapse: collapse; table-layout: fixed; width: 100%; }
+.markdown-body th, .markdown-body td { border: 1px solid #334155; padding: 0.4em 0.8em; text-align: left; word-wrap: break-word; overflow-wrap: anywhere; }
 .markdown-body th { font-weight: 600; }
 .markdown-body h1 { color: #f1f5f9; font-size: 1.4em; margin: 0.5em 0 0.3em; padding-bottom: 0.2em; border-bottom: 1px solid #1e293b; }
 .markdown-body h2 { color: #f1f5f9; font-size: 1.2em; margin: 0.6em 0 0.3em; padding-bottom: 0.15em; border-bottom: 1px solid #1e293b; }
@@ -109,9 +109,7 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .grep-result-row:hover { background: rgba(99,102,241,0.08); }
 .grep-meta { flex-shrink: 0; font-size: 10px; color: #64748b; white-space: nowrap; min-width: 120px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-family: 'JetBrains Mono', monospace; }
 .grep-code { font-size: 11px; color: #e2e8f0; white-space: pre-wrap; word-break: break-all; flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; }
-.markdown-body { word-wrap: break-word; overflow-wrap: anywhere; overflow-x: hidden; }
-.markdown-body table { border-collapse: collapse; width: 100%; margin: 8px 0; table-layout: fixed; }
-.markdown-body th, .markdown-body td { border: 1px solid #334155; padding: 4px 8px; text-align: left; word-wrap: break-word; overflow-wrap: anywhere; }
+.chat-tool, .chat-tool-result, .chat-bot { overflow-x: hidden; max-width: 100%; min-width: 0; }
 .markdown-body th { background: rgba(30,41,59,0.8); color: #94a3b8; font-size: 11px; }
 .markdown-body td { background: transparent; color: #cbd5e1; font-size: 12px; }
 .markdown-body tr:nth-child(even) td { background: rgba(30,41,59,0.3); }
