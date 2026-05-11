@@ -652,6 +652,47 @@ def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
 
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+
+
+def _find_thread_for_scope(scope: str) -> int | None:
+    from app.db import get_all_sessions
+    for s in get_all_sessions():
+        if s.get("is_orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
+            tid = config["topics"].get(s["name"])
+            if tid:
+                return tid
+    return None
+
+
+async def send_file_to_tg(path: str, caption: str, scope: str, sender: str) -> dict:
+    if not bot or not config["group_id"]:
+        return {"error": "TG bridge not active"}
+    from pathlib import Path as P
+    fp = P(path)
+    if not fp.exists():
+        return {"error": f"file not found: {path}"}
+    if fp.stat().st_size > 50 * 1024 * 1024:
+        return {"error": "file too large (max 50MB)"}
+    thread_id = _find_thread_for_scope(scope)
+    if not thread_id:
+        return {"error": f"no TG topic for scope: {scope}"}
+    label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
+    label = label[:1024]
+    try:
+        from aiogram.types import FSInputFile
+        tg_file = FSInputFile(path, filename=fp.name)
+        if fp.suffix.lower() in _IMAGE_EXTS:
+            await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+        else:
+            await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+        return {"ok": True}
+    except TelegramRetryAfter as e:
+        return {"error": f"TG flood: retry after {e.retry_after}s"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 async def ensure_topics():
     if not bot or not config["group_id"] or not _manager:
         return
