@@ -1517,7 +1517,7 @@ function addChatEntry(type, content, ts, anchor) {
                     const PREVIEW = 5;
                     const descEl = document.createElement('div');
                     descEl.className = 'text-xs markdown-body';
-                    descEl.style.cssText = 'margin-top:4px;max-height:90px;overflow:hidden;line-height:1.5;color:#cbd5e1';
+                    descEl.style.cssText = 'margin-top:4px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
                     descEl.innerHTML = DOMPurify.sanitize(marked.parse(d.description));
                     div.appendChild(descEl);
                     if (descLines.length > PREVIEW) {
@@ -1532,7 +1532,7 @@ function addChatEntry(type, content, ts, anchor) {
                             if (e.target.tagName === 'A') return;
                             bugExpanded = !bugExpanded;
                             descEl.style.maxHeight = bugExpanded ? 'none' : '90px';
-                            descEl.style.overflow = bugExpanded ? 'visible' : 'hidden';
+                            descEl.style.overflowY = bugExpanded ? 'visible' : 'hidden';
                             hint.textContent = bugExpanded ? '▲ collapse' : '▼ expand';
                         });
                     }
@@ -1576,7 +1576,7 @@ function addChatEntry(type, content, ts, anchor) {
                             if (e.target.tagName === 'A') return;
                             fetchExpanded = !fetchExpanded;
                             promptEl.style.maxHeight = fetchExpanded ? 'none' : '90px';
-                            promptEl.style.overflow = fetchExpanded ? 'visible' : 'hidden';
+                            promptEl.style.overflowY = fetchExpanded ? 'visible' : 'hidden';
                             hint.textContent = fetchExpanded ? '▲ collapse' : '▼ expand';
                         });
                     }
@@ -1837,7 +1837,7 @@ function addChatEntry(type, content, ts, anchor) {
             if (isWebFetchResult) {
                 const bodyEl = document.createElement('div');
                 bodyEl.className = 'text-xs markdown-body';
-                bodyEl.style.cssText = 'margin-top:6px;line-height:1.5;color:#cbd5e1;max-height:90px;overflow:hidden';
+                bodyEl.style.cssText = 'margin-top:6px;line-height:1.5;color:#cbd5e1;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word';
                 bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
                 lastTool.appendChild(bodyEl);
                 const fetchLines = clean.split('\n');
@@ -1853,7 +1853,7 @@ function addChatEntry(type, content, ts, anchor) {
                         if (e.target.tagName === 'A') return;
                         wfExpanded = !wfExpanded;
                         bodyEl.style.maxHeight = wfExpanded ? 'none' : '90px';
-                        bodyEl.style.overflow = wfExpanded ? 'visible' : 'hidden';
+                        bodyEl.style.overflowY = wfExpanded ? 'visible' : 'hidden';
                         hint.textContent = wfExpanded ? '▲ collapse' : `▼ ${fetchLines.length - 5} more lines`;
                     });
                 }
@@ -1931,13 +1931,13 @@ function addChatEntry(type, content, ts, anchor) {
                     const readPath = readContainer.dataset.readPath || '';
                     if (/\.md$/i.test(readPath)) {
                         const mdClean = clean.replace(/^\s*\d+\t/gm, '');
+                        readContainer.style.overflowX = 'hidden';
+                        readContainer.style.maxWidth = '100%';
                         const mdEl = document.createElement('div');
                         mdEl.className = 'markdown-body';
-                        mdEl.style.cssText = 'padding:6px 8px;font-size:11px';
+                        mdEl.style.cssText = 'padding:6px 8px;font-size:11px;overflow-wrap:anywhere;word-break:break-word;overflow-x:hidden;max-width:100%;max-height:90px;overflow-y:hidden';
                         mdEl.innerHTML = DOMPurify.sanitize(marked.parse(mdClean), {ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'disabled', 'type']});
                         const MD_PREVIEW_H = 90;
-                        mdEl.style.maxHeight = MD_PREVIEW_H + 'px';
-                        mdEl.style.overflow = 'hidden';
                         readContainer.appendChild(mdEl);
                         const moreEl = document.createElement('div');
                         moreEl.className = 'diff-file';
@@ -1950,14 +1950,14 @@ function addChatEntry(type, content, ts, anchor) {
                             if (mdEl.scrollHeight <= MD_PREVIEW_H + 4) {
                                 moreEl.style.display = 'none';
                                 mdEl.style.maxHeight = 'none';
-                                mdEl.style.overflow = 'visible';
+                                mdEl.style.overflowY = 'visible';
                             }
                         });
                         let mdExpanded = false;
                         const toggleMd = () => {
                             mdExpanded = !mdExpanded;
                             mdEl.style.maxHeight = mdExpanded ? 'none' : MD_PREVIEW_H + 'px';
-                            mdEl.style.overflow = mdExpanded ? 'visible' : 'hidden';
+                            mdEl.style.overflowY = mdExpanded ? 'visible' : 'hidden';
                             moreEl.textContent = mdExpanded ? '▲ collapse' : '▼ more';
                         };
                         lastTool.style.cursor = 'pointer';
@@ -2220,8 +2220,7 @@ function _wsCollapsible(el) {
     wrapper.className = 'websearch-results';
     while (el.firstChild) wrapper.appendChild(el.firstChild);
 
-    body.style.maxHeight = PREVIEW_HEIGHT + 'px';
-    body.style.overflow = 'hidden';
+    body.style.cssText += ';max-height:' + PREVIEW_HEIGHT + 'px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word';
 
     const hint = document.createElement('div');
     hint.style.cssText = 'color:#38bdf8;font-size:10px;cursor:pointer;margin-top:4px';
@@ -2235,21 +2234,21 @@ function _wsCollapsible(el) {
     const toggleWs = () => {
         expanded = !expanded;
         body.style.maxHeight = expanded ? 'none' : PREVIEW_HEIGHT + 'px';
-        body.style.overflow = expanded ? 'visible' : 'hidden';
+        body.style.overflowY = expanded ? 'visible' : 'hidden';
         hint.textContent = expanded ? '▲ collapse' : '▼ expand';
         if (linksEl) linksEl.style.display = expanded ? 'block' : 'none';
     };
 
     if (linksEl) wrapper.appendChild(linksEl);
     wrapper.appendChild(hint);
-    wrapper.style.cursor = 'pointer';
+    wrapper.style.cssText = 'cursor:pointer;overflow-x:hidden;max-width:100%';
     wrapper.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleWs(); });
 
     requestAnimationFrame(() => {
         if (body.scrollHeight <= PREVIEW_HEIGHT + 4) {
             hint.style.display = 'none';
             body.style.maxHeight = 'none';
-            body.style.overflow = 'visible';
+            body.style.overflowY = 'visible';
             if (linksEl) linksEl.style.display = 'block';
         }
     });
