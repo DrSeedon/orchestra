@@ -7,13 +7,11 @@ import asyncio
 import json
 import logging
 import os
-import time
 from pathlib import Path
 
 import aiohttp
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.client.default import DefaultBotProperties
-from aiogram.exceptions import TelegramRetryAfter
 from telegramify_markdown import convert as md_convert
 
 logger = logging.getLogger("tg-bridge")
@@ -325,11 +323,15 @@ async def _send_expandable_return(chat_id: int, thread_id: int, header: str, bod
     text = f"{header}\n{body}"
     offset = _utf16_len(header) + 1
     length = _utf16_len(body)
-    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
-    msg = await _tg_safe_send(chat_id, text, message_thread_id=thread_id, entities=entities)
-    if not msg:
-        msg = await _tg_safe_send(chat_id, text, message_thread_id=thread_id)
-    return msg
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+    except Exception:
+        try:
+            return await bot.send_message(chat_id, text, message_thread_id=thread_id)
+        except Exception as e:
+            logger.warning(f"TG send failed: {e}")
+            return None
 
 
 async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_header: str, result_body: str):
@@ -346,12 +348,17 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
     for p in parts:
         offsets.append(pos)
         pos += _utf16_len(p)
-    entities = [
-        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(tool_body)),
-        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(result_body)),
-    ]
-    if not await _tg_safe_edit(chat_id, msg.message_id, text, entities=entities):
-        await _tg_safe_edit(chat_id, msg.message_id, text)
+    try:
+        entities = [
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(tool_body)),
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(result_body)),
+        ]
+        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+    except Exception:
+        try:
+            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+        except Exception as e:
+            logger.warning(f"TG edit failed: {e}")
 
 
 async def _edit_expandable(msg, chat_id: int, header: str, body: str):
@@ -360,9 +367,14 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
     text = f"{header}\n{body}"
     offset = _utf16_len(header) + 1
     length = _utf16_len(body)
-    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
-    if not await _tg_safe_edit(chat_id, msg.message_id, text, entities=entities):
-        await _tg_safe_edit(chat_id, msg.message_id, text)
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+    except Exception:
+        try:
+            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+        except Exception as e:
+            logger.warning(f"TG edit failed: {e}")
 
 
 async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
@@ -371,9 +383,14 @@ async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str)
     text = f"{header}\n{body}"
     offset = _utf16_len(header) + 1
     length = _utf16_len(body)
-    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
-    if not await _tg_safe_send(chat_id, text, message_thread_id=thread_id, entities=entities):
-        await _tg_safe_send(chat_id, text, message_thread_id=thread_id)
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+    except Exception:
+        try:
+            await bot.send_message(chat_id, text, message_thread_id=thread_id)
+        except Exception as e:
+            logger.warning(f"TG send failed: {e}")
 
 
 _TG_TOOL_ICONS = {
@@ -406,143 +423,6 @@ def _tg_tool_short(name: str) -> str:
 
 def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
-
-
-# ── Flood protection ──
-
-_tg_blocked_until: float = 0.0
-
-
-async def _tg_safe_send(chat_id: int, text: str, **kwargs) -> types.Message | None:
-    global _tg_blocked_until
-    if time.time() < _tg_blocked_until:
-        return None
-    try:
-        return await bot.send_message(chat_id, text, **kwargs)
-    except TelegramRetryAfter as e:
-        _tg_blocked_until = time.time() + e.retry_after
-        logger.warning(f"TG flood: send blocked for {e.retry_after}s")
-        return None
-    except Exception as e:
-        logger.warning(f"TG send failed: {e}")
-        return None
-
-
-async def _tg_safe_edit(chat_id: int, message_id: int, text: str, **kwargs) -> bool:
-    global _tg_blocked_until
-    if time.time() < _tg_blocked_until:
-        return False
-    try:
-        await bot.edit_message_text(text, chat_id=chat_id, message_id=message_id, **kwargs)
-        return True
-    except TelegramRetryAfter as e:
-        _tg_blocked_until = time.time() + e.retry_after
-        logger.warning(f"TG flood: edit blocked for {e.retry_after}s")
-        return False
-    except Exception as e:
-        logger.warning(f"TG edit failed: {e}")
-        return False
-
-
-# ── Turn-based batching ──
-
-FLUSH_INTERVAL = 5.0
-MAX_TG_LEN = 4000
-
-
-@dataclass
-class _TurnBuffer:
-    thread_id: int = 0
-    working_msg: types.Message | None = None
-    entries: list = field(default_factory=list)
-    last_text: str = ""
-    tool_count: int = 0
-    is_active: bool = False
-    flush_task: asyncio.Task | None = None
-
-
-_turn_buffers: dict[str, _TurnBuffer] = {}
-
-
-def _get_turn_buf(session_id: str, thread_id: int = 0) -> _TurnBuffer:
-    if session_id not in _turn_buffers:
-        _turn_buffers[session_id] = _TurnBuffer(thread_id=thread_id)
-    buf = _turn_buffers[session_id]
-    if thread_id:
-        buf.thread_id = thread_id
-    return buf
-
-
-def _build_working_text(buf: _TurnBuffer, final: bool = False) -> str:
-    icon = "✅" if final else "🔄"
-    verb = "Done" if final else "Working..."
-    header = f"{icon} {verb}"
-    if buf.tool_count:
-        header += f" ({buf.tool_count} tool{'s' if buf.tool_count != 1 else ''})"
-    lines = buf.entries[-25:]
-    body = "\n".join(lines) if lines else ""
-    if buf.last_text and final:
-        body += f"\n\n💬 {buf.last_text[:500]}"
-    text = f"{header}\n{body}" if body else header
-    return text[:MAX_TG_LEN]
-
-
-async def _flush_turn(session_id: str):
-    buf = _turn_buffers.get(session_id)
-    if not buf or not buf.is_active or not buf.entries:
-        return
-    text = _build_working_text(buf)
-    if buf.working_msg:
-        await _tg_safe_edit(config["group_id"], buf.working_msg.message_id, text)
-    else:
-        buf.working_msg = await _tg_safe_send(
-            config["group_id"], text, message_thread_id=buf.thread_id,
-        )
-
-
-async def _flush_loop(session_id: str):
-    try:
-        while True:
-            await asyncio.sleep(FLUSH_INTERVAL)
-            await _flush_turn(session_id)
-    except asyncio.CancelledError:
-        return
-
-
-def _start_flush(session_id: str):
-    buf = _turn_buffers.get(session_id)
-    if not buf:
-        return
-    if buf.flush_task and not buf.flush_task.done():
-        return
-    buf.flush_task = asyncio.create_task(_flush_loop(session_id))
-
-
-def _stop_flush(session_id: str):
-    buf = _turn_buffers.get(session_id)
-    if not buf:
-        return
-    if buf.flush_task and not buf.flush_task.done():
-        buf.flush_task.cancel()
-        buf.flush_task = None
-
-
-async def _finalize_turn(session_id: str):
-    _stop_flush(session_id)
-    buf = _turn_buffers.get(session_id)
-    if not buf or not buf.is_active:
-        return
-    if buf.entries or buf.last_text:
-        text = _build_working_text(buf, final=True)
-        if buf.working_msg:
-            await _tg_safe_edit(config["group_id"], buf.working_msg.message_id, text)
-        else:
-            await _tg_safe_send(config["group_id"], text, message_thread_id=buf.thread_id)
-    buf.entries.clear()
-    buf.last_text = ""
-    buf.tool_count = 0
-    buf.working_msg = None
-    buf.is_active = False
 
 
 async def ensure_topics():
@@ -588,6 +468,8 @@ async def stream_logs(orch_name: str, thread_id: int):
 
     logs = get_logs(session_id, after_id=0)
     last_id = logs[-1]["id"] if logs else 0
+    _last_tool_msg = None
+    _last_tool_text = ""
 
     while True:
         try:
@@ -597,52 +479,58 @@ async def stream_logs(orch_name: str, thread_id: int):
                     continue
                 last_id = log["id"]
                 t, c = log["type"], log["content"]
-                buf = _get_turn_buf(session_id, thread_id)
-
-                if t == "user_message":
-                    if c.startswith("[from:"):
-                        prefix = c.split("]")[0] + "]"
-                        body = c[len(prefix):].strip()
-                        text = f"📨 {prefix}\n{body[:3000]}"
-                    else:
-                        text = f"👤 {c[:3000]}"
-                    await _tg_safe_send(config["group_id"], text, message_thread_id=thread_id)
-                    continue
-
-                if t == "error":
-                    await _tg_safe_send(config["group_id"], f"❌ {c[:1000]}", message_thread_id=thread_id)
-                    continue
-
-                if t == "status":
-                    is_running = any(w in c.lower() for w in ("running", "starting"))
-                    is_idle = any(w in c.lower() for w in ("idle", "stopped", "finished", "archived"))
-                    if is_running and not buf.is_active:
-                        buf.is_active = True
-                        _start_flush(session_id)
-                    elif is_idle and buf.is_active:
-                        await _finalize_turn(session_id)
-                    continue
-
-                if not buf.is_active:
-                    buf.is_active = True
-                    _start_flush(session_id)
-
-                if t == "tool":
-                    buf.tool_count += 1
+                if t == "user_message" and c.startswith("[from:"):
+                    prefix = c.split("]")[0] + "]"
+                    body = c[len(prefix):].strip()
+                    text = f"📨 {prefix}\n{body[:3000]}"
+                elif t == "user_message":
+                    text = f"👤 {c[:3000]}"
+                elif t == "text":
+                    text = f"💬\n{c[:3900]}"
+                elif t == "tool":
                     tool_name = c.split(":")[0].strip() if ":" in c else "tool"
+                    tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
                     icon = _tg_tool_icon(tool_name)
                     short = _tg_tool_short(tool_name)
-                    buf.entries.append(f"{icon} {short}")
-
+                    header = f"{icon} {short}"
+                    _last_tool_text = f"{header}\n{tool_body}"
+                    _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
+                    continue
                 elif t == "tool_result":
-                    preview = c[:60].replace("\n", " ").strip()
-                    if buf.entries:
-                        buf.entries[-1] += f" → {preview}"
-
-                elif t == "text":
-                    buf.last_text = c[:500]
-                    buf.entries.append(f"💬 {c[:120].replace(chr(10), ' ')}")
-
+                    result_preview = c[:80].replace("\n", " ").strip()
+                    result_body = c[:800]
+                    if _last_tool_msg:
+                        await _edit_tool_with_result(
+                            _last_tool_msg, config["group_id"],
+                            _last_tool_text, f"📎 {result_preview}", result_body,
+                        )
+                        _last_tool_msg = None
+                        _last_tool_text = ""
+                    else:
+                        await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
+                    continue
+                elif t == "error":
+                    text = f"❌ {c[:1000]}"
+                elif t == "status":
+                    text = f"⚡ {c}"
+                else:
+                    continue
+                try:
+                    converted, entities = md_convert(text)
+                    ent_dicts = [e.to_dict() for e in entities] if entities else None
+                    await bot.send_message(
+                        config["group_id"], converted,
+                        message_thread_id=thread_id,
+                        parse_mode=None, entities=ent_dicts,
+                    )
+                except Exception:
+                    try:
+                        await bot.send_message(
+                            config["group_id"], text,
+                            message_thread_id=thread_id,
+                        )
+                    except Exception as e:
+                        logger.warning(f"TG send failed: {e}")
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
         await asyncio.sleep(2)
