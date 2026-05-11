@@ -159,6 +159,17 @@ async def list_jobs() -> str:
 
 
 @mcp.tool()
+async def send_file(path: str, caption: str = "") -> str:
+    """Send a file to the user via Telegram. Path must be absolute."""
+    result = await _api("POST", "/api/tg/send_file", json={
+        "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Send failed: {result['error']}"
+    return f"File sent to TG: {path}"
+
+
+@mcp.tool()
 async def report_bug(title: str, description: str) -> str:
     """Report a bug or issue with the Orchestra platform. Saves to bugs.md for the developer."""
     from datetime import datetime, timezone
