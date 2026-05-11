@@ -4,7 +4,7 @@
 
 # 🎼 Orchestra — AI Agent Orchestrator
 
-**v2.5.0** | [Changelog](CHANGELOG.md)
+[Changelog](CHANGELOG.md)
 
 Your own AI agent orchestrator. Opus orchestrator manages Sonnet/Haiku workers via MCP tools. Each worker in isolated git worktree. Dashboard + Telegram bridge for full visibility.
 
