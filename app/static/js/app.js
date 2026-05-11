@@ -2392,8 +2392,10 @@ function _formatCountdown(isoStr) {
     if (!isoStr) return '';
     const diff = new Date(isoStr) - Date.now();
     if (diff <= 0) return 'now';
-    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
+    if (d > 0) return `${d}d ${h}h`;
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
@@ -2420,12 +2422,14 @@ function renderUsageBar() {
     const fh = a.five_hour;
     if (fh) {
         const c = _usageColor(fh.utilization);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}</span>`);
+        const reset = fh.resets_at ? ` <span style="color:#64748b">(${_formatCountdown(fh.resets_at)})</span>` : '';
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${reset}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
         const c = _usageColor(sd.utilization);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}</span>`);
+        const reset = sd.resets_at ? ` <span style="color:#64748b">(${_formatCountdown(sd.resets_at)})</span>` : '';
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${reset}</span>`);
     }
 
     const models = [
@@ -2437,16 +2441,6 @@ function renderUsageBar() {
         if (!m) continue;
         const c = _usageColor(m.utilization);
         parts.push(`<span style="padding:0 5px;border:1px solid ${c};border-radius:9999px;color:${c};font-size:9px">${name}: ${m.utilization}%</span>`);
-    }
-
-    let nearestReset = null;
-    for (const tier of [fh, sd, a.seven_day_opus, a.seven_day_sonnet, a.seven_day_haiku]) {
-        if (!tier?.resets_at) continue;
-        const t = new Date(tier.resets_at);
-        if (!nearestReset || t < nearestReset) nearestReset = t;
-    }
-    if (nearestReset) {
-        parts.push(`<span style="color:#64748b">⏱ ${_formatCountdown(nearestReset.toISOString())}</span>`);
     }
 
     parts.push('<span style="flex:1"></span>');
