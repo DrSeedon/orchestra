@@ -170,6 +170,7 @@ function connectSSE() {
     eventSource.onerror = () => {
         eventSource.close();
         eventSource = null;
+        _onServerError();
         setTimeout(connectSSE, 2000);
     };
 }
@@ -2046,9 +2047,9 @@ function addChatEntry(type, content, ts, anchor) {
                     return;
                 }
                 const resultEl = document.createElement('div');
-                resultEl.className = 'text-xs';
-                resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;color:#cbd5e1';
-                resultEl.textContent = clean;
+                resultEl.className = 'text-xs markdown-body';
+                resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
+                resultEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
                 lastTool.appendChild(resultEl);
                 const resLines = clean.split('\n');
                 if (resLines.length > 5) {
@@ -2096,17 +2097,60 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
-            if (lastTool.dataset.toolRawName === 'Skill' || lastTool.dataset.toolRawName.startsWith('mcp__yougile__')) {
+            if (lastTool.dataset.toolRawName.startsWith('mcp__yougile__')) {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 const hasErr = content.includes('error') || content.includes('Error');
-                if (hasErr && hdr) { hdr.style.color = '#ef4444'; }
-                if (clean.length > 5) {
+                const action = lastTool.dataset.toolRawName.replace('mcp__yougile__', '');
+                if (hasErr) {
+                    if (hdr) { hdr.style.color = '#ef4444'; }
+                    const errEl = document.createElement('div');
+                    errEl.className = 'text-xs';
+                    errEl.style.cssText = 'margin-top:4px;color:#f87171';
+                    errEl.textContent = clean.slice(0, 200);
+                    lastTool.appendChild(errEl);
+                } else if (['create_task','update_task','update_column','add_task_comment'].includes(action)) {
+                    let title = '';
+                    try { const d = JSON.parse(content); title = d.title || ''; } catch {}
+                    const status = action === 'create_task' ? (title ? `✅ Created: ${title}` : '✅ Created') :
+                                   action === 'add_task_comment' ? '✅ Comment added' : '✅ Updated';
+                    if (hdr) { hdr.textContent = status; hdr.style.color = '#22c55e'; }
+                } else if (['list_tasks','list_columns','list_boards','list_projects','get_companies'].includes(action)) {
                     const resultEl = document.createElement('div');
-                    resultEl.className = 'text-xs';
-                    resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
-                    resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
+                    resultEl.className = 'text-xs markdown-body';
+                    resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
+                    resultEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
                     lastTool.appendChild(resultEl);
+                    const resLines = clean.split('\n').filter(l => l.trim());
+                    if (resLines.length > 5) {
+                        const hint = document.createElement('div');
+                        hint.className = 'text-xs mt-1';
+                        hint.style.cssText = 'color:#f97316;cursor:pointer';
+                        hint.textContent = `▼ ${resLines.length - 5} more`;
+                        lastTool.appendChild(hint);
+                        let _ygExp = false;
+                        lastTool.style.cursor = 'pointer';
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _ygExp = !_ygExp;
+                            resultEl.style.maxHeight = _ygExp ? 'none' : '90px';
+                            resultEl.style.overflowY = _ygExp ? 'visible' : 'hidden';
+                            hint.textContent = _ygExp ? '▲ collapse' : `▼ ${resLines.length - 5} more`;
+                        });
+                    }
+                } else {
+                    let title = '';
+                    try { const d = JSON.parse(content); title = d.title || d.text || ''; } catch {}
+                    if (title && hdr) hdr.textContent += `: ${title}`;
                 }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'Skill') {
+                const resultEl = document.createElement('div');
+                resultEl.className = 'text-xs';
+                resultEl.style.cssText = 'margin-top:6px;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
+                resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
+                if (clean.length > 5) lastTool.appendChild(resultEl);
                 addTimestamp(lastTool, ts);
                 return;
             }
@@ -2952,6 +2996,7 @@ async function refreshSessions() {
         ]);
 
         if (capturedScope !== currentScope) return;
+        _onServerOk();
 
         $('#stats-line').textContent = `${stats.active} active · ${stats.total_sessions} total · $${stats.total_cost_usd}`;
         renderAgentList(sessions);
@@ -2976,7 +3021,7 @@ async function refreshSessions() {
             if (!eventSource) connectSSE();
         }
     } catch (e) {
-        if (e.name !== 'AbortError') console.warn('refresh error:', e);
+        if (e.name !== 'AbortError') { console.warn('refresh error:', e); _onServerError(); }
     } finally {
         refreshInProgress = false;
     }
@@ -3079,4 +3124,48 @@ function initUsageBar() {
     _usageCountdownInterval = setInterval(() => {
         if (_usageData) renderUsageBar();
     }, 60000);
+}
+
+// === Reboot Overlay ===
+let _rebootOverlay = null;
+let _rebootFails = 0;
+
+function _showRebootOverlay() {
+    if (_rebootOverlay) return;
+    _rebootOverlay = document.createElement('div');
+    _rebootOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:white;font-family:system-ui,sans-serif';
+    const spinner = document.createElement('div');
+    spinner.style.cssText = 'font-size:48px;animation:spin 1.5s linear infinite';
+    spinner.textContent = '🔄';
+    const msg = document.createElement('div');
+    msg.style.cssText = 'font-size:18px;margin-top:16px';
+    msg.textContent = 'Сервер перезагружается...';
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font-size:14px;color:#94a3b8;margin-top:8px';
+    sub.textContent = 'Автоматическое переподключение...';
+    _rebootOverlay.append(spinner, msg, sub);
+    document.body.appendChild(_rebootOverlay);
+    const style = document.createElement('style');
+    style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+    _rebootOverlay.appendChild(style);
+    _pollReconnect();
+}
+
+async function _pollReconnect() {
+    while (true) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+            const resp = await fetch('/api/usage', { signal: AbortSignal.timeout(2000) });
+            if (resp.ok) { location.reload(); return; }
+        } catch {}
+    }
+}
+
+function _onServerError() {
+    _rebootFails++;
+    if (_rebootFails >= 2) _showRebootOverlay();
+}
+
+function _onServerOk() {
+    _rebootFails = 0;
 }
