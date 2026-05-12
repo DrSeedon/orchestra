@@ -2114,13 +2114,23 @@ function addChatEntry(type, content, ts, anchor) {
                     lastTool.appendChild(errEl);
                 } else if (parsed && !Array.isArray(parsed) && !parsed.title && parsed.id && ['create_task','update_task','update_column','add_task_comment'].includes(action)) {
                     const callBody = lastTool.dataset.toolContent || '';
-                    let callTitle = '';
-                    try { const ci = callBody.indexOf(':'); const cd = JSON.parse(callBody.slice(ci+1)); callTitle = cd.title || ''; } catch {}
+                    let callData = {};
+                    try { const ci = callBody.indexOf(':'); callData = JSON.parse(callBody.slice(ci+1)); } catch {}
+                    const callTitle = callData.title || '';
                     const status = action === 'create_task' ? `✅ Created${callTitle ? ': '+callTitle : ''}` :
                                    action === 'add_task_comment' ? '✅ Comment added' :
                                    action === 'update_column' ? `✅ Column updated${callTitle ? ': '+callTitle : ''}` :
-                                   `✅ Updated${callTitle ? ': '+callTitle : ''}`;
+                                   `✅ Updated${callTitle ? ': '+callTitle : ' task'}`;
                     if (hdr) { hdr.textContent = status; hdr.style.color = '#22c55e'; }
+                    if (action === 'add_task_comment' && callData.comment) {
+                        const commentClean = callData.comment.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?b>/gi, '**').replace(/<[^>]+>/g, '');
+                        const preview = commentClean.split('\n').slice(0, 3).join('\n');
+                        const comEl = document.createElement('div');
+                        comEl.className = 'text-xs';
+                        comEl.style.cssText = 'margin-top:4px;color:#94a3b8;max-height:54px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                        comEl.textContent = preview.length < commentClean.length ? preview + '…' : preview;
+                        lastTool.appendChild(comEl);
+                    }
                 } else {
                     const items = Array.isArray(parsed) ? parsed : (parsed && parsed.title) ? [parsed] : [];
                     if (items.length > 0) {
