@@ -907,8 +907,18 @@ async def start_bridge(manager):
         _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
 
     _tasks.append(asyncio.create_task(topic_sync_loop()))
-    _tasks.append(asyncio.create_task(dp.start_polling(bot)))
+    _tasks.append(asyncio.create_task(_polling_watchdog()))
     logger.info(f"TG Bridge started | group={group} | topics={len(config['topics'])}")
+
+
+async def _polling_watchdog():
+    while True:
+        try:
+            await dp.start_polling(bot)
+        except Exception as e:
+            logger.error(f"TG polling crashed: {e}, restarting in 10s")
+        await asyncio.sleep(10)
+        logger.info("TG polling restarting...")
 
 
 async def stop_bridge():
