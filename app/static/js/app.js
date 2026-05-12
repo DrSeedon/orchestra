@@ -113,6 +113,12 @@ document.addEventListener('DOMContentLoaded', () => {
             connectSSE();
         });
     }
+    const openFolderBtn = $('#open-folder-btn');
+    if (openFolderBtn) {
+        openFolderBtn.addEventListener('click', () => {
+            if (currentScope) fetch('/api/open-folder', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({path: currentScope}) });
+        });
+    }
     loadModels();
     loadOrchestrators();
     scheduleRefresh();
