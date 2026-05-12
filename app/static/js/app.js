@@ -1126,6 +1126,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
+            else if (rawName === 'mcp__orchestra__send_file') preview = `📎 ${(parsed.path || '').split('/').pop() || '?'}`;
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
@@ -1269,10 +1270,13 @@ function addChatEntry(type, content, ts, anchor) {
                 const isReadTool = rawName === 'Read';
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
+                const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
                 const isWebFetchCompact = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
                 const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
                 const resultSpan = lastC.querySelector('.compact-result');
-                if (resultSpan && isWebFetchCompact) {
+                if (resultSpan && isSendFileCompact) {
+                    resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
+                } else if (resultSpan && isWebFetchCompact) {
                     const short = clean.length > 40 ? clean.replace(/\n/g, ' ').slice(0, 40) + '…' : clean.replace(/\n/g, ' ');
                     resultSpan.textContent = '📎 ' + short;
                 } else if (resultSpan && isBugReportCompact) {
@@ -1647,6 +1651,30 @@ function addChatEntry(type, content, ts, anchor) {
                 }
             } catch {}
         }
+        const isSendFile = rawName === 'mcp__orchestra__send_file';
+        if (isSendFile) {
+            try {
+                const d = JSON.parse(body);
+                const filePath = d.path || '';
+                const fileName = filePath.split('/').pop() || '?';
+                header.textContent = `📎 Sending: ${fileName}`;
+                header.style.color = '#22c55e';
+                if (d.caption) {
+                    const capEl = document.createElement('div');
+                    capEl.className = 'text-xs';
+                    capEl.style.cssText = 'margin-top:2px;color:#cbd5e1';
+                    capEl.textContent = d.caption;
+                    div.appendChild(capEl);
+                }
+                if (filePath) {
+                    const pathEl = document.createElement('div');
+                    pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                    pathEl.textContent = filePath;
+                    pathEl.title = filePath;
+                    div.appendChild(pathEl);
+                }
+            } catch {}
+        }
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
@@ -1798,7 +1826,7 @@ function addChatEntry(type, content, ts, anchor) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch && !isSendFile) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
@@ -1894,6 +1922,16 @@ function addChatEntry(type, content, ts, anchor) {
             if (lastTool.dataset.toolRawName === 'mcp__orchestra__report_bug') {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 if (hdr) { hdr.textContent = '✅ Bug reported'; hdr.style.color = '#22c55e'; }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_file') {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                const hasError = content.includes('error') || content.includes('Error') || content.includes('failed');
+                if (hdr) {
+                    hdr.textContent = hasError ? '❌ Send failed' : '✅ Sent to TG';
+                    hdr.style.color = hasError ? '#ef4444' : '#22c55e';
+                }
                 addTimestamp(lastTool, ts);
                 return;
             }
