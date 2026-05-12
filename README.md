@@ -57,6 +57,40 @@ Kesha TG Bot ←→ inbox_server :18081 ←→ Orchestra (notify_kesha MCP tool)
 - **Restart button** — ⟳ in dashboard header (sudo systemctl)
 - **Multi-repo** — tested with 5 sub-repos, worktree isolation per sub-repo
 
+## Telegram Bridge (optional)
+
+Mirror agent activity to a Telegram group with topic threads.
+
+1. Create a bot via [@BotFather](https://t.me/BotFather)
+2. Create a TG group, enable topics, add your bot as admin
+3. Add to `.env`:
+   ```
+   TG_BRIDGE_TOKEN=your_bot_token
+   TG_BRIDGE_GROUP=your_group_id
+   ```
+
+### Large file support (optional)
+By default, TG Bot API limits file downloads to 20MB. To support files up to 2GB, install the local Bot API server:
+
+```bash
+sudo bash scripts/setup-tg-bot-api.sh
+# Then add to .env:
+TG_LOCAL_API_URL=http://localhost:8081
+```
+
+### Voice transcription (optional)
+For voice message transcription, add Deepgram API key:
+```
+DEEPGRAM_API_KEY=your_key
+```
+
+## Skills (optional)
+
+Copy bundled skills to make them available in Claude Code:
+```bash
+cp -r app/skills/* ~/.claude/skills/
+```
+
 ## Related
 
 - [kesha-tg-bot](https://github.com/DrSeedon/kesha-tg-bot) — Telegram bot (personal AI assistant), integrates with Orchestra via inbox server + MCP tools
