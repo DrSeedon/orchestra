@@ -110,6 +110,8 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
         return str(path)
     except Exception as e:
         logger.warning(f"download_file failed for {filename}: {e}")
+        if "file is too big" in str(e).lower() or "too large" in str(e).lower():
+            logger.warning(f"TG Bot API limit: files >20MB cannot be downloaded. File: {filename}")
         return None
 
 
