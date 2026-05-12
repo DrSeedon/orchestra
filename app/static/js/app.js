@@ -1127,6 +1127,16 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
             else if (rawName === 'mcp__orchestra__send_file') preview = `📎 ${(parsed.path || '').split('/').pop() || '?'}`;
+            else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 ${parsed.name || '?'} (${parsed.limit || 20})`;
+            else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 list_agents';
+            else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 list_orchestrators';
+            else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 list_jobs';
+            else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
+            else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
+            else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
+            else if (rawName.startsWith('mcp__yougile__')) { const yn = rawName.replace('mcp__yougile__',''); preview = `📋 ${yn}${parsed.title ? ': '+parsed.title : ''}`; }
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
@@ -1271,11 +1281,25 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
+                const isGlobCompact = rawName === 'Glob';
+                const isSkillCompact = rawName === 'Skill';
+                const isYougileCompact = rawName.startsWith('mcp__yougile__');
                 const isWebFetchCompact = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
                 const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
                 const resultSpan = lastC.querySelector('.compact-result');
                 if (resultSpan && isSendFileCompact) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
+                } else if (resultSpan && isOrchSimpleCompact) {
+                    const hasErr = clean.includes('error') || clean.includes('Error');
+                    if (['mcp__orchestra__kill_worker','mcp__orchestra__rename_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
+                    else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
+                } else if (resultSpan && isGlobCompact) {
+                    const ct = clean.split('\n').filter(l=>l.trim()).length;
+                    resultSpan.textContent = `📎 ${ct} files`;
+                } else if (resultSpan && (isSkillCompact || isYougileCompact)) {
+                    resultSpan.textContent = clean.includes('error') ? '❌' : '✅';
                 } else if (resultSpan && isWebFetchCompact) {
                     const short = clean.length > 40 ? clean.replace(/\n/g, ' ').slice(0, 40) + '…' : clean.replace(/\n/g, ' ');
                     resultSpan.textContent = '📎 ' + short;
@@ -1670,6 +1694,67 @@ function addChatEntry(type, content, ts, anchor) {
                 }
             } catch {}
         }
+        const _orchSimple = {
+            'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Killing: ${d.name||'?'}`, color: '#ef4444' }),
+            'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compacting: ${d.name||'?'}`, color: '#eab308' }),
+            'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
+            'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
+            'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
+            'mcp__orchestra__list_jobs': () => ({ icon: '📊', label: 'Jobs', color: '#38bdf8' }),
+            'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
+        };
+        const isOrchSimple = _orchSimple[rawName];
+        if (isOrchSimple) {
+            try {
+                const d = JSON.parse(body);
+                const cfg = isOrchSimple(d);
+                header.textContent = `${cfg.icon} ${cfg.label}`;
+                header.style.color = cfg.color;
+                if (cfg.sub) {
+                    const subEl = document.createElement('div');
+                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                    subEl.textContent = cfg.sub;
+                    div.appendChild(subEl);
+                }
+            } catch {}
+        }
+        const isGlob = rawName === 'Glob';
+        if (isGlob) {
+            try {
+                const d = JSON.parse(body);
+                header.textContent = `🔎 Glob: ${d.pattern || '?'}`;
+                header.style.color = '#38bdf8';
+                if (d.path) {
+                    const pathEl = document.createElement('div');
+                    pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                    pathEl.textContent = d.path;
+                    div.appendChild(pathEl);
+                }
+            } catch {}
+        }
+        const isSkill = rawName === 'Skill';
+        if (isSkill) {
+            try {
+                const d = JSON.parse(body);
+                header.textContent = `⚡ Skill: ${d.skill || '?'}`;
+                header.style.color = '#eab308';
+            } catch {}
+        }
+        const isYougile = rawName.startsWith('mcp__yougile__');
+        if (isYougile) {
+            try {
+                const d = JSON.parse(body);
+                const action = rawName.replace('mcp__yougile__', '').replace(/_/g, ' ');
+                header.textContent = `📋 ${action}${d.title ? ': ' + d.title : ''}`;
+                header.style.color = '#f97316';
+                if (d.task_id) {
+                    const idEl = document.createElement('div');
+                    idEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                    idEl.textContent = `ID: ${d.task_id}`;
+                    div.appendChild(idEl);
+                }
+            } catch {}
+        }
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
@@ -1821,7 +1906,7 @@ function addChatEntry(type, content, ts, anchor) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch && !isSendFile) {
+        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch && !isSendFile && !isOrchSimple && !isGlob && !isSkill && !isYougile) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
@@ -1926,6 +2011,96 @@ function addChatEntry(type, content, ts, anchor) {
                 if (hdr) {
                     hdr.textContent = hasError ? '❌ Send failed' : '✅ Sent to TG';
                     hdr.style.color = hasError ? '#ef4444' : '#22c55e';
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            const _orchSimpleResults = {
+                'mcp__orchestra__kill_worker': { ok: '✅ Worker killed', fail: '❌ Kill failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__compact_worker': null,
+                'mcp__orchestra__rename_worker': { ok: '✅ Renamed', fail: '❌ Rename failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__list_agents': null,
+                'mcp__orchestra__list_orchestrators': null,
+                'mcp__orchestra__list_jobs': null,
+                'mcp__orchestra__get_worker_logs': null,
+            };
+            const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
+            if (_orchResultCfg !== undefined) {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (_orchResultCfg) {
+                    const hasErr = content.includes('error') || content.includes('Error');
+                    if (hdr) { hdr.textContent = hasErr ? _orchResultCfg.fail : _orchResultCfg.ok; hdr.style.color = hasErr ? _orchResultCfg.failColor : _orchResultCfg.okColor; }
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+                if (lastTool.dataset.toolRawName === 'mcp__orchestra__compact_worker') {
+                    const pctMatch = clean.match(/(\d+)%\s*→\s*(\d+)%/) || clean.match(/(\d+)%.*?(\d+)%/);
+                    if (hdr && pctMatch) { hdr.textContent = `✅ Compact: ${pctMatch[1]}% → ${pctMatch[2]}%`; hdr.style.color = '#22c55e'; }
+                    else if (hdr) { hdr.textContent = '✅ Compacted'; hdr.style.color = '#22c55e'; }
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+                const resultEl = document.createElement('div');
+                resultEl.className = 'text-xs';
+                resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;color:#cbd5e1';
+                resultEl.textContent = clean;
+                lastTool.appendChild(resultEl);
+                const resLines = clean.split('\n');
+                if (resLines.length > 5) {
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                    hint.textContent = `▼ ${resLines.length - 5} more lines`;
+                    lastTool.appendChild(hint);
+                    let _orchExp = false;
+                    lastTool.style.cursor = 'pointer';
+                    lastTool.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        _orchExp = !_orchExp;
+                        resultEl.style.maxHeight = _orchExp ? 'none' : '90px';
+                        resultEl.style.overflowY = _orchExp ? 'visible' : 'hidden';
+                        hint.textContent = _orchExp ? '▲ collapse' : `▼ ${resLines.length - 5} more lines`;
+                    });
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'Glob') {
+                const files = clean.split('\n').filter(l => l.trim());
+                const resultEl = document.createElement('div');
+                resultEl.className = 'text-xs';
+                resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;color:#94a3b8';
+                resultEl.textContent = files.length ? files.join('\n') : '(no matches)';
+                lastTool.appendChild(resultEl);
+                if (files.length > 5) {
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                    hint.textContent = `▼ ${files.length - 5} more files`;
+                    lastTool.appendChild(hint);
+                    let _globExp = false;
+                    lastTool.style.cursor = 'pointer';
+                    lastTool.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        _globExp = !_globExp;
+                        resultEl.style.maxHeight = _globExp ? 'none' : '90px';
+                        resultEl.style.overflowY = _globExp ? 'visible' : 'hidden';
+                        hint.textContent = _globExp ? '▲ collapse' : `▼ ${files.length - 5} more files`;
+                    });
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'Skill' || lastTool.dataset.toolRawName.startsWith('mcp__yougile__')) {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                const hasErr = content.includes('error') || content.includes('Error');
+                if (hasErr && hdr) { hdr.style.color = '#ef4444'; }
+                if (clean.length > 5) {
+                    const resultEl = document.createElement('div');
+                    resultEl.className = 'text-xs';
+                    resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
+                    resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
+                    lastTool.appendChild(resultEl);
                 }
                 addTimestamp(lastTool, ts);
                 return;
