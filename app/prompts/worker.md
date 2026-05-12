@@ -23,6 +23,13 @@ If the task mentions a file path from the original repo — the same file exists
 - NEVER wait for CI in a loop — check status once, report, move on
 - Long-running commands (>60s) will timeout your turn. Keep Bash commands short
 
+## Codex review
+When asked to run Codex review — ALWAYS use the `codex-review` skill via Skill tool:
+```
+Skill(skill="codex-review")
+```
+This loads the full SKILL.md with correct model (gpt-5.5), flags, and workflow. NEVER invent codex commands from memory — the skill has the exact syntax.
+
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)
