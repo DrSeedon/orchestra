@@ -2098,7 +2098,13 @@ function addChatEntry(type, content, ts, anchor) {
                 const hasErr = content.includes('error') || content.includes('Error');
                 const action = lastTool.dataset.toolRawName.replace('mcp__yougile__', '');
                 let parsed = null;
-                try { parsed = JSON.parse(content); } catch {}
+                try { parsed = JSON.parse(content); } catch {
+                    const multiParts = content.split(/\}\s*\n\s*\{/).map((p, i, a) => (i === 0 ? p : '{' + p)).map((p, i, a) => (i < a.length - 1 ? p + '}' : p));
+                    if (multiParts.length > 1) {
+                        const items = multiParts.map(p => { try { return JSON.parse(p); } catch { return null; } }).filter(Boolean);
+                        if (items.length > 0) parsed = items;
+                    }
+                }
                 if (hasErr && !parsed) {
                     if (hdr) hdr.style.color = '#ef4444';
                     const errEl = document.createElement('div');
@@ -2106,50 +2112,56 @@ function addChatEntry(type, content, ts, anchor) {
                     errEl.style.cssText = 'margin-top:4px;color:#f87171';
                     errEl.textContent = clean.slice(0, 200);
                     lastTool.appendChild(errEl);
-                } else if (parsed && !parsed.title && parsed.id && ['create_task','update_task','update_column','add_task_comment'].includes(action)) {
+                } else if (parsed && !Array.isArray(parsed) && !parsed.title && parsed.id && ['create_task','update_task','update_column','add_task_comment'].includes(action)) {
                     const callBody = lastTool.dataset.toolContent || '';
                     let callTitle = '';
                     try { const ci = callBody.indexOf(':'); const cd = JSON.parse(callBody.slice(ci+1)); callTitle = cd.title || ''; } catch {}
                     const status = action === 'create_task' ? `✅ Created${callTitle ? ': '+callTitle : ''}` :
                                    action === 'add_task_comment' ? '✅ Comment added' :
-                                   action === 'update_column' ? `✅ Column updated${callTitle ? ': '+callTitle : ''}` : '✅ Updated';
+                                   action === 'update_column' ? `✅ Column updated${callTitle ? ': '+callTitle : ''}` :
+                                   `✅ Updated${callTitle ? ': '+callTitle : ''}`;
                     if (hdr) { hdr.textContent = status; hdr.style.color = '#22c55e'; }
-                    const idEl = document.createElement('div');
-                    idEl.style.cssText = 'font-size:9px;color:#475569;margin-top:2px;font-family:monospace';
-                    idEl.textContent = parsed.id;
-                    lastTool.appendChild(idEl);
-                } else if (parsed && parsed.title) {
-                    if (hdr) { hdr.textContent = `📋 ${parsed.title}`; hdr.style.color = '#f97316'; }
-                    if (parsed.description) {
-                        const descEl = document.createElement('div');
-                        descEl.className = 'text-xs markdown-body';
-                        descEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
-                        const descClean = parsed.description.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?b>/gi, '**').replace(/<[^>]+>/g, '');
-                        descEl.innerHTML = DOMPurify.sanitize(marked.parse(descClean));
-                        lastTool.appendChild(descEl);
-                        if (descClean.split('\n').length > 5) {
+                } else {
+                    const items = Array.isArray(parsed) ? parsed : (parsed && parsed.title) ? [parsed] : [];
+                    if (items.length > 0) {
+                        const md = items.map(t => {
+                            let line = `**${t.title || 'Untitled'}**`;
+                            if (t.description) {
+                                const desc = t.description.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?b>/gi, '**').replace(/<[^>]+>/g, '');
+                                const short = desc.split('\n').slice(0, 3).join('\n');
+                                line += '\n' + short;
+                            }
+                            return line;
+                        }).join('\n\n---\n\n');
+                        const resultEl = document.createElement('div');
+                        resultEl.className = 'text-xs markdown-body';
+                        resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
+                        resultEl.innerHTML = DOMPurify.sanitize(marked.parse(md));
+                        lastTool.appendChild(resultEl);
+                        if (items.length > 1 || md.split('\n').length > 5) {
                             const hint = document.createElement('div');
                             hint.className = 'text-xs mt-1';
                             hint.style.cssText = 'color:#f97316;cursor:pointer';
-                            hint.textContent = '▼ expand';
+                            hint.textContent = `▼ ${items.length > 1 ? items.length + ' items' : 'expand'}`;
                             lastTool.appendChild(hint);
                             let _ygExp = false;
                             lastTool.style.cursor = 'pointer';
                             lastTool.addEventListener('click', (e) => {
                                 if (e.target.tagName === 'A') return;
                                 _ygExp = !_ygExp;
-                                descEl.style.maxHeight = _ygExp ? 'none' : '90px';
-                                descEl.style.overflowY = _ygExp ? 'visible' : 'hidden';
-                                hint.textContent = _ygExp ? '▲ collapse' : '▼ expand';
+                                resultEl.style.maxHeight = _ygExp ? 'none' : '90px';
+                                resultEl.style.overflowY = _ygExp ? 'visible' : 'hidden';
+                                hint.textContent = _ygExp ? '▲ collapse' : `▼ ${items.length > 1 ? items.length + ' items' : 'expand'}`;
                             });
                         }
+                        if (hdr && items.length > 1) hdr.textContent += ` (${items.length})`;
+                    } else if (clean.length > 5) {
+                        const resultEl = document.createElement('div');
+                        resultEl.className = 'text-xs';
+                        resultEl.style.cssText = 'margin-top:6px;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
+                        resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
+                        lastTool.appendChild(resultEl);
                     }
-                } else {
-                    const resultEl = document.createElement('div');
-                    resultEl.className = 'text-xs';
-                    resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
-                    resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
-                    if (clean.length > 5) lastTool.appendChild(resultEl);
                 }
                 addTimestamp(lastTool, ts);
                 return;
