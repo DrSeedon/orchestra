@@ -901,7 +901,14 @@ async def start_bridge(manager):
     config["group_id"] = group
     save_config()
 
-    bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
+    local_api_url = os.getenv("TG_LOCAL_API_URL", "")
+    if local_api_url:
+        from aiogram.client.telegram import TelegramAPIServer
+        server = TelegramAPIServer(base=local_api_url, file=local_api_url)
+        bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None), server=server)
+        logger.info(f"TG Bridge using local Bot API: {local_api_url}")
+    else:
+        bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
 
     await ensure_topics()
 
