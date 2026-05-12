@@ -316,15 +316,26 @@ def _utf16_len(s: str) -> int:
     return len(s.encode("utf-16-le")) // 2
 
 
+def _md_entities(text: str, base_offset: int = 0):
+    from aiogram.types import MessageEntity as AioEntity
+    try:
+        converted, raw_ents = md_convert(text)
+        ents = [AioEntity(**{**e.to_dict(), "offset": e.offset + base_offset}) for e in raw_ents] if raw_ents else []
+        return converted, ents
+    except Exception:
+        return text, []
+
+
 async def _send_expandable_return(chat_id: int, thread_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
     body = body.rstrip()
-    text = f"{header}\n{body}"
+    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
+    text = f"{header}\n{conv_body}"
     offset = _utf16_len(header) + 1
-    length = _utf16_len(body)
+    length = _utf16_len(conv_body)
     try:
-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
         return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
     except Exception:
         try:
@@ -341,18 +352,24 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
     tool_header = tool_text[:nl]
     tool_body = tool_text[nl + 1:].rstrip()
     result_body = result_body.rstrip()
-    parts = [tool_header, "\n", tool_body, "\n\n", result_header, "\n", result_body]
+    conv_tool, tool_ents = _md_entities(tool_body, 0)
+    conv_result, result_ents = _md_entities(result_body, 0)
+    parts = [tool_header, "\n", conv_tool, "\n\n", result_header, "\n", conv_result]
     text = "".join(parts)
     offsets = []
     pos = 0
     for p in parts:
         offsets.append(pos)
         pos += _utf16_len(p)
+    for e in tool_ents:
+        e.offset += offsets[2]
+    for e in result_ents:
+        e.offset += offsets[6]
     try:
         entities = [
-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(tool_body)),
-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(result_body)),
-        ]
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
+        ] + tool_ents + result_ents
         await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
     except Exception as e:
         if "message is not modified" in str(e).lower():
@@ -367,11 +384,12 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
 async def _edit_expandable(msg, chat_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
-    text = f"{header}\n{body}"
+    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
+    text = f"{header}\n{conv_body}"
     offset = _utf16_len(header) + 1
-    length = _utf16_len(body)
+    length = _utf16_len(conv_body)
     try:
-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
         await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
     except Exception as e:
         if "message is not modified" in str(e).lower():
@@ -386,11 +404,12 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
 async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
-    text = f"{header}\n{body}"
+    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
+    text = f"{header}\n{conv_body}"
     offset = _utf16_len(header) + 1
-    length = _utf16_len(body)
+    length = _utf16_len(conv_body)
     try:
-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)]
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
         await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
     except Exception:
         try:
@@ -523,11 +542,12 @@ async def stream_logs(orch_name: str, thread_id: int):
                     continue
                 try:
                     converted, entities = md_convert(text)
-                    ent_dicts = [e.to_dict() for e in entities] if entities else None
+                    from aiogram.types import MessageEntity as AioEntity
+                    aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
                     await bot.send_message(
                         config["group_id"], converted,
                         message_thread_id=thread_id,
-                        parse_mode=None, entities=ent_dicts,
+                        parse_mode=None, entities=aio_ents,
                     )
                 except Exception:
                     try:
