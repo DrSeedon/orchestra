@@ -171,6 +171,16 @@ async def get_file_content(path: str):
     return {"content": content, "size": size, "name": str(target)}
 
 
+@app.post("/api/open-folder")
+async def open_folder(req: dict):
+    import subprocess
+    path = req.get("path", "")
+    if not Path(path).is_dir():
+        return JSONResponse({"error": "not a directory"}, status_code=400)
+    subprocess.Popen(["xdg-open", path])
+    return {"ok": True}
+
+
 @app.get("/api/files")
 async def list_files(path: str):
     target = Path(path)
