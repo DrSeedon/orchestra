@@ -1,24 +1,17 @@
 """Telegram bridge — mirrors Orchestra orchestrators to TG group topics.
 
 Integrated into FastAPI lifespan — no separate process needed.
-Queue-based TG delivery: all sends/edits go through asyncio.Queue consumer
-at max 1 op per 3 seconds per group (respecting TG rate limits).
 """
 
 import asyncio
 import json
 import logging
 import os
-import time
-from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 import aiohttp
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.client.default import DefaultBotProperties
-from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from telegramify_markdown import convert as md_convert
 
 logger = logging.getLogger("tg-bridge")
@@ -110,8 +103,6 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
         return str(path)
     except Exception as e:
         logger.warning(f"download_file failed for {filename}: {e}")
-        if "file is too big" in str(e).lower() or "too large" in str(e).lower():
-            logger.warning(f"TG Bot API limit: files >20MB cannot be downloaded. File: {filename}")
         return None
 
 
@@ -187,6 +178,9 @@ async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
 
 DEBOUNCE_SEC = 5
 MEDIA_WAIT_MAX = 30
+
+from enum import Enum
+from dataclasses import dataclass, field
 
 
 class _Phase(Enum):
@@ -318,309 +312,111 @@ async def _react_processing(msg: types.Message):
         pass
 
 
+def _utf16_len(s: str) -> int:
+    return len(s.encode("utf-16-le")) // 2
 
 
-
-# ---------------------------------------------------------------------------
-#  Queue-based TG delivery
-# ---------------------------------------------------------------------------
-
-MIN_TG_INTERVAL = 3.0  # seconds between TG API calls per group (20 ops/min limit)
-MAX_MSG_LEN = 3800     # split threshold (TG limit 4096, buffer for entities)
-
-
-class _StreamPhase(Enum):
-    IDLE = "idle"
-    TOOLS = "tools"
-    TEXT = "text"
+def _md_entities(text: str, base_offset: int = 0):
+    from aiogram.types import MessageEntity as AioEntity
+    try:
+        converted, raw_ents = md_convert(text)
+        ents = [AioEntity(**{**e.to_dict(), "offset": e.offset + base_offset}) for e in raw_ents] if raw_ents else []
+        return converted, ents
+    except Exception:
+        return text, []
 
 
-@dataclass
-class _QueueItem:
-    type: str          # "tool", "tool_result", "text", "error", "status", "user_message"
-    content: str
-    chat_id: int
-    thread_id: int
-
-
-class TgStreamQueue:
-    """Single consumer drains TG operations at rate-limited speed.
-
-    All sends/edits for one group topic go through here.
-    Producer puts items instantly, consumer drains at MIN_TG_INTERVAL.
-    """
-
-    def __init__(self, bot_ref: Bot, chat_id: int, thread_id: int):
-        self._bot = bot_ref
-        self._chat_id = chat_id
-        self._thread_id = thread_id
-        self._queue: asyncio.Queue[_QueueItem] = asyncio.Queue()
-        self._phase = _StreamPhase.IDLE
-        self._current_msg_id: Optional[int] = None
-        self._current_text = ""
-        self._last_sent_text = ""
-        self._tool_lines: list[str] = []
-        self._last_op_time = 0.0
-
-    def put_nowait(self, item: _QueueItem):
-        self._queue.put_nowait(item)
-
-    async def run(self):
-        while True:
-            item = await self._queue.get()
-            batch = [item]
-            while not self._queue.empty():
-                batch.append(self._queue.get_nowait())
-
-            try:
-                await self._process_batch(batch)
-            except Exception as e:
-                logger.error(f"TG queue error: {e}")
-            finally:
-                for _ in batch:
-                    self._queue.task_done()
-
-            # always wait at least MIN_TG_INTERVAL after the last TG API call
-            await self._rate_wait()
-
-    async def _rate_wait(self):
-        elapsed = time.monotonic() - self._last_op_time
-        if elapsed < MIN_TG_INTERVAL:
-            await asyncio.sleep(MIN_TG_INTERVAL - elapsed)
-
-    async def _process_batch(self, batch: list[_QueueItem]):
-        groups = self._group_items(batch)
-        for i, group in enumerate(groups):
-            if i > 0:
-                await self._rate_wait()
-            first = group[0]
-            if first.type == "tool":
-                await self._handle_tool_group(group)
-            elif first.type == "text":
-                await self._handle_text_group(group)
-            elif first.type == "tool_result":
-                for item in group:
-                    await self._handle_tool_result(item)
-            else:
-                for item in group:
-                    await self._handle_passthrough(item)
-                    if item != group[-1]:
-                        await self._rate_wait()
-
-    @staticmethod
-    def _group_items(batch: list[_QueueItem]) -> list[list[_QueueItem]]:
-        """Group consecutive items by type (tool+tool_result stay together)."""
-        groups: list[list[_QueueItem]] = []
-        for item in batch:
-            effective = "tool" if item.type == "tool_result" else item.type
-            if groups:
-                prev_effective = "tool" if groups[-1][0].type in ("tool", "tool_result") else groups[-1][0].type
-                if effective == prev_effective:
-                    groups[-1].append(item)
-                    continue
-            groups.append([item])
-        return groups
-
-    async def _handle_tool_group(self, items: list[_QueueItem]):
-        """Process a group of tool + tool_result items → single TG operation."""
-        for item in items:
-            if item.type == "tool":
-                self._accumulate_tool_line(item)
-            elif item.type == "tool_result":
-                self._accumulate_tool_result(item)
-
-        text = "\n".join(self._tool_lines)
-        if self._phase == _StreamPhase.TOOLS and self._current_msg_id:
-            if len(text) > MAX_MSG_LEN:
-                overflow_start = self._find_split_point(text)
-                keep_text = text[:overflow_start].rstrip()
-                await self._safe_edit(keep_text)
-                self._current_text = keep_text
-                await self._rate_wait()
-                rest_lines = text[overflow_start:].lstrip().split("\n")
-                self._tool_lines = rest_lines
-                text = "\n".join(rest_lines)
-                msg = await self._safe_send(text)
-                if msg:
-                    self._current_msg_id = msg.message_id
-                    self._current_text = text
-            else:
-                await self._safe_edit(text)
-                self._current_text = text
-        else:
-            self._start_new_msg()
-            self._phase = _StreamPhase.TOOLS
-            msg = await self._safe_send(text)
-            if msg:
-                self._current_msg_id = msg.message_id
-                self._current_text = text
-
-    def _accumulate_tool_line(self, item: _QueueItem):
-        tool_name = item.content.split(":")[0].strip() if ":" in item.content else "tool"
-        tool_body = item.content[len(tool_name)+1:].strip()[:120] if ":" in item.content else ""
-        icon = _tg_tool_icon(tool_name)
-        short = _tg_tool_short(tool_name)
-        preview = tool_body[:60] if tool_body else ""
-        line = f"{icon} {short}" + (f": {preview}" if preview else "")
-        if self._phase != _StreamPhase.TOOLS:
-            self._tool_lines = []
-        self._tool_lines.append(line)
-
-    def _accumulate_tool_result(self, item: _QueueItem):
-        if not self._tool_lines:
-            return
-        result_preview = item.content[:80].replace("\n", " ").strip()
-        self._tool_lines[-1] = f"{self._tool_lines[-1]} → {result_preview}"
-
-    async def _handle_tool_result(self, item: _QueueItem):
-        if self._phase != _StreamPhase.TOOLS or not self._current_msg_id or not self._tool_lines:
-            return
-        self._accumulate_tool_result(item)
-        new_text = "\n".join(self._tool_lines)
-        if len(new_text) <= MAX_MSG_LEN:
-            await self._safe_edit(new_text)
-            self._current_text = new_text
-
-    async def _handle_text_group(self, items: list[_QueueItem]):
-        """Process a group of text items → single TG operation."""
-        combined = "".join(i.content[:3800] for i in items)
-        if self._phase == _StreamPhase.TEXT and self._current_msg_id:
-            new_text = self._current_text + combined
-            if len(new_text) > MAX_MSG_LEN:
-                self._start_new_msg()
-                text = f"💬\n{combined[:MAX_MSG_LEN]}"
-                msg = await self._safe_send(text)
-                if msg:
-                    self._current_msg_id = msg.message_id
-                    self._current_text = text
-                    self._phase = _StreamPhase.TEXT
-            else:
-                await self._safe_edit(new_text)
-                self._current_text = new_text
-        else:
-            self._start_new_msg()
-            self._phase = _StreamPhase.TEXT
-            text = f"💬\n{combined[:MAX_MSG_LEN]}"
-            msg = await self._safe_send(text)
-            if msg:
-                self._current_msg_id = msg.message_id
-                self._current_text = text
-
-    @staticmethod
-    def _find_split_point(text: str) -> int:
-        search_start = max(0, MAX_MSG_LEN - 200)
-        nl2 = text.rfind("\n\n", search_start, MAX_MSG_LEN)
-        if nl2 != -1:
-            return nl2 + 2
-        nl = text.rfind("\n", search_start, MAX_MSG_LEN)
-        if nl != -1:
-            return nl + 1
-        return MAX_MSG_LEN
-
-    async def _handle_passthrough(self, item: _QueueItem):
-        self._start_new_msg()
-        if item.type == "error":
-            text = f"❌ {item.content[:1000]}"
-        elif item.type == "status":
-            text = f"⚡ {item.content}"
-        elif item.type == "user_message":
-            c = item.content
-            if c.startswith("[from:"):
-                prefix = c.split("]")[0] + "]"
-                body = c[len(prefix):].strip()
-                text = f"📨 {prefix}\n{body[:3000]}"
-            else:
-                text = f"👤 {c[:3000]}"
-        else:
-            text = item.content[:3000]
-        await self._safe_send(text)
-
-    def _start_new_msg(self):
-        self._current_msg_id = None
-        self._current_text = ""
-        self._last_sent_text = ""
-        self._tool_lines = []
-        self._phase = _StreamPhase.IDLE
-
-    async def _safe_send(self, text: str) -> Optional[types.Message]:
-        self._last_op_time = time.monotonic()
+async def _send_expandable_return(chat_id: int, thread_id: int, header: str, body: str):
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+    body = body.rstrip()
+    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
+    text = f"{header}\n{conv_body}"
+    offset = _utf16_len(header) + 1
+    length = _utf16_len(conv_body)
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+        return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+    except Exception:
         try:
-            converted, entities = md_convert(text)
-            ent_dicts = [e.to_dict() for e in entities] if entities else None
-            return await self._bot.send_message(
-                self._chat_id, converted,
-                message_thread_id=self._thread_id,
-                parse_mode=None, entities=ent_dicts,
-            )
-        except TelegramRetryAfter as e:
-            logger.warning(f"TG flood on send, waiting {e.retry_after}s")
-            await asyncio.sleep(e.retry_after)
-            try:
-                return await self._bot.send_message(
-                    self._chat_id, text,
-                    message_thread_id=self._thread_id,
-                )
-            except Exception as e2:
-                logger.warning(f"TG send retry failed: {e2}")
-                return None
-        except Exception:
-            try:
-                return await self._bot.send_message(
-                    self._chat_id, text,
-                    message_thread_id=self._thread_id,
-                )
-            except Exception as e:
-                logger.warning(f"TG send failed: {e}")
-                return None
-
-    async def _safe_edit(self, text: str):
-        if not self._current_msg_id:
-            return
-        if text == self._last_sent_text:
-            return
-        self._last_op_time = time.monotonic()
-        try:
-            converted, entities = md_convert(text)
-            ent_dicts = [e.to_dict() for e in entities] if entities else None
-            await self._bot.edit_message_text(
-                converted, chat_id=self._chat_id,
-                message_id=self._current_msg_id,
-                parse_mode=None, entities=ent_dicts,
-            )
-            self._last_sent_text = text
-        except TelegramBadRequest as e:
-            if "message is not modified" in str(e).lower():
-                return
-            try:
-                await self._bot.edit_message_text(
-                    text, chat_id=self._chat_id,
-                    message_id=self._current_msg_id,
-                )
-                self._last_sent_text = text
-            except TelegramBadRequest as e2:
-                if "message is not modified" not in str(e2).lower():
-                    logger.warning(f"TG edit failed: {e2}")
-        except TelegramRetryAfter as e:
-            logger.warning(f"TG flood on edit, waiting {e.retry_after}s")
-            await asyncio.sleep(e.retry_after)
+            return await bot.send_message(chat_id, text, message_thread_id=thread_id)
         except Exception as e:
-            logger.warning(f"TG edit failed: {e}")
+            logger.warning(f"TG send failed: {e}")
+            return None
 
 
-_stream_queues: dict[str, TgStreamQueue] = {}
+async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_header: str, result_body: str):
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+    nl = tool_text.index("\n")
+    tool_header = tool_text[:nl]
+    tool_body = tool_text[nl + 1:].rstrip()
+    result_body = result_body.rstrip()
+    conv_tool, tool_ents = _md_entities(tool_body, 0)
+    conv_result, result_ents = _md_entities(result_body, 0)
+    parts = [tool_header, "\n", conv_tool, "\n\n", result_header, "\n", conv_result]
+    text = "".join(parts)
+    offsets = []
+    pos = 0
+    for p in parts:
+        offsets.append(pos)
+        pos += _utf16_len(p)
+    for e in tool_ents:
+        e.offset += offsets[2]
+    for e in result_ents:
+        e.offset += offsets[6]
+    try:
+        entities = [
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
+            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
+        ] + tool_ents + result_ents
+        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+    except Exception as e:
+        if "message is not modified" in str(e).lower():
+            return
+        try:
+            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+        except Exception as e2:
+            if "message is not modified" not in str(e2).lower():
+                logger.warning(f"TG edit failed: {e2}")
 
 
-def _get_stream_queue(orch_name: str, chat_id: int, thread_id: int) -> TgStreamQueue:
-    if orch_name not in _stream_queues:
-        q = TgStreamQueue(bot, chat_id, thread_id)
-        _stream_queues[orch_name] = q
-        _tasks.append(asyncio.create_task(q.run()))
-    return _stream_queues[orch_name]
+async def _edit_expandable(msg, chat_id: int, header: str, body: str):
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
+    text = f"{header}\n{conv_body}"
+    offset = _utf16_len(header) + 1
+    length = _utf16_len(conv_body)
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
+    except Exception as e:
+        if "message is not modified" in str(e).lower():
+            return
+        try:
+            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
+        except Exception as e2:
+            if "message is not modified" not in str(e2).lower():
+                logger.warning(f"TG edit failed: {e2}")
 
 
-# ---------------------------------------------------------------------------
-#  Tool icons
-# ---------------------------------------------------------------------------
+async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
+    text = f"{header}\n{conv_body}"
+    offset = _utf16_len(header) + 1
+    length = _utf16_len(conv_body)
+    try:
+        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+        await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+    except Exception:
+        try:
+            await bot.send_message(chat_id, text, message_thread_id=thread_id)
+        except Exception as e:
+            logger.warning(f"TG send failed: {e}")
+
 
 _TG_TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
@@ -654,47 +450,6 @@ def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
 
-_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
-
-
-def _find_thread_for_scope(scope: str) -> int | None:
-    from app.db import get_all_sessions
-    for s in get_all_sessions():
-        if s.get("is_orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
-            tid = config["topics"].get(s["name"])
-            if tid:
-                return tid
-    return None
-
-
-async def send_file_to_tg(path: str, caption: str, scope: str, sender: str) -> dict:
-    if not bot or not config["group_id"]:
-        return {"error": "TG bridge not active"}
-    from pathlib import Path as P
-    fp = P(path)
-    if not fp.exists():
-        return {"error": f"file not found: {path}"}
-    if fp.stat().st_size > 50 * 1024 * 1024:
-        return {"error": "file too large (max 50MB)"}
-    thread_id = _find_thread_for_scope(scope)
-    if not thread_id:
-        return {"error": f"no TG topic for scope: {scope}"}
-    label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
-    label = label[:1024]
-    try:
-        from aiogram.types import FSInputFile
-        tg_file = FSInputFile(path, filename=fp.name)
-        if fp.suffix.lower() in _IMAGE_EXTS:
-            await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
-        else:
-            await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
-        return {"ok": True}
-    except TelegramRetryAfter as e:
-        return {"error": f"TG flood: retry after {e.retry_after}s"}
-    except Exception as e:
-        return {"error": str(e)}
-
-
 async def ensure_topics():
     if not bot or not config["group_id"] or not _manager:
         return
@@ -719,7 +474,6 @@ async def ensure_topics():
 
 
 async def stream_logs(orch_name: str, thread_id: int):
-    """Poll DB logs and feed them into TgStreamQueue for rate-limited delivery."""
     from app.db import get_logs, get_session_by_name, get_all_sessions
 
     scope = None
@@ -739,8 +493,8 @@ async def stream_logs(orch_name: str, thread_id: int):
 
     logs = get_logs(session_id, after_id=0)
     last_id = logs[-1]["id"] if logs else 0
-
-    queue = _get_stream_queue(orch_name, config["group_id"], thread_id)
+    _last_tool_msg = None
+    _last_tool_text = ""
 
     while True:
         try:
@@ -750,11 +504,59 @@ async def stream_logs(orch_name: str, thread_id: int):
                     continue
                 last_id = log["id"]
                 t, c = log["type"], log["content"]
-                if t in ("tool", "tool_result", "text", "error", "status", "user_message"):
-                    queue.put_nowait(_QueueItem(
-                        type=t, content=c,
-                        chat_id=config["group_id"], thread_id=thread_id,
-                    ))
+                if t == "user_message" and c.startswith("[from:"):
+                    prefix = c.split("]")[0] + "]"
+                    body = c[len(prefix):].strip()
+                    text = f"📨 {prefix}\n{body[:3000]}"
+                elif t == "user_message":
+                    text = f"👤 {c[:3000]}"
+                elif t == "text":
+                    text = f"💬\n{c[:3900]}"
+                elif t == "tool":
+                    tool_name = c.split(":")[0].strip() if ":" in c else "tool"
+                    tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
+                    icon = _tg_tool_icon(tool_name)
+                    short = _tg_tool_short(tool_name)
+                    header = f"{icon} {short}"
+                    _last_tool_text = f"{header}\n{tool_body}"
+                    _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
+                    continue
+                elif t == "tool_result":
+                    result_preview = c[:80].replace("\n", " ").strip()
+                    result_body = c[:800]
+                    if _last_tool_msg:
+                        await _edit_tool_with_result(
+                            _last_tool_msg, config["group_id"],
+                            _last_tool_text, f"📎 {result_preview}", result_body,
+                        )
+                        _last_tool_msg = None
+                        _last_tool_text = ""
+                    else:
+                        await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
+                    continue
+                elif t == "error":
+                    text = f"❌ {c[:1000]}"
+                elif t == "status":
+                    text = f"⚡ {c}"
+                else:
+                    continue
+                try:
+                    converted, entities = md_convert(text)
+                    from aiogram.types import MessageEntity as AioEntity
+                    aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
+                    await bot.send_message(
+                        config["group_id"], converted,
+                        message_thread_id=thread_id,
+                        parse_mode=None, entities=aio_ents,
+                    )
+                except Exception:
+                    try:
+                        await bot.send_message(
+                            config["group_id"], text,
+                            message_thread_id=thread_id,
+                        )
+                    except Exception as e:
+                        logger.warning(f"TG send failed: {e}")
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
         await asyncio.sleep(2)
@@ -901,14 +703,7 @@ async def start_bridge(manager):
     config["group_id"] = group
     save_config()
 
-    local_api_url = os.getenv("TG_LOCAL_API_URL", "")
-    if local_api_url:
-        from aiogram.client.telegram import TelegramAPIServer
-        server = TelegramAPIServer(base=local_api_url, file=local_api_url)
-        bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None), server=server)
-        logger.info(f"TG Bridge using local Bot API: {local_api_url}")
-    else:
-        bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
+    bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
 
     await ensure_topics()
 
@@ -916,25 +711,14 @@ async def start_bridge(manager):
         _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
 
     _tasks.append(asyncio.create_task(topic_sync_loop()))
-    _tasks.append(asyncio.create_task(_polling_watchdog()))
+    _tasks.append(asyncio.create_task(dp.start_polling(bot)))
     logger.info(f"TG Bridge started | group={group} | topics={len(config['topics'])}")
-
-
-async def _polling_watchdog():
-    while True:
-        try:
-            await dp.start_polling(bot)
-        except Exception as e:
-            logger.error(f"TG polling crashed: {e}, restarting in 10s")
-        await asyncio.sleep(10)
-        logger.info("TG polling restarting...")
 
 
 async def stop_bridge():
     for t in _tasks:
         t.cancel()
     _tasks.clear()
-    _stream_queues.clear()
     if bot:
         await bot.session.close()
 
