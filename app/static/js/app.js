@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleRefresh();
     initFilePreviewModal();
     initUsageBar();
+    initHeartbeat();
 });
 
 let eventSource = null;
@@ -3179,4 +3180,14 @@ function _onServerError() {
 
 function _onServerOk() {
     _rebootFails = 0;
+}
+
+function initHeartbeat() {
+    setInterval(async () => {
+        try {
+            const r = await fetch('/api/usage', { signal: AbortSignal.timeout(2000) });
+            if (r.ok) _onServerOk();
+            else _onServerError();
+        } catch { _onServerError(); }
+    }, 3000);
 }
