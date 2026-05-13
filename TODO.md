@@ -11,6 +11,7 @@
 - [ ] **Rename worker** — ~~MCP tool для переименования воркера~~ DONE (v2.5.0)
 - [ ] **Worker progress tracking** — MCP tool `update_progress(percent, status)` чтобы воркер мог трекать % выполнения задачи. На фронте отображается в списке воркеров (прогресс-бар + статус). Воркер: получил задачу → 0%, сделал часть → 30%, всё готово → 100%. Видно снаружи без захода в логи
 - [ ] **TG persistent client fix** — persistent client Parsing-orchestrator периодически умирает, TG сообщения не доходят. Нужен heartbeat/watchdog или fallback на fresh client
+- [ ] **TG Mirror** — дублирование отфильтрованных сообщений из топика в другую группу/чат. Конфиг: `mirror_targets: [{chat_id, topic_id, filter: "plans,deploys,summaries"}]`. Юзкейс: клиент видит итоги/планы/деплои, без внутренней кухни. Feature request от Parsing-orchestrator
 
 ## Done (v2.5.0)
 - [x] **Usage status bar** — OAuth API, 5h/7d bars, HSL gradient, `/api/usage` endpoint
