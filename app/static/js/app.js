@@ -503,6 +503,7 @@ async function deleteOrchestrator() {
 
 // === Orchestrator Picker ===
 let orchData = [];
+const _unreadTabs = new Set();
 
 async function loadOrchestrators() {
     try {
@@ -582,6 +583,13 @@ function renderOrchTabs(sorted) {
         label.textContent = shortName;
         tab.append(dot, label);
         tab.title = o.scope;
+        tab.style.position = 'relative';
+        if (_unreadTabs.has(o.scope)) {
+            const unread = document.createElement('span');
+            unread.className = 'tab-unread';
+            unread.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 4px rgba(239,68,68,0.6)';
+            tab.appendChild(unread);
+        }
         tab.addEventListener('click', () => selectOrchestrator(o.name, o.scope));
         tab.addEventListener('dragstart', (e) => {
             dragTab = tab;
@@ -625,17 +633,27 @@ function renderOrchTabs(sorted) {
 }
 
 function updateOrchTabDots() {
-    const dots = document.querySelectorAll('#orch-tabs .orch-tab');
-    dots.forEach(tab => {
-        const name = tab.title;
-        const o = orchData.find(x => x.scope === name);
+    const tabs = document.querySelectorAll('#orch-tabs .orch-tab');
+    tabs.forEach(tab => {
+        const scope = tab.title;
+        const o = orchData.find(x => x.scope === scope);
         if (!o) return;
         const dot = tab.querySelector('.tab-dot');
         if (dot) dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
+        const existing = tab.querySelector('.tab-unread');
+        if (_unreadTabs.has(scope) && !existing) {
+            const unread = document.createElement('span');
+            unread.className = 'tab-unread';
+            unread.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 4px rgba(239,68,68,0.6)';
+            tab.appendChild(unread);
+        } else if (!_unreadTabs.has(scope) && existing) {
+            existing.remove();
+        }
     });
 }
 
 function selectOrchestrator(name, scope) {
+    _unreadTabs.delete(scope);
     const picker = $('#orch-picker');
     picker.value = scope;
     const opt = [...picker.options].find(o => o.dataset.name === name);
@@ -3039,7 +3057,14 @@ async function refreshSessions() {
             const freshOrchs = await api('/api/orchestrators', { signal });
             for (const fo of freshOrchs) {
                 const existing = orchData.find(o => o.name === fo.name);
-                if (existing) { existing.status = fo.status; existing.cost_usd = fo.cost_usd; existing.any_running = fo.any_running; }
+                if (existing) {
+                    const wasRunning = existing.status === 'running' || existing.any_running;
+                    const nowIdle = fo.status !== 'running' && !fo.any_running;
+                    if (wasRunning && nowIdle && fo.scope !== currentScope) {
+                        _unreadTabs.add(fo.scope);
+                    }
+                    existing.status = fo.status; existing.cost_usd = fo.cost_usd; existing.any_running = fo.any_running;
+                }
             }
             updateOrchTabDots();
         } catch {}
