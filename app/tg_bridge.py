@@ -164,9 +164,14 @@ async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
     thread_id = msg.message_thread_id
     orch_name = None
     for name, tid in config["topics"].items():
-        if tid == thread_id:
+        if tid == thread_id and msg.chat.id == config.get("group_id"):
             orch_name = name
             break
+    if not orch_name:
+        for name, mirror in config.get("mirrors", {}).items():
+            if msg.chat.id == mirror.get("chat_id") and thread_id == mirror.get("topic_id"):
+                orch_name = name
+                break
     if not orch_name:
         return None, None
     session = await _manager.ensure_loaded_any(orch_name)
@@ -450,6 +455,21 @@ def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
 
+async def _mirror_send(orch_name: str, text: str, entities=None):
+    mirrors = config.get("mirrors", {})
+    mirror = mirrors.get(orch_name)
+    if not mirror or not bot:
+        return
+    chat_id = mirror.get("chat_id")
+    topic_id = mirror.get("topic_id")
+    if not chat_id:
+        return
+    try:
+        await bot.send_message(chat_id, text, message_thread_id=topic_id, entities=entities)
+    except Exception as e:
+        logger.warning(f"Mirror send failed for {orch_name}: {e}")
+
+
 async def ensure_topics():
     if not bot or not config["group_id"] or not _manager:
         return
@@ -471,6 +491,22 @@ async def ensure_topics():
             asyncio.create_task(stream_logs(name, result.message_thread_id))
         except Exception as e:
             logger.error(f"Failed to create topic for {name}: {e}")
+
+    mirrors = config.get("mirrors", {})
+    for name, mirror in mirrors.items():
+        if mirror.get("topic_id") is not None:
+            continue
+        chat_id = mirror.get("chat_id")
+        if not chat_id:
+            continue
+        try:
+            short = _short_name(name)
+            result = await bot.create_forum_topic(chat_id=chat_id, name=f"🎯 {short}")
+            mirror["topic_id"] = result.message_thread_id
+            save_config()
+            logger.info(f"Created mirror topic for {name}: {result.message_thread_id}")
+        except Exception as e:
+            logger.warning(f"Mirror topic creation failed for {name}: {e}")
 
 
 async def stream_logs(orch_name: str, thread_id: int):
@@ -520,6 +556,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                     header = f"{icon} {short}"
                     _last_tool_text = f"{header}\n{tool_body}"
                     _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
+                    await _mirror_send(orch_name, f"{header}\n{tool_body}")
                     continue
                 elif t == "tool_result":
                     result_preview = c[:80].replace("\n", " ").strip()
@@ -533,6 +570,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         _last_tool_text = ""
                     else:
                         await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
+                    await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
                     continue
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
@@ -557,6 +595,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         )
                     except Exception as e:
                         logger.warning(f"TG send failed: {e}")
+                await _mirror_send(orch_name, text)
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
         await asyncio.sleep(2)
