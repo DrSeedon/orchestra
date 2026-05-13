@@ -43,6 +43,8 @@ sudo systemctl status orchestra
 - Workers communicate via HTTP callback, not MCP inject
 - Proxy через Hiddify (127.0.0.1:12334) everywhere
 - **НЕ рестартить сервер при изменении фронта** (JS/CSS/HTML) — статика подтягивается автоматически. Рестарт только при изменении Python-кода
+- **sudo без пароля** для `systemctl restart/stop/start/status orchestra` и `telegram-bot-api` — можно рестартить сервер самому через `sudo systemctl restart orchestra`
+- **TG /restart** — команда в TG группе для рестарта Orchestra
 
 ## Pricing
 - **Max 20x subscription ($200/мес)** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты

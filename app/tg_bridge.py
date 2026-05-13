@@ -603,6 +603,13 @@ async def stream_logs(orch_name: str, thread_id: int):
         await asyncio.sleep(2)
 
 
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.text, lambda msg: msg.text and msg.text.strip() == "/restart")
+async def handle_restart(msg: types.Message):
+    await msg.reply("🔄 Перезапуск Orchestra...")
+    import subprocess
+    subprocess.Popen(["sudo", "systemctl", "restart", "orchestra"])
+
+
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.voice)
 async def handle_voice(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
