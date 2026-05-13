@@ -96,7 +96,13 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
             while path.exists():
                 path = UPLOADS_DIR / f"{stem}_{i}{suffix}"
                 i += 1
-        await bot.download_file(f.file_path, str(path))
+        local_api = os.getenv("TG_LOCAL_API_URL", "")
+        if local_api and f.file_path and Path(f.file_path).is_absolute() and Path(f.file_path).exists():
+            import shutil
+            shutil.copy2(f.file_path, str(path))
+            logger.info(f"Local API: copied {f.file_path} → {path}")
+        else:
+            await bot.download_file(f.file_path, str(path))
         if unique_id:
             _media_cache[unique_id] = str(path)
             _save_media_cache(_media_cache)
