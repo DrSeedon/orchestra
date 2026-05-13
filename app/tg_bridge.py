@@ -519,6 +519,30 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str) -> d
         return {"error": str(e)}
 
 
+_topic_status = {}
+
+
+async def _update_topic_status(orch_name: str, is_running: bool):
+    if _topic_status.get(orch_name) == is_running:
+        return
+    _topic_status[orch_name] = is_running
+    short = _short_name(orch_name)
+    icon = "🟢" if is_running else "🟡"
+    new_name = f"{icon} {short}"
+    thread_id = config["topics"].get(orch_name)
+    if thread_id and bot:
+        try:
+            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id, name=new_name)
+        except Exception as e:
+            logger.debug(f"Topic rename failed: {e}")
+    mirror = config.get("mirrors", {}).get(orch_name)
+    if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
+        try:
+            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"], name=new_name)
+        except Exception as e:
+            logger.debug(f"Mirror topic rename failed: {e}")
+
+
 async def _mirror_send(orch_name: str, text: str, entities=None):
     mirrors = config.get("mirrors", {})
     mirror = mirrors.get(orch_name)
@@ -604,6 +628,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                     continue
                 last_id = log["id"]
                 t, c = log["type"], log["content"]
+                if t in ("text", "tool"):
+                    await _update_topic_status(orch_name, True)
                 if t == "user_message" and c.startswith("[from:"):
                     prefix = c.split("]")[0] + "]"
                     body = c[len(prefix):].strip()
@@ -639,6 +665,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
                 elif t == "status":
+                    if "turn ended" in c:
+                        await _update_topic_status(orch_name, False)
                     text = f"⚡ {c}"
                 else:
                     continue
