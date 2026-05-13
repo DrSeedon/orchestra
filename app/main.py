@@ -179,7 +179,8 @@ async def open_folder(req: dict):
     path = req.get("path", "")
     if not Path(path).is_dir():
         return JSONResponse({"error": "not a directory"}, status_code=400)
-    subprocess.Popen(["xdg-open", path])
+    env = {**os.environ, "DISPLAY": ":0", "WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": f"/run/user/{os.getuid()}"}
+    subprocess.Popen(["xdg-open", path], env=env)
     return {"ok": True}
 
 
