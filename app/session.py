@@ -105,6 +105,7 @@ class AgentSession:
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_auto_approve,
             include_partial_messages=False, max_turns=200,
+            max_buffer_size=50 * 1024 * 1024,
             env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},
         )
         if self.session_id:
@@ -135,13 +136,7 @@ class AgentSession:
             else:
                 self._prompt_injected = True
         client = await self._ensure_client()
-        try:
-            await client.query(message)
-        except Exception as e:
-            self._log("error", f"query failed, reconnecting: {e}")
-            await self._disconnect_client()
-            client = await self._ensure_client()
-            await client.query(message)
+        await client.query(message)
         if self.status == AgentStatus.IDLE:
             self._did_report = False
             self._turn_logs = []
@@ -151,12 +146,7 @@ class AgentSession:
 
     async def _ensure_client(self) -> ClaudeSDKClient:
         if self._client is not None:
-            if self._listen_task and self._listen_task.done():
-                self._log("status", "listener died, reconnecting")
-                self._client = None
-                self._listen_task = None
-            else:
-                return self._client
+            return self._client
         client = self._make_client()
         try:
             await asyncio.wait_for(client.connect(), timeout=60)
@@ -170,95 +160,112 @@ class AgentSession:
         return self._client
 
     async def _persistent_listen(self) -> None:
-        try:
-            async for msg in self._client.receive_messages():
-                if self._turn_start and (asyncio.get_event_loop().time() - self._turn_start) > self.TURN_TIMEOUT:
-                    logger.error(f"[{self.name}] turn timeout")
-                    self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
-                    self._turn_start = 0
-                    self.status = AgentStatus.IDLE
-                    self._persist()
-                    await self.send("[system] Turn timed out. Continue where you left off.")
-                    continue
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, TextBlock) and block.text:
-                            self._log("text", block.text)
-                            self._turn_logs.append(block.text)
-                        elif isinstance(block, ToolUseBlock):
-                            import json as _j
-                            try:
-                                inp = _j.dumps(block.input, ensure_ascii=False, indent=2)
-                            except Exception:
-                                inp = str(block.input)
-                            self._log("tool", f"{block.name}: {inp}")
-                            short_name = block.name.split('__')[-1] if '__' in block.name else block.name
-                            short_inp = str(block.input)[:80]
-                            self._turn_logs.append(f"[tool] {short_name}: {short_inp}")
-                            if block.name in ("mcp__orchestra__send_message", "send_message"):
-                                self._did_report = True
-                        elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                            result_text = _extract_tool_result(block)
-                            self._log("tool_result", result_text)
-                            if "Command running in background" in result_text and "Output is being written to:" in result_text:
-                                import re
-                                m = re.search(r"Output is being written to:\s*(\S+)", result_text)
-                                if m:
-                                    self._bg_outputs.append(m.group(1))
-                elif isinstance(msg, UserMessage):
-                    if hasattr(msg, 'content') and isinstance(msg.content, list):
+        while True:
+            try:
+                async for msg in self._client.receive_messages():
+                    if self._turn_start and (asyncio.get_event_loop().time() - self._turn_start) > self.TURN_TIMEOUT:
+                        logger.error(f"[{self.name}] turn timeout")
+                        self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
+                        self._turn_start = 0
+                        self.status = AgentStatus.IDLE
+                        self._persist()
+                        await self.send("[system] Turn timed out. Continue where you left off.")
+                        continue
+                    if isinstance(msg, AssistantMessage):
                         for block in msg.content:
-                            if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                                self._log("tool_result", _extract_tool_result(block))
-                elif isinstance(msg, ResultMessage):
-                    self._turn_start = 0
-                    sr = getattr(msg, "stop_reason", None) or "unknown"
-                    nt = getattr(msg, "num_turns", 0) or 0
-                    self._log("status", f"turn ended: stop_reason={sr}, num_turns={nt}")
-                    if msg.session_id:
-                        self.session_id = msg.session_id
-                    self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
-                    usage = getattr(msg, "usage", None)
-                    if usage and isinstance(usage, dict):
-                        iters = usage.get("iterations", [])
-                        last = iters[-1] if iters else usage
-                        cache_create = (last.get("cache_creation_input_tokens", 0) or 0)
-                        cache_read = (last.get("cache_read_input_tokens", 0) or 0)
-                        total = (last.get("input_tokens", 0) or 0) + cache_create + cache_read
-                        cache_total = cache_create + cache_read
-                        from app.models import CONTEXT_LIMITS
-                        max_t = CONTEXT_LIMITS.get(self.model, 200000)
-                        self._last_context = {
-                            "percentage": int(total * 100 / max_t) if max_t else 0,
-                            "total_tokens": total, "max_tokens": max_t,
-                            "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
-                            "cache_read": cache_read, "cache_create": cache_create,
-                        }
-                    self.status = AgentStatus.IDLE
-                    self._persist()
-                    if self._last_context.get("percentage", 0) > 90 and not getattr(self, "_compacting", False):
-                        self._log("status", f"auto-compact triggered ({self._last_context['percentage']}%)")
-                        asyncio.create_task(self._auto_compact())
-                    if self._bg_outputs:
-                        paths = list(self._bg_outputs)
-                        self._bg_outputs.clear()
-                        asyncio.create_task(self._poll_bg_outputs(paths))
-                    if self.on_idle and not self._did_report:
-                        last_texts = self._turn_logs[-5:] if self._turn_logs else []
-                        try:
-                            asyncio.create_task(self.on_idle(self.name, self.scope, last_texts))
-                        except Exception:
-                            pass
-        except asyncio.CancelledError:
-            return
-        except Exception as e:
-            logger.error(f"[{self.name}] persistent listener error: {e}")
-            self._log("error", f"listener died: {e}")
-        finally:
-            self._client = None
-            if self.status == AgentStatus.RUNNING:
-                self.status = AgentStatus.IDLE
-                self._persist()
+                            if isinstance(block, TextBlock) and block.text:
+                                self._log("text", block.text)
+                                self._turn_logs.append(block.text)
+                            elif isinstance(block, ToolUseBlock):
+                                import json as _j
+                                try:
+                                    inp = _j.dumps(block.input, ensure_ascii=False, indent=2)
+                                except Exception:
+                                    inp = str(block.input)
+                                self._log("tool", f"{block.name}: {inp}")
+                                short_name = block.name.split('__')[-1] if '__' in block.name else block.name
+                                short_inp = str(block.input)[:80]
+                                self._turn_logs.append(f"[tool] {short_name}: {short_inp}")
+                                if block.name in ("mcp__orchestra__send_message", "send_message"):
+                                    self._did_report = True
+                            elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
+                                result_text = _extract_tool_result(block)
+                                self._log("tool_result", result_text)
+                                if "Command running in background" in result_text and "Output is being written to:" in result_text:
+                                    import re
+                                    m = re.search(r"Output is being written to:\s*(\S+)", result_text)
+                                    if m:
+                                        self._bg_outputs.append(m.group(1))
+                    elif isinstance(msg, UserMessage):
+                        if hasattr(msg, 'content') and isinstance(msg.content, list):
+                            for block in msg.content:
+                                if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
+                                    self._log("tool_result", _extract_tool_result(block))
+                    elif isinstance(msg, ResultMessage):
+                        self._turn_start = 0
+                        sr = getattr(msg, "stop_reason", None) or "unknown"
+                        nt = getattr(msg, "num_turns", 0) or 0
+                        self._log("status", f"turn ended: stop_reason={sr}, num_turns={nt}")
+                        if msg.session_id:
+                            self.session_id = msg.session_id
+                        self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
+                        usage = getattr(msg, "usage", None)
+                        if usage and isinstance(usage, dict):
+                            iters = usage.get("iterations", [])
+                            last = iters[-1] if iters else usage
+                            cache_create = (last.get("cache_creation_input_tokens", 0) or 0)
+                            cache_read = (last.get("cache_read_input_tokens", 0) or 0)
+                            total = (last.get("input_tokens", 0) or 0) + cache_create + cache_read
+                            cache_total = cache_create + cache_read
+                            from app.models import CONTEXT_LIMITS
+                            max_t = CONTEXT_LIMITS.get(self.model, 200000)
+                            self._last_context = {
+                                "percentage": int(total * 100 / max_t) if max_t else 0,
+                                "total_tokens": total, "max_tokens": max_t,
+                                "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
+                                "cache_read": cache_read, "cache_create": cache_create,
+                            }
+                        self.status = AgentStatus.IDLE
+                        self._persist()
+                        if self._last_context.get("percentage", 0) > 90 and not self.is_orchestrator and not getattr(self, "_compacting", False):
+                            self._log("status", f"auto-compact triggered ({self._last_context['percentage']}%)")
+                            asyncio.create_task(self._auto_compact())
+                        if self._bg_outputs:
+                            paths = list(self._bg_outputs)
+                            self._bg_outputs.clear()
+                            asyncio.create_task(self._poll_bg_outputs(paths))
+                        if self.on_idle and not self._did_report:
+                            last_texts = self._turn_logs[-5:] if self._turn_logs else []
+                            try:
+                                asyncio.create_task(self.on_idle(self.name, self.scope, last_texts))
+                            except Exception:
+                                pass
+            except asyncio.CancelledError:
+                self._client = None
+                return
+            except Exception as e:
+                logger.error(f"[{self.name}] persistent listener error: {e}")
+                self._log("error", f"listener error (reconnecting): {e}")
+                try:
+                    if self._client:
+                        await self._client.disconnect()
+                except Exception:
+                    pass
+                self._client = None
+                await asyncio.sleep(2)
+                try:
+                    self._client = self._make_client()
+                    await asyncio.wait_for(self._client.connect(), timeout=60)
+                    logger.info(f"[{self.name}] listener reconnected after error")
+                    continue
+                except Exception as re:
+                    logger.error(f"[{self.name}] listener reconnect failed: {re}")
+                    self._log("error", f"listener reconnect failed: {re}")
+                    self._client = None
+                    if self.status == AgentStatus.RUNNING:
+                        self.status = AgentStatus.IDLE
+                        self._persist()
+                    return
 
     async def _poll_bg_outputs(self, paths: list[str]) -> None:
         from pathlib import Path
