@@ -79,6 +79,22 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
     return f"{prefix}_{ts}_{msg.message_id}{ext}"
 
 
+UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
+
+
+def _cleanup_uploads():
+    files = [f for f in UPLOADS_DIR.iterdir() if f.is_file() and not f.name.startswith(".")]
+    total = sum(f.stat().st_size for f in files)
+    if total <= UPLOADS_MAX_BYTES:
+        return
+    files.sort(key=lambda f: f.stat().st_mtime)
+    while total > UPLOADS_MAX_BYTES and files:
+        old = files.pop(0)
+        total -= old.stat().st_size
+        old.unlink()
+        logger.info(f"Uploads cleanup: deleted {old.name}")
+
+
 async def _download_file(file_id: str, filename: str, unique_id: str = "") -> str | None:
     global _media_cache
     if unique_id and unique_id in _media_cache:
@@ -86,6 +102,7 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
         if Path(cached).exists():
             return cached
         del _media_cache[unique_id]
+    _cleanup_uploads()
     try:
         f = await bot.get_file(file_id)
         name = Path(filename).name
