@@ -3191,8 +3191,8 @@ async function _pollReconnect() {
     while (true) {
         await new Promise(r => setTimeout(r, 2000));
         try {
-            const resp = await fetch('/api/usage', { signal: AbortSignal.timeout(2000) });
-            if (resp.ok) { location.reload(); return; }
+            const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+            if (r.status < 502) { location.reload(); return; }
         } catch {}
     }
 }
@@ -3209,8 +3209,8 @@ function _onServerOk() {
 function initHeartbeat() {
     setInterval(async () => {
         try {
-            const r = await fetch('/api/usage', { signal: AbortSignal.timeout(2000) });
-            if (r.ok) _onServerOk();
+            const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+            if (r.status < 502) _onServerOk();
             else _onServerError();
         } catch { _onServerError(); }
     }, 3000);
