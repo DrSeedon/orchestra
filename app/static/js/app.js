@@ -1157,6 +1157,12 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
+            else if (rawName === 'mcp__orchestra__task_create') preview = `📋 New: "${parsed.title || '?'}"${parsed.price ? ' | '+parsed.price+'k' : ''}`;
+            else if (rawName === 'mcp__orchestra__task_update') { const _f = Object.keys(parsed).filter(k=>k!=='par').map(k=>`${k}→${parsed[k]}`).join(', '); preview = `✏️ ${parsed.par || '?'}: ${_f}`; }
+            else if (rawName === 'mcp__orchestra__task_list') { const _fl = [parsed.status,parsed.project,parsed.assignee].filter(Boolean).join(', '); preview = `📋 Tasks${_fl ? ' ('+_fl+')' : ''}`; }
+            else if (rawName === 'mcp__orchestra__task_get') preview = `📋 ${parsed.par || '?'}`;
+            else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'}k ₽`;
+            else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
             else if (rawName.startsWith('mcp__yougile__')) { const yn = rawName.replace('mcp__yougile__',''); preview = `📋 ${yn}${parsed.title ? ': '+parsed.title : ''}`; }
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
@@ -1781,6 +1787,12 @@ function addChatEntry(type, content, ts, anchor) {
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
             'mcp__orchestra__list_jobs': () => ({ icon: '📊', label: 'Jobs', color: '#38bdf8' }),
             'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
+            'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `New: "${d.title||'?'}"`, color: '#22c55e', sub: d.price ? `${d.price}k ₽` : '' }),
+            'mcp__orchestra__task_update': (d) => { const f = Object.keys(d).filter(k=>k!=='par').map(k=>`${k}→${d[k]}`).join(', '); return { icon: '✏️', label: `${d.par||'?'}: ${f}`, color: '#38bdf8' }; },
+            'mcp__orchestra__task_list': (d) => { const f = [d.status,d.project,d.assignee].filter(Boolean).join(', '); return { icon: '📋', label: `Tasks${f ? ' ('+f+')' : ''}`, color: '#a78bfa' }; },
+            'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `Task ${d.par||'?'}`, color: '#a78bfa' }),
+            'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'}k ₽`, color: '#22c55e', sub: d.note || '' }),
+            'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
         };
         const isOrchSimple = _orchSimple[rawName];
         if (isOrchSimple) {
@@ -2090,6 +2102,107 @@ function addChatEntry(type, content, ts, anchor) {
                 if (hdr) {
                     hdr.textContent = hasError ? '❌ Send failed' : '✅ Sent to TG';
                     hdr.style.color = hasError ? '#ef4444' : '#22c55e';
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status'];
+            if (_tmTools.includes(lastTool.dataset.toolRawName)) {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                let parsed = null;
+                try { parsed = JSON.parse(content); } catch {}
+                const tn = lastTool.dataset.toolRawName;
+                if (!parsed || parsed.error) {
+                    if (hdr) { hdr.textContent = `❌ ${parsed?.error || clean.slice(0, 80)}`; hdr.style.color = '#ef4444'; }
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+                if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
+                    if (hdr) { hdr.textContent = `📋 ${parsed.par}: ${parsed.title || '?'}`; hdr.style.color = '#22c55e'; }
+                    const info = document.createElement('div');
+                    info.style.cssText = 'margin-top:4px;display:flex;gap:8px;font-size:10px;color:#64748b;flex-wrap:wrap';
+                    if (parsed.status) info.innerHTML += `<span>status: <b style="color:#e2e8f0">${parsed.status}</b></span>`;
+                    if (parsed.price && parsed.price !== '0') info.innerHTML += `<span>price: <b style="color:#eab308">${parsed.price}k</b></span>`;
+                    if (parsed.assignee) info.innerHTML += `<span>→ ${DOMPurify.sanitize(parsed.assignee)}</span>`;
+                    lastTool.appendChild(info);
+                    if (parsed.description) {
+                        const descEl = document.createElement('div');
+                        descEl.className = 'text-xs';
+                        descEl.style.cssText = 'margin-top:4px;max-height:54px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;color:#94a3b8';
+                        descEl.textContent = parsed.description.slice(0, 200) + (parsed.description.length > 200 ? '…' : '');
+                        lastTool.appendChild(descEl);
+                        if (parsed.description.length > 200) {
+                            lastTool.style.cursor = 'pointer';
+                            let _tgExp = false;
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _tgExp = !_tgExp;
+                                descEl.textContent = _tgExp ? parsed.description : parsed.description.slice(0, 200) + '…';
+                                descEl.style.maxHeight = _tgExp ? 'none' : '54px';
+                            });
+                        }
+                    }
+                } else if (tn === 'mcp__orchestra__task_update') {
+                    if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'} updated`; hdr.style.color = '#22c55e'; }
+                    if (parsed.changes) {
+                        const ch = document.createElement('div');
+                        ch.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8';
+                        ch.textContent = parsed.changes;
+                        lastTool.appendChild(ch);
+                    }
+                } else if (tn === 'mcp__orchestra__task_list') {
+                    const tasks = parsed.tasks || [];
+                    if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}k` : '');
+                    if (tasks.length > 0) {
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
+                        const PREVIEW = 4;
+                        for (const [i, t] of tasks.entries()) {
+                            const row = document.createElement('div');
+                            row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
+                            row.dataset.taskRow = '1';
+                            const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}k</span>` : '';
+                            row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">${t.par.replace('PAR-','')}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
+                            container.appendChild(row);
+                        }
+                        lastTool.appendChild(container);
+                        if (tasks.length > PREVIEW) {
+                            const hint = document.createElement('div');
+                            hint.className = 'text-xs mt-1';
+                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                            hint.textContent = `▼ ${tasks.length - PREVIEW} more`;
+                            lastTool.appendChild(hint);
+                            let _tlExp = false;
+                            lastTool.style.cursor = 'pointer';
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _tlExp = !_tlExp;
+                                container.querySelectorAll('[data-task-row]').forEach((r, i) => { if (i >= PREVIEW) r.style.display = _tlExp ? 'flex' : 'none'; });
+                                hint.textContent = _tlExp ? '▲ collapse' : `▼ ${tasks.length - PREVIEW} more`;
+                            });
+                        }
+                    }
+                } else if (tn === 'mcp__orchestra__payment_receive') {
+                    if (hdr) { hdr.textContent = `💰 +${parsed.amount || '?'}k received`; hdr.style.color = '#22c55e'; }
+                    if (parsed.distributions && parsed.distributions.length > 0) {
+                        const dEl = document.createElement('div');
+                        dEl.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8';
+                        dEl.textContent = parsed.distributions.map(d => `${d.par}: +${d.amount}k`).join(' | ');
+                        lastTool.appendChild(dEl);
+                    }
+                } else if (tn === 'mcp__orchestra__payment_status') {
+                    if (hdr) {
+                        const bal = parsed.balance_display || '0';
+                        const debt = parsed.total_debt_display || '0';
+                        hdr.textContent = `💰 Balance: ${bal}k | Debt: ${debt}k`;
+                        hdr.style.color = '#eab308';
+                    }
+                    if (parsed.recent_payments && parsed.recent_payments.length > 0) {
+                        const pEl = document.createElement('div');
+                        pEl.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
+                        pEl.innerHTML = parsed.recent_payments.slice(0, 3).map(p => `${p.date}: <span style="color:#22c55e">+${p.amount}</span>${p.note ? ' — '+DOMPurify.sanitize(p.note) : ''}`).join('<br>');
+                        lastTool.appendChild(pEl);
+                    }
                 }
                 addTimestamp(lastTool, ts);
                 return;
