@@ -577,10 +577,22 @@ def _fire_sync(task_id: int) -> None:
     with _conn() as conn:
         task = get_task_by_id(conn, task_id)
         rev = task["sync_revision"] if task else 0
-        log_sync(conn, task_id, "update", rev, "pending")
+        action = "update" if task and task.get("yougile_task_id") else "create"
+        sync_log_id = log_sync(conn, task_id, action, rev, "pending")
     try:
         from app.tm_yougile import yougile_sync_task
-        asyncio.get_event_loop().create_task(yougile_sync_task(task_id))
+
+        async def _do():
+            try:
+                await yougile_sync_task(task_id)
+            finally:
+                with _conn() as c:
+                    c.execute(
+                        "UPDATE tm_sync_log SET status = 'ok', completed_at = ? WHERE id = ? AND status = 'pending'",
+                        (_now(), sync_log_id),
+                    )
+
+        asyncio.get_event_loop().create_task(_do())
     except RuntimeError:
         logger.debug("No event loop for sync, skipping (CLI context)")
     except Exception as e:
@@ -588,12 +600,15 @@ def _fire_sync(task_id: int) -> None:
 
 
 def _fire_par35_sync(payment_result: dict) -> None:
+    with _conn() as conn:
+        sync_log_id = log_sync(conn, None, "par35_update", None, "pending",
+                               payload=str(payment_result.get("payment_id", "")))
     try:
         from app.tm_yougile import yougile_update_par35
 
         async def _do():
             try:
-                await yougile_update_par35(
+                result = await yougile_update_par35(
                     payment_id=payment_result["payment_id"],
                     balance_rub=payment_result["new_balance"],
                     distributions=payment_result["distributions"],
@@ -601,8 +616,19 @@ def _fire_par35_sync(payment_result: dict) -> None:
                     payment_date=payment_result["date"],
                     amount_rub=payment_result["amount_rub"],
                 )
+                status = "ok" if result == "ok" else "error"
+                with _conn() as c:
+                    c.execute(
+                        "UPDATE tm_sync_log SET status = ?, error = ?, completed_at = ? WHERE id = ?",
+                        (status, result if status == "error" else None, _now(), sync_log_id),
+                    )
             except Exception as e:
                 logger.error("PAR-35 sync failed: %s", e)
+                with _conn() as c:
+                    c.execute(
+                        "UPDATE tm_sync_log SET status = 'error', error = ?, completed_at = ? WHERE id = ?",
+                        (str(e), _now(), sync_log_id),
+                    )
 
         asyncio.get_event_loop().create_task(_do())
     except RuntimeError:
