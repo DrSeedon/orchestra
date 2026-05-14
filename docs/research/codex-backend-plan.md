@@ -651,3 +651,168 @@ if "backend_type" not in cols:
 4. **No Codex orchestrator** — orchestrators stay on Claude (Opus). Only workers get Codex option.
 5. **No Codex-specific dashboard views** — same dashboard, just a backend badge.
 6. **No multi-provider-per-session** — one backend per session lifetime. Model change = new backend.
+
+---
+
+## 12. Codex Review Fixes (Round 1)
+
+Codex (GPT-5.5) reviewed this plan and found 2 blocking + 7 suggestions. All accepted with fixes below.
+
+### FIX 1 (blocking): Codex `send()` must not block the caller
+
+**Problem**: The plan proposed inline event consumption in `send()` for Codex. But `send()` is called from HTTP API (`main.py:334`) and MCP tools (`mcp_stdio.py:65`) which have timeouts. A Codex turn can take 30-300 seconds.
+
+**Fix**: Codex `send()` must have the same async contract as Claude — return immediately, consume events in a background task.
+
+```python
+async def send(self, message: str) -> None:
+    backend = await self._ensure_backend()
+    await backend.send(message)  # starts subprocess
+    # For BOTH backends: events flow via _event_loop background task
+    # No inline iteration. No if/else per backend type.
+```
+
+For `CodexBackend`, `send()` spawns the subprocess and returns. A separate `events()` async generator reads stdout. The `_event_loop` task (same for both backends) consumes it:
+
+```python
+async def _event_loop(self) -> None:
+    while True:
+        try:
+            async for event in self._backend.events():
+                self._handle_event(event)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            # For Claude: reconnect. For Codex: just break inner loop, 
+            # next send() will spawn new process
+            if self.backend_type == "claude":
+                await self._reconnect_backend()
+            else:
+                break
+```
+
+For Codex: `events()` yields until the process exits, then returns. The `_event_loop` loop breaks. Next `send()` spawns a new process and restarts the loop.
+
+### FIX 2 (blocking): Process death must emit terminal event
+
+**Problem**: If `codex exec` crashes (non-zero exit, killed, broken pipe), no `turn.completed` JSONL event is emitted. Session stays `RUNNING` forever.
+
+**Fix**: After `events()` generator exhausts (process exited), always emit a synthetic terminal event:
+
+```python
+async def events(self) -> AsyncIterator[AgentEvent]:
+    # ... JSONL parsing loop ...
+    
+    # After stdout exhausts:
+    returncode = await self._proc.wait()
+    stderr = (await self._proc.stderr.read()).decode("utf-8", errors="replace")[-500:]
+    
+    if not self._got_turn_completed:
+        yield AgentEvent("turn_end", "", metadata={
+            "session_id": self._thread_id,
+            "ok": False,
+            "stop_reason": f"process_exit_{returncode}",
+            "returncode": returncode,
+            "stderr_tail": stderr,
+            "cost_usd": 0,
+            "context_pct": 0,
+        })
+    
+    self._proc = None
+```
+
+And `_handle_turn_end` checks `meta.get("ok", True)`:
+
+```python
+def _handle_turn_end(self, meta: dict) -> None:
+    ok = meta.get("ok", True)
+    sr = meta.get("stop_reason", "unknown")
+    self._log("status", f"turn ended: ok={ok}, stop_reason={sr}")
+    # ... rest of handling ...
+```
+
+### FIX 3 (suggestion): Persist `backend_type` through full lifecycle
+
+Add `backend_type` to:
+- `AgentSession._to_db_dict()` — include in dict
+- `save_session()` — INSERT/UPDATE with backend_type column
+- `_load_from_db()` — read from DB row, pass to session
+- `to_dict()` — include in API responses
+- Validation on load: `assert backend_type == backend_for_model(model)`
+
+### FIX 4 (suggestion): Block cross-backend model change
+
+```python
+async def change_model(self, new_model: str) -> dict:
+    old_backend = backend_for_model(self.model)
+    new_backend = backend_for_model(new_model)
+    if old_backend != new_backend:
+        return {"ok": False, "error": f"Cannot change from {old_backend} to {new_backend}. Kill and respawn."}
+    # ... existing logic ...
+```
+
+### FIX 5 (suggestion): Add `ok`, `stop_reason`, `returncode` to turn_end metadata
+
+Update `AgentEvent` documentation and both backends:
+- Claude: `ok=True`, `stop_reason` from `ResultMessage.stop_reason`, `num_turns` from `ResultMessage.num_turns`
+- Codex: `ok=True` if got `turn.completed`, `ok=False` if process died. `returncode` from process.
+
+### FIX 6 (suggestion): Update `app/tools.py` model schema
+
+Add Codex models to `spawn_worker` tool's model parameter description. The `@tool` decorator doesn't enforce schema — it's just documentation for the LLM.
+
+Note: `app/tools.py` uses in-process SDK MCP (`from claude_agent_sdk import tool`) only for orchestrators. Workers use external `mcp_stdio.py`. Since orchestrators stay on Claude, `tools.py` keeps its SDK import. But model list needs updating.
+
+### FIX 7 (suggestion): Per-worktree MCP config instead of global
+
+Each Codex worker gets a `.codex/config.toml` in its worktree directory:
+
+```python
+# In manager.py, after worktree creation for Codex workers:
+def _write_codex_mcp_config(worktree_path: str, name: str, scope: str):
+    codex_dir = Path(worktree_path) / ".codex"
+    codex_dir.mkdir(exist_ok=True)
+    config = f'''[mcp_servers.orchestra]
+command = "{sys.executable}"
+args = ["{_MCP_SCRIPT}"]
+
+[mcp_servers.orchestra.env]
+ORCHESTRA_URL = "http://127.0.0.1:8888"
+ORCHESTRA_SCOPE = "{scope}"
+ORCHESTRA_ROLE = "worker"
+WORKER_NAME = "{name}"
+PYTHONPATH = "{_PROJECT_ROOT}"
+'''
+    (codex_dir / "config.toml").write_text(config)
+```
+
+This gives each worker its own identity. `-C <worktree>` makes Codex pick up this config automatically.
+
+### FIX 8 (suggestion): Resume parameter verification
+
+`codex exec resume` only accepts `--json`, `-m`, `--skip-git-repo-check`, `--ephemeral`. It does NOT accept `-C`, `--sandbox`, `--add-dir`. These are inherited from the original session.
+
+This means: first turn MUST set correct `-C`, `--sandbox`, and model. Resume inherits them. Verified via `codex exec resume --help`.
+
+Add acceptance test in Phase 2: verify resumed session runs in correct worktree CWD.
+
+### FIX 9 (question): Remove `--dangerously-bypass-approvals-and-sandbox`
+
+Verified: `--yolo` overrides `--sandbox` to `danger-full-access`. Worker gets unrestricted file access beyond worktree.
+
+**Fix**: Use only `--sandbox workspace-write`. Codex exec already defaults to `approval_policy: never` in non-interactive mode — no human prompts appear.
+
+### FIX 10 (thought): compact() depends on Claude SDK
+
+`compact()` directly creates a `ClaudeSDKClient` and reads `AssistantMessage`/`ResultMessage`. For Codex, compact needs to use the backend:
+
+```python
+async def compact(self) -> dict:
+    # Same strategy for both backends:
+    # 1. Send compact prompt via backend.send()
+    # 2. Read events via backend.events()
+    # 3. Extract summary from text events
+    # 4. Disconnect, reset session_id, send preamble
+```
+
+This is already implied by the refactoring but worth calling out explicitly: `compact()` must use the backend abstraction, not raw SDK calls.
