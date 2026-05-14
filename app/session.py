@@ -87,6 +87,7 @@ class AgentSession:
 
     _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
@@ -94,6 +95,7 @@ class AgentSession:
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
     _turn_start: float = field(default=0.0, repr=False)
+    _last_msg_time: float = field(default=0.0, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
 
     TURN_TIMEOUT = 600
@@ -157,12 +159,16 @@ class AgentSession:
         self._client = client
         self._listen_task = asyncio.create_task(self._persistent_listen())
         self._listen_task.add_done_callback(self._on_task_done)
+        if self._heartbeat_task is None or self._heartbeat_task.done():
+            self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         return self._client
 
     async def _persistent_listen(self) -> None:
+        logger.info(f"[{self.name}] persistent listener started")
         while True:
             try:
                 async for msg in self._client.receive_messages():
+                    self._last_msg_time = asyncio.get_event_loop().time()
                     if self._turn_start and (asyncio.get_event_loop().time() - self._turn_start) > self.TURN_TIMEOUT:
                         logger.error(f"[{self.name}] turn timeout")
                         self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
@@ -243,11 +249,14 @@ class AgentSession:
                             except Exception:
                                 pass
             except asyncio.CancelledError:
+                logger.info(f"[{self.name}] persistent listener cancelled")
                 self._client = None
                 return
             except Exception as e:
-                logger.error(f"[{self.name}] persistent listener error: {e}")
-                self._log("error", f"listener error (reconnecting): {e}")
+                import traceback
+                tb = traceback.format_exc()
+                logger.error(f"[{self.name}] persistent listener died: {e}\n{tb}")
+                self._log("error", f"listener died (reconnecting): {e}")
                 try:
                     if self._client:
                         await self._client.disconnect()
@@ -259,6 +268,9 @@ class AgentSession:
                     self._client = self._make_client()
                     await asyncio.wait_for(self._client.connect(), timeout=60)
                     logger.info(f"[{self.name}] listener reconnected after error")
+                    self._log("status", "listener reconnected")
+                    if self.status == AgentStatus.RUNNING:
+                        await self._client.query("[system] Connection was restored after interruption. Continue your work.")
                     continue
                 except Exception as re:
                     logger.error(f"[{self.name}] listener reconnect failed: {re}")
@@ -295,10 +307,55 @@ class AgentSession:
         except asyncio.CancelledError:
             return
         if exc:
-            logger.error(f"[{self.name}] task error: {exc}")
+            import traceback
+            tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
             self.status = AgentStatus.IDLE
-            self._log("error", str(exc))
+            self._log("error", f"listen task exception: {exc}")
             self._persist()
+        else:
+            logger.warning(f"[{self.name}] listen task exited without exception (silent death), status={self.status}")
+            if self.status == AgentStatus.RUNNING:
+                self._log("error", "listen task exited unexpectedly while RUNNING")
+                self.status = AgentStatus.IDLE
+                self._persist()
+
+    async def _heartbeat_loop(self) -> None:
+        HEARTBEAT_INTERVAL = 60
+        NO_MSG_TIMEOUT = 300
+        logger.info(f"[{self.name}] heartbeat started")
+        while True:
+            try:
+                await asyncio.sleep(HEARTBEAT_INTERVAL)
+                if self._client is None:
+                    continue
+                task_dead = self._listen_task is None or self._listen_task.done()
+                if task_dead and self.status == AgentStatus.RUNNING:
+                    logger.warning(f"[{self.name}] heartbeat: listener dead but status=RUNNING — reconnecting")
+                    self._log("error", "heartbeat detected dead listener, reconnecting")
+                    try:
+                        self._client = self._make_client()
+                        await asyncio.wait_for(self._client.connect(), timeout=60)
+                        self._listen_task = asyncio.create_task(self._persistent_listen())
+                        self._listen_task.add_done_callback(self._on_task_done)
+                        await self._client.query("[system] Connection was restored after interruption. Continue your work.")
+                        logger.info(f"[{self.name}] heartbeat reconnect OK")
+                    except Exception as e:
+                        logger.error(f"[{self.name}] heartbeat reconnect failed: {e}")
+                        self._log("error", f"heartbeat reconnect failed: {e}")
+                        self._client = None
+                        self.status = AgentStatus.IDLE
+                        self._persist()
+                elif self.status == AgentStatus.RUNNING and self._last_msg_time > 0:
+                    silence = asyncio.get_event_loop().time() - self._last_msg_time
+                    if silence > NO_MSG_TIMEOUT:
+                        logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
+                        self._log("error", f"no messages for {silence:.0f}s during active turn (possible hang)")
+            except asyncio.CancelledError:
+                logger.info(f"[{self.name}] heartbeat cancelled")
+                return
+            except Exception as e:
+                logger.error(f"[{self.name}] heartbeat error: {e}")
 
     async def interrupt(self) -> None:
         if self._client and self.status == AgentStatus.RUNNING:
@@ -405,6 +462,13 @@ class AgentSession:
             self._compacting = False
 
     async def _disconnect_client(self) -> None:
+        if self._heartbeat_task and not self._heartbeat_task.done():
+            self._heartbeat_task.cancel()
+            try:
+                await self._heartbeat_task
+            except (asyncio.CancelledError, Exception):
+                pass
+            self._heartbeat_task = None
         if self._listen_task and not self._listen_task.done():
             self._listen_task.cancel()
             try:
