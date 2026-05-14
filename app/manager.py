@@ -11,7 +11,7 @@ from typing import Optional
 
 from app.session import AgentSession, AgentStatus
 from app.workspace import create_worktree, remove_worktree
-from app.models import resolve_model
+from app.models import resolve_model, backend_for_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
     delete_session, get_stats,
@@ -102,6 +102,40 @@ def WORKER_SYSTEM_PROMPT() -> str:
     return f"{_read_prompt('base.md')}\n\n{_read_prompt('worker.md')}"
 
 
+def _write_codex_mcp_config(worktree_path: str, name: str, scope: str) -> None:
+    import json as _json
+    codex_dir = Path(worktree_path) / ".codex"
+    codex_dir.mkdir(exist_ok=True)
+    config = f'''[mcp_servers.orchestra]
+command = {_json.dumps(MCP_STDIO_CMD[0])}
+args = [{", ".join(_json.dumps(a) for a in MCP_STDIO_CMD[1:])}]
+
+[mcp_servers.orchestra.env]
+ORCHESTRA_URL = "http://127.0.0.1:8888"
+ORCHESTRA_SCOPE = {_json.dumps(scope)}
+ORCHESTRA_ROLE = "worker"
+WORKER_NAME = {_json.dumps(name)}
+PYTHONPATH = {_json.dumps(_PROJECT_ROOT)}
+'''
+    (codex_dir / "config.toml").write_text(config)
+    _add_to_git_exclude(worktree_path, ".codex/")
+
+
+def _add_to_git_exclude(worktree_path: str, pattern: str) -> None:
+    git_path = Path(worktree_path) / ".git"
+    if git_path.is_file():
+        gitdir_raw = git_path.read_text().strip().split("gitdir: ", 1)[-1]
+        gitdir = Path(gitdir_raw) if Path(gitdir_raw).is_absolute() else (Path(worktree_path) / gitdir_raw).resolve()
+        exclude_path = gitdir / "info" / "exclude"
+    else:
+        exclude_path = git_path / "info" / "exclude"
+    exclude_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = exclude_path.read_text() if exclude_path.exists() else ""
+    if pattern not in existing:
+        with open(exclude_path, "a") as f:
+            f.write(f"\n{pattern}\n")
+
+
 def _make_mcp_config(name: str, scope: str, is_orch: bool) -> dict:
     env = {
         **MCP_BASE_ENV,
@@ -175,10 +209,13 @@ class SessionManager:
         else:
             prompt = WORKER_SYSTEM_PROMPT() + ("\n\n" + system_prompt if system_prompt else "")
 
+        bt = backend_for_model(model)
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, is_orchestrator=is_orchestrator,
-            color="" if is_orchestrator else self._pick_color(), mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
+            color="" if is_orchestrator else self._pick_color(),
+            mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
+            backend_type=bt,
         )
         save_session(session._to_db_dict())
 
@@ -189,6 +226,8 @@ class SessionManager:
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
+                if bt == "codex":
+                    _write_codex_mcp_config(wt.path, name, scope)
 
             if not is_orchestrator:
                 orch_name = self._find_orchestrator_name(scope)
@@ -285,6 +324,11 @@ class SessionManager:
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
+        expected_bt = backend_for_model(db_row["model"])
+        stored_bt = db_row.get("backend_type", "claude") or "claude"
+        if stored_bt != expected_bt:
+            logger.warning(f"backend mismatch for {db_row['name']}: stored={stored_bt}, model implies={expected_bt}. Using {expected_bt}.")
+            stored_bt = expected_bt
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
             model=db_row["model"], system_prompt=old_prompt or current_prompt,
@@ -294,6 +338,7 @@ class SessionManager:
             is_orchestrator=is_orch,
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], is_orch),
+            backend_type=stored_bt,
         )
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
