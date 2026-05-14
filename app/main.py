@@ -399,6 +399,22 @@ async def delete_session(name: str, scope: str):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/progress")
+async def update_progress(name: str, req: dict):
+    scope = req.get("scope", "")
+    pct = max(0, min(100, int(req.get("percent", 0))))
+    status_text = str(req.get("status", ""))
+    session = manager.get_by_name(name, scope)
+    if not session or isinstance(session, dict):
+        session = next((s for s in manager.sessions.values() if s.name == name), None)
+    if not session or isinstance(session, dict):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    session.progress_pct = pct
+    session.progress_status = status_text
+    session._persist()
+    return {"ok": True}
+
+
 @app.get("/api/sessions/{name}/inbox")
 async def get_session_inbox(name: str, scope: str):
     from app.db import get_inbox, ack_inbox

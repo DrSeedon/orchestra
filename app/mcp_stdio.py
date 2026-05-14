@@ -179,6 +179,17 @@ async def send_file(path: str, caption: str = "") -> str:
 
 
 @mcp.tool()
+async def update_progress(percent: int, status: str) -> str:
+    """Update task progress. percent: 0-100, status: short description of current step."""
+    result = await _api("POST", f"/api/sessions/{WORKER_NAME}/progress", json={
+        "percent": percent, "status": status, "scope": SCOPE,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Progress update failed: {result['error']}"
+    return f"Progress: {percent}% — {status}"
+
+
+@mcp.tool()
 async def report_bug(title: str, description: str) -> str:
     """Report a bug or issue with the Orchestra platform. Saves to bugs.md for the developer."""
     from datetime import datetime, timezone

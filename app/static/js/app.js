@@ -889,6 +889,30 @@ function createAgentItem(s) {
         bar.appendChild(fill);
         info.appendChild(bar);
     }
+
+    const ppct = s.progress_pct || 0;
+    if (ppct > 0) {
+        const wrap = document.createElement('div');
+        wrap.className = 'mt-1';
+        const bar = document.createElement('div');
+        bar.className = 'w-full h-1.5 bg-slate-800 rounded-full';
+        const fill = document.createElement('div');
+        fill.className = 'h-1.5 rounded-full transition-all';
+        fill.style.width = `${Math.min(ppct, 100)}%`;
+        fill.style.backgroundColor = '#22c55e';
+        fill.style.boxShadow = '0 0 4px rgba(34,197,94,0.5)';
+        fill.title = `${ppct}%`;
+        bar.appendChild(fill);
+        wrap.appendChild(bar);
+        if (s.progress_status) {
+            const txt = document.createElement('div');
+            txt.className = 'text-xs text-slate-500 mt-0.5 truncate';
+            txt.textContent = `${ppct}% ${s.progress_status}`;
+            wrap.appendChild(txt);
+        }
+        info.appendChild(wrap);
+    }
+
     item.append(icon, info);
 
     if (isSelected) updateAgentInfo(s);

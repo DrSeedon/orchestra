@@ -85,6 +85,9 @@ class AgentSession:
     mcp_servers: dict = field(default_factory=dict, repr=False)
     on_error: Optional[callable] = field(default=None, repr=False)
 
+    progress_pct: int = 0
+    progress_status: str = ""
+
     _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
@@ -124,6 +127,8 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
+        self.progress_pct = 0
+        self.progress_status = ""
         self._log("user_message", message)
         if self.session_id and self._current_prompt and not self._prompt_injected:
             old_h = _prompt_hash(self.system_prompt)
@@ -440,6 +445,8 @@ class AgentSession:
             "finished_at": None,
             "context_pct": self._last_context.get("percentage", 0),
             "context_tokens": self._last_context.get("total_tokens", 0),
+            "progress_pct": self.progress_pct,
+            "progress_status": self.progress_status,
         }
 
     async def get_context(self) -> dict:
@@ -453,4 +460,6 @@ class AgentSession:
             "is_orchestrator": self.is_orchestrator, "color": self.color,
             "created_at": self.created_at.isoformat(),
             "context_pct": self._last_context.get("percentage", 0),
+            "progress_pct": self.progress_pct,
+            "progress_status": self.progress_status,
         }
