@@ -148,6 +148,15 @@ async def kill_worker(name: str) -> str:
 
 
 @mcp.tool()
+async def stop_worker(name: str) -> str:
+    """Interrupt a worker and set it to idle. Worktree and session are preserved — can be resumed later with send_message."""
+    result = await _api("POST", f"/api/sessions/{name}/stop", json={"scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Stop failed: {result['error']}"
+    return f"Worker '{name}' interrupted and set to idle."
+
+
+@mcp.tool()
 async def rename_worker(old_name: str, new_name: str) -> str:
     """Rename a worker agent."""
     result = await _api("POST", f"/api/sessions/{old_name}/rename", json={"new_name": new_name, "scope": SCOPE})

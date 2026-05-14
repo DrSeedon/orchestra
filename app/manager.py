@@ -196,6 +196,11 @@ class SessionManager:
         if session:
             await session.interrupt()
 
+    async def stop_worker(self, session_id: str) -> None:
+        session = self.sessions.get(session_id)
+        if session:
+            await session.interrupt()
+
     async def unload(self, session_id: str) -> None:
         session = self.sessions.pop(session_id, None)
         if session:
