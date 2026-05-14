@@ -14,7 +14,7 @@ from app.workspace import create_worktree, remove_worktree
 from app.models import resolve_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
-    delete_session, get_stats, get_resumable_orchestrators,
+    delete_session, get_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,8 +49,31 @@ def _read_prompt(name: str) -> str:
     return p.read_text() if p.exists() else ""
 
 
-def ORCHESTRATOR_SYSTEM_PROMPT() -> str:
-    return f"{_read_prompt('base.md')}\n\n{_read_prompt('orchestrator.md')}"
+def _other_orchestrators_block(exclude_scope: str = "") -> str:
+    try:
+        orchs = [s for s in get_all_sessions()
+                 if s.get("is_orchestrator") and s.get("scope") != exclude_scope]
+        if not orchs:
+            return ""
+        lines = ["## Other orchestrators", "You can message other orchestrators via `send_message(to=\"Name\", message=\"...\")`:"]
+        for o in orchs:
+            name = o["name"]
+            scope = o.get("scope", "")
+            project = Path(scope).name if scope else "?"
+            lines.append(f"- **{name}** — project: {project}")
+        lines.append("")
+        lines.append("Use this when the user says \"напиши оркестре X\", \"скажи Y оркестратору\", \"спроси у Z\", etc.")
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
+def ORCHESTRATOR_SYSTEM_PROMPT(scope: str = "") -> str:
+    base = f"{_read_prompt('base.md')}\n\n{_read_prompt('orchestrator.md')}"
+    others = _other_orchestrators_block(scope)
+    if others:
+        base += f"\n\n{others}"
+    return base
 
 
 def WORKER_SYSTEM_PROMPT() -> str:
@@ -126,7 +149,7 @@ class SessionManager:
             raise ValueError(f"session '{name}' already exists in scope '{scope}'")
 
         if is_orchestrator:
-            prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT()
+            prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT(scope)
         else:
             prompt = WORKER_SYSTEM_PROMPT() + ("\n\n" + system_prompt if system_prompt else "")
 
@@ -231,7 +254,7 @@ class SessionManager:
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         is_orch = bool(db_row.get("is_orchestrator"))
         old_prompt = db_row.get("system_prompt", "")
-        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT()
+        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT(db_row["scope"]) if is_orch else WORKER_SYSTEM_PROMPT()
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
@@ -260,7 +283,7 @@ class SessionManager:
             )
         if old_prompt and old_prompt != current_prompt:
             formatted_base = _safe_format_prompt(
-                (ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT()),
+                (ORCHESTRATOR_SYSTEM_PROMPT(db_row["scope"]) if is_orch else WORKER_SYSTEM_PROMPT()),
                 worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
                 scope=db_row["scope"], branch=db_row.get("branch") or "main",
             )
@@ -361,20 +384,60 @@ class SessionManager:
 
     # ── Startup / Shutdown ──
 
-    async def auto_resume_orchestrators(self) -> None:
+    async def auto_resume_all(self) -> None:
         from app.db import _conn
         with _conn() as c:
+            was_running = {r["id"] for r in c.execute(
+                "SELECT id FROM sessions WHERE status = 'running'"
+            ).fetchall()}
+            resumable = [dict(r) for r in c.execute(
+                "SELECT * FROM sessions WHERE session_id IS NOT NULL "
+                "AND status IN ('running', 'idle')"
+            ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
-        for orch in get_resumable_orchestrators():
-            if orch["id"] in self.sessions:
+
+        orchs = [r for r in resumable if r.get("is_orchestrator")]
+        workers = [r for r in resumable if not r.get("is_orchestrator")]
+
+        for row in orchs:
+            if row["id"] in self.sessions:
                 continue
-            if not Path(orch["cwd"]).is_dir():
+            if not Path(row.get("cwd") or row["scope"]).is_dir():
                 continue
             try:
-                await self._load_from_db(orch)
-                logger.info(f"Resumed orchestrator: {orch['name']}")
+                session = await self._load_from_db(row)
+                logger.info(f"Resumed orchestrator: {row['name']}")
+                if row["id"] in was_running:
+                    asyncio.create_task(self._inject_restart_notice(session))
             except Exception as e:
-                logger.error(f"Failed to resume {orch['name']}: {e}")
+                logger.error(f"Failed to resume {row['name']}: {e}")
+
+        for row in workers:
+            if row["id"] in self.sessions:
+                continue
+            if not Path(row.get("cwd") or row["scope"]).is_dir():
+                continue
+            try:
+                session = await self._load_from_db(row)
+                logger.info(f"Resumed worker: {row['name']}")
+                if row["id"] in was_running:
+                    asyncio.create_task(self._inject_restart_notice(session))
+            except Exception as e:
+                logger.error(f"Failed to resume worker {row['name']}: {e}")
+
+    async def _inject_restart_notice(self, session: AgentSession) -> None:
+        await asyncio.sleep(3)
+        try:
+            await session.send(
+                "[system] Orchestra server restarted. "
+                "Your session was restored — continue where you left off."
+            )
+            logger.info(f"Restart notice injected: {session.name}")
+        except Exception as e:
+            logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
+
+    async def auto_resume_orchestrators(self) -> None:
+        await self.auto_resume_all()
 
     async def shutdown_all(self) -> None:
         for session in list(self.sessions.values()):

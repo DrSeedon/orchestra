@@ -3179,7 +3179,7 @@ async function fetchUsage() {
 
 function initUsageBar() {
     fetchUsage();
-    setInterval(fetchUsage, 120000);
+    setInterval(fetchUsage, 300000);
     _usageCountdownInterval = setInterval(() => {
         if (_usageData) renderUsageBar();
     }, 60000);

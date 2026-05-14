@@ -227,6 +227,8 @@ class AgentSession:
                             }
                         self.status = AgentStatus.IDLE
                         self._persist()
+                        if not self.is_orchestrator:
+                            asyncio.create_task(self._notify_scope_idle())
                         if self._last_context.get("percentage", 0) > 90 and not self.is_orchestrator and not getattr(self, "_compacting", False):
                             self._log("status", f"auto-compact triggered ({self._last_context['percentage']}%)")
                             asyncio.create_task(self._auto_compact())
@@ -376,6 +378,21 @@ class AgentSession:
         after_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
         return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}
+
+    async def _notify_scope_idle(self) -> None:
+        try:
+            from app.tg_bridge import check_scope_idle, _manager as tg_mgr
+            if not tg_mgr:
+                return
+            orch_name = None
+            for s in tg_mgr.sessions.values():
+                if s.is_orchestrator and s.scope == self.scope:
+                    orch_name = s.name
+                    break
+            if orch_name:
+                await check_scope_idle(orch_name, self.scope)
+        except Exception:
+            pass
 
     async def _auto_compact(self) -> None:
         self._compacting = True

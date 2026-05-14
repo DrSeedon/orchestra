@@ -416,9 +416,33 @@ async def stats(scope: Optional[str] = None):
     return manager.stats(scope)
 
 
+_USAGE_CACHE_FILE = Path(__file__).parent.parent / "data" / "usage_cache.json"
 _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
-_USAGE_CACHE_TTL = 120
+_USAGE_CACHE_TTL = 300
 _CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
+
+
+def _load_usage_cache():
+    if _USAGE_CACHE_FILE.exists():
+        try:
+            import json
+            cached = json.loads(_USAGE_CACHE_FILE.read_text())
+            _usage_cache["data"] = cached.get("data")
+            _usage_cache["ts"] = cached.get("ts", 0.0)
+        except Exception:
+            pass
+
+
+def _save_usage_cache():
+    try:
+        import json
+        _USAGE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _USAGE_CACHE_FILE.write_text(json.dumps({"data": _usage_cache["data"], "ts": _usage_cache["ts"]}))
+    except Exception:
+        pass
+
+
+_load_usage_cache()
 
 
 def _read_oauth_credentials() -> tuple[str | None, str | None, str | None]:
@@ -526,6 +550,7 @@ async def get_usage():
 
         _usage_cache["data"] = anthropic_data
         _usage_cache["ts"] = now
+        _save_usage_cache()
 
     return {
         "anthropic": anthropic_data,

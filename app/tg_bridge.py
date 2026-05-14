@@ -15,6 +15,9 @@ from aiogram.client.default import DefaultBotProperties
 from telegramify_markdown import convert as md_convert
 
 logger = logging.getLogger("tg-bridge")
+logger.setLevel(logging.DEBUG)
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler())
 
 CONFIG_PATH = Path(__file__).parent.parent / "data" / "tg_bridge.json"
 UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
@@ -182,6 +185,8 @@ def _forward_meta(msg: types.Message) -> str:
 
 
 async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
+    sender = msg.from_user.first_name if msg.from_user else "?"
+    logger.debug(f"TG incoming: chat={msg.chat.id} thread={msg.message_thread_id} from={sender} text={str(msg.text or '')[:50]}")
     if not msg.message_thread_id or not _manager:
         return None, None
     thread_id = msg.message_thread_id
@@ -294,7 +299,17 @@ async def _flush_batch(sid: str, batch: list):
             pass
 
 
+def _sender_tag(msg: types.Message) -> str:
+    if not msg.from_user:
+        return ""
+    name = msg.from_user.first_name or ""
+    if msg.from_user.last_name:
+        name += " " + msg.from_user.last_name
+    return f"[from TG: {name}] " if name else ""
+
+
 async def _send_to_agent(msg: types.Message, session, content: str):
+    content = f"{_sender_tag(msg)}{content}"
     sid = session.id
     buf = _get_buf(sid)
     async with buf.lock:
@@ -522,6 +537,34 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str) -> d
 _topic_status = {}
 
 
+def _any_running_in_scope(scope: str) -> bool:
+    if not _manager or not scope:
+        return False
+    for s in _manager.sessions.values():
+        if s.scope == scope and s.status.value == "running":
+            return True
+    return False
+
+
+async def check_scope_idle(orch_name: str, scope: str):
+    if not _any_running_in_scope(scope):
+        await _update_topic_status(orch_name, False)
+
+
+async def _sync_all_topic_statuses():
+    if not _manager or not bot:
+        return
+    for s in _manager.sessions.values():
+        if not s.is_orchestrator:
+            continue
+        name = s.name
+        if name not in config["topics"]:
+            continue
+        is_running = _any_running_in_scope(s.scope)
+        _topic_status.pop(name, None)
+        await _update_topic_status(name, is_running)
+
+
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
@@ -646,7 +689,12 @@ async def stream_logs(orch_name: str, thread_id: int):
                     header = f"{icon} {short}"
                     _last_tool_text = f"{header}\n{tool_body}"
                     _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
-                    await _mirror_send(orch_name, f"{header}\n{tool_body}")
+                    try:
+                        m_text, m_ents = md_convert(f"{header}\n{tool_body}")
+                        from aiogram.types import MessageEntity as AioEntity
+                        await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
+                    except Exception:
+                        await _mirror_send(orch_name, f"{header}\n{tool_body}")
                     continue
                 elif t == "tool_result":
                     result_preview = c[:80].replace("\n", " ").strip()
@@ -660,13 +708,20 @@ async def stream_logs(orch_name: str, thread_id: int):
                         _last_tool_text = ""
                     else:
                         await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
-                    await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
+                    try:
+                        m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
+                        from aiogram.types import MessageEntity as AioEntity
+                        await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
+                    except Exception:
+                        await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
                     continue
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
                 elif t == "status":
                     if "turn ended" in c:
-                        await _update_topic_status(orch_name, False)
+                        still_running = _any_running_in_scope(scope)
+                        if not still_running:
+                            await _update_topic_status(orch_name, False)
                     text = f"⚡ {c}"
                 else:
                     continue
@@ -679,6 +734,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         message_thread_id=thread_id,
                         parse_mode=None, entities=aio_ents,
                     )
+                    await _mirror_send(orch_name, converted, entities=aio_ents)
                 except Exception:
                     try:
                         await bot.send_message(
@@ -687,7 +743,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         )
                     except Exception as e:
                         logger.warning(f"TG send failed: {e}")
-                await _mirror_send(orch_name, text)
+                    await _mirror_send(orch_name, text)
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
         await asyncio.sleep(2)
@@ -708,14 +764,15 @@ async def handle_voice(msg: types.Message):
     await _react_processing(msg)
     sid, idx = await _register_media(msg, session)
     path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
+    tag = _sender_tag(msg)
     if not path:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: file too large]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: file too large]")
         return
     text, err = await _transcribe_audio(path, msg.voice.file_unique_id)
     if text:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: {path} | {text}]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path} | {text}]")
     else:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: {path}]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.video_note)
@@ -725,9 +782,10 @@ async def handle_video_note(msg: types.Message):
         return
     await _react_processing(msg)
     sid, idx = await _register_media(msg, session)
+    tag = _sender_tag(msg)
     path = await _download_file(msg.video_note.file_id, _media_name("videonote", ".mp4", msg), msg.video_note.file_unique_id)
     if not path:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: file too large]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: file too large]")
         return
     audio_path = path.replace(".mp4", ".oga")
     p = await asyncio.create_subprocess_exec(
@@ -738,9 +796,9 @@ async def handle_video_note(msg: types.Message):
     if p.returncode == 0:
         text, err = await _transcribe_audio(audio_path, msg.video_note.file_unique_id)
         if text:
-            await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: {path} | {text}]")
+            await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path} | {text}]")
             return
-    await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: {path}]")
+    await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
@@ -853,13 +911,27 @@ async def start_bridge(manager):
         bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
 
     await ensure_topics()
+    await _sync_all_topic_statuses()
 
     for name, thread_id in config["topics"].items():
         _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
 
     _tasks.append(asyncio.create_task(topic_sync_loop()))
-    _tasks.append(asyncio.create_task(dp.start_polling(bot)))
+    _tasks.append(asyncio.create_task(_safe_polling()))
     logger.info(f"TG Bridge started | group={group} | topics={len(config['topics'])}")
+
+
+async def _safe_polling():
+    while True:
+        try:
+            logger.info("TG polling started")
+            await dp.start_polling(bot)
+        except Exception as e:
+            logger.error(f"TG polling crashed: {e}, restarting in 10s")
+            await asyncio.sleep(10)
+        else:
+            logger.warning("TG polling exited cleanly, restarting in 5s")
+            await asyncio.sleep(5)
 
 
 async def stop_bridge():

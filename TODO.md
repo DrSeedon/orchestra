@@ -1,21 +1,17 @@
 # Orchestra TODO
 
-## Next
-- [ ] **Task Context Space** — `task_context` param in `spawn_worker()`. Points to a folder (e.g. `docs/tasks/victoria-fsm/`), Orchestra auto-adds "Read TASK.md and PLAN.md from <path> before starting" to worker system_prompt. Convention: `docs/tasks/<slug>/` with TASK.md, PLAN.md, RESEARCH.md, CONTEXT.md, REVIEW.md. Feature request from Parsing-orchestrator
-- [ ] **Global SSE stream** — replace polling with single EventSource for all dashboard updates
-- [ ] **TG images** — send screenshots/uploads via bot.send_photo() to TG bridge
-- [ ] **Git tree view** — git branches/commits visualization in dashboard
-- [ ] **Auto-merge worker** — auto merge worker branches with conflict detection
-- [ ] **Stop vs Kill** — `stop_worker` = interrupt + idle (can inspect), `kill_worker` = full delete
-- [ ] **HTML артефакты** — агент генерит HTML (отчёт, план, сравнение вариантов) → сохраняет в файл → preview в дашборде или send_file в TG. Идея из https://habr.com/ru/articles/1033326/
-- [ ] **Rename worker** — ~~MCP tool для переименования воркера~~ DONE (v2.5.0)
-- [ ] **Worker progress tracking** — MCP tool `update_progress(percent, status)` чтобы воркер мог трекать % выполнения задачи. На фронте отображается в списке воркеров (прогресс-бар + статус). Воркер: получил задачу → 0%, сделал часть → 30%, всё готово → 100%. Видно снаружи без захода в логи
-- [ ] **TG persistent client fix** — persistent client Parsing-orchestrator периодически умирает, TG сообщения не доходят. Нужен heartbeat/watchdog или fallback на fresh client
-- [ ] **TG Mirror** — дублирование отфильтрованных сообщений из топика в другую группу/чат. Конфиг: `mirror_targets: [{chat_id, topic_id, filter: "plans,deploys,summaries"}]`. Юзкейс: клиент видит итоги/планы/деплои, без внутренней кухни. Feature request от Parsing-orchestrator
+## Now
+- [ ] **TG images** — `send_file` определяет тип: картинки → `send_photo` (inline preview), остальное → `send_document`. Файлы: `tg_bridge.py`, `mcp_stdio.py`
+- [ ] **Worker progress tracking** — MCP tool `update_progress(percent, status)`, прогресс-бар в sidebar. Файлы: `mcp_stdio.py`, `session.py`, `app.js`
+- [ ] **TG persistent client fix** — heartbeat/watchdog для persistent client, auto-reconnect при тихой смерти. Файлы: `session.py`
+- [ ] **Stop vs Kill** — `stop_worker` = interrupt + idle (worktree живой), `kill_worker` = full delete. Файлы: `manager.py`, `mcp_stdio.py`
 
-## Done (v2.5.0)
-- [x] **Usage status bar** — OAuth API, 5h/7d bars, HSL gradient, `/api/usage` endpoint
-- [x] **Persistent client** — mid-turn inject via `query()`, auto-reconnect
-- [x] **TG flood fix** — turn-based batching, 37→11 calls/turn
-- [x] **Custom bubbles** — spawn_worker, WebSearch, WebFetch, ToolSearch, report_bug
-- [x] **Auto-compact orchestrators** — enabled for all agents
+## Later
+- [ ] **Task Context Space** — `task_context` param in `spawn_worker()`, auto-adds docs folder to prompt
+- [ ] **HTML артефакты** — preview HTML в дашборде + send_file в TG
+
+## Research needed
+- [ ] **Global SSE stream** — заменить polling на EventSource. Нужен ресёрч: архитектура, edge cases, стоит ли вообще
+- [ ] **Auto-merge worker** — auto merge worktree веток в main. Ресёрч: стратегия конфликтов, git merge pitfalls
+- [ ] **Git tree view** — визуализация веток/коммитов. Ресёрч: готовые библиотеки (gitgraph.js, etc)
+- [ ] **TG streaming redesign** — стриминг ответов LLM на фронт и в TG. Ресёрч: нагрузка, rate limits TG, архитектура
