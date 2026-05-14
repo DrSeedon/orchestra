@@ -149,19 +149,9 @@ async def yougile_sync_task(task_id: int) -> str:
                     raise
                 return f"create failed: {error}"
         else:
-            current_rev = conn.execute(
-                "SELECT sync_revision FROM tm_tasks WHERE id = ?", (task_id,)
-            ).fetchone()
-            if current_rev and current_rev[0] > task["sync_revision"]:
-                conn.execute("BEGIN IMMEDIATE")
-                try:
-                    tm.log_sync(conn, task_id, "update", task["sync_revision"], "skipped")
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
-                task = tm.get_task_by_id(conn, task_id)
-                return await yougile_sync_task(task_id)
+            fresh = tm.get_task_by_id(conn, task_id)
+            if fresh and fresh["sync_revision"] > task["sync_revision"]:
+                task = fresh
 
             result = await _yougile_push_update(task)
             status = "ok" if result and not result.get("error") else "error"
@@ -169,6 +159,11 @@ async def yougile_sync_task(task_id: int) -> str:
             conn.execute("BEGIN IMMEDIATE")
             try:
                 tm.log_sync(conn, task_id, "update", task["sync_revision"], status, error=error)
+                conn.execute(
+                    "UPDATE tm_sync_log SET status = 'skipped' "
+                    "WHERE task_id = ? AND status = 'pending' AND sync_revision < ?",
+                    (task_id, task["sync_revision"]),
+                )
                 conn.commit()
             except Exception:
                 conn.rollback()
@@ -210,26 +205,30 @@ async def yougile_update_par35(payment_id: int, balance_rub: int,
         return f"failed to read PAR-35: {current}"
 
     desc = current.get("description", "")
-    if marker in desc:
-        return "already applied (idempotent skip)"
 
     bal_k = balance_rub // 1000
     errors = []
 
-    title = f"Информация об оплатах | {bal_k}k баланс"
-    r = await _yougile_request("PUT", f"/tasks/{PAR_35_TASK_ID}", {"title": title})
-    if not r or r.get("error"):
-        errors.append(f"title update: {r}")
+    title_done = marker in (current.get("title", ""))
+    desc_done = marker in desc
+    comment_done = False
+
+    if not title_done:
+        title = f"Информация об оплатах | {bal_k}k баланс"
+        r = await _yougile_request("PUT", f"/tasks/{PAR_35_TASK_ID}", {"title": title})
+        if not r or r.get("error"):
+            errors.append(f"title update: {r}")
 
     amount_k = amount_rub // 1000
-    new_line = f"• {amount_k}k — оплата ({payment_date}) {marker}"
-    if "Пополнения" in desc:
-        desc = desc.replace("</p>", f"<br>{new_line}</p>", 1)
-    else:
-        desc += f"<p>{new_line}</p>"
-    r = await _yougile_request("PUT", f"/tasks/{PAR_35_TASK_ID}", {"description": desc})
-    if not r or r.get("error"):
-        errors.append(f"description update: {r}")
+    if not desc_done:
+        new_line = f"• {amount_k}k — оплата ({payment_date}) {marker}"
+        if "Пополнения" in desc:
+            desc = desc.replace("</p>", f"<br>{new_line}</p>", 1)
+        else:
+            desc += f"<p>{new_line}</p>"
+        r = await _yougile_request("PUT", f"/tasks/{PAR_35_TASK_ID}", {"description": desc})
+        if not r or r.get("error"):
+            errors.append(f"description update: {r}")
 
     dist_lines = []
     for d in distributions:

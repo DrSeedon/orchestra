@@ -574,6 +574,10 @@ def get_pending_syncs(conn: sqlite3.Connection) -> list[dict]:
 # --- Sync helpers (fire-and-forget after commit) ---
 
 def _fire_sync(task_id: int) -> None:
+    with _conn() as conn:
+        task = get_task_by_id(conn, task_id)
+        rev = task["sync_revision"] if task else 0
+        log_sync(conn, task_id, "update", rev, "pending")
     try:
         from app.tm_yougile import yougile_sync_task
         asyncio.get_event_loop().create_task(yougile_sync_task(task_id))

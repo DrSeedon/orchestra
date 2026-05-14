@@ -99,67 +99,91 @@ def run_import():
         imported = 0
         skipped = 0
         total_yougile = 0
+        total_paid_import = 0
+        tasks_to_pay = []
 
+        all_yougile_tasks = []
         for column_id, status in COLUMN_TO_STATUS.items():
-            tasks = fetch_all_tasks_for_column(column_id)
-            total_yougile += len(tasks)
-            logger.info("Column %s (%s): %d tasks", column_id[:8], status, len(tasks))
+            tasks_in_col = fetch_all_tasks_for_column(column_id)
+            total_yougile += len(tasks_in_col)
+            logger.info("Column %s (%s): %d tasks", column_id[:8], status, len(tasks_in_col))
+            for yt in tasks_in_col:
+                yt["_status"] = status
+                all_yougile_tasks.append(yt)
 
-            for yt in tasks:
-                yougile_id = yt["id"]
-                if yougile_id == PAR_35_YOUGILE_ID:
-                    skipped += 1
+        known_pars = set()
+        for yt in all_yougile_tasks:
+            par_num = _parse_par_number(yt.get("idTaskProject", ""))
+            if par_num is not None:
+                known_pars.add(par_num)
+        max_known = max(known_pars) if known_pars else 0
+        conn.execute(
+            "UPDATE tm_par_sequence SET next_value = ? WHERE id = 1",
+            (max_known + 1,),
+        )
+
+        for yt in all_yougile_tasks:
+            yougile_id = yt["id"]
+            if yougile_id == PAR_35_YOUGILE_ID:
+                skipped += 1
+                continue
+
+            existing = tm.get_task_by_yougile_id(conn, yougile_id)
+            if existing:
+                skipped += 1
+                continue
+
+            id_task_project = yt.get("idTaskProject", "")
+            par_num = _parse_par_number(id_task_project)
+
+            if par_num is not None:
+                existing_par = tm.get_task_by_par(conn, par_num)
+                if existing_par and existing_par["yougile_task_id"] != yougile_id:
+                    conflicts.append({
+                        "par": par_num,
+                        "yougile_id": yougile_id,
+                        "existing_yougile_id": existing_par["yougile_task_id"],
+                        "title": yt.get("title", ""),
+                    })
                     continue
 
-                existing = tm.get_task_by_yougile_id(conn, yougile_id)
-                if existing:
-                    skipped += 1
-                    continue
+            title, paid_rub, price_rub = _parse_title(yt.get("title", ""))
+            description = _html_to_markdown(yt.get("description", ""))
+            status = yt["_status"]
 
-                id_task_project = yt.get("idTaskProject", "")
-                par_num = _parse_par_number(id_task_project)
+            task = tm.create_task(
+                conn, PROJECT_ID, title,
+                price_rub=price_rub,
+                description=description,
+                status=status,
+                yougile_task_id=yougile_id,
+                par_number=par_num,
+            )
 
-                if par_num is not None:
-                    existing_par = tm.get_task_by_par(conn, par_num)
-                    if existing_par and existing_par["yougile_task_id"] != yougile_id:
-                        conflicts.append({
-                            "par": par_num,
-                            "yougile_id": yougile_id,
-                            "existing_yougile_id": existing_par["yougile_task_id"],
-                            "title": yt.get("title", ""),
-                        })
-                        continue
+            if paid_rub > 0:
+                total_paid_import += paid_rub
+                tasks_to_pay.append((task["id"], task["par_number"], paid_rub, task["created_at"]))
 
-                title, paid_rub, price_rub = _parse_title(yt.get("title", ""))
-                description = _html_to_markdown(yt.get("description", ""))
+            tm.log_sync(conn, task["id"], "import", 0, "ok")
+            imported += 1
 
-                task = tm.create_task(
-                    conn, PROJECT_ID, title,
-                    price_rub=price_rub,
-                    description=description,
-                    status=status,
-                    yougile_task_id=yougile_id,
-                    par_number=par_num,
+        if total_paid_import > 0:
+            now = tm._now()
+            import_payment_id = conn.execute(
+                "INSERT INTO tm_payments (client_id, amount_rub, date, note, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (CLIENT_ID, total_paid_import, now[:10], "YouGile import (consolidated)", now),
+            ).lastrowid
+            for task_id, par_num, paid_rub, _ in tasks_to_pay:
+                conn.execute(
+                    "INSERT INTO tm_payment_allocations (payment_id, task_id, amount_rub, created_at) "
+                    "VALUES (?, ?, ?, ?)",
+                    (import_payment_id, task_id, paid_rub, now),
                 )
-
-                if paid_rub > 0:
-                    import_payment_id = conn.execute(
-                        "INSERT INTO tm_payments (client_id, amount_rub, date, note, created_at) "
-                        "VALUES (?, ?, ?, ?, ?)",
-                        (CLIENT_ID, paid_rub, task["created_at"][:10], f"import PAR-{task['par_number']}", task["created_at"]),
-                    ).lastrowid
-                    conn.execute(
-                        "INSERT INTO tm_payment_allocations (payment_id, task_id, amount_rub, created_at) "
-                        "VALUES (?, ?, ?, ?)",
-                        (import_payment_id, task["id"], paid_rub, task["created_at"]),
-                    )
-                    conn.execute(
-                        "UPDATE tm_tasks SET paid_rub = ? WHERE id = ?",
-                        (paid_rub, task["id"]),
-                    )
-
-                tm.log_sync(conn, task["id"], "import", 0, "ok")
-                imported += 1
+                conn.execute(
+                    "UPDATE tm_tasks SET paid_rub = ? WHERE id = ?",
+                    (paid_rub, task_id),
+                )
 
         max_par = conn.execute(
             "SELECT MAX(par_number) FROM tm_tasks"
