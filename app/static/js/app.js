@@ -689,6 +689,7 @@ function onOrchestratorChange() {
     updateAgentInfo(null);
     restoreDraft();
     refreshSessions(); connectSSE(); initFilePanel();
+    if (_tasksTabActive) loadTasks();
 }
 
 // === Agent Selection ===
