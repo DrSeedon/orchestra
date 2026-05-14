@@ -73,3 +73,43 @@ suggestion: `.codex/config.toml` создается внутри worktree (`docs
 ### Round 2 Verdict
 
 needs fixes.
+
+## Round 3
+
+### Status по Round 2 findings
+
+1. **FIXED** — SB1: старый inline `send()` pattern удален из основного текста, non-goal про blocking Codex send заменен на sequential queue semantics (`docs/research/codex-backend-plan.md:485`, `docs/research/codex-backend-plan.md:635`). Остались stale comments про общий loop, но исходный blocking inline-паттерн больше не является основным указанием.
+
+2. **FIXED** — SB6: `app/tools.py` теперь помечен как **MODIFY** в files table (`docs/research/codex-backend-plan.md:559`-`docs/research/codex-backend-plan.md:565`).
+
+3. **FIXED** — SB9: `--dangerously-bypass-approvals-and-sandbox` убран из `CodexBackend.send()` sketch; остался только `--sandbox workspace-write` (`docs/research/codex-backend-plan.md:185`-`docs/research/codex-backend-plan.md:198`).
+
+4. **STILL BROKEN** — NB1: Round 2 section правильно говорит стартовать Codex `_event_loop` после `backend.send()` (`docs/research/codex-backend-plan.md:821`-`docs/research/codex-backend-plan.md:839`), но основной `_ensure_backend()` sketch все еще безусловно стартует `_event_loop` сразу после `connect()` (`docs/research/codex-backend-plan.md:380`-`docs/research/codex-backend-plan.md:388`). Для исполнителя плана это прямое противоречие на critical path. Нужно обновить основной sketch: Claude стартует persistent listener в `_ensure_backend()`, Codex не стартует listener там вообще.
+
+5. **FIXED** — NB2: добавлена очередь сообщений для Codex при `RUNNING` и dequeue после `turn_end` (`docs/research/codex-backend-plan.md:841`-`docs/research/codex-backend-plan.md:860`). Реализация требует доработки по cleanup order, см. новые issues ниже.
+
+6. **FIXED** — NS1: `_got_turn_completed = False` явно сбрасывается в начале каждого `CodexBackend.send()` (`docs/research/codex-backend-plan.md:862`-`docs/research/codex-backend-plan.md:864`).
+
+7. **FIXED** — NS2: stderr теперь drain-ится concurrent task с tail buffer (`docs/research/codex-backend-plan.md:866`-`docs/research/codex-backend-plan.md:883`).
+
+8. **FIXED** — NS3: `assert` заменен на `if` + warning + auto-repair (`docs/research/codex-backend-plan.md:885`-`docs/research/codex-backend-plan.md:892`).
+
+9. **FIXED** — NS4: TOML string values теперь экранируются через `json.dumps()` (`docs/research/codex-backend-plan.md:894`-`docs/research/codex-backend-plan.md:905`).
+
+10. **STILL BROKEN** — NS5: `.codex/` добавляется не туда. В git worktree `.git` обычно файл со строкой `gitdir: ...`, а не директория; код `Path(worktree_path) / ".git" / "info" / "exclude"` (`docs/research/codex-backend-plan.md:907`-`docs/research/codex-backend-plan.md:914`) упадет или создаст неверный path. Нужно прочитать `.git` file, извлечь `gitdir`, и писать exclude в `<gitdir>/info/exclude`; либо добавить `.codex/` в основной repo exclude до создания worktrees.
+
+### New issues
+
+blocking: Queue dispatch после `turn_end` может перезаписать active Codex process до cleanup текущего `events()` generator. `turn.completed` приходит из JSONL до того, как `events()` дойдет до `await self._proc.wait()` и `self._proc = None` (`docs/research/codex-backend-plan.md:271`-`docs/research/codex-backend-plan.md:300`), а Round 2 queue сразу делает `asyncio.create_task(self.send(next_msg))` в `_handle_turn_end` (`docs/research/codex-backend-plan.md:855`-`docs/research/codex-backend-plan.md:860`). Следующий `send()` может заменить `self._proc`, пока старый event loop еще читает/wait-ит старый процесс. Фикс: dequeue запускать только после полного завершения per-turn event task, например из Codex `_event_loop` finally после `events()` returned and backend cleaned up, либо backend должен держать local `proc` переменную и не полагаться на mutable `self._proc`.
+
+blocking: Phase 3 все еще говорит выбрать global `~/.codex/config.toml` Option A (`docs/research/codex-backend-plan.md:587`-`docs/research/codex-backend-plan.md:593`), хотя Round 1/2 fixes требуют per-worktree config. Это снова может привести к worker identity corruption. Уберите Option A как выбранный путь и замените Phase 3 на per-worktree `.codex/config.toml`.
+
+suggestion: В плане не добавлено поле `_pending_messages` в `AgentSession` dataclass. Round 2 использует `self._pending_messages.append(...)` (`docs/research/codex-backend-plan.md:845`-`docs/research/codex-backend-plan.md:851`), но в основном dataclass fields section такого поля нет (`docs/research/codex-backend-plan.md:355`-`docs/research/codex-backend-plan.md:360`). Добавьте `field(default_factory=list, repr=False)` и явно укажите, что очередь in-memory и теряется при restart.
+
+suggestion: Round 1 FIX 1 теперь устарел: он говорит "For BOTH backends" и "No if/else per backend type" (`docs/research/codex-backend-plan.md:652`-`docs/research/codex-backend-plan.md:679`), но Round 2 NB1 требует backend-specific listener lifecycle. Лучше переписать Section 12 FIX 1, а не оставлять Section 13 как patch note поверх противоречивого кода.
+
+suggestion: NS4 escaped TOML snippet потерял `ORCHESTRA_ROLE` и `PYTHONPATH`, которые были в per-worktree config из Round 1 (`docs/research/codex-backend-plan.md:767`-`docs/research/codex-backend-plan.md:783`, `docs/research/codex-backend-plan.md:894`-`docs/research/codex-backend-plan.md:905`). `ORCHESTRA_ROLE` имеет default `"orchestrator"` в `mcp_stdio.py`, поэтому для worker config его лучше явно оставить `"worker"`.
+
+### Round 3 Verdict
+
+needs fixes.
