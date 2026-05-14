@@ -2099,12 +2099,22 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
+            const _isListAgents = lastTool.dataset.toolRawName === 'mcp__orchestra__list_agents' || lastTool.dataset.toolRawName === 'mcp__orchestra__list_orchestrators';
+            if (_isListAgents) {
+                const agentEl = renderAgentListResult(clean);
+                if (agentEl) {
+                    const sep = document.createElement('div');
+                    sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+                    sep.appendChild(agentEl);
+                    lastTool.appendChild(sep);
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+            }
             const _orchSimpleResults = {
                 'mcp__orchestra__kill_worker': { ok: '✅ Worker killed', fail: '❌ Kill failed', okColor: '#22c55e', failColor: '#ef4444' },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__rename_worker': { ok: '✅ Renamed', fail: '❌ Rename failed', okColor: '#22c55e', failColor: '#ef4444' },
-                'mcp__orchestra__list_agents': null,
-                'mcp__orchestra__list_orchestrators': null,
                 'mcp__orchestra__list_jobs': null,
                 'mcp__orchestra__get_worker_logs': null,
             };
@@ -2734,6 +2744,103 @@ function _wsCollapsible(el) {
             if (linksEl) linksEl.style.display = 'block';
         }
     });
+
+    return wrapper;
+}
+
+function renderAgentListResult(raw) {
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
+    const agents = [];
+    for (const line of lines) {
+        // list_agents: 🟢 🎯 **name** | state | model | $cost | ctx:X%
+        let m = line.match(/^(\S+)\s+(\S+)\s+\*\*([^*]+)\*\*\s+\|\s+([^|]+)\|\s+([^|]+)\|\s+\$?([\d.]+)(?:\s+\|\s+ctx:(\d+)%)?/u);
+        if (m) {
+            agents.push({ status: m[1], role: m[2], name: m[3].trim(), state: m[4].trim(), model: m[5].trim(), cost: parseFloat(m[6]), ctx: m[7] ? parseInt(m[7]) : 0 });
+            continue;
+        }
+        // list_orchestrators: 🎯 **name** | state | scope | $cost | ctx:X%
+        m = line.match(/^(\S+)\s+\*\*([^*]+)\*\*\s+\|\s+([^|]+)\|\s+([^|]+)\|\s+\$?([\d.]+)(?:\s+\|\s+ctx:(\d+)%)?/u);
+        if (m) {
+            agents.push({ status: '🟢', role: m[1], name: m[2].trim(), state: m[3].trim(), model: m[4].trim(), cost: parseFloat(m[5]), ctx: m[6] ? parseInt(m[6]) : 0 });
+            continue;
+        }
+        return null;
+    }
+    if (!agents.length) return null;
+
+    const PREVIEW = 4;
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;flex-direction:column;gap:4px';
+
+    const makeRow = (a) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding:5px 6px;border-radius:6px;background:rgba(30,41,59,0.6)';
+
+        const top = document.createElement('div');
+        top.style.cssText = 'display:flex;align-items:center;gap:5px';
+        const dot = document.createElement('span');
+        dot.textContent = a.status;
+        dot.style.cssText = 'font-size:10px;line-height:1';
+        const roleEl = document.createElement('span');
+        roleEl.textContent = a.role;
+        roleEl.style.cssText = 'font-size:11px;line-height:1';
+        const nameEl = document.createElement('span');
+        nameEl.textContent = a.name;
+        nameEl.style.cssText = `font-size:12px;font-weight:600;color:${a.role === '🎯' ? '#c4b5fd' : '#e2e8f0'}`;
+        top.append(dot, roleEl, nameEl);
+
+        const bot = document.createElement('div');
+        bot.style.cssText = 'display:flex;align-items:center;gap:6px;padding-left:22px';
+        const stateColor = a.state === 'running' ? '#22c55e' : a.state === 'idle' ? '#94a3b8' : '#6b7280';
+        const meta = document.createElement('span');
+        meta.style.cssText = `font-size:10px;color:${stateColor}`;
+        meta.textContent = `${a.model} · ${a.state} · $${a.cost.toFixed(2)}`;
+        bot.appendChild(meta);
+
+        if (a.ctx > 0) {
+            const barWrap = document.createElement('div');
+            barWrap.style.cssText = 'display:flex;align-items:center;gap:4px';
+            const pctEl = document.createElement('span');
+            pctEl.style.cssText = 'font-size:10px;color:#64748b';
+            pctEl.textContent = `ctx:${a.ctx}%`;
+            const track = document.createElement('div');
+            track.style.cssText = 'width:40px;height:3px;background:rgba(100,116,139,0.2);border-radius:2px;overflow:hidden';
+            const fill = document.createElement('div');
+            const barColor = a.ctx >= 80 ? '#ef4444' : a.ctx >= 50 ? '#eab308' : '#22c55e';
+            fill.style.cssText = `height:100%;width:${Math.min(a.ctx,100)}%;background:${barColor};border-radius:2px`;
+            track.appendChild(fill);
+            barWrap.append(pctEl, track);
+            bot.appendChild(barWrap);
+        }
+
+        row.append(top, bot);
+        return row;
+    };
+
+    const visible = agents.slice(0, PREVIEW);
+    const hidden = agents.slice(PREVIEW);
+
+    visible.forEach(a => wrapper.appendChild(makeRow(a)));
+
+    if (hidden.length > 0) {
+        const restWrap = document.createElement('div');
+        restWrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;display:none';
+        hidden.forEach(a => restWrap.appendChild(makeRow(a)));
+        wrapper.appendChild(restWrap);
+
+        const toggle = document.createElement('div');
+        toggle.style.cssText = 'font-size:10px;color:#38bdf8;cursor:pointer;padding-top:2px';
+        toggle.textContent = `▼ ${hidden.length} more`;
+        wrapper.appendChild(toggle);
+
+        let expanded = false;
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            expanded = !expanded;
+            restWrap.style.display = expanded ? 'flex' : 'none';
+            toggle.textContent = expanded ? '▲ collapse' : `▼ ${hidden.length} more`;
+        });
+    }
 
     return wrapper;
 }
