@@ -1406,6 +1406,59 @@ function addChatEntry(type, content, ts, anchor) {
         return;
     }
 
+    if (type === 'subagent_start' || type === 'subagent_end' || type === 'subagent_progress') {
+        const parts = content.split('|').map(p => p.trim());
+        const desc = parts[0] || '';
+        const meta = {};
+        for (let i = 1; i < parts.length; i++) {
+            const eq = parts[i].indexOf('=');
+            if (eq > 0) meta[parts[i].slice(0, eq)] = parts[i].slice(eq + 1);
+        }
+        const el = document.createElement('div');
+        el.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
+
+        if (type === 'subagent_start') {
+            el.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
+            el.innerHTML = `🤖 <span style="color:#e2e8f0">Sub-agent: "${DOMPurify.sanitize(desc)}"</span>`;
+            if (meta.type) {
+                const sub = document.createElement('div');
+                sub.style.cssText = 'font-size:10px;color:#64748b;margin-top:1px;padding-left:20px';
+                sub.textContent = `type: ${meta.type}`;
+                el.appendChild(sub);
+            }
+        } else if (type === 'subagent_progress') {
+            el.style.cssText += ';color:#64748b';
+            const tokens = meta.tokens ? (parseInt(meta.tokens) >= 1000 ? (parseInt(meta.tokens) / 1000).toFixed(1) + 'k' : meta.tokens) : '';
+            el.textContent = `⏳ "${desc}" — ${meta.tool ? 'using ' + meta.tool : ''}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
+        } else {
+            const ok = !meta.status || meta.status === 'completed';
+            el.style.cssText += `;border-left:3px solid ${ok ? '#22c55e' : '#ef4444'};background:rgba(${ok ? '34,197,94' : '239,68,68'},0.06);color:${ok ? '#86efac' : '#fca5a5'}`;
+            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
+            const summaryStart = content.indexOf(meta.status || '') + (meta.status || '').length;
+            const summaryText = parts.slice(2).join(' | ').replace(/^status=\w+\s*/, '').trim();
+            if (summaryText) {
+                const sumEl = document.createElement('div');
+                sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;max-height:40px;overflow:hidden;white-space:pre-wrap';
+                sumEl.textContent = summaryText.length > 200 ? summaryText.slice(0, 200) + '…' : summaryText;
+                el.appendChild(sumEl);
+                if (summaryText.length > 200) {
+                    el.style.cursor = 'pointer';
+                    let _saExp = false;
+                    el.addEventListener('click', () => {
+                        _saExp = !_saExp;
+                        sumEl.textContent = _saExp ? summaryText : summaryText.slice(0, 200) + '…';
+                        sumEl.style.maxHeight = _saExp ? 'none' : '40px';
+                    });
+                }
+            }
+        }
+        addTimestamp(el, ts);
+        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        _insert(el);
+        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        return;
+    }
+
     const div = document.createElement('div');
     div.className = `px-3 py-2 rounded-lg text-sm break-words ${
         type === 'user_message' ? 'chat-user ml-16' :
