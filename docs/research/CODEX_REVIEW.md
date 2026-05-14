@@ -29,3 +29,47 @@ thought: Строковые ссылки в плане по `app/session.py` в 
 
 ## Verdict
 needs fixes.
+
+## Round 2
+
+### Status по прошлым findings
+
+1. **STILL BROKEN** — non-blocking `send()` исправлен концептуально в Round 1 (`docs/research/codex-backend-plan.md:661`-`docs/research/codex-backend-plan.md:694`), но полный план все еще содержит старый inline вариант (`docs/research/codex-backend-plan.md:486`-`docs/research/codex-backend-plan.md:500`) и "Codex `send()` blocks" в non-goals (`docs/research/codex-backend-plan.md:650`). Плюс новый sketch запускает `_event_loop` до `backend.send()`, поэтому для Codex listener может увидеть `_proc is None`, выйти, а затем `send()` создаст subprocess без читателя.
+
+2. **FIXED** — synthetic `turn_end` при смерти процесса теперь описан: `ok=False`, `returncode`, `stderr_tail`, `stop_reason` (`docs/research/codex-backend-plan.md:701`-`docs/research/codex-backend-plan.md:732`). Это закрывает зависание `RUNNING`, если `_handle_turn_end` действительно выполняет общий idle/persist path.
+
+3. **FIXED** — `backend_type` теперь явно протянут через DB/session/API и валидируется на load (`docs/research/codex-backend-plan.md:734`-`docs/research/codex-backend-plan.md:742`).
+
+4. **FIXED** — cross-backend model change заблокирован (`docs/research/codex-backend-plan.md:744`-`docs/research/codex-backend-plan.md:752`).
+
+5. **FIXED** — terminal metadata расширен `ok`, `stop_reason`, `returncode`, `num_turns`/Codex returncode (`docs/research/codex-backend-plan.md:754`-`docs/research/codex-backend-plan.md:758`).
+
+6. **STILL BROKEN** — Round 1 говорит обновить `app/tools.py` schema (`docs/research/codex-backend-plan.md:760`-`docs/research/codex-backend-plan.md:765`), но таблица файлов все еще говорит `app/tools.py` **NO CHANGE** (`docs/research/codex-backend-plan.md:579`). Также план не решает старые dead paths в `app/tools.py` (`_manager.archived`, `archive_by_id`), хотя признает, что orchestrators все еще используют in-process SDK tools.
+
+7. **FIXED** — global MCP config заменен на per-worktree `.codex/config.toml` с `WORKER_NAME` и `ORCHESTRA_SCOPE` (`docs/research/codex-backend-plan.md:767`-`docs/research/codex-backend-plan.md:789`).
+
+8. **FIXED** — resume ограничения задокументированы, acceptance test добавлен в план (`docs/research/codex-backend-plan.md:791`-`docs/research/codex-backend-plan.md:797`).
+
+9. **STILL BROKEN** — Round 1 говорит убрать `--dangerously-bypass-approvals-and-sandbox` (`docs/research/codex-backend-plan.md:799`-`docs/research/codex-backend-plan.md:804`), но основной CodexBackend sketch все еще содержит этот флаг (`docs/research/codex-backend-plan.md:191`-`docs/research/codex-backend-plan.md:194`). Это опасное противоречие: реализация по верхнему sketch даст `danger-full-access`.
+
+10. **FIXED** — `compact()` теперь явно должен идти через backend abstraction, а не raw Claude SDK (`docs/research/codex-backend-plan.md:805`-`docs/research/codex-backend-plan.md:818`).
+
+### New bugs introduced
+
+blocking: Новый non-blocking design для Codex имеет race на старте listener-а. `_ensure_backend()` из старого sketch создает `_event_loop` сразу после `connect()` (`docs/research/codex-backend-plan.md:380`-`docs/research/codex-backend-plan.md:388`), а Round 1 `send()` только потом вызывает `backend.send()` (`docs/research/codex-backend-plan.md:668`-`docs/research/codex-backend-plan.md:672`). Для Codex `connect()` no-op, `_proc` еще нет, значит `events()` может сразу вернуть управление по старой логике (`docs/research/codex-backend-plan.md:207`-`docs/research/codex-backend-plan.md:209`), `_event_loop` завершится, и stdout subprocess никто не прочитает. Фикс: для Codex стартовать listener после successful `backend.send()` на каждый turn, либо сделать `events()` ожидающим condition/queue появления процесса.
+
+blocking: Не описана защита от второго `send()` во время активного Codex turn. Текущий API допускает `manager.send()` без проверки `RUNNING` (`app/main.py:323`-`app/main.py:335`, `app/manager.py:210`-`app/manager.py:214`), а Round 1 не добавил per-session queue/lock. Повторный `send()` может перезаписать `CodexBackend._proc` или запустить два `codex exec` на один thread. Для Codex нужно явно: если `RUNNING`, класть message в очередь или возвращать 409; mid-turn injection не поддерживается.
+
+suggestion: `_got_turn_completed` должен сбрасываться в начале каждого Codex `send()`. Round 1 говорит, что flag есть, но в sketch показан только check после process exit (`docs/research/codex-backend-plan.md:709`-`docs/research/codex-backend-plan.md:720`). Если первый turn завершился успешно и поставил `_got_turn_completed=True`, следующий crashed turn не получит synthetic failed `turn_end`.
+
+suggestion: Чтение stderr после завершения stdout может подвесить процесс, если stderr pipe заполнится. Round 1 читает stderr только после `await self._proc.wait()` (`docs/research/codex-backend-plan.md:706`-`docs/research/codex-backend-plan.md:707`). Без concurrent stderr drain subprocess может заблокироваться на записи stderr и никогда не закрыть stdout. Минимально: отдельная task для stderr tail или `stderr=STDOUT` с маркировкой.
+
+suggestion: `assert backend_type == backend_for_model(model)` плохой механизм load validation (`docs/research/codex-backend-plan.md:741`). `assert` отключается `python -O` и при mismatch может убить `auto_resume_all()` вместо мягкой коррекции/лога. Нужен обычный `if mismatch: log + repair or skip session`.
+
+suggestion: `.codex/config.toml` генерируется через f-string без TOML escaping (`docs/research/codex-backend-plan.md:772`-`docs/research/codex-backend-plan.md:786`). Путь/scope с кавычкой или backslash сломает config. Для MVP достаточно экранировать через `json.dumps(value)` для TOML basic strings или писать маленький helper.
+
+suggestion: `.codex/config.toml` создается внутри worktree (`docs/research/codex-backend-plan.md:768`-`docs/research/codex-backend-plan.md:789`), но план не добавляет его в `.git/info/exclude` и не описывает cleanup. Worker может случайно закоммитить локальный Orchestra config в свою ветку. Добавьте exclude сразу после создания файла.
+
+### Round 2 Verdict
+
+needs fixes.

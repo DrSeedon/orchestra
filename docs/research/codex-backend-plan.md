@@ -190,7 +190,6 @@ class CodexBackend:
         else:
             cmd += ["exec", "--json", "-m", self.model,
                     "--sandbox", "workspace-write",
-                    "--dangerously-bypass-approvals-and-sandbox",
                     "-C", self.cwd]
             if self.system_prompt:
                 escaped = self.system_prompt.replace('"', '\\"').replace('\n', '\\n')
@@ -483,21 +482,7 @@ async def _event_loop(self) -> None:
                 # reconnect...
 ```
 
-Actually, simpler: for Codex, don't use a background listen task. Call `send()` + iterate `events()` inline:
-
-```python
-async def send(self, message: str) -> None:
-    backend = await self._ensure_backend()
-    await backend.send(message)
-    
-    if self.backend_type == "codex":
-        # Codex: synchronous turn — iterate events inline
-        async for event in backend.events():
-            self._handle_event(event)
-    # Claude: events flow through _persistent_listen background task
-```
-
-This is cleaner. Codex `send()` blocks until the turn completes. Claude `send()` returns immediately, events flow via background task.
+**IMPORTANT**: Both backends use the same non-blocking contract. `send()` returns immediately. Events are consumed by `_event_loop` background task. For Codex, the task is started per-turn in `send()` after subprocess spawns. See Section 12 FIX 1 and Section 13 NB1 for the corrected design.
 
 ---
 
@@ -576,7 +561,7 @@ if "backend_type" not in cols:
 | `app/manager.py` | **MODIFY** | Pass `backend_type` to session creation |
 | `app/db.py` | **MODIFY** | Add `backend_type` column migration |
 | `app/main.py` | **MODIFY** | Minor: pass backend info in API responses |
-| `app/tools.py` | **NO CHANGE** | MCP tools are backend-agnostic |
+| `app/tools.py` | **MODIFY** | Add Codex models to spawn_worker schema. Dead paths (archive_by_id) are pre-existing tech debt, not in scope. |
 | `app/mcp_stdio.py` | **NO CHANGE** | External MCP server, works with both CLIs |
 
 ---
@@ -647,7 +632,7 @@ if "backend_type" not in cols:
 
 1. **No app-server protocol** — too complex for MVP. Subprocess per turn is good enough.
 2. **No Python SDK dependency** — it has bugs (FileChangeItem status), we parse JSONL directly.
-3. **No mid-turn injection for Codex** — Codex `send()` blocks until turn completes. Messages queue.
+3. **No mid-turn injection for Codex** — Codex turns are sequential. Messages sent during active turn are queued and sent after turn completes.
 4. **No Codex orchestrator** — orchestrators stay on Claude (Opus). Only workers get Codex option.
 5. **No Codex-specific dashboard views** — same dashboard, just a backend badge.
 6. **No multi-provider-per-session** — one backend per session lifetime. Model change = new backend.
@@ -816,3 +801,114 @@ async def compact(self) -> dict:
 ```
 
 This is already implied by the refactoring but worth calling out explicitly: `compact()` must use the backend abstraction, not raw SDK calls.
+
+---
+
+## 13. Codex Review Fixes (Round 2)
+
+Round 2 found 3 STILL BROKEN + 2 new blocking + 5 new suggestions. All accepted.
+
+### STILL BROKEN fixes:
+
+**SB1: Old inline send() sketch not removed** — The old Section 5 code (inline Codex iteration) is SUPERSEDED by Round 1 FIX 1. Delete the old `if self.backend_type == "codex"` inline pattern. Only the background task pattern is valid. Non-goals section: remove "Codex send() blocks" — it doesn't anymore.
+
+**SB6: tools.py table says NO CHANGE** — Update files table: `app/tools.py` → **MODIFY** (add Codex models to spawn_worker schema). Dead paths (`_manager.archived`, `archive_by_id`) are pre-existing tech debt, not in scope for this plan — note in table.
+
+**SB9: Old sketch still has --yolo flag** — Remove `--dangerously-bypass-approvals-and-sandbox` from the CodexBackend `send()` sketch in Section 4. Only `--sandbox workspace-write` remains.
+
+### NEW blocking fixes:
+
+**NB1: Race on Codex event_loop start** — `_ensure_backend()` starts `_event_loop` before `send()` spawns subprocess. For Codex, `events()` sees `_proc=None` and returns immediately.
+
+**Fix**: Don't start `_event_loop` in `_ensure_backend()` for Codex. Instead, start it inside `send()` after `backend.send()` spawns the process:
+
+```python
+async def send(self, message: str) -> None:
+    backend = await self._ensure_backend()
+    await backend.send(message)
+    
+    if self.backend_type == "codex":
+        # Start/restart event loop AFTER process is spawned
+        if self._listen_task and not self._listen_task.done():
+            pass  # already running (shouldn't happen — Codex turns are sequential)
+        else:
+            self._listen_task = asyncio.create_task(self._event_loop())
+            self._listen_task.add_done_callback(self._on_task_done)
+    
+    # Claude: _event_loop started once in _ensure_backend, persists across turns
+```
+
+**NB2: No send() guard against concurrent turns** — Second `send()` during active Codex turn would overwrite `_proc`.
+
+**Fix**: Add status check at session level (already exists for Claude but not enforced):
+
+```python
+async def send(self, message: str) -> None:
+    if self.backend_type == "codex" and self.status == AgentStatus.RUNNING:
+        # Queue message for after current turn completes
+        self._pending_messages.append(message)
+        self._log("status", "message queued (Codex turn in progress)")
+        return
+    # ... proceed with send ...
+```
+
+After turn completes in `_handle_turn_end`, check queue:
+```python
+if self._pending_messages:
+    next_msg = self._pending_messages.pop(0)
+    asyncio.create_task(self.send(next_msg))
+```
+
+### NEW suggestion fixes:
+
+**NS1: Reset _got_turn_completed per turn** — Add `self._got_turn_completed = False` at start of `CodexBackend.send()`.
+
+**NS2: stderr drain race** — Use `asyncio.create_task` to drain stderr concurrently with stdout reading. Or use `stderr=asyncio.subprocess.DEVNULL` and skip stderr (simpler, loses debug info). Compromise: `stderr=asyncio.subprocess.PIPE` + concurrent drain task, store last 500 bytes.
+
+```python
+async def send(self, message: str) -> None:
+    # ...spawn proc...
+    self._stderr_task = asyncio.create_task(self._drain_stderr())
+
+async def _drain_stderr(self) -> bytes:
+    chunks = []
+    while True:
+        chunk = await self._proc.stderr.read(4096)
+        if not chunk:
+            break
+        chunks.append(chunk)
+    data = b"".join(chunks)
+    self._last_stderr = data[-500:].decode("utf-8", errors="replace")
+    return data
+```
+
+**NS3: assert → if/log for backend validation** — Replace `assert backend_type == backend_for_model(model)` with:
+```python
+expected = backend_for_model(row["model"])
+actual = row.get("backend_type", "claude")
+if actual != expected:
+    logger.warning(f"backend mismatch for {row['name']}: stored={actual}, model implies={expected}. Using {expected}.")
+    actual = expected
+```
+
+**NS4: TOML escaping in config generation** — Use `json.dumps()` for string values (JSON strings are valid TOML basic strings):
+```python
+config = f'''[mcp_servers.orchestra]
+command = {json.dumps(sys.executable)}
+args = [{json.dumps(_MCP_SCRIPT)}]
+
+[mcp_servers.orchestra.env]
+ORCHESTRA_URL = "http://127.0.0.1:8888"
+ORCHESTRA_SCOPE = {json.dumps(scope)}
+WORKER_NAME = {json.dumps(name)}
+'''
+```
+
+**NS5: .codex/config.toml gitignore** — After creating `.codex/config.toml`, add to `.git/info/exclude`:
+```python
+exclude_path = Path(worktree_path) / ".git" / "info" / "exclude"
+exclude_path.parent.mkdir(parents=True, exist_ok=True)
+with open(exclude_path, "a") as f:
+    f.write("\n.codex/\n")
+```
+Note: worktrees use `.git` file pointing to main repo's `.git/worktrees/<name>/`, so `info/exclude` is per-worktree.
