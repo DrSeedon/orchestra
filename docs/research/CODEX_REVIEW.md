@@ -113,3 +113,31 @@ suggestion: NS4 escaped TOML snippet потерял `ORCHESTRA_ROLE` и `PYTHONP
 ### Round 3 Verdict
 
 needs fixes.
+
+## Round 4
+
+### Status по Round 3 findings
+
+1. **FIXED** — SB-NB1: основной `_ensure_backend()` sketch теперь стартует persistent `_event_loop` только для Claude, а Codex loop стартует per-turn после `backend.send()` (`docs/research/codex-backend-plan.md:381`-`docs/research/codex-backend-plan.md:408`).
+
+2. **FIXED** — SB-NS5: git exclude теперь учитывает worktree `.git` file и пишет в `gitdir/info/exclude`, а не в fake `.git/info/exclude` внутри worktree (`docs/research/codex-backend-plan.md:937`-`docs/research/codex-backend-plan.md:954`).
+
+3. **FIXED** — blocking queue race: dequeue перенесен в `_codex_turn_loop.finally`, то есть после возврата `events()` и backend cleanup (`docs/research/codex-backend-plan.md:412`-`docs/research/codex-backend-plan.md:425`, `docs/research/codex-backend-plan.md:887`).
+
+4. **FIXED** — Phase 3 больше не выбирает global config; теперь указан per-worktree `.codex/config.toml` (`docs/research/codex-backend-plan.md:619`-`docs/research/codex-backend-plan.md:626`).
+
+5. **FIXED** — `_pending_messages` добавлен в dataclass sketch (`docs/research/codex-backend-plan.md:354`-`docs/research/codex-backend-plan.md:379`).
+
+6. **FIXED** — TOML template снова содержит `ORCHESTRA_ROLE` и `PYTHONPATH` (`docs/research/codex-backend-plan.md:921`-`docs/research/codex-backend-plan.md:934`).
+
+### New issues
+
+blocking: Queued Codex turn can race with `_on_task_done` from the previous per-turn task. `_codex_turn_loop.finally` awaits `self.send(next_msg)`, and that new send replaces `self._listen_task` with the next turn task before the old task's done callback runs (`docs/research/codex-backend-plan.md:421`-`docs/research/codex-backend-plan.md:425`). The existing `_on_task_done` behavior in live code treats a listener task that exits cleanly while `status == RUNNING` as unexpected and sets the session idle (`app/session.py:328`-`app/session.py:345`). If the queued send has already set status to RUNNING for the next turn, the old task's callback can mark the new active turn idle. Fix: don't attach `_on_task_done` to normal Codex per-turn tasks, or make `_on_task_done` backend/task-aware and ignore clean exits from completed Codex turn tasks that are not `self._listen_task`.
+
+suggestion: Key design decision 5 still mentions using global config because all workers need Orchestra MCP (`docs/research/codex-backend-plan.md:327`-`docs/research/codex-backend-plan.md:335`). Phase 3 is fixed, but this earlier statement is stale and contradicts the per-worktree identity requirement. Remove the global-config wording there too.
+
+suggestion: `_add_to_git_exclude()` assumes `gitdir` from `.git` file can be passed directly to `Path(gitdir)` (`docs/research/codex-backend-plan.md:939`-`docs/research/codex-backend-plan.md:945`). Git can store a relative gitdir path; resolve relative paths against `worktree_path` before appending `info/exclude`.
+
+### Round 4 Verdict
+
+needs fixes.

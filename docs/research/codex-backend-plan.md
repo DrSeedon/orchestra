@@ -331,7 +331,7 @@ class CodexBackend:
 
 4. **No proxy** — Codex authenticates via ChatGPT OAuth, doesn't need our Hiddify proxy. Strip HTTPS_PROXY from env.
 
-5. **MCP via config.toml** — Codex workers load MCP servers from `~/.codex/config.toml`. We'll add Orchestra MCP entry per-worker project config, or use global config since all workers need Orchestra MCP.
+5. **MCP via per-worktree config** — Each Codex worker gets a `.codex/config.toml` in its worktree with worker-specific identity (WORKER_NAME, SCOPE). See Section 13 FIX 7 and NS4/NS5.
 
 ---
 
@@ -405,7 +405,9 @@ class AgentSession:
         # Codex: start per-turn event loop AFTER process is spawned
         if self.backend_type == "codex":
             self._listen_task = asyncio.create_task(self._codex_turn_loop())
-            self._listen_task.add_done_callback(self._on_task_done)
+            # NOTE: do NOT attach _on_task_done to Codex per-turn tasks.
+            # _on_task_done treats clean exits as unexpected for Claude's persistent loop.
+            # Codex turns exit cleanly by design — the finally block handles queue dispatch.
         
         # ... existing status tracking stays ...
     
@@ -940,8 +942,9 @@ def _add_to_git_exclude(worktree_path: str, pattern: str):
     git_path = Path(worktree_path) / ".git"
     if git_path.is_file():
         # Worktree: .git is a file with "gitdir: /path/to/.git/worktrees/<name>"
-        gitdir = git_path.read_text().strip().split("gitdir: ", 1)[-1]
-        exclude_path = Path(gitdir) / "info" / "exclude"
+        gitdir_raw = git_path.read_text().strip().split("gitdir: ", 1)[-1]
+        gitdir = Path(gitdir_raw) if Path(gitdir_raw).is_absolute() else (Path(worktree_path) / gitdir_raw).resolve()
+        exclude_path = gitdir / "info" / "exclude"
     else:
         exclude_path = git_path / "info" / "exclude"
     exclude_path.parent.mkdir(parents=True, exist_ok=True)
