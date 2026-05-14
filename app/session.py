@@ -16,6 +16,9 @@ from claude_agent_sdk import (
     ToolUseBlock,
     PermissionResultAllow,
     PermissionResultDeny,
+    TaskStartedMessage,
+    TaskProgressMessage,
+    TaskNotificationMessage,
 )
 from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
@@ -212,6 +215,22 @@ class AgentSession:
                             for block in msg.content:
                                 if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
                                     self._log("tool_result", _extract_tool_result(block))
+                    elif isinstance(msg, TaskStartedMessage):
+                        desc = getattr(msg, "description", "") or ""
+                        task_type = getattr(msg, "task_type", "") or ""
+                        task_id = getattr(msg, "task_id", "") or ""
+                        self._log("subagent_start", f"{desc} | type={task_type} | id={task_id}")
+                    elif isinstance(msg, TaskProgressMessage):
+                        desc = getattr(msg, "description", "") or ""
+                        last_tool = getattr(msg, "last_tool_name", "") or ""
+                        usage = getattr(msg, "usage", None)
+                        tokens = usage.total_tokens if usage and hasattr(usage, "total_tokens") else 0
+                        self._log("subagent_progress", f"{desc} | tool={last_tool} | tokens={tokens}")
+                    elif isinstance(msg, TaskNotificationMessage):
+                        desc = getattr(msg, "description", "") or ""
+                        status = getattr(msg, "status", "") or ""
+                        summary = getattr(msg, "summary", "") or ""
+                        self._log("subagent_end", f"{desc} | status={status} | {summary[:500]}")
                     elif isinstance(msg, ResultMessage):
                         self._turn_start = 0
                         sr = getattr(msg, "stop_reason", None) or "unknown"

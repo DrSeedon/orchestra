@@ -110,6 +110,10 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
                         parts = line.split()
                         if parts:
                             conflict_files.append(parts[-1])
+                if not conflict_files:
+                    err = precheck.stderr.strip() or precheck.stdout.strip() or f"merge-tree exit code {precheck.returncode}"
+                    logger.error(f"merge-tree failed: repo={repo} branch={branch} err={err}")
+                    return {"ok": False, "error": f"merge precheck failed: {err}"}
                 return {"ok": False, "conflicts": conflict_files}
 
             commits_result = subprocess.run(
@@ -123,7 +127,9 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
                 cwd=str(repo), capture_output=True, text=True,
             )
             if merge.returncode != 0:
-                return {"ok": False, "error": merge.stderr.strip() or merge.stdout.strip()}
+                err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
+                logger.error(f"merge_worktree failed: repo={repo} branch={branch} err={err}")
+                return {"ok": False, "error": err}
 
             return {"ok": True, "commits_merged": commits_merged, "branch": branch}
         finally:
