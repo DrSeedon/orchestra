@@ -1,362 +1,476 @@
 # Research: Migrating Orchestra from Claude Code CLI to OpenAI Codex CLI
 
 **Date**: 2026-05-14  
-**Status**: Research complete  
-**Verdict**: Feasible but non-trivial. ~2-3 weeks for a hybrid backend. Full migration is structurally possible but loses MCP injection pattern.
+**Status**: Research complete (verified on local machine)  
+**Codex version**: 0.124.0 (`@openai/codex` npm global)  
+**Auth**: ChatGPT subscription (logged in)  
+**Verdict**: Feasible. ~2-3 weeks. Best approach: `codex exec --json` subprocess + Python SDK (`openai-codex-sdk`).
 
 ---
 
-## 1. What Is Codex CLI?
+## 1. Local Installation — What We Have
 
-OpenAI Codex CLI is a terminal-native coding agent (Rust-based, open source: `github.com/openai/codex`). It reads, edits, and executes code in a local directory — functionally equivalent to Claude Code CLI.
-
-### Models
-- **GPT-5.5** (default for complex tasks) — flagship
-- **GPT-5.4** — fast, cheaper
-- **GPT-5.4-mini** — budget
-- **GPT-5.3-Codex** — optimized for code tasks (cloud)
-- **GPT-5.3-Codex-Spark** — research preview (Pro only)
-
-### Authentication
-Two modes:
-1. **ChatGPT auth** (default): CLI usage draws from your subscription plan (Plus $20/mo, Pro $200/mo). No extra cost.
-2. **API key mode**: Billed per token at standard API rates. GPT-5.5: $1.25/$10 per M input/output tokens.
-
-### Key Difference from Claude Code
-Codex has **cloud tasks** — spin up a sandboxed environment, work on a GitHub issue, open a PR. Claude Code is local-only. But for Orchestra's purposes, we use local agent sessions, so this is irrelevant.
-
----
-
-## 2. Codex SDK — Programmatic API
-
-### TypeScript SDK (`@openai/codex-sdk`)
-```typescript
-import { Codex } from "@openai/codex-sdk";
-
-const codex = new Codex();
-const thread = codex.startThread();
-const result = await thread.run("Fix the CI failure");
-
-// Resume later
-const thread2 = codex.resumeThread(threadId);
-await thread2.run("Pick up where you left off");
-
-// Streaming events
-for await (const event of thread.runStreamed("Implement the plan")) {
-  // event.type: "item.completed", "turn.completed", etc.
-}
+```
+Binary:   /home/maxim/.npm-global/bin/codex  (Node.js wrapper → Rust ELF binary)
+Rust bin: ~/.npm-global/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/
+          vendor/x86_64-unknown-linux-musl/codex/codex  (static-pie ELF, stripped)
+Package:  @openai/codex@0.124.0 (npm global)
+Auth:     ~/.codex/auth.json — "Logged in using ChatGPT"
+Config:   ~/.codex/config.toml
+Sessions: ~/.codex/sessions/2026/{04,05}/... (JSONL rollout files)
 ```
 
-### Python SDK (`codex_app_server`)
-```python
-from codex_app_server import AsyncCodex
-import asyncio
-
-async def main():
-    async with AsyncCodex() as codex:
-        thread = await codex.thread_start(model="gpt-5.4")
-        result = await thread.run("Fix the bug")
-        print(result.final_response)
-```
-
-**Critical**: Python SDK is experimental, requires local Codex repo checkout, and uses Pydantic models over JSON-RPC. Not as mature as `claude-agent-sdk`.
-
-### App Server (Low-Level Protocol)
-Codex has an "app server" — a JSON-RPC 2.0 bidirectional protocol over stdio or WebSocket. This is the real power:
-
-- `thread/start`, `thread/resume` — session lifecycle
-- `turn/start` — send user message
-- `item/started`, `item/completed`, delta streams — event notifications
-- `item/commandExecution/requestApproval` — permission callbacks
-- Threads persist in `~/.codex/sessions`
-
-This is architecturally equivalent to our `claude-agent-sdk` pattern:
-| Orchestra (Claude) | Codex App Server |
-|---|---|
-| `client.connect()` | `initialize` + `thread/start` |
-| `client.query(msg)` | `turn/start` with input |
-| `client.receive_messages()` | Stream notifications (items, turns) |
-| `ResultMessage` | `turn/completed` notification |
-| `AssistantMessage` + `TextBlock` | `item/completed` with message type |
-| `ToolUseBlock` | `item/completed` with tool_call type |
-| `PermissionResultAllow/Deny` | Approval response to `requestApproval` |
-| `session_id` for resume | `threadId` for `thread/resume` |
-
----
-
-## 3. MCP Support in Codex
-
-**Full MCP support.** Both stdio and HTTP transports.
-
-Configuration via `~/.codex/config.toml` or `codex mcp add`:
+### config.toml (current)
 ```toml
-[mcp_servers.orchestra]
-command = "python"
-args = ["-m", "app.mcp_stdio"]
-env = { ORCHESTRA_URL = "http://127.0.0.1:8888" }
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+
+[projects."/mnt/data/Projects/Python/orchestra"]
+trust_level = "trusted"
+
+[mcp_servers.serena]
+command = "serena"
+args = ["start-mcp-server", "--context=codex", "--project-from-cwd"]
 ```
-
-Our `mcp_stdio.py` MCP server would work with Codex **as-is** — it's a standard FastMCP stdio server. Codex just needs the config entry.
-
-**Codex as MCP server**: `codex mcp-server` exposes Codex itself as an MCP server with `codex` and `codex-reply` tools. This enables the OpenAI Agents SDK to orchestrate Codex agents — interesting for a different architecture pattern.
 
 ---
 
-## 4. What Maps Cleanly
+## 2. CLI Interface — Real `--help` Output
 
-| Feature | Claude Code | Codex CLI | Migration Effort |
+### Main command: `codex [OPTIONS] [PROMPT]`
+
+Key flags for programmatic use:
+```
+-m, --model <MODEL>           Model override (gpt-5.5, gpt-5.4, gpt-5.4-mini, o3, etc.)
+-C, --cd <DIR>                Working directory for the agent
+-s, --sandbox <MODE>          read-only | workspace-write | danger-full-access
+-a, --ask-for-approval <POL>  untrusted | on-request | never
+-c, --config <key=value>      Override config.toml values (TOML syntax)
+-i, --image <FILE>            Attach images to prompt
+--dangerously-bypass-approvals-and-sandbox  (aka --yolo)
+--add-dir <DIR>               Additional writable directories
+```
+
+### Non-interactive: `codex exec [OPTIONS] [PROMPT]`
+
+**This is our primary integration point.** Additional flags:
+```
+--json                        Print JSONL events to stdout ← KEY
+--ephemeral                   Don't persist session files
+--skip-git-repo-check         Run outside git repos
+-o, --output-last-message <F> Write final message to file
+--output-schema <FILE>        JSON Schema for structured output
+```
+
+Note: `exec` does NOT accept `--ask-for-approval`. Uses `--sandbox` and `--dangerously-bypass-approvals-and-sandbox` instead.
+
+### Session resume: `codex exec resume [SESSION_ID] [PROMPT]`
+```
+--last                        Resume most recent session
+--all                         Show all sessions (no cwd filter)
+--json                        JSONL output (works with resume too!)
+```
+
+### System prompt injection
+```bash
+codex exec -c 'developer_instructions="Your custom instructions here"' "prompt"
+```
+Verified working — agent follows the injected instructions.
+
+### MCP management: `codex mcp add|list|get|remove|login|logout`
+
+### App server: `codex app-server [--listen stdio://|ws://IP:PORT]`
+Experimental JSON-RPC 2.0 bidirectional protocol. Supports stdio and WebSocket.
+
+---
+
+## 3. JSONL Event Stream — Real Output
+
+### Simple text response
+```bash
+codex exec --json -m gpt-5.4-mini --sandbox read-only --skip-git-repo-check -C /tmp "Say hello"
+```
+```jsonl
+{"type":"thread.started","thread_id":"019e2545-2400-70d1-a4eb-77acb39d978a"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"hello world"}}
+{"type":"turn.completed","usage":{"input_tokens":13802,"cached_input_tokens":6528,"output_tokens":23}}
+```
+
+### With tool use (file creation + bash execution)
+```bash
+codex exec --json -m gpt-5.4-mini --sandbox workspace-write --skip-git-repo-check -C /tmp \
+  "Create file /tmp/test.txt with 'hello'. Then cat it."
+```
+```jsonl
+{"type":"thread.started","thread_id":"019e2545-68e0-76a1-8a29-e92629b42e5f"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Creating the file..."}}
+{"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"/tmp/codex-test.txt","kind":"add"}],"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"file_change","changes":[{"path":"/tmp/codex-test.txt","kind":"add"}],"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"Checking contents..."}}
+{"type":"item.started","item":{"id":"item_3","type":"command_execution","command":"/usr/bin/zsh -lc 'cat /tmp/codex-test.txt'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"command_execution","command":"/usr/bin/zsh -lc 'cat /tmp/codex-test.txt'","aggregated_output":"hello from codex\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"Done. Verified contents."}}
+{"type":"turn.completed","usage":{"input_tokens":42160,"cached_input_tokens":33920,"output_tokens":288}}
+```
+
+### Session resume (verified working)
+```bash
+# First turn (non-ephemeral)
+codex exec --json -m gpt-5.4-mini --sandbox read-only -C /tmp "What is 2+2?"
+# → thread_id: "019e2545-f404-79e3-bab5-f81d37a0ffdb"
+
+# Resume same session
+codex exec resume --json 019e2545-f404-79e3-bab5-f81d37a0ffdb "What did I just ask?"
+# → "You asked: What is 2+2?"
+```
+
+### Event types observed
+
+| Event | Structure | Claude Equivalent |
+|---|---|---|
+| `thread.started` | `{thread_id}` | Initial `ResultMessage` with `session_id` |
+| `turn.started` | `{}` | — |
+| `item.completed` + `agent_message` | `{id, type, text}` | `AssistantMessage` + `TextBlock` |
+| `item.started` + `file_change` | `{id, type, changes[], status}` | — (Claude uses tool blocks) |
+| `item.completed` + `file_change` | Same, status=completed | `ToolResultBlock` |
+| `item.started` + `command_execution` | `{id, type, command, status}` | `ToolUseBlock` (Bash) |
+| `item.completed` + `command_execution` | `{..., aggregated_output, exit_code}` | `ToolResultBlock` |
+| `turn.completed` | `{usage: {input_tokens, cached_input_tokens, output_tokens}}` | `ResultMessage` |
+
+### Session JSONL storage format (`~/.codex/sessions/`)
+```jsonl
+{"timestamp":"...","type":"session_meta","payload":{"id":"UUID","cwd":"...","model_provider":"openai","base_instructions":{...},"git":{...}}}
+{"timestamp":"...","type":"event_msg","payload":{"type":"task_started","turn_id":"UUID","model_context_window":258400,...}}
+{"timestamp":"...","type":"response_item","payload":{"type":"message","role":"developer","content":[...]}}
+{"timestamp":"...","type":"turn_context","payload":{"turn_id":"...","cwd":"...","approval_policy":"never","sandbox_policy":{...},"model":"gpt-5.5",...}}
+```
+
+---
+
+## 4. Programmatic APIs — Three Options
+
+### Option A: `codex exec --json` subprocess (RECOMMENDED)
+
+Spawn `codex exec --json` as a subprocess. Read JSONL from stdout. For multi-turn: use resume.
+
+```python
+import asyncio
+import json
+
+CODEX_BIN = "/home/maxim/.npm-global/bin/codex"
+
+async def codex_exec(prompt: str, cwd: str, model: str = "gpt-5.5",
+                     session_id: str = None) -> tuple[str, list[dict]]:
+    cmd = [CODEX_BIN]
+    if session_id:
+        cmd += ["exec", "resume", "--json", session_id, prompt]
+    else:
+        cmd += ["exec", "--json", "-m", model, "--sandbox", "workspace-write",
+                "-C", cwd, prompt]
+    
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    
+    events = []
+    thread_id = None
+    async for line in proc.stdout:
+        event = json.loads(line)
+        events.append(event)
+        if event["type"] == "thread.started":
+            thread_id = event["thread_id"]
+    
+    await proc.wait()
+    return thread_id, events
+```
+
+**Pros**: Simple, stable, works today, uses subscription auth.  
+**Cons**: Not persistent — new process per turn. Resume works but has startup overhead (~1-2s).
+
+### Option B: Python SDK (`openai-codex-sdk` on PyPI)
+
+```
+pip install openai-codex-sdk  # v0.1.11, Apache-2.0
+```
+
+```python
+from codex_app_server import AsyncCodex  # actually `openai-codex-sdk`
+
+async with AsyncCodex() as codex:
+    thread = await codex.start_thread({
+        "working_directory": "/path/to/project",
+        "skip_git_repo_check": True,
+    })
+    
+    # Simple run
+    turn = await thread.run("Fix the bug")
+    print(turn.final_response)
+    
+    # Streaming
+    streamed = await thread.run_streamed("Implement the plan")
+    async for event in streamed.events:
+        if event.type == "item.completed":
+            print(event.item)
+        elif event.type == "turn.completed":
+            print(event.usage)
+    
+    # Resume later
+    saved_id = thread.id  # persist this
+    thread2 = codex.resume_thread(saved_id)
+    await thread2.run("Continue")
+```
+
+**Pros**: Native async Python, persistent thread objects, streaming, structured output support.  
+**Cons**: v0.1.x (early), wraps the CLI binary internally, requires `openai-codex-sdk` dependency. Not on our machine yet.
+
+Auth: Uses `CODEX_AUTH_JSON` env var or `Codex.login_with_auth_json()`. For subscription: copies from `~/.codex/auth.json`.
+
+### Option C: App Server JSON-RPC (low-level)
+
+```bash
+codex app-server --listen stdio://
+# or
+codex app-server --listen ws://127.0.0.1:9000
+```
+
+Bidirectional JSON-RPC 2.0. Most powerful but most complex.
+
+**Pros**: True persistent connection, full event streaming, approval callbacks, filesystem APIs.  
+**Cons**: Experimental, complex protocol, would need custom JSON-RPC client.
+
+---
+
+## 5. Mapping to Orchestra's Architecture
+
+### Claude SDK → Codex equivalents
+
+| Orchestra concept | Claude (`session.py`) | Codex (subprocess) | Codex (Python SDK) |
 |---|---|---|---|
-| Session persistence | `session_id` via SDK | `threadId` via app-server | Low — rename fields |
-| Session resume | `options.resume = session_id` | `thread/resume(threadId)` | Low |
-| System prompts | `options.system_prompt` | `base-instructions` in config | Low |
-| MCP servers (external) | `options.mcp_servers` | `config.toml` `[mcp_servers]` | Low — our MCP server works as-is |
-| Permission modes | `permission_mode`, `can_use_tool` callback | `ask-for-approval` + `sandbox` flags | Medium — different approval flow |
-| Tool calling | `ToolUseBlock` in `AssistantMessage` | `item/completed` with tool type | Medium — different event structure |
-| Working directory | `options.cwd` | `--cd` flag or `workingDirectory` | Low |
-| Model selection | `options.model` | `--model` flag or config | Low |
-| Streaming events | `receive_messages()` async generator | `runStreamed()` or app-server notifications | Medium |
-| Cost tracking | `ResultMessage.total_cost_usd` | Token usage in `turn/completed` | Medium — need to calculate from tokens |
-| Context usage | Token counts in `ResultMessage.usage` | Usage data in turn events | Medium |
+| Client creation | `ClaudeSDKClient(options)` | `codex exec --json ...` | `AsyncCodex()` |
+| Connect | `client.connect()` | Process spawn | `async with AsyncCodex()` |
+| Send message | `client.query(msg)` | New `codex exec resume` call | `thread.run(msg)` |
+| Receive events | `client.receive_messages()` | Read stdout JSONL | `thread.run_streamed()` |
+| Session ID | `ResultMessage.session_id` | `thread.started.thread_id` | `thread.id` |
+| Resume | `options.resume = id` | `codex exec resume <id>` | `codex.resume_thread(id)` |
+| System prompt | `options.system_prompt` | `-c developer_instructions=...` | Config in `start_thread()` |
+| CWD | `options.cwd` | `-C <dir>` | `working_directory` option |
+| Model | `options.model` | `-m <model>` | `model` option |
+| MCP servers | `options.mcp_servers` | `config.toml [mcp_servers]` | Config |
+| Permissions | `can_use_tool` callback | `--sandbox` + `--yolo` | Config |
+| Cost | `ResultMessage.total_cost_usd` | Calc from `turn.completed.usage` | `turn.usage` |
+| Text output | `TextBlock.text` | `item.completed` where `type=agent_message` | `turn.final_response` |
+| Tool use | `ToolUseBlock` | `item.completed` where `type=command_execution/file_change` | In `turn.items` |
+| Interrupt | `client.interrupt()` | `proc.terminate()` / SIGINT | — |
+| Sub-agent events | `TaskStartedMessage` etc. | Not in exec JSONL | Unknown |
+
+### What works unchanged
+- **`mcp_stdio.py`** — Standard FastMCP over stdio. Codex supports MCP stdio servers natively via `config.toml`.
+- **Git worktree isolation** — Codex respects `-C <dir>` flag. Our worktree setup is CLI-agnostic.
+- **Dashboard/SSE** — Frontend doesn't care which CLI backend generates the logs.
+
+### What needs adaptation
+1. **`session.py` message dispatch** (~120 lines of `isinstance()` checks) → map JSONL events to unified types
+2. **Persistent client pattern** → either accept per-turn subprocess overhead, or use Python SDK's persistent thread
+3. **Permission callback** → `--sandbox workspace-write` + `--yolo` for full auto (workers don't need human approval)
+4. **Cost tracking** → calculate from token counts in `turn.completed`
+5. **Context tracking** → Codex reports `model_context_window: 258400` in session meta; token usage per turn available but no cumulative percentage
 
 ---
 
-## 5. What Breaks
+## 6. Recommended Migration Architecture
 
-### 5.1 Deep SDK Type Coupling (`session.py`)
-
-Our `session.py` imports 10+ types from `claude_agent_sdk`:
+### `CodexBackend` (subprocess-based, production-ready today)
 
 ```python
-from claude_agent_sdk import (
-    ClaudeSDKClient, ClaudeAgentOptions,
-    AssistantMessage, ResultMessage, TextBlock, ToolUseBlock,
-    PermissionResultAllow, PermissionResultDeny,
-    TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage,
-)
-from claude_agent_sdk.types import (
-    ToolResultBlock, ServerToolResultBlock, UserMessage,
-)
+class CodexBackend:
+    CODEX_BIN = "/home/maxim/.npm-global/bin/codex"
+    
+    def __init__(self, model: str, cwd: str, system_prompt: str = "",
+                 mcp_config: dict = None):
+        self.model = model
+        self.cwd = cwd
+        self.system_prompt = system_prompt
+        self.thread_id: str | None = None
+    
+    async def send(self, message: str) -> AsyncIterator[AgentEvent]:
+        cmd = [self.CODEX_BIN]
+        if self.thread_id:
+            cmd += ["exec", "resume", "--json", self.thread_id, message]
+        else:
+            cmd += ["exec", "--json", "-m", self.model,
+                    "--sandbox", "workspace-write",
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    "-C", self.cwd]
+            if self.system_prompt:
+                cmd += ["-c", f'developer_instructions="{self._escape(self.system_prompt)}"']
+            cmd.append(message)
+        
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=PIPE, stderr=PIPE)
+        
+        async for line in proc.stdout:
+            event = json.loads(line)
+            if event["type"] == "thread.started":
+                self.thread_id = event["thread_id"]
+                yield AgentEvent("status", f"thread={self.thread_id}")
+            elif event["type"] == "item.completed":
+                item = event["item"]
+                if item["type"] == "agent_message":
+                    yield AgentEvent("text", item["text"])
+                elif item["type"] == "command_execution":
+                    yield AgentEvent("tool", f"bash: {item['command']}")
+                    yield AgentEvent("tool_result", item.get("aggregated_output", ""))
+                elif item["type"] == "file_change":
+                    changes = ", ".join(f"{c['kind']} {c['path']}" for c in item.get("changes", []))
+                    yield AgentEvent("tool", f"file: {changes}")
+            elif event["type"] == "turn.completed":
+                usage = event.get("usage", {})
+                yield AgentEvent("turn_end", "", metadata={
+                    "input_tokens": usage.get("input_tokens", 0),
+                    "cached_tokens": usage.get("cached_input_tokens", 0),
+                    "output_tokens": usage.get("output_tokens", 0),
+                })
+        
+        await proc.wait()
 ```
 
-**Every `isinstance()` check in `_persistent_listen()` must be rewritten.** This is ~120 lines of tightly coupled message dispatch logic.
-
-### 5.2 Persistent Client Pattern
-
-Our pattern:
-```
-connect() → query() → receive_messages() [infinite async loop] → query() again → ...
-```
-
-The Claude SDK keeps a single subprocess alive and injects messages via stdin. Codex's equivalent is the app-server protocol, but:
-
-- **TypeScript SDK** has `thread.run()` / `thread.runStreamed()` — one-shot per turn, not a persistent listener
-- **Python SDK** is experimental and wraps the same one-shot pattern
-- **App-server** protocol supports persistent connections (stdio/WebSocket) with streaming notifications — this IS the equivalent
-
-**Migration path**: Use the app-server JSON-RPC protocol directly (not the high-level SDK). This gives us the same persistent bidirectional channel.
-
-### 5.3 `tools.py` — In-Process MCP
-
-```python
-from claude_agent_sdk import tool, create_sdk_mcp_server
-```
-
-This creates an **in-process** MCP server that injects tools directly into the Claude CLI process. We don't actually use this for workers (they use `mcp_stdio.py`), but it exists.
-
-For Codex: MCP servers must be external (stdio or HTTP). No in-process equivalent. But since we already have `mcp_stdio.py`, this is a non-issue.
-
-### 5.4 Permission Callback
-
-Our `_auto_approve` callback:
-```python
-async def _auto_approve(tool_name, tool_input, _context=None):
-    if tool_name in _BLOCKED_TOOLS:
-        return PermissionResultDeny(...)
-    return PermissionResultAllow(updated_input=tool_input)
-```
-
-In Codex, approvals work via the app-server `requestApproval` notification → client responds with accept/decline. Same concept, different mechanism. We'd implement an approval handler in our JSON-RPC client.
-
-### 5.5 Sub-Agent Events
-
-We track `TaskStartedMessage`, `TaskProgressMessage`, `TaskNotificationMessage` for sub-agent lifecycle. Codex's equivalent is unclear — their multi-agent v2 has thread caps and depth handling, but the event model for nested agents isn't well-documented yet.
-
-### 5.6 Cost Calculation
-
-Claude: `ResultMessage.total_cost_usd` gives us a direct dollar amount.
-Codex: Returns token counts per turn. We'd need to calculate cost ourselves:
-```python
-cost = (input_tokens * INPUT_PRICE + output_tokens * OUTPUT_PRICE) / 1_000_000
-```
-
----
-
-## 6. Hybrid Architecture — Running Both
-
-### The `AgentBackend` Abstraction
-
-```python
-class AgentBackend(Protocol):
-    async def connect(self, options: SessionOptions) -> None: ...
-    async def send(self, message: str) -> None: ...
-    async def receive_events(self) -> AsyncIterator[AgentEvent]: ...
-    async def interrupt(self) -> None: ...
-    async def disconnect(self) -> None: ...
-
-@dataclass
-class AgentEvent:
-    type: str  # "text", "tool_use", "tool_result", "turn_end", "error", "subagent_start", ...
-    content: str
-    metadata: dict  # session_id, cost, tokens, etc.
-
-class ClaudeBackend(AgentBackend):
-    """Wraps claude-agent-sdk ClaudeSDKClient"""
-    ...
-
-class CodexBackend(AgentBackend):
-    """Wraps Codex app-server JSON-RPC protocol"""
-    ...
-```
-
-### `AgentSession` Refactor
-
-Replace direct `ClaudeSDKClient` usage with the backend protocol:
+### Hybrid `AgentSession`
 
 ```python
 @dataclass
 class AgentSession:
-    backend: str = "claude"  # or "codex"
-    _backend: AgentBackend = field(default=None)
+    backend_type: str = "claude"  # "claude" | "codex"
     
-    def _make_backend(self) -> AgentBackend:
-        if self.backend == "codex":
-            return CodexBackend(model=self.model, cwd=self.cwd, ...)
-        return ClaudeBackend(model=self.model, cwd=self.cwd, ...)
-```
-
-### MCP Server — Works for Both
-
-Our `mcp_stdio.py` is a standard MCP server talking HTTP to Orchestra. It's CLI-agnostic. Both Claude Code and Codex can use it.
-
-### Per-Worker Backend Choice
-
-Workers could specify their backend:
-```python
-await manager.spawn(name="researcher", backend="codex", model="gpt-5.5", ...)
-await manager.spawn(name="implementer", backend="claude", model="claude-sonnet-4-6", ...)
+    async def send(self, message: str) -> None:
+        if self.backend_type == "codex":
+            async for event in self._codex_backend.send(message):
+                self._handle_event(event)
+        else:
+            # existing Claude SDK path
+            client = await self._ensure_client()
+            await client.query(message)
 ```
 
 ---
 
-## 7. Effort Estimate
+## 7. Effort Estimate (revised with real data)
 
-### Phase 1: Backend Abstraction (3-5 days)
-- Define `AgentBackend` protocol + `AgentEvent` dataclass
-- Extract `ClaudeBackend` from current `session.py`
-- Refactor `AgentSession` to use the backend protocol
-- Update `_persistent_listen()` to consume `AgentEvent` instead of raw SDK types
-- Tests pass with `ClaudeBackend` — zero behavior change
+### Phase 1: AgentEvent abstraction (2-3 days)
+- Define `AgentEvent` dataclass (type, content, metadata)
+- Refactor `_persistent_listen()` to emit `AgentEvent` instead of raw SDK isinstance checks
+- All existing behavior preserved, just normalized event types
 
-### Phase 2: Codex Backend (5-7 days)
-- Implement `CodexBackend` using Codex app-server JSON-RPC protocol
-- Handle: connect, thread lifecycle, turn management, event streaming
-- Map Codex events to `AgentEvent` types
-- Implement approval handler (auto-approve with blocked tools)
-- Cost calculation from token counts
-- Context percentage estimation
+### Phase 2: CodexBackend via subprocess (3-4 days)
+- `codex exec --json` subprocess spawner with JSONL parser
+- Session resume via `codex exec resume --json <thread_id>`
+- `developer_instructions` for system prompt injection
+- `-C <cwd>`, `-m <model>`, `--sandbox workspace-write --yolo` for workers
+- Cost calculation from token usage
+- MCP config: auto-generate `config.toml` entries per worker
 
-### Phase 3: Integration & Hybrid Mode (3-5 days)
-- Backend selection in spawn/session creation
-- Model registry for both providers (`MODELS`, `CONTEXT_LIMITS`)
-- Dashboard updates (show backend type, Codex-specific metrics)
-- Codex MCP config generation (auto-create `config.toml` entries for workers)
-- Test hybrid scenario: Claude orchestrator + Codex workers
+### Phase 3: Integration (2-3 days)
+- `backend_type` field in session DB and API
+- Model registry: `CODEX_MODELS = {"gpt-5.5": "GPT-5.5", "gpt-5.4": "GPT-5.4", ...}`
+- Dashboard: show backend badge, Codex-specific token counts
+- Spawn API: `backend` parameter
 
-### Total: ~2-3 weeks of focused work
+### Phase 4: Python SDK path (optional, 2-3 days)
+- Install `openai-codex-sdk`, use `AsyncCodex` for persistent threads
+- Eliminates per-turn subprocess overhead
+- Streaming via `run_streamed()`
+- Depends on SDK stability (v0.1.x)
+
+### Total: 7-10 days (Phase 1-3), +2-3 days optional Phase 4
 
 ---
 
-## 8. Pricing Comparison
+## 8. Pricing
 
-### Subscription Mode (Flat Rate)
+### Subscription (what we use)
 
-| Plan | Claude (Anthropic) | Codex (OpenAI) |
-|---|---|---|
-| Individual | Max $200/mo | Pro $200/mo |
-| Team/Business | Enterprise (custom) | Business (per-seat + credits) |
+| Plan | Monthly | Claude CLI | Codex CLI |
+|---|---|---|---|
+| Anthropic Max 20x | $200 | Unlimited* | — |
+| OpenAI Pro | $200 | — | Credit-based (20x multiplier) |
 
-Both offer subscription modes where CLI usage is "included." For Orchestra's heavy usage, subscription is the way.
+**Caveat**: OpenAI Pro has per-5-hour rate limits (300-1600 GPT-5.5 messages). Multi-agent Orchestra with 5+ concurrent workers may hit this. Anthropic Max has no hard per-window limits (fair use policy).
 
-### API Mode (Per Token)
+### API (backup)
 
-| Model | Input (per M) | Output (per M) | Cache Read |
+| Model | Input/M | Output/M | Cached/M |
 |---|---|---|---|
 | Claude Opus 4.6 | $5.00 | $25.00 | $0.50 |
 | Claude Sonnet 4.6 | $3.00 | $15.00 | $0.30 |
 | GPT-5.5 | $1.25 | $10.00 | $0.125 |
 | GPT-5.4 | $0.625 | $3.75 | $0.0625 |
-| GPT-5.4-mini | $0.1875 | $1.13 | $0.01875 |
+| GPT-5.4-mini | $0.19 | $1.13 | $0.019 |
 
-**Codex is significantly cheaper per token**, especially GPT-5.4-mini which is ~16x cheaper than Sonnet on input.
-
-### Subscription-to-Subscription
-
-Both are ~$200/mo for heavy individual use. The real difference:
-- Anthropic subscription: unlimited* within fair use (Max 20x plan)
-- OpenAI Pro: credit-based with multipliers (Pro 20x = ~1600 GPT-5.5 messages per 5h window)
-
-For Orchestra running multiple agents continuously, OpenAI's credit system may hit limits faster. Anthropic's "unlimited" subscription is more predictable.
+GPT-5.4-mini is ~16x cheaper than Sonnet on input. For bulk worker tasks, significant cost advantage.
 
 ---
 
-## 9. Alternatives to Codex
+## 9. Critical Differences & Gotchas
 
-### Viable for Orchestration
+### 1. No persistent subprocess
+Claude SDK: single process, `connect()` once, `query()` injects messages via stdin.
+Codex `exec --json`: new process per turn. Resume restores context but has ~1-2s startup.
+**Impact**: Slightly higher latency per turn. Mitigated by Python SDK if we adopt it later.
 
-| Tool | SDK | MCP | Session Resume | Verdict |
-|---|---|---|---|---|
-| **Codex CLI** | TS + Python (experimental) | Full | Yes (threadId) | Best alternative |
-| **Gemini CLI** | TS + Python (community) | Yes | Partial | Promising but SDK immature |
-| **Aider** | Python (library, not SDK) | No native | Git-based history | No programmatic session control |
-| **OpenCode** | Go (no SDK) | Yes | Unknown | No programmatic API |
-| **Goose** | Python | Yes | Unknown | Less mature |
+### 2. No mid-turn message injection
+Claude SDK: `client.query()` during active turn injects a new message.
+Codex: No equivalent in `exec` mode. Would need app-server protocol.
+**Impact**: Our `send()` while running would need to wait for turn completion, then send new turn.
 
-### Agent Client Protocol (ACP)
+### 3. Approval model
+Claude: Programmatic `can_use_tool` callback per tool invocation.
+Codex: Binary choice at startup — `--sandbox` + approval flags. No per-tool callback.
+**Impact**: Our `_auto_approve` with blocked tools (`AskUserQuestion`) can't be replicated exactly. Workaround: inject blocked tool names into `developer_instructions` ("NEVER use AskUserQuestion").
 
-ACP is emerging as the "LSP for coding agents" — a standard JSON-RPC protocol for editor-to-agent communication. Supported by JetBrains, Zed, GitHub Copilot CLI, Cline. 
+### 4. Sub-agent event tracking
+Claude: `TaskStartedMessage`, `TaskProgressMessage`, `TaskNotificationMessage`.
+Codex `exec --json`: No sub-agent events observed in JSONL output.
+**Impact**: Dashboard won't show sub-agent lifecycle for Codex workers. Minor — most workers don't spawn sub-agents.
 
-**Interesting angle**: If we implemented an ACP client, we could potentially talk to ANY ACP-compatible agent, not just Claude or Codex. But ACP is editor-focused, not orchestrator-focused. The overhead of adapting it may not be worth it.
+### 5. Context window tracking
+Claude: `ResultMessage.usage` with full token breakdown per iteration.
+Codex: `turn.completed.usage` with `{input_tokens, cached_input_tokens, output_tokens}`.
+Session meta has `model_context_window: 258400`.
+**Impact**: Can calculate context % per turn, but no cumulative tracking. Would need to sum across turns.
 
 ---
 
 ## 10. Recommendation
 
-### If Anthropic bans third-party agent usage:
+### Fastest path to production backup:
 
-1. **Immediate** (Day 1): Switch Claude Code CLI to API key mode. This bypasses subscription restrictions — we'd pay per token, but it works. Cost: ~$50-100/day for heavy usage.
+**Week 1**: `AgentEvent` abstraction + `CodexBackend` via `codex exec --json`
+- Subprocess-based, uses existing CLI binary and subscription auth
+- Works today with zero new dependencies
+- Resume via `codex exec resume --json <thread_id>`
+- System prompt via `-c developer_instructions=...`
+- MCP via `config.toml` (our `mcp_stdio.py` works unchanged)
 
-2. **Short-term** (Week 1-2): Implement `AgentBackend` abstraction. Keep Claude as primary, but make the architecture ready for alternatives.
+**Week 2**: Integration + testing
+- Backend selection in spawn API
+- Dashboard adaptations
+- Test: Claude orchestrator managing Codex workers
 
-3. **Medium-term** (Week 2-4): Build `CodexBackend`. The Codex app-server protocol is rich enough to support our persistent-client pattern. The Python SDK is experimental but the protocol is stable.
+### When NOT to migrate:
+- Anthropic keeps subscription terms stable → stay on Claude, it's better integrated
+- Our persistent client pattern (mid-turn injection, heartbeat, reconnect) has no Codex equivalent without app-server protocol
+- Sub-agent event tracking is Claude-only
 
-4. **Long-term**: Hybrid mode. Use the best model for each task — Claude Opus for complex orchestration, GPT-5.5 for bulk coding, GPT-5.4-mini for simple tasks.
-
-### If Anthropic doesn't ban it:
-
-Don't migrate. The `claude-agent-sdk` is more mature, better integrated, and we'd lose features (sub-agent event tracking, direct cost reporting, in-process MCP). The abstraction layer is still worth building as insurance, but there's no urgency.
-
-### Key Risk
-
-The Codex Python SDK is **experimental** and requires a local Codex repo checkout. For production use, we'd likely need to:
-- Use the TypeScript SDK (more mature) via a Node.js sidecar process, OR
-- Implement our own Python client for the Codex app-server JSON-RPC protocol directly
-
-The JSON-RPC approach is more work but gives us full control and no dependency on an experimental SDK.
+### When to migrate:
+- Anthropic bans agent usage on subscription → Day 1: switch to API key ($50-100/day); Week 1-2: bring Codex workers online
+- Want cheaper workers → GPT-5.4-mini workers at 16x less than Sonnet
+- Want model diversity → Claude Opus for planning, GPT-5.5 for coding, GPT-5.4-mini for bulk tasks
 
 ---
 
 ## Sources
 
+- Local: `codex --help`, `codex exec --help`, `codex app-server --help`, `~/.codex/config.toml`, `~/.codex/sessions/`
 - [Codex SDK docs](https://developers.openai.com/codex/sdk)
 - [Codex CLI features](https://developers.openai.com/codex/cli/features)
 - [Codex CLI reference](https://developers.openai.com/codex/cli/reference)
@@ -365,11 +479,6 @@ The JSON-RPC approach is more work but gives us full control and no dependency o
 - [Codex + Agents SDK guide](https://developers.openai.com/codex/guides/agents-sdk)
 - [Codex pricing](https://developers.openai.com/codex/pricing)
 - [Codex changelog](https://developers.openai.com/codex/changelog)
+- [openai-codex-sdk on PyPI](https://pypi.org/project/openai-codex-sdk/) (v0.1.11)
 - [Codex GitHub repo](https://github.com/openai/codex)
-- [Codex TS SDK README](https://github.com/openai/codex/blob/main/sdk/typescript/README.md)
-- [Codex Python SDK](https://github.com/openai/codex/tree/main/sdk/python)
 - [Agent Client Protocol](https://agentclientprotocol.com/get-started/introduction)
-- [ACP in Copilot CLI](https://github.blog/changelog/2026-01-28-acp-support-in-copilot-cli-is-now-in-public-preview/)
-- [AI Coding CLI comparison (DEV)](https://dev.to/soulentheo/every-ai-coding-cli-in-2026-the-complete-map-30-tools-compared-4gob)
-- [DigitalOcean: Claude Code alternatives](https://www.digitalocean.com/resources/articles/claude-code-alternatives)
-- [Gemini CLI SDK (community)](https://github.com/oneryalcin/gemini-cli-sdk)
