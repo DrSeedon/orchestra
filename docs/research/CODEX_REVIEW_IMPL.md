@@ -26,3 +26,33 @@ question: `app/backend_codex.py:53` — resume запускается как `co
 ## Verdict
 
 needs fixes
+
+## Round 2
+
+### Tests
+
+`python -m pytest tests/test_db.py -q` теперь проходит: `29 passed`.
+
+Полный fallback-прогон `timeout 20 python -m pytest -q` все еще не зеленый: до timeout видны ошибки в `tests/test_api.py` и падения в `tests/test_manager.py`/`tests/test_session.py`. Часть этого ожидаемо из-за устаревших тестов, которые все еще патчат удаленный `AgentSession._make_client`; например `tests/test_manager.py::TestCreateSession::test_returns_session` падает на `AttributeError: AgentSession does not have the attribute '_make_client'`.
+
+### Fix Status
+
+FIXED: `app/db.py:91` — defaults в `save_session()` добавлены, старый dict больше не падает на новых bind-параметрах. Подтверждено `tests/test_db.py`.
+
+FIXED: `app/session.py:205` — Codex turn loop теперь переводит сессию в `IDLE` после exception/no-turn_end, так что исходный stuck-`RUNNING` сценарий закрыт.
+
+FIXED: `app/backend_codex.py:176` — top-level `{"type":"error"}` теперь мапится в `AgentEvent("error", ...)`.
+
+FIXED: `app/session.py:84` + `app/backend_codex.py:64` — MCP config теперь передается через `-c` overrides на первом Codex turn. Это закрывает риск, что `<worktree>/.codex/config.toml` не будет загружен Codex CLI.
+
+FIXED: `app/backend_codex.py:67` — `create_subprocess_exec(..., cwd=self.cwd)` добавлен, resume запускается из правильной директории процесса.
+
+### New Findings
+
+blocking: `app/session.py:211` — `CancelledError` в `_codex_turn_loop()` делает `return`, но `finally` все равно выполняется: `app/session.py:220` переводит session в `IDLE`, а `app/session.py:223` начинает drain queued messages. Поэтому `stop()`/`remove()`/`change_model()` через `_disconnect_backend()` отменяют listener на `app/session.py:511`, но при наличии `_pending_messages` cancelled Codex loop может тут же запустить следующий queued turn вместо остановки. Это ломает семантику stop/remove и может привести к неожиданным file edits после команды остановки. Минимальный фикс: в `_codex_turn_loop()` завести `cancelled = False`; в `except asyncio.CancelledError` выставлять `cancelled = True`; в `finally` не drain-ить `_pending_messages`, если `cancelled` или если идет shutdown/disconnect.
+
+suggestion: `app/session.py:92` — `_build_codex_mcp_args()` использует ручные TOML-строки для `command` и env values (`"...{v}..."`), в отличие от уже более надежного `json.dumps()` в `manager.py`. Для обычных Linux paths это, скорее всего, работает, но кавычка/backslash/newline в scope/path/env сломают `-c`. Лучше использовать `json.dumps()` для всех TOML string values, как уже сделано для args.
+
+### Verdict
+
+needs fixes

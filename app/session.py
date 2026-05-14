@@ -84,21 +84,18 @@ class AgentSession:
     def _build_codex_mcp_args(self) -> list[str]:
         if not self.mcp_servers:
             return []
+        import json as _j
         args = []
         for name, cfg in self.mcp_servers.items():
             cmd = cfg.get("command", "")
             srv_args = cfg.get("args", [])
             env = cfg.get("env", {})
-            args.append("-c")
-            args.append(f'mcp_servers.{name}.command="{cmd}"')
+            args += ["-c", f"mcp_servers.{name}.command={_j.dumps(cmd)}"]
             if srv_args:
-                import json as _j
                 toml_args = "[" + ", ".join(_j.dumps(a) for a in srv_args) + "]"
-                args.append("-c")
-                args.append(f"mcp_servers.{name}.args={toml_args}")
+                args += ["-c", f"mcp_servers.{name}.args={toml_args}"]
             for k, v in env.items():
-                args.append("-c")
-                args.append(f'mcp_servers.{name}.env.{k}="{v}"')
+                args += ["-c", f"mcp_servers.{name}.env.{k}={_j.dumps(str(v))}"]
         return args
 
     async def start(self, initial_message: str | None = None) -> None:
@@ -204,23 +201,22 @@ class AgentSession:
 
     async def _codex_turn_loop(self) -> None:
         logger.info(f"[{self.name}] codex turn started")
+        cancelled = False
         try:
             async for event in self._backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
                 self._handle_event(event)
         except asyncio.CancelledError:
+            cancelled = True
             return
         except Exception as e:
             logger.error(f"[{self.name}] codex turn error: {e}")
             self._log("error", f"codex turn error: {e}")
-            if self.status == AgentStatus.RUNNING:
-                self.status = AgentStatus.IDLE
-                self._persist()
         finally:
             if self.status == AgentStatus.RUNNING:
                 self.status = AgentStatus.IDLE
                 self._persist()
-            if self._pending_messages:
+            if not cancelled and self._pending_messages:
                 next_msg = self._pending_messages.pop(0)
                 await self.send(next_msg)
 
