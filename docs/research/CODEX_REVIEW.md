@@ -141,3 +141,21 @@ suggestion: `_add_to_git_exclude()` assumes `gitdir` from `.git` file can be pas
 ### Round 4 Verdict
 
 needs fixes.
+
+## Round 5
+
+### Status по Round 4 findings
+
+1. **FIXED** — blocking `_on_task_done` race закрыт: Codex per-turn task больше не получает `_on_task_done` callback; callback остается только у Claude persistent loop (`docs/research/codex-backend-plan.md:381`-`docs/research/codex-backend-plan.md:410`).
+
+2. **FIXED** — stale global config wording убран из key design decision; теперь явно указан per-worktree `.codex/config.toml` с worker identity (`docs/research/codex-backend-plan.md:324`-`docs/research/codex-backend-plan.md:335`).
+
+3. **FIXED** — relative `gitdir` из worktree `.git` file теперь резолвится относительно `worktree_path` (`docs/research/codex-backend-plan.md:939`-`docs/research/codex-backend-plan.md:957`).
+
+### New issues
+
+Новых blocking/suggestion issues не нашел.
+
+### Round 5 Verdict
+
+APPROVED.
