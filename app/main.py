@@ -610,10 +610,11 @@ async def tg_send_file(req: dict):
     caption = req.get("caption", "")
     scope = req.get("scope", "")
     sender = req.get("sender", "")
+    as_document = req.get("as_document", False)
     if not path:
         return JSONResponse({"error": "path required"}, status_code=400)
     from app.tg_bridge import send_file_to_tg
-    result = await send_file_to_tg(path, caption, scope, sender)
+    result = await send_file_to_tg(path, caption, scope, sender, as_document=as_document)
     if result.get("error"):
         return JSONResponse(result, status_code=500)
     return result

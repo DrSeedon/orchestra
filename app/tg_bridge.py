@@ -506,7 +506,7 @@ def _find_thread_for_scope(scope: str) -> int | None:
     return None
 
 
-async def send_file_to_tg(path: str, caption: str, scope: str, sender: str) -> dict:
+async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_document: bool = False) -> dict:
     if not bot or not config["group_id"]:
         return {"error": "TG bridge not active"}
     from pathlib import Path as P
@@ -523,7 +523,7 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str) -> d
     try:
         from aiogram.types import FSInputFile
         tg_file = FSInputFile(path, filename=fp.name)
-        if fp.suffix.lower() in _IMAGE_EXTS:
+        if not as_document and fp.suffix.lower() in _IMAGE_EXTS:
             await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
         else:
             await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)

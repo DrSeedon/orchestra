@@ -168,10 +168,11 @@ async def list_jobs() -> str:
 
 
 @mcp.tool()
-async def send_file(path: str, caption: str = "") -> str:
-    """Send a file to the user via Telegram. Path must be absolute."""
+async def send_file(path: str, caption: str = "", as_document: bool = False) -> str:
+    """Send a file to the user via Telegram. Path must be absolute. Images are sent as inline photos by default; set as_document=True to force file attachment."""
     result = await _api("POST", "/api/tg/send_file", json={
         "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
+        "as_document": as_document,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Send failed: {result['error']}"
