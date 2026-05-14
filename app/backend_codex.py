@@ -26,15 +26,20 @@ CODEX_TOKEN_PRICES = {
 }
 
 
+CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
+
+
 class CodexBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_thread_id: str | None = None,
-                 mcp_config_args: list[str] | None = None):
+                 mcp_config_args: list[str] | None = None,
+                 reasoning_effort: str = "high"):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id
         self._mcp_config_args: list[str] = mcp_config_args or []
+        self.reasoning_effort = reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._stderr_task: Optional[asyncio.Task] = None
         self._last_stderr: str = ""
@@ -61,6 +66,7 @@ class CodexBackend:
             if self.system_prompt:
                 escaped = self.system_prompt.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
                 cmd += ["-c", f'developer_instructions="{escaped}"']
+            cmd += ["-c", f'model_reasoning_effort="{self.reasoning_effort}"']
             cmd.extend(self._mcp_config_args)
             cmd.append(message)
 

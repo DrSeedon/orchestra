@@ -71,6 +71,7 @@ class AgentSession:
                 system_prompt=self.system_prompt,
                 resume_thread_id=self.session_id,
                 mcp_config_args=self._build_codex_mcp_args(),
+                reasoning_effort=self._codex_reasoning_effort(),
             )
         else:
             from app.backend_claude import ClaudeBackend
@@ -80,6 +81,11 @@ class AgentSession:
                 resume_session_id=self.session_id,
                 mcp_servers=self.mcp_servers,
             )
+
+    def _codex_reasoning_effort(self) -> str:
+        if self.is_orchestrator:
+            return "high"
+        return "high"
 
     def _build_codex_mcp_args(self) -> list[str]:
         if not self.mcp_servers:
