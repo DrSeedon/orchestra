@@ -13,8 +13,6 @@ let drafts = {};
 
 window.compactMode = localStorage.getItem('compactToolMode') === 'true';
 
-let gitStatusData = {};  // name -> {branch, commits_ahead, dirty_files, last_commit}
-
 const $ = (s) => document.querySelector(s);
 
 DOMPurify.addHook('uponSanitizeElement', (node) => {
@@ -124,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadModels();
     loadOrchestrators();
     scheduleRefresh();
-    scheduleGitStatusRefresh();
     initFilePreviewModal();
     initUsageBar();
     initHeartbeat();
@@ -137,22 +134,6 @@ function scheduleRefresh() {
         await refreshSessions();
         scheduleRefresh();
     }, 3000);
-}
-
-async function refreshGitStatus() {
-    if (!currentScope) return;
-    try {
-        const data = await api(`/api/git-status?scope=${encodeURIComponent(currentScope)}`);
-        gitStatusData = {};
-        for (const item of data) gitStatusData[item.name] = item;
-    } catch {}
-}
-
-function scheduleGitStatusRefresh() {
-    setTimeout(async () => {
-        await refreshGitStatus();
-        scheduleGitStatusRefresh();
-    }, 10000);
 }
 
 function connectSSE() {
@@ -908,51 +889,6 @@ function createAgentItem(s) {
         bar.appendChild(fill);
         info.appendChild(bar);
     }
-
-    const ppct = s.progress_pct || 0;
-    if (ppct > 0) {
-        const wrap = document.createElement('div');
-        wrap.className = 'mt-1';
-        const bar = document.createElement('div');
-        bar.className = 'w-full h-1.5 bg-slate-800 rounded-full';
-        const fill = document.createElement('div');
-        fill.className = 'h-1.5 rounded-full transition-all';
-        fill.style.width = `${Math.min(ppct, 100)}%`;
-        fill.style.backgroundColor = '#22c55e';
-        fill.style.boxShadow = '0 0 4px rgba(34,197,94,0.5)';
-        fill.title = `${ppct}%`;
-        bar.appendChild(fill);
-        wrap.appendChild(bar);
-        if (s.progress_status) {
-            const txt = document.createElement('div');
-            txt.className = 'text-xs text-slate-500 mt-0.5 truncate';
-            txt.textContent = `${ppct}% ${s.progress_status}`;
-            wrap.appendChild(txt);
-        }
-        info.appendChild(wrap);
-    }
-
-    const gs = gitStatusData[s.name];
-    if (gs) {
-        const gsLine = document.createElement('div');
-        gsLine.className = 'font-mono mt-1 truncate';
-        gsLine.style.cssText = 'font-size:10px;line-height:1.4';
-        let html = '';
-        if (gs.branch) {
-            const ahead = gs.commits_ahead;
-            const aheadColor = ahead > 0 ? '#22c55e' : '#6b7280';
-            html += `<span style="color:${aheadColor}">${gs.branch}+${ahead}</span>`;
-        }
-        const dirty = gs.dirty_files;
-        const dirtyColor = dirty > 0 ? '#eab308' : '#6b7280';
-        html += ` <span style="color:${dirtyColor}">💾${dirty}</span>`;
-        if (gs.last_commit) {
-            html += ` <span style="color:#475569">"${gs.last_commit}"</span>`;
-        }
-        gsLine.innerHTML = html;
-        info.appendChild(gsLine);
-    }
-
     item.append(icon, info);
 
     if (isSelected) updateAgentInfo(s);
@@ -1583,20 +1519,25 @@ function addChatEntry(type, content, ts, anchor) {
                 const msg = d.message || '';
                 header.textContent = `📨 → ${to}`;
                 header.style.color = '#a78bfa';
-                const lines = msg.split('\n');
-                const PREVIEW_LINES = 5;
-                const hasMore = lines.length > PREVIEW_LINES;
-                const previewText = hasMore ? lines.slice(0, PREVIEW_LINES).join('\n') : msg;
-                const msgEl = document.createElement('div');
-                msgEl.className = 'text-xs opacity-80 markdown-body';
-                msgEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
-                div.appendChild(msgEl);
+                const previewText = msg.length > 200 ? msg.slice(0, 200) : msg;
+                const hasMore = msg.length > 200;
+                const previewEl = document.createElement('div');
+                previewEl.className = 'text-xs opacity-80 markdown-body';
+                previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
+                div.appendChild(previewEl);
                 if (hasMore) {
+                    const restEl = document.createElement('div');
+                    restEl.className = 'text-xs opacity-80 markdown-body';
+                    restEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.slice(200)));
+                    restEl.style.display = 'none';
+                    restEl.dataset.role = 'send-rest';
+                    div.appendChild(restEl);
+                    const restLines = msg.slice(200).split('\n').length;
                     const hint = document.createElement('div');
                     hint.className = 'text-xs mt-1';
                     hint.style.color = '#a78bfa';
                     hint.style.cursor = 'pointer';
-                    hint.textContent = `▼ ${lines.length - PREVIEW_LINES} more lines`;
+                    hint.textContent = `▼ ${restLines} more lines`;
                     hint.dataset.role = 'send-hint';
                     div.appendChild(hint);
                     div.style.cursor = 'pointer';
@@ -1604,8 +1545,8 @@ function addChatEntry(type, content, ts, anchor) {
                     div.addEventListener('click', (e) => {
                         if (e.target.tagName === 'A') return;
                         sendExpanded = !sendExpanded;
-                        msgEl.innerHTML = DOMPurify.sanitize(marked.parse(sendExpanded ? msg : previewText));
-                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${lines.length - PREVIEW_LINES} more lines`;
+                        restEl.style.display = sendExpanded ? 'block' : 'none';
+                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
                     });
                 }
                 div.dataset.isEdit = '1';
@@ -2152,22 +2093,12 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
-            const _isListAgents = lastTool.dataset.toolRawName === 'mcp__orchestra__list_agents' || lastTool.dataset.toolRawName === 'mcp__orchestra__list_orchestrators';
-            if (_isListAgents) {
-                const agentEl = renderAgentListResult(clean);
-                if (agentEl) {
-                    const sep = document.createElement('div');
-                    sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-                    sep.appendChild(agentEl);
-                    lastTool.appendChild(sep);
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-            }
             const _orchSimpleResults = {
                 'mcp__orchestra__kill_worker': { ok: '✅ Worker killed', fail: '❌ Kill failed', okColor: '#22c55e', failColor: '#ef4444' },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__rename_worker': { ok: '✅ Renamed', fail: '❌ Rename failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__list_agents': null,
+                'mcp__orchestra__list_orchestrators': null,
                 'mcp__orchestra__list_jobs': null,
                 'mcp__orchestra__get_worker_logs': null,
             };
@@ -2801,103 +2732,6 @@ function _wsCollapsible(el) {
     return wrapper;
 }
 
-function renderAgentListResult(raw) {
-    const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
-    const agents = [];
-    for (const line of lines) {
-        // list_agents: 🟢 🎯 **name** | state | model | $cost | ctx:X%
-        let m = line.match(/^(\S+)\s+(\S+)\s+\*\*([^*]+)\*\*\s+\|\s+([^|]+)\|\s+([^|]+)\|\s+\$?([\d.]+)(?:\s+\|\s+ctx:(\d+)%)?/u);
-        if (m) {
-            agents.push({ status: m[1], role: m[2], name: m[3].trim(), state: m[4].trim(), model: m[5].trim(), cost: parseFloat(m[6]), ctx: m[7] ? parseInt(m[7]) : 0 });
-            continue;
-        }
-        // list_orchestrators: 🎯 **name** | state | scope | $cost | ctx:X%
-        m = line.match(/^(\S+)\s+\*\*([^*]+)\*\*\s+\|\s+([^|]+)\|\s+([^|]+)\|\s+\$?([\d.]+)(?:\s+\|\s+ctx:(\d+)%)?/u);
-        if (m) {
-            agents.push({ status: '🟢', role: m[1], name: m[2].trim(), state: m[3].trim(), model: m[4].trim(), cost: parseFloat(m[5]), ctx: m[6] ? parseInt(m[6]) : 0 });
-            continue;
-        }
-        return null;
-    }
-    if (!agents.length) return null;
-
-    const PREVIEW = 4;
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display:flex;flex-direction:column;gap:4px';
-
-    const makeRow = (a) => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding:5px 6px;border-radius:6px;background:rgba(30,41,59,0.6)';
-
-        const top = document.createElement('div');
-        top.style.cssText = 'display:flex;align-items:center;gap:5px';
-        const dot = document.createElement('span');
-        dot.textContent = a.status;
-        dot.style.cssText = 'font-size:10px;line-height:1';
-        const roleEl = document.createElement('span');
-        roleEl.textContent = a.role;
-        roleEl.style.cssText = 'font-size:11px;line-height:1';
-        const nameEl = document.createElement('span');
-        nameEl.textContent = a.name;
-        nameEl.style.cssText = `font-size:12px;font-weight:600;color:${a.role === '🎯' ? '#c4b5fd' : '#e2e8f0'}`;
-        top.append(dot, roleEl, nameEl);
-
-        const bot = document.createElement('div');
-        bot.style.cssText = 'display:flex;align-items:center;gap:6px;padding-left:22px';
-        const stateColor = a.state === 'running' ? '#22c55e' : a.state === 'idle' ? '#94a3b8' : '#6b7280';
-        const meta = document.createElement('span');
-        meta.style.cssText = `font-size:10px;color:${stateColor}`;
-        meta.textContent = `${a.model} · ${a.state} · $${a.cost.toFixed(2)}`;
-        bot.appendChild(meta);
-
-        if (a.ctx > 0) {
-            const barWrap = document.createElement('div');
-            barWrap.style.cssText = 'display:flex;align-items:center;gap:4px';
-            const pctEl = document.createElement('span');
-            pctEl.style.cssText = 'font-size:10px;color:#64748b';
-            pctEl.textContent = `ctx:${a.ctx}%`;
-            const track = document.createElement('div');
-            track.style.cssText = 'width:40px;height:3px;background:rgba(100,116,139,0.2);border-radius:2px;overflow:hidden';
-            const fill = document.createElement('div');
-            const barColor = a.ctx >= 80 ? '#ef4444' : a.ctx >= 50 ? '#eab308' : '#22c55e';
-            fill.style.cssText = `height:100%;width:${Math.min(a.ctx,100)}%;background:${barColor};border-radius:2px`;
-            track.appendChild(fill);
-            barWrap.append(pctEl, track);
-            bot.appendChild(barWrap);
-        }
-
-        row.append(top, bot);
-        return row;
-    };
-
-    const visible = agents.slice(0, PREVIEW);
-    const hidden = agents.slice(PREVIEW);
-
-    visible.forEach(a => wrapper.appendChild(makeRow(a)));
-
-    if (hidden.length > 0) {
-        const restWrap = document.createElement('div');
-        restWrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;display:none';
-        hidden.forEach(a => restWrap.appendChild(makeRow(a)));
-        wrapper.appendChild(restWrap);
-
-        const toggle = document.createElement('div');
-        toggle.style.cssText = 'font-size:10px;color:#38bdf8;cursor:pointer;padding-top:2px';
-        toggle.textContent = `▼ ${hidden.length} more`;
-        wrapper.appendChild(toggle);
-
-        let expanded = false;
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            expanded = !expanded;
-            restWrap.style.display = expanded ? 'flex' : 'none';
-            toggle.textContent = expanded ? '▲ collapse' : `▼ ${hidden.length} more`;
-        });
-    }
-
-    return wrapper;
-}
-
 function renderWebSearchResults(raw) {
     let data;
     try { data = JSON.parse(raw); } catch { data = null; }
@@ -2944,11 +2778,8 @@ function renderWebSearchResults(raw) {
             if (raw[i] === '[') depth++;
             else if (raw[i] === ']') { depth--; if (depth === 0) { arrEnd = i + 1; break; } }
         }
-        if (arrEnd < 0) { arrEnd = raw.length; }
-        let jsonStr = raw.slice(arrStart, arrEnd);
-        if (!jsonStr.endsWith(']')) jsonStr = jsonStr.replace(/,?\s*\{[^}]*$/, '') + ']';
-        try {
-            const links = JSON.parse(jsonStr);
+        if (arrEnd > arrStart) try {
+            const links = JSON.parse(raw.slice(arrStart, arrEnd));
             if (Array.isArray(links) && links.length > 0) {
                 const el = document.createElement('div');
                 const textAfterLinks = raw.slice(arrEnd).trim();
@@ -3451,7 +3282,7 @@ async function fetchUsage() {
 
 function initUsageBar() {
     fetchUsage();
-    setInterval(fetchUsage, 300000);
+    setInterval(fetchUsage, 120000);
     _usageCountdownInterval = setInterval(() => {
         if (_usageData) renderUsageBar();
     }, 60000);
@@ -3511,13 +3342,8 @@ function initHeartbeat() {
     }, 3000);
 }
 
-// --- Task Manager ---
-
-function escHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
+// === Tasks Panel ===
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 let _tasksTabActive = false;
 let _tasksInterval = null;
@@ -3526,7 +3352,6 @@ function switchLeftTab(tab) {
     const fileTree = document.getElementById('file-tree');
     const tasksPanel = document.getElementById('tasks-panel');
     if (!fileTree || !tasksPanel) return;
-
     document.querySelectorAll('.left-tab').forEach(btn => {
         const isActive = btn.dataset.leftTab === tab;
         btn.classList.toggle('text-white', isActive);
@@ -3534,7 +3359,6 @@ function switchLeftTab(tab) {
         btn.classList.toggle('text-slate-500', !isActive);
         btn.classList.toggle('border-transparent', !isActive);
     });
-
     if (tab === 'files') {
         fileTree.classList.remove('hidden');
         tasksPanel.classList.add('hidden');
@@ -3565,7 +3389,7 @@ async function loadTasks() {
     const panel = document.getElementById('tasks-panel');
     if (!panel) return;
     try {
-        const scope = _sessions[_currentOrch]?.scope || '';
+        const scope = currentScope || '';
         const [tasksResp, payResp, syncResp] = await Promise.all([
             fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
             fetch('/api/tm/payments/status').catch(() => null),
@@ -3584,12 +3408,10 @@ async function loadTasks() {
 function renderTasksPanel(panel, data, payData, pendingSyncs) {
     const tasks = data.tasks || [];
     const grouped = {};
-    for (const t of tasks) {
-        (grouped[t.status] ||= []).push(t);
-    }
+    for (const t of tasks) { (grouped[t.status] ||= []).push(t); }
 
     let html = '';
-    html += `<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">`;
+    html += '<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">';
     if (payData && payData.balance_display) {
         html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)} ₽</span></div>`;
     }
@@ -3597,34 +3419,33 @@ function renderTasksPanel(panel, data, payData, pendingSyncs) {
     if (pendingSyncs > 0) {
         html += `<div class="flex justify-between"><span class="text-slate-500">⚠️ Sync:</span><span class="text-red-400 font-mono">${pendingSyncs} pending</span></div>`;
     }
-    html += `</div>`;
+    html += '</div>';
+
+    if (tasks.length === 0) {
+        html += '<div class="p-4 text-center text-slate-600 italic">No tasks yet</div>';
+        panel.innerHTML = html;
+        return;
+    }
 
     for (const status of STATUS_ORDER) {
         const group = grouped[status];
         if (!group || group.length === 0) continue;
-
         const isCollapsed = _taskCollapsed[status] ?? COLLAPSED_DEFAULT.has(status);
         const dot = STATUS_COLORS[status] || 'bg-slate-400';
         const label = STATUS_LABELS[status] || status.toUpperCase();
         const arrow = isCollapsed ? '▸' : '▾';
-
         let suffix = '';
         if (status === 'done') {
-            const debt = group.reduce((s, t) => {
-                const d = parseInt(t.debt) || 0;
-                return s + d;
-            }, 0);
+            const debt = group.reduce((s, t) => s + (parseInt(t.debt) || 0), 0);
             if (debt > 0) suffix = ` → ${debt}k ₽`;
         }
-
-        html += `<div class="mt-1">`;
+        html += '<div class="mt-1">';
         html += `<div class="px-2 py-1 flex items-center gap-1.5 cursor-pointer hover:bg-slate-800/30 rounded select-none" onclick="toggleTaskGroup('${status}')">`;
         html += `<span class="text-[10px]">${arrow}</span>`;
         html += `<span class="w-1.5 h-1.5 rounded-full ${dot} shrink-0"></span>`;
         html += `<span class="text-slate-400 font-bold flex-1">${label} (${group.length})</span>`;
         if (suffix) html += `<span class="text-amber-400 text-[10px] font-mono">${suffix}</span>`;
-        html += `</div>`;
-
+        html += '</div>';
         if (!isCollapsed) {
             for (const t of group) {
                 const par = t.par.replace('PAR-', '');
@@ -3633,12 +3454,11 @@ function renderTasksPanel(panel, data, payData, pendingSyncs) {
                 html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
-                html += `</div>`;
+                html += '</div>';
             }
         }
-        html += `</div>`;
+        html += '</div>';
     }
-
     panel.innerHTML = html;
 }
 
@@ -3663,16 +3483,13 @@ async function showTaskDetail(par) {
         const r = await fetch(`/api/tm/tasks/${par}`);
         const t = await r.json();
         if (t.error) return;
-
         const modal = document.getElementById('prompt-modal');
         const nameEl = document.getElementById('prompt-modal-name');
         const bodyEl = document.getElementById('prompt-modal-body');
         if (!modal || !nameEl || !bodyEl) return;
-
         nameEl.textContent = t.par + ' ' + t.title;
-
         let html = '<div class="space-y-3">';
-        html += `<div class="grid grid-cols-2 gap-2 text-xs">`;
+        html += '<div class="grid grid-cols-2 gap-2 text-xs">';
         html += `<div><span class="text-slate-500">Status:</span> <span class="font-bold">${t.status}</span></div>`;
         html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k ₽' : '—'}</span></div>`;
         html += `<div><span class="text-slate-500">Paid:</span> ${t.paid_rub/1000}/${t.price_rub/1000}k</div>`;
@@ -3681,34 +3498,24 @@ async function showTaskDetail(par) {
         html += `<div><span class="text-slate-500">Project:</span> ${escHtml(t.project)}</div>`;
         html += `<div><span class="text-slate-500">Created:</span> ${(t.created_at||'').slice(0,10)}</div>`;
         if (t.completed_at) html += `<div><span class="text-slate-500">Done:</span> ${t.completed_at.slice(0,10)}</div>`;
-        html += `</div>`;
-
+        html += '</div>';
         if (t.description) {
-            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">DESCRIPTION</div>`;
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">DESCRIPTION</div>';
             html += `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(t.description))}</div></div>`;
         }
-
         if (t.payments && t.payments.length > 0) {
-            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">PAYMENTS</div>`;
-            for (const p of t.payments) {
-                html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`;
-            }
-            html += `</div>`;
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">PAYMENTS</div>';
+            for (const p of t.payments) { html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`; }
+            html += '</div>';
         }
-
         if (t.commits && t.commits.length > 0) {
-            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>`;
-            for (const c of t.commits) {
-                html += `<div class="text-xs font-mono">${c.slice(0,7)}</div>`;
-            }
-            html += `</div>`;
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>';
+            for (const c of t.commits) { html += `<div class="text-xs font-mono">${c.slice(0,7)}</div>`; }
+            html += '</div>';
         }
-
         html += '</div>';
         bodyEl.innerHTML = html;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-    } catch (e) {
-        console.error('Task detail error:', e);
-    }
+    } catch (e) { console.error('Task detail error:', e); }
 }
