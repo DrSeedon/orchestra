@@ -3473,7 +3473,7 @@ function injectTask(par) {
     if (!input) return;
     const ref = `[PAR-${par}] `;
     if (!input.value.includes(`PAR-${par}`)) {
-        input.value = ref + input.value;
+        input.value = input.value + ref;
         input.focus();
     }
 }

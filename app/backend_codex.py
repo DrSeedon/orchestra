@@ -154,7 +154,7 @@ class CodexBackend:
                 output_t = usage.get("output_tokens", 0)
 
                 ctx_window = CODEX_CONTEXT_LIMITS.get(self.model, 258400)
-                ctx_pct = int(input_t * 100 / ctx_window) if ctx_window else 0
+                ctx_pct = min(100, int(input_t * 100 / ctx_window)) if ctx_window else 0
 
                 prices = CODEX_TOKEN_PRICES.get(self.model, {"input": 0, "output": 0})
                 cost = (input_t * prices["input"] + output_t * prices["output"]) / 1_000_000

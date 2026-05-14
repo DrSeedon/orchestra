@@ -101,8 +101,7 @@ def init_db() -> None:
                 updated_at TEXT NOT NULL,
                 completed_at TEXT,
                 paid_at TEXT,
-                CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled')),
-                CHECK (paid_rub <= price_rub)
+                CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
             );
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status);
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status);

@@ -498,7 +498,8 @@ class SessionManager:
                 logger.error(f"Failed to resume worker {row['name']}: {e}")
 
     async def _inject_restart_notice(self, session: AgentSession) -> None:
-        await asyncio.sleep(3)
+        import random
+        await asyncio.sleep(3 + random.uniform(0, 12))
         try:
             await session.send(
                 "[system] Orchestra server restarted. "

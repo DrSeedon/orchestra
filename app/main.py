@@ -786,6 +786,8 @@ async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
             p = _tm.get_project_by_scope(conn, scope)
             if p:
                 proj = p["id"]
+            else:
+                return {"tasks": [], "count": 0, "total_debt": "0"}
     return _tm.api_list_tasks(proj, status, assignee)
 
 
