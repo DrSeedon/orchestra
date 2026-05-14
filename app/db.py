@@ -69,6 +69,84 @@ def init_db() -> None:
                 finished_at TEXT
             );
         """)
+        c.executescript("""
+            CREATE TABLE IF NOT EXISTS tm_projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                scope TEXT UNIQUE,
+                yougile_project_id TEXT,
+                yougile_board_id TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS tm_par_sequence (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                next_value INTEGER NOT NULL DEFAULT 1
+            );
+            INSERT OR IGNORE INTO tm_par_sequence (id, next_value) VALUES (1, 1);
+            CREATE TABLE IF NOT EXISTS tm_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                par_number INTEGER NOT NULL UNIQUE,
+                project_id TEXT NOT NULL REFERENCES tm_projects(id),
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                price_rub INTEGER NOT NULL DEFAULT 0 CHECK (price_rub >= 0),
+                paid_rub INTEGER NOT NULL DEFAULT 0 CHECK (paid_rub >= 0),
+                status TEXT NOT NULL DEFAULT 'backlog',
+                assignee TEXT NOT NULL DEFAULT '',
+                yougile_task_id TEXT UNIQUE,
+                sync_revision INTEGER NOT NULL DEFAULT 0,
+                worker_session_id TEXT,
+                git_commits TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                completed_at TEXT,
+                paid_at TEXT,
+                CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled')),
+                CHECK (paid_rub <= price_rub)
+            );
+            CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status);
+            CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status);
+            CREATE INDEX IF NOT EXISTS idx_tm_tasks_par ON tm_tasks(par_number);
+            CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id);
+            CREATE TABLE IF NOT EXISTS tm_clients (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                project_id TEXT NOT NULL REFERENCES tm_projects(id),
+                balance_rub INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS tm_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id TEXT NOT NULL REFERENCES tm_clients(id),
+                amount_rub INTEGER NOT NULL CHECK (amount_rub > 0),
+                date TEXT NOT NULL,
+                note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS tm_payment_allocations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payment_id INTEGER NOT NULL REFERENCES tm_payments(id),
+                task_id INTEGER NOT NULL REFERENCES tm_tasks(id),
+                amount_rub INTEGER NOT NULL CHECK (amount_rub > 0),
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_tm_alloc_payment ON tm_payment_allocations(payment_id);
+            CREATE INDEX IF NOT EXISTS idx_tm_alloc_task ON tm_payment_allocations(task_id);
+            CREATE TABLE IF NOT EXISTS tm_sync_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER REFERENCES tm_tasks(id),
+                direction TEXT NOT NULL DEFAULT 'push',
+                action TEXT NOT NULL,
+                sync_revision INTEGER,
+                payload TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'pending',
+                error TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                completed_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_tm_sync_task ON tm_sync_log(task_id);
+        """)
         _migrate(c)
 
 

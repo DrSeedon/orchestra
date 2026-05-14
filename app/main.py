@@ -736,3 +736,132 @@ async def restart_server():
     if result.returncode != 0:
         return JSONResponse({"error": result.stderr.strip()}, status_code=500)
     return {"ok": True}
+
+
+# --- Task Manager API ---
+
+from app import tm as _tm
+
+
+class TmTaskCreate(BaseModel):
+    title: str
+    project: str
+    price: int = 0
+    description: str = ""
+    assignee: str = ""
+    status: str = "new"
+
+
+class TmTaskUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    price: int | None = None
+    status: str | None = None
+    assignee: str | None = None
+
+
+class TmPaymentReceive(BaseModel):
+    amount: int
+    client: str = "aleksandr-kislinskiy"
+    date: str = ""
+    note: str = ""
+
+
+@app.post("/api/tm/tasks")
+async def tm_create_task(req: TmTaskCreate):
+    try:
+        return _tm.api_create_task(
+            req.project, req.title, req.price, req.description, req.assignee, req.status,
+        )
+    except (ValueError, RuntimeError) as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.get("/api/tm/tasks")
+async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
+                        scope: str = ""):
+    proj = project
+    if not proj and scope:
+        with _tm._conn() as conn:
+            p = _tm.get_project_by_scope(conn, scope)
+            if p:
+                proj = p["id"]
+    return _tm.api_list_tasks(proj, status, assignee)
+
+
+@app.get("/api/tm/tasks/{par}")
+async def tm_get_task(par: str):
+    try:
+        return _tm.api_get_task(par)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=404)
+
+
+@app.put("/api/tm/tasks/{par}")
+async def tm_update_task(par: str, req: TmTaskUpdate):
+    try:
+        return _tm.api_update_task(
+            par, req.title, req.description, req.price, req.status, req.assignee,
+        )
+    except (ValueError, RuntimeError) as e:
+        code = 404 if "not found" in str(e).lower() else 400
+        return JSONResponse({"error": str(e)}, status_code=code)
+
+
+@app.post("/api/tm/payments")
+async def tm_receive_payment(req: TmPaymentReceive):
+    try:
+        return _tm.api_receive_payment(req.amount, req.client, req.date, req.note)
+    except (ValueError, RuntimeError) as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.get("/api/tm/payments/status")
+async def tm_payment_status(client: str = "aleksandr-kislinskiy"):
+    try:
+        return _tm.api_payment_status(client)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=404)
+
+
+@app.get("/api/tm/payments/history")
+async def tm_payment_history(client: str = "aleksandr-kislinskiy"):
+    with _tm._conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM tm_payments WHERE client_id = ? ORDER BY id DESC LIMIT 50",
+            (client,),
+        ).fetchall()
+    return {
+        "payments": [
+            {"id": r["id"], "amount_rub": r["amount_rub"], "date": r["date"],
+             "note": r["note"], "created_at": r["created_at"]}
+            for r in rows
+        ]
+    }
+
+
+@app.get("/api/tm/sync/log")
+async def tm_sync_log(limit: int = 50):
+    with _tm._conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return {"entries": [dict(r) for r in rows]}
+
+
+@app.post("/api/tm/sync/retry/{sync_id}")
+async def tm_sync_retry(sync_id: int):
+    with _tm._conn() as conn:
+        row = conn.execute("SELECT * FROM tm_sync_log WHERE id = ?", (sync_id,)).fetchone()
+        if not row:
+            return JSONResponse({"error": "sync entry not found"}, status_code=404)
+        entry = dict(row)
+        if entry["status"] not in ("error", "pending"):
+            return {"message": "nothing to retry", "status": entry["status"]}
+        task_id = entry["task_id"]
+
+    if task_id:
+        from app.tm_yougile import yougile_sync_task
+        result = await yougile_sync_task(task_id)
+        return {"retried": True, "task_id": task_id, "result": result}
+    return {"error": "no task_id on sync entry"}

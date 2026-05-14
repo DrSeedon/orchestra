@@ -3510,3 +3510,205 @@ function initHeartbeat() {
         } catch { _onServerError(); }
     }, 3000);
 }
+
+// --- Task Manager ---
+
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+let _tasksTabActive = false;
+let _tasksInterval = null;
+
+function switchLeftTab(tab) {
+    const fileTree = document.getElementById('file-tree');
+    const tasksPanel = document.getElementById('tasks-panel');
+    if (!fileTree || !tasksPanel) return;
+
+    document.querySelectorAll('.left-tab').forEach(btn => {
+        const isActive = btn.dataset.leftTab === tab;
+        btn.classList.toggle('text-white', isActive);
+        btn.classList.toggle('border-indigo-500', isActive);
+        btn.classList.toggle('text-slate-500', !isActive);
+        btn.classList.toggle('border-transparent', !isActive);
+    });
+
+    if (tab === 'files') {
+        fileTree.classList.remove('hidden');
+        tasksPanel.classList.add('hidden');
+        _tasksTabActive = false;
+        if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; }
+    } else {
+        fileTree.classList.add('hidden');
+        tasksPanel.classList.remove('hidden');
+        _tasksTabActive = true;
+        loadTasks();
+        if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 30000);
+    }
+}
+
+const STATUS_ORDER = ['in_progress', 'done', 'new', 'backlog', 'paid', 'cancelled'];
+const STATUS_COLORS = {
+    in_progress: 'bg-blue-400', done: 'bg-amber-400', new: 'bg-white',
+    backlog: 'bg-slate-500', paid: 'bg-emerald-400', cancelled: 'bg-red-400',
+};
+const STATUS_LABELS = {
+    in_progress: 'IN PROGRESS', done: 'DONE', new: 'NEW',
+    backlog: 'BACKLOG', paid: 'PAID', cancelled: 'CANCELLED',
+};
+const COLLAPSED_DEFAULT = new Set(['backlog', 'paid', 'cancelled']);
+let _taskCollapsed = {};
+
+async function loadTasks() {
+    const panel = document.getElementById('tasks-panel');
+    if (!panel) return;
+    try {
+        const scope = _sessions[_currentOrch]?.scope || '';
+        const [tasksResp, payResp, syncResp] = await Promise.all([
+            fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
+            fetch('/api/tm/payments/status').catch(() => null),
+            fetch('/api/tm/sync/log?limit=10').catch(() => null),
+        ]);
+        const data = await tasksResp.json();
+        const payData = payResp ? await payResp.json().catch(() => null) : null;
+        const syncData = syncResp ? await syncResp.json().catch(() => null) : null;
+        const pendingSyncs = (syncData?.entries || []).filter(e => e.status === 'error' || e.status === 'pending').length;
+        renderTasksPanel(panel, data, payData, pendingSyncs);
+    } catch (e) {
+        panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
+    }
+}
+
+function renderTasksPanel(panel, data, payData, pendingSyncs) {
+    const tasks = data.tasks || [];
+    const grouped = {};
+    for (const t of tasks) {
+        (grouped[t.status] ||= []).push(t);
+    }
+
+    let html = '';
+    html += `<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">`;
+    if (payData && payData.balance_display) {
+        html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)} ₽</span></div>`;
+    }
+    html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')} ₽</span></div>`;
+    if (pendingSyncs > 0) {
+        html += `<div class="flex justify-between"><span class="text-slate-500">⚠️ Sync:</span><span class="text-red-400 font-mono">${pendingSyncs} pending</span></div>`;
+    }
+    html += `</div>`;
+
+    for (const status of STATUS_ORDER) {
+        const group = grouped[status];
+        if (!group || group.length === 0) continue;
+
+        const isCollapsed = _taskCollapsed[status] ?? COLLAPSED_DEFAULT.has(status);
+        const dot = STATUS_COLORS[status] || 'bg-slate-400';
+        const label = STATUS_LABELS[status] || status.toUpperCase();
+        const arrow = isCollapsed ? '▸' : '▾';
+
+        let suffix = '';
+        if (status === 'done') {
+            const debt = group.reduce((s, t) => {
+                const d = parseInt(t.debt) || 0;
+                return s + d;
+            }, 0);
+            if (debt > 0) suffix = ` → ${debt}k ₽`;
+        }
+
+        html += `<div class="mt-1">`;
+        html += `<div class="px-2 py-1 flex items-center gap-1.5 cursor-pointer hover:bg-slate-800/30 rounded select-none" onclick="toggleTaskGroup('${status}')">`;
+        html += `<span class="text-[10px]">${arrow}</span>`;
+        html += `<span class="w-1.5 h-1.5 rounded-full ${dot} shrink-0"></span>`;
+        html += `<span class="text-slate-400 font-bold flex-1">${label} (${group.length})</span>`;
+        if (suffix) html += `<span class="text-amber-400 text-[10px] font-mono">${suffix}</span>`;
+        html += `</div>`;
+
+        if (!isCollapsed) {
+            for (const t of group) {
+                const par = t.par.replace('PAR-', '');
+                const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
+                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" data-par="${par}" onclick="injectTask('${par}')" ondblclick="showTaskDetail('${par}')">`;
+                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
+                html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
+                if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
+                html += `</div>`;
+            }
+        }
+        html += `</div>`;
+    }
+
+    panel.innerHTML = html;
+}
+
+function toggleTaskGroup(status) {
+    const current = _taskCollapsed[status] ?? COLLAPSED_DEFAULT.has(status);
+    _taskCollapsed[status] = !current;
+    loadTasks();
+}
+
+function injectTask(par) {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const ref = `[PAR-${par}] `;
+    if (!input.value.includes(`PAR-${par}`)) {
+        input.value = ref + input.value;
+        input.focus();
+    }
+}
+
+async function showTaskDetail(par) {
+    try {
+        const r = await fetch(`/api/tm/tasks/${par}`);
+        const t = await r.json();
+        if (t.error) return;
+
+        const modal = document.getElementById('prompt-modal');
+        const nameEl = document.getElementById('prompt-modal-name');
+        const bodyEl = document.getElementById('prompt-modal-body');
+        if (!modal || !nameEl || !bodyEl) return;
+
+        nameEl.textContent = t.par + ' ' + t.title;
+
+        let html = '<div class="space-y-3">';
+        html += `<div class="grid grid-cols-2 gap-2 text-xs">`;
+        html += `<div><span class="text-slate-500">Status:</span> <span class="font-bold">${t.status}</span></div>`;
+        html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k ₽' : '—'}</span></div>`;
+        html += `<div><span class="text-slate-500">Paid:</span> ${t.paid_rub/1000}/${t.price_rub/1000}k</div>`;
+        html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k ₽' : '0'}</span></div>`;
+        html += `<div><span class="text-slate-500">Assignee:</span> ${escHtml(t.assignee || '—')}</div>`;
+        html += `<div><span class="text-slate-500">Project:</span> ${escHtml(t.project)}</div>`;
+        html += `<div><span class="text-slate-500">Created:</span> ${(t.created_at||'').slice(0,10)}</div>`;
+        if (t.completed_at) html += `<div><span class="text-slate-500">Done:</span> ${t.completed_at.slice(0,10)}</div>`;
+        html += `</div>`;
+
+        if (t.description) {
+            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">DESCRIPTION</div>`;
+            html += `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(t.description))}</div></div>`;
+        }
+
+        if (t.payments && t.payments.length > 0) {
+            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">PAYMENTS</div>`;
+            for (const p of t.payments) {
+                html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`;
+            }
+            html += `</div>`;
+        }
+
+        if (t.commits && t.commits.length > 0) {
+            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>`;
+            for (const c of t.commits) {
+                html += `<div class="text-xs font-mono">${c.slice(0,7)}</div>`;
+            }
+            html += `</div>`;
+        }
+
+        html += '</div>';
+        bodyEl.innerHTML = html;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    } catch (e) {
+        console.error('Task detail error:', e);
+    }
+}

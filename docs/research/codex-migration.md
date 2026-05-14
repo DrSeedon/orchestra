@@ -4,7 +4,7 @@
 **Status**: Research complete (verified on local machine)  
 **Codex version**: 0.124.0 (`@openai/codex` npm global)  
 **Auth**: ChatGPT subscription (logged in)  
-**Verdict**: Feasible. ~2-3 weeks. Best approach: `codex exec --json` subprocess + Python SDK (`openai-codex-sdk`).
+**Verdict**: Feasible. ~7-10 days. Best approach: `codex exec --json` subprocess with raw JSON parsing. Python SDK exists but has bugs.
 
 ---
 
@@ -191,40 +191,74 @@ async def codex_exec(prompt: str, cwd: str, model: str = "gpt-5.5",
 ### Option B: Python SDK (`openai-codex-sdk` on PyPI)
 
 ```
-pip install openai-codex-sdk  # v0.1.11, Apache-2.0
+pip install openai-codex-sdk  # v0.1.11, Apache-2.0, Python >=3.10
 ```
+
+**Installed and tested locally.** The SDK is a thin wrapper around `codex exec --json` subprocess:
 
 ```python
-from codex_app_server import AsyncCodex  # actually `openai-codex-sdk`
-
-async with AsyncCodex() as codex:
-    thread = await codex.start_thread({
-        "working_directory": "/path/to/project",
-        "skip_git_repo_check": True,
-    })
-    
-    # Simple run
-    turn = await thread.run("Fix the bug")
-    print(turn.final_response)
-    
-    # Streaming
-    streamed = await thread.run_streamed("Implement the plan")
-    async for event in streamed.events:
-        if event.type == "item.completed":
-            print(event.item)
-        elif event.type == "turn.completed":
-            print(event.usage)
-    
-    # Resume later
-    saved_id = thread.id  # persist this
-    thread2 = codex.resume_thread(saved_id)
-    await thread2.run("Continue")
+# Actual SDK source (exec.py line 128-131):
+proc = await asyncio.create_subprocess_exec(
+    self.executable_path, *command_args,
+    stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    env=env,
+)
+# Writes prompt to stdin, reads JSONL from stdout. That's it.
 ```
 
-**Pros**: Native async Python, persistent thread objects, streaming, structured output support.  
-**Cons**: v0.1.x (early), wraps the CLI binary internally, requires `openai-codex-sdk` dependency. Not on our machine yet.
+**API surface (verified from source):**
+```python
+from openai_codex_sdk import Codex
 
-Auth: Uses `CODEX_AUTH_JSON` env var or `Codex.login_with_auth_json()`. For subscription: copies from `~/.codex/auth.json`.
+codex = Codex({"codex_path_override": "/home/maxim/.npm-global/bin/codex"})
+thread = codex.start_thread({
+    "model": "gpt-5.4-mini",
+    "sandbox_mode": "workspace-write",
+    "working_directory": "/tmp",
+    "skip_git_repo_check": True,
+    "approval_policy": "never",  # also: "on-request", "untrusted"
+    "model_reasoning_effort": "high",  # "minimal", "low", "medium", "high"
+    "network_access_enabled": True,
+    "web_search_enabled": True,
+})
+
+# Buffered (returns when turn completes)
+turn = await thread.run("Fix the bug")
+print(turn.final_response)  # str
+print(turn.items)            # List[ThreadItem]
+print(turn.usage)            # Usage(input_tokens, cached_input_tokens, output_tokens)
+
+# Streaming (async generator of events)
+streamed = await thread.run_streamed("Implement the plan")
+async for event in streamed.events:
+    # event types: ThreadStartedEvent, TurnStartedEvent, ItemStartedEvent,
+    #              ItemUpdatedEvent, ItemCompletedEvent, TurnCompletedEvent,
+    #              TurnFailedEvent, ThreadErrorEvent
+    pass
+
+# Resume (persists in ~/.codex/sessions/)
+saved_id = thread.id
+thread2 = codex.resume_thread(saved_id)
+await thread2.run("Continue")
+```
+
+**Verified working** (simple text, resume). **BUT has a critical bug:**
+
+#### SDK Bug: `FileChangeItem.status` missing `"in_progress"`
+
+SDK v0.1.11 defines `PatchApplyStatus = Literal["completed", "failed"]` but CLI v0.124.0 sends
+`item.started` events with `status: "in_progress"`. This crashes both `run()` and `run_streamed()`
+with a Pydantic `ValidationError` whenever the agent creates or edits files.
+
+**Impact**: SDK is unusable for any task involving file changes (i.e., all real coding tasks).
+**Workaround**: Monkey-patching fails because Pydantic union validators cache the original models.
+Would need to patch the installed source files directly or wait for SDK update.
+
+**Verdict**: SDK is architecturally correct (same subprocess approach we'd write ourselves) but
+too immature. Use raw `codex exec --json` + `json.loads()` instead.
+
+Auth: Inherits `~/.codex/auth.json` automatically. For programmatic: `CODEX_AUTH_JSON` env var
+or `Codex.login_with_auth_json()`.
 
 ### Option C: App Server JSON-RPC (low-level)
 
@@ -410,33 +444,70 @@ GPT-5.4-mini is ~16x cheaper than Sonnet on input. For bulk worker tasks, signif
 
 ---
 
-## 9. Critical Differences & Gotchas
+## 9. Critical Differences — Problems & Solutions
 
-### 1. No persistent subprocess
-Claude SDK: single process, `connect()` once, `query()` injects messages via stdin.
-Codex `exec --json`: new process per turn. Resume restores context but has ~1-2s startup.
-**Impact**: Slightly higher latency per turn. Mitigated by Python SDK if we adopt it later.
+### 1. No persistent subprocess → SOLVABLE via app-server
 
-### 2. No mid-turn message injection
-Claude SDK: `client.query()` during active turn injects a new message.
-Codex: No equivalent in `exec` mode. Would need app-server protocol.
-**Impact**: Our `send()` while running would need to wait for turn completion, then send new turn.
+**Problem**: Claude SDK keeps a single process alive. `codex exec --json` spawns new process per turn (~1-2s startup).
 
-### 3. Approval model
-Claude: Programmatic `can_use_tool` callback per tool invocation.
-Codex: Binary choice at startup — `--sandbox` + approval flags. No per-tool callback.
-**Impact**: Our `_auto_approve` with blocked tools (`AskUserQuestion`) can't be replicated exactly. Workaround: inject blocked tool names into `developer_instructions` ("NEVER use AskUserQuestion").
+**Solution A** (easy): Accept per-turn overhead. Use `codex exec resume --json <thread_id>` for multi-turn. 1-2s startup is negligible for agent tasks that take 30-300s.
 
-### 4. Sub-agent event tracking
-Claude: `TaskStartedMessage`, `TaskProgressMessage`, `TaskNotificationMessage`.
-Codex `exec --json`: No sub-agent events observed in JSONL output.
-**Impact**: Dashboard won't show sub-agent lifecycle for Codex workers. Minor — most workers don't spawn sub-agents.
+**Solution B** (advanced): Use `codex app-server --listen ws://127.0.0.1:<port>` per worker. This gives a persistent WebSocket connection with full JSON-RPC protocol:
+```
+initialize → thread/start → turn/start → [stream events] → turn/start again → ...
+```
+Thread persists across turns. No subprocess overhead. But requires custom JSON-RPC client.
 
-### 5. Context window tracking
-Claude: `ResultMessage.usage` with full token breakdown per iteration.
-Codex: `turn.completed.usage` with `{input_tokens, cached_input_tokens, output_tokens}`.
-Session meta has `model_context_window: 258400`.
-**Impact**: Can calculate context % per turn, but no cumulative tracking. Would need to sum across turns.
+**Solution C** (experimental): `codex exec-server --listen ws://127.0.0.1:0` — standalone WebSocket service for spawning/controlling processes. Less relevant for our use case.
+
+### 2. No mid-turn message injection → SOLVABLE via `turn/steer`
+
+**Problem**: Claude SDK `client.query()` injects messages during active turns. Codex `exec` has no equivalent.
+
+**Solution**: App-server protocol has `turn/steer` method — "adds user input to an already in-flight regular turn without starting a new turn." Requires `threadId`, input array, and `expectedTurnId`.
+
+This is the exact equivalent of Claude's mid-turn injection. Only available in app-server mode, not `codex exec`.
+
+**For subprocess mode**: Wait for turn completion, then `codex exec resume` with new message. Slightly different semantics but functionally equivalent for Orchestra's use cases (our `send()` during running queues the message anyway).
+
+### 3. Per-tool approval → SOLVABLE via config
+
+**Problem**: Claude has `can_use_tool` callback for per-tool approval/deny. Codex has global sandbox/approval flags.
+
+**Solution**: Multiple layers of control exist:
+1. `approval_policy` with granular sub-categories: `sandbox_approval`, `rules`, `mcp_elicitations`, `skill_approval`
+2. `execpolicy` rules in `.rules` files — prefix-based command patterns with `prompt` or `forbidden` decisions
+3. Per-MCP-server `enabled_tools` / `disabled_tools` lists
+4. Per-app `tools.<tool>.approval_mode: auto | prompt | approve`
+5. `developer_instructions` — instruct the model to never use specific tools
+
+For Orchestra workers: `--sandbox workspace-write` + `approval_policy: "never"` + `developer_instructions` with "NEVER use AskUserQuestion" covers our needs.
+
+### 4. Sub-agent events → PARTIAL via built-in subagents
+
+**Problem**: Claude emits `TaskStartedMessage`, `TaskProgressMessage`, `TaskNotificationMessage` for sub-agents.
+
+**Reality**: Codex has **built-in subagent support** (GA since March 2026):
+- `agents.max_threads = 6` (concurrent threads)
+- `agents.max_depth = 1` (nesting depth)
+- Three types: `default`, `worker`, `explorer`
+- Custom agents with `developer_instructions`, `model`, `sandbox_mode`, `mcp_servers`
+
+**But**: Subagent events are NOT exposed in `codex exec --json` output. They're visible in the interactive TUI (`/agent` command) and possibly in app-server notifications. For our dashboard, we wouldn't see subagent lifecycle.
+
+**Workaround**: Our workers don't typically spawn sub-agents (Orchestra itself is the orchestrator). If a Codex worker uses subagents, the results still come back in the final turn output.
+
+### 5. Context window tracking → SOLVABLE
+
+**Problem**: Claude gives cumulative context % per turn. Codex gives per-turn tokens.
+
+**Solution**: Codex session meta includes `model_context_window: 258400`. Each `turn.completed` gives `{input_tokens, cached_input_tokens, output_tokens}`. Track `input_tokens` as the current context size:
+
+```python
+context_pct = int(usage["input_tokens"] * 100 / 258400)
+```
+
+The `input_tokens` count in each turn represents the full context sent to the model (including all previous turns), so it naturally grows as the session progresses. No manual summation needed.
 
 ---
 
@@ -468,17 +539,134 @@ Session meta has `model_context_window: 258400`.
 
 ---
 
+## 11. Community Orchestrators — Others Already Doing This
+
+### Symphony (by OpenAI themselves)
+
+[github.com/openai/symphony](https://github.com/openai/symphony) — Open-source spec for Codex orchestration. Turns a Linear board into a continuous dispatch system: every open task gets an agent, agents run until done, humans review results. OpenAI reported **500% increase in landed PRs** on some teams.
+
+Written in Elixir/BEAM. Released April 27, 2026. Not a standalone product — it's a SPEC.md + reference implementation.
+
+**Relevance**: Similar architecture to Orchestra but focused on issue tracker integration. Validates that multi-agent Codex orchestration works at scale.
+
+### Oh-My-Codex (OMX)
+
+[github.com/Yeachan-Heo/oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex) — Community orchestration layer. Provides:
+- 33 specialized prompts + 36 workflow skills
+- Isolated parallel execution with git worktrees
+- Team runtime with tmux coordination
+- Persistent state & memory MCP servers
+
+v0.13.1, MIT license. Uses `$team` for coordinated parallel execution with worktree isolation — very similar to our worker model.
+
+### Codex-Orchestrator / Codex-YOLO (tmux-based)
+
+Community tools for spawning multiple Codex agents in tmux sessions:
+- `codex-orchestrator start/jobs/send/capture` — job management with metadata persistence
+- `codex-yolo` — auto-approval daemon polling every 0.3s, audit logs to `/tmp/`
+- Both use git worktrees for isolation
+
+### Parallel Patterns in Production
+
+From [codex.danielvaughan.com](https://codex.danielvaughan.com/2026/04/18/running-multiple-codex-agents-parallel-orchestration/):
+- **3-5 concurrent agents** is the practical sweet spot
+- 8-10 GB RAM per agent
+- Each agent should own distinct files to avoid merge conflicts
+- Token budgets recommended: hard limits (180k frontend, 280k backend)
+- Auto-kill agents stuck after 3+ iterations on same error
+
+---
+
+## 12. Python SDK — Source Code Analysis
+
+### Architecture (from installed source)
+
+```
+openai_codex_sdk/
+├── codex.py      — Codex class: start_thread(), resume_thread()
+├── thread.py     — Thread class: run(), run_streamed()
+├── exec.py       — CodexExec: subprocess spawner, builds CLI args
+├── types.py      — Pydantic models: events, items, options
+├── parsing.py    — JSONL → Pydantic model dispatch
+├── auth.py       — login_with_auth_json(), device_code flow
+├── install.py    — Download/install Codex CLI binary
+├── abort.py      — AbortController/Signal for cancellation
+├── output_schema_file.py — Temp file for structured output schema
+└── utils.py      — normalize_input() for text/image entries
+```
+
+### How it works internally
+
+1. `Codex()` finds the `codex` binary (vendored or PATH)
+2. `start_thread()` creates `Thread(exec_, options, thread_id=None)`
+3. `thread.run(prompt)` → calls `thread.run_streamed()` → collects all events → returns `Turn`
+4. `_run_streamed_internal()` builds CLI args from options, calls `exec_.run(args)`
+5. `CodexExec.run()` does `asyncio.create_subprocess_exec("codex", "exec", "--experimental-json", ...)`:
+   - Writes prompt to stdin (not as CLI arg!)
+   - Reads JSONL lines from stdout
+   - Returns async iterator of raw strings
+6. `parse_thread_event_line()` deserializes each line to Pydantic model via dispatch dict
+
+### Key detail: `--experimental-json` vs `--json`
+
+The SDK uses `--experimental-json` flag (line 52 of exec.py), not `--json`. Both seem to work identically. The `--json` flag is the documented one.
+
+### ThreadItem types (SDK's Pydantic models)
+
+```python
+ThreadItem = Union[
+    AgentMessageItem,       # {"type": "agent_message", "text": "..."}
+    ReasoningItem,          # {"type": "reasoning", "text": "..."}
+    CommandExecutionItem,   # {"type": "command_execution", "command": "...", "aggregated_output": "...", "exit_code": N}
+    FileChangeItem,         # {"type": "file_change", "changes": [...], "status": "completed"}
+    McpToolCallItem,        # {"type": "mcp_tool_call", "server": "...", "tool": "...", "arguments": {...}}
+    WebSearchItem,          # {"type": "web_search", "query": "..."}
+    TodoListItem,           # {"type": "todo_list", "items": [...]}
+    ErrorItem,              # {"type": "error", "message": "..."}
+    UnknownThreadItem,      # Fallback for forward-compatibility
+]
+```
+
+**Notable**: `McpToolCallItem` has `server`, `tool`, `arguments`, `result`, `error` fields. This means MCP tool calls are fully visible in the event stream — we can track our Orchestra MCP tool invocations (send_message, spawn_worker, etc.).
+
+### ThreadOptions (all available config)
+
+```python
+class ThreadOptions:
+    model: str                          # "gpt-5.5", "gpt-5.4", etc.
+    sandbox_mode: SandboxMode           # "read-only" | "workspace-write" | "danger-full-access"
+    working_directory: str              # -C flag
+    skip_git_repo_check: bool           # --skip-git-repo-check
+    model_reasoning_effort: str         # "minimal" | "low" | "medium" | "high"
+    network_access_enabled: bool        # sandbox_workspace_write.network_access
+    web_search_enabled: bool            # features.web_search_request
+    approval_policy: ApprovalMode       # "never" | "on-request" | "untrusted"
+    additional_directories: List[str]   # --add-dir
+```
+
+**Missing**: No `developer_instructions` in ThreadOptions. System prompt injection must go through `-c` config override (which the SDK doesn't expose). This is another SDK limitation.
+
+---
+
 ## Sources
 
-- Local: `codex --help`, `codex exec --help`, `codex app-server --help`, `~/.codex/config.toml`, `~/.codex/sessions/`
+- Local machine: `codex --help`, `codex exec --help`, `codex app-server --help`, `codex exec-server --help`, `~/.codex/config.toml`, `~/.codex/sessions/`, `~/.codex/auth.json`
+- Local SDK source: `/tmp/codex-sdk-test/lib/python3.12/site-packages/openai_codex_sdk/` (all .py files)
 - [Codex SDK docs](https://developers.openai.com/codex/sdk)
 - [Codex CLI features](https://developers.openai.com/codex/cli/features)
 - [Codex CLI reference](https://developers.openai.com/codex/cli/reference)
+- [Codex Non-interactive mode](https://developers.openai.com/codex/noninteractive)
 - [Codex MCP support](https://developers.openai.com/codex/mcp)
+- [Codex Config reference](https://developers.openai.com/codex/config-reference)
 - [Codex App Server](https://developers.openai.com/codex/app-server)
+- [Codex App Server README (GitHub)](https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md)
+- [Codex Subagents](https://developers.openai.com/codex/subagents)
 - [Codex + Agents SDK guide](https://developers.openai.com/codex/guides/agents-sdk)
 - [Codex pricing](https://developers.openai.com/codex/pricing)
 - [Codex changelog](https://developers.openai.com/codex/changelog)
 - [openai-codex-sdk on PyPI](https://pypi.org/project/openai-codex-sdk/) (v0.1.11)
 - [Codex GitHub repo](https://github.com/openai/codex)
+- [Symphony — OpenAI orchestration spec](https://github.com/openai/symphony)
+- [Oh-My-Codex (OMX)](https://github.com/Yeachan-Heo/oh-my-codex)
+- [Parallel Codex orchestration patterns](https://codex.danielvaughan.com/2026/04/18/running-multiple-codex-agents-parallel-orchestration/)
 - [Agent Client Protocol](https://agentclientprotocol.com/get-started/introduction)

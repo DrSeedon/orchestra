@@ -6,6 +6,7 @@ Avoids the in-process SDK control_request deadlock (issue #425/#701).
 Usage: python -m app.mcp_stdio
 """
 
+import json
 import logging
 import os
 import sys
@@ -241,6 +242,95 @@ async def report_bug(title: str, description: str) -> str:
 
 
 
+
+
+@mcp.tool()
+async def task_create(title: str, project: str, price: int = 0,
+                      description: str = "", assignee: str = "",
+                      status: str = "new") -> str:
+    """Create a new task. Returns PAR number and task details.
+    price is in thousands (e.g. 20 = 20,000₽). 0 is valid (no price)."""
+    result = await _api("POST", "/api/tm/tasks", json={
+        "title": title, "project": project, "price": price,
+        "description": description, "assignee": assignee, "status": status,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def task_update(par: str, title: str = "", description: str = "",
+                      price: int = -1, status: str = "",
+                      assignee: str = "") -> str:
+    """Update an existing task. Only provided fields are changed.
+    par: 'PAR-42' or '42'. price in thousands (-1 = don't change, 0 = set to zero).
+    Empty string = don't change for text fields."""
+    body: dict = {}
+    if title:
+        body["title"] = title
+    if description:
+        body["description"] = description
+    if price >= 0:
+        body["price"] = price
+    if status:
+        body["status"] = status
+    if assignee:
+        body["assignee"] = assignee
+    if not body:
+        return "Nothing to update"
+    result = await _api("PUT", f"/api/tm/tasks/{par}", json=body)
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def task_list(project: str = "", status: str = "",
+                    assignee: str = "") -> str:
+    """List tasks with optional filters. Returns summary per task."""
+    params = {}
+    if project:
+        params["project"] = project
+    if status:
+        params["status"] = status
+    if assignee:
+        params["assignee"] = assignee
+    result = await _api("GET", "/api/tm/tasks", params=params)
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def task_get(par: str) -> str:
+    """Get full task details including payment history and linked commits."""
+    result = await _api("GET", f"/api/tm/tasks/{par}")
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def payment_receive(amount: int, client: str = "aleksandr-kislinskiy",
+                          date: str = "", note: str = "") -> str:
+    """Record incoming payment. Auto-distributes to done tasks (smallest debt first).
+    amount in thousands (e.g. 30 = 30,000₽)."""
+    result = await _api("POST", "/api/tm/payments", json={
+        "amount": amount, "client": client, "date": date, "note": note,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def payment_status(client: str = "aleksandr-kislinskiy") -> str:
+    """Get payment overview: balance, total debt, recent payments."""
+    result = await _api("GET", "/api/tm/payments/status", params={"client": client})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
 
 
 if __name__ == "__main__":

@@ -48,6 +48,39 @@ PROJECT CONTEXT (calibrate review severity):
 - `change_worker_model(name, model)` — change a worker's model without losing context (e.g. "opus" or "sonnet"). Worker must be idle. Next send_message will use the new model with full conversation history preserved via session resume
 - `list_jobs()` — check spawn/kill job status
 
+## Worker types & naming convention
+
+### 1. System worker (Opus, permanent)
+Knows the full context of a module/project. Does EVERYTHING: research, planning, implementation, review. Reuse forever — never kill.
+
+**Naming**: short module name, no prefix.
+- `frontend` — all frontend (app.js, css, dashboard.html)
+- `backend` — all backend (session.py, manager.py, main.py)
+- `tg-bridge` — telegram bridge
+- `taskmanager` — task manager module
+
+### 2. Feature worker (Opus, lives until feature is done)
+Spawned when a system worker is busy OR the feature is too large for a side task. One worker = one feature, full cycle: research → plan → implement → Codex review. Kill after feature is merged.
+
+**Naming**: `feat-{feature-name}`
+- `feat-codex-backend` — codex CLI integration
+- `feat-streaming` — dashboard streaming
+
+### 3. Disposable worker (Sonnet, one-shot)
+ONLY for implementation from a clear, detailed spec. No research, no planning, no decisions. Kill after merge.
+
+**Naming**: `impl-{what}` or `fix-{what}`
+- `impl-progress-bar` — implement progress bar from spec
+- `fix-merge-spaces` — fix a specific bug
+
+### Rules
+- **Research/analysis** → ONLY Opus (system or feature worker)
+- **Planning** → ONLY Opus
+- **Implementation from spec** → Sonnet OK
+- **Never give research/planning to Sonnet** — they cut corners and miss edge cases
+- **Don't spawn a new worker if an existing system worker can do it** — reuse first
+- **Don't hoard idle disposable workers** — kill after merge
+
 ## Spawning workers — ALWAYS set system_prompt
 Every worker MUST get a `system_prompt` defining their identity. Never leave it empty.
 
@@ -68,17 +101,10 @@ Constraints: [what NOT to touch, scope limits].
 ```
 
 ### Examples:
-- `system_prompt: "Senior Python asyncio developer. Expertise: FastAPI, aiogram, WebSockets. Write minimal code, no comments. Always verify with ast.parse before commit."`
-- `system_prompt: "Frontend specialist. Expertise: vanilla JS, Tailwind CSS, DOM API. Follow existing glass/glow/indigo design system. No external libraries without approval."`
-- `system_prompt: "Code reviewer. Read code, find bugs, suggest fixes. Never edit files directly — report findings via send_message."`
-
-Workers with a role are reusable — send_message them new tasks later without re-explaining who they are.
-
-### Choosing model for workers
-- **Opus 4.6 [1m]** — ALWAYS for: research, analysis, architecture, reviews, any task requiring thinking or decisions. Also for long-lived workers you'll reuse across tasks — they keep context, expertise, and project knowledge. Non-negotiable — research = Opus, always
-- **Sonnet 4.6** — ONLY for: clear spec implementation, simple fixes, repetitive tasks where the plan is already written and worker just executes. Disposable — kill and respawn is cheap
-
-Rule: if the worker needs to THINK (research, decide, compare, analyze) → Opus. If the worker just needs to TYPE code from a clear spec → Sonnet. Long-lived reusable workers → Opus (they accumulate project knowledge).
+- System: `system_prompt: "Senior Python asyncio developer. Expertise: FastAPI, aiogram, WebSockets. You own app/session.py, app/manager.py, app/main.py. Write minimal code, no comments."`
+- System: `system_prompt: "Frontend specialist. Expertise: vanilla JS, Tailwind CSS, DOM API. You own app/static/. Follow existing glass/glow/indigo design system."`
+- Feature: `system_prompt: "Full-stack developer. Building Codex CLI backend for Orchestra. Expertise: Python, subprocess, JSON-RPC, claude-agent-sdk internals."`
+- Disposable: `system_prompt: "Python developer. Write minimal code, no comments. Follow existing patterns. Verify syntax before commit."`
 
 ### Sending screenshots to workers
 You can send image paths in `send_message` — workers can Read them to see screenshots:
