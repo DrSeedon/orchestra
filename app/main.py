@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import init_db, get_logs, get_logs_before, delete_session as db_delete_session
+from app.db import init_db, get_logs, get_logs_before
 from app.manager import SessionManager
 from app.models import resolve_model, MODELS
 
@@ -360,13 +360,9 @@ async def interrupt_session(name: str, req: ScopeRequest):
 @app.post("/api/sessions/{name}/stop")
 async def stop_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
-    if not found:
-        return JSONResponse({"error": "not found"}, status_code=404)
-    sid = found["id"] if isinstance(found, dict) else found.id
-    if isinstance(found, dict):
-        db_delete_session(sid)
-    else:
-        await manager.unload(sid)
+    if not found or isinstance(found, dict):
+        return JSONResponse({"error": "agent not running"}, status_code=404)
+    await manager.stop_worker(found.id)
     return {"ok": True}
 
 
