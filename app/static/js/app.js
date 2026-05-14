@@ -2124,6 +2124,54 @@ function addChatEntry(type, content, ts, anchor) {
                     addTimestamp(lastTool, ts);
                     return;
                 }
+                if (lastTool.dataset.toolRawName === 'mcp__orchestra__list_agents' || lastTool.dataset.toolRawName === 'mcp__orchestra__list_orchestrators') {
+                    const agentLines = clean.split('\n').filter(l => l.includes('|'));
+                    if (agentLines.length > 0) {
+                        const PREVIEW_COUNT = 4;
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:4px';
+                        for (const [i, line] of agentLines.entries()) {
+                            const parts = line.split('|').map(p => p.trim());
+                            const nameRaw = parts[0] || '';
+                            const status = parts[1] || '';
+                            const model = parts[2] || '';
+                            const cost = parts[3] || '';
+                            const ctxRaw = parts[4] || '';
+                            const nameClean = nameRaw.replace(/\*\*/g, '').replace(/^[^\w]*/, '').trim();
+                            const icon = nameRaw.match(/[🎯⚙️🔧]/)?.[0] || '⚙️';
+                            const ctxPct = parseInt(ctxRaw.match(/(\d+)%/)?.[1] || '0');
+                            const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
+                            const isRunning = status.includes('running');
+                            const row = document.createElement('div');
+                            row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
+                            if (i >= PREVIEW_COUNT) row.style.display = 'none';
+                            row.dataset.agentRow = '1';
+                            row.innerHTML = `<div style="display:flex;align-items:center;justify-content:between;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div><div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span><span style="color:#22c55e">${DOMPurify.sanitize(cost)}</span><span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:30px;height:3px;border-radius:2px;background:rgba(51,65,85,0.5);overflow:hidden"><span style="display:block;width:${Math.min(ctxPct,100)}%;height:100%;background:${ctxColor};border-radius:2px"></span></span><span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                            container.appendChild(row);
+                        }
+                        lastTool.appendChild(container);
+                        if (hdr) hdr.textContent += ` (${agentLines.length})`;
+                        if (agentLines.length > PREVIEW_COUNT) {
+                            const hint = document.createElement('div');
+                            hint.className = 'text-xs mt-1';
+                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                            hint.textContent = `▼ ${agentLines.length - PREVIEW_COUNT} more`;
+                            lastTool.appendChild(hint);
+                            let _alExp = false;
+                            lastTool.style.cursor = 'pointer';
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _alExp = !_alExp;
+                                container.querySelectorAll('[data-agent-row]').forEach((r, i) => {
+                                    if (i >= PREVIEW_COUNT) r.style.display = _alExp ? 'block' : 'none';
+                                });
+                                hint.textContent = _alExp ? '▲ collapse' : `▼ ${agentLines.length - PREVIEW_COUNT} more`;
+                            });
+                        }
+                        addTimestamp(lastTool, ts);
+                        return;
+                    }
+                }
                 const resultEl = document.createElement('div');
                 resultEl.className = 'text-xs markdown-body';
                 resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
