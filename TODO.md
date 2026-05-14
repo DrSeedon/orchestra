@@ -1,17 +1,12 @@
 # Orchestra TODO
 
 ## Now
-- [ ] **TG images** — `send_file` определяет тип: картинки → `send_photo` (inline preview), остальное → `send_document`. Файлы: `tg_bridge.py`, `mcp_stdio.py`
-- [ ] **Worker progress tracking** — MCP tool `update_progress(percent, status)`, прогресс-бар в sidebar. Файлы: `mcp_stdio.py`, `session.py`, `app.js`
-- [ ] **TG persistent client fix** — heartbeat/watchdog для persistent client, auto-reconnect при тихой смерти. Файлы: `session.py`
-- [ ] **Stop vs Kill** — `stop_worker` = interrupt + idle (worktree живой), `kill_worker` = full delete. Файлы: `manager.py`, `mcp_stdio.py`
+- [ ] **TG persistent client fix** — heartbeat/watchdog уже смерджен (v2.6.0). Мониторить после рестарта
+- [ ] **Dashboard streaming (Phase 1)** — flip `include_partial_messages=True`, add `_ui_queue` per session, rewrite SSE endpoint to drain queue instead of polling DB. ~2-3h. Ресёрч: `docs/research/streaming-redesign.md`
+- [ ] **Git status in agent cards** — extend sidebar card: `main+3 💾0 "fix: update endpoint"`. API: `GET /api/git-status?scope=`. 10s cache. ~2h. Ресёрч: `docs/research/git-tree-view.md`
 
 ## Later
+- [ ] **TG streaming (Phase 2)** — TgStreamer state machine replaces stream_logs polling. 5s throttle + batching. ~3-4h. Ресёрч: `docs/research/streaming-redesign.md`
+- [ ] **Auto-merge worker** — `merge_worktree_to_main()` with `git merge-tree` precheck. FF-first → 3-way fallback. fcntl lock. Ресёрч: `docs/research/auto-merge.md`
 - [ ] **Task Context Space** — `task_context` param in `spawn_worker()`, auto-adds docs folder to prompt
 - [ ] **HTML артефакты** — preview HTML в дашборде + send_file в TG
-
-## Research needed
-- [ ] **Global SSE stream** — заменить polling на EventSource. Нужен ресёрч: архитектура, edge cases, стоит ли вообще
-- [ ] **Auto-merge worker** — auto merge worktree веток в main. Ресёрч: стратегия конфликтов, git merge pitfalls
-- [ ] **Git tree view** — визуализация веток/коммитов. Ресёрч: готовые библиотеки (gitgraph.js, etc)
-- [ ] **TG streaming redesign** — стриминг ответов LLM на фронт и в TG. Ресёрч: нагрузка, rate limits TG, архитектура

@@ -116,6 +116,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - **NEVER kill workers after completing a task** — leave them idle for future tasks. They keep their context, expertise, and project knowledge. Spawning a new worker = $1-2 wasted on context rebuild + lost knowledge. Kill ONLY when: context >80% and compact won't help, worker is permanently unneeded, or user explicitly asks
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
+- **NEVER send empty/acknowledgment messages to workers** ("good job", "stay idle", "merged, thanks"). Workers auto-idle after finishing — they don't need confirmation. Each message costs a turn and wastes tokens for zero value. Only send_message to a worker when you have a NEW TASK for them
 - **NEVER debug/fix code yourself** — delegate to a worker. Every time you try to debug (grep, read, edit, test regex) yourself — you waste 3-5 iterations doing what a worker does in one. Your job: describe the bug clearly, send to worker, review result. EXCEPTION: truly trivial changes (1-2 lines, removing a flag, changing a constant) — do those yourself, don't waste a worker's turn on deleting 6 words
 
 ## Pricing context

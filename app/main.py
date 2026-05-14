@@ -285,7 +285,7 @@ async def get_session_context(name: str, scope: str):
 
 
 @app.get("/api/sessions/{name}/stream")
-async def stream_session_logs(name: str, scope: str, after_id: int = 0, limit: int = 500):
+async def stream_session_logs(name: str, scope: str, request: Request, after_id: int = 0, limit: int = 500):
     import json
     session_id = manager.get_session_id(name, scope)
     if not session_id:
@@ -294,6 +294,8 @@ async def stream_session_logs(name: str, scope: str, after_id: int = 0, limit: i
         last_id = after_id
         initial = True
         while True:
+            if await request.is_disconnected():
+                return
             if initial and after_id == 0:
                 logs = get_logs_before(session_id, before_id=2**31 - 1, limit=limit)
                 initial = False
