@@ -200,6 +200,17 @@ async def update_progress(percent: int, status: str) -> str:
 
 
 @mcp.tool()
+async def change_worker_model(name: str, model: str) -> str:
+    """Change a worker's model (e.g. sonnet→opus) without losing context. Worker must be idle."""
+    result = await _api("POST", f"/api/sessions/{name}/change-model", json={"scope": SCOPE, "model": model})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Model change failed: {result['error']}"
+    if isinstance(result, dict) and result.get("changed"):
+        return f"Model changed: {result.get('old_model')} → {result.get('model')}"
+    return f"Model already {result.get('model', model)}"
+
+
+@mcp.tool()
 async def merge_worker(name: str) -> str:
     """Merge a worker's branch into main. Returns commit count or conflict file list."""
     result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE})

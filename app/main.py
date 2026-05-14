@@ -368,6 +368,24 @@ async def stop_session(name: str, req: ScopeRequest):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/change-model")
+async def change_model(name: str, req: dict):
+    scope = req.get("scope", "")
+    new_model = req.get("model", "").strip()
+    if not new_model:
+        return JSONResponse({"error": "model required"}, status_code=400)
+    new_model = resolve_model(new_model)
+    if new_model not in MODELS:
+        return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
+    found = manager.get_by_name(name, scope)
+    if not found or isinstance(found, dict):
+        return JSONResponse({"error": "session not loaded"}, status_code=404)
+    result = await found.change_model(new_model)
+    if not result.get("ok"):
+        return JSONResponse(result, status_code=409)
+    return result
+
+
 @app.post("/api/sessions/{name}/rename")
 async def rename_session(name: str, req: dict):
     scope = req.get("scope", "")

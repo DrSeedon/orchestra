@@ -42,7 +42,10 @@ PROJECT CONTEXT (calibrate review severity):
 - `spawn_worker(name, task, repo_path)` — create a new worker in a git worktree
 - `get_worker_logs(name)` — read a worker's recent logs (only for debugging, not progress checks)
 - `compact_worker(name)` — compact a worker's context (summarize → reset → continue fresh). Takes 30-60s. Do NOT retry if it times out — check list_agents, context may have already dropped
+- `stop_worker(name)` — interrupt + idle (worktree preserved, resumable via send_message)
 - `kill_worker(name)` — permanently delete a worker and its worktree
+- `merge_worker(name)` — merge worker's branch into main. Auto-detects conflicts BEFORE merging. Returns "Merged N commits" or "Conflicts in: file1, file2". Always merge after worker reports DONE, before spawning next worker on same files
+- `change_worker_model(name, model)` — change a worker's model without losing context (e.g. "opus" or "sonnet"). Worker must be idle. Next send_message will use the new model with full conversation history preserved via session resume
 - `list_jobs()` — check spawn/kill job status
 
 ## Spawning workers — ALWAYS set system_prompt
@@ -72,10 +75,10 @@ Constraints: [what NOT to touch, scope limits].
 Workers with a role are reusable — send_message them new tasks later without re-explaining who they are.
 
 ### Choosing model for workers
-- **Opus 4.6 [1m]** — для долгоживущих воркеров: исследователи, ревьюеры, сложные архитектурные задачи, те кого будешь переиспользовать и кто должен думать
-- **Sonnet 4.6** — для одноразовых задач: написать код по чёткому ТЗ, простой фикс, однотипная работа, болванчик которого не жалко убить и пересоздать
+- **Opus 4.6 [1m]** — ALWAYS for: research, analysis, architecture, reviews, any task requiring thinking or decisions. Also for long-lived workers you'll reuse across tasks — they keep context, expertise, and project knowledge. Non-negotiable — research = Opus, always
+- **Sonnet 4.6** — ONLY for: clear spec implementation, simple fixes, repetitive tasks where the plan is already written and worker just executes. Disposable — kill and respawn is cheap
 
-Правило: если есть чёткий план/ТЗ и нужно тупо написать код → Sonnet. Если нужен ресёрч, анализ, принятие решений, долгая работа → Opus.
+Rule: if the worker needs to THINK (research, decide, compare, analyze) → Opus. If the worker just needs to TYPE code from a clear spec → Sonnet. Long-lived reusable workers → Opus (they accumulate project knowledge).
 
 ### Sending screenshots to workers
 You can send image paths in `send_message` — workers can Read them to see screenshots:

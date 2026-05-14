@@ -466,6 +466,18 @@ class AgentSession:
         finally:
             self._compacting = False
 
+    async def change_model(self, new_model: str) -> dict:
+        old_model = self.model
+        if old_model == new_model:
+            return {"ok": True, "model": new_model, "changed": False}
+        if self.status == AgentStatus.RUNNING:
+            return {"ok": False, "error": "cannot change model while running"}
+        self._log("status", f"model change: {old_model} → {new_model}")
+        await self._disconnect_client()
+        self.model = new_model
+        self._persist()
+        return {"ok": True, "model": new_model, "old_model": old_model, "changed": True}
+
     async def _disconnect_client(self) -> None:
         if self._heartbeat_task and not self._heartbeat_task.done():
             self._heartbeat_task.cancel()
