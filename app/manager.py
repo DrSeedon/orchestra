@@ -68,11 +68,33 @@ def _other_orchestrators_block(exclude_scope: str = "") -> str:
         return ""
 
 
+def _workers_block(scope: str) -> str:
+    try:
+        workers = [s for s in get_all_sessions()
+                   if not s.get("is_orchestrator") and s.get("scope") == scope]
+        if not workers:
+            return ""
+        lines = ["## Your current workers",
+                 "These workers exist in your project. Reuse idle ones instead of spawning new. Kill workers you no longer need (one-shot tasks done, wrong role, duplicate)."]
+        for w in workers:
+            name = w["name"]
+            model = w.get("model", "?")
+            status = w.get("status", "?")
+            ctx = w.get("context_pct", 0) or 0
+            lines.append(f"- **{name}** — {model} | {status} | ctx:{ctx}%")
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
 def ORCHESTRATOR_SYSTEM_PROMPT(scope: str = "") -> str:
     base = f"{_read_prompt('base.md')}\n\n{_read_prompt('orchestrator.md')}"
     others = _other_orchestrators_block(scope)
     if others:
         base += f"\n\n{others}"
+    workers = _workers_block(scope)
+    if workers:
+        base += f"\n\n{workers}"
     return base
 
 
