@@ -13,6 +13,8 @@ let drafts = {};
 
 window.compactMode = localStorage.getItem('compactToolMode') === 'true';
 
+let gitStatusData = {};  // name -> {branch, commits_ahead, dirty_files, last_commit}
+
 const $ = (s) => document.querySelector(s);
 
 DOMPurify.addHook('uponSanitizeElement', (node) => {
@@ -122,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadModels();
     loadOrchestrators();
     scheduleRefresh();
+    scheduleGitStatusRefresh();
     initFilePreviewModal();
     initUsageBar();
     initHeartbeat();
@@ -134,6 +137,22 @@ function scheduleRefresh() {
         await refreshSessions();
         scheduleRefresh();
     }, 3000);
+}
+
+async function refreshGitStatus() {
+    if (!currentScope) return;
+    try {
+        const data = await api(`/api/git-status?scope=${encodeURIComponent(currentScope)}`);
+        gitStatusData = {};
+        for (const item of data) gitStatusData[item.name] = item;
+    } catch {}
+}
+
+function scheduleGitStatusRefresh() {
+    setTimeout(async () => {
+        await refreshGitStatus();
+        scheduleGitStatusRefresh();
+    }, 10000);
 }
 
 function connectSSE() {
@@ -911,6 +930,27 @@ function createAgentItem(s) {
             wrap.appendChild(txt);
         }
         info.appendChild(wrap);
+    }
+
+    const gs = gitStatusData[s.name];
+    if (gs) {
+        const gsLine = document.createElement('div');
+        gsLine.className = 'font-mono mt-1 truncate';
+        gsLine.style.cssText = 'font-size:10px;line-height:1.4';
+        let html = '';
+        if (gs.branch) {
+            const ahead = gs.commits_ahead;
+            const aheadColor = ahead > 0 ? '#22c55e' : '#6b7280';
+            html += `<span style="color:${aheadColor}">${gs.branch}+${ahead}</span>`;
+        }
+        const dirty = gs.dirty_files;
+        const dirtyColor = dirty > 0 ? '#eab308' : '#6b7280';
+        html += ` <span style="color:${dirtyColor}">💾${dirty}</span>`;
+        if (gs.last_commit) {
+            html += ` <span style="color:#475569">"${gs.last_commit}"</span>`;
+        }
+        gsLine.innerHTML = html;
+        info.appendChild(gsLine);
     }
 
     item.append(icon, info);

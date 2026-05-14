@@ -618,6 +618,61 @@ async def upload_file(file: UploadFile):
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
+_git_status_cache: dict = {}  # scope -> {ts, data}
+_GIT_STATUS_TTL = 10
+
+
+async def _run_git(cmd: list[str], cwd: str) -> str:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, cwd=cwd,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
+        return stdout.decode().strip()
+    except asyncio.TimeoutError:
+        proc.kill()
+        return ""
+
+
+@app.get("/api/git-status")
+async def get_git_status(scope: str):
+    now = time.time()
+    cached = _git_status_cache.get(scope)
+    if cached and (now - cached["ts"]) < _GIT_STATUS_TTL:
+        return cached["data"]
+
+    sessions = manager.list_sessions(scope)
+    result = []
+    for s in sessions:
+        wt = s.get("worktree_path") if isinstance(s, dict) else getattr(s, "worktree_path", None)
+        if not wt or not Path(wt).is_dir():
+            continue
+        name = s.get("name") if isinstance(s, dict) else s.name
+        branch = s.get("branch") if isinstance(s, dict) else getattr(s, "branch", None)
+
+        ahead_str, dirty_str, last_commit = await asyncio.gather(
+            _run_git(["git", "rev-list", "main..HEAD", "--count"], wt),
+            _run_git(["git", "status", "--porcelain"], wt),
+            _run_git(["git", "log", "-1", "--format=%s"], wt),
+        )
+
+        commits_ahead = int(ahead_str) if ahead_str.isdigit() else 0
+        dirty_files = len([l for l in dirty_str.splitlines() if l.strip()])
+        last_commit = last_commit[:50] if last_commit else ""
+
+        result.append({
+            "name": name,
+            "branch": branch or "",
+            "commits_ahead": commits_ahead,
+            "dirty_files": dirty_files,
+            "last_commit": last_commit,
+        })
+
+    _git_status_cache[scope] = {"ts": now, "data": result}
+    return result
+
+
 @app.post("/api/tg/send_file")
 async def tg_send_file(req: dict):
     path = req.get("path", "")
