@@ -70,7 +70,7 @@ class AgentSession:
                 model=self.model, cwd=self.cwd,
                 system_prompt=self.system_prompt,
                 resume_thread_id=self.session_id,
-                mcp_config_args=self._build_codex_mcp_args(),
+                mcp_env=self._build_codex_mcp_env(),
                 reasoning_effort=self._codex_reasoning_effort(),
             )
         else:
@@ -87,22 +87,12 @@ class AgentSession:
             return "high"
         return "high"
 
-    def _build_codex_mcp_args(self) -> list[str]:
-        if not self.mcp_servers:
-            return []
-        import json as _j
-        args = []
-        for name, cfg in self.mcp_servers.items():
-            cmd = cfg.get("command", "")
-            srv_args = cfg.get("args", [])
-            env = cfg.get("env", {})
-            args += ["-c", f"mcp_servers.{name}.command={_j.dumps(cmd)}"]
-            if srv_args:
-                toml_args = "[" + ", ".join(_j.dumps(a) for a in srv_args) + "]"
-                args += ["-c", f"mcp_servers.{name}.args={toml_args}"]
-            for k, v in env.items():
-                args += ["-c", f"mcp_servers.{name}.env.{k}={_j.dumps(str(v))}"]
-        return args
+    def _build_codex_mcp_env(self) -> dict[str, str]:
+        env = {}
+        for _name, cfg in self.mcp_servers.items():
+            for k, v in cfg.get("env", {}).items():
+                env[k] = str(v)
+        return env
 
     async def start(self, initial_message: str | None = None) -> None:
         if initial_message:
