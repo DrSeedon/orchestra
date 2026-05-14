@@ -1,5 +1,6 @@
 """Worktree management — create and remove git worktrees for agent sessions."""
 
+import fcntl
 import logging
 import re
 import shutil
@@ -65,6 +66,68 @@ def create_worktree(repo_path: str, name: str, scope: str) -> Worktree:
             shutil.copy2(str(src), str(wt_path / fname))
 
     return Worktree(path=str(wt_path), branch=branch)
+
+
+def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
+    repo = Path(repo_path).resolve()
+    wt = Path(worktree_path).resolve()
+    lock_path = repo / ".git" / "orchestra-merge.lock"
+
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            branch_result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if branch_result.returncode != 0:
+                return {"ok": False, "error": f"cannot get branch: {branch_result.stderr.strip()}"}
+            branch = branch_result.stdout.strip()
+
+            status = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if status.stdout.strip():
+                commit = subprocess.run(
+                    ["git", "add", "-A"],
+                    cwd=str(wt), capture_output=True, text=True,
+                )
+                if commit.returncode == 0:
+                    subprocess.run(
+                        ["git", "commit", "-m", f"auto-save: {branch}"],
+                        cwd=str(wt), capture_output=True, text=True,
+                    )
+
+            precheck = subprocess.run(
+                ["git", "merge-tree", "--write-tree", "main", branch],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+            if precheck.returncode != 0:
+                conflict_files = []
+                for line in precheck.stdout.splitlines():
+                    if line.startswith("CONFLICT"):
+                        parts = line.split()
+                        if parts:
+                            conflict_files.append(parts[-1])
+                return {"ok": False, "conflicts": conflict_files}
+
+            commits_result = subprocess.run(
+                ["git", "rev-list", "--count", f"main..{branch}"],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+            commits_merged = int(commits_result.stdout.strip() or "0")
+
+            merge = subprocess.run(
+                ["git", "merge", "--no-edit", branch],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+            if merge.returncode != 0:
+                return {"ok": False, "error": merge.stderr.strip() or merge.stdout.strip()}
+
+            return {"ok": True, "commits_merged": commits_merged, "branch": branch}
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
 def remove_worktree(repo_path: str, worktree_path: str) -> None:

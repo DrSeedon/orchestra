@@ -397,6 +397,25 @@ async def delete_session(name: str, scope: str):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/merge")
+async def merge_session(name: str, req: ScopeRequest):
+    from app.workspace import merge_worktree_to_main
+    found = manager.get_by_name(name, req.scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+    scope = found.get("scope") if isinstance(found, dict) else found.scope
+    if not worktree_path:
+        return JSONResponse({"error": "session has no worktree"}, status_code=400)
+    if not scope:
+        return JSONResponse({"error": "session has no scope"}, status_code=400)
+    try:
+        result = merge_worktree_to_main(worktree_path, scope)
+        return result
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/api/sessions/{name}/progress")
 async def update_progress(name: str, req: dict):
     scope = req.get("scope", "")

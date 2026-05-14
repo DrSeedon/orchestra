@@ -200,6 +200,24 @@ async def update_progress(percent: int, status: str) -> str:
 
 
 @mcp.tool()
+async def merge_worker(name: str) -> str:
+    """Merge a worker's branch into main. Returns commit count or conflict file list."""
+    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Merge failed: {result['error']}"
+    if isinstance(result, dict) and result.get("ok"):
+        n = result.get("commits_merged", 0)
+        branch = result.get("branch", "?")
+        return f"Merged {n} commit{'s' if n != 1 else ''} from branch {branch}"
+    if isinstance(result, dict) and not result.get("ok"):
+        conflicts = result.get("conflicts", [])
+        if conflicts:
+            return f"Conflicts in: {', '.join(conflicts)}"
+        return f"Merge failed: {result.get('error', 'unknown error')}"
+    return f"Merge result: {result}"
+
+
+@mcp.tool()
 async def report_bug(title: str, description: str) -> str:
     """Report a bug or issue with the Orchestra platform. Saves to bugs.md for the developer."""
     from datetime import datetime, timezone
