@@ -32,13 +32,13 @@ CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
 class CodexBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_thread_id: str | None = None,
-                 mcp_config_args: list[str] | None = None,
+                 mcp_env: dict[str, str] | None = None,
                  reasoning_effort: str = "high"):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id
-        self._mcp_config_args: list[str] = mcp_config_args or []
+        self._mcp_env: dict[str, str] = mcp_env or {}
         self.reasoning_effort = reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._stderr_task: Optional[asyncio.Task] = None
@@ -58,16 +58,17 @@ class CodexBackend:
 
         cmd = [CODEX_BIN]
         if self._thread_id:
-            cmd += ["exec", "resume", "--json", self._thread_id, message]
+            cmd += ["exec", "resume", "--json",
+                    "--dangerously-bypass-approvals-and-sandbox",
+                    self._thread_id, message]
         else:
             cmd += ["exec", "--json", "-m", self.model,
-                    "--sandbox", "workspace-write",
+                    "--dangerously-bypass-approvals-and-sandbox",
                     "-C", self.cwd]
             if self.system_prompt:
                 escaped = self.system_prompt.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
                 cmd += ["-c", f'developer_instructions="{escaped}"']
             cmd += ["-c", f'model_reasoning_effort="{self.reasoning_effort}"']
-            cmd.extend(self._mcp_config_args)
             cmd.append(message)
 
         self._proc = await asyncio.create_subprocess_exec(
@@ -230,6 +231,7 @@ class CodexBackend:
 
     def _build_env(self) -> dict:
         env = dict(os.environ)
+        env.update(self._mcp_env)
         env.pop("HTTPS_PROXY", None)
         env.pop("HTTP_PROXY", None)
         return env

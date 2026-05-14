@@ -102,40 +102,6 @@ def WORKER_SYSTEM_PROMPT() -> str:
     return f"{_read_prompt('base.md')}\n\n{_read_prompt('worker.md')}"
 
 
-def _write_codex_mcp_config(worktree_path: str, name: str, scope: str) -> None:
-    import json as _json
-    codex_dir = Path(worktree_path) / ".codex"
-    codex_dir.mkdir(exist_ok=True)
-    config = f'''[mcp_servers.orchestra]
-command = {_json.dumps(MCP_STDIO_CMD[0])}
-args = [{", ".join(_json.dumps(a) for a in MCP_STDIO_CMD[1:])}]
-
-[mcp_servers.orchestra.env]
-ORCHESTRA_URL = "http://127.0.0.1:8888"
-ORCHESTRA_SCOPE = {_json.dumps(scope)}
-ORCHESTRA_ROLE = "worker"
-WORKER_NAME = {_json.dumps(name)}
-PYTHONPATH = {_json.dumps(_PROJECT_ROOT)}
-'''
-    (codex_dir / "config.toml").write_text(config)
-    _add_to_git_exclude(worktree_path, ".codex/")
-
-
-def _add_to_git_exclude(worktree_path: str, pattern: str) -> None:
-    git_path = Path(worktree_path) / ".git"
-    if git_path.is_file():
-        gitdir_raw = git_path.read_text().strip().split("gitdir: ", 1)[-1]
-        gitdir = Path(gitdir_raw) if Path(gitdir_raw).is_absolute() else (Path(worktree_path) / gitdir_raw).resolve()
-        exclude_path = gitdir / "info" / "exclude"
-    else:
-        exclude_path = git_path / "info" / "exclude"
-    exclude_path.parent.mkdir(parents=True, exist_ok=True)
-    existing = exclude_path.read_text() if exclude_path.exists() else ""
-    if pattern not in existing:
-        with open(exclude_path, "a") as f:
-            f.write(f"\n{pattern}\n")
-
-
 def _make_mcp_config(name: str, scope: str, is_orch: bool) -> dict:
     env = {
         **MCP_BASE_ENV,
@@ -226,8 +192,6 @@ class SessionManager:
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
-                if bt == "codex":
-                    _write_codex_mcp_config(wt.path, name, scope)
 
             if not is_orchestrator:
                 orch_name = self._find_orchestrator_name(scope)
