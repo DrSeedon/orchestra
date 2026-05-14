@@ -162,19 +162,26 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN progress_pct INTEGER DEFAULT 0")
     if "progress_status" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN progress_status TEXT DEFAULT ''")
+    if "backend_type" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN backend_type TEXT DEFAULT 'claude'")
 
 
 def save_session(s: dict) -> None:
+    s.setdefault("context_pct", 0)
+    s.setdefault("context_tokens", 0)
+    s.setdefault("progress_pct", 0)
+    s.setdefault("progress_status", "")
+    s.setdefault("backend_type", "claude")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
-                progress_pct, progress_status)
+                progress_pct, progress_status, backend_type)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
-                :progress_pct, :progress_status)
+                :progress_pct, :progress_status, :backend_type)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -189,7 +196,8 @@ def save_session(s: dict) -> None:
                 context_pct=excluded.context_pct,
                 context_tokens=excluded.context_tokens,
                 progress_pct=excluded.progress_pct,
-                progress_status=excluded.progress_status
+                progress_status=excluded.progress_status,
+                backend_type=excluded.backend_type
         """, s)
 
 
