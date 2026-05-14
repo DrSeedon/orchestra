@@ -56,3 +56,25 @@ suggestion: `app/session.py:92` — `_build_codex_mcp_args()` используе
 ### Verdict
 
 needs fixes
+
+## Round 3
+
+### Tests
+
+`python -m pytest tests/test_db.py -q` проходит: `29 passed`.
+
+Полный suite повторно не считаю релевантным gate для этого раунда: он уже известным образом падает на устаревших тестах, которые патчат старый `AgentSession._make_client` API. Для заявленных фиксов проверены затронутые участки `session.py` и генерация Codex `-c` args.
+
+### Fix Status
+
+FIXED: `app/session.py:202` — cancellation path в `_codex_turn_loop()` теперь имеет `cancelled` flag, а drain `_pending_messages` выполняется только при `not cancelled`. `stop()`/`remove()`/`disconnect()` больше не должны запускать queued Codex turn при отмене listener task.
+
+FIXED: `app/session.py:84` — `_build_codex_mcp_args()` теперь использует `json.dumps()` для TOML string values (`command`, `args`, env values). Проверил на значениях с кавычками/backslash: output остается валидной TOML basic string формой.
+
+### New Findings
+
+Новых blocking/suggestion findings по Round 3 не нашел.
+
+### Verdict
+
+APPROVED
