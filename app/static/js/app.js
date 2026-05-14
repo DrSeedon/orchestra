@@ -3450,10 +3450,11 @@ function renderTasksPanel(panel, data, payData, pendingSyncs) {
             for (const t of group) {
                 const par = t.par.replace('PAR-', '');
                 const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
-                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" data-par="${par}" onclick="injectTask('${par}')" ondblclick="showTaskDetail('${par}')">`;
+                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${par}" onclick="showTaskDetail('${par}')">`;
                 html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
+                html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${par}')" title="Insert PAR-${par} into chat">📩</span>`;
                 html += '</div>';
             }
         }
@@ -3471,9 +3472,9 @@ function toggleTaskGroup(status) {
 function injectTask(par) {
     const input = document.getElementById('chat-input');
     if (!input) return;
-    const ref = `[PAR-${par}] `;
+    const ref = `[PAR-${par}]`;
     if (!input.value.includes(`PAR-${par}`)) {
-        input.value = ref + input.value;
+        input.value = (input.value ? input.value + ' ' : '') + ref;
         input.focus();
     }
 }
