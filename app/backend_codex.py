@@ -28,11 +28,13 @@ CODEX_TOKEN_PRICES = {
 
 class CodexBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
-                 resume_thread_id: str | None = None):
+                 resume_thread_id: str | None = None,
+                 mcp_config_args: list[str] | None = None):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id
+        self._mcp_config_args: list[str] = mcp_config_args or []
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._stderr_task: Optional[asyncio.Task] = None
         self._last_stderr: str = ""
@@ -59,6 +61,7 @@ class CodexBackend:
             if self.system_prompt:
                 escaped = self.system_prompt.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
                 cmd += ["-c", f'developer_instructions="{escaped}"']
+            cmd.extend(self._mcp_config_args)
             cmd.append(message)
 
         self._proc = await asyncio.create_subprocess_exec(
@@ -66,6 +69,7 @@ class CodexBackend:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=self._build_env(),
+            cwd=self.cwd,
         )
         self._stderr_task = asyncio.create_task(self._drain_stderr())
 
@@ -168,6 +172,9 @@ class CodexBackend:
             elif etype == "turn.failed":
                 error = data.get("error", {})
                 yield AgentEvent("error", error.get("message", "turn failed"))
+
+            elif etype == "error":
+                yield AgentEvent("error", data.get("message", "codex error"))
 
         returncode = await self._proc.wait()
 

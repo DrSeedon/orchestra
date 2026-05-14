@@ -70,6 +70,7 @@ class AgentSession:
                 model=self.model, cwd=self.cwd,
                 system_prompt=self.system_prompt,
                 resume_thread_id=self.session_id,
+                mcp_config_args=self._build_codex_mcp_args(),
             )
         else:
             from app.backend_claude import ClaudeBackend
@@ -79,6 +80,26 @@ class AgentSession:
                 resume_session_id=self.session_id,
                 mcp_servers=self.mcp_servers,
             )
+
+    def _build_codex_mcp_args(self) -> list[str]:
+        if not self.mcp_servers:
+            return []
+        args = []
+        for name, cfg in self.mcp_servers.items():
+            cmd = cfg.get("command", "")
+            srv_args = cfg.get("args", [])
+            env = cfg.get("env", {})
+            args.append("-c")
+            args.append(f'mcp_servers.{name}.command="{cmd}"')
+            if srv_args:
+                import json as _j
+                toml_args = "[" + ", ".join(_j.dumps(a) for a in srv_args) + "]"
+                args.append("-c")
+                args.append(f"mcp_servers.{name}.args={toml_args}")
+            for k, v in env.items():
+                args.append("-c")
+                args.append(f'mcp_servers.{name}.env.{k}="{v}"')
+        return args
 
     async def start(self, initial_message: str | None = None) -> None:
         if initial_message:
@@ -192,7 +213,13 @@ class AgentSession:
         except Exception as e:
             logger.error(f"[{self.name}] codex turn error: {e}")
             self._log("error", f"codex turn error: {e}")
+            if self.status == AgentStatus.RUNNING:
+                self.status = AgentStatus.IDLE
+                self._persist()
         finally:
+            if self.status == AgentStatus.RUNNING:
+                self.status = AgentStatus.IDLE
+                self._persist()
             if self._pending_messages:
                 next_msg = self._pending_messages.pop(0)
                 await self.send(next_msg)

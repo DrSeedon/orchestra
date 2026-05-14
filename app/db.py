@@ -89,6 +89,11 @@ def _migrate(c) -> None:
 
 
 def save_session(s: dict) -> None:
+    s.setdefault("context_pct", 0)
+    s.setdefault("context_tokens", 0)
+    s.setdefault("progress_pct", 0)
+    s.setdefault("progress_status", "")
+    s.setdefault("backend_type", "claude")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
