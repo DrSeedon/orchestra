@@ -847,3 +847,21 @@ async def tm_sync_log(limit: int = 50):
             "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
     return {"entries": [dict(r) for r in rows]}
+
+
+@app.post("/api/tm/sync/retry/{sync_id}")
+async def tm_sync_retry(sync_id: int):
+    with _tm._conn() as conn:
+        row = conn.execute("SELECT * FROM tm_sync_log WHERE id = ?", (sync_id,)).fetchone()
+        if not row:
+            return JSONResponse({"error": "sync entry not found"}, status_code=404)
+        entry = dict(row)
+        if entry["status"] not in ("error", "pending"):
+            return {"message": "nothing to retry", "status": entry["status"]}
+        task_id = entry["task_id"]
+
+    if task_id:
+        from app.tm_yougile import yougile_sync_task
+        result = await yougile_sync_task(task_id)
+        return {"retried": True, "task_id": task_id, "result": result}
+    return {"error": "no task_id on sync entry"}

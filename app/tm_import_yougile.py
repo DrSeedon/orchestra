@@ -143,6 +143,16 @@ def run_import():
                 )
 
                 if paid_rub > 0:
+                    import_payment_id = conn.execute(
+                        "INSERT INTO tm_payments (client_id, amount_rub, date, note, created_at) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (CLIENT_ID, paid_rub, task["created_at"][:10], f"import PAR-{task['par_number']}", task["created_at"]),
+                    ).lastrowid
+                    conn.execute(
+                        "INSERT INTO tm_payment_allocations (payment_id, task_id, amount_rub, created_at) "
+                        "VALUES (?, ?, ?, ?)",
+                        (import_payment_id, task["id"], paid_rub, task["created_at"]),
+                    )
                     conn.execute(
                         "UPDATE tm_tasks SET paid_rub = ? WHERE id = ?",
                         (paid_rub, task["id"]),

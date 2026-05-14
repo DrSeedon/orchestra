@@ -4,11 +4,14 @@ Pure data operations. Takes sqlite3.Connection, caller manages transactions.
 No HTTP, no YouGile, no TG — those are triggered by callers.
 """
 
+import asyncio
 import json
-import re
+import logging
 import sqlite3
 from datetime import datetime, date, timezone
 from pathlib import Path
+
+logger = logging.getLogger("tm")
 
 DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
@@ -568,6 +571,42 @@ def get_pending_syncs(conn: sqlite3.Connection) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+# --- Sync helpers (fire-and-forget after commit) ---
+
+def _fire_sync(task_id: int) -> None:
+    try:
+        from app.tm_yougile import yougile_sync_task
+        asyncio.get_event_loop().create_task(yougile_sync_task(task_id))
+    except RuntimeError:
+        logger.debug("No event loop for sync, skipping (CLI context)")
+    except Exception as e:
+        logger.error("Sync fire failed for task %d: %s", task_id, e)
+
+
+def _fire_par35_sync(payment_result: dict) -> None:
+    try:
+        from app.tm_yougile import yougile_update_par35
+
+        async def _do():
+            try:
+                await yougile_update_par35(
+                    payment_id=payment_result["payment_id"],
+                    balance_rub=payment_result["new_balance"],
+                    distributions=payment_result["distributions"],
+                    total_debt=payment_result["total_debt_remaining"],
+                    payment_date=payment_result["date"],
+                    amount_rub=payment_result["amount_rub"],
+                )
+            except Exception as e:
+                logger.error("PAR-35 sync failed: %s", e)
+
+        asyncio.get_event_loop().create_task(_do())
+    except RuntimeError:
+        logger.debug("No event loop for PAR-35 sync, skipping")
+    except Exception as e:
+        logger.error("PAR-35 sync fire failed: %s", e)
+
+
 # --- High-level API for routes/MCP ---
 
 def api_create_task(project_id: str, title: str, price: int = 0,
@@ -588,6 +627,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
         except Exception:
             conn.rollback()
             raise
+    _fire_sync(task["id"])
     return {
         "par": f"PAR-{task['par_number']}",
         "id": task["id"],
@@ -604,33 +644,33 @@ def api_update_task(par: str, title: str | None = None,
                     status: str | None = None,
                     assignee: str | None = None) -> dict:
     par_num = _parse_par(par)
-    affected_task_ids = []
+    task_id = None
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
             task = get_task_by_par(conn, par_num)
             if not task:
                 raise ValueError(f"PAR-{par_num} not found")
+            task_id = task["id"]
 
             price_rub = price * 1000 if price is not None else None
             result = update_task(
-                conn, task["id"],
+                conn, task_id,
                 title=title, description=description,
                 price_rub=price_rub, status=status,
                 assignee=assignee,
             )
 
             if status == "done":
-                deduct_result = auto_deduct_prepayment(conn, task["id"])
-                if deduct_result:
-                    affected_task_ids.append(task["id"])
+                auto_deduct_prepayment(conn, task_id)
 
+            updated = get_task_by_id(conn, task_id)
             conn.commit()
         except Exception:
             conn.rollback()
             raise
 
-    updated = result["task"]
+    _fire_sync(task_id)
     return {
         "par": f"PAR-{updated['par_number']}",
         "updated": result["changed"],
@@ -722,6 +762,11 @@ def api_receive_payment(amount: int, client: str = "aleksandr-kislinskiy",
         except Exception:
             conn.rollback()
             raise
+
+    for d in result.get("distributions", []):
+        _fire_sync(d["task_id"])
+    _fire_par35_sync(result)
+
     result["sync_status"] = "pending"
     return result
 

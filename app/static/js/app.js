@@ -3513,6 +3513,12 @@ function initHeartbeat() {
 
 // --- Task Manager ---
 
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
 let _tasksTabActive = false;
 let _tasksInterval = null;
 
@@ -3560,34 +3566,37 @@ async function loadTasks() {
     if (!panel) return;
     try {
         const scope = _sessions[_currentOrch]?.scope || '';
-        const url = `/api/tm/tasks?scope=${encodeURIComponent(scope)}`;
-        const r = await fetch(url);
-        const data = await r.json();
-        renderTasksPanel(panel, data);
+        const [tasksResp, payResp, syncResp] = await Promise.all([
+            fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
+            fetch('/api/tm/payments/status').catch(() => null),
+            fetch('/api/tm/sync/log?limit=10').catch(() => null),
+        ]);
+        const data = await tasksResp.json();
+        const payData = payResp ? await payResp.json().catch(() => null) : null;
+        const syncData = syncResp ? await syncResp.json().catch(() => null) : null;
+        const pendingSyncs = (syncData?.entries || []).filter(e => e.status === 'error' || e.status === 'pending').length;
+        renderTasksPanel(panel, data, payData, pendingSyncs);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
     }
 }
 
-function renderTasksPanel(panel, data) {
+function renderTasksPanel(panel, data, payData, pendingSyncs) {
     const tasks = data.tasks || [];
     const grouped = {};
     for (const t of tasks) {
         (grouped[t.status] ||= []).push(t);
     }
 
-    let totalDebt = 0;
-    let totalBalance = 0;
-    for (const t of tasks) {
-        if (t.status === 'done') {
-            const debt = parseInt(t.debt) || 0;
-            totalDebt += debt;
-        }
-    }
-
     let html = '';
     html += `<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">`;
-    html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${data.total_debt || '0'} ₽</span></div>`;
+    if (payData && payData.balance_display) {
+        html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)} ₽</span></div>`;
+    }
+    html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')} ₽</span></div>`;
+    if (pendingSyncs > 0) {
+        html += `<div class="flex justify-between"><span class="text-slate-500">⚠️ Sync:</span><span class="text-red-400 font-mono">${pendingSyncs} pending</span></div>`;
+    }
     html += `</div>`;
 
     for (const status of STATUS_ORDER) {
@@ -3622,7 +3631,7 @@ function renderTasksPanel(panel, data) {
                 const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
                 html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" data-par="${par}" onclick="injectTask('${par}')" ondblclick="showTaskDetail('${par}')">`;
                 html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
-                html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${t.title}</span>`;
+                html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
                 html += `</div>`;
             }
@@ -3660,7 +3669,7 @@ async function showTaskDetail(par) {
         const bodyEl = document.getElementById('prompt-modal-body');
         if (!modal || !nameEl || !bodyEl) return;
 
-        nameEl.textContent = `${t.par} ${t.title}`;
+        nameEl.textContent = t.par + ' ' + t.title;
 
         let html = '<div class="space-y-3">';
         html += `<div class="grid grid-cols-2 gap-2 text-xs">`;
@@ -3668,8 +3677,8 @@ async function showTaskDetail(par) {
         html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k ₽' : '—'}</span></div>`;
         html += `<div><span class="text-slate-500">Paid:</span> ${t.paid_rub/1000}/${t.price_rub/1000}k</div>`;
         html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k ₽' : '0'}</span></div>`;
-        html += `<div><span class="text-slate-500">Assignee:</span> ${t.assignee || '—'}</div>`;
-        html += `<div><span class="text-slate-500">Project:</span> ${t.project}</div>`;
+        html += `<div><span class="text-slate-500">Assignee:</span> ${escHtml(t.assignee || '—')}</div>`;
+        html += `<div><span class="text-slate-500">Project:</span> ${escHtml(t.project)}</div>`;
         html += `<div><span class="text-slate-500">Created:</span> ${(t.created_at||'').slice(0,10)}</div>`;
         if (t.completed_at) html += `<div><span class="text-slate-500">Done:</span> ${t.completed_at.slice(0,10)}</div>`;
         html += `</div>`;
