@@ -2125,17 +2125,21 @@ function addChatEntry(type, content, ts, anchor) {
                     return;
                 }
                 if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
-                    const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : String(v)) : v;
                     if (hdr) { hdr.textContent = `📋 ${parsed.par}: ${parsed.title || '?'}`; hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa'; }
                     const info = document.createElement('div');
                     info.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#64748b';
-                    if (parsed.status) info.innerHTML += `<div>Status: <b style="color:#e2e8f0">${parsed.status}</b></div>`;
+                    const stColor = {'done':'#22c55e','paid':'#22c55e','in_progress':'#38bdf8','new':'#e2e8f0','cancelled':'#ef4444'}[parsed.status] || '#e2e8f0';
+                    if (parsed.status) info.innerHTML += `<div>Status: <b style="color:${stColor}">${parsed.status}</b></div>`;
                     if (parsed.project) info.innerHTML += `<div>Project: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.project)}</span></div>`;
-                    if (parsed.price_rub > 0 || parsed.price && parsed.price !== '0') info.innerHTML += `<div>Price: <b style="color:#eab308">${_k(parsed.price_rub || 0)} ₽</b></div>`;
-                    if (parsed.price_rub > 0) info.innerHTML += `<div>Paid: ${_k(parsed.paid_rub||0)}/${_k(parsed.price_rub)}${parsed.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(parsed.debt_rub)}</span>` : ''}</div>`;
+                    const priceRub = parsed.price_rub ?? 0;
+                    info.innerHTML += `<div>Price: <b style="color:#eab308">${_k(priceRub)} ₽</b></div>`;
+                    if (priceRub > 0) info.innerHTML += `<div>Paid: ${_k(parsed.paid_rub||0)}/${_k(priceRub)}${parsed.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(parsed.debt_rub)}</span>` : ''}</div>`;
                     if (parsed.assignee) info.innerHTML += `<div>Assignee: ${DOMPurify.sanitize(parsed.assignee)}</div>`;
-                    if (parsed.created_at) info.innerHTML += `<div>Created: ${parsed.created_at.slice(0,10)}</div>`;
-                    if (parsed.completed_at) info.innerHTML += `<div>Done: ${parsed.completed_at.slice(0,10)}</div>`;
+                    if (parsed.created_at) info.innerHTML += `<div>Created: ${(parsed.created_at||'').slice(0,10)}</div>`;
+                    if (parsed.updated_at) info.innerHTML += `<div>Updated: ${(parsed.updated_at||'').slice(0,10)}</div>`;
+                    if (parsed.completed_at) info.innerHTML += `<div>Done: ${(parsed.completed_at||'').slice(0,10)}</div>`;
+                    if (parsed.paid_at) info.innerHTML += `<div>Paid: ${(parsed.paid_at||'').slice(0,10)}</div>`;
                     lastTool.appendChild(info);
                     if (parsed.description) {
                         const descEl = document.createElement('div');
@@ -2162,16 +2166,26 @@ function addChatEntry(type, content, ts, anchor) {
                         lastTool.appendChild(sEl);
                     }
                 } else if (tn === 'mcp__orchestra__task_update') {
+                    const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
                     const changes = [];
                     if (parsed.old_status && parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
-                    else if (parsed.updated) {
+                    if (parsed.updated) {
                         for (const f of parsed.updated) {
-                            if (f === 'status' && parsed.new_status) changes.push(`status→${parsed.new_status}`);
-                            else if (f === 'price' && parsed.price_rub != null) changes.push(`price ${(parsed.price_rub/1000)}k ₽`);
-                            else changes.push(f);
+                            if (f === 'status' && parsed.new_status && !parsed.old_status) changes.push(`status→${parsed.new_status}`);
+                            else if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ₽`);
+                            else if (f === 'assignee' && parsed.assignee != null) changes.push(`assignee→${parsed.assignee || '—'}`);
+                            else if (f === 'title' && parsed.title) changes.push(`title→"${parsed.title.slice(0,40)}"`);
+                            else if (f === 'description') changes.push('description');
+                            else if (f !== 'status') changes.push(f);
                         }
                     }
                     if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
+                    const detail = document.createElement('div');
+                    detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
+                    if (parsed.price_rub != null) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
+                    if (parsed.paid_rub != null) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
+                    if (parsed.debt_rub > 0) detail.innerHTML += `<span style="color:#ef4444">Debt: ${_kr(parsed.debt_rub)}</span>`;
+                    if (detail.innerHTML) lastTool.appendChild(detail);
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
                     const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
@@ -2246,25 +2260,43 @@ function addChatEntry(type, content, ts, anchor) {
                         }
                     }
                 } else if (tn === 'mcp__orchestra__payment_receive') {
-                    if (hdr) { hdr.textContent = `💰 +${parsed.amount || '?'}k received`; hdr.style.color = '#22c55e'; }
+                    const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    const amt = parsed.amount_rub ? _kr(parsed.amount_rub) : (parsed.amount || '?') + 'k';
+                    if (hdr) { hdr.textContent = `💰 +${amt} ₽ received`; hdr.style.color = '#22c55e'; }
+                    const payInfo = document.createElement('div');
+                    payInfo.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
+                    let payHtml = '';
                     if (parsed.distributions && parsed.distributions.length > 0) {
-                        const dEl = document.createElement('div');
-                        dEl.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8';
-                        dEl.textContent = parsed.distributions.map(d => `${d.par}: +${d.amount}k`).join(' | ');
-                        lastTool.appendChild(dEl);
+                        payHtml += parsed.distributions.map(d => {
+                            const a = d.allocated ? _kr(d.allocated) : (d.amount || '?') + 'k';
+                            return `<div style="display:flex;gap:6px"><span style="color:#94a3b8;min-width:60px">${d.par}</span><span style="color:#22c55e">+${a} ₽</span>${d.remaining != null ? `<span style="color:#475569">remaining: ${_kr(d.remaining)}</span>` : ''}</div>`;
+                        }).join('');
                     }
+                    if (parsed.balance_rub != null) payHtml += `<div style="margin-top:2px;color:#eab308">Balance: ${_kr(parsed.balance_rub)} ₽</div>`;
+                    if (payHtml) { payInfo.innerHTML = payHtml; lastTool.appendChild(payInfo); }
                 } else if (tn === 'mcp__orchestra__payment_status') {
+                    const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    const bal = parsed.balance_rub != null ? _kr(parsed.balance_rub) : (parsed.balance_display || '0');
+                    const debt = parsed.total_debt_rub != null ? _kr(parsed.total_debt_rub) : (parsed.total_debt_display || '0');
                     if (hdr) {
-                        const bal = parsed.balance_display || '0';
-                        const debt = parsed.total_debt_display || '0';
-                        hdr.textContent = `💰 Balance: ${bal}k | Debt: ${debt}k`;
+                        hdr.textContent = `💰 Balance: ${bal} ₽ | Debt: ${debt} ₽`;
                         hdr.style.color = '#eab308';
                     }
-                    if (parsed.recent_payments && parsed.recent_payments.length > 0) {
+                    const payments = parsed.recent_payments || parsed.payments || [];
+                    if (payments.length > 0) {
                         const pEl = document.createElement('div');
                         pEl.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
-                        pEl.innerHTML = parsed.recent_payments.slice(0, 3).map(p => `${p.date}: <span style="color:#22c55e">+${p.amount}</span>${p.note ? ' — '+DOMPurify.sanitize(p.note) : ''}`).join('<br>');
+                        pEl.innerHTML = payments.slice(0, 5).map(p => {
+                            const a = p.amount_rub ? _kr(p.amount_rub) : p.amount;
+                            return `<div>${p.date}: <span style="color:#22c55e">+${a}</span>${p.note ? ' — '+DOMPurify.sanitize(p.note) : ''}</div>`;
+                        }).join('');
                         lastTool.appendChild(pEl);
+                    }
+                    if (parsed.tasks_with_debt && parsed.tasks_with_debt.length > 0) {
+                        const dEl = document.createElement('div');
+                        dEl.style.cssText = 'margin-top:4px;font-size:10px;color:#ef4444';
+                        dEl.innerHTML = '<div style="color:#64748b;margin-bottom:2px">Debt:</div>' + parsed.tasks_with_debt.map(t => `<div>${t.par}: ${_kr(t.debt_rub || t.debt)} ₽</div>`).join('');
+                        lastTool.appendChild(dEl);
                     }
                 }
                 addTimestamp(lastTool, ts);
