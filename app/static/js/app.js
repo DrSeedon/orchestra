@@ -1143,7 +1143,7 @@ function buildCompactToolLine(type, content, ts) {
         let preview = body;
         try {
             const parsed = JSON.parse(body);
-            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model] || parsed.model || '?'})`;
+            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model || 'claude-sonnet-4-6'] || parsed.model || 'Sonnet'})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
@@ -1565,7 +1565,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const d = JSON.parse(body);
                 const workerName = d.name || '?';
                 const task = d.task || '';
-                const model = d.model || '';
+                const model = d.model || 'claude-sonnet-4-6';
                 const sysPrompt = d.system_prompt || '';
                 const repoPath = d.repo_path || '';
 
