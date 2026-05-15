@@ -1418,12 +1418,14 @@ function addChatEntry(type, content, ts, anchor) {
 
     if (type === 'subagent_start' || type === 'subagent_end' || type === 'subagent_progress') {
         const parts = content.split('|').map(p => p.trim());
-        const desc = parts[0] || '';
         const meta = {};
-        for (let i = 1; i < parts.length; i++) {
-            const eq = parts[i].indexOf('=');
-            if (eq > 0) meta[parts[i].slice(0, eq)] = parts[i].slice(eq + 1);
+        const textParts = [];
+        for (const p of parts) {
+            const eq = p.indexOf('=');
+            if (eq > 0 && /^\w+$/.test(p.slice(0, eq))) meta[p.slice(0, eq)] = p.slice(eq + 1);
+            else if (p) textParts.push(p);
         }
+        const desc = textParts[0] || textParts[1] || '';
         const el = document.createElement('div');
         el.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
 
@@ -1443,9 +1445,8 @@ function addChatEntry(type, content, ts, anchor) {
         } else {
             const ok = !meta.status || meta.status === 'completed';
             el.style.cssText += `;border-left:3px solid ${ok ? '#22c55e' : '#ef4444'};background:rgba(${ok ? '34,197,94' : '239,68,68'},0.06);color:${ok ? '#86efac' : '#fca5a5'}`;
-            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
-            const summaryStart = content.indexOf(meta.status || '') + (meta.status || '').length;
-            const summaryText = parts.slice(2).join(' | ').replace(/^status=\w+\s*/, '').trim();
+            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}${desc ? ': "'+DOMPurify.sanitize(desc)+'"' : ''}</span>`;
+            const summaryText = textParts.slice(1).join(' | ').trim();
             if (summaryText) {
                 const sumEl = document.createElement('div');
                 sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;max-height:40px;overflow:hidden;white-space:pre-wrap';
