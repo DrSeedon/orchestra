@@ -50,9 +50,18 @@ def _fmt_k(rub: int) -> str:
     return str(rub)
 
 
-def _parse_par(par: str) -> int:
-    s = par.strip().upper().replace("PAR-", "")
-    return int(s)
+def _parse_task_ref(ref: str) -> tuple[str, int]:
+    """Parse 'PAR-42', 'ORC-1', or just '42' into (prefix, number).
+    Returns ('', number) if no prefix given."""
+    import re
+    ref = ref.strip().upper()
+    m = re.match(r"^([A-Z]{2,5})-(\d+)$", ref)
+    if m:
+        return m.group(1), int(m.group(2))
+    m = re.match(r"^(\d+)$", ref)
+    if m:
+        return "", int(m.group(1))
+    raise ValueError(f"Cannot parse task ref: {ref}")
 
 
 def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
@@ -65,26 +74,56 @@ def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
 
 # --- Projects ---
 
+def _generate_prefix(conn: sqlite3.Connection, project_id: str) -> str:
+    """Generate a unique 3-letter prefix from project_id."""
+    base = project_id.replace("-", "").replace("_", "")[:3].upper()
+    if len(base) < 3:
+        base = (base + "XXX")[:3]
+    candidate = base
+    for i in range(1, 100):
+        exists = conn.execute(
+            "SELECT 1 FROM tm_projects WHERE prefix = ?", (candidate,)
+        ).fetchone()
+        if not exists:
+            return candidate
+        candidate = f"{base[:2]}{i}"
+    return base + "X"
+
+
 def ensure_project(conn: sqlite3.Connection, project_id: str, name: str = "",
                    scope: str | None = None, yougile_project_id: str = "",
                    yougile_board_id: str = "",
-                   yougile_enabled: bool = False) -> dict:
+                   yougile_enabled: bool = False,
+                   prefix: str = "") -> dict:
     existing = conn.execute("SELECT * FROM tm_projects WHERE id = ?", (project_id,)).fetchone()
     if existing:
         return dict(existing)
     now = _now()
+    pfx = prefix.upper() if prefix else _generate_prefix(conn, project_id)
     conn.execute(
-        "INSERT INTO tm_projects (id, name, scope, yougile_project_id, yougile_board_id, yougile_enabled, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (project_id, name or project_id, scope, yougile_project_id, yougile_board_id, int(yougile_enabled), now),
+        "INSERT INTO tm_projects (id, name, prefix, scope, yougile_project_id, yougile_board_id, yougile_enabled, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (project_id, name or project_id, pfx, scope, yougile_project_id, yougile_board_id, int(yougile_enabled), now),
     )
-    return {"id": project_id, "name": name or project_id, "scope": scope,
+    return {"id": project_id, "name": name or project_id, "prefix": pfx, "scope": scope,
             "yougile_enabled": yougile_enabled, "created_at": now}
 
 
 def get_project_by_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
     row = conn.execute("SELECT * FROM tm_projects WHERE scope = ?", (scope,)).fetchone()
     return dict(row) if row else None
+
+
+def get_project_by_prefix(conn: sqlite3.Connection, prefix: str) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM tm_projects WHERE prefix = ?", (prefix.upper(),)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def get_project_prefix(conn: sqlite3.Connection, project_id: str) -> str:
+    row = conn.execute("SELECT prefix FROM tm_projects WHERE id = ?", (project_id,)).fetchone()
+    return row[0] if row else "TASK"
 
 
 # --- Clients ---
@@ -264,6 +303,23 @@ def get_task_by_par(conn: sqlite3.Connection, par_number: int,
     return dict(row) if row else None
 
 
+def resolve_task_ref(conn: sqlite3.Connection, ref: str) -> dict | None:
+    """Resolve 'PAR-42', 'ORC-1', or '42' to a task dict."""
+    prefix, num = _parse_task_ref(ref)
+    if prefix:
+        proj = get_project_by_prefix(conn, prefix)
+        if proj:
+            return get_task_by_par(conn, num, proj["id"])
+        return None
+    return get_task_by_par(conn, num)
+
+
+def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
+    """Format task as 'PAR-42' using project prefix."""
+    prefix = get_project_prefix(conn, task["project_id"])
+    return f"{prefix}-{task['par_number']}"
+
+
 def get_task_by_yougile_id(conn: sqlite3.Connection, yougile_id: str) -> dict | None:
     row = conn.execute(
         "SELECT * FROM tm_tasks WHERE yougile_task_id = ?", (yougile_id,)
@@ -370,7 +426,7 @@ def _distribute_payment(conn: sqlite3.Connection, payment_id: int,
             (new_paid, new_status, now if new_status == "paid" else None, now, task["id"]),
         )
         distributions.append({
-            "par": f"PAR-{task['par_number']}",
+            "par": format_task_ref(conn, dict(task)),
             "title": task["title"],
             "allocated": allocated,
             "was_debt": debt,
@@ -484,7 +540,8 @@ def get_payment_status(conn: sqlite3.Connection, client_id: str) -> dict:
         "total_debt_display": _fmt_k(total_debt),
         "net_position": client["balance_rub"] - total_debt,
         "tasks_with_debt": [
-            {"par": f"PAR-{t['par_number']}", "title": t["title"],
+            {"par": f"{get_project_prefix(conn, client['project_id'])}-{t['par_number']}",
+             "title": t["title"],
              "debt": _fmt_k(t["price_rub"] - t["paid_rub"])}
             for t in tasks_with_debt
         ],
@@ -680,13 +737,14 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 assignee=assignee,
                 status=status,
             )
+            prefix = get_project_prefix(conn, project_id)
             conn.commit()
         except Exception:
             conn.rollback()
             raise
     _fire_sync(task["id"])
     return {
-        "par": f"PAR-{task['par_number']}",
+        "par": f"{prefix}-{task['par_number']}",
         "id": task["id"],
         "title": task["title"],
         "project": project_id,
@@ -700,14 +758,13 @@ def api_update_task(par: str, title: str | None = None,
                     price: int | None = None,
                     status: str | None = None,
                     assignee: str | None = None) -> dict:
-    par_num = _parse_par(par)
     task_id = None
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            task = get_task_by_par(conn, par_num)
+            task = resolve_task_ref(conn, par)
             if not task:
-                raise ValueError(f"PAR-{par_num} not found")
+                raise ValueError(f"{par} not found")
             task_id = task["id"]
 
             price_rub = price * 1000 if price is not None else None
@@ -722,6 +779,7 @@ def api_update_task(par: str, title: str | None = None,
                 auto_deduct_prepayment(conn, task_id)
 
             updated = get_task_by_id(conn, task_id)
+            task_ref = format_task_ref(conn, updated)
             conn.commit()
         except Exception:
             conn.rollback()
@@ -729,7 +787,7 @@ def api_update_task(par: str, title: str | None = None,
 
     _fire_sync(task_id)
     return {
-        "par": f"PAR-{updated['par_number']}",
+        "par": task_ref,
         "updated": result["changed"],
         "old_status": result.get("old_status", updated["status"]),
         "new_status": updated["status"],
@@ -742,6 +800,11 @@ def api_list_tasks(project: str = "", status: str = "",
                    assignee: str = "") -> dict:
     with _conn() as conn:
         tasks = list_tasks(conn, project_id=project, status=status, assignee=assignee)
+        prefix_cache: dict[str, str] = {}
+        for t in tasks:
+            pid = t["project_id"]
+            if pid not in prefix_cache:
+                prefix_cache[pid] = get_project_prefix(conn, pid)
 
     total_debt = sum(
         t["price_rub"] - t["paid_rub"]
@@ -752,7 +815,7 @@ def api_list_tasks(project: str = "", status: str = "",
     return {
         "tasks": [
             {
-                "par": f"PAR-{t['par_number']}",
+                "par": f"{prefix_cache.get(t['project_id'], 'TASK')}-{t['par_number']}",
                 "title": t["title"],
                 "project": t["project_id"],
                 "price": _fmt_k(t["price_rub"]),
@@ -769,11 +832,12 @@ def api_list_tasks(project: str = "", status: str = "",
 
 
 def api_get_task(par: str) -> dict:
-    par_num = _parse_par(par)
     with _conn() as conn:
-        task = get_task_by_par(conn, par_num)
+        task = resolve_task_ref(conn, par)
         if not task:
-            raise ValueError(f"PAR-{par_num} not found")
+            raise ValueError(f"{par} not found")
+
+        task_ref = format_task_ref(conn, task)
 
         payments = conn.execute(
             """SELECT a.amount_rub, a.created_at, p.id as payment_id, p.date
@@ -787,7 +851,7 @@ def api_get_task(par: str) -> dict:
     commits = json.loads(task["git_commits"]) if task["git_commits"] else []
 
     return {
-        "par": f"PAR-{task['par_number']}",
+        "par": task_ref,
         "title": task["title"],
         "description": task["description"],
         "project": task["project_id"],
