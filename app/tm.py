@@ -540,19 +540,26 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
 
 def link_commits_to_task(par_num: int, commits: list[dict]) -> dict:
     with _conn() as conn:
-        task = get_task_by_par(conn, par_num)
-        if not task:
-            return {"ok": False, "error": f"PAR-{par_num} not found"}
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            task = get_task_by_par(conn, par_num)
+            if not task:
+                conn.rollback()
+                return {"ok": False, "error": f"PAR-{par_num} not found"}
 
-        existing = json.loads(task["git_commits"]) if task["git_commits"] else []
-        existing_hashes = {c["hash"] for c in existing}
-        new_commits = [c for c in commits if c["hash"] not in existing_hashes]
-        if not new_commits:
-            return {"ok": True, "added": 0}
+            existing = json.loads(task["git_commits"]) if task["git_commits"] else []
+            existing_hashes = {c["hash"] for c in existing}
+            new_commits = [c for c in commits if c["hash"] not in existing_hashes]
+            if not new_commits:
+                conn.rollback()
+                return {"ok": True, "added": 0}
 
-        merged = existing + new_commits
-        update_task(conn, task["id"], git_commits=json.dumps(merged))
-        conn.commit()
+            merged = existing + new_commits
+            update_task(conn, task["id"], git_commits=json.dumps(merged))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
     return {"ok": True, "added": len(new_commits), "total": len(merged)}
 
 
