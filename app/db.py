@@ -76,16 +76,12 @@ def init_db() -> None:
                 scope TEXT UNIQUE,
                 yougile_project_id TEXT,
                 yougile_board_id TEXT,
+                yougile_enabled INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             );
-            CREATE TABLE IF NOT EXISTS tm_par_sequence (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                next_value INTEGER NOT NULL DEFAULT 1
-            );
-            INSERT OR IGNORE INTO tm_par_sequence (id, next_value) VALUES (1, 1);
             CREATE TABLE IF NOT EXISTS tm_tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                par_number INTEGER NOT NULL UNIQUE,
+                par_number INTEGER NOT NULL,
                 project_id TEXT NOT NULL REFERENCES tm_projects(id),
                 title TEXT NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
@@ -105,7 +101,7 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status);
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status);
-            CREATE INDEX IF NOT EXISTS idx_tm_tasks_par ON tm_tasks(par_number);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number);
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id);
             CREATE TABLE IF NOT EXISTS tm_clients (
                 id TEXT PRIMARY KEY,
@@ -187,6 +183,14 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN backend_type TEXT DEFAULT 'claude'")
     if "task_id" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN task_id TEXT DEFAULT ''")
+    proj_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)").fetchall()}
+    if proj_cols and "yougile_enabled" not in proj_cols:
+        c.execute("ALTER TABLE tm_projects ADD COLUMN yougile_enabled INTEGER NOT NULL DEFAULT 0")
+        c.execute("UPDATE tm_projects SET yougile_enabled = 1 WHERE id = 'parsing-hub'")
+    try:
+        c.execute("DROP TABLE IF EXISTS tm_par_sequence")
+    except Exception:
+        pass
 
 
 def save_session(s: dict) -> None:

@@ -35,12 +35,12 @@ CONFLICTS_PATH = Path(__file__).parent.parent / "data" / "import_conflicts.json"
 
 
 def _parse_title(title: str) -> tuple[str, int, int]:
-    m = re.search(r"\|\s*([\d.]+)/([\d.]+)k(?:\s*₽)?", title)
+    m = re.search(r"\|\s*(\d+)/(\d+)k\s*₽", title)
     if m:
         name = title[: m.start()].strip()
-        paid_k = float(m.group(1))
-        price_k = float(m.group(2))
-        return name, int(paid_k * 1000), int(price_k * 1000)
+        paid_k = int(m.group(1))
+        price_k = int(m.group(2))
+        return name, paid_k * 1000, price_k * 1000
     return title.strip(), 0, 0
 
 
@@ -91,7 +91,7 @@ def run_import():
     try:
         tm.ensure_project(
             conn, PROJECT_ID, PROJECT_NAME, PROJECT_SCOPE,
-            YOUGILE_PROJECT_ID, YOUGILE_BOARD_ID,
+            YOUGILE_PROJECT_ID, YOUGILE_BOARD_ID, yougile_enabled=True,
         )
         tm.ensure_client(conn, CLIENT_ID, CLIENT_NAME, PROJECT_ID)
 
@@ -116,11 +116,6 @@ def run_import():
             par_num = _parse_par_number(yt.get("idTaskProject", ""))
             if par_num is not None:
                 known_pars.add(par_num)
-        max_known = max(known_pars) if known_pars else 0
-        conn.execute(
-            "UPDATE tm_par_sequence SET next_value = ? WHERE id = 1",
-            (max_known + 1,),
-        )
 
         for yt in all_yougile_tasks:
             yougile_id = yt["id"]
@@ -184,14 +179,6 @@ def run_import():
                     "UPDATE tm_tasks SET paid_rub = ? WHERE id = ?",
                     (paid_rub, task_id),
                 )
-
-        max_par = conn.execute(
-            "SELECT MAX(par_number) FROM tm_tasks"
-        ).fetchone()[0] or 0
-        conn.execute(
-            "UPDATE tm_par_sequence SET next_value = ? WHERE id = 1",
-            (max_par + 1,),
-        )
 
         our_count = conn.execute("SELECT COUNT(*) FROM tm_tasks").fetchone()[0]
 

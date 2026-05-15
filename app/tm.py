@@ -17,6 +17,14 @@ DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "paid", "cancelled"}
 
+ALLOWED_TRANSITIONS = {
+    "backlog": {"new", "cancelled"},
+    "new": {"in_progress", "backlog", "cancelled"},
+    "in_progress": {"done", "new", "cancelled"},
+    "done": {"paid", "in_progress", "cancelled"},
+    "paid": set(),
+    "cancelled": {"new"},
+}
 
 
 def _conn() -> sqlite3.Connection:
@@ -47,9 +55,10 @@ def _parse_par(par: str) -> int:
     return int(s)
 
 
-def _next_par(conn: sqlite3.Connection) -> int:
+def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
     row = conn.execute(
-        "UPDATE tm_par_sequence SET next_value = next_value + 1 RETURNING next_value - 1"
+        "SELECT COALESCE(MAX(par_number), 0) + 1 FROM tm_tasks WHERE project_id = ?",
+        (project_id,),
     ).fetchone()
     return row[0]
 
@@ -58,17 +67,19 @@ def _next_par(conn: sqlite3.Connection) -> int:
 
 def ensure_project(conn: sqlite3.Connection, project_id: str, name: str = "",
                    scope: str | None = None, yougile_project_id: str = "",
-                   yougile_board_id: str = "") -> dict:
+                   yougile_board_id: str = "",
+                   yougile_enabled: bool = False) -> dict:
     existing = conn.execute("SELECT * FROM tm_projects WHERE id = ?", (project_id,)).fetchone()
     if existing:
         return dict(existing)
     now = _now()
     conn.execute(
-        "INSERT INTO tm_projects (id, name, scope, yougile_project_id, yougile_board_id, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (project_id, name or project_id, scope, yougile_project_id, yougile_board_id, now),
+        "INSERT INTO tm_projects (id, name, scope, yougile_project_id, yougile_board_id, yougile_enabled, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (project_id, name or project_id, scope, yougile_project_id, yougile_board_id, int(yougile_enabled), now),
     )
-    return {"id": project_id, "name": name or project_id, "scope": scope, "created_at": now}
+    return {"id": project_id, "name": name or project_id, "scope": scope,
+            "yougile_enabled": yougile_enabled, "created_at": now}
 
 
 def get_project_by_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
@@ -115,7 +126,7 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         raise ValueError("price_rub must be >= 0")
 
     now = _now()
-    par = par_number if par_number is not None else _next_par(conn)
+    par = par_number if par_number is not None else _next_par(conn, project_id)
 
     conn.execute(
         """INSERT INTO tm_tasks
@@ -205,6 +216,10 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
             raise ValueError(f"Invalid status: {status}")
         if status == "paid":
             raise ValueError("Cannot manually set status to 'paid' — use payment_receive")
+        if status not in ALLOWED_TRANSITIONS.get(old_status, set()):
+            raise ValueError(f"Transition {old_status} → {status} not allowed")
+        if status == "cancelled" and task["paid_rub"] > 0:
+            raise ValueError("Cannot cancel task with payments — void allocations first")
         updates.append("status = ?")
         params.append(status)
         changed.append("status")
@@ -234,10 +249,18 @@ def get_task_by_id(conn: sqlite3.Connection, task_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def get_task_by_par(conn: sqlite3.Connection, par_number: int) -> dict | None:
-    row = conn.execute(
-        "SELECT * FROM tm_tasks WHERE par_number = ?", (par_number,)
-    ).fetchone()
+def get_task_by_par(conn: sqlite3.Connection, par_number: int,
+                    project_id: str = "") -> dict | None:
+    if project_id:
+        row = conn.execute(
+            "SELECT * FROM tm_tasks WHERE par_number = ? AND project_id = ?",
+            (par_number, project_id),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 1",
+            (par_number,),
+        ).fetchone()
     return dict(row) if row else None
 
 
@@ -536,33 +559,6 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
         raise RuntimeError(f"Tasks fully paid but not in 'paid' status: {pars}")
 
 
-# --- Git commit linking ---
-
-def link_commits_to_task(par_num: int, commits: list[dict]) -> dict:
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            task = get_task_by_par(conn, par_num)
-            if not task:
-                conn.rollback()
-                return {"ok": False, "error": f"PAR-{par_num} not found"}
-
-            existing = json.loads(task["git_commits"]) if task["git_commits"] else []
-            existing_hashes = {c["hash"] for c in existing}
-            new_commits = [c for c in commits if c["hash"] not in existing_hashes]
-            if not new_commits:
-                conn.rollback()
-                return {"ok": True, "added": 0}
-
-            merged = existing + new_commits
-            update_task(conn, task["id"], git_commits=json.dumps(merged))
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-    return {"ok": True, "added": len(new_commits), "total": len(merged)}
-
-
 # --- Sync log helpers ---
 
 def log_sync(conn: sqlite3.Connection, task_id: int | None, action: str,
@@ -588,7 +584,20 @@ def get_pending_syncs(conn: sqlite3.Connection) -> list[dict]:
 
 # --- Sync helpers (fire-and-forget after commit) ---
 
+def _is_yougile_enabled(task_id: int) -> bool:
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT p.yougile_enabled FROM tm_projects p
+               JOIN tm_tasks t ON t.project_id = p.id
+               WHERE t.id = ?""",
+            (task_id,),
+        ).fetchone()
+        return bool(row and row[0])
+
+
 def _fire_sync(task_id: int) -> None:
+    if not _is_yougile_enabled(task_id):
+        return
     with _conn() as conn:
         task = get_task_by_id(conn, task_id)
         rev = task["sync_revision"] if task else 0
@@ -615,6 +624,9 @@ def _fire_sync(task_id: int) -> None:
 
 
 def _fire_par35_sync(payment_result: dict) -> None:
+    task_ids = [d["task_id"] for d in payment_result.get("distributions", []) if d.get("task_id")]
+    if task_ids and not _is_yougile_enabled(task_ids[0]):
+        return
     with _conn() as conn:
         sync_log_id = log_sync(conn, None, "par35_update", None, "pending",
                                payload=str(payment_result.get("payment_id", "")))
@@ -716,21 +728,14 @@ def api_update_task(par: str, title: str | None = None,
             raise
 
     _fire_sync(task_id)
-    resp = {
+    return {
         "par": f"PAR-{updated['par_number']}",
-        "title": updated["title"],
         "updated": result["changed"],
-        "old_status": result.get("old_status"),
+        "old_status": result.get("old_status", updated["status"]),
         "new_status": updated["status"],
         "price_rub": updated["price_rub"],
         "paid_rub": updated["paid_rub"],
-        "debt_rub": updated["price_rub"] - updated["paid_rub"],
-        "assignee": updated["assignee"],
     }
-    if "description" in result["changed"]:
-        resp["description"] = updated["description"]
-        resp["old_description"] = task.get("description", "")
-    return resp
 
 
 def api_list_tasks(project: str = "", status: str = "",
@@ -744,34 +749,22 @@ def api_list_tasks(project: str = "", status: str = "",
         if t["status"] == "done" and t["price_rub"] > 0 and t["paid_rub"] < t["price_rub"]
     )
 
-    detailed = len(tasks) <= 10
-    task_list = []
-    for t in tasks:
-        item = {
-            "par": f"PAR-{t['par_number']}",
-            "title": t["title"],
-            "project": t["project_id"],
-            "price": _fmt_k(t["price_rub"]),
-            "paid": _fmt_k(t["paid_rub"]),
-            "debt": _fmt_k(t["price_rub"] - t["paid_rub"]),
-            "status": t["status"],
-            "assignee": t["assignee"],
-        }
-        if detailed:
-            item["description"] = t["description"]
-            item["price_rub"] = t["price_rub"]
-            item["paid_rub"] = t["paid_rub"]
-            item["debt_rub"] = t["price_rub"] - t["paid_rub"]
-            item["created_at"] = t["created_at"]
-            item["completed_at"] = t.get("completed_at")
-            item["yougile_id"] = t.get("yougile_task_id", "")
-        task_list.append(item)
-
     return {
-        "tasks": task_list,
+        "tasks": [
+            {
+                "par": f"PAR-{t['par_number']}",
+                "title": t["title"],
+                "project": t["project_id"],
+                "price": _fmt_k(t["price_rub"]),
+                "paid": _fmt_k(t["paid_rub"]),
+                "debt": _fmt_k(t["price_rub"] - t["paid_rub"]),
+                "status": t["status"],
+                "assignee": t["assignee"],
+            }
+            for t in tasks
+        ],
         "count": len(tasks),
         "total_debt": _fmt_k(total_debt),
-        "detailed": detailed,
     }
 
 
@@ -793,20 +786,14 @@ def api_get_task(par: str) -> dict:
 
     commits = json.loads(task["git_commits"]) if task["git_commits"] else []
 
-    total_ins = sum(c.get("insertions", 0) for c in commits)
-    total_del = sum(c.get("deletions", 0) for c in commits)
-    net_loc = total_ins - total_del
-    price = task["price_rub"]
-    loc_rate = round(price / net_loc) if net_loc > 0 and price > 0 else None
-
     return {
         "par": f"PAR-{task['par_number']}",
         "title": task["title"],
         "description": task["description"],
         "project": task["project_id"],
-        "price_rub": price,
+        "price_rub": task["price_rub"],
         "paid_rub": task["paid_rub"],
-        "debt_rub": price - task["paid_rub"],
+        "debt_rub": task["price_rub"] - task["paid_rub"],
         "status": task["status"],
         "assignee": task["assignee"],
         "created_at": task["created_at"],
@@ -816,10 +803,6 @@ def api_get_task(par: str) -> dict:
             for p in payments
         ],
         "commits": commits,
-        "total_insertions": total_ins,
-        "total_deletions": total_del,
-        "total_net_loc": net_loc,
-        "loc_rate_rub": loc_rate,
         "yougile_id": task["yougile_task_id"],
         "sync_revision": task["sync_revision"],
     }
