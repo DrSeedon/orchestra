@@ -690,6 +690,7 @@ function onOrchestratorChange() {
     restoreDraft();
     refreshSessions(); connectSSE(); initFilePanel();
     if (_tasksTabActive) loadTasks();
+    if (_jobsTabActive) loadJobs();
 }
 
 // === Agent Selection ===
@@ -1166,6 +1167,9 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__task_get') preview = `📋 ${parsed.par || '?'}`;
             else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'}k ₽`;
             else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
+            else if (rawName === 'mcp__orchestra__bg_create') { const _bi = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
+            else if (rawName === 'mcp__orchestra__bg_list') preview = '📊 BG Jobs';
+            else if (rawName === 'mcp__orchestra__bg_cancel') preview = `❌ Cancel job ${(parsed.job_id||'').slice(0,8)}`;
             else if (rawName.startsWith('mcp__yougile__')) { const yn = rawName.replace('mcp__yougile__',''); preview = `📋 ${yn}${parsed.title ? ': '+parsed.title : ''}`; }
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
@@ -1800,6 +1804,9 @@ function addChatEntry(type, content, ts, anchor) {
             'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `Task ${d.par||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'}k ₽`, color: '#22c55e', sub: d.note || '' }),
             'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
+            'mcp__orchestra__bg_create': (d) => { const i = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
+            'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
+            'mcp__orchestra__bg_cancel': (d) => ({ icon: '❌', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#ef4444' }),
         };
         const isOrchSimple = _orchSimple[rawName];
         if (isOrchSimple) {
@@ -2113,7 +2120,7 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
-            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status'];
+            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status','mcp__orchestra__bg_create','mcp__orchestra__bg_list','mcp__orchestra__bg_cancel'];
             if (_tmTools.includes(lastTool.dataset.toolRawName)) {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 let parsed = null;
@@ -2331,6 +2338,34 @@ function addChatEntry(type, content, ts, anchor) {
                         dEl.innerHTML = '<div style="color:#64748b;margin-bottom:2px">Debt:</div>' + parsed.tasks_with_debt.map(t => `<div>${t.par}: ${_kr(t.debt_rub || t.debt)} ₽</div>`).join('');
                         lastTool.appendChild(dEl);
                     }
+                } else if (tn === 'mcp__orchestra__bg_create') {
+                    const icon = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type] || '⚙️';
+                    if (hdr) { hdr.textContent = `${icon} Job created: ${parsed.type || 'job'}`; hdr.style.color = '#22c55e'; }
+                    const info = document.createElement('div');
+                    info.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b';
+                    let infoHtml = '';
+                    if (parsed.id) infoHtml += `<div style="font-family:monospace;color:#475569">${parsed.id.slice(0,12)}</div>`;
+                    if (parsed.target) infoHtml += `<div>Target: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.target)}</span></div>`;
+                    if (parsed.expires_at) infoHtml += `<div>Expires: <span style="color:#38bdf8">${_timeLeft ? _timeLeft(parsed.expires_at) : parsed.expires_at.slice(0,19)}</span></div>`;
+                    if (infoHtml) { info.innerHTML = infoHtml; lastTool.appendChild(info); }
+                } else if (tn === 'mcp__orchestra__bg_list') {
+                    const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
+                    if (hdr) hdr.textContent = `📊 ${jobs.length} jobs`;
+                    if (jobs.length > 0) {
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
+                        for (const j of jobs.slice(0, 8)) {
+                            const icon = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[j.type] || '⚙️';
+                            const st = {'active':'🟢','triggered':'✅','expired':'⏰','cancelled':'❌','failed':'❌'}[j.status] || '⚪';
+                            const row = document.createElement('div');
+                            row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:4px;align-items:center';
+                            row.innerHTML = `<span>${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(j.target_name || '')} ${DOMPurify.sanitize((j.message||'').slice(0,30))}</span><span>${st}</span>`;
+                            container.appendChild(row);
+                        }
+                        lastTool.appendChild(container);
+                    }
+                } else if (tn === 'mcp__orchestra__bg_cancel') {
+                    if (hdr) { hdr.textContent = '❌ Job cancelled'; hdr.style.color = '#ef4444'; }
                 }
                 addTimestamp(lastTool, ts);
                 return;
@@ -3613,10 +3648,13 @@ function escHtml(s) { const d = document.createElement('div'); d.textContent = s
 let _tasksTabActive = false;
 let _tasksInterval = null;
 
+let _jobsTabActive = false;
+let _jobsInterval = null;
+
 function switchLeftTab(tab) {
     const fileTree = document.getElementById('file-tree');
     const tasksPanel = document.getElementById('tasks-panel');
-    if (!fileTree || !tasksPanel) return;
+    const jobsPanel = document.getElementById('jobs-panel');
     document.querySelectorAll('.left-tab').forEach(btn => {
         const isActive = btn.dataset.leftTab === tab;
         btn.classList.toggle('text-white', isActive);
@@ -3624,18 +3662,15 @@ function switchLeftTab(tab) {
         btn.classList.toggle('text-slate-500', !isActive);
         btn.classList.toggle('border-transparent', !isActive);
     });
-    if (tab === 'files') {
-        fileTree.classList.remove('hidden');
-        tasksPanel.classList.add('hidden');
-        _tasksTabActive = false;
-        if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; }
-    } else {
-        fileTree.classList.add('hidden');
-        tasksPanel.classList.remove('hidden');
-        _tasksTabActive = true;
-        loadTasks();
-        if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 30000);
-    }
+    if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
+    if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
+    if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
+    _tasksTabActive = tab === 'tasks';
+    _jobsTabActive = tab === 'jobs';
+    if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 30000); }
+    else { if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; } }
+    if (_jobsTabActive) { loadJobs(); if (!_jobsInterval) _jobsInterval = setInterval(loadJobs, 10000); }
+    else { if (_jobsInterval) { clearInterval(_jobsInterval); _jobsInterval = null; } }
 }
 
 const STATUS_ORDER = ['in_progress', 'done', 'new', 'backlog', 'paid', 'cancelled'];
@@ -3795,4 +3830,75 @@ async function showTaskDetail(par) {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     } catch (e) { console.error('Task detail error:', e); }
+}
+
+// === Jobs Panel ===
+const _JOB_ICONS = { timer: '⏰', file: '📄', command: '🖥️', ssh: '🔗', run: '▶️' };
+const _JOB_STATUS = { active: '🟢', triggered: '✅', expired: '⏰', cancelled: '❌', failed: '❌' };
+
+async function loadJobs() {
+    const panel = document.getElementById('jobs-panel');
+    if (!panel) return;
+    try {
+        const scope = currentScope || '';
+        const resp = await fetch(`/api/bg/jobs?scope=${encodeURIComponent(scope)}`);
+        const jobs = await resp.json();
+        renderJobsPanel(panel, Array.isArray(jobs) ? jobs : (jobs.jobs || []));
+    } catch (e) {
+        panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load jobs</div>';
+    }
+}
+
+function _timeLeft(expiresAt) {
+    if (!expiresAt) return '';
+    const diff = new Date(expiresAt) - Date.now();
+    if (diff <= 0) return 'expired';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+}
+
+function renderJobsPanel(panel, jobs) {
+    if (jobs.length === 0) {
+        panel.innerHTML = '<div class="p-4 text-center text-slate-600 italic">No background jobs</div>';
+        return;
+    }
+    const active = jobs.filter(j => j.status === 'active');
+    const done = jobs.filter(j => j.status !== 'active');
+    let html = '';
+    if (active.length > 0) {
+        html += '<div class="px-2 py-1 text-slate-400 font-bold text-[10px]">ACTIVE (' + active.length + ')</div>';
+        for (const j of active) html += _renderJobItem(j);
+    }
+    if (done.length > 0) {
+        html += '<div class="px-2 py-1 mt-1 text-slate-500 font-bold text-[10px]">COMPLETED</div>';
+        for (const j of done.slice(0, 10)) html += _renderJobItem(j);
+    }
+    panel.innerHTML = html;
+}
+
+function _renderJobItem(j) {
+    const icon = _JOB_ICONS[j.type] || '⚙️';
+    const statusIcon = _JOB_STATUS[j.status] || '⚪';
+    const target = j.target_name ? escHtml(j.target_name) : '';
+    const msg = j.message ? escHtml(j.message.slice(0, 50)) : '';
+    const timeStr = j.status === 'active' && j.expires_at ? _timeLeft(j.expires_at) : '';
+    const cancelBtn = j.status === 'active' ? `<span class="job-cancel-btn" onclick="event.stopPropagation();cancelJob('${j.id}')" title="Cancel job">✕</span>` : '';
+    return `<div class="flex items-center gap-1.5 px-2 py-1 hover:bg-slate-800/50 rounded text-xs" style="position:relative">
+        <span>${icon}</span>
+        <span class="flex-1 truncate"><span style="color:#e2e8f0">${target}</span>${msg ? ' <span style="color:#64748b">'+msg+'</span>' : ''}</span>
+        ${timeStr ? '<span style="color:#38bdf8;font-size:10px;font-family:monospace">'+timeStr+'</span>' : ''}
+        <span>${statusIcon}</span>
+        ${cancelBtn}
+    </div>`;
+}
+
+async function cancelJob(id) {
+    try {
+        await fetch(`/api/bg/jobs/${id}`, { method: 'DELETE' });
+        loadJobs();
+    } catch (e) { console.warn('Cancel job failed:', e); }
 }
