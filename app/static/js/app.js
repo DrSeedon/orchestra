@@ -2173,8 +2173,49 @@ function addChatEntry(type, content, ts, anchor) {
                     if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
+                    const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
                     if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}k` : '');
-                    if (tasks.length > 0) {
+                    if (tasks.length > 0 && parsed.detailed) {
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:6px';
+                        const PREVIEW = 3;
+                        for (const [i, t] of tasks.entries()) {
+                            const card = document.createElement('div');
+                            card.style.cssText = `padding:6px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${t.status==='done'||t.status==='paid'?'#22c55e':t.status==='in_progress'?'#38bdf8':'#334155'}${i >= PREVIEW ? ';display:none' : ''}`;
+                            card.dataset.taskRow = '1';
+                            let h = `<div style="font-size:11px;color:#e2e8f0;font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
+                            h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;font-size:10px;color:#64748b;margin-top:3px">';
+                            h += `<div>Status: <b style="color:#e2e8f0">${t.status}</b></div>`;
+                            if (t.price_rub > 0) h += `<div>Price: <b style="color:#eab308">${_k(t.price_rub)} ₽</b>${t.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(t.debt_rub)}</span>` : ''}</div>`;
+                            if (t.project) h += `<div>Project: ${DOMPurify.sanitize(t.project)}</div>`;
+                            if (t.assignee) h += `<div>→ ${DOMPurify.sanitize(t.assignee)}</div>`;
+                            if (t.created_at) h += `<div>Created: ${t.created_at.slice(0,10)}</div>`;
+                            if (t.completed_at) h += `<div>Done: ${t.completed_at.slice(0,10)}</div>`;
+                            h += '</div>';
+                            if (t.description) {
+                                const short = t.description.split('\n').slice(0,3).join('\n');
+                                h += `<div style="font-size:10px;color:#94a3b8;margin-top:3px;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere">${DOMPurify.sanitize(short)}${t.description.length > short.length ? '…' : ''}</div>`;
+                            }
+                            card.innerHTML = h;
+                            container.appendChild(card);
+                        }
+                        lastTool.appendChild(container);
+                        if (tasks.length > PREVIEW) {
+                            const hint = document.createElement('div');
+                            hint.className = 'text-xs mt-1';
+                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                            hint.textContent = `▼ ${tasks.length - PREVIEW} more`;
+                            lastTool.appendChild(hint);
+                            let _tlExp = false;
+                            lastTool.style.cursor = 'pointer';
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _tlExp = !_tlExp;
+                                container.querySelectorAll('[data-task-row]').forEach((r, i) => { if (i >= PREVIEW) r.style.display = _tlExp ? 'block' : 'none'; });
+                                hint.textContent = _tlExp ? '▲ collapse' : `▼ ${tasks.length - PREVIEW} more`;
+                            });
+                        }
+                    } else if (tasks.length > 0) {
                         const container = document.createElement('div');
                         container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
                         const PREVIEW = 4;
