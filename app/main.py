@@ -59,6 +59,7 @@ class CreateSessionRequest(BaseModel):
     use_worktree: bool = False
     repo_path: Optional[str] = None
     is_orchestrator: bool = False
+    task_id: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -233,6 +234,7 @@ async def create_session(req: CreateSessionRequest):
             use_worktree=req.use_worktree,
             repo_path=req.repo_path,
             is_orchestrator=req.is_orchestrator,
+            task_id=req.task_id,
         )
         return session.to_dict()
     except ValueError as e:
@@ -432,12 +434,13 @@ async def merge_session(name: str, req: ScopeRequest):
         return JSONResponse({"error": "not found"}, status_code=404)
     worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
     scope = found.get("scope") if isinstance(found, dict) else found.scope
+    task_id = found.get("task_id") if isinstance(found, dict) else getattr(found, "task_id", None)
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     if not scope:
         return JSONResponse({"error": "session has no scope"}, status_code=400)
     try:
-        result = merge_worktree_to_main(worktree_path, scope)
+        result = merge_worktree_to_main(worktree_path, scope, task_id=task_id)
         if result.get("ok"):
             link_results = {}
             for par_num, commits in result.pop("merged_commits", {}).items():

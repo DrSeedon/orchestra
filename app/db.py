@@ -185,6 +185,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN progress_status TEXT DEFAULT ''")
     if "backend_type" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN backend_type TEXT DEFAULT 'claude'")
+    if "task_id" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN task_id TEXT")
 
 
 def save_session(s: dict) -> None:
@@ -193,16 +195,17 @@ def save_session(s: dict) -> None:
     s.setdefault("progress_pct", 0)
     s.setdefault("progress_status", "")
     s.setdefault("backend_type", "claude")
+    s.setdefault("task_id", None)
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
-                progress_pct, progress_status, backend_type)
+                progress_pct, progress_status, backend_type, task_id)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
-                :progress_pct, :progress_status, :backend_type)
+                :progress_pct, :progress_status, :backend_type, :task_id)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -218,7 +221,8 @@ def save_session(s: dict) -> None:
                 context_tokens=excluded.context_tokens,
                 progress_pct=excluded.progress_pct,
                 progress_status=excluded.progress_status,
-                backend_type=excluded.backend_type
+                backend_type=excluded.backend_type,
+                task_id=excluded.task_id
         """, s)
 
 
