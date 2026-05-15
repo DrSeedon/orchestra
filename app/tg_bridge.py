@@ -565,25 +565,30 @@ async def _sync_all_topic_statuses():
         await _update_topic_status(name, is_running)
 
 
+_ICON_RUNNING = "5312016608254762256"
+_ICON_IDLE = "5350392020785437399"
+
+
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
     _topic_status[orch_name] = is_running
     short = _short_name(orch_name)
-    icon = "🟢" if is_running else "🟡"
-    new_name = f"{icon} {short}"
+    icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
     thread_id = config["topics"].get(orch_name)
     if thread_id and bot:
         try:
-            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id, name=new_name)
+            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id,
+                                       name=short, icon_custom_emoji_id=icon_id)
         except Exception as e:
-            logger.debug(f"Topic rename failed: {e}")
+            logger.debug(f"Topic status update failed: {e}")
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
         try:
-            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"], name=new_name)
+            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"],
+                                       name=short, icon_custom_emoji_id=icon_id)
         except Exception as e:
-            logger.debug(f"Mirror topic rename failed: {e}")
+            logger.debug(f"Mirror topic status update failed: {e}")
 
 
 async def _mirror_send(orch_name: str, text: str, entities=None):
