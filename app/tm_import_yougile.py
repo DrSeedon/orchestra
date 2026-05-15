@@ -35,12 +35,12 @@ CONFLICTS_PATH = Path(__file__).parent.parent / "data" / "import_conflicts.json"
 
 
 def _parse_title(title: str) -> tuple[str, int, int]:
-    m = re.search(r"\|\s*(\d+)/(\d+)k\s*₽", title)
+    m = re.search(r"\|\s*([\d.]+)/([\d.]+)k(?:\s*₽)?", title)
     if m:
         name = title[: m.start()].strip()
-        paid_k = int(m.group(1))
-        price_k = int(m.group(2))
-        return name, paid_k * 1000, price_k * 1000
+        paid_k = float(m.group(1))
+        price_k = float(m.group(2))
+        return name, int(paid_k * 1000), int(price_k * 1000)
     return title.strip(), 0, 0
 
 

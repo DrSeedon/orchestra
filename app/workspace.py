@@ -69,8 +69,18 @@ def create_worktree(repo_path: str, name: str, scope: str) -> Worktree:
 
 
 def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
-    repo = Path(repo_path).resolve()
     wt = Path(worktree_path).resolve()
+    git_common = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=str(wt), capture_output=True, text=True,
+    )
+    if git_common.returncode == 0:
+        git_dir = Path(git_common.stdout.strip())
+        if not git_dir.is_absolute():
+            git_dir = (wt / git_dir).resolve()
+        repo = git_dir.parent
+    else:
+        repo = Path(repo_path).resolve()
     lock_path = repo / ".git" / "orchestra-merge.lock"
 
     with open(lock_path, "w") as lock_file:

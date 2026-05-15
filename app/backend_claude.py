@@ -28,14 +28,19 @@ from app.events import AgentEvent
 logger = logging.getLogger(__name__)
 
 _BLOCKED_TOOLS = {"AskUserQuestion"}
+_ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent"}
 
 
-async def _auto_approve(tool_name, tool_input, _context=None):
-    if tool_name in _BLOCKED_TOOLS:
-        return PermissionResultDeny(message=f"{tool_name} is not available in Orchestra. Make decisions yourself or ask via send_message.")
-    if isinstance(tool_input, dict) and tool_input.get("run_in_background"):
-        return PermissionResultDeny(message="run_in_background is disabled in Orchestra — background processes are killed when your turn ends. Run synchronously instead.")
-    return PermissionResultAllow(updated_input=tool_input)
+def _make_auto_approve(is_orchestrator: bool = False):
+    blocked = _ORCH_BLOCKED_TOOLS if is_orchestrator else _BLOCKED_TOOLS
+    async def _auto_approve(tool_name, tool_input, _context=None):
+        if tool_name in blocked:
+            msg = f"{tool_name} is not available for orchestrators. Use spawn_worker instead." if tool_name == "Agent" else f"{tool_name} is not available in Orchestra."
+            return PermissionResultDeny(message=msg)
+        if isinstance(tool_input, dict) and tool_input.get("run_in_background"):
+            return PermissionResultDeny(message="run_in_background is disabled in Orchestra — background processes are killed when your turn ends. Run synchronously instead.")
+        return PermissionResultAllow(updated_input=tool_input)
+    return _auto_approve
 
 
 def _extract_tool_result(block) -> str:
@@ -59,12 +64,14 @@ def _extract_tool_result(block) -> str:
 class ClaudeBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
-                 mcp_servers: dict | None = None):
+                 mcp_servers: dict | None = None,
+                 is_orchestrator: bool = False):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._resume_id = resume_session_id
         self._mcp_servers = mcp_servers or {}
+        self._is_orchestrator = is_orchestrator
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
 
@@ -76,7 +83,7 @@ class ClaudeBackend:
         cli = shutil.which("claude") or "/home/maxim/.local/bin/claude"
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
-            permission_mode="default", can_use_tool=_auto_approve,
+            permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             include_partial_messages=False, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
             env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},

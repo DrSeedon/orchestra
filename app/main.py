@@ -27,6 +27,8 @@ templates = Jinja2Templates(directory="app/templates")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from dotenv import load_dotenv
+    load_dotenv()
     init_db()
     await manager.auto_resume_orchestrators()
     manager.start_background_tasks()

@@ -80,6 +80,7 @@ class AgentSession:
                 system_prompt=self.system_prompt,
                 resume_session_id=self.session_id,
                 mcp_servers=self.mcp_servers,
+                is_orchestrator=self.is_orchestrator,
             )
 
     def _codex_reasoning_effort(self) -> str:
@@ -132,6 +133,7 @@ class AgentSession:
             self._did_report = False
             self._turn_logs = []
             self._turn_start = asyncio.get_event_loop().time()
+            self._last_msg_time = self._turn_start
             self.status = AgentStatus.RUNNING
             self._persist()
 
@@ -341,7 +343,7 @@ class AgentSession:
 
     async def _heartbeat_loop(self) -> None:
         HEARTBEAT_INTERVAL = 60
-        NO_MSG_TIMEOUT = 300
+        NO_MSG_TIMEOUT = 600
         logger.info(f"[{self.name}] heartbeat started")
         while True:
             try:
@@ -368,7 +370,7 @@ class AgentSession:
                     silence = asyncio.get_event_loop().time() - self._last_msg_time
                     if silence > NO_MSG_TIMEOUT:
                         logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
-                        self._log("error", f"no messages for {silence:.0f}s during active turn (possible hang)")
+                        self._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
             except asyncio.CancelledError:
                 logger.info(f"[{self.name}] heartbeat cancelled")
                 return

@@ -48,6 +48,14 @@ PROJECT CONTEXT (calibrate review severity):
 - `change_worker_model(name, model)` — change a worker's model without losing context (e.g. "opus" or "sonnet"). Worker must be idle. Next send_message will use the new model with full conversation history preserved via session resume
 - `list_jobs()` — check spawn/kill job status
 
+## Task management tools
+- `task_create(title, project, price, description, status, assignee)` — create a task. Price in thousands (20 = 20,000₽). Returns PAR number
+- `task_update(par, title, description, price, status, assignee)` — update task by PAR number ("PAR-42" or "42"). Only provided fields change. price in thousands (-1 = don't change, 0 = set to zero). Empty string = don't change
+- `task_list(project, status, assignee)` — list tasks with filters. Shows debt summary
+- `task_get(par)` — full task details including payment history
+- `payment_receive(amount, client, date, note)` — record incoming payment. Amount in thousands (30 = 30,000₽). Auto-distributes to done tasks (smallest debt first)
+- `payment_status(client)` — balance, total debt, recent payments
+
 ## Worker types & naming convention
 
 ### 1. System worker (Opus, permanent)

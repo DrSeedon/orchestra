@@ -17,14 +17,6 @@ DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "paid", "cancelled"}
 
-ALLOWED_TRANSITIONS = {
-    "backlog": {"new", "cancelled"},
-    "new": {"in_progress", "backlog", "cancelled"},
-    "in_progress": {"done", "new", "cancelled"},
-    "done": {"paid", "in_progress", "cancelled"},
-    "paid": set(),
-    "cancelled": {"new"},
-}
 
 
 def _conn() -> sqlite3.Connection:
@@ -213,10 +205,6 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
             raise ValueError(f"Invalid status: {status}")
         if status == "paid":
             raise ValueError("Cannot manually set status to 'paid' — use payment_receive")
-        if status not in ALLOWED_TRANSITIONS.get(old_status, set()):
-            raise ValueError(f"Transition {old_status} → {status} not allowed")
-        if status == "cancelled" and task["paid_rub"] > 0:
-            raise ValueError("Cannot cancel task with payments — void allocations first")
         updates.append("status = ?")
         params.append(status)
         changed.append("status")
@@ -722,22 +710,34 @@ def api_list_tasks(project: str = "", status: str = "",
         if t["status"] == "done" and t["price_rub"] > 0 and t["paid_rub"] < t["price_rub"]
     )
 
+    detailed = len(tasks) <= 10
+    task_list = []
+    for t in tasks:
+        item = {
+            "par": f"PAR-{t['par_number']}",
+            "title": t["title"],
+            "project": t["project_id"],
+            "price": _fmt_k(t["price_rub"]),
+            "paid": _fmt_k(t["paid_rub"]),
+            "debt": _fmt_k(t["price_rub"] - t["paid_rub"]),
+            "status": t["status"],
+            "assignee": t["assignee"],
+        }
+        if detailed:
+            item["description"] = t["description"]
+            item["price_rub"] = t["price_rub"]
+            item["paid_rub"] = t["paid_rub"]
+            item["debt_rub"] = t["price_rub"] - t["paid_rub"]
+            item["created_at"] = t["created_at"]
+            item["completed_at"] = t.get("completed_at")
+            item["yougile_id"] = t.get("yougile_task_id", "")
+        task_list.append(item)
+
     return {
-        "tasks": [
-            {
-                "par": f"PAR-{t['par_number']}",
-                "title": t["title"],
-                "project": t["project_id"],
-                "price": _fmt_k(t["price_rub"]),
-                "paid": _fmt_k(t["paid_rub"]),
-                "debt": _fmt_k(t["price_rub"] - t["paid_rub"]),
-                "status": t["status"],
-                "assignee": t["assignee"],
-            }
-            for t in tasks
-        ],
+        "tasks": task_list,
         "count": len(tasks),
         "total_debt": _fmt_k(total_debt),
+        "detailed": detailed,
     }
 
 

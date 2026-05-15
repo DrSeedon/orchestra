@@ -200,7 +200,7 @@ async function loadMoreLogs() {
     const btn = $('#load-more-btn');
     if (btn) { btn.textContent = '⏳ Loading…'; btn.style.pointerEvents = 'none'; }
     try {
-        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=500`);
+        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=100`);
         const logs = await res.json();
         if (!Array.isArray(logs) || logs.length === 0) {
             if (btn) btn.remove();

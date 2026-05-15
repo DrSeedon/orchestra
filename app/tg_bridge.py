@@ -901,6 +901,16 @@ async def start_bridge(manager):
 
     local_api = os.getenv("TG_LOCAL_API_URL", "")
     if local_api:
+        import aiohttp as _aio
+        for _attempt in range(10):
+            try:
+                async with _aio.ClientSession() as _s:
+                    async with _s.get(local_api, timeout=_aio.ClientTimeout(total=2)):
+                        pass
+                break
+            except Exception:
+                logger.info(f"Waiting for Local Bot API ({_attempt+1}/10)...")
+                await asyncio.sleep(2)
         from aiogram.client.telegram import TelegramAPIServer
         server = TelegramAPIServer(base=f"{local_api}/bot{{token}}/{{method}}", file=f"{local_api}/file/bot{{token}}/{{path}}")
         from aiogram.client.session.aiohttp import AiohttpSession

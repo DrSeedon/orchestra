@@ -16,7 +16,7 @@ from app import tm
 logger = logging.getLogger("tm-yougile")
 
 YOUGILE_API = "https://yougile.com/api-v2"
-YOUGILE_TOKEN = os.environ.get("YOUGILE_SEEDON_TOKEN", "")
+YOUGILE_TOKEN = ""
 YOUGILE_BOARD_ID = "93007367-153b-4aec-8dd7-96dda1fd1f27"
 PAR_35_TASK_ID = "9bffba06-5091-4f0e-abbe-0408130d6eba"
 DONE_COLUMN_ID = "caf3e21c-7ec8-4dce-b70c-0019290019ea"
@@ -45,8 +45,9 @@ MAX_RETRIES = 3
 
 
 def _headers() -> dict:
+    token = os.environ.get("YOUGILE_SEEDON_TOKEN", "") or YOUGILE_TOKEN
     return {
-        "Authorization": f"Bearer {YOUGILE_TOKEN}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
@@ -70,7 +71,8 @@ def md_to_html(md_text: str) -> str:
 
 
 async def _yougile_request(method: str, path: str, body: dict | None = None) -> dict | None:
-    if not YOUGILE_TOKEN:
+    token = os.environ.get("YOUGILE_SEEDON_TOKEN", "") or YOUGILE_TOKEN
+    if not token:
         logger.warning("YOUGILE_SEEDON_TOKEN not set, skipping sync")
         return None
     async with httpx.AsyncClient(timeout=15) as client:

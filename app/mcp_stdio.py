@@ -32,6 +32,8 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
             r = await client.get(path, params=kwargs.get("params"))
         elif method == "POST":
             r = await client.post(path, json=kwargs.get("json"))
+        elif method == "PUT":
+            r = await client.put(path, json=kwargs.get("json"))
         elif method == "DELETE":
             r = await client.delete(path, params=kwargs.get("params"))
         else:
@@ -43,9 +45,11 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
 
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
-                       model: str = "claude-sonnet-4-6",
+                       model: str = "",
                        system_prompt: str = "") -> str:
-    """Spawn a new worker agent in a git worktree."""
+    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex."""
+    if not model:
+        return "Error: model is required. Choose: claude-opus-4-6[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
     result = await _api("POST", "/api/sessions", json={
         "name": name, "scope": scope, "cwd": repo_path,
