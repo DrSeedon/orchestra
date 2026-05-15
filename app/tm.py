@@ -689,14 +689,21 @@ def api_update_task(par: str, title: str | None = None,
             raise
 
     _fire_sync(task_id)
-    return {
+    resp = {
         "par": f"PAR-{updated['par_number']}",
+        "title": updated["title"],
         "updated": result["changed"],
-        "old_status": result.get("old_status", updated["status"]),
+        "old_status": result.get("old_status"),
         "new_status": updated["status"],
         "price_rub": updated["price_rub"],
         "paid_rub": updated["paid_rub"],
+        "debt_rub": updated["price_rub"] - updated["paid_rub"],
+        "assignee": updated["assignee"],
     }
+    if "description" in result["changed"]:
+        resp["description"] = updated["description"]
+        resp["old_description"] = task.get("description", "")
+    return resp
 
 
 def api_list_tasks(project: str = "", status: str = "",
