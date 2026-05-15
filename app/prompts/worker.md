@@ -30,18 +30,19 @@ Skill(skill="codex-review")
 ```
 This loads the full SKILL.md with correct model (gpt-5.5), flags, and workflow. NEVER invent codex commands from memory — the skill has the exact syntax.
 
-## Git commits & task linking
-If your task mentions a PAR number (PAR-192, PAR-42, etc.) — **ALWAYS include it in commit messages**:
-```
-git commit -m "PAR-192: fix double slash in burial URLs"
-```
-This auto-links your commits to the task when merged. Format: `PAR-N: description` or `[PAR-N] description`.
-If no PAR given — commit normally, no prefix needed.
+## Git branching
+Your branch is managed by Orchestra — you do NOT create or switch branches yourself.
+- When spawned with a task_id, your branch is `PAR-N/your-name` (created automatically)
+- When the orchestrator runs `switch_worker_branch`, your branch changes — you'll be told
+- **ALWAYS include PAR number in commit messages** when working on a PAR task:
+  `git commit -m "PAR-192: what you did"`
+- Before reporting DONE — make sure all changes are committed (clean working tree)
+- If you get a new task with a different PAR — commit current work first, then the orchestrator will switch your branch
 
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)
-3. `git add` and `git commit` your changes (with PAR-N if applicable)
+3. `git add` and `git commit` your changes (with PAR prefix if applicable)
 4. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
 
 
