@@ -435,6 +435,9 @@ async def merge_session(name: str, req: ScopeRequest):
         return JSONResponse({"error": "session has no scope"}, status_code=400)
     try:
         result = merge_worktree_to_main(worktree_path, scope)
+        if result.get("ok"):
+            for par_num, commits in result.pop("merged_commits", {}).items():
+                _tm.link_commits_to_task(par_num, commits)
         return result
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)

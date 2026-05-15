@@ -132,6 +132,11 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
             )
             commits_merged = int(commits_result.stdout.strip() or "0")
 
+            old_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(repo), capture_output=True, text=True,
+            ).stdout.strip()
+
             merge = subprocess.run(
                 ["git", "merge", "--no-edit", branch],
                 cwd=str(repo), capture_output=True, text=True,
@@ -141,9 +146,64 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
                 logger.error(f"merge_worktree failed: repo={repo} branch={branch} err={err}")
                 return {"ok": False, "error": err}
 
-            return {"ok": True, "commits_merged": commits_merged, "branch": branch}
+            merged_commits = _parse_merged_commits(str(repo), old_head)
+            return {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+_PAR_RE = re.compile(r"PAR-(\d+)")
+
+
+def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
+    log = subprocess.run(
+        ["git", "log", f"{old_head}..HEAD", "--format=%H|%s|%ad", "--date=short"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if log.returncode != 0 or not log.stdout.strip():
+        return {}
+
+    by_par: dict[int, list[dict]] = {}
+    for line in log.stdout.strip().splitlines():
+        parts = line.split("|", 2)
+        if len(parts) < 3:
+            continue
+        full_hash, message, date = parts
+        short_hash = full_hash[:7]
+
+        m = _PAR_RE.search(message)
+        if not m:
+            continue
+        par_num = int(m.group(1))
+
+        stat = subprocess.run(
+            ["git", "diff", "--stat", "--numstat", f"{full_hash}^..{full_hash}"],
+            cwd=repo, capture_output=True, text=True,
+        )
+        files_changed = insertions = deletions = 0
+        for stat_line in stat.stdout.strip().splitlines():
+            stat_parts = stat_line.split("\t")
+            if len(stat_parts) == 3:
+                try:
+                    ins = int(stat_parts[0]) if stat_parts[0] != "-" else 0
+                    dels = int(stat_parts[1]) if stat_parts[1] != "-" else 0
+                    insertions += ins
+                    deletions += dels
+                    files_changed += 1
+                except ValueError:
+                    continue
+
+        commit = {
+            "hash": short_hash,
+            "message": message,
+            "date": date,
+            "files": files_changed,
+            "insertions": insertions,
+            "deletions": deletions,
+        }
+        by_par.setdefault(par_num, []).append(commit)
+
+    return by_par
 
 
 def remove_worktree(repo_path: str, worktree_path: str) -> None:

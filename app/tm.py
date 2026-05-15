@@ -536,6 +536,26 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
         raise RuntimeError(f"Tasks fully paid but not in 'paid' status: {pars}")
 
 
+# --- Git commit linking ---
+
+def link_commits_to_task(par_num: int, commits: list[dict]) -> dict:
+    with _conn() as conn:
+        task = get_task_by_par(conn, par_num)
+        if not task:
+            return {"ok": False, "error": f"PAR-{par_num} not found"}
+
+        existing = json.loads(task["git_commits"]) if task["git_commits"] else []
+        existing_hashes = {c["hash"] for c in existing}
+        new_commits = [c for c in commits if c["hash"] not in existing_hashes]
+        if not new_commits:
+            return {"ok": True, "added": 0}
+
+        merged = existing + new_commits
+        update_task(conn, task["id"], git_commits=json.dumps(merged))
+        conn.commit()
+    return {"ok": True, "added": len(new_commits), "total": len(merged)}
+
+
 # --- Sync log helpers ---
 
 def log_sync(conn: sqlite3.Connection, task_id: int | None, action: str,
@@ -766,14 +786,20 @@ def api_get_task(par: str) -> dict:
 
     commits = json.loads(task["git_commits"]) if task["git_commits"] else []
 
+    total_ins = sum(c.get("insertions", 0) for c in commits)
+    total_del = sum(c.get("deletions", 0) for c in commits)
+    net_loc = total_ins - total_del
+    price = task["price_rub"]
+    loc_rate = round(price / net_loc) if net_loc > 0 and price > 0 else None
+
     return {
         "par": f"PAR-{task['par_number']}",
         "title": task["title"],
         "description": task["description"],
         "project": task["project_id"],
-        "price_rub": task["price_rub"],
+        "price_rub": price,
         "paid_rub": task["paid_rub"],
-        "debt_rub": task["price_rub"] - task["paid_rub"],
+        "debt_rub": price - task["paid_rub"],
         "status": task["status"],
         "assignee": task["assignee"],
         "created_at": task["created_at"],
@@ -783,6 +809,10 @@ def api_get_task(par: str) -> dict:
             for p in payments
         ],
         "commits": commits,
+        "total_insertions": total_ins,
+        "total_deletions": total_del,
+        "total_net_loc": net_loc,
+        "loc_rate_rub": loc_rate,
         "yougile_id": task["yougile_task_id"],
         "sync_revision": task["sync_revision"],
     }
