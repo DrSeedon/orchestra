@@ -1,11 +1,13 @@
 """AgentSession — backend-agnostic wrapper with persistent event loop."""
 
 import asyncio
+import json
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 from app.events import AgentEvent
@@ -13,10 +15,29 @@ from app.db import save_session, add_log
 
 logger = logging.getLogger(__name__)
 
+IDLE_TIMEOUT_WORKER = 300
+IDLE_TIMEOUT_ORCHESTRATOR = 600
+
 
 def _prompt_hash(text: str) -> str:
     import hashlib
     return hashlib.md5(text.encode()).hexdigest()[:8]
+
+
+def _load_scope_mcp_servers(scope: str) -> dict:
+    servers = {}
+    for name in ("settings.json", "settings.local.json"):
+        path = Path(scope) / ".claude" / name
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text())
+            for k, v in data.get("mcpServers", {}).items():
+                if k != "orchestra":
+                    servers[k] = v
+        except Exception as e:
+            logger.warning(f"Failed to parse MCP servers from {path}: {e}")
+    return servers
 
 
 class AgentStatus(str, Enum):
@@ -60,6 +81,9 @@ class AgentSession:
     _last_msg_time: float = field(default=0.0, repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
+    _hibernate_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _hibernated: bool = field(default=False, repr=False)
+    _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     TURN_TIMEOUT = 600
 
@@ -81,6 +105,7 @@ class AgentSession:
                 resume_session_id=self.session_id,
                 mcp_servers=self.mcp_servers,
                 is_orchestrator=self.is_orchestrator,
+                scope_mcp_servers=_load_scope_mcp_servers(self.scope),
             )
 
     def _codex_reasoning_effort(self) -> str:
@@ -108,34 +133,43 @@ class AgentSession:
             self._log("status", "message queued (Codex turn in progress)")
             return
 
-        self.progress_pct = 0
-        self.progress_status = ""
-        self._log("user_message", message)
+        async with self._lifecycle_lock:
+            if self._hibernate_task and not self._hibernate_task.done():
+                self._hibernate_task.cancel()
+                self._hibernate_task = None
 
-        if self.session_id and self._current_prompt and not self._prompt_injected:
-            old_h = _prompt_hash(self.system_prompt)
-            new_h = _prompt_hash(self._current_prompt)
-            if old_h != new_h:
-                self._log("status", f"prompt updated: {old_h} → {new_h}")
-                message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
-                self._prompt_injected = True
-                self.system_prompt = self._current_prompt
-            else:
-                self._prompt_injected = True
+            if self._hibernated:
+                self._log("status", "waking from hibernate")
+                self._hibernated = False
 
-        backend = await self._ensure_backend()
-        await backend.send(message)
+            self.progress_pct = 0
+            self.progress_status = ""
+            self._log("user_message", message)
 
-        if self.backend_type == "codex":
-            self._listen_task = asyncio.create_task(self._codex_turn_loop())
+            if self.session_id and self._current_prompt and not self._prompt_injected:
+                old_h = _prompt_hash(self.system_prompt)
+                new_h = _prompt_hash(self._current_prompt)
+                if old_h != new_h:
+                    self._log("status", f"prompt updated: {old_h} → {new_h}")
+                    message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
+                    self._prompt_injected = True
+                    self.system_prompt = self._current_prompt
+                else:
+                    self._prompt_injected = True
 
-        if self.status == AgentStatus.IDLE:
-            self._did_report = False
-            self._turn_logs = []
-            self._turn_start = asyncio.get_event_loop().time()
-            self._last_msg_time = self._turn_start
-            self.status = AgentStatus.RUNNING
-            self._persist()
+            backend = await self._ensure_backend()
+            await backend.send(message)
+
+            if self.backend_type == "codex":
+                self._listen_task = asyncio.create_task(self._codex_turn_loop())
+
+            if self.status == AgentStatus.IDLE:
+                self._did_report = False
+                self._turn_logs = []
+                self._turn_start = asyncio.get_event_loop().time()
+                self._last_msg_time = self._turn_start
+                self.status = AgentStatus.RUNNING
+                self._persist()
 
     async def _ensure_backend(self):
         if self._backend is not None:
@@ -174,7 +208,6 @@ class AgentSession:
                     self._handle_event(event)
             except asyncio.CancelledError:
                 logger.info(f"[{self.name}] claude event loop cancelled")
-                self._backend = None
                 return
             except Exception as e:
                 import traceback
@@ -299,6 +332,32 @@ class AgentSession:
                 asyncio.create_task(self.on_idle(self.name, self.scope, last_texts))
             except Exception:
                 pass
+
+        self._schedule_hibernate()
+
+    # ── Hibernate (idle resource optimization) ──
+
+    def _schedule_hibernate(self) -> None:
+        if self._hibernate_task and not self._hibernate_task.done():
+            self._hibernate_task.cancel()
+        if self.backend_type != "claude":
+            return
+        timeout = IDLE_TIMEOUT_ORCHESTRATOR if self.is_orchestrator else IDLE_TIMEOUT_WORKER
+        self._hibernate_task = asyncio.create_task(self._idle_hibernate(timeout))
+
+    async def _idle_hibernate(self, timeout: float) -> None:
+        try:
+            await asyncio.sleep(timeout)
+        except asyncio.CancelledError:
+            return
+        async with self._lifecycle_lock:
+            if self.status != AgentStatus.IDLE:
+                return
+            if self._backend is None:
+                return
+            self._log("status", f"hibernating (idle {int(timeout)}s)")
+            await self._disconnect_backend()
+            self._hibernated = True
 
     # ── Background output polling ──
 
@@ -495,6 +554,9 @@ class AgentSession:
         return {"ok": True, "model": new_model, "old_model": old_model, "changed": True}
 
     async def _disconnect_backend(self) -> None:
+        if self._hibernate_task and not self._hibernate_task.done() and self._hibernate_task is not asyncio.current_task():
+            self._hibernate_task.cancel()
+            self._hibernate_task = None
         if self._heartbeat_task and not self._heartbeat_task.done():
             self._heartbeat_task.cancel()
             try:
@@ -502,18 +564,20 @@ class AgentSession:
             except (asyncio.CancelledError, Exception):
                 pass
             self._heartbeat_task = None
+        backend = self._backend
+        self._backend = None
         if self._listen_task and not self._listen_task.done():
             self._listen_task.cancel()
             try:
                 await self._listen_task
             except (asyncio.CancelledError, Exception):
                 pass
-        if self._backend:
-            await self._backend.disconnect()
-            self._backend = None
+        if backend:
+            await backend.disconnect()
 
     async def stop(self) -> None:
         await self._disconnect_backend()
+        self._hibernated = False
         self.status = AgentStatus.IDLE
         self._persist()
 
@@ -553,4 +617,5 @@ class AgentSession:
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
+            "hibernated": self._hibernated,
         }
