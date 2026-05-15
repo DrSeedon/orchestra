@@ -3616,12 +3616,14 @@ async function showTaskDetail(par) {
         html += '<div class="grid grid-cols-2 gap-2 text-xs">';
         html += `<div><span class="text-slate-500">Status:</span> <span class="font-bold">${t.status}</span></div>`;
         html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k ₽' : '—'}</span></div>`;
-        html += `<div><span class="text-slate-500">Paid:</span> ${t.paid_rub/1000}/${t.price_rub/1000}k</div>`;
+        html += `<div><span class="text-slate-500">Paid:</span> ${(t.paid_rub||0)/1000}/${(t.price_rub||0)/1000}k</div>`;
         html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k ₽' : '0'}</span></div>`;
         html += `<div><span class="text-slate-500">Assignee:</span> ${escHtml(t.assignee || '—')}</div>`;
         html += `<div><span class="text-slate-500">Project:</span> ${escHtml(t.project)}</div>`;
         html += `<div><span class="text-slate-500">Created:</span> ${(t.created_at||'').slice(0,10)}</div>`;
+        if (t.updated_at) html += `<div><span class="text-slate-500">Updated:</span> ${t.updated_at.slice(0,10)}</div>`;
         if (t.completed_at) html += `<div><span class="text-slate-500">Done:</span> ${t.completed_at.slice(0,10)}</div>`;
+        if (t.paid_at) html += `<div><span class="text-slate-500">Paid at:</span> ${t.paid_at.slice(0,10)}</div>`;
         html += '</div>';
         if (t.description) {
             html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">DESCRIPTION</div>';
@@ -3632,10 +3634,19 @@ async function showTaskDetail(par) {
             for (const p of t.payments) { html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`; }
             html += '</div>';
         }
-        if (t.commits && t.commits.length > 0) {
+        const commits = t.commits || t.git_commits || [];
+        if (commits.length > 0) {
             html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>';
-            for (const c of t.commits) { html += `<div class="text-xs font-mono">${c.slice(0,7)}</div>`; }
+            for (const c of commits) { html += `<div class="text-xs font-mono">${escHtml(typeof c === 'string' ? c.slice(0,60) : JSON.stringify(c))}</div>`; }
             html += '</div>';
+        }
+        const sys = [];
+        if (t.yougile_task_id) sys.push(`yougile: ${t.yougile_task_id}`);
+        if (t.sync_revision) sys.push(`sync rev: ${t.sync_revision}`);
+        if (t.worker_session_id) sys.push(`worker: ${t.worker_session_id}`);
+        if (sys.length > 0) {
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">SYSTEM</div>';
+            html += `<div class="text-[10px] text-slate-600 font-mono">${sys.join(' · ')}</div></div>`;
         }
         html += '</div>';
         bodyEl.innerHTML = html;
