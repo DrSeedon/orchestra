@@ -153,7 +153,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
-_PAR_RE = re.compile(r"\bPAR-(\d+)", re.IGNORECASE)
+_PAR_RE = re.compile(r"\bPAR-(\d+)\b", re.IGNORECASE)
 
 
 def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
