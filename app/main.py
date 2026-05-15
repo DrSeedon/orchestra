@@ -1,7 +1,10 @@
 """Orchestra — AI Agent Orchestrator API."""
 
 import asyncio
+import hashlib
+import hmac
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -920,3 +923,119 @@ async def bg_job_cancel(job_id: str):
     if result.get("error"):
         return JSONResponse(result, status_code=404)
     return result
+
+
+# ── GitHub Webhook (CI failure routing) ──
+
+logger = logging.getLogger("orchestra.webhook")
+
+REPO_TO_SCOPE = {
+    "DrSeedon/parsing-hub": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/seo-platform": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/ai-assistants": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/zahoron-mobile": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/family-tree": "/mnt/data/Projects/Python/Parsing",
+}
+
+
+def _verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
+    expected = "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+async def _fetch_failed_log(owner: str, repo: str, run_id: int, token: str) -> str:
+    import httpx
+    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+            headers=headers,
+        )
+        if resp.status_code != 200:
+            return f"(failed to fetch jobs: HTTP {resp.status_code})"
+        jobs = resp.json().get("jobs", [])
+        failed_job = next((j for j in jobs if j.get("conclusion") == "failure"), None)
+        if not failed_job:
+            return "(no failed job found)"
+        job_id = failed_job["id"]
+        log_resp = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/actions/jobs/{job_id}/logs",
+            headers=headers,
+            follow_redirects=True,
+        )
+        if log_resp.status_code != 200:
+            return f"(failed to fetch log: HTTP {log_resp.status_code})"
+        lines = log_resp.text.splitlines()
+        return "\n".join(lines[-50:])
+
+
+@app.post("/api/webhook/github")
+async def github_webhook(request: Request):
+    secret = os.getenv("GITHUB_WEBHOOK_SECRET", "")
+    if not secret:
+        return JSONResponse({"error": "webhook not configured"}, status_code=500)
+
+    body = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256", "")
+    if not signature or not _verify_github_signature(body, signature, secret):
+        return JSONResponse({"error": "invalid signature"}, status_code=403)
+
+    event = request.headers.get("X-GitHub-Event", "")
+    if event != "workflow_run":
+        return {"ok": True, "skipped": event}
+
+    payload = json.loads(body)
+    action = payload.get("action")
+    workflow_run = payload.get("workflow_run", {})
+    conclusion = workflow_run.get("conclusion")
+
+    if action != "completed" or conclusion != "failure":
+        return {"ok": True, "skipped": f"{action}/{conclusion}"}
+
+    repo_full = payload.get("repository", {}).get("full_name", "")
+    scope = REPO_TO_SCOPE.get(repo_full)
+    if not scope:
+        logger.warning(f"No scope mapping for repo: {repo_full}")
+        return {"ok": True, "skipped": f"unmapped repo {repo_full}"}
+
+    workflow_name = workflow_run.get("name", "unknown")
+    run_id = workflow_run.get("id")
+    run_url = workflow_run.get("html_url", "")
+    head_commit = workflow_run.get("head_commit", {})
+    commit_sha = head_commit.get("id", "")[:7]
+    commit_msg = head_commit.get("message", "").split("\n")[0]
+
+    token = os.getenv("GITHUB_TOKEN", "")
+    error_log = ""
+    if token and run_id:
+        owner, repo = repo_full.split("/", 1)
+        try:
+            error_log = await _fetch_failed_log(owner, repo, run_id, token)
+        except Exception as e:
+            error_log = f"(log fetch error: {e})"
+
+    message = (
+        f"🔴 CI FAIL: {repo_full}\n"
+        f"Workflow: {workflow_name}, Run #{run_id}\n"
+        f"Commit: {commit_sha} \"{commit_msg}\"\n"
+    )
+    if error_log:
+        message += f"Error:\n{error_log}\n"
+    message += f"URL: {run_url}"
+
+    orch_name = manager._find_orchestrator_name(scope)
+    if not orch_name:
+        logger.warning(f"No orchestrator for scope: {scope}")
+        return JSONResponse({"error": f"no orchestrator for scope {scope}"}, status_code=404)
+
+    session = await manager.ensure_loaded(orch_name, scope)
+    if not session:
+        return JSONResponse({"error": f"orchestrator {orch_name} not loadable"}, status_code=404)
+
+    try:
+        await manager.send(session.id, message)
+        logger.info(f"CI failure routed to {orch_name}: {repo_full} run #{run_id}")
+        return {"ok": True, "routed_to": orch_name}
+    except Exception as e:
+        logger.error(f"Failed to send CI failure to {orch_name}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
