@@ -55,9 +55,10 @@ def _parse_par(par: str) -> int:
     return int(s)
 
 
-def _next_par(conn: sqlite3.Connection) -> int:
+def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
     row = conn.execute(
-        "UPDATE tm_par_sequence SET next_value = next_value + 1 RETURNING next_value - 1"
+        "SELECT COALESCE(MAX(par_number), 0) + 1 FROM tm_tasks WHERE project_id = ?",
+        (project_id,),
     ).fetchone()
     return row[0]
 
@@ -66,17 +67,19 @@ def _next_par(conn: sqlite3.Connection) -> int:
 
 def ensure_project(conn: sqlite3.Connection, project_id: str, name: str = "",
                    scope: str | None = None, yougile_project_id: str = "",
-                   yougile_board_id: str = "") -> dict:
+                   yougile_board_id: str = "",
+                   yougile_enabled: bool = False) -> dict:
     existing = conn.execute("SELECT * FROM tm_projects WHERE id = ?", (project_id,)).fetchone()
     if existing:
         return dict(existing)
     now = _now()
     conn.execute(
-        "INSERT INTO tm_projects (id, name, scope, yougile_project_id, yougile_board_id, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (project_id, name or project_id, scope, yougile_project_id, yougile_board_id, now),
+        "INSERT INTO tm_projects (id, name, scope, yougile_project_id, yougile_board_id, yougile_enabled, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (project_id, name or project_id, scope, yougile_project_id, yougile_board_id, int(yougile_enabled), now),
     )
-    return {"id": project_id, "name": name or project_id, "scope": scope, "created_at": now}
+    return {"id": project_id, "name": name or project_id, "scope": scope,
+            "yougile_enabled": yougile_enabled, "created_at": now}
 
 
 def get_project_by_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
@@ -123,7 +126,7 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         raise ValueError("price_rub must be >= 0")
 
     now = _now()
-    par = par_number if par_number is not None else _next_par(conn)
+    par = par_number if par_number is not None else _next_par(conn, project_id)
 
     conn.execute(
         """INSERT INTO tm_tasks
@@ -246,10 +249,18 @@ def get_task_by_id(conn: sqlite3.Connection, task_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def get_task_by_par(conn: sqlite3.Connection, par_number: int) -> dict | None:
-    row = conn.execute(
-        "SELECT * FROM tm_tasks WHERE par_number = ?", (par_number,)
-    ).fetchone()
+def get_task_by_par(conn: sqlite3.Connection, par_number: int,
+                    project_id: str = "") -> dict | None:
+    if project_id:
+        row = conn.execute(
+            "SELECT * FROM tm_tasks WHERE par_number = ? AND project_id = ?",
+            (par_number, project_id),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 1",
+            (par_number,),
+        ).fetchone()
     return dict(row) if row else None
 
 
@@ -573,7 +584,20 @@ def get_pending_syncs(conn: sqlite3.Connection) -> list[dict]:
 
 # --- Sync helpers (fire-and-forget after commit) ---
 
+def _is_yougile_enabled(task_id: int) -> bool:
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT p.yougile_enabled FROM tm_projects p
+               JOIN tm_tasks t ON t.project_id = p.id
+               WHERE t.id = ?""",
+            (task_id,),
+        ).fetchone()
+        return bool(row and row[0])
+
+
 def _fire_sync(task_id: int) -> None:
+    if not _is_yougile_enabled(task_id):
+        return
     with _conn() as conn:
         task = get_task_by_id(conn, task_id)
         rev = task["sync_revision"] if task else 0
@@ -600,6 +624,9 @@ def _fire_sync(task_id: int) -> None:
 
 
 def _fire_par35_sync(payment_result: dict) -> None:
+    task_ids = [d["task_id"] for d in payment_result.get("distributions", []) if d.get("task_id")]
+    if task_ids and not _is_yougile_enabled(task_ids[0]):
+        return
     with _conn() as conn:
         sync_log_id = log_sync(conn, None, "par35_update", None, "pending",
                                payload=str(payment_result.get("payment_id", "")))
