@@ -2168,18 +2168,51 @@ function addChatEntry(type, content, ts, anchor) {
                 } else if (tn === 'mcp__orchestra__task_update') {
                     const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
                     const changes = [];
-                    if (parsed.old_status && parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
+                    if (parsed.old_status && parsed.new_status && parsed.old_status !== parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
                     if (parsed.updated) {
                         for (const f of parsed.updated) {
-                            if (f === 'status' && parsed.new_status && !parsed.old_status) changes.push(`status→${parsed.new_status}`);
-                            else if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ₽`);
+                            if (f === 'status') continue;
+                            if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ₽`);
                             else if (f === 'assignee' && parsed.assignee != null) changes.push(`assignee→${parsed.assignee || '—'}`);
-                            else if (f === 'title' && parsed.title) changes.push(`title→"${parsed.title.slice(0,40)}"`);
+                            else if (f === 'title') changes.push('title');
                             else if (f === 'description') changes.push('description');
-                            else if (f !== 'status') changes.push(f);
+                            else changes.push(f);
                         }
                     }
-                    if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
+                    const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
+                    if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'}${titleStr}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
+                    if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
+                        const titleDiff = document.createElement('div');
+                        titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
+                        titleDiff.innerHTML = `<span style="color:#64748b;text-decoration:line-through">${DOMPurify.sanitize(parsed.old_title.slice(0,60))}</span> → <span style="color:#e2e8f0">${DOMPurify.sanitize(parsed.title.slice(0,60))}</span>`;
+                        lastTool.appendChild(titleDiff);
+                    }
+                    if (parsed.description && (parsed.updated || []).includes('description')) {
+                        const descWrap = document.createElement('div');
+                        descWrap.style.cssText = 'margin-top:4px';
+                        if (parsed.old_description) {
+                            const oldEl = document.createElement('div');
+                            oldEl.style.cssText = 'font-size:10px;color:#64748b;text-decoration:line-through;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                            oldEl.textContent = parsed.old_description.split('\n').slice(0,3).join('\n');
+                            descWrap.appendChild(oldEl);
+                        }
+                        const newEl = document.createElement('div');
+                        newEl.style.cssText = 'font-size:10px;color:#86efac;max-height:40px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px';
+                        newEl.textContent = parsed.description.split('\n').slice(0,3).join('\n') + (parsed.description.split('\n').length > 3 ? '…' : '');
+                        descWrap.appendChild(newEl);
+                        lastTool.appendChild(descWrap);
+                        if (parsed.description.split('\n').length > 3) {
+                            lastTool.style.cursor = 'pointer';
+                            let _duExp = false;
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _duExp = !_duExp;
+                                newEl.textContent = _duExp ? parsed.description : parsed.description.split('\n').slice(0,3).join('\n') + '…';
+                                newEl.style.maxHeight = _duExp ? 'none' : '40px';
+                                newEl.style.overflowY = _duExp ? 'visible' : 'hidden';
+                            });
+                        }
+                    }
                     const detail = document.createElement('div');
                     detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
                     if (parsed.price_rub != null) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
