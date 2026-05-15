@@ -46,20 +46,16 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
-                       system_prompt: str = "",
-                       task_id: str = "") -> str:
+                       system_prompt: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-6[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
-    body = {
+    result = await _api("POST", "/api/sessions", json={
         "name": name, "scope": scope, "cwd": repo_path,
         "model": model, "system_prompt": system_prompt,
         "use_worktree": True, "repo_path": repo_path,
-    }
-    if task_id:
-        body["task_id"] = task_id
-    result = await _api("POST", "/api/sessions", json=body)
+    })
     if isinstance(result, dict) and result.get("error"):
         return f"Spawn failed: {result['error']}"
     await _api("POST", f"/api/sessions/{name}/send", json={
@@ -228,16 +224,7 @@ async def merge_worker(name: str) -> str:
     if isinstance(result, dict) and result.get("ok"):
         n = result.get("commits_merged", 0)
         branch = result.get("branch", "?")
-        parts = [f"Merged {n} commit{'s' if n != 1 else ''} from branch {branch}"]
-        linked = result.get("linked_tasks", {})
-        if linked:
-            for par, info in linked.items():
-                added = info.get("added", 0) if isinstance(info, dict) else 0
-                parts.append(f"  → {par}: {added} commits linked")
-        new_branch = result.get("new_branch")
-        if new_branch:
-            parts.append(f"New branch: {new_branch}")
-        return "\n".join(parts)
+        return f"Merged {n} commit{'s' if n != 1 else ''} from branch {branch}"
     if isinstance(result, dict) and not result.get("ok"):
         conflicts = result.get("conflicts", [])
         if conflicts:

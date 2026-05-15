@@ -161,8 +161,7 @@ class SessionManager:
 
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
-                             repo_path: str | None = None, is_orchestrator: bool = False,
-                             task_id: str | None = None) -> AgentSession:
+                             repo_path: str | None = None, is_orchestrator: bool = False) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -182,14 +181,14 @@ class SessionManager:
             system_prompt=prompt, is_orchestrator=is_orchestrator,
             color="" if is_orchestrator else self._pick_color(),
             mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
-            backend_type=bt, task_id=task_id,
+            backend_type=bt,
         )
         save_session(session._to_db_dict())
 
         try:
             if use_worktree and repo_path:
                 await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
-                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id)
+                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch

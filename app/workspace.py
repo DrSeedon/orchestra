@@ -26,7 +26,7 @@ def _slugify(s: str) -> str:
     return slug.lower()[:80]
 
 
-def create_worktree(repo_path: str, name: str, scope: str, task_id: str | None = None) -> Worktree:
+def create_worktree(repo_path: str, name: str, scope: str) -> Worktree:
     repo = Path(repo_path).resolve()
     if not repo.is_dir():
         raise ValueError(f"repo_path does not exist: {repo_path}")
@@ -35,11 +35,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str | None =
     wt_dir = WORKTREE_ROOT / scope_slug
     wt_dir.mkdir(parents=True, exist_ok=True)
     wt_path = wt_dir / name
-    if task_id:
-        par_label = task_id.upper() if task_id.upper().startswith("PAR-") else f"PAR-{task_id}"
-        branch = f"feat/{par_label}-{name}"
-    else:
-        branch = f"feat/{scope_slug}/{name}"
+    branch = f"feat/{scope_slug}/{name}"
 
     if wt_path.exists():
         raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
@@ -72,7 +68,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str | None =
     return Worktree(path=str(wt_path), branch=branch)
 
 
-def merge_worktree_to_main(worktree_path: str, repo_path: str, task_id: str | None = None) -> dict:
+def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
     wt = Path(worktree_path).resolve()
     git_common = subprocess.run(
         ["git", "rev-parse", "--git-common-dir"],
@@ -151,64 +147,35 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, task_id: str | No
                 logger.error(f"merge_worktree failed: repo={repo} branch={branch} err={err}")
                 return {"ok": False, "error": err}
 
-            if old_head and task_id:
-                all_commits = _collect_commits(str(repo), old_head)
-                par_num = int(task_id.upper().replace("PAR-", ""))
-                merged_commits = {par_num: all_commits} if all_commits else {}
-            elif old_head:
-                merged_commits = _parse_merged_commits(str(repo), old_head)
-            else:
-                merged_commits = {}
-
-            new_branch = _reset_worktree_branch(str(wt), str(repo), wt.name)
-            return {
-                "ok": True, "commits_merged": commits_merged, "branch": branch,
-                "merged_commits": merged_commits, "new_branch": new_branch,
-            }
+            merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
+            return {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
-
-
-def _reset_worktree_branch(wt: str, repo: str, worker_name: str) -> str | None:
-    subprocess.run(["git", "checkout", "main"], cwd=wt, capture_output=True, text=True)
-    subprocess.run(["git", "pull", "--ff-only"], cwd=wt, capture_output=True, text=True)
-
-    for i in range(1, 100):
-        new_branch = f"feat/{worker_name}-{i}"
-        check = subprocess.run(
-            ["git", "rev-parse", "--verify", new_branch],
-            cwd=repo, capture_output=True, text=True,
-        )
-        if check.returncode != 0:
-            result = subprocess.run(
-                ["git", "checkout", "-b", new_branch],
-                cwd=wt, capture_output=True, text=True,
-            )
-            if result.returncode == 0:
-                return new_branch
-            logger.warning(f"Failed to create branch {new_branch}: {result.stderr.strip()}")
-            return None
-    logger.warning(f"Could not find free branch name for {worker_name}")
-    return None
 
 
 _PAR_RE = re.compile(r"\bPAR-(\d+)\b", re.IGNORECASE)
 
 
-def _collect_commits(repo: str, old_head: str) -> list[dict]:
+def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
     log = subprocess.run(
         ["git", "log", f"{old_head}..HEAD", "--format=%H%x00%s%x00%ad", "--date=short"],
         cwd=repo, capture_output=True, text=True,
     )
     if log.returncode != 0 or not log.stdout.strip():
-        return []
+        return {}
 
-    commits = []
+    by_par: dict[int, list[dict]] = {}
     for line in log.stdout.strip().splitlines():
         parts = line.split("\x00", 2)
         if len(parts) < 3:
             continue
         full_hash, message, date = parts
+        short_hash = full_hash[:7]
+
+        m = _PAR_RE.search(message)
+        if not m:
+            continue
+        par_num = int(m.group(1))
 
         stat = subprocess.run(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],
@@ -227,23 +194,16 @@ def _collect_commits(repo: str, old_head: str) -> list[dict]:
                 except ValueError:
                     continue
 
-        commits.append({
-            "hash": full_hash[:7],
+        commit = {
+            "hash": short_hash,
             "message": message,
             "date": date,
             "files": files_changed,
             "insertions": insertions,
             "deletions": deletions,
-        })
-    return commits
+        }
+        by_par.setdefault(par_num, []).append(commit)
 
-
-def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
-    by_par: dict[int, list[dict]] = {}
-    for commit in _collect_commits(repo, old_head):
-        m = _PAR_RE.search(commit["message"])
-        if m:
-            by_par.setdefault(int(m.group(1)), []).append(commit)
     return by_par
 
 
