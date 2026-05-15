@@ -33,7 +33,10 @@ def _normalize_task_id(task_id: str) -> str:
     m = _TASK_ID_RE.match(task_id.strip())
     if not m:
         raise ValueError(f"Invalid task_id '{task_id}': expected PAR-N or N")
-    return f"PAR-{m.group(1)}"
+    n = int(m.group(1))
+    if n < 1:
+        raise ValueError(f"Invalid task_id '{task_id}': PAR number must be >= 1")
+    return f"PAR-{n}"
 
 
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "") -> Worktree:
@@ -243,6 +246,21 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
     return by_par
 
 
+def _is_branch_checked_out_elsewhere(repo: str, branch: str, current_wt: Path) -> bool:
+    wt_list = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    current_path = ""
+    for line in wt_list.stdout.splitlines():
+        if line.startswith("worktree "):
+            current_path = line[len("worktree "):]
+        elif line == f"branch refs/heads/{branch}":
+            if current_path and Path(current_path).resolve() != current_wt:
+                return True
+    return False
+
+
 def switch_worktree_branch(worktree_path: str, new_branch: str,
                            from_ref: str = "refs/heads/main") -> dict:
     wt = Path(worktree_path).resolve()
@@ -255,6 +273,13 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
     if status.stdout.strip():
         return {"ok": False, "error": "dirty working tree — commit or discard changes first"}
 
+    merged = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", "HEAD", "refs/heads/main"],
+        cwd=str(wt), capture_output=True, text=True,
+    )
+    if merged.returncode != 0:
+        return {"ok": False, "error": "current branch has unmerged commits — merge_worker first"}
+
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
@@ -263,16 +288,8 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                 cwd=str(repo), capture_output=True, text=True,
             )
             if ref_check.returncode == 0:
-                wt_list = subprocess.run(
-                    ["git", "worktree", "list", "--porcelain"],
-                    cwd=str(repo), capture_output=True, text=True,
-                )
-                for line in wt_list.stdout.splitlines():
-                    if line.startswith("branch refs/heads/") and line.endswith(new_branch):
-                        wt_line = wt_list.stdout.split(line)[0].rstrip().rsplit("\n", 1)
-                        wt_dir = wt_line[-1].replace("worktree ", "") if wt_line else ""
-                        if wt_dir and Path(wt_dir).resolve() != wt:
-                            return {"ok": False, "error": f"branch '{new_branch}' is checked out in another worktree"}
+                if _is_branch_checked_out_elsewhere(str(repo), new_branch, wt):
+                    return {"ok": False, "error": f"branch '{new_branch}' is checked out in another worktree"}
 
                 checkout = subprocess.run(
                     ["git", "checkout", new_branch], cwd=str(wt), capture_output=True, text=True,
@@ -292,7 +309,8 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                     )
                     if status_out.stdout.strip():
                         conflict_files = status_out.stdout.strip().splitlines()
-                    return {"ok": False, "conflicts": conflict_files, "state": "conflict",
+                    return {"ok": False, "branch": new_branch, "conflicts": conflict_files,
+                            "state": "conflict",
                             "error": "merge conflict with main — resolve or abort"}
             else:
                 checkout = subprocess.run(

@@ -486,10 +486,11 @@ async def switch_branch(name: str, req: dict):
     async with manager.get_session_lock(session_id):
         try:
             result = switch_worktree_branch(worktree_path, new_branch)
-            if result.get("ok") and not isinstance(found, dict):
-                found.branch = new_branch
-                found.task_id = par
-                found._persist()
+            if not isinstance(found, dict):
+                if result.get("ok") or result.get("branch"):
+                    found.branch = result.get("branch", new_branch)
+                    found.task_id = par
+                    found._persist()
             return result
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)

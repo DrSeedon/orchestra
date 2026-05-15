@@ -230,8 +230,10 @@ async def merge_worker(name: str) -> str:
         branch = result.get("branch", "?")
         parts = [f"Merged {n} commit{'s' if n != 1 else ''} from branch {branch}"]
         for par, info in result.get("linked_tasks", {}).items():
-            added = info.get("added", 0) if isinstance(info, dict) else 0
-            parts.append(f"  → {par}: {added} commits linked")
+            if isinstance(info, dict) and info.get("ok"):
+                parts.append(f"  → {par}: {info.get('added', 0)} commits linked")
+            elif isinstance(info, dict):
+                parts.append(f"  ⚠️ {par}: FAILED — {info.get('error', 'unknown')}")
         return "\n".join(parts)
     if isinstance(result, dict) and not result.get("ok"):
         conflicts = result.get("conflicts", [])
