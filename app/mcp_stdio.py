@@ -337,6 +337,70 @@ async def payment_status(client: str = "aleksandr-kislinskiy") -> str:
     return json.dumps(result, ensure_ascii=False)
 
 
+@mcp.tool()
+async def bg_create(type: str, message: str = "", target: str = "",
+                    delay_seconds: int = 0, path: str = "", pattern: str = "",
+                    command: str = "", host: str = "",
+                    interval_seconds: int = 60,
+                    timeout_seconds: int = 3600) -> str:
+    """Create a background job that wakes an agent when triggered. Survives hibernate.
+    Types:
+    - timer: fires after delay_seconds
+    - file: watches file at path for pattern (regex)
+    - command: runs command every interval_seconds, matches pattern in output
+    - ssh: streams ssh command output, matches pattern
+    - run: executes command, wakes agent when done with exit code + output
+    target: agent name (default: you). timeout_seconds: max lifetime (default 1h, max 24h)."""
+    config = {}
+    if type == "timer":
+        config = {"delay_seconds": delay_seconds}
+    elif type == "file":
+        config = {"path": path, "pattern": pattern}
+    elif type == "command":
+        config = {"command": command, "pattern": pattern, "interval_seconds": interval_seconds}
+    elif type == "ssh":
+        config = {"command": command, "host": host, "pattern": pattern}
+    elif type == "run":
+        config = {"command": command, "host": host} if host else {"command": command}
+    target_name = target or WORKER_NAME
+    result = await _api("POST", "/api/bg/jobs", json={
+        "type": type, "config": config, "message": message,
+        "target_name": target_name, "target_scope": SCOPE,
+        "timeout_seconds": timeout_seconds, "created_by": WORKER_NAME,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return f"Background job created: {result.get('id', '?')} (type={type}, target={target_name})"
+
+
+@mcp.tool()
+async def bg_list() -> str:
+    """List active background jobs in your project."""
+    jobs = await _api("GET", "/api/bg/jobs", params={"scope": SCOPE})
+    if not isinstance(jobs, list):
+        return f"Error: {jobs}"
+    if not jobs:
+        return "No background jobs"
+    icons = {"timer": "⏰", "file": "📄", "command": "🖥️", "ssh": "🔗", "run": "🚀"}
+    lines = []
+    for j in jobs:
+        icon = icons.get(j["type"], "❓")
+        status = j["status"]
+        target = j.get("target_name", "?")
+        msg = j.get("message", "")[:60]
+        lines.append(f"{icon} **{j['id']}** | {status} | → {target} | {msg}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def bg_cancel(job_id: str) -> str:
+    """Cancel an active background job."""
+    result = await _api("DELETE", f"/api/bg/jobs/{job_id}")
+    if isinstance(result, dict) and result.get("error"):
+        return f"Cancel failed: {result['error']}"
+    return f"Job {job_id} cancelled."
+
+
 if __name__ == "__main__":
     logger.info(f"Orchestra MCP stdio (url={ORCHESTRA_URL}, scope={SCOPE})")
     mcp.run(transport="stdio")
