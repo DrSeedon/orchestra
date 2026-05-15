@@ -929,6 +929,8 @@ async def bg_job_cancel(job_id: str):
 
 logger = logging.getLogger("orchestra.webhook")
 
+_FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
+
 REPO_TO_SCOPE = {
     "DrSeedon/parsing-hub": "/mnt/data/Projects/Python/Parsing",
     "DrSeedon/seo-platform": "/mnt/data/Projects/Python/Parsing",
@@ -954,7 +956,7 @@ async def _fetch_failed_log(owner: str, repo: str, run_id: int, token: str) -> s
         if resp.status_code != 200:
             return f"(failed to fetch jobs: HTTP {resp.status_code})"
         jobs = resp.json().get("jobs", [])
-        failed_job = next((j for j in jobs if j.get("conclusion") == "failure"), None)
+        failed_job = next((j for j in jobs if j.get("conclusion") in _FAILURE_CONCLUSIONS), None)
         if not failed_job:
             return "(no failed job found)"
         job_id = failed_job["id"]
@@ -993,7 +995,6 @@ async def github_webhook(request: Request):
     workflow_run = payload.get("workflow_run") or {}
     conclusion = workflow_run.get("conclusion")
 
-    _FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
     if action != "completed" or conclusion not in _FAILURE_CONCLUSIONS:
         return {"ok": True, "skipped": f"{action}/{conclusion}"}
 
