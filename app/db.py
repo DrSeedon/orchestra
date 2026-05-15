@@ -73,11 +73,13 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS tm_projects (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
+                prefix TEXT NOT NULL DEFAULT 'TASK',
                 scope TEXT UNIQUE,
                 yougile_project_id TEXT,
                 yougile_board_id TEXT,
                 yougile_enabled INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                UNIQUE(prefix)
             );
             CREATE TABLE IF NOT EXISTS tm_tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,6 +189,10 @@ def _migrate(c) -> None:
     if proj_cols and "yougile_enabled" not in proj_cols:
         c.execute("ALTER TABLE tm_projects ADD COLUMN yougile_enabled INTEGER NOT NULL DEFAULT 0")
         c.execute("UPDATE tm_projects SET yougile_enabled = 1 WHERE id = 'parsing-hub'")
+    if proj_cols and "prefix" not in proj_cols:
+        c.execute("ALTER TABLE tm_projects ADD COLUMN prefix TEXT NOT NULL DEFAULT 'TASK'")
+        c.execute("UPDATE tm_projects SET prefix = 'PAR' WHERE id = 'parsing-hub'")
+        c.execute("UPDATE tm_projects SET prefix = 'ORC' WHERE id = 'orchestra'")
     try:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:

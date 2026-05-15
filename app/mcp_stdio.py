@@ -278,7 +278,8 @@ async def task_create(title: str, project: str, price: int = 0,
                       description: str = "", assignee: str = "",
                       status: str = "new") -> str:
     """Create a new task. Returns PAR number and task details.
-    price is in thousands (e.g. 20 = 20,000₽). 0 is valid (no price)."""
+    price is in thousands (e.g. 20 = 20,000₽). 0 is valid (no price).
+    Task ID format: {PREFIX}-{N} where PREFIX comes from project (e.g. PAR-42, ORC-1)."""
     result = await _api("POST", "/api/tm/tasks", json={
         "title": title, "project": project, "price": price,
         "description": description, "assignee": assignee, "status": status,
@@ -293,7 +294,7 @@ async def task_update(par: str, title: str = "", description: str = "",
                       price: int = -1, status: str = "",
                       assignee: str = "") -> str:
     """Update an existing task. Only provided fields are changed.
-    par: 'PAR-42' or '42'. price in thousands (-1 = don't change, 0 = set to zero).
+    par: 'PAR-42', 'ORC-1', or '42'. price in thousands (-1 = don't change, 0 = set to zero).
     Empty string = don't change for text fields."""
     body: dict = {}
     if title:

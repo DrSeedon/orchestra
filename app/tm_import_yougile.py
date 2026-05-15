@@ -91,7 +91,7 @@ def run_import():
     try:
         tm.ensure_project(
             conn, PROJECT_ID, PROJECT_NAME, PROJECT_SCOPE,
-            YOUGILE_PROJECT_ID, YOUGILE_BOARD_ID, yougile_enabled=True,
+            YOUGILE_PROJECT_ID, YOUGILE_BOARD_ID, yougile_enabled=True, prefix="PAR",
         )
         tm.ensure_client(conn, CLIENT_ID, CLIENT_NAME, PROJECT_ID)
 
