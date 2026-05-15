@@ -59,6 +59,7 @@ class CreateSessionRequest(BaseModel):
     use_worktree: bool = False
     repo_path: Optional[str] = None
     is_orchestrator: bool = False
+    task_id: str = ""
 
     @field_validator("name")
     @classmethod
@@ -233,6 +234,7 @@ async def create_session(req: CreateSessionRequest):
             use_worktree=req.use_worktree,
             repo_path=req.repo_path,
             is_orchestrator=req.is_orchestrator,
+            task_id=req.task_id,
         )
         return session.to_dict()
     except ValueError as e:
@@ -430,28 +432,67 @@ async def merge_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
+    if not isinstance(found, dict):
+        if found.status.value == "running":
+            return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
     worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
     scope = found.get("scope") if isinstance(found, dict) else found.scope
+    session_id = found.get("id") if isinstance(found, dict) else found.id
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     if not scope:
         return JSONResponse({"error": "session has no scope"}, status_code=400)
+    async with manager.get_session_lock(session_id):
+        try:
+            result = merge_worktree_to_main(worktree_path, scope)
+            if result.get("ok"):
+                link_results = {}
+                for par_num, commits in result.pop("merged_commits", {}).items():
+                    try:
+                        link_results[f"PAR-{par_num}"] = _tm.link_commits_to_task(par_num, commits)
+                    except Exception as link_err:
+                        import logging
+                        logging.getLogger(__name__).error("Failed to link commits to PAR-%s: %s", par_num, link_err)
+                        link_results[f"PAR-{par_num}"] = {"ok": False, "error": str(link_err)}
+                if link_results:
+                    result["linked_tasks"] = link_results
+            return result
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/sessions/{name}/switch-branch")
+async def switch_branch(name: str, req: dict):
+    from app.workspace import switch_worktree_branch, _normalize_task_id
+    scope = req.get("scope", "")
+    task_id = req.get("task_id", "")
+    if not task_id:
+        return JSONResponse({"error": "task_id required"}, status_code=400)
     try:
-        result = merge_worktree_to_main(worktree_path, scope)
-        if result.get("ok"):
-            link_results = {}
-            for par_num, commits in result.pop("merged_commits", {}).items():
-                try:
-                    link_results[f"PAR-{par_num}"] = _tm.link_commits_to_task(par_num, commits)
-                except Exception as link_err:
-                    import logging
-                    logging.getLogger(__name__).error("Failed to link commits to PAR-%s: %s", par_num, link_err)
-                    link_results[f"PAR-{par_num}"] = {"ok": False, "error": str(link_err)}
-            if link_results:
-                result["linked_tasks"] = link_results
-        return result
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        par = _normalize_task_id(task_id)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if not isinstance(found, dict):
+        if found.status.value == "running":
+            return JSONResponse({"error": "worker is running — wait for idle"}, status_code=400)
+    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+    session_id = found.get("id") if isinstance(found, dict) else found.id
+    if not worktree_path:
+        return JSONResponse({"error": "session has no worktree"}, status_code=400)
+    new_branch = f"{par}/{name}"
+    async with manager.get_session_lock(session_id):
+        try:
+            result = switch_worktree_branch(worktree_path, new_branch)
+            if result.get("ok") and not isinstance(found, dict):
+                found.branch = new_branch
+                found.task_id = par
+                found._persist()
+            return result
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.post("/api/sessions/{name}/progress")

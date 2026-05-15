@@ -46,16 +46,20 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
-                       system_prompt: str = "") -> str:
+                       system_prompt: str = "",
+                       task_id: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-6[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
-    result = await _api("POST", "/api/sessions", json={
+    body = {
         "name": name, "scope": scope, "cwd": repo_path,
         "model": model, "system_prompt": system_prompt,
         "use_worktree": True, "repo_path": repo_path,
-    })
+    }
+    if task_id:
+        body["task_id"] = task_id
+    result = await _api("POST", "/api/sessions", json=body)
     if isinstance(result, dict) and result.get("error"):
         return f"Spawn failed: {result['error']}"
     await _api("POST", f"/api/sessions/{name}/send", json={
@@ -224,13 +228,32 @@ async def merge_worker(name: str) -> str:
     if isinstance(result, dict) and result.get("ok"):
         n = result.get("commits_merged", 0)
         branch = result.get("branch", "?")
-        return f"Merged {n} commit{'s' if n != 1 else ''} from branch {branch}"
+        parts = [f"Merged {n} commit{'s' if n != 1 else ''} from branch {branch}"]
+        for par, info in result.get("linked_tasks", {}).items():
+            added = info.get("added", 0) if isinstance(info, dict) else 0
+            parts.append(f"  → {par}: {added} commits linked")
+        return "\n".join(parts)
     if isinstance(result, dict) and not result.get("ok"):
         conflicts = result.get("conflicts", [])
         if conflicts:
             return f"Conflicts in: {', '.join(conflicts)}"
         return f"Merge failed: {result.get('error', 'unknown error')}"
     return f"Merge result: {result}"
+
+
+@mcp.tool()
+async def switch_worker_branch(name: str, task_id: str) -> str:
+    """After merge, switch worker to a new branch for a new task.
+    Worker must be idle with clean working tree."""
+    result = await _api("POST", f"/api/sessions/{name}/switch-branch",
+                        json={"scope": SCOPE, "task_id": task_id})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Switch failed: {result['error']}"
+    if isinstance(result, dict) and result.get("ok"):
+        return f"Switched to branch {result.get('branch', '?')}"
+    if isinstance(result, dict) and result.get("conflicts"):
+        return f"Merge conflict with main on: {', '.join(result['conflicts'])}"
+    return f"Switch result: {result}"
 
 
 @mcp.tool()

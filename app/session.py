@@ -64,6 +64,7 @@ class AgentSession:
     mcp_servers: dict = field(default_factory=dict, repr=False)
     on_error: Optional[callable] = field(default=None, repr=False)
     backend_type: str = "claude"
+    task_id: str = ""
 
     progress_pct: int = 0
     progress_status: str = ""
@@ -616,6 +617,7 @@ class AgentSession:
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
+            "task_id": self.task_id,
         }
 
     async def get_context(self) -> dict:
@@ -633,4 +635,5 @@ class AgentSession:
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
             "hibernated": self._hibernated,
+            "task_id": self.task_id,
         }
