@@ -159,9 +159,37 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, task_id: str | No
                 merged_commits = _parse_merged_commits(str(repo), old_head)
             else:
                 merged_commits = {}
-            return {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
+
+            new_branch = _reset_worktree_branch(str(wt), str(repo), wt.name)
+            return {
+                "ok": True, "commits_merged": commits_merged, "branch": branch,
+                "merged_commits": merged_commits, "new_branch": new_branch,
+            }
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def _reset_worktree_branch(wt: str, repo: str, worker_name: str) -> str | None:
+    subprocess.run(["git", "checkout", "main"], cwd=wt, capture_output=True, text=True)
+    subprocess.run(["git", "pull", "--ff-only"], cwd=wt, capture_output=True, text=True)
+
+    for i in range(1, 100):
+        new_branch = f"feat/{worker_name}-{i}"
+        check = subprocess.run(
+            ["git", "rev-parse", "--verify", new_branch],
+            cwd=repo, capture_output=True, text=True,
+        )
+        if check.returncode != 0:
+            result = subprocess.run(
+                ["git", "checkout", "-b", new_branch],
+                cwd=wt, capture_output=True, text=True,
+            )
+            if result.returncode == 0:
+                return new_branch
+            logger.warning(f"Failed to create branch {new_branch}: {result.stderr.strip()}")
+            return None
+    logger.warning(f"Could not find free branch name for {worker_name}")
+    return None
 
 
 _PAR_RE = re.compile(r"\bPAR-(\d+)\b", re.IGNORECASE)

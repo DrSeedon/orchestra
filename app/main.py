@@ -452,6 +452,11 @@ async def merge_session(name: str, req: ScopeRequest):
                     link_results[f"PAR-{par_num}"] = {"ok": False, "error": str(link_err)}
             if link_results:
                 result["linked_tasks"] = link_results
+            new_branch = result.get("new_branch")
+            if new_branch and not isinstance(found, dict) and hasattr(found, "branch"):
+                found.branch = new_branch
+                found.task_id = None
+                found._persist()
         return result
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
