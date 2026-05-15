@@ -232,6 +232,8 @@ class SessionManager:
             await session.stop()
 
     async def remove(self, session_id: str) -> None:
+        from app.bg_jobs import bg_manager
+        await bg_manager.cancel_by_session(session_id)
         session = self.sessions.pop(session_id, None)
         if session:
             await session.stop()
