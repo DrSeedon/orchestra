@@ -984,15 +984,21 @@ async def github_webhook(request: Request):
     if event != "workflow_run":
         return {"ok": True, "skipped": event}
 
-    payload = json.loads(body)
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
     action = payload.get("action")
-    workflow_run = payload.get("workflow_run", {})
+    workflow_run = payload.get("workflow_run") or {}
     conclusion = workflow_run.get("conclusion")
 
-    if action != "completed" or conclusion != "failure":
+    _FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
+    if action != "completed" or conclusion not in _FAILURE_CONCLUSIONS:
         return {"ok": True, "skipped": f"{action}/{conclusion}"}
 
-    repo_full = payload.get("repository", {}).get("full_name", "")
+    repository = payload.get("repository") or {}
+    repo_full = repository.get("full_name", "")
     scope = REPO_TO_SCOPE.get(repo_full)
     if not scope:
         logger.warning(f"No scope mapping for repo: {repo_full}")
@@ -1001,9 +1007,9 @@ async def github_webhook(request: Request):
     workflow_name = workflow_run.get("name", "unknown")
     run_id = workflow_run.get("id")
     run_url = workflow_run.get("html_url", "")
-    head_commit = workflow_run.get("head_commit", {})
-    commit_sha = head_commit.get("id", "")[:7]
-    commit_msg = head_commit.get("message", "").split("\n")[0]
+    head_commit = workflow_run.get("head_commit") or {}
+    commit_sha = str(head_commit.get("id", ""))[:7]
+    commit_msg = str(head_commit.get("message", "")).split("\n")[0]
 
     token = os.getenv("GITHUB_TOKEN", "")
     error_log = ""
