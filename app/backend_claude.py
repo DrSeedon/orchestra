@@ -65,12 +65,14 @@ class ClaudeBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
                  mcp_servers: dict | None = None,
-                 is_orchestrator: bool = False):
+                 is_orchestrator: bool = False,
+                 scope_mcp_servers: dict | None = None):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._resume_id = resume_session_id
         self._mcp_servers = mcp_servers or {}
+        self._scope_mcp_servers = scope_mcp_servers or {}
         self._is_orchestrator = is_orchestrator
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
@@ -81,6 +83,7 @@ class ClaudeBackend:
 
     def _make_client(self) -> ClaudeSDKClient:
         cli = shutil.which("claude") or "/home/maxim/.local/bin/claude"
+        resume_id = self._session_id or self._resume_id
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
@@ -88,12 +91,13 @@ class ClaudeBackend:
             max_buffer_size=50 * 1024 * 1024,
             env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},
         )
-        if self._resume_id:
-            options.resume = self._resume_id
+        if resume_id:
+            options.resume = resume_id
         else:
             options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
-        if self._mcp_servers:
-            options.mcp_servers = self._mcp_servers
+        merged_mcp = {**self._scope_mcp_servers, **self._mcp_servers}
+        if merged_mcp:
+            options.mcp_servers = merged_mcp
         return ClaudeSDKClient(options=options)
 
     async def connect(self) -> None:
