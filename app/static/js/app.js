@@ -2124,38 +2124,53 @@ function addChatEntry(type, content, ts, anchor) {
                     return;
                 }
                 if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
-                    if (hdr) { hdr.textContent = `📋 ${parsed.par}: ${parsed.title || '?'}`; hdr.style.color = '#22c55e'; }
+                    const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    if (hdr) { hdr.textContent = `📋 ${parsed.par}: ${parsed.title || '?'}`; hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa'; }
                     const info = document.createElement('div');
-                    info.style.cssText = 'margin-top:4px;display:flex;gap:8px;font-size:10px;color:#64748b;flex-wrap:wrap';
-                    if (parsed.status) info.innerHTML += `<span>status: <b style="color:#e2e8f0">${parsed.status}</b></span>`;
-                    if (parsed.price && parsed.price !== '0') info.innerHTML += `<span>price: <b style="color:#eab308">${parsed.price}k</b></span>`;
-                    if (parsed.assignee) info.innerHTML += `<span>→ ${DOMPurify.sanitize(parsed.assignee)}</span>`;
+                    info.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#64748b';
+                    if (parsed.status) info.innerHTML += `<div>Status: <b style="color:#e2e8f0">${parsed.status}</b></div>`;
+                    if (parsed.project) info.innerHTML += `<div>Project: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.project)}</span></div>`;
+                    if (parsed.price_rub > 0 || parsed.price && parsed.price !== '0') info.innerHTML += `<div>Price: <b style="color:#eab308">${_k(parsed.price_rub || 0)} ₽</b></div>`;
+                    if (parsed.price_rub > 0) info.innerHTML += `<div>Paid: ${_k(parsed.paid_rub||0)}/${_k(parsed.price_rub)}${parsed.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(parsed.debt_rub)}</span>` : ''}</div>`;
+                    if (parsed.assignee) info.innerHTML += `<div>Assignee: ${DOMPurify.sanitize(parsed.assignee)}</div>`;
+                    if (parsed.created_at) info.innerHTML += `<div>Created: ${parsed.created_at.slice(0,10)}</div>`;
+                    if (parsed.completed_at) info.innerHTML += `<div>Done: ${parsed.completed_at.slice(0,10)}</div>`;
                     lastTool.appendChild(info);
                     if (parsed.description) {
                         const descEl = document.createElement('div');
-                        descEl.className = 'text-xs';
-                        descEl.style.cssText = 'margin-top:4px;max-height:54px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;color:#94a3b8';
-                        descEl.textContent = parsed.description.slice(0, 200) + (parsed.description.length > 200 ? '…' : '');
+                        descEl.className = 'text-xs markdown-body';
+                        descEl.style.cssText = 'margin-top:4px;max-height:54px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;line-height:1.4;color:#94a3b8';
+                        descEl.innerHTML = DOMPurify.sanitize(marked.parse(parsed.description));
                         lastTool.appendChild(descEl);
-                        if (parsed.description.length > 200) {
-                            lastTool.style.cursor = 'pointer';
-                            let _tgExp = false;
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _tgExp = !_tgExp;
-                                descEl.textContent = _tgExp ? parsed.description : parsed.description.slice(0, 200) + '…';
-                                descEl.style.maxHeight = _tgExp ? 'none' : '54px';
-                            });
-                        }
+                        lastTool.style.cursor = 'pointer';
+                        let _tgExp = false;
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _tgExp = !_tgExp;
+                            descEl.style.maxHeight = _tgExp ? 'none' : '54px';
+                            descEl.style.overflowY = _tgExp ? 'visible' : 'hidden';
+                        });
+                    }
+                    const sys = [];
+                    if (parsed.yougile_id || parsed.yougile_task_id) sys.push(`yougile: ${parsed.yougile_id || parsed.yougile_task_id}`);
+                    if (parsed.sync_revision) sys.push(`rev: ${parsed.sync_revision}`);
+                    if (sys.length > 0) {
+                        const sEl = document.createElement('div');
+                        sEl.style.cssText = 'margin-top:4px;font-size:9px;color:#475569;font-family:monospace';
+                        sEl.textContent = sys.join(' · ');
+                        lastTool.appendChild(sEl);
                     }
                 } else if (tn === 'mcp__orchestra__task_update') {
-                    if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'} updated`; hdr.style.color = '#22c55e'; }
-                    if (parsed.changes) {
-                        const ch = document.createElement('div');
-                        ch.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8';
-                        ch.textContent = parsed.changes;
-                        lastTool.appendChild(ch);
+                    const changes = [];
+                    if (parsed.old_status && parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
+                    else if (parsed.updated) {
+                        for (const f of parsed.updated) {
+                            if (f === 'status' && parsed.new_status) changes.push(`status→${parsed.new_status}`);
+                            else if (f === 'price' && parsed.price_rub != null) changes.push(`price ${(parsed.price_rub/1000)}k ₽`);
+                            else changes.push(f);
+                        }
                     }
+                    if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
                     if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}k` : '');
@@ -2214,12 +2229,12 @@ function addChatEntry(type, content, ts, anchor) {
                 return;
             }
             const _orchSimpleResults = {
-                'mcp__orchestra__kill_worker': { ok: '💀 Worker killed', fail: '❌ Kill failed', okColor: '#22c55e', failColor: '#ef4444' },
-                'mcp__orchestra__stop_worker': { ok: '⏸️ Worker stopped', fail: '❌ Stop failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} killed`, color: '#22c55e' } : null; },
+                'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
+                'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
+                'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
+                'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__compact_worker': null,
-                'mcp__orchestra__rename_worker': { ok: '✅ Renamed', fail: '❌ Rename failed', okColor: '#22c55e', failColor: '#ef4444' },
-                'mcp__orchestra__change_worker_model': { ok: '✅ Model changed', fail: '❌ Change failed', okColor: '#22c55e', failColor: '#ef4444' },
-                'mcp__orchestra__merge_worker': { ok: '🔀 Merged', fail: '❌ Merge failed', okColor: '#22c55e', failColor: '#ef4444' },
                 'mcp__orchestra__list_agents': null,
                 'mcp__orchestra__list_orchestrators': null,
                 'mcp__orchestra__list_jobs': null,
@@ -2228,9 +2243,14 @@ function addChatEntry(type, content, ts, anchor) {
             const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
             if (_orchResultCfg !== undefined) {
                 const hdr = lastTool.querySelector('.flex.items-center');
-                if (_orchResultCfg) {
-                    const hasErr = content.includes('error') || content.includes('Error');
-                    if (hdr) { hdr.textContent = hasErr ? _orchResultCfg.fail : _orchResultCfg.ok; hdr.style.color = hasErr ? _orchResultCfg.failColor : _orchResultCfg.okColor; }
+                if (typeof _orchResultCfg === 'function') {
+                    const hasErr = content.includes('failed') || content.includes('Failed') || content.includes('error') || content.includes('Error');
+                    if (hasErr) {
+                        if (hdr) { hdr.textContent = `❌ ${clean.slice(0, 80)}`; hdr.style.color = '#ef4444'; }
+                    } else {
+                        const result = _orchResultCfg(clean);
+                        if (hdr) { hdr.textContent = result?.text || '✅ Done'; hdr.style.color = result?.color || '#22c55e'; }
+                    }
                     addTimestamp(lastTool, ts);
                     return;
                 }
