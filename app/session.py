@@ -311,6 +311,11 @@ class AgentSession:
             "cache_create": meta.get("cache_create", 0),
         }
 
+        if sr in ("error_max_turns", "max_turns") and ok:
+            self._log("status", f"max_turns reached ({nt}), auto-continuing")
+            asyncio.create_task(self._auto_continue())
+            return
+
         self.status = AgentStatus.IDLE
         self._persist()
 
@@ -523,6 +528,16 @@ class AgentSession:
                 await check_scope_idle(orch_name, self.scope)
         except Exception:
             pass
+
+    async def _auto_continue(self) -> None:
+        await asyncio.sleep(1)
+        try:
+            await self.send("[system] Turn limit reached. Continue where you left off.")
+            logger.info(f"[{self.name}] auto-continue after max_turns")
+        except Exception as e:
+            logger.warning(f"[{self.name}] auto-continue failed: {e}")
+            self.status = AgentStatus.IDLE
+            self._persist()
 
     async def _auto_compact(self) -> None:
         self._compacting = True

@@ -87,7 +87,7 @@ class ClaudeBackend:
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
-            include_partial_messages=False, max_turns=500,
+            include_partial_messages=False, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
             env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},
         )
