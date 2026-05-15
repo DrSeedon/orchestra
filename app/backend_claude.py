@@ -27,8 +27,8 @@ from app.events import AgentEvent
 
 logger = logging.getLogger(__name__)
 
-_BLOCKED_TOOLS = {"AskUserQuestion"}
-_ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent"}
+_BLOCKED_TOOLS = {"AskUserQuestion", "Monitor"}
+_ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
 
 
 def _make_auto_approve(is_orchestrator: bool = False):
@@ -98,6 +98,7 @@ class ClaudeBackend:
         merged_mcp = {**self._scope_mcp_servers, **self._mcp_servers}
         if merged_mcp:
             options.mcp_servers = merged_mcp
+        options.setting_sources = ["user", "project", "local"]
         return ClaudeSDKClient(options=options)
 
     async def connect(self) -> None:
