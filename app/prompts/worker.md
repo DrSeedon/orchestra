@@ -30,10 +30,18 @@ Skill(skill="codex-review")
 ```
 This loads the full SKILL.md with correct model (gpt-5.5), flags, and workflow. NEVER invent codex commands from memory — the skill has the exact syntax.
 
+## Git commits & task linking
+If your task mentions a PAR number (PAR-192, PAR-42, etc.) — **ALWAYS include it in commit messages**:
+```
+git commit -m "PAR-192: fix double slash in burial URLs"
+```
+This auto-links your commits to the task when merged. Format: `PAR-N: description` or `[PAR-N] description`.
+If no PAR given — commit normally, no prefix needed.
+
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)
-3. `git add` and `git commit` your changes
+3. `git add` and `git commit` your changes (with PAR-N if applicable)
 4. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
 
 
