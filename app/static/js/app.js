@@ -1148,13 +1148,16 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
             else if (rawName === 'mcp__orchestra__send_file') preview = `📎 ${(parsed.path || '').split('/').pop() || '?'}`;
-            else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 ${parsed.name || '?'} (${parsed.limit || 20})`;
-            else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 list_agents';
-            else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 list_orchestrators';
-            else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 list_jobs';
+            else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 Kill: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__stop_worker') preview = `⏸️ Stop: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 Logs: ${parsed.name || '?'} (${parsed.limit || 20})`;
+            else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 Agents';
+            else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 Orchestrators';
+            else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 Compact: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 Jobs';
             else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
+            else if (rawName === 'mcp__orchestra__change_worker_model') preview = `🔄 ${parsed.name || '?'} → ${parsed.model || '?'}`;
+            else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
             else if (rawName === 'mcp__orchestra__task_create') preview = `📋 New: "${parsed.title || '?'}"${parsed.price ? ' | '+parsed.price+'k' : ''}`;
@@ -1308,7 +1311,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -1319,7 +1322,7 @@ function addChatEntry(type, content, ts, anchor) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error');
-                    if (['mcp__orchestra__kill_worker','mcp__orchestra__rename_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__merge_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
                     else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
                 } else if (resultSpan && isGlobCompact) {
@@ -1780,9 +1783,12 @@ function addChatEntry(type, content, ts, anchor) {
             } catch {}
         }
         const _orchSimple = {
-            'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Killing: ${d.name||'?'}`, color: '#ef4444' }),
-            'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compacting: ${d.name||'?'}`, color: '#eab308' }),
+            'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Kill: ${d.name||'?'}`, color: '#ef4444' }),
+            'mcp__orchestra__stop_worker': (d) => ({ icon: '⏸️', label: `Stop: ${d.name||'?'}`, color: '#eab308' }),
+            'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compact: ${d.name||'?'}`, color: '#eab308' }),
             'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
+            'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `Model: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
+            'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
             'mcp__orchestra__list_jobs': () => ({ icon: '📊', label: 'Jobs', color: '#38bdf8' }),
@@ -2208,9 +2214,12 @@ function addChatEntry(type, content, ts, anchor) {
                 return;
             }
             const _orchSimpleResults = {
-                'mcp__orchestra__kill_worker': { ok: '✅ Worker killed', fail: '❌ Kill failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__kill_worker': { ok: '💀 Worker killed', fail: '❌ Kill failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__stop_worker': { ok: '⏸️ Worker stopped', fail: '❌ Stop failed', okColor: '#22c55e', failColor: '#ef4444' },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__rename_worker': { ok: '✅ Renamed', fail: '❌ Rename failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__change_worker_model': { ok: '✅ Model changed', fail: '❌ Change failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__merge_worker': { ok: '🔀 Merged', fail: '❌ Merge failed', okColor: '#22c55e', failColor: '#ef4444' },
                 'mcp__orchestra__list_agents': null,
                 'mcp__orchestra__list_orchestrators': null,
                 'mcp__orchestra__list_jobs': null,
