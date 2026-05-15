@@ -2288,7 +2288,22 @@ function addChatEntry(type, content, ts, anchor) {
                 if (typeof _orchResultCfg === 'function') {
                     const hasErr = content.includes('failed') || content.includes('Failed') || content.includes('error') || content.includes('Error');
                     if (hasErr) {
-                        if (hdr) { hdr.textContent = `❌ ${clean.slice(0, 80)}`; hdr.style.color = '#ef4444'; }
+                        const toolAction = lastTool.dataset.toolRawName.split('__').pop().replace(/_/g, ' ');
+                        if (hdr) { hdr.textContent = `❌ ${toolAction} failed`; hdr.style.color = '#ef4444'; }
+                        const errEl = document.createElement('div');
+                        errEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow-y:hidden;overflow-x:hidden';
+                        errEl.textContent = clean;
+                        lastTool.appendChild(errEl);
+                        if (clean.split('\n').length > 3 || clean.length > 200) {
+                            lastTool.style.cursor = 'pointer';
+                            let _errExp = false;
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _errExp = !_errExp;
+                                errEl.style.maxHeight = _errExp ? 'none' : '54px';
+                                errEl.style.overflowY = _errExp ? 'visible' : 'hidden';
+                            });
+                        }
                     } else {
                         const result = _orchResultCfg(clean);
                         if (hdr) { hdr.textContent = result?.text || '✅ Done'; hdr.style.color = result?.color || '#22c55e'; }
