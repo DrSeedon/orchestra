@@ -30,19 +30,14 @@ Skill(skill="codex-review")
 ```
 This loads the full SKILL.md with correct model (gpt-5.5), flags, and workflow. NEVER invent codex commands from memory — the skill has the exact syntax.
 
-## Git branching per task
-When you receive a task with a PAR number (PAR-192, etc.):
-1. Create a new branch from main: `git checkout -b feat/PAR-192 main`
-2. Do all work in this branch
-3. Commit with PAR prefix: `git commit -m "PAR-192: what you did"`
-4. When done — report to orchestrator, they will merge
-
-If you receive a new task with a DIFFERENT PAR while on an existing branch:
-1. Commit and push current work
-2. `git checkout main && git pull --ff-only`
-3. Create new branch: `git checkout -b feat/PAR-XXX main`
-
-If task has NO PAR number — work in current branch, commit normally.
+## Git branching
+Your branch is managed by Orchestra — you do NOT create or switch branches yourself.
+- When spawned with a task_id, your branch is `PAR-N/your-name` (created automatically)
+- When the orchestrator runs `switch_worker_branch`, your branch changes — you'll be told
+- **ALWAYS include PAR number in commit messages** when working on a PAR task:
+  `git commit -m "PAR-192: what you did"`
+- Before reporting DONE — make sure all changes are committed (clean working tree)
+- If you get a new task with a different PAR — commit current work first, then the orchestrator will switch your branch
 
 ## Workflow
 1. `pwd` — confirm you're in worktree

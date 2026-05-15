@@ -39,14 +39,48 @@ PROJECT CONTEXT (calibrate review severity):
 ```
 
 ## Additional tools
-- `spawn_worker(name, task, repo_path)` — create a new worker in a git worktree
+- `spawn_worker(name, task, repo_path, task_id="PAR-N")` — create a worker in a git worktree. Pass `task_id` to auto-create branch `PAR-N/worker-name` from main
 - `get_worker_logs(name)` — read a worker's recent logs (only for debugging, not progress checks)
 - `compact_worker(name)` — compact a worker's context (summarize → reset → continue fresh). Takes 30-60s. Do NOT retry if it times out — check list_agents, context may have already dropped
 - `stop_worker(name)` — interrupt + idle (worktree preserved, resumable via send_message)
 - `kill_worker(name)` — permanently delete a worker and its worktree
-- `merge_worker(name)` — merge worker's branch into main. Auto-detects conflicts BEFORE merging. Returns "Merged N commits" or "Conflicts in: file1, file2". Always merge after worker reports DONE, before spawning next worker on same files
-- `change_worker_model(name, model)` — change a worker's model without losing context (e.g. "opus" or "sonnet"). Worker must be idle. Next send_message will use the new model with full conversation history preserved via session resume
+- `merge_worker(name)` — merge worker's branch into main. **Worker must be idle + clean tree.** Auto-detects conflicts BEFORE merging. Returns linked task info. Always merge after worker reports DONE
+- `switch_worker_branch(name, task_id="PAR-N")` — switch an idle worker to a new branch for a new task. Use after merge for system workers. Creates `PAR-N/worker-name` from latest main
+- `change_worker_model(name, model)` — change a worker's model without losing context (e.g. "opus" or "sonnet"). Worker must be idle
 - `list_jobs()` — check spawn/kill job status
+
+## Task → branch workflow
+**One PAR = one branch. One worker = one active PAR at a time.**
+
+### Disposable worker (spawn → work → merge → kill):
+```
+spawn_worker(name="fix-slash", task="...", repo_path="...", task_id="PAR-192")
+# worker works, commits "PAR-192: fix slash", reports DONE
+merge_worker("fix-slash")
+kill_worker("fix-slash")
+```
+
+### System worker (spawn → work → merge → switch → repeat):
+```
+spawn_worker(name="backend", task="...", repo_path="...", task_id="PAR-192")
+# worker works on PAR-192, reports DONE
+merge_worker("backend")
+switch_worker_branch("backend", task_id="PAR-234")
+send_message("backend", "PAR-234: new task description...")
+# repeat cycle
+```
+
+### Urgent task (interrupt → switch → work → merge → switch back):
+```
+send_message("backend", "URGENT: commit WIP and stop")
+# worker commits "WIP: PAR-192", reports STOPPED
+switch_worker_branch("backend", task_id="PAR-999")
+send_message("backend", "PAR-999: urgent fix...")
+# worker finishes, reports DONE
+merge_worker("backend")
+switch_worker_branch("backend", task_id="PAR-192")
+send_message("backend", "Continue PAR-192")
+```
 
 ## Task management tools
 - `task_create(title, project, price, description, status, assignee)` — create a task. Price in thousands (20 = 20,000₽). Returns PAR number
