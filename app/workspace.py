@@ -26,17 +26,26 @@ def _slugify(s: str) -> str:
     return slug.lower()[:80]
 
 
-_TASK_ID_RE = re.compile(r"^(?:PAR-)?(\d+)$", re.IGNORECASE)
+_TASK_ID_RE = re.compile(r"^([A-Z]{2,5})-(\d+)$", re.IGNORECASE)
+_TASK_ID_BARE = re.compile(r"^(\d+)$")
 
 
 def _normalize_task_id(task_id: str) -> str:
-    m = _TASK_ID_RE.match(task_id.strip())
-    if not m:
-        raise ValueError(f"Invalid task_id '{task_id}': expected PAR-N or N")
-    n = int(m.group(1))
-    if n < 1:
-        raise ValueError(f"Invalid task_id '{task_id}': PAR number must be >= 1")
-    return f"PAR-{n}"
+    tid = task_id.strip()
+    m = _TASK_ID_RE.match(tid)
+    if m:
+        prefix = m.group(1).upper()
+        n = int(m.group(2))
+        if n < 1:
+            raise ValueError(f"Invalid task_id '{task_id}': number must be >= 1")
+        return f"{prefix}-{n}"
+    m = _TASK_ID_BARE.match(tid)
+    if m:
+        n = int(m.group(1))
+        if n < 1:
+            raise ValueError(f"Invalid task_id '{task_id}': number must be >= 1")
+        return f"PAR-{n}"
+    raise ValueError(f"Invalid task_id '{task_id}': expected PREFIX-N (e.g. PAR-192, ORC-1) or just N")
 
 
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "") -> Worktree:
