@@ -238,6 +238,18 @@ def _migrate(c) -> None:
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status)")
+    for tbl in ("tm_payment_allocations", "tm_sync_log"):
+        try:
+            schema = c.execute(f"SELECT sql FROM sqlite_master WHERE name='{tbl}' AND type='table'").fetchone()
+            if schema and "tm_tasks_old" in schema[0]:
+                old_name = f"_{tbl}_fix"
+                c.execute(f"ALTER TABLE {tbl} RENAME TO {old_name}")
+                create_sql = schema[0].replace('"tm_tasks_old"', 'tm_tasks').replace("tm_tasks_old", "tm_tasks")
+                c.execute(create_sql)
+                c.execute(f"INSERT INTO {tbl} SELECT * FROM {old_name}")
+                c.execute(f"DROP TABLE {old_name}")
+        except Exception:
+            pass
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
 
 
