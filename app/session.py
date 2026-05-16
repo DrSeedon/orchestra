@@ -140,7 +140,7 @@ class AgentSession:
                 self._hibernate_task = None
 
             if self._hibernated:
-                self._log("status", "waking from hibernate")
+                logger.info(f"[{self.name}] waking from hibernate")
                 self._hibernated = False
 
             self.progress_pct = 0
@@ -361,7 +361,7 @@ class AgentSession:
                 return
             if self._backend is None:
                 return
-            self._log("status", f"hibernating (idle {int(timeout)}s)")
+            logger.info(f"[{self.name}] hibernating (idle {int(timeout)}s)")
             await self._disconnect_backend()
             self._hibernated = True
 
