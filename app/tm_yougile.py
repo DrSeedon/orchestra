@@ -122,6 +122,8 @@ async def yougile_sync_task(task_id: int) -> str:
                     raise
                 task = tm.get_task_by_id(conn, task_id)
                 await _yougile_push_update(task)
+                if task["status"] == "done":
+                    await _update_done_column_title()
                 return "backfilled + updated"
 
             result = await _yougile_push_create(task)
@@ -168,6 +170,8 @@ async def yougile_sync_task(task_id: int) -> str:
             except Exception:
                 conn.rollback()
                 raise
+            if status == "ok" and task["status"] == "done":
+                await _update_done_column_title()
             return status
     finally:
         conn.close()
@@ -192,6 +196,31 @@ async def _yougile_push_update(task: dict) -> dict | None:
         "completed": task["price_rub"] > 0 and task["paid_rub"] == task["price_rub"],
     }
     return await _yougile_request("PUT", f"/tasks/{task['yougile_task_id']}", body)
+
+
+async def _update_done_column_title() -> None:
+    """Recalculate and update the 'Сделано' column title with total debt."""
+    import re
+    offset = 0
+    total_debt_k = 0
+    while True:
+        result = await _yougile_request("GET", f"/tasks?columnId={DONE_COLUMN_ID}&offset={offset}&limit=50")
+        if not result or "content" not in result:
+            break
+        content = result["content"]
+        for t in content:
+            title = t.get("title", "")
+            m = re.search(r"\|\s*(\d+)/(\d+)k\s*₽", title)
+            if m:
+                paid_k = int(m.group(1))
+                price_k = int(m.group(2))
+                total_debt_k += price_k - paid_k
+        if len(content) < 50:
+            break
+        offset += 50
+    await _yougile_request("PUT", f"/columns/{DONE_COLUMN_ID}", {
+        "title": f"Сделано → {total_debt_k}k ₽",
+    })
 
 
 async def yougile_update_par35(payment_id: int, balance_rub: int,
