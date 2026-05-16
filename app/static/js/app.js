@@ -687,6 +687,7 @@ function onOrchestratorChange() {
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
     updateAgentInfo(null);
+    updateInputState();
     restoreDraft();
     refreshSessions(); connectSSE(); initFilePanel();
     if (_tasksTabActive) loadTasks();
