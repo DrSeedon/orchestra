@@ -17,14 +17,6 @@ DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "paid", "cancelled"}
 
-ALLOWED_TRANSITIONS = {
-    "backlog": {"new", "cancelled"},
-    "new": {"in_progress", "backlog", "cancelled"},
-    "in_progress": {"done", "new", "cancelled"},
-    "done": {"paid", "in_progress", "cancelled"},
-    "paid": set(),
-    "cancelled": {"new"},
-}
 
 
 def _conn() -> sqlite3.Connection:
@@ -255,10 +247,6 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
             raise ValueError(f"Invalid status: {status}")
         if status == "paid":
             raise ValueError("Cannot manually set status to 'paid' — use payment_receive")
-        if status not in ALLOWED_TRANSITIONS.get(old_status, set()):
-            raise ValueError(f"Transition {old_status} → {status} not allowed")
-        if status == "cancelled" and task["paid_rub"] > 0:
-            raise ValueError("Cannot cancel task with payments — void allocations first")
         updates.append("status = ?")
         params.append(status)
         changed.append("status")
