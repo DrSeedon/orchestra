@@ -197,37 +197,46 @@ def _migrate(c) -> None:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:
         pass
-    auto_idx = [r[1] for r in c.execute("PRAGMA index_list(tm_tasks)").fetchall()
-                if r[1].startswith("sqlite_autoindex")]
+    old_exists = c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='_tm_tasks_old'").fetchone()
+    if old_exists:
+        c.execute("DROP TABLE IF EXISTS tm_tasks")
+        c.execute("ALTER TABLE _tm_tasks_old RENAME TO tm_tasks")
+    try:
+        auto_idx = [r[1] for r in c.execute("PRAGMA index_list(tm_tasks)").fetchall()
+                    if r[1].startswith("sqlite_autoindex")]
+    except Exception:
+        auto_idx = []
+    needs_recreate = False
     for idx in auto_idx:
         try:
             info = c.execute(f"PRAGMA index_info({idx})").fetchall()
-            col_names = [r[2] for r in info]
-            if col_names == ["par_number"]:
-                c.execute("ALTER TABLE tm_tasks RENAME TO _tm_tasks_old")
-                c.execute("""CREATE TABLE tm_tasks (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    par_number INTEGER NOT NULL,
-                    project_id TEXT NOT NULL REFERENCES tm_projects(id),
-                    title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
-                    price_rub INTEGER NOT NULL DEFAULT 0 CHECK (price_rub >= 0),
-                    paid_rub INTEGER NOT NULL DEFAULT 0 CHECK (paid_rub >= 0),
-                    status TEXT NOT NULL DEFAULT 'backlog', assignee TEXT NOT NULL DEFAULT '',
-                    yougile_task_id TEXT UNIQUE, sync_revision INTEGER NOT NULL DEFAULT 0,
-                    worker_session_id TEXT, git_commits TEXT NOT NULL DEFAULT '[]',
-                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-                    completed_at TEXT, paid_at TEXT,
-                    CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
-                )""")
-                c.execute("INSERT INTO tm_tasks SELECT * FROM _tm_tasks_old")
-                c.execute("DROP TABLE _tm_tasks_old")
-                c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
-                c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
-                c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status)")
-                c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
+            if [r[2] for r in info] == ["par_number"]:
+                needs_recreate = True
                 break
         except Exception:
             pass
+    if needs_recreate:
+        c.execute("ALTER TABLE tm_tasks RENAME TO _tm_tasks_old")
+        c.execute("""CREATE TABLE tm_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            par_number INTEGER NOT NULL,
+            project_id TEXT NOT NULL REFERENCES tm_projects(id),
+            title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+            price_rub INTEGER NOT NULL DEFAULT 0 CHECK (price_rub >= 0),
+            paid_rub INTEGER NOT NULL DEFAULT 0 CHECK (paid_rub >= 0),
+            status TEXT NOT NULL DEFAULT 'backlog', assignee TEXT NOT NULL DEFAULT '',
+            yougile_task_id TEXT UNIQUE, sync_revision INTEGER NOT NULL DEFAULT 0,
+            worker_session_id TEXT, git_commits TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            completed_at TEXT, paid_at TEXT,
+            CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
+        )""")
+        c.execute("INSERT INTO tm_tasks SELECT * FROM _tm_tasks_old")
+        c.execute("DROP TABLE _tm_tasks_old")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
 
 
 def save_session(s: dict) -> None:
