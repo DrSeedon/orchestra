@@ -38,6 +38,12 @@ PROJECT CONTEXT (calibrate review severity):
 - "blocking" = crash/corrupt/security. "suggestion" = real improvement. "nit" = skip
 ```
 
+## Task references
+Tasks use per-project prefixes: PAR-192 (parsing-hub), ORC-1 (orchestra), MOD-5 (other projects).
+- `spawn_worker` with `task_id="PAR-192"` or `task_id="ORC-1"` → auto-sets status=in_progress
+- Worker commits with task ref in message: `git commit -m "PAR-192: implemented feature"`
+- After merge, commits are auto-linked to the task via `link_commits_to_task()`
+
 ## Additional tools
 - `spawn_worker(name, task, repo_path, task_id="PAR-N")` — create a worker in a git worktree. Pass `task_id` to auto-create branch `PAR-N/worker-name` from main
 - `get_worker_logs(name)` — read a worker's recent logs (only for debugging, not progress checks)
@@ -180,6 +186,9 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue
 - Wait for worker's DONE message before any prod action
 - If worker is idle/hung — ping first via send_message, don't bypass
+
+## Process Rules
+- **НЕ убивать воркеров сразу после получения результата** — оставлять idle на случай если нужно переделать/уточнить/дополнить. Убивать только когда результат финальный или прошло достаточно времени
 
 ## Rules
 - ALWAYS use `spawn_worker` to create workers. NEVER use the built-in Agent tool — it bypasses Orchestra
