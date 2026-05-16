@@ -197,10 +197,12 @@ def _migrate(c) -> None:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:
         pass
-    old_exists = c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='_tm_tasks_old'").fetchone()
-    if old_exists:
-        c.execute("DROP TABLE IF EXISTS tm_tasks")
-        c.execute("ALTER TABLE _tm_tasks_old RENAME TO tm_tasks")
+    for old_name in ("_tm_tasks_old", "tm_tasks_old"):
+        old_exists = c.execute(f"SELECT 1 FROM sqlite_master WHERE type='table' AND name='{old_name}'").fetchone()
+        if old_exists:
+            c.execute("DROP TABLE IF EXISTS tm_tasks")
+            c.execute(f"ALTER TABLE {old_name} RENAME TO tm_tasks")
+            break
     try:
         auto_idx = [r[1] for r in c.execute("PRAGMA index_list(tm_tasks)").fetchall()
                     if r[1].startswith("sqlite_autoindex")]
