@@ -320,6 +320,39 @@ def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
     return f"{prefix}-{task['par_number']}"
 
 
+def link_commits_to_task(task_ref: str, commits: list[dict]) -> dict | None:
+    """Link commits to a task by ref (e.g. 'PAR-192', 'ORC-1').
+    commits: list of dicts with at least 'hash' key. Deduplicates by hash."""
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            task = resolve_task_ref(conn, task_ref)
+            if not task:
+                conn.rollback()
+                return None
+            existing = json.loads(task["git_commits"]) if task["git_commits"] else []
+            existing_hashes = {c["hash"] if isinstance(c, dict) else c for c in existing}
+            new_commits = []
+            for c in commits:
+                h = c["hash"] if isinstance(c, dict) else c
+                if h not in existing_hashes:
+                    new_commits.append(c)
+                    existing_hashes.add(h)
+            if not new_commits:
+                conn.rollback()
+                return task
+            all_commits = existing + new_commits
+            conn.execute(
+                "UPDATE tm_tasks SET git_commits = ?, updated_at = ?, sync_revision = sync_revision + 1 WHERE id = ?",
+                (json.dumps(all_commits), _now(), task["id"]),
+            )
+            conn.commit()
+            return get_task_by_id(conn, task["id"])
+        except Exception:
+            conn.rollback()
+            raise
+
+
 def get_task_by_yougile_id(conn: sqlite3.Connection, yougile_id: str) -> dict | None:
     row = conn.execute(
         "SELECT * FROM tm_tasks WHERE yougile_task_id = ?", (yougile_id,)
