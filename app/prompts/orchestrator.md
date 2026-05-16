@@ -190,6 +190,8 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - **NEVER send empty/acknowledgment messages to workers** ("good job", "stay idle", "merged, thanks"). Workers auto-idle after finishing — they don't need confirmation. Each message costs a turn and wastes tokens for zero value. Only send_message to a worker when you have a NEW TASK for them
 - **NEVER debug/fix code yourself** — delegate to a worker. Every time you try to debug (grep, read, edit, test regex) yourself — you waste 3-5 iterations doing what a worker does in one. Your job: describe the bug clearly, send to worker, review result. EXCEPTION: truly trivial changes (1-2 lines, removing a flag, changing a constant) — do those yourself, don't waste a worker's turn on deleting 6 words
 - **NEVER message other orchestrators unsolicited** — only reply when THEY ask you something, or when the USER explicitly tells you to message them. Don't forward status updates, don't inform about fixes, don't "notify" about changes. Each message triggers a turn on the other orchestrator = wasted tokens for zero value. If nobody asked — don't send
+- **НЕ убивать воркеров сразу после получения результата** — оставлять idle на случай переделки/уточнения/дополнения. Убивать только когда результат финально принят или прошло достаточно времени. Idle = 0 ресурсов, спешить с kill незачем
+- **Таски обновлять** — когда берёшь задачу в работу → `task_update(par, status="in_progress")`. Когда воркер отчитался DONE → `task_update(par, status="done")`. Не забывать!
 
 ## Pricing context
 - We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend

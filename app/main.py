@@ -447,12 +447,12 @@ async def merge_session(name: str, req: ScopeRequest):
             result = merge_worktree_to_main(worktree_path, scope)
             if result.get("ok"):
                 link_results = {}
-                for par_num, commits in result.pop("merged_commits", {}).items():
+                for task_ref, commits in result.pop("merged_commits", {}).items():
                     try:
-                        link_results[f"PAR-{par_num}"] = _tm.link_commits_to_task(par_num, commits)
+                        link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits)
                     except Exception as link_err:
                         import logging
-                        logging.getLogger(__name__).error("Failed to link commits to PAR-%s: %s", par_num, link_err)
+                        logging.getLogger(__name__).error("Failed to link commits to %s: %s", task_ref, link_err)
                         link_results[f"PAR-{par_num}"] = {"ok": False, "error": str(link_err)}
                 if link_results:
                     result["linked_tasks"] = link_results

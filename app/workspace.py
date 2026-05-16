@@ -192,7 +192,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
-_PAR_RE = re.compile(r"\bPAR-(\d+)\b", re.IGNORECASE)
+_TASK_REF_RE = re.compile(r"\b([A-Z]{2,5})-(\d+)\b")
 
 
 def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
@@ -211,10 +211,10 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
         full_hash, message, date = parts
         short_hash = full_hash[:7]
 
-        m = _PAR_RE.search(message)
+        m = _TASK_REF_RE.search(message)
         if not m:
             continue
-        par_num = int(m.group(1))
+        task_ref = f"{m.group(1)}-{m.group(2)}"
 
         stat = subprocess.run(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],
@@ -241,7 +241,7 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
             "insertions": insertions,
             "deletions": deletions,
         }
-        by_par.setdefault(par_num, []).append(commit)
+        by_par.setdefault(task_ref, []).append(commit)
 
     return by_par
 
