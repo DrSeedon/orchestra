@@ -192,6 +192,7 @@ async def _yougile_push_update(task: dict) -> dict | None:
         return {"error": "no yougile_task_id"}
     body = {
         "title": format_yougile_title(task),
+        "description": md_to_html(task.get("description", "")),
         "columnId": STATUS_TO_COLUMN.get(task["status"], STATUS_TO_COLUMN["new"]),
         "completed": task["price_rub"] > 0 and task["paid_rub"] == task["price_rub"],
     }
