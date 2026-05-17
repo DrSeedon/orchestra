@@ -2413,9 +2413,36 @@ function addChatEntry(type, content, ts, anchor) {
                     return;
                 }
                 if (lastTool.dataset.toolRawName === 'mcp__orchestra__compact_worker') {
-                    const pctMatch = clean.match(/(\d+)%\s*→\s*(\d+)%/) || clean.match(/(\d+)%.*?(\d+)%/);
-                    if (hdr && pctMatch) { hdr.textContent = `✅ Compact: ${pctMatch[1]}% → ${pctMatch[2]}%`; hdr.style.color = '#22c55e'; }
-                    else if (hdr) { hdr.textContent = '✅ Compacted'; hdr.style.color = '#22c55e'; }
+                    let workerName = '';
+                    try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
+                    const pctMatch = clean.match(/(\d+)%\s*→\s*(\d+)%/);
+                    const sumMatch = clean.match(/Summary \((\d+) chars?\):\s*([\s\S]*)/);
+                    if (hdr && pctMatch) { hdr.textContent = `🗜 ${workerName ? workerName+': ' : ''}${pctMatch[1]}% → ${pctMatch[2]}%`; hdr.style.color = '#22c55e'; }
+                    else if (hdr) { hdr.textContent = `✅ ${workerName ? workerName+' ' : ''}Compacted`; hdr.style.color = '#22c55e'; }
+                    if (sumMatch) {
+                        const chars = sumMatch[1];
+                        const summaryText = sumMatch[2].trim();
+                        const charEl = document.createElement('div');
+                        charEl.style.cssText = 'font-size:10px;color:#64748b;margin-top:2px';
+                        charEl.textContent = `Summary: ${chars} chars`;
+                        lastTool.appendChild(charEl);
+                        if (summaryText) {
+                            const sumEl = document.createElement('div');
+                            sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;max-height:48px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                            sumEl.textContent = summaryText;
+                            lastTool.appendChild(sumEl);
+                            if (summaryText.split('\n').length > 3 || summaryText.length > 200) {
+                                lastTool.style.cursor = 'pointer';
+                                let _cExp = false;
+                                lastTool.addEventListener('click', (e) => {
+                                    if (e.target.tagName === 'A') return;
+                                    _cExp = !_cExp;
+                                    sumEl.style.maxHeight = _cExp ? 'none' : '48px';
+                                    sumEl.style.overflowY = _cExp ? 'visible' : 'hidden';
+                                });
+                            }
+                        }
+                    }
                     addTimestamp(lastTool, ts);
                     return;
                 }
