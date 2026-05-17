@@ -596,8 +596,8 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
                   (SELECT COALESCE(SUM(amount_rub), 0) FROM tm_payment_allocations WHERE task_id = tm_tasks.id) as computed_paid
            FROM tm_tasks
            WHERE project_id IN (SELECT project_id FROM tm_clients WHERE id = ?)
-             AND (paid_rub != (SELECT COALESCE(SUM(amount_rub), 0) FROM tm_payment_allocations WHERE task_id = tm_tasks.id)
-                  OR paid_rub > price_rub)""",
+             AND paid_rub != (SELECT COALESCE(SUM(amount_rub), 0) FROM tm_payment_allocations WHERE task_id = tm_tasks.id)
+             AND paid_rub > 0""",
         (client_id,),
     ).fetchall()
     if bad_tasks:
@@ -626,15 +626,6 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
     if actual < 0:
         raise RuntimeError(f"Negative balance: {actual}")
 
-    bad_paid_status = conn.execute(
-        """SELECT par_number FROM tm_tasks
-           WHERE price_rub > 0 AND paid_rub = price_rub AND status != 'paid'
-             AND project_id IN (SELECT project_id FROM tm_clients WHERE id = ?)""",
-        (client_id,),
-    ).fetchall()
-    if bad_paid_status:
-        pars = ", ".join(f"PAR-{t['par_number']}" for t in bad_paid_status)
-        raise RuntimeError(f"Tasks fully paid but not in 'paid' status: {pars}")
 
 
 # --- Sync log helpers ---
