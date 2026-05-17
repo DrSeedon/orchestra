@@ -386,9 +386,18 @@ def receive_payment(conn: sqlite3.Connection, client_id: str, amount_rub: int,
 
     result = _distribute_payment(conn, payment_id, client_id, amount_rub)
 
+    now = _now()
+    zero_price_closed = conn.execute(
+        """UPDATE tm_tasks SET status = 'paid', paid_at = ?, updated_at = ?, sync_revision = sync_revision + 1
+           WHERE status = 'done' AND price_rub = 0
+             AND project_id IN (SELECT project_id FROM tm_clients WHERE id = ?)
+           RETURNING par_number""",
+        (now, now, client_id),
+    ).fetchall()
+
     _sanity_check(conn, client_id, payment_id)
 
-    tasks_closed = sum(1 for d in result["distributions"] if d["now_paid"])
+    tasks_closed = sum(1 for d in result["distributions"] if d["now_paid"]) + len(zero_price_closed)
     new_balance = conn.execute(
         "SELECT balance_rub FROM tm_clients WHERE id = ?", (client_id,)
     ).fetchone()[0]
