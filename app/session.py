@@ -145,14 +145,19 @@ class AgentSession:
                 self.system_prompt = self._current_prompt
             else:
                 self._prompt_injected = True
-        client = await self._ensure_client()
-        await client.query(message)
         if self.status == AgentStatus.IDLE:
             self._did_report = False
             self._turn_logs = []
             self._turn_start = asyncio.get_event_loop().time()
             self.status = AgentStatus.RUNNING
             self._persist()
+        try:
+            client = await self._ensure_client()
+        except Exception:
+            self.status = AgentStatus.IDLE
+            self._persist()
+            raise
+        await client.query(message)
 
     async def _ensure_client(self) -> ClaudeSDKClient:
         if self._client is not None:
@@ -255,6 +260,10 @@ class AgentSession:
                                 "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
                                 "cache_read": cache_read, "cache_create": cache_create,
                             }
+                        if self._turn_start:
+                            elapsed = asyncio.get_event_loop().time() - self._turn_start
+                            if elapsed < 3:
+                                await asyncio.sleep(3 - elapsed)
                         self.status = AgentStatus.IDLE
                         self._persist()
                         if not self.is_orchestrator:
