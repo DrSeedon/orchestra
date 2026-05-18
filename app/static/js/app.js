@@ -334,10 +334,8 @@ async function openFilePreview(path) {
                 contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
             }
         } else if (/\.md$/i.test(path)) {
-            contentEl.className = 'flex-1 overflow-auto text-xs text-slate-300 markdown-body p-4';
-            contentEl.style.whiteSpace = '';
-            contentEl.style.overflowX = 'hidden';
-            contentEl.style.wordWrap = '';
+            contentEl.className = 'flex-1 text-xs text-slate-300 markdown-body p-4';
+            contentEl.style.cssText = 'overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:normal;max-height:calc(80vh - 48px)';
             const dir = path.substring(0, path.lastIndexOf('/'));
             const renderer = new marked.Renderer();
             renderer.image = (token) => {
@@ -364,8 +362,8 @@ async function openFilePreview(path) {
             if ((ext === 'csv' || ext === 'tsv') && raw.trim()) {
                 const sep = ext === 'tsv' ? '\t' : ',';
                 const rows = raw.trim().split('\n').map(r => r.split(sep));
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4 markdown-body';
-                contentEl.style.cssText = '';
+                contentEl.className = 'flex-1 text-xs p-4 markdown-body';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
                 let html = '<table><thead><tr>';
                 for (const h of (rows[0] || [])) html += `<th>${DOMPurify.sanitize(h.trim())}</th>`;
                 html += '</tr></thead><tbody>';
@@ -379,8 +377,8 @@ async function openFilePreview(path) {
             } else if (ext === 'json') {
                 let pretty = raw;
                 try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch {}
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4';
-                contentEl.style.cssText = '';
+                contentEl.className = 'flex-1 text-xs p-4';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
                 const pre = document.createElement('pre');
                 pre.style.cssText = 'margin:0;background:transparent';
                 const code = document.createElement('code');
@@ -391,8 +389,8 @@ async function openFilePreview(path) {
                 contentEl.appendChild(pre);
                 if (window.hljs) hljs.highlightElement(code);
             } else if (LANG_MAP[ext] && window.hljs) {
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4';
-                contentEl.style.cssText = '';
+                contentEl.className = 'flex-1 text-xs p-4';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
                 const pre = document.createElement('pre');
                 pre.style.cssText = 'margin:0;background:transparent';
                 const code = document.createElement('code');
@@ -403,10 +401,8 @@ async function openFilePreview(path) {
                 contentEl.appendChild(pre);
                 hljs.highlightElement(code);
             } else {
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4 text-slate-300';
-                contentEl.style.whiteSpace = 'pre';
-                contentEl.style.overflowX = 'auto';
-                contentEl.style.wordWrap = 'normal';
+                contentEl.className = 'flex-1 text-xs p-4 text-slate-300';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px);white-space:pre;word-wrap:normal';
                 contentEl.textContent = raw;
             }
         }
