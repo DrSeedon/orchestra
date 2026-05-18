@@ -158,12 +158,6 @@ class AgentSession:
                 else:
                     self._prompt_injected = True
 
-            backend = await self._ensure_backend()
-            await backend.send(message)
-
-            if self.backend_type == "codex":
-                self._listen_task = asyncio.create_task(self._codex_turn_loop())
-
             if self.status == AgentStatus.IDLE:
                 self._did_report = False
                 self._turn_logs = []
@@ -171,6 +165,18 @@ class AgentSession:
                 self._last_msg_time = self._turn_start
                 self.status = AgentStatus.RUNNING
                 self._persist()
+
+            try:
+                backend = await self._ensure_backend()
+            except Exception:
+                self.status = AgentStatus.IDLE
+                self._persist()
+                raise
+
+            await backend.send(message)
+
+            if self.backend_type == "codex":
+                self._listen_task = asyncio.create_task(self._codex_turn_loop())
 
     async def _ensure_backend(self):
         if self._backend is not None:
