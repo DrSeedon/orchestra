@@ -1,5 +1,8 @@
 # Orchestra TODO
 
+## Next
+- [ ] **VPS migration** — перенос Orchestra на VPS. Ресёрч: требования (RAM/CPU/disk), какой VPS, systemd setup, DB миграция, TG bridge, прокси, git worktrees, 24/7 доступ
+
 ## Later
 - [ ] **Emergency migrate** — кнопка "⚡ Migrate to GPT". Server-side: логи → spawn на GPT → inject summary
 - [ ] **Dashboard streaming** — `include_partial_messages=True`, live token streaming
