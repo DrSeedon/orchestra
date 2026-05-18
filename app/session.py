@@ -453,14 +453,18 @@ class AgentSession:
 
     async def compact(self) -> dict:
         COMPACT_PROMPT = (
-            "[SYSTEM: Context compaction requested]\n\n"
-            "Summarize our conversation so far. Output plain text, ~800 tokens max:\n\n"
-            "INTENT: What you are working on (1-2 sentences).\n"
-            "DECISIONS: Key decisions made (bullet points).\n"
-            "FILES: Files touched with brief notes (path — what was done).\n"
-            "PENDING: Open questions, TODOs, next steps.\n"
-            "RECENT: Last 3-5 exchanges for continuity.\n\n"
-            "Output ONLY the summary. No commentary."
+            "[SYSTEM: Context compaction requested — handoff summary]\n\n"
+            "Write a detailed handoff summary so your next session can continue seamlessly. "
+            "Output plain text, ~2000 tokens. Be thorough — this is the ONLY context your next session will have.\n\n"
+            "INTENT: What you are working on and why (2-3 sentences with full context).\n"
+            "DECISIONS: All key decisions made during this session (bullet points, include reasoning).\n"
+            "FILES: Every file touched with what was done (path — description of change).\n"
+            "PENDING: Open questions, unfinished work, TODOs, blockers, next steps.\n"
+            "RECENT: Last 5-10 exchanges in detail — what was asked, what you did, what the result was.\n"
+            "BUGS: Any bugs found, workarounds applied, things that didn't work.\n"
+            "IMPORTANT CONTEXT: Anything the next session MUST know — credentials paths, API quirks, "
+            "user preferences, patterns discovered, traps to avoid.\n\n"
+            "Output ONLY the summary. No commentary. Be specific — names, paths, numbers, not vague descriptions."
         )
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
 
