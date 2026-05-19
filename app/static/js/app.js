@@ -3875,7 +3875,8 @@ function injectTask(par) {
 
 async function showTaskDetail(par) {
     try {
-        const r = await fetch(`/api/tm/tasks/${par}`);
+        const scope = currentScope ? `?scope=${encodeURIComponent(currentScope)}` : '';
+        const r = await fetch(`/api/tm/tasks/${par}${scope}`);
         const t = await r.json();
         if (t.error) return;
         const modal = document.getElementById('prompt-modal');
