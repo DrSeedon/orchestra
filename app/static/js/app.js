@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     $('#view-prompt-btn').addEventListener('click', openPromptModal);
     $('#compact-btn').addEventListener('click', compactAgent);
+    $('#restart-cli-btn').addEventListener('click', restartCli);
     $('#prompt-modal-close').addEventListener('click', closePromptModal);
     $('#prompt-modal').addEventListener('click', (e) => { if (e.target === $('#prompt-modal')) closePromptModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); } });
@@ -200,7 +201,7 @@ async function loadMoreLogs() {
     const btn = $('#load-more-btn');
     if (btn) { btn.textContent = '⏳ Loading…'; btn.style.pointerEvents = 'none'; }
     try {
-        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=100`);
+        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=500`);
         const logs = await res.json();
         if (!Array.isArray(logs) || logs.length === 0) {
             if (btn) btn.remove();
@@ -280,6 +281,25 @@ async function compactAgent() {
     } catch (e) {
         btn.textContent = '❌';
         setTimeout(() => { btn.textContent = '🗜'; btn.disabled = false; }, 2000);
+    }
+}
+
+async function restartCli() {
+    if (!selectedAgent || !currentScope) return;
+    const btn = $('#restart-cli-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+        await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({scope: currentScope}),
+        });
+        btn.textContent = '✅';
+        setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 1500);
+    } catch (e) {
+        btn.textContent = '❌';
+        setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 2000);
     }
 }
 
@@ -421,7 +441,6 @@ function initFilePreviewModal() {
     const modal = $('#file-preview-modal');
     if (!modal) return;
     $('#file-preview-close').addEventListener('click', closeFilePreview);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeFilePreview(); });
 }
 
 async function showProjectPicker() {
@@ -746,10 +765,12 @@ function updateAgentInfo(session) {
         setContextDisplay('-');
         $('#view-prompt-btn').classList.add('hidden');
         $('#compact-btn').classList.add('hidden');
+        $('#restart-cli-btn').classList.add('hidden');
         return;
     }
     $('#view-prompt-btn').classList.remove('hidden');
     $('#compact-btn').classList.remove('hidden');
+    $('#restart-cli-btn').classList.remove('hidden');
     $('#ai-name').textContent = session.name;
     const st = $('#ai-status');
     st.textContent = `● ${session.status}`;
@@ -1155,6 +1176,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 Jobs';
             else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
             else if (rawName === 'mcp__orchestra__change_worker_model') preview = `🔄 ${parsed.name || '?'} → ${parsed.model || '?'}`;
+            else if (rawName === 'mcp__orchestra__update_worker_description') preview = `✏️ ${parsed.name || '?'} — description`;
             else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
@@ -1312,7 +1334,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -1323,7 +1345,7 @@ function addChatEntry(type, content, ts, anchor) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error');
-                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__merge_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
                     else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
                 } else if (resultSpan && isGlobCompact) {
@@ -1790,6 +1812,7 @@ function addChatEntry(type, content, ts, anchor) {
             'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compact: ${d.name||'?'}`, color: '#eab308' }),
             'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
             'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `Model: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
+            'mcp__orchestra__update_worker_description': (d) => ({ icon: '✏️', label: `${d.name||'?'} — description updated`, color: '#38bdf8', sub: d.description ? `"${d.description}"` : '' }),
             'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
@@ -1814,7 +1837,7 @@ function addChatEntry(type, content, ts, anchor) {
                 header.style.color = cfg.color;
                 if (cfg.sub) {
                     const subEl = document.createElement('div');
-                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
                     subEl.textContent = cfg.sub;
                     div.appendChild(subEl);
                 }
@@ -2226,7 +2249,7 @@ function addChatEntry(type, content, ts, anchor) {
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
                     const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
-                    if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}k` : '');
+                    if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}` : '');
                     if (tasks.length > 0 && parsed.detailed) {
                         const container = document.createElement('div');
                         container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:6px';
@@ -2275,7 +2298,7 @@ function addChatEntry(type, content, ts, anchor) {
                             const row = document.createElement('div');
                             row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
                             row.dataset.taskRow = '1';
-                            const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}k</span>` : '';
+                            const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}</span>` : '';
                             row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
                             container.appendChild(row);
                         }
@@ -2372,6 +2395,7 @@ function addChatEntry(type, content, ts, anchor) {
                 'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
                 'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
+                'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — description updated`, color: '#22c55e' } : { text: '✅ description updated', color: '#22c55e' }; },
                 'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__list_agents': null,
@@ -2453,8 +2477,13 @@ function addChatEntry(type, content, ts, anchor) {
                             const nameRaw = parts[0] || '';
                             const status = parts[1] || '';
                             const model = parts[2] || '';
-                            const cost = parts[3] || '';
-                            const ctxRaw = parts[4] || '';
+                            let ctxRaw = '', taskId = '', desc = '';
+                            for (let pi = 3; pi < parts.length; pi++) {
+                                const p = parts[pi];
+                                if (p.match(/ctx:\d+%/)) ctxRaw = p;
+                                else if (p.startsWith('"')) desc = p.replace(/^"|"$/g, '');
+                                else if (p && !p.startsWith('$')) taskId = p;
+                            }
                             const nameClean = nameRaw.replace(/\*\*/g, '').replace(/^[^\w]*/, '').trim();
                             const icon = nameRaw.match(/[🎯⚙️🔧]/)?.[0] || '⚙️';
                             const ctxPct = parseInt(ctxRaw.match(/(\d+)%/)?.[1] || '0');
@@ -2464,7 +2493,12 @@ function addChatEntry(type, content, ts, anchor) {
                             row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
                             if (i >= PREVIEW_COUNT) row.style.display = 'none';
                             row.dataset.agentRow = '1';
-                            row.innerHTML = `<div style="display:flex;align-items:center;justify-content:between;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div><div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span><span style="color:#22c55e">${DOMPurify.sanitize(cost)}</span><span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:30px;height:3px;border-radius:2px;background:rgba(51,65,85,0.5);overflow:hidden"><span style="display:block;width:${Math.min(ctxPct,100)}%;height:100%;background:${ctxColor};border-radius:2px"></span></span><span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                            let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div>`;
+                            h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span>`;
+                            if (taskId) h += `<span style="color:#a78bfa;font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
+                            h += `<span style="display:inline-flex;align-items:center;gap:3px">ctx:<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                            if (desc) h += `<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
+                            row.innerHTML = h;
                             container.appendChild(row);
                         }
                         lastTool.appendChild(container);
@@ -3714,22 +3748,19 @@ async function loadTasks() {
     if (!panel) return;
     try {
         const scope = currentScope || '';
-        const [tasksResp, payResp, syncResp] = await Promise.all([
+        const [tasksResp, payResp] = await Promise.all([
             fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
             fetch('/api/tm/payments/status').catch(() => null),
-            fetch('/api/tm/sync/log?limit=10').catch(() => null),
         ]);
         const data = await tasksResp.json();
         const payData = payResp ? await payResp.json().catch(() => null) : null;
-        const syncData = syncResp ? await syncResp.json().catch(() => null) : null;
-        const pendingSyncs = (syncData?.entries || []).filter(e => e.status === 'error' || e.status === 'pending').length;
-        renderTasksPanel(panel, data, payData, pendingSyncs);
+        renderTasksPanel(panel, data, payData);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
     }
 }
 
-function renderTasksPanel(panel, data, payData, pendingSyncs) {
+function renderTasksPanel(panel, data, payData) {
     const tasks = data.tasks || [];
     const grouped = {};
     for (const t of tasks) { (grouped[t.status] ||= []).push(t); }
@@ -3740,9 +3771,6 @@ function renderTasksPanel(panel, data, payData, pendingSyncs) {
         html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)} ₽</span></div>`;
     }
     html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')} ₽</span></div>`;
-    if (pendingSyncs > 0) {
-        html += `<div class="flex justify-between"><span class="text-slate-500">⚠️ Sync:</span><span class="text-red-400 font-mono">${pendingSyncs} pending</span></div>`;
-    }
     html += '</div>';
 
     if (tasks.length === 0) {
