@@ -43,10 +43,10 @@ def _fmt_k(rub: int) -> str:
 
 
 def _parse_task_ref(ref: str) -> tuple[str, int]:
-    """Parse 'PAR-42', 'ORC-1', or just '42' into (prefix, number).
-    Returns ('', number) if no prefix given."""
+    """Parse '42', '#42', 'PAR-42' (legacy), 'ORC-1' (legacy) into (prefix, number).
+    Returns ('', number) for plain numbers. Prefix kept for backward compat lookup."""
     import re
-    ref = ref.strip().upper()
+    ref = ref.strip().lstrip("#").upper()
     m = re.match(r"^([A-Z]{2,5})-(\d+)$", ref)
     if m:
         return m.group(1), int(m.group(2))
@@ -284,15 +284,19 @@ def get_task_by_par(conn: sqlite3.Connection, par_number: int,
             (par_number, project_id),
         ).fetchone()
     else:
-        row = conn.execute(
-            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 1",
+        rows = conn.execute(
+            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 2",
             (par_number,),
-        ).fetchone()
+        ).fetchall()
+        if len(rows) > 1:
+            projects = [r["project_id"] for r in rows]
+            raise ValueError(f"Ambiguous task #{par_number} — exists in projects: {', '.join(projects)}. Use project filter.")
+        row = rows[0] if rows else None
     return dict(row) if row else None
 
 
 def resolve_task_ref(conn: sqlite3.Connection, ref: str) -> dict | None:
-    """Resolve 'PAR-42', 'ORC-1', or '42' to a task dict."""
+    """Resolve '42', '#42', or 'PAR-42' (legacy) to a task dict."""
     prefix, num = _parse_task_ref(ref)
     if prefix:
         proj = get_project_by_prefix(conn, prefix)
@@ -303,13 +307,12 @@ def resolve_task_ref(conn: sqlite3.Connection, ref: str) -> dict | None:
 
 
 def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
-    """Format task as 'PAR-42' using project prefix."""
-    prefix = get_project_prefix(conn, task["project_id"])
-    return f"{prefix}-{task['par_number']}"
+    """Format task as plain number string."""
+    return str(task["par_number"])
 
 
 def link_commits_to_task(task_ref: str, commits: list[dict]) -> dict | None:
-    """Link commits to a task by ref (e.g. 'PAR-192', 'ORC-1').
+    """Link commits to a task by ref (e.g. '192', '#192', or 'PAR-192' legacy).
     commits: list of dicts with at least 'hash' key. Deduplicates by hash."""
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -570,7 +573,7 @@ def get_payment_status(conn: sqlite3.Connection, client_id: str) -> dict:
         "total_debt_display": _fmt_k(total_debt),
         "net_position": client["balance_rub"] - total_debt,
         "tasks_with_debt": [
-            {"par": f"{get_project_prefix(conn, client['project_id'])}-{t['par_number']}",
+            {"par": str(t["par_number"]),
              "title": t["title"],
              "debt": _fmt_k(t["price_rub"] - t["paid_rub"])}
             for t in tasks_with_debt
@@ -611,7 +614,7 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
     ).fetchall()
     if bad_tasks:
         details = "; ".join(
-            f"PAR-{t['par_number']}: paid_rub={t['paid_rub']}, computed={t['computed_paid']}, price={t['price_rub']}"
+            f"#{t['par_number']}: paid_rub={t['paid_rub']}, computed={t['computed_paid']}, price={t['price_rub']}"
             for t in bad_tasks
         )
         raise RuntimeError(f"Task payment mismatch: {details}")
@@ -758,14 +761,13 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 assignee=assignee,
                 status=status,
             )
-            prefix = get_project_prefix(conn, project_id)
             conn.commit()
         except Exception:
             conn.rollback()
             raise
     _fire_sync(task["id"])
     return {
-        "par": f"{prefix}-{task['par_number']}",
+        "par": str(task["par_number"]),
         "id": task["id"],
         "title": task["title"],
         "project": project_id,
@@ -821,11 +823,6 @@ def api_list_tasks(project: str = "", status: str = "",
                    assignee: str = "") -> dict:
     with _conn() as conn:
         tasks = list_tasks(conn, project_id=project, status=status, assignee=assignee)
-        prefix_cache: dict[str, str] = {}
-        for t in tasks:
-            pid = t["project_id"]
-            if pid not in prefix_cache:
-                prefix_cache[pid] = get_project_prefix(conn, pid)
 
     total_debt = sum(
         t["price_rub"] - t["paid_rub"]
@@ -836,7 +833,7 @@ def api_list_tasks(project: str = "", status: str = "",
     return {
         "tasks": [
             {
-                "par": f"{prefix_cache.get(t['project_id'], 'TASK')}-{t['par_number']}",
+                "par": str(t["par_number"]),
                 "title": t["title"],
                 "project": t["project_id"],
                 "price": _fmt_k(t["price_rub"]),
