@@ -102,6 +102,7 @@ class AgentSession:
     _current_prompt: str = field(default="", repr=False)
     _turn_start: float = field(default=0.0, repr=False)
     _last_msg_time: float = field(default=0.0, repr=False)
+    _pending_messages: list = field(default_factory=list, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
 
     TURN_TIMEOUT = 600
@@ -145,6 +146,10 @@ class AgentSession:
                 self.system_prompt = self._current_prompt
             else:
                 self._prompt_injected = True
+        was_running = self.status == AgentStatus.RUNNING
+        if was_running:
+            self._pending_messages.append(message)
+            self._log("status", f"queued mid-turn message ({len(self._pending_messages)} pending)")
         if self.status == AgentStatus.IDLE:
             self._did_report = False
             self._turn_logs = []
@@ -260,6 +265,16 @@ class AgentSession:
                                 "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
                                 "cache_read": cache_read, "cache_create": cache_create,
                             }
+                        if self._pending_messages:
+                            combined = "\n\n".join(
+                                f"[system] The user sent a new message while you were working:\n{m}"
+                                for m in self._pending_messages
+                            )
+                            self._pending_messages.clear()
+                            self._log("status", f"flushing {len(self._pending_messages) or 'queued'} pending messages")
+                            self._turn_start = asyncio.get_event_loop().time()
+                            await self._client.query(combined + "\n\nIMPORTANT: After completing your current task, you MUST address the user's message above. Do not ignore it.")
+                            continue
                         if self._turn_start:
                             elapsed = asyncio.get_event_loop().time() - self._turn_start
                             if elapsed < 3:

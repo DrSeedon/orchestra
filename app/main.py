@@ -350,6 +350,19 @@ async def compact_session(name: str, req: ScopeRequest):
     return result
 
 
+@app.post("/api/sessions/{name}/restart-cli")
+async def restart_cli(name: str, req: ScopeRequest):
+    session = await manager.ensure_loaded(name, req.scope)
+    if not session:
+        session = await manager.ensure_loaded_any(name)
+    if not session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    await session._disconnect_client()
+    session.status = session.status.__class__("idle")
+    session._persist()
+    return {"ok": True}
+
+
 @app.post("/api/sessions/{name}/interrupt")
 async def interrupt_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
