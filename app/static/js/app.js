@@ -2206,8 +2206,9 @@ function addChatEntry(type, content, ts, anchor) {
                             else changes.push(f);
                         }
                     }
+                    const parNum = (parsed.par || '?').replace(/^[A-Z]+-/, '');
                     const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
-                    if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'}${titleStr}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
+                    if (hdr) { hdr.textContent = `✏️ #${parNum}${titleStr}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
                     if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
                         const titleDiff = document.createElement('div');
                         titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
@@ -2242,8 +2243,8 @@ function addChatEntry(type, content, ts, anchor) {
                     }
                     const detail = document.createElement('div');
                     detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
-                    if (parsed.price_rub != null) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
-                    if (parsed.paid_rub != null) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
+                    if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
+                    if (parsed.paid_rub > 0) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
                     if (parsed.debt_rub > 0) detail.innerHTML += `<span style="color:#ef4444">Debt: ${_kr(parsed.debt_rub)}</span>`;
                     if (detail.innerHTML) lastTool.appendChild(detail);
                 } else if (tn === 'mcp__orchestra__task_list') {
