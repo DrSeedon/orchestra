@@ -201,7 +201,7 @@ async function loadMoreLogs() {
     const btn = $('#load-more-btn');
     if (btn) { btn.textContent = '⏳ Loading…'; btn.style.pointerEvents = 'none'; }
     try {
-        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=100`);
+        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=500`);
         const logs = await res.json();
         if (!Array.isArray(logs) || logs.length === 0) {
             if (btn) btn.remove();
@@ -290,18 +290,15 @@ async function restartCli() {
     btn.disabled = true;
     btn.textContent = '⏳';
     try {
-        const res = await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli`, {
+        await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({scope: currentScope}),
         });
-        if (res.error) throw new Error(res.error);
         btn.textContent = '✅';
-        addChatEntry('status', 'CLI restarted — next message will reconnect');
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 1500);
     } catch (e) {
         btn.textContent = '❌';
-        addChatEntry('error', `Restart failed: ${e.message}`);
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 2000);
     }
 }
@@ -444,7 +441,6 @@ function initFilePreviewModal() {
     const modal = $('#file-preview-modal');
     if (!modal) return;
     $('#file-preview-close').addEventListener('click', closeFilePreview);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeFilePreview(); });
 }
 
 async function showProjectPicker() {

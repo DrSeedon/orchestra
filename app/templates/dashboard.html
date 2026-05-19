@@ -111,7 +111,7 @@
                     <span id="ai-name" class="font-semibold text-sm truncate min-w-0"></span>
                     <div class="flex items-center gap-2 shrink-0">
                         <button id="compact-btn" class="text-slate-500 hover:text-amber-300 text-xs hidden" title="Compact context">🗜</button>
-                        <button id="restart-cli-btn" class="text-slate-500 hover:text-emerald-300 text-xs hidden" title="Restart CLI connection">♻️</button>
+                        <button id="restart-cli-btn" class="text-slate-500 hover:text-green-300 text-xs hidden" title="Restart CLI">♻️</button>
                         <button id="view-prompt-btn" class="text-slate-500 hover:text-indigo-300 text-xs hidden" title="View system prompt">📜</button>
                         <span id="ai-status" class="text-xs font-mono"></span>
                     </div>
@@ -132,8 +132,8 @@
     </div>
 
     <!-- File Preview Modal -->
-    <div id="file-preview-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
-        <div class="glass glow rounded-xl flex flex-col w-[700px] max-w-[90vw] max-h-[80vh]">
+    <div id="file-preview-modal" class="fixed inset-0 z-50 items-center justify-center hidden" style="pointer-events:none">
+        <div class="glass glow rounded-xl flex flex-col w-[700px] max-w-[90vw] max-h-[80vh]" style="pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800/50 shrink-0">
                 <span id="file-preview-path" class="text-xs font-mono text-slate-400 truncate max-w-[80%]"></span>
                 <button id="file-preview-close" class="text-slate-500 hover:text-white text-lg">✕</button>
