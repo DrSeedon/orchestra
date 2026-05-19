@@ -14,7 +14,7 @@ from app.db import (
     bg_save_job, bg_claim_trigger, bg_finish_trigger, bg_fail_job,
     bg_cancel_job, bg_expire_job, bg_update_output, bg_get_active_all,
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
-    bg_reset_stale_triggering,
+    bg_reset_stale_triggering, bg_cleanup_old,
 )
 
 logger = logging.getLogger(__name__)
@@ -201,6 +201,9 @@ class BgJobManager:
             logger.info(f"bg_jobs: cancelled {cancelled_count} jobs for session {session_id}")
 
     async def restore_from_db(self) -> None:
+        cleaned = bg_cleanup_old(24)
+        if cleaned:
+            logger.info(f"bg_jobs: cleaned up {cleaned} old terminated jobs")
         expired_ids = bg_expire_overdue()
         for jid in expired_ids:
             task = self._tasks.pop(jid, None)

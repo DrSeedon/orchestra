@@ -637,3 +637,13 @@ def bg_count_active(scope: str) -> int:
             "SELECT COUNT(*) FROM bg_jobs WHERE target_scope=? AND status IN ('active','triggering')",
             (scope,),
         ).fetchone()[0]
+
+
+def bg_cleanup_old(max_age_hours: int = 24) -> int:
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
+    with _conn() as c:
+        cur = c.execute(
+            "DELETE FROM bg_jobs WHERE status IN ('triggered','expired','cancelled','failed') AND created_at < ?",
+            (cutoff,),
+        )
+        return cur.rowcount

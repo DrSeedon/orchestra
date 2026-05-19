@@ -111,12 +111,20 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
     return Path(fallback_repo).resolve()
 
 
-def _ensure_repo_on_main(repo: str) -> str | None:
+def _ensure_repo_on_main(repo: str) -> tuple[str | None, bool]:
+    """Returns (error_or_None, did_stash)."""
+    did_stash = False
     repo_status = subprocess.run(
         ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True,
     )
     if repo_status.stdout.strip():
-        return "main repo has uncommitted changes"
+        stash = subprocess.run(
+            ["git", "stash", "--include-untracked"], cwd=repo, capture_output=True, text=True,
+        )
+        if stash.returncode != 0:
+            return f"main repo dirty and stash failed: {stash.stderr.strip()}", False
+        did_stash = True
+        logger.info(f"Auto-stashed dirty main repo: {repo}")
     head = subprocess.run(
         ["git", "symbolic-ref", "--short", "HEAD"], cwd=repo, capture_output=True, text=True,
     )
@@ -125,8 +133,10 @@ def _ensure_repo_on_main(repo: str) -> str | None:
             ["git", "checkout", "main"], cwd=repo, capture_output=True, text=True,
         )
         if checkout.returncode != 0:
-            return f"cannot checkout main in repo: {checkout.stderr.strip()}"
-    return None
+            if did_stash:
+                subprocess.run(["git", "stash", "pop"], cwd=repo, capture_output=True)
+            return f"cannot checkout main in repo: {checkout.stderr.strip()}", False
+    return None, did_stash
 
 
 def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
@@ -152,7 +162,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
             if status.stdout.strip():
                 return {"ok": False, "error": "dirty working tree — commit or discard changes first"}
 
-            main_err = _ensure_repo_on_main(str(repo))
+            main_err, did_stash = _ensure_repo_on_main(str(repo))
             if main_err:
                 return {"ok": False, "error": main_err}
 
@@ -167,6 +177,8 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
                         parts = line.split()
                         if parts:
                             conflict_files.append(parts[-1])
+                if did_stash:
+                    subprocess.run(["git", "stash", "pop"], cwd=str(repo), capture_output=True)
                 if not conflict_files:
                     err = precheck.stderr.strip() or precheck.stdout.strip() or f"merge-tree exit code {precheck.returncode}"
                     logger.error(f"merge-tree failed: repo={repo} branch={branch} err={err}")
@@ -190,11 +202,15 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
                 cwd=str(repo), capture_output=True, text=True,
             )
             if merge.returncode != 0:
+                if did_stash:
+                    subprocess.run(["git", "stash", "pop"], cwd=str(repo), capture_output=True)
                 err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
                 logger.error(f"merge_worktree failed: repo={repo} branch={branch} err={err}")
                 return {"ok": False, "error": err}
 
             merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
+            if did_stash:
+                subprocess.run(["git", "stash", "pop"], cwd=str(repo), capture_output=True)
             return {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
