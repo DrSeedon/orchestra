@@ -295,7 +295,7 @@ def get_task_by_par(conn: sqlite3.Connection, par_number: int,
     return dict(row) if row else None
 
 
-def resolve_task_ref(conn: sqlite3.Connection, ref: str) -> dict | None:
+def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str = "") -> dict | None:
     """Resolve '42', '#42', or 'PAR-42' (legacy) to a task dict."""
     prefix, num = _parse_task_ref(ref)
     if prefix:
@@ -303,7 +303,7 @@ def resolve_task_ref(conn: sqlite3.Connection, ref: str) -> dict | None:
         if proj:
             return get_task_by_par(conn, num, proj["id"])
         return None
-    return get_task_by_par(conn, num)
+    return get_task_by_par(conn, num, project_id)
 
 
 def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
@@ -780,12 +780,13 @@ def api_update_task(par: str, title: str | None = None,
                     description: str | None = None,
                     price: int | None = None,
                     status: str | None = None,
-                    assignee: str | None = None) -> dict:
+                    assignee: str | None = None,
+                    project: str = "") -> dict:
     task_id = None
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            task = resolve_task_ref(conn, par)
+            task = resolve_task_ref(conn, par, project)
             if not task:
                 raise ValueError(f"{par} not found")
             task_id = task["id"]
@@ -849,9 +850,9 @@ def api_list_tasks(project: str = "", status: str = "",
     }
 
 
-def api_get_task(par: str) -> dict:
+def api_get_task(par: str, project: str = "") -> dict:
     with _conn() as conn:
-        task = resolve_task_ref(conn, par)
+        task = resolve_task_ref(conn, par, project)
         if not task:
             raise ValueError(f"{par} not found")
 
