@@ -704,26 +704,19 @@ def _fire_sync(task_id: int) -> None:
         logger.error("Sync fire failed for task %d: %s", task_id, e)
 
 
-def _fire_par35_sync(payment_result: dict) -> None:
+def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
     task_ids = [d["task_id"] for d in payment_result.get("distributions", []) if d.get("task_id")]
     if task_ids and not _is_yougile_enabled(task_ids[0]):
         return
     with _conn() as conn:
-        sync_log_id = log_sync(conn, None, "par35_update", None, "pending",
+        sync_log_id = log_sync(conn, None, "journal_update", None, "pending",
                                payload=str(payment_result.get("payment_id", "")))
     try:
-        from app.tm_yougile import yougile_update_par35
+        from app.tm_yougile import update_payment_journal
 
         async def _do():
             try:
-                result = await yougile_update_par35(
-                    payment_id=payment_result["payment_id"],
-                    balance_rub=payment_result["new_balance"],
-                    distributions=payment_result["distributions"],
-                    total_debt=payment_result["total_debt_remaining"],
-                    payment_date=payment_result["date"],
-                    amount_rub=payment_result["amount_rub"],
-                )
+                result = await update_payment_journal(payment_result, client_id)
                 status = "ok" if result == "ok" else "error"
                 with _conn() as c:
                     c.execute(
@@ -731,7 +724,7 @@ def _fire_par35_sync(payment_result: dict) -> None:
                         (status, result if status == "error" else None, _now(), sync_log_id),
                     )
             except Exception as e:
-                logger.error("PAR-35 sync failed: %s", e)
+                logger.error("Journal sync failed: %s", e)
                 with _conn() as c:
                     c.execute(
                         "UPDATE tm_sync_log SET status = 'error', error = ?, completed_at = ? WHERE id = ?",
@@ -740,9 +733,9 @@ def _fire_par35_sync(payment_result: dict) -> None:
 
         asyncio.get_event_loop().create_task(_do())
     except RuntimeError:
-        logger.debug("No event loop for PAR-35 sync, skipping")
+        logger.debug("No event loop for journal sync, skipping")
     except Exception as e:
-        logger.error("PAR-35 sync fire failed: %s", e)
+        logger.error("Journal sync fire failed: %s", e)
 
 
 # --- High-level API for routes/MCP ---
@@ -905,7 +898,7 @@ def api_receive_payment(amount: int, client: str = "aleksandr-kislinskiy",
 
     for d in result.get("distributions", []):
         _fire_sync(d["task_id"])
-    _fire_par35_sync(result)
+    _fire_journal_sync(result, client)
 
     result["sync_status"] = "pending"
     return result
