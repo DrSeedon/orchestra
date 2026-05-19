@@ -284,10 +284,14 @@ def get_task_by_par(conn: sqlite3.Connection, par_number: int,
             (par_number, project_id),
         ).fetchone()
     else:
-        row = conn.execute(
-            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 1",
+        rows = conn.execute(
+            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 2",
             (par_number,),
-        ).fetchone()
+        ).fetchall()
+        if len(rows) > 1:
+            projects = [r["project_id"] for r in rows]
+            raise ValueError(f"Ambiguous task #{par_number} — exists in projects: {', '.join(projects)}. Use project filter.")
+        row = rows[0] if rows else None
     return dict(row) if row else None
 
 
