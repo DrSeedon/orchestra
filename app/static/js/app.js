@@ -2247,7 +2247,7 @@ function addChatEntry(type, content, ts, anchor) {
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
                     const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
-                    if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}k` : '');
+                    if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}` : '');
                     if (tasks.length > 0 && parsed.detailed) {
                         const container = document.createElement('div');
                         container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:6px';
@@ -2296,8 +2296,8 @@ function addChatEntry(type, content, ts, anchor) {
                             const row = document.createElement('div');
                             row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
                             row.dataset.taskRow = '1';
-                            const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}k</span>` : '';
-                            row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">${t.par.replace('PAR-','')}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
+                            const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}</span>` : '';
+                            row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">${t.par.replace(/^[A-Z]+-/,'')}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
                             container.appendChild(row);
                         }
                         lastTool.appendChild(container);
@@ -3793,13 +3793,13 @@ function renderTasksPanel(panel, data, payData, pendingSyncs) {
         html += '</div>';
         if (!isCollapsed) {
             for (const t of group) {
-                const par = t.par.replace('PAR-', '');
+                const parNum = t.par.replace(/^[A-Z]+-/, '');
                 const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
-                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${par}" onclick="showTaskDetail('${par}')">`;
-                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
+                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${t.par}" onclick="showTaskDetail('${t.par}')">`;
+                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${parNum}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
-                html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${par}')" title="Insert PAR-${par} into chat">📩</span>`;
+                html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${t.par}')" title="Insert ${t.par} into chat">📩</span>`;
                 html += '</div>';
             }
         }
@@ -3817,8 +3817,8 @@ function toggleTaskGroup(status) {
 function injectTask(par) {
     const input = document.getElementById('chat-input');
     if (!input) return;
-    const ref = `[PAR-${par}]`;
-    if (!input.value.includes(`PAR-${par}`)) {
+    const ref = `[${par}]`;
+    if (!input.value.includes(par)) {
         input.value = (input.value ? input.value + ' ' : '') + ref;
         input.focus();
     }
