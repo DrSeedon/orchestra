@@ -140,7 +140,6 @@ class AgentSession:
             try:
                 backend = await self._ensure_backend()
                 await backend.send(message)
-                self._log("status", "injected mid-turn")
                 return
             except Exception as e:
                 logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
@@ -302,9 +301,6 @@ class AgentSession:
         meta = event.metadata
         self._turn_start = 0
         ok = meta.get("ok", True)
-        sr = meta.get("stop_reason", "unknown")
-        nt = meta.get("num_turns", 0)
-        self._log("status", f"turn ended: ok={ok}, stop_reason={sr}, num_turns={nt}")
 
         sid = meta.get("session_id")
         if sid:

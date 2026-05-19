@@ -207,6 +207,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - **NEVER message other orchestrators unsolicited** — only reply when THEY ask you something, or when the USER explicitly tells you to message them. Don't forward status updates, don't inform about fixes, don't "notify" about changes. Each message triggers a turn on the other orchestrator = wasted tokens for zero value. If nobody asked — don't send
 - **НЕ убивать воркеров сразу после получения результата** — оставлять idle на случай переделки/уточнения/дополнения. Убивать только когда результат финально принят или прошло достаточно времени. Idle = 0 ресурсов, спешить с kill незачем
 - **Таски обновлять** — когда берёшь задачу в работу → `task_update(par, status="in_progress")`. Когда воркер отчитался DONE → `task_update(par, status="done")`. Не забывать!
+- **Язык тасков** — title и description тасков пиши на том же языке, на котором общается юзер. Юзер пишет по-русски → таски по-русски. По-английски → по-английски
 
 ## Pricing context
 - We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend
