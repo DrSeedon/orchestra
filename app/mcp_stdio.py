@@ -291,7 +291,7 @@ async def update_worker_description(name: str, description: str) -> str:
 async def task_create(title: str, project: str, price: int = 0,
                       description: str = "", assignee: str = "",
                       status: str = "new") -> str:
-    """Create a new task. Returns PAR number and task details.
+    """Create a new task. Returns task number and details.
     price is in thousands (e.g. 20 = 20,000₽). 0 is valid (no price).
     Returns task number (e.g. 42). Legacy prefixes (PAR-42) still accepted."""
     result = await _api("POST", "/api/tm/tasks", json={

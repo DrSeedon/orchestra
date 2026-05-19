@@ -110,7 +110,7 @@ async def yougile_sync_task(task_id: int) -> str:
             return "task not found"
 
         if not task["yougile_task_id"]:
-            existing = await yougile_find_by_par(str(task['par_number']))
+            existing = await yougile_find_by_par(str(task['par_number'])) or await yougile_find_by_par(f"PAR-{task['par_number']}")
             if existing:
                 conn.execute("BEGIN IMMEDIATE")
                 try:

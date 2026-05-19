@@ -222,7 +222,10 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
         m = _TASK_REF_RE.search(message)
         if not m:
             continue
-        task_ref = str(m.group(3) or m.group(2))
+        if m.group(3):
+            task_ref = m.group(3)
+        else:
+            task_ref = f"{m.group(1)}-{m.group(2)}"
 
         stat = subprocess.run(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],
