@@ -525,6 +525,10 @@ async def switch_branch(name: str, req: dict):
                     found.branch = result.get("branch", new_branch)
                     found.task_id = par
                     found._persist()
+            try:
+                _tm.api_update_task(par, status="in_progress")
+            except Exception:
+                pass
             return result
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
