@@ -892,18 +892,31 @@ async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
 
 
 @app.get("/api/tm/tasks/{par}")
-async def tm_get_task(par: str):
+async def tm_get_task(par: str, scope: str = ""):
     try:
-        return _tm.api_get_task(par)
+        project = ""
+        if scope:
+            with _tm._conn() as conn:
+                p = _tm.get_project_by_scope(conn, scope)
+                if p:
+                    project = p["id"]
+        return _tm.api_get_task(par, project=project)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=404)
 
 
 @app.put("/api/tm/tasks/{par}")
-async def tm_update_task(par: str, req: TmTaskUpdate):
+async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
     try:
+        project = ""
+        if scope:
+            with _tm._conn() as conn:
+                p = _tm.get_project_by_scope(conn, scope)
+                if p:
+                    project = p["id"]
         return _tm.api_update_task(
             par, req.title, req.description, req.price, req.status, req.assignee,
+            project=project,
         )
     except (ValueError, RuntimeError) as e:
         code = 404 if "not found" in str(e).lower() else 400
