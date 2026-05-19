@@ -301,6 +301,8 @@ class AgentSession:
         meta = event.metadata
         self._turn_start = 0
         ok = meta.get("ok", True)
+        sr = meta.get("stop_reason", "unknown")
+        nt = meta.get("num_turns", 0)
 
         sid = meta.get("session_id")
         if sid:
