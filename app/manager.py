@@ -148,6 +148,7 @@ class SessionManager:
                     model=job["model"], system_prompt=job.get("system_prompt", ""),
                     use_worktree=True, repo_path=job["repo_path"],
                     task_id=job.get("task_id", ""),
+                    description=job.get("description", ""),
                 )
                 await session.send(job["task"])
                 update_job(job_id, "succeeded")
@@ -172,7 +173,7 @@ class SessionManager:
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False,
-                             task_id: str = "") -> AgentSession:
+                             task_id: str = "", description: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -192,7 +193,7 @@ class SessionManager:
             system_prompt=prompt, is_orchestrator=is_orchestrator,
             color="" if is_orchestrator else self._pick_color(),
             mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
-            backend_type=bt, task_id=task_id,
+            backend_type=bt, task_id=task_id, description=description,
         )
         save_session(session._to_db_dict())
 
@@ -331,6 +332,7 @@ class SessionManager:
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], is_orch),
             backend_type=stored_bt, task_id=db_task_id,
+            description=db_row.get("description", ""),
         )
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
