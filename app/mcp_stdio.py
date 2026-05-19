@@ -33,7 +33,7 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
         elif method == "POST":
             r = await client.post(path, json=kwargs.get("json"))
         elif method == "PUT":
-            r = await client.put(path, json=kwargs.get("json"))
+            r = await client.put(path, json=kwargs.get("json"), params=kwargs.get("params"))
         elif method == "DELETE":
             r = await client.delete(path, params=kwargs.get("params"))
         else:
@@ -323,7 +323,7 @@ async def task_update(par: str, title: str = "", description: str = "",
         body["assignee"] = assignee
     if not body:
         return "Nothing to update"
-    result = await _api("PUT", f"/api/tm/tasks/{par}", json=body)
+    result = await _api("PUT", f"/api/tm/tasks/{par}", json=body, params={"scope": SCOPE} if SCOPE else None)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)
@@ -349,7 +349,7 @@ async def task_list(project: str = "", status: str = "",
 @mcp.tool()
 async def task_get(par: str) -> str:
     """Get full task details including payment history and linked commits."""
-    result = await _api("GET", f"/api/tm/tasks/{par}")
+    result = await _api("GET", f"/api/tm/tasks/{par}", params={"scope": SCOPE} if SCOPE else None)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)
