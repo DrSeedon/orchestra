@@ -1176,6 +1176,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 Jobs';
             else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
             else if (rawName === 'mcp__orchestra__change_worker_model') preview = `🔄 ${parsed.name || '?'} → ${parsed.model || '?'}`;
+            else if (rawName === 'mcp__orchestra__update_worker_description') preview = `✏️ ${parsed.name || '?'} — описание`;
             else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
@@ -1333,7 +1334,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -1344,7 +1345,7 @@ function addChatEntry(type, content, ts, anchor) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error');
-                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__merge_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
                     else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
                 } else if (resultSpan && isGlobCompact) {
@@ -1811,6 +1812,7 @@ function addChatEntry(type, content, ts, anchor) {
             'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compact: ${d.name||'?'}`, color: '#eab308' }),
             'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
             'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `Model: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
+            'mcp__orchestra__update_worker_description': (d) => ({ icon: '✏️', label: `${d.name||'?'} — описание обновлено`, color: '#38bdf8', sub: d.description ? `"${d.description}"` : '' }),
             'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
@@ -2393,6 +2395,7 @@ function addChatEntry(type, content, ts, anchor) {
                 'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
                 'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
+                'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — описание обновлено`, color: '#22c55e' } : { text: '✅ Description updated', color: '#22c55e' }; },
                 'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__list_agents': null,
@@ -2474,8 +2477,13 @@ function addChatEntry(type, content, ts, anchor) {
                             const nameRaw = parts[0] || '';
                             const status = parts[1] || '';
                             const model = parts[2] || '';
-                            const cost = parts[3] || '';
-                            const ctxRaw = parts[4] || '';
+                            let ctxRaw = '', taskId = '', desc = '';
+                            for (let pi = 3; pi < parts.length; pi++) {
+                                const p = parts[pi];
+                                if (p.match(/ctx:\d+%/)) ctxRaw = p;
+                                else if (p.startsWith('"')) desc = p.replace(/^"|"$/g, '');
+                                else if (p && !p.startsWith('$')) taskId = p;
+                            }
                             const nameClean = nameRaw.replace(/\*\*/g, '').replace(/^[^\w]*/, '').trim();
                             const icon = nameRaw.match(/[🎯⚙️🔧]/)?.[0] || '⚙️';
                             const ctxPct = parseInt(ctxRaw.match(/(\d+)%/)?.[1] || '0');
@@ -2485,7 +2493,12 @@ function addChatEntry(type, content, ts, anchor) {
                             row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
                             if (i >= PREVIEW_COUNT) row.style.display = 'none';
                             row.dataset.agentRow = '1';
-                            row.innerHTML = `<div style="display:flex;align-items:center;justify-content:between;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div><div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span><span style="color:#22c55e">${DOMPurify.sanitize(cost)}</span><span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:30px;height:3px;border-radius:2px;background:rgba(51,65,85,0.5);overflow:hidden"><span style="display:block;width:${Math.min(ctxPct,100)}%;height:100%;background:${ctxColor};border-radius:2px"></span></span><span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                            let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div>`;
+                            h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span>`;
+                            if (taskId) h += `<span style="color:#a78bfa;font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
+                            h += `<span style="display:inline-flex;align-items:center;gap:3px">ctx:<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                            if (desc) h += `<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
+                            row.innerHTML = h;
                             container.appendChild(row);
                         }
                         lastTool.appendChild(container);
