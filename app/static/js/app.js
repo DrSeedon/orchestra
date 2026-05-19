@@ -3735,22 +3735,19 @@ async function loadTasks() {
     if (!panel) return;
     try {
         const scope = currentScope || '';
-        const [tasksResp, payResp, syncResp] = await Promise.all([
+        const [tasksResp, payResp] = await Promise.all([
             fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
             fetch('/api/tm/payments/status').catch(() => null),
-            fetch('/api/tm/sync/log?limit=10').catch(() => null),
         ]);
         const data = await tasksResp.json();
         const payData = payResp ? await payResp.json().catch(() => null) : null;
-        const syncData = syncResp ? await syncResp.json().catch(() => null) : null;
-        const pendingSyncs = (syncData?.entries || []).filter(e => e.status === 'error' || e.status === 'pending').length;
-        renderTasksPanel(panel, data, payData, pendingSyncs);
+        renderTasksPanel(panel, data, payData);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
     }
 }
 
-function renderTasksPanel(panel, data, payData, pendingSyncs) {
+function renderTasksPanel(panel, data, payData) {
     const tasks = data.tasks || [];
     const grouped = {};
     for (const t of tasks) { (grouped[t.status] ||= []).push(t); }
@@ -3761,9 +3758,6 @@ function renderTasksPanel(panel, data, payData, pendingSyncs) {
         html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)} ₽</span></div>`;
     }
     html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')} ₽</span></div>`;
-    if (pendingSyncs > 0) {
-        html += `<div class="flex justify-between"><span class="text-slate-500">⚠️ Sync:</span><span class="text-red-400 font-mono">${pendingSyncs} pending</span></div>`;
-    }
     html += '</div>';
 
     if (tasks.length === 0) {
