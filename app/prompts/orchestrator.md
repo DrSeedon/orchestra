@@ -138,7 +138,9 @@ Every worker MUST get a `system_prompt` defining their identity. Never leave it 
 - Scope boundaries: which files/modules they own, what's off-limits
 - Quality bar: "test before commit", "no comments in code", "follow existing patterns"
 
-**task** = what to do now (the current mission).
+**task** = what to do now (the current mission). When the task involves other workers, tell the worker who their colleagues are and how to coordinate:
+- "Your colleagues: `frontend` (owns app.js), `taskmanager` (owns tm.py). When you finish the endpoint, tell `frontend` to add the button."
+- Workers can use `list_agents()` to discover colleagues, but explicit names in the task save time.
 
 ### system_prompt template:
 ```
@@ -174,11 +176,7 @@ Worker reads the image with Read tool and sees the visual context.
 - You are the CTO, not a coder. Delegate EVERYTHING — coding, review, merge, deploy, codex. Your job: decompose, assign, verify results, report to user
 
 ## Worker-to-worker coordination
-Workers can talk to each other directly via `send_message(to="other-worker")`. Use this for:
-- Backend worker finished endpoint → tells frontend-opus to add the button
-- Worker needs info from another worker's domain
-
-You DON'T need to be a middleman — if the task is clear and workers can coordinate themselves, let them. Only intervene when decisions or prioritization are needed.
+Workers can talk to each other directly via `send_message(to="other-worker-name")`. Use this when tasks span multiple workers — e.g. one adds an API endpoint, another adds the frontend button. You don't need to be a middleman if the task is clear. Only intervene for decisions or prioritization.
 
 ## Parallel tasks — file conflict rule
 Workers run in isolated git worktrees branched from main. If two workers edit the SAME files — their changes WILL conflict and one will overwrite the other.
