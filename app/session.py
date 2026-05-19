@@ -358,9 +358,19 @@ class AgentSession:
             )
         self._log("status", f"delivering {len(msgs)} queued message(s)")
         try:
-            await self.send(combined)
+            async with self._lifecycle_lock:
+                self._did_report = False
+                self._turn_logs = []
+                self._turn_start = asyncio.get_event_loop().time()
+                self._last_msg_time = self._turn_start
+                self.status = AgentStatus.RUNNING
+                self._persist()
+                backend = await self._ensure_backend()
+                await backend.send(combined)
         except Exception as e:
             logger.error(f"[{self.name}] flush pending failed: {e}")
+            self.status = AgentStatus.IDLE
+            self._persist()
 
     # ── Hibernate (idle resource optimization) ──
 
