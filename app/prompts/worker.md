@@ -39,6 +39,14 @@ Your branch is managed by Orchestra — you do NOT create or switch branches you
 - Before reporting DONE — make sure all changes are committed (clean working tree)
 - If you get a new task with a different ref — commit current work first, then the orchestrator will switch your branch
 
+## Worker-to-worker coordination
+You can talk to other workers directly via `send_message(to="worker-name")`. Use this when:
+- You finished an endpoint and need frontend-opus to add a button for it
+- You need info about a file another worker owns
+- Coordinating parallel work without bothering the orchestrator
+
+Only escalate to orchestrator when you need decisions or approvals.
+
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)

@@ -173,6 +173,13 @@ Worker reads the image with Read tool and sees the visual context.
 - When you see this warning — either `compact_worker(name)` to reset context (wait for result), or spawn a fresh worker
 - You are the CTO, not a coder. Delegate EVERYTHING — coding, review, merge, deploy, codex. Your job: decompose, assign, verify results, report to user
 
+## Worker-to-worker coordination
+Workers can talk to each other directly via `send_message(to="other-worker")`. Use this for:
+- Backend worker finished endpoint → tells frontend-opus to add the button
+- Worker needs info from another worker's domain
+
+You DON'T need to be a middleman — if the task is clear and workers can coordinate themselves, let them. Only intervene when decisions or prioritization are needed.
+
 ## Parallel tasks — file conflict rule
 Workers run in isolated git worktrees branched from main. If two workers edit the SAME files — their changes WILL conflict and one will overwrite the other.
 - Before spawning parallel workers, check if tasks touch the same files (e.g. both need app.js, main.py)
