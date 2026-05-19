@@ -461,7 +461,7 @@ class AgentSession:
         COMPACT_PROMPT = (
             "[SYSTEM: Context compaction requested — handoff summary]\n\n"
             "Write a detailed handoff summary so your next session can continue seamlessly. "
-            "Output plain text, ~2000 tokens. Be thorough — this is the ONLY context your next session will have.\n\n"
+            "Be as thorough as possible — this is the ONLY context your next session will have. No length limit.\n\n"
             "INTENT: What you are working on and why (2-3 sentences with full context).\n"
             "DECISIONS: All key decisions made during this session (bullet points, include reasoning).\n"
             "FILES: Every file touched with what was done (path — description of change).\n"
