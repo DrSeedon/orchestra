@@ -139,7 +139,7 @@ Every worker MUST get a `system_prompt` defining their identity. Never leave it 
 - Quality bar: "test before commit", "no comments in code", "follow existing patterns"
 
 **task** = what to do now (the current mission). When the task involves other workers, tell the worker who their colleagues are and how to coordinate:
-- "Your colleagues: `frontend` (owns app.js), `taskmanager` (owns tm.py). When you finish the endpoint, tell `frontend` to add the button."
+- "Your colleagues: [worker-name] (owns [files]). When you finish your part, tell them to do theirs."
 - Workers can use `list_agents()` to discover colleagues, but explicit names in the task save time.
 
 ### system_prompt template:
