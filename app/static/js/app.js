@@ -3909,7 +3909,14 @@ async function showTaskDetail(par) {
         const commits = t.commits || t.git_commits || [];
         if (commits.length > 0) {
             html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>';
-            for (const c of commits) { html += `<div class="text-xs font-mono">${escHtml(typeof c === 'string' ? c.slice(0,60) : JSON.stringify(c))}</div>`; }
+            for (const c of commits) {
+                if (typeof c === 'string') { html += `<div class="text-xs font-mono">${escHtml(c.slice(0,60))}</div>`; continue; }
+                const hash = (c.hash || '').slice(0, 7);
+                const msg = (c.message || '').length > 50 ? c.message.slice(0, 50) + '…' : (c.message || '');
+                const date = (c.date || '').slice(0, 10);
+                const ins = c.insertions || 0; const del = c.deletions || 0; const files = c.files || 0;
+                html += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.6"><span style="color:#a78bfa;font-family:monospace;flex-shrink:0">${escHtml(hash)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e8f0">${escHtml(msg)}</span><span style="color:#64748b;flex-shrink:0">${escHtml(date)}</span><span style="flex-shrink:0"><span style="color:#22c55e">+${ins}</span>/<span style="color:#ef4444">-${del}</span></span><span style="color:#64748b;flex-shrink:0">${files}f</span></div>`;
+            }
             html += '</div>';
         }
         const sys = [];
