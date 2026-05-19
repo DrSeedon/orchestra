@@ -1,7 +1,8 @@
 # Orchestra TODO
 
 ## Next
-- [ ] **VPS migration** — перенос Orchestra на VPS. Ресёрч: требования (RAM/CPU/disk), какой VPS, systemd setup, DB миграция, TG bridge, прокси, git worktrees, 24/7 доступ
+- [ ] **VPS migration** — перенос Orchestra на VPS. OVH отменил — пробовать Hostinger/Coingate или Timeweb upgrade. Ресёрч: `docs/research/vps-migration.md`
+- [ ] **TG pinned status** — закреплённое сообщение в каждом топике оркестратора, обновляется после каждого turn_end. Содержит: статус, воркеры + статусы, текущая задача, context %, debt. `bot.pin_chat_message()` + `bot.edit_message_text()`
 
 ## Later
 - [ ] **Emergency migrate** — кнопка "⚡ Migrate to GPT". Server-side: логи → spawn на GPT → inject summary
