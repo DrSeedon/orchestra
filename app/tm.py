@@ -268,6 +268,15 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
     )
 
     updated = get_task_by_id(conn, task_id)
+    if updated["status"] == "done" and updated["price_rub"] == 0:
+        now = _now()
+        conn.execute(
+            "UPDATE tm_tasks SET status='paid', paid_at=?, updated_at=?, sync_revision=sync_revision+1 WHERE id=?",
+            (now, now, task_id),
+        )
+        updated = get_task_by_id(conn, task_id)
+        if "status" not in changed:
+            changed.append("status")
     return {"task_id": task_id, "changed": changed, "old_status": old_status, "task": updated}
 
 
