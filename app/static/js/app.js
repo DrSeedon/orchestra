@@ -3392,65 +3392,7 @@ async function loadFileTree(path, container) {
     try {
         const files = await api(`/api/files?path=${encodeURIComponent(path)}`);
         container.innerHTML = '';
-        for (const f of files) {
-            const item = document.createElement('div');
-            item.className = `file-item ${f.is_dir ? 'file-dir' : 'file-file'}`;
-            item.draggable = true;
-            item.dataset.path = f.path;
-            item.dataset.isDir = f.is_dir;
-            item.textContent = `${getFileIcon(f.name, f.is_dir)} ${f.name}`;
-            item.title = f.path;
-
-            item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', f.path);
-                e.dataTransfer.effectAllowed = 'copy';
-            });
-
-            if (f.is_dir) {
-                const savedExpanded = _getExpandedFolders();
-                let expanded = savedExpanded.has(f.path);
-                const children = document.createElement('div');
-                children.className = 'file-children' + (expanded ? '' : ' hidden');
-                if (expanded) {
-                    item.textContent = `📂 ${f.name}`;
-                    loadFileTree(f.path, children);
-                }
-                item.addEventListener('click', async () => {
-                    expanded = !expanded;
-                    if (expanded && children.children.length === 0) {
-                        await loadFileTree(f.path, children);
-                    }
-                    children.classList.toggle('hidden', !expanded);
-                    item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
-                    _saveExpandedFolder(f.path, expanded);
-                });
-                const wrapper = document.createElement('div');
-                wrapper.appendChild(item);
-                wrapper.appendChild(children);
-                container.appendChild(wrapper);
-            } else {
-                item.style.position = 'relative';
-                const sendBtn = document.createElement('span');
-                sendBtn.textContent = '➜';
-                sendBtn.title = 'Send path to chat';
-                sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
-                sendBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const input = $('#chat-input');
-                    input.value += (input.value ? '\n' : '') + f.path;
-                    input.focus();
-                    const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
-                        ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
-                    pastedImages.push(url);
-                    showImagePreview(url, f.path);
-                });
-                item.appendChild(sendBtn);
-                item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
-                item.addEventListener('mouseleave', () => sendBtn.style.opacity = '0');
-                item.addEventListener('click', () => openFilePreview(f.path));
-                container.appendChild(item);
-            }
-        }
+        for (const f of files) container.appendChild(_createFileItem(f, container));
         if (files.length === 0) {
             container.innerHTML = '<div class="text-slate-600 px-2 italic">empty</div>';
         }
@@ -3462,6 +3404,102 @@ async function loadFileTree(path, container) {
         container.appendChild(errDiv);
     }
 }
+
+function _createFileItem(f, container) {
+    const item = document.createElement('div');
+    item.className = `file-item ${f.is_dir ? 'file-dir' : 'file-file'}`;
+    item.draggable = true;
+    item.dataset.path = f.path;
+    item.dataset.isDir = f.is_dir;
+    item.title = f.path;
+
+    item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', f.path);
+        e.dataTransfer.effectAllowed = 'copy';
+    });
+
+    if (f.is_dir) {
+        const savedExpanded = _getExpandedFolders();
+        let expanded = savedExpanded.has(f.path);
+        const children = document.createElement('div');
+        children.className = 'file-children' + (expanded ? '' : ' hidden');
+        item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+        if (expanded) loadFileTree(f.path, children);
+        item.addEventListener('click', async () => {
+            expanded = !expanded;
+            if (expanded && children.children.length === 0) {
+                await loadFileTree(f.path, children);
+            }
+            children.classList.toggle('hidden', !expanded);
+            item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+            _saveExpandedFolder(f.path, expanded);
+        });
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(item);
+        wrapper.appendChild(children);
+        return wrapper;
+    } else {
+        item.textContent = `${getFileIcon(f.name, false)} ${f.name}`;
+        item.style.position = 'relative';
+        const sendBtn = document.createElement('span');
+        sendBtn.textContent = '➜';
+        sendBtn.title = 'Send path to chat';
+        sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
+        sendBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const input = $('#chat-input');
+            input.value += (input.value ? '\n' : '') + f.path;
+            input.focus();
+            const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
+                ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
+            pastedImages.push(url);
+            showImagePreview(url, f.path);
+        });
+        item.appendChild(sendBtn);
+        item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
+        item.addEventListener('mouseleave', () => sendBtn.style.opacity = '0');
+        item.addEventListener('click', () => openFilePreview(f.path));
+        return item;
+    }
+}
+
+async function _refreshContainer(container, dirPath) {
+    try {
+        const files = await api(`/api/files?path=${encodeURIComponent(dirPath)}`);
+        const newPaths = new Set(files.map(f => f.path));
+        const existing = new Map();
+        for (const child of [...container.children]) {
+            const p = child.dataset?.path || child.querySelector?.('[data-path]')?.dataset?.path;
+            if (p) existing.set(p, child); else child.remove();
+        }
+        for (const [p, el] of existing) {
+            if (!newPaths.has(p)) el.remove();
+        }
+        let insertBefore = container.firstChild;
+        for (const f of files) {
+            if (existing.has(f.path)) {
+                insertBefore = existing.get(f.path).nextSibling;
+                continue;
+            }
+            const el = _createFileItem(f, container);
+            container.insertBefore(el, insertBefore);
+        }
+    } catch {}
+}
+
+async function refreshOpenFolders() {
+    const tree = $('#file-tree');
+    if (!tree || !currentScope) return;
+    await _refreshContainer(tree, currentScope);
+    const containers = tree.querySelectorAll('.file-children:not(.hidden)');
+    for (const container of containers) {
+        const dirItem = container.previousElementSibling;
+        if (!dirItem?.dataset?.path) continue;
+        await _refreshContainer(container, dirItem.dataset.path);
+    }
+}
+
+let _fileRefreshInterval = null;
 
 function initFilePanel() {
     const tree = $('#file-tree');
@@ -3489,6 +3527,8 @@ function initFilePanel() {
     if (currentScope) {
         loadFileTree(currentScope, tree);
     }
+    if (_fileRefreshInterval) clearInterval(_fileRefreshInterval);
+    _fileRefreshInterval = setInterval(refreshOpenFolders, 10000);
 }
 
 // === Refresh Loop ===
