@@ -379,6 +379,19 @@ async def stop_session(name: str, req: ScopeRequest):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/restart-cli")
+async def restart_cli(name: str, req: dict):
+    scope = req.get("scope", "")
+    found = manager.get_by_name(name, scope)
+    if not found or isinstance(found, dict):
+        return JSONResponse({"error": "session not loaded"}, status_code=404)
+    if found.status.value == "running":
+        return JSONResponse({"error": "agent is running, wait for idle"}, status_code=400)
+    await found._disconnect_backend()
+    found._log("status", "CLI disconnected (manual restart)")
+    return {"ok": True}
+
+
 @app.post("/api/sessions/{name}/change-model")
 async def change_model(name: str, req: dict):
     scope = req.get("scope", "")
