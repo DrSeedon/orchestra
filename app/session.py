@@ -131,10 +131,22 @@ class AgentSession:
 
     async def send(self, message: str) -> None:
         if self.status == AgentStatus.RUNNING:
-            self._pending_messages.append(message)
+            if self.backend_type == "codex":
+                self._pending_messages.append(message)
+                self._log("user_message", message)
+                self._log("status", f"message queued ({len(self._pending_messages)} pending)")
+                return
             self._log("user_message", message)
-            self._log("status", f"message queued ({len(self._pending_messages)} pending)")
-            return
+            try:
+                backend = await self._ensure_backend()
+                await backend.send(message)
+                self._log("status", "injected mid-turn")
+                return
+            except Exception as e:
+                logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
+                self._pending_messages.append(message)
+                self._log("status", f"inject failed, queued ({len(self._pending_messages)} pending)")
+                return
 
         async with self._lifecycle_lock:
             if self._hibernate_task and not self._hibernate_task.done():
