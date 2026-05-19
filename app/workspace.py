@@ -31,21 +31,20 @@ _TASK_ID_BARE = re.compile(r"^(\d+)$")
 
 
 def _normalize_task_id(task_id: str) -> str:
-    tid = task_id.strip()
+    tid = task_id.strip().lstrip("#")
     m = _TASK_ID_RE.match(tid)
     if m:
-        prefix = m.group(1).upper()
         n = int(m.group(2))
         if n < 1:
             raise ValueError(f"Invalid task_id '{task_id}': number must be >= 1")
-        return f"{prefix}-{n}"
+        return str(n)
     m = _TASK_ID_BARE.match(tid)
     if m:
         n = int(m.group(1))
         if n < 1:
             raise ValueError(f"Invalid task_id '{task_id}': number must be >= 1")
-        return f"PAR-{n}"
-    raise ValueError(f"Invalid task_id '{task_id}': expected PREFIX-N (e.g. PAR-192, ORC-1) or just N")
+        return str(n)
+    raise ValueError(f"Invalid task_id '{task_id}': expected number, #N, or PREFIX-N (legacy)")
 
 
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "") -> Worktree:
@@ -60,7 +59,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "") ->
 
     if task_id:
         par = _normalize_task_id(task_id)
-        branch = f"{par}/{name}"
+        branch = f"task-{par}/{name}"
     else:
         branch = f"feat/{scope_slug}/{name}"
 
@@ -201,10 +200,10 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str) -> dict:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
-_TASK_REF_RE = re.compile(r"\b([A-Z]{2,5})-(\d+)\b")
+_TASK_REF_RE = re.compile(r"(?:\b([A-Z]{2,5})-(\d+)\b|#(\d+)\b)")
 
 
-def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
+def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
     log = subprocess.run(
         ["git", "log", f"{old_head}..HEAD", "--format=%H%x00%s%x00%ad", "--date=short"],
         cwd=repo, capture_output=True, text=True,
@@ -212,7 +211,7 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
     if log.returncode != 0 or not log.stdout.strip():
         return {}
 
-    by_par: dict[int, list[dict]] = {}
+    by_par: dict[str, list[dict]] = {}
     for line in log.stdout.strip().splitlines():
         parts = line.split("\x00", 2)
         if len(parts) < 3:
@@ -223,7 +222,7 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[int, list[dict]]:
         m = _TASK_REF_RE.search(message)
         if not m:
             continue
-        task_ref = f"{m.group(1)}-{m.group(2)}"
+        task_ref = str(m.group(3) or m.group(2))
 
         stat = subprocess.run(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],

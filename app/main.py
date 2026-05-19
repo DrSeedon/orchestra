@@ -474,7 +474,7 @@ async def merge_session(name: str, req: ScopeRequest):
                     except Exception as link_err:
                         import logging
                         logging.getLogger(__name__).error("Failed to link commits to %s: %s", task_ref, link_err)
-                        link_results[f"PAR-{par_num}"] = {"ok": False, "error": str(link_err)}
+                        link_results[task_ref] = {"ok": False, "error": str(link_err)}
                 if link_results:
                     result["linked_tasks"] = link_results
             return result
@@ -503,7 +503,7 @@ async def switch_branch(name: str, req: dict):
     session_id = found.get("id") if isinstance(found, dict) else found.id
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
-    new_branch = f"{par}/{name}"
+    new_branch = f"task-{par}/{name}"
     async with manager.get_session_lock(session_id):
         try:
             result = switch_worktree_branch(worktree_path, new_branch)
