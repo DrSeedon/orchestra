@@ -107,7 +107,7 @@ async def yougile_sync_task(task_id: int) -> str:
             return "task not found"
 
         if not task["yougile_task_id"]:
-            existing = await yougile_find_by_par(f"PAR-{task['par_number']}")
+            existing = await yougile_find_by_par(str(task['par_number']))
             if existing:
                 conn.execute("BEGIN IMMEDIATE")
                 try:
@@ -182,7 +182,7 @@ async def _yougile_push_create(task: dict) -> dict | None:
         "title": format_yougile_title(task),
         "description": md_to_html(task["description"]),
         "columnId": STATUS_TO_COLUMN.get(task["status"], STATUS_TO_COLUMN["new"]),
-        "idTaskProject": f"PAR-{task['par_number']}",
+        "idTaskProject": str(task['par_number']),
     }
     return await _yougile_request("POST", "/tasks", body)
 
