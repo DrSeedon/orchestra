@@ -185,6 +185,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN backend_type TEXT DEFAULT 'claude'")
     if "task_id" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN task_id TEXT DEFAULT ''")
+    if "description" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN description TEXT DEFAULT ''")
     proj_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)").fetchall()}
     if proj_cols and "yougile_enabled" not in proj_cols:
         c.execute("ALTER TABLE tm_projects ADD COLUMN yougile_enabled INTEGER NOT NULL DEFAULT 0")
@@ -260,16 +262,17 @@ def save_session(s: dict) -> None:
     s.setdefault("progress_status", "")
     s.setdefault("backend_type", "claude")
     s.setdefault("task_id", "")
+    s.setdefault("description", "")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
-                progress_pct, progress_status, backend_type, task_id)
+                progress_pct, progress_status, backend_type, task_id, description)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
-                :progress_pct, :progress_status, :backend_type, :task_id)
+                :progress_pct, :progress_status, :backend_type, :task_id, :description)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -286,7 +289,8 @@ def save_session(s: dict) -> None:
                 progress_pct=excluded.progress_pct,
                 progress_status=excluded.progress_status,
                 backend_type=excluded.backend_type,
-                task_id=excluded.task_id
+                task_id=excluded.task_id,
+                description=excluded.description
         """, s)
 
 

@@ -65,6 +65,7 @@ class AgentSession:
     on_error: Optional[callable] = field(default=None, repr=False)
     backend_type: str = "claude"
     task_id: str = ""
+    description: str = ""
 
     progress_pct: int = 0
     progress_status: str = ""
@@ -130,10 +131,22 @@ class AgentSession:
 
     async def send(self, message: str) -> None:
         if self.status == AgentStatus.RUNNING:
-            self._pending_messages.append(message)
+            if self.backend_type == "codex":
+                self._pending_messages.append(message)
+                self._log("user_message", message)
+                self._log("status", f"message queued ({len(self._pending_messages)} pending)")
+                return
             self._log("user_message", message)
-            self._log("status", f"message queued ({len(self._pending_messages)} pending)")
-            return
+            try:
+                backend = await self._ensure_backend()
+                await backend.send(message)
+                self._log("status", "injected mid-turn")
+                return
+            except Exception as e:
+                logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
+                self._pending_messages.append(message)
+                self._log("status", f"inject failed, queued ({len(self._pending_messages)} pending)")
+                return
 
         async with self._lifecycle_lock:
             if self._hibernate_task and not self._hibernate_task.done():
@@ -653,6 +666,7 @@ class AgentSession:
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
             "task_id": self.task_id,
+            "description": self.description,
         }
 
     async def get_context(self) -> dict:
@@ -671,4 +685,5 @@ class AgentSession:
             "backend_type": self.backend_type,
             "hibernated": self._hibernated,
             "task_id": self.task_id,
+            "description": self.description,
         }

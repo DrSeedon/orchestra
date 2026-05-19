@@ -47,7 +47,8 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
 async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
                        system_prompt: str = "",
-                       task_id: str = "") -> str:
+                       task_id: str = "",
+                       description: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-6[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
@@ -59,6 +60,8 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     }
     if task_id:
         body["task_id"] = task_id
+    if description:
+        body["description"] = description
     result = await _api("POST", "/api/sessions", json=body)
     if isinstance(result, dict) and result.get("error"):
         return f"Spawn failed: {result['error']}"
@@ -93,7 +96,11 @@ async def list_agents() -> str:
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
-        lines.append(f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')} | ${s.get('cost_usd',0):.4f}{ctx_str}")
+        task = s.get('task_id', '')
+        task_str = f" | {task}" if task else ""
+        desc = s.get('description', '')
+        desc_str = f' | "{desc}"' if desc else ""
+        lines.append(f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{task_str}{desc_str}")
     return "\n".join(lines)
 
 
@@ -270,6 +277,13 @@ async def report_bug(title: str, description: str) -> str:
     return f"Bug reported: {title}"
 
 
+@mcp.tool()
+async def update_worker_description(name: str, description: str) -> str:
+    """Update a worker's description. Use to set/change the role description shown in list_agents."""
+    result = await _api("POST", f"/api/sessions/{name}/description", json={"description": description, "scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return f"Description updated for '{name}'"
 
 
 

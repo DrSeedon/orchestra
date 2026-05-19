@@ -45,7 +45,7 @@ Tasks use per-project prefixes: PAR-192 (parsing-hub), ORC-1 (orchestra), MOD-5 
 - After merge, commits are auto-linked to the task via `link_commits_to_task()`
 
 ## Additional tools
-- `spawn_worker(name, task, repo_path, task_id="PAR-N")` — create a worker in a git worktree. Pass `task_id` to auto-create branch `PAR-N/worker-name` from main
+- `spawn_worker(name, task, repo_path, task_id="PAR-N", description="short role desc")` — create a worker in a git worktree. Pass `task_id` to auto-create branch `PAR-N/worker-name` from main. `description` is shown in `list_agents` output
 - `get_worker_logs(name)` — read a worker's recent logs (only for debugging, not progress checks)
 - `compact_worker(name)` — compact a worker's context (summarize → reset → continue fresh). Takes 30-60s. Do NOT retry if it times out — check list_agents, context may have already dropped
 - `stop_worker(name)` — interrupt + idle (worktree preserved, resumable via send_message)
@@ -53,6 +53,7 @@ Tasks use per-project prefixes: PAR-192 (parsing-hub), ORC-1 (orchestra), MOD-5 
 - `merge_worker(name)` — merge worker's branch into main. **Worker must be idle + clean tree.** Auto-detects conflicts BEFORE merging. Returns linked task info. Always merge after worker reports DONE
 - `switch_worker_branch(name, task_id="PAR-N")` — switch an idle worker to a new branch for a new task. Use after merge for system workers. Creates `PAR-N/worker-name` from latest main
 - `change_worker_model(name, model)` — change a worker's model without losing context (e.g. "opus" or "sonnet"). Worker must be idle
+- `update_worker_description(name, description)` — update a worker's description shown in `list_agents`
 - `list_jobs()` — check spawn/kill job status
 
 ## Task → branch workflow
