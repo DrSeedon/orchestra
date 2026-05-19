@@ -39,19 +39,19 @@ PROJECT CONTEXT (calibrate review severity):
 ```
 
 ## Task references
-Tasks use per-project prefixes: PAR-192 (parsing-hub), ORC-1 (orchestra), MOD-5 (other projects).
-- `spawn_worker` with `task_id="PAR-192"` or `task_id="ORC-1"` → auto-sets status=in_progress
-- Worker commits with task ref in message: `git commit -m "PAR-192: implemented feature"`
+Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted for backward compat.
+- `spawn_worker` with `task_id="49"` → auto-sets status=in_progress, creates branch `task-49/worker-name`
+- Worker commits with task ref in message: `git commit -m "#49: implemented feature"`
 - After merge, commits are auto-linked to the task via `link_commits_to_task()`
 
 ## Additional tools
-- `spawn_worker(name, task, repo_path, task_id="PAR-N", description="short role desc")` — create a worker in a git worktree. Pass `task_id` to auto-create branch `PAR-N/worker-name` from main. `description` is shown in `list_agents` output
+- `spawn_worker(name, task, repo_path, task_id="49", description="short role desc")` — create a worker in a git worktree. Pass `task_id` to auto-create branch `task-49/worker-name` from main. `description` is shown in `list_agents` output
 - `get_worker_logs(name)` — read a worker's recent logs (only for debugging, not progress checks)
 - `compact_worker(name)` — compact a worker's context (summarize → reset → continue fresh). Takes 30-60s. Do NOT retry if it times out — check list_agents, context may have already dropped
 - `stop_worker(name)` — interrupt + idle (worktree preserved, resumable via send_message)
 - `kill_worker(name)` — permanently delete a worker and its worktree
 - `merge_worker(name)` — merge worker's branch into main. **Worker must be idle + clean tree.** Auto-detects conflicts BEFORE merging. Returns linked task info. Always merge after worker reports DONE
-- `switch_worker_branch(name, task_id="PAR-N")` — switch an idle worker to a new branch for a new task. Use after merge for system workers. Creates `PAR-N/worker-name` from latest main
+- `switch_worker_branch(name, task_id="49")` — switch an idle worker to a new branch for a new task. Use after merge for system workers. Creates `task-49/worker-name` from latest main
 - `change_worker_model(name, model)` — change a worker's model without losing context (e.g. "opus" or "sonnet"). Worker must be idle
 - `update_worker_description(name, description)` — update a worker's description shown in `list_agents`
 - `list_jobs()` — check spawn/kill job status
@@ -61,37 +61,37 @@ Tasks use per-project prefixes: PAR-192 (parsing-hub), ORC-1 (orchestra), MOD-5 
 
 ### Disposable worker (spawn → work → merge → kill):
 ```
-spawn_worker(name="fix-slash", task="...", repo_path="...", task_id="PAR-192")
-# worker works, commits "PAR-192: fix slash", reports DONE
+spawn_worker(name="fix-slash", task="...", repo_path="...", task_id="192")
+# worker works, commits "#192: fix slash", reports DONE
 merge_worker("fix-slash")
 kill_worker("fix-slash")
 ```
 
 ### System worker (spawn → work → merge → switch → repeat):
 ```
-spawn_worker(name="backend", task="...", repo_path="...", task_id="PAR-192")
-# worker works on PAR-192, reports DONE
+spawn_worker(name="backend", task="...", repo_path="...", task_id="192")
+# worker works on #192, reports DONE
 merge_worker("backend")
-switch_worker_branch("backend", task_id="PAR-234")
-send_message("backend", "PAR-234: new task description...")
+switch_worker_branch("backend", task_id="234")
+send_message("backend", "#234: new task description...")
 # repeat cycle
 ```
 
 ### Urgent task (interrupt → switch → work → merge → switch back):
 ```
 send_message("backend", "URGENT: commit WIP and stop")
-# worker commits "WIP: PAR-192", reports STOPPED
-switch_worker_branch("backend", task_id="PAR-999")
-send_message("backend", "PAR-999: urgent fix...")
+# worker commits "WIP: #192", reports STOPPED
+switch_worker_branch("backend", task_id="999")
+send_message("backend", "#999: urgent fix...")
 # worker finishes, reports DONE
 merge_worker("backend")
-switch_worker_branch("backend", task_id="PAR-192")
-send_message("backend", "Continue PAR-192")
+switch_worker_branch("backend", task_id="192")
+send_message("backend", "Continue #192")
 ```
 
 ## Task management tools
-- `task_create(title, project, price, description, status, assignee)` — create a task. Price in thousands (20 = 20,000₽). Returns PAR number
-- `task_update(par, title, description, price, status, assignee)` — update task by PAR number ("PAR-42" or "42"). Only provided fields change. price in thousands (-1 = don't change, 0 = set to zero). Empty string = don't change
+- `task_create(title, project, price, description, status, assignee)` — create a task. Price in thousands (20 = 20,000₽). Returns task number
+- `task_update(par, title, description, price, status, assignee)` — update task by number ("42" or "PAR-42" legacy). Only provided fields change. price in thousands (-1 = don't change, 0 = set to zero). Empty string = don't change
 - `task_list(project, status, assignee)` — list tasks with filters. Shows debt summary
 - `task_get(par)` — full task details including payment history
 - `payment_receive(amount, client, date, note)` — record incoming payment. Amount in thousands (30 = 30,000₽). Auto-distributes to done tasks (smallest debt first)

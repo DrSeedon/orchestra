@@ -12,7 +12,7 @@ from typing import Optional
 
 from app.session import AgentSession, AgentStatus
 
-_PAR_BRANCH_RE = re.compile(r"^PAR-(\d+)/")
+_TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree
 from app.models import resolve_model, backend_for_model
 from app.db import (
@@ -326,8 +326,8 @@ class SessionManager:
                 actual_branch = actual.stdout.strip()
                 if actual_branch != db_branch:
                     db_branch = actual_branch
-                    m = _PAR_BRANCH_RE.match(actual_branch)
-                    db_task_id = f"PAR-{m.group(1)}" if m else ""
+                    m = _TASK_BRANCH_RE.match(actual_branch)
+                    db_task_id = m.group(1) if m else ""
 
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
