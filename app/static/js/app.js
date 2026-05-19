@@ -441,7 +441,6 @@ function initFilePreviewModal() {
     const modal = $('#file-preview-modal');
     if (!modal) return;
     $('#file-preview-close').addEventListener('click', closeFilePreview);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeFilePreview(); });
 }
 
 async function showProjectPicker() {
