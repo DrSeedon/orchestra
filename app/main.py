@@ -60,6 +60,7 @@ class CreateSessionRequest(BaseModel):
     repo_path: Optional[str] = None
     is_orchestrator: bool = False
     task_id: str = ""
+    description: str = ""
 
     @field_validator("name")
     @classmethod
@@ -235,6 +236,7 @@ async def create_session(req: CreateSessionRequest):
             repo_path=req.repo_path,
             is_orchestrator=req.is_orchestrator,
             task_id=req.task_id,
+            description=req.description,
         )
         return session.to_dict()
     except ValueError as e:
@@ -376,6 +378,25 @@ async def stop_session(name: str, req: ScopeRequest):
     if not found or isinstance(found, dict):
         return JSONResponse({"error": "agent not running"}, status_code=404)
     await manager.stop_worker(found.id)
+    return {"ok": True}
+
+
+@app.post("/api/sessions/{name}/description")
+async def update_description(name: str, req: dict):
+    scope = req.get("scope", "")
+    desc = req.get("description", "")
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    session = manager.sessions.get(sid)
+    if session:
+        session.description = desc
+        session._persist()
+    else:
+        from app.db import _conn
+        with _conn() as c:
+            c.execute("UPDATE sessions SET description=? WHERE id=?", (desc, sid))
     return {"ok": True}
 
 

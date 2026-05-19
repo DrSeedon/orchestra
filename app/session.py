@@ -65,6 +65,7 @@ class AgentSession:
     on_error: Optional[callable] = field(default=None, repr=False)
     backend_type: str = "claude"
     task_id: str = ""
+    description: str = ""
 
     progress_pct: int = 0
     progress_status: str = ""
@@ -653,6 +654,7 @@ class AgentSession:
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
             "task_id": self.task_id,
+            "description": self.description,
         }
 
     async def get_context(self) -> dict:
@@ -671,4 +673,5 @@ class AgentSession:
             "backend_type": self.backend_type,
             "hibernated": self._hibernated,
             "task_id": self.task_id,
+            "description": self.description,
         }
