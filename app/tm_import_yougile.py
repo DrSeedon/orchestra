@@ -14,8 +14,7 @@ import httpx
 
 from app import tm
 from app.tm_yougile import (
-    YOUGILE_API, YOUGILE_TOKEN, COLUMN_TO_STATUS,
-    STATUS_TO_COLUMN, _headers,
+    YOUGILE_API, COLUMN_TO_STATUS, _headers,
 )
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)

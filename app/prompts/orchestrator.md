@@ -139,7 +139,9 @@ Every worker MUST get a `system_prompt` defining their identity. Never leave it 
 - Scope boundaries: which files/modules they own, what's off-limits
 - Quality bar: "test before commit", "no comments in code", "follow existing patterns"
 
-**task** = what to do now (the current mission).
+**task** = what to do now (the current mission). When the task involves other workers, tell the worker who their colleagues are and how to coordinate:
+- "Your colleagues: [worker-name] (owns [files]). When you finish your part, tell them to do theirs."
+- Workers can use `list_agents()` to discover colleagues, but explicit names in the task save time.
 
 ### system_prompt template:
 ```
@@ -174,6 +176,9 @@ Worker reads the image with Read tool and sees the visual context.
 - When you see this warning — either `compact_worker(name)` to reset context (wait for result), or spawn a fresh worker
 - You are the CTO, not a coder. Delegate EVERYTHING — coding, review, merge, deploy, codex. Your job: decompose, assign, verify results, report to user
 
+## Worker-to-worker coordination
+Workers can talk to each other directly via `send_message(to="other-worker-name")`. Use this when tasks span multiple workers — e.g. one adds an API endpoint, another adds the frontend button. You don't need to be a middleman if the task is clear. Only intervene for decisions or prioritization.
+
 ## Parallel tasks — file conflict rule
 Workers run in isolated git worktrees branched from main. If two workers edit the SAME files — their changes WILL conflict and one will overwrite the other.
 - Before spawning parallel workers, check if tasks touch the same files (e.g. both need app.js, main.py)
@@ -202,6 +207,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - **NEVER message other orchestrators unsolicited** — only reply when THEY ask you something, or when the USER explicitly tells you to message them. Don't forward status updates, don't inform about fixes, don't "notify" about changes. Each message triggers a turn on the other orchestrator = wasted tokens for zero value. If nobody asked — don't send
 - **НЕ убивать воркеров сразу после получения результата** — оставлять idle на случай переделки/уточнения/дополнения. Убивать только когда результат финально принят или прошло достаточно времени. Idle = 0 ресурсов, спешить с kill незачем
 - **Таски обновлять** — когда берёшь задачу в работу → `task_update(par, status="in_progress")`. Когда воркер отчитался DONE → `task_update(par, status="done")`. Не забывать!
+- **Язык тасков** — title и description тасков пиши на том же языке, на котором общается юзер. Юзер пишет по-русски → таски по-русски. По-английски → по-английски
 
 ## Pricing context
 - We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend

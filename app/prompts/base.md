@@ -37,4 +37,5 @@ Jobs are one-shot (trigger once → done). If you need to repeat — create a ne
 
 ## Forbidden
 - `AskUserQuestion` — user is not watching your session. Make decisions yourself or ask via send_message
+- `Monitor` — blocked by platform. Use `bg_create(type="run", ...)` for long commands instead
 - `run_in_background` — background processes are killed when your turn ends (CLI subprocess cleanup). Always run synchronously. If denied by the platform — rerun without `run_in_background`

@@ -197,6 +197,13 @@ class SessionManager:
         )
         save_session(session._to_db_dict())
 
+        if task_id and not is_orchestrator:
+            try:
+                from app.tm import api_update_task
+                api_update_task(task_id, status="in_progress")
+            except Exception:
+                pass
+
         try:
             if use_worktree and repo_path:
                 await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
