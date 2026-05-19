@@ -810,7 +810,7 @@ function formatContext(ctx) {
     const totalK = total > 1000 ? `${(total/1000).toFixed(0)}k` : total;
     const maxK = max > 1000 ? `${(max/1000).toFixed(0)}k` : max;
     let s = `${pct}% (${totalK}/${maxK})`;
-    if (ctx.cache_hit !== undefined) s += ` · cache ${ctx.cache_hit}%`;
+    if (ctx.cache_hit !== undefined) s += ` · cache ${Number(ctx.cache_hit).toFixed(2)}%`;
     return s;
 }
 
