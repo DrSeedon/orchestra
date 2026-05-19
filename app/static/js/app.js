@@ -1837,7 +1837,7 @@ function addChatEntry(type, content, ts, anchor) {
                 header.style.color = cfg.color;
                 if (cfg.sub) {
                     const subEl = document.createElement('div');
-                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
                     subEl.textContent = cfg.sub;
                     div.appendChild(subEl);
                 }
@@ -2395,7 +2395,7 @@ function addChatEntry(type, content, ts, anchor) {
                 'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
                 'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
-                'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — описание обновлено`, color: '#22c55e' } : { text: '✅ Description updated', color: '#22c55e' }; },
+                'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — описание обновлено`, color: '#22c55e' } : { text: '✅ описание обновлено', color: '#22c55e' }; },
                 'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__list_agents': null,
