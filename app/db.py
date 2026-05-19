@@ -253,7 +253,6 @@ def _migrate(c) -> None:
         except Exception:
             pass
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
-    c.execute("UPDATE tm_tasks SET status='paid', paid_at=updated_at WHERE status='done' AND price_rub=0")
 
 
 def save_session(s: dict) -> None:
