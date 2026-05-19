@@ -129,9 +129,10 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
-        if self.backend_type == "codex" and self.status == AgentStatus.RUNNING:
+        if self.status == AgentStatus.RUNNING:
             self._pending_messages.append(message)
-            self._log("status", "message queued (Codex turn in progress)")
+            self._log("user_message", message)
+            self._log("status", f"message queued ({len(self._pending_messages)} pending)")
             return
 
         async with self._lifecycle_lock:
@@ -239,24 +240,15 @@ class AgentSession:
 
     async def _codex_turn_loop(self) -> None:
         logger.info(f"[{self.name}] codex turn started")
-        cancelled = False
         try:
             async for event in self._backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
                 self._handle_event(event)
         except asyncio.CancelledError:
-            cancelled = True
             return
         except Exception as e:
             logger.error(f"[{self.name}] codex turn error: {e}")
             self._log("error", f"codex turn error: {e}")
-        finally:
-            if self.status == AgentStatus.RUNNING:
-                self.status = AgentStatus.IDLE
-                self._persist()
-            if not cancelled and self._pending_messages:
-                next_msg = self._pending_messages.pop(0)
-                await self.send(next_msg)
 
     # ── Unified event handler ──
 
@@ -345,7 +337,30 @@ class AgentSession:
             except Exception:
                 pass
 
+        if self._pending_messages:
+            asyncio.create_task(self._flush_pending())
+            return
+
         self._schedule_hibernate()
+
+    async def _flush_pending(self) -> None:
+        await asyncio.sleep(0.3)
+        if not self._pending_messages:
+            return
+        msgs = list(self._pending_messages)
+        self._pending_messages.clear()
+        if len(msgs) == 1:
+            combined = msgs[0]
+        else:
+            combined = "\n".join(
+                f"--- message {i+1}/{len(msgs)} ---\n{m}"
+                for i, m in enumerate(msgs)
+            )
+        self._log("status", f"delivering {len(msgs)} queued message(s)")
+        try:
+            await self.send(combined)
+        except Exception as e:
+            logger.error(f"[{self.name}] flush pending failed: {e}")
 
     # ── Hibernate (idle resource optimization) ──
 
