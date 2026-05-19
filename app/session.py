@@ -85,6 +85,7 @@ class AgentSession:
     on_idle: Optional[callable] = field(default=None, repr=False)
     _hibernate_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _hibernated: bool = field(default=False, repr=False)
+    _compacting: bool = field(default=False, repr=False)
     _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     TURN_TIMEOUT = 600
@@ -130,6 +131,12 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
+        if self._compacting:
+            self._pending_messages.append(message)
+            self._log("user_message", message)
+            self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
+            return
+
         if self.status == AgentStatus.RUNNING:
             if self.backend_type == "codex":
                 self._pending_messages.append(message)
@@ -332,7 +339,7 @@ class AgentSession:
         if not self.is_orchestrator:
             asyncio.create_task(self._notify_scope_idle())
 
-        if ctx_pct > 90 and not self.is_orchestrator and not getattr(self, "_compacting", False):
+        if ctx_pct > 90 and not self.is_orchestrator and not self._compacting:
             self._log("status", f"auto-compact triggered ({ctx_pct}%)")
             asyncio.create_task(self._auto_compact())
 
@@ -511,6 +518,7 @@ class AgentSession:
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
 
         before_pct = self._last_context.get("percentage", 0)
+        self._compacting = True
         self._log("status", f"compact started (context {before_pct}%)")
 
         if self._listen_task and not self._listen_task.done():
@@ -536,6 +544,7 @@ class AgentSession:
                     break
         except Exception as e:
             self._log("error", f"compact failed: {e}")
+            self._compacting = False
             return {"ok": False, "error": str(e), "before_pct": before_pct}
         finally:
             await backend.disconnect()
@@ -544,10 +553,12 @@ class AgentSession:
         summary = "".join(summary_parts).strip()
         if not summary:
             self._log("error", "compact returned empty summary")
+            self._compacting = False
             return {"ok": False, "error": "empty summary", "before_pct": before_pct}
 
         self.session_id = None
         self._persist()
+        self._compacting = False
 
         preamble = PREAMBLE.format(summary=summary)
         await self.send(preamble + "Acknowledge briefly.")
