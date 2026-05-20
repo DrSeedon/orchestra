@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -709,12 +710,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                 t, c = log["type"], log["content"]
                 if t in ("text", "tool"):
                     await _update_topic_status(orch_name, True)
-                if t == "user_message" and c.startswith("[from:"):
-                    prefix = c.split("]")[0] + "]"
-                    body = c[len(prefix):].strip()
-                    text = f"📨 {prefix}\n{body[:3000]}"
-                elif t == "user_message":
-                    text = f"👤 {c[:3000]}"
+                if t == "user_message":
+                    c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
+                    if c.startswith("[from:"):
+                        prefix = c.split("]")[0] + "]"
+                        body = c[len(prefix):].strip()
+                        text = f"📨 {prefix}\n{body[:3000]}"
+                    else:
+                        text = f"👤 {c[:3000]}"
                 elif t == "text":
                     text = f"💬\n{c[:3900]}"
                 elif t == "tool":
