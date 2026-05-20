@@ -344,6 +344,11 @@ async def send_message(name: str, req: SendRequest):
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)
+        else:
+            from datetime import datetime, timezone, timedelta
+            local_tz = timezone(timedelta(hours=7))
+            now = datetime.now(local_tz).strftime("%H:%M")
+            msg = f"[{now}] {msg}"
         await manager.send(session.id, msg)
         return {"ok": True}
     except RuntimeError as e:
