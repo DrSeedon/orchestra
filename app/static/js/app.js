@@ -1503,6 +1503,7 @@ function addChatEntry(type, content, ts, anchor) {
         'chat-bot markdown-body'
     }`;
     if (type === 'user_message') {
+        content = content.replace(/^\[\d{2}:\d{2}\] /, '');
         const fromMatch = content.match(/^\[from:(.+?)\]\s*([\s\S]*)$/);
         if (fromMatch) {
             const sender = fromMatch[1];
