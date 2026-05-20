@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import aiohttp
@@ -291,6 +292,9 @@ async def _flush_batch(sid: str, batch: list):
             f"--- message {i+1}/{len(valid)} ---\n{content}"
             for i, (_, content) in enumerate(valid)
         )
+    local_tz = timezone(timedelta(hours=7))
+    now = datetime.now(local_tz).strftime("%H:%M")
+    combined = f"[{now}] {combined}"
     await _manager.send(sid, combined)
     for m, _ in valid:
         try:
