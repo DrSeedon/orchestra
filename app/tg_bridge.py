@@ -496,14 +496,36 @@ def _short_name(name: str) -> str:
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 
-def _find_thread_for_scope(scope: str) -> int | None:
+def _find_orch_for_scope(scope: str) -> str | None:
     from app.db import get_all_sessions
     for s in get_all_sessions():
         if s.get("is_orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
-            tid = config["topics"].get(s["name"])
-            if tid:
-                return tid
+            return s["name"]
     return None
+
+
+def _find_thread_for_scope(scope: str) -> int | None:
+    orch_name = _find_orch_for_scope(scope)
+    if orch_name:
+        return config["topics"].get(orch_name)
+    return None
+
+
+async def _mirror_send_file(orch_name: str, tg_file, caption: str, is_photo: bool):
+    mirror = config.get("mirrors", {}).get(orch_name)
+    if not mirror or not bot:
+        return
+    chat_id = mirror.get("chat_id")
+    topic_id = mirror.get("topic_id")
+    if not chat_id:
+        return
+    try:
+        if is_photo:
+            await bot.send_photo(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+        else:
+            await bot.send_document(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+    except Exception as e:
+        logger.warning(f"Mirror file send failed for {orch_name}: {e}")
 
 
 async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_document: bool = False) -> dict:
@@ -515,7 +537,8 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"file not found: {path}"}
     if fp.stat().st_size > 50 * 1024 * 1024:
         return {"error": "file too large (max 50MB)"}
-    thread_id = _find_thread_for_scope(scope)
+    orch_name = _find_orch_for_scope(scope)
+    thread_id = config["topics"].get(orch_name) if orch_name else None
     if not thread_id:
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
@@ -523,10 +546,14 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
     try:
         from aiogram.types import FSInputFile
         tg_file = FSInputFile(path, filename=fp.name)
-        if not as_document and fp.suffix.lower() in _IMAGE_EXTS:
+        is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
+        if is_photo:
             await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
         else:
             await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+        if orch_name:
+            mirror_file = FSInputFile(path, filename=fp.name)
+            await _mirror_send_file(orch_name, mirror_file, label, is_photo)
         return {"ok": True}
     except TelegramRetryAfter as e:
         return {"error": f"TG flood: retry after {e.retry_after}s"}
