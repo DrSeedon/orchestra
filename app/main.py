@@ -204,8 +204,6 @@ async def list_files(path: str):
     items = []
     try:
         for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
-            if entry.name.startswith('.'):
-                continue
             items.append({
                 "name": entry.name,
                 "path": str(entry),
