@@ -89,7 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (path) $('#orch-name').value = autoNameFromPath(path);
     });
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
-    $('#delete-orch-btn').addEventListener('click', deleteOrchestrator);
+    initTabContextMenu();
+    initHiddenTabsBtn();
     $('#restart-btn').addEventListener('click', restartServer);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
@@ -580,12 +581,22 @@ function _saveTabOrder() {
     localStorage.setItem('tabOrder', JSON.stringify(order));
 }
 
+function _getHiddenTabs() {
+    try { return new Set(JSON.parse(localStorage.getItem('orchestra_hidden_tabs') || '[]')); } catch { return new Set(); }
+}
+function _setHiddenTabs(set) {
+    localStorage.setItem('orchestra_hidden_tabs', JSON.stringify([...set]));
+}
+
 function renderOrchTabs(sorted) {
     const tabs = $('#orch-tabs');
     tabs.innerHTML = '';
     const ordered = _applyTabOrder(sorted);
+    const hidden = _getHiddenTabs();
     let dragTab = null;
+    _updateHiddenBtn();
     for (const o of ordered) {
+        if (hidden.has(o.name)) continue;
         const tab = document.createElement('button');
         tab.className = `orch-tab ${o.name === selectedAgent && o.scope === currentScope ? 'active' : ''}`;
         tab.dataset.orchName = o.name;
@@ -644,6 +655,94 @@ function renderOrchTabs(sorted) {
             _saveTabOrder();
         });
         tabs.appendChild(tab);
+    }
+}
+
+function initTabContextMenu() {
+    let menu = null;
+    const close = () => { if (menu) { menu.remove(); menu = null; } };
+    document.addEventListener('click', close);
+    document.addEventListener('contextmenu', (e) => {
+        const tab = e.target.closest('.orch-tab');
+        if (!tab) { close(); return; }
+        e.preventDefault();
+        close();
+        const name = tab.dataset.orchName;
+        const scope = tab.title;
+        menu = document.createElement('div');
+        menu.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+        const mkItem = (label, color, fn) => {
+            const item = document.createElement('div');
+            item.style.cssText = `padding:6px 14px;font-size:12px;color:${color};cursor:pointer;white-space:nowrap`;
+            item.textContent = label;
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+            item.addEventListener('mouseleave', () => item.style.background = '');
+            item.addEventListener('click', (ev) => { ev.stopPropagation(); close(); fn(); });
+            return item;
+        };
+        menu.appendChild(mkItem('👁 Скрыть', '#94a3b8', () => {
+            const h = _getHiddenTabs(); h.add(name); _setHiddenTabs(h);
+            renderOrchTabs(orchData);
+        }));
+        menu.appendChild(mkItem('🗑 Удалить', '#ef4444', () => {
+            if (!confirm(`Delete "${name}" and all its workers?`)) return;
+            api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
+                .then(() => loadOrchestrators())
+                .catch(e => alert(`Delete failed: ${e.message}`));
+        }));
+        document.body.appendChild(menu);
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+        if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+    });
+}
+
+function _updateHiddenBtn() {
+    const btn = $('#hidden-tabs-btn');
+    if (!btn) return;
+    const hidden = _getHiddenTabs();
+    const hasHidden = [...hidden].some(n => orchData.find(o => o.name === n));
+    btn.classList.toggle('hidden', !hasHidden);
+    if (hasHidden) btn.textContent = `👁 ${[...hidden].filter(n => orchData.find(o => o.name === n)).length}`;
+}
+
+function initHiddenTabsBtn() {
+    const btn = $('#hidden-tabs-btn');
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const existing = document.getElementById('hidden-tabs-dropdown');
+        if (existing) { existing.remove(); return; }
+        const hidden = _getHiddenTabs();
+        const items = [...hidden].filter(n => orchData.find(o => o.name === n));
+        if (!items.length) return;
+        const dd = document.createElement('div');
+        dd.id = 'hidden-tabs-dropdown';
+        const rect = btn.getBoundingClientRect();
+        dd.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+        for (const name of items) {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:6px 14px;font-size:12px;color:#94a3b8;cursor:pointer;white-space:nowrap';
+            item.textContent = `👁 ${name.replace(/-orchestrator$/, '')}`;
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+            item.addEventListener('mouseleave', () => item.style.background = '');
+            item.addEventListener('click', () => {
+                const h = _getHiddenTabs(); h.delete(name); _setHiddenTabs(h);
+                dd.remove();
+                renderOrchTabs(orchData);
+            });
+            dd.appendChild(item);
+        }
+        document.body.appendChild(dd);
+        const closeDd = (ev) => { if (!dd.contains(ev.target) && ev.target !== btn) { dd.remove(); document.removeEventListener('click', closeDd); } };
+        setTimeout(() => document.addEventListener('click', closeDd), 0);
+    });
+    const tabsEl = $('#orch-tabs');
+    if (tabsEl) {
+        tabsEl.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            tabsEl.scrollLeft += e.deltaY;
+        }, { passive: false });
     }
 }
 
