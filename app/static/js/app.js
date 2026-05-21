@@ -1312,7 +1312,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
-            else if (rawName === 'mcp__orchestra__task_create') preview = `📋 New: "${parsed.title || '?'}"${parsed.price ? ' | '+parsed.price+'k' : ''}`;
+            else if (rawName === 'mcp__orchestra__task_create') { const _pp = {0:'🔴',1:'🟠',3:'🟢'}[parsed.priority]||''; preview = `📋 New: ${_pp}"${parsed.title || '?'}"${parsed.price ? ' | '+parsed.price+'k' : ''}`; }
             else if (rawName === 'mcp__orchestra__task_update') { const _f = Object.keys(parsed).filter(k=>k!=='par').map(k=>`${k}→${parsed[k]}`).join(', '); preview = `✏️ #${taskNum(parsed.par) || '?'}: ${_f}`; }
             else if (rawName === 'mcp__orchestra__task_list') { const _fl = [parsed.status,parsed.project,parsed.assignee].filter(Boolean).join(', '); preview = `📋 Tasks${_fl ? ' ('+_fl+')' : ''}`; }
             else if (rawName === 'mcp__orchestra__task_get') preview = `📋 #${taskNum(parsed.par) || '?'}`;
@@ -3994,9 +3994,11 @@ function renderTasksPanel(panel, data, payData) {
         if (!isCollapsed) {
             for (const t of group) {
                 const par = t.par;
+                const _PD = {0:'🔴',1:'🟠',2:'',3:'🟢'};
+                const priDot = _PD[t.priority] || '';
                 const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
                 html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${par}" onclick="showTaskDetail('${par}')">`;
-                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
+                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${priDot}${par}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
                 html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${par}')" title="Insert #${par} into chat">📩</span>`;
@@ -4042,6 +4044,8 @@ async function showTaskDetail(par) {
         html += `<div><span class="text-slate-500">Paid:</span> ${(t.paid_rub||0)/1000}/${(t.price_rub||0)/1000}k</div>`;
         html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k ₽' : '0'}</span></div>`;
         html += `<div><span class="text-slate-500">Assignee:</span> ${escHtml(t.assignee || '—')}</div>`;
+        const _PRI = {0:'🔴 Critical',1:'🟠 High',2:'🟡 Medium',3:'🟢 Low'};
+        html += `<div><span class="text-slate-500">Priority:</span> ${_PRI[t.priority] || 'Medium'}</div>`;
         html += `<div><span class="text-slate-500">Project:</span> ${escHtml(t.project)}</div>`;
         html += `<div><span class="text-slate-500">Created:</span> ${(t.created_at||'').slice(0,10)}</div>`;
         if (t.updated_at) html += `<div><span class="text-slate-500">Updated:</span> ${t.updated_at.slice(0,10)}</div>`;

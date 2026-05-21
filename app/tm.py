@@ -150,7 +150,7 @@ def get_client_for_project(conn: sqlite3.Connection, project_id: str) -> dict | 
 def create_task(conn: sqlite3.Connection, project_id: str, title: str,
                 price_rub: int = 0, description: str = "", assignee: str = "",
                 status: str = "new", yougile_task_id: str | None = None,
-                par_number: int | None = None) -> dict:
+                par_number: int | None = None, priority: int = 2) -> dict:
     if status not in VALID_STATUSES:
         raise ValueError(f"Invalid status: {status}")
     if price_rub < 0:
@@ -163,10 +163,10 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         """INSERT INTO tm_tasks
            (par_number, project_id, title, description, price_rub, paid_rub,
             status, assignee, yougile_task_id, sync_revision,
-            git_commits, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?)""",
+            git_commits, created_at, updated_at, priority)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?, ?)""",
         (par, project_id, title, description, price_rub,
-         status, assignee, yougile_task_id, now, now),
+         status, assignee, yougile_task_id, now, now, priority),
     )
     task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return {
@@ -181,6 +181,7 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         "assignee": assignee,
         "yougile_task_id": yougile_task_id,
         "sync_revision": 0,
+        "priority": priority,
         "created_at": now,
         "updated_at": now,
     }
@@ -191,7 +192,8 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
                 price_rub: int | None = None, status: str | None = None,
                 assignee: str | None = None, worker_session_id: str | None = None,
                 git_commits: str | None = None,
-                yougile_task_id: str | None = None) -> dict:
+                yougile_task_id: str | None = None,
+                priority: int | None = None) -> dict:
     task = get_task_by_id(conn, task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -214,6 +216,11 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
         updates.append("assignee = ?")
         params.append(assignee)
         changed.append("assignee")
+
+    if priority is not None and priority != task.get("priority", 2):
+        updates.append("priority = ?")
+        params.append(priority)
+        changed.append("priority")
 
     if worker_session_id is not None:
         updates.append("worker_session_id = ?")
@@ -364,7 +371,7 @@ def list_tasks(conn: sqlite3.Connection, project_id: str = "",
     if assignee:
         query += " AND assignee = ?"
         params.append(assignee)
-    query += " ORDER BY par_number ASC"
+    query += " ORDER BY priority ASC, par_number DESC"
     return [dict(r) for r in conn.execute(query, params).fetchall()]
 
 
@@ -742,7 +749,8 @@ def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
 
 def api_create_task(project_id: str, title: str, price: int = 0,
                     description: str = "", assignee: str = "",
-                    status: str = "new", scope: str = "") -> dict:
+                    status: str = "new", scope: str = "",
+                    priority: int = 2) -> dict:
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
@@ -753,6 +761,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 description=description,
                 assignee=assignee,
                 status=status,
+                priority=priority,
             )
             conn.commit()
         except Exception:
@@ -774,7 +783,8 @@ def api_update_task(par: str, title: str | None = None,
                     price: int | None = None,
                     status: str | None = None,
                     assignee: str | None = None,
-                    project: str = "") -> dict:
+                    project: str = "",
+                    priority: int | None = None) -> dict:
     task_id = None
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -789,7 +799,7 @@ def api_update_task(par: str, title: str | None = None,
                 conn, task_id,
                 title=title, description=description,
                 price_rub=price_rub, status=status,
-                assignee=assignee,
+                assignee=assignee, priority=priority,
             )
 
             if status == "done":
@@ -835,6 +845,7 @@ def api_list_tasks(project: str = "", status: str = "",
                 "debt": _fmt_k(t["price_rub"] - t["paid_rub"]),
                 "status": t["status"],
                 "assignee": t["assignee"],
+                "priority": t.get("priority", 2),
             }
             for t in tasks
         ],
@@ -872,6 +883,7 @@ def api_get_task(par: str, project: str = "") -> dict:
         "debt_rub": task["price_rub"] - task["paid_rub"],
         "status": task["status"],
         "assignee": task["assignee"],
+        "priority": task.get("priority", 2),
         "created_at": task["created_at"],
         "completed_at": task["completed_at"],
         "payments": [

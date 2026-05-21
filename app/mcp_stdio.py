@@ -307,14 +307,15 @@ async def get_worker_info(name: str) -> str:
 @mcp.tool()
 async def task_create(title: str, project: str, price: int = 0,
                       description: str = "", assignee: str = "",
-                      status: str = "new") -> str:
+                      status: str = "new", priority: int = 2) -> str:
     """Create a new task. Returns task number and details.
     price is in thousands (e.g. 20 = 20,000₽). 0 is valid (no price).
-    Returns task number (e.g. 42). Legacy prefixes (PAR-42) still accepted."""
+    Returns task number (e.g. 42). Legacy prefixes (PAR-42) still accepted.
+    priority: 0=critical, 1=high, 2=medium (default), 3=low."""
     result = await _api("POST", "/api/tm/tasks", json={
         "title": title, "project": project, "price": price,
         "description": description, "assignee": assignee, "status": status,
-        "scope": SCOPE,
+        "scope": SCOPE, "priority": priority,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
@@ -324,10 +325,10 @@ async def task_create(title: str, project: str, price: int = 0,
 @mcp.tool()
 async def task_update(par: str, title: str = "", description: str = "",
                       price: int = -1, status: str = "",
-                      assignee: str = "") -> str:
+                      assignee: str = "", priority: int = -1) -> str:
     """Update an existing task. Only provided fields are changed.
     par: '42' or 'PAR-42' (legacy). price in thousands (-1 = don't change, 0 = set to zero).
-    Empty string = don't change for text fields."""
+    Empty string = don't change for text fields. priority: 0-3 or -1=don't change."""
     body: dict = {}
     if title:
         body["title"] = title
@@ -339,6 +340,8 @@ async def task_update(par: str, title: str = "", description: str = "",
         body["status"] = status
     if assignee:
         body["assignee"] = assignee
+    if 0 <= priority <= 3:
+        body["priority"] = priority
     if not body:
         return "Nothing to update"
     result = await _api("PUT", f"/api/tm/tasks/{par}", json=body, params={"scope": SCOPE} if SCOPE else None)
