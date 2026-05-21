@@ -570,13 +570,50 @@ async def rename_session(name: str, req: dict):
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
     sid = found["id"] if isinstance(found, dict) else found.id
-    from app.db import _conn
-    with _conn() as c:
-        c.execute("UPDATE sessions SET name=? WHERE id=?", (new_name, sid))
     session = manager.sessions.get(sid)
+    old_branch = None
+    new_branch = None
     if session:
         session.name = new_name
-    return {"ok": True, "old_name": name, "new_name": new_name}
+        if session.system_prompt:
+            session.system_prompt = session.system_prompt.replace(
+                f"Worker name: {name}", f"Worker name: {new_name}"
+            ).replace(
+                f"Orchestrator: {name}", f"Orchestrator: {new_name}"
+            )
+        if session.branch and session.branch.endswith(f"/{name}"):
+            old_branch = session.branch
+            new_branch = session.branch[: -len(name)] + new_name
+            session.branch = new_branch
+        session._persist()
+    else:
+        from app.db import _conn
+        with _conn() as c:
+            row = c.execute("SELECT branch, system_prompt FROM sessions WHERE id=?", (sid,)).fetchone()
+            updates = {"name": new_name}
+            if row and row["system_prompt"]:
+                updates["system_prompt"] = row["system_prompt"].replace(
+                    f"Worker name: {name}", f"Worker name: {new_name}"
+                ).replace(
+                    f"Orchestrator: {name}", f"Orchestrator: {new_name}"
+                )
+            if row and row["branch"] and row["branch"].endswith(f"/{name}"):
+                old_branch = row["branch"]
+                new_branch = row["branch"][: -len(name)] + new_name
+                updates["branch"] = new_branch
+            sets = ", ".join(f"{k}=?" for k in updates)
+            c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*updates.values(), sid))
+    if old_branch and new_branch:
+        wt_path = (session.worktree_path if session else None) or (
+            found.get("worktree_path") if isinstance(found, dict) else getattr(found, "worktree_path", None)
+        )
+        if wt_path and Path(wt_path).is_dir():
+            import subprocess
+            subprocess.run(
+                ["git", "branch", "-m", old_branch, new_branch],
+                cwd=wt_path, capture_output=True,
+            )
+    return {"ok": True, "old_name": name, "new_name": new_name, "branch": new_branch}
 
 
 @app.delete("/api/sessions/{name}")
