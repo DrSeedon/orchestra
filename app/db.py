@@ -309,7 +309,8 @@ def get_session(session_id: str) -> dict | None:
 def get_session_by_name(name: str, scope: str) -> dict | None:
     with _conn() as c:
         row = c.execute(
-            "SELECT * FROM sessions WHERE name = ? AND scope = ?", (name, scope)
+            "SELECT * FROM sessions WHERE name = ? AND scope = ? AND status != 'archived'",
+            (name, scope),
         ).fetchone()
         return dict(row) if row else None
 
