@@ -228,7 +228,7 @@ def _get_allowed_roots() -> list[str]:
 
 
 _DENIED_PARTS = {".env", ".claude", ".ssh", ".git", ".credentials", ".config", ".gnupg", ".aws"}
-_DENIED_EXTENSIONS = {".db", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
+_DENIED_EXTENSIONS = {".db", ".db-shm", ".db-wal", ".db-journal", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
 
 
 def _is_safe_path(path: str) -> bool:
@@ -400,6 +400,7 @@ async def get_session_context(name: str, scope: str):
 
 @app.get("/api/sessions/{name}/stream")
 async def stream_session_logs(name: str, scope: str, request: Request, after_id: int = 0, limit: int = 500):
+    limit = min(limit, 1000)
     import json
     session_id = manager.get_session_id(name, scope)
     if not session_id:
@@ -426,6 +427,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
 @app.get("/api/sessions/{name}/logs")
 async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0, limit: int = 500):
+    limit = min(limit, 1000)
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -543,6 +545,8 @@ async def rename_session(name: str, req: dict):
     new_name = req.get("new_name", "").strip()
     if not new_name:
         return JSONResponse({"error": "new_name required"}, status_code=400)
+    if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", new_name):
+        return JSONResponse({"error": "invalid name: alphanumeric with ._- allowed, 1-50 chars"}, status_code=400)
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -1071,6 +1075,7 @@ async def tm_payment_history(client: str = "aleksandr-kislinskiy"):
 
 @app.get("/api/tm/sync/log")
 async def tm_sync_log(limit: int = 50):
+    limit = min(limit, 200)
     with _tm._conn() as conn:
         rows = conn.execute(
             "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit,)
