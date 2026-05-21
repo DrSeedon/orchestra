@@ -227,7 +227,8 @@ def _get_allowed_roots() -> list[str]:
     return _ALLOWED_ROOTS
 
 
-_DENIED_PARTS = {".env", ".claude", ".ssh", ".git", ".credentials", ".config", ".gnupg", ".aws"}
+_DENIED_PARTS = {".env", ".ssh", ".git", ".credentials", ".gnupg", ".aws"}
+_DENIED_HOME_PARTS = {".claude", ".config"}
 _DENIED_EXTENSIONS = {".db", ".db-shm", ".db-wal", ".db-journal", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
 
 
@@ -239,9 +240,14 @@ def _is_safe_path(path: str) -> bool:
         return False
     if not any(resolved.startswith(root) for root in _get_allowed_roots()):
         return False
+    home = str(Path.home())
     for part in p.parts:
         if part in _DENIED_PARTS or part.startswith(".env"):
             return False
+    if resolved.startswith(home):
+        for part in _DENIED_HOME_PARTS:
+            if f"{home}/{part}" in resolved:
+                return False
     if p.suffix in _DENIED_EXTENSIONS:
         return False
     return True
