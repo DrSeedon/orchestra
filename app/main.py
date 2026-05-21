@@ -148,7 +148,8 @@ async def login_submit(request: Request, username: str = Form(""), password: str
     if check_credentials(username, password):
         token = create_session(username)
         response = RedirectResponse("/", status_code=302)
-        response.set_cookie("session", token, httponly=True, samesite="lax", max_age=86400)
+        secure = request.url.scheme == "https" or os.environ.get("COOKIE_SECURE") == "1"
+        response.set_cookie("session", token, httponly=True, samesite="lax", max_age=86400, secure=secure)
         return response
     return templates.TemplateResponse(request, "login.html", {"error": "Invalid credentials"})
 
@@ -226,12 +227,24 @@ def _get_allowed_roots() -> list[str]:
     return _ALLOWED_ROOTS
 
 
+_DENIED_PARTS = {".env", ".claude", ".ssh", ".git", ".credentials", ".config", ".gnupg", ".aws"}
+_DENIED_EXTENSIONS = {".db", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
+
+
 def _is_safe_path(path: str) -> bool:
     try:
-        resolved = str(Path(path).resolve())
+        p = Path(path).resolve()
+        resolved = str(p)
     except (ValueError, OSError):
         return False
-    return any(resolved.startswith(root) for root in _get_allowed_roots())
+    if not any(resolved.startswith(root) for root in _get_allowed_roots()):
+        return False
+    for part in p.parts:
+        if part in _DENIED_PARTS or part.startswith(".env"):
+            return False
+    if p.suffix in _DENIED_EXTENSIONS:
+        return False
+    return True
 
 
 BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
@@ -310,6 +323,8 @@ async def list_sessions(scope: Optional[str] = None):
 
 @app.post("/api/sessions", status_code=201)
 async def create_session(req: CreateSessionRequest):
+    if not _is_safe_path(req.cwd):
+        return JSONResponse({"error": f"cwd not in allowed paths: {req.cwd}"}, status_code=403)
     scope = req.scope or req.cwd
     try:
         session = await manager.create_session(
@@ -914,6 +929,8 @@ async def tg_send_file(req: dict):
     as_document = req.get("as_document", False)
     if not path:
         return JSONResponse({"error": "path required"}, status_code=400)
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     from app.tg_bridge import send_file_to_tg
     result = await send_file_to_tg(path, caption, scope, sender, as_document=as_document)
     if result.get("error"):
