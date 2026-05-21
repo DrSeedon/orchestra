@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
     initTabContextMenu();
     initHiddenTabsBtn();
+    initDropHint();
     $('#restart-btn').addEventListener('click', restartServer);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
@@ -657,6 +658,36 @@ function renderOrchTabs(sorted) {
         });
         tabs.appendChild(tab);
     }
+}
+
+let _dropDragCounter = 0;
+function _hideDropHint() {
+    _dropDragCounter = 0;
+    const input = $('#chat-input');
+    if (!input) return;
+    if (input.dataset.origPlaceholder) {
+        input.placeholder = input.dataset.origPlaceholder;
+        delete input.dataset.origPlaceholder;
+    }
+    input.classList.remove('border-indigo-400');
+}
+function initDropHint() {
+    document.addEventListener('dragenter', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        _dropDragCounter++;
+        const input = $('#chat-input');
+        if (input) {
+            if (!input.dataset.origPlaceholder) input.dataset.origPlaceholder = input.placeholder;
+            input.placeholder = '📎 Drop files here';
+            input.classList.add('border-indigo-400');
+        }
+    });
+    document.addEventListener('dragleave', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        _dropDragCounter--;
+        if (_dropDragCounter <= 0) _hideDropHint();
+    });
+    document.addEventListener('drop', () => _hideDropHint());
 }
 
 function initTabContextMenu() {
@@ -3612,26 +3643,10 @@ function initFilePanel() {
         chatInput.addEventListener('dragover', (e) => {
             if (!e.dataTransfer?.types?.includes('Files')) return;
             e.preventDefault();
-            chatInput.classList.add('border-indigo-400');
-            if (!chatInput.dataset.dropHint) {
-                chatInput.dataset.dropHint = chatInput.placeholder;
-                chatInput.placeholder = '📎 Drop files here';
-            }
-        });
-        chatInput.addEventListener('dragleave', () => {
-            chatInput.classList.remove('border-indigo-400');
-            if (chatInput.dataset.dropHint) {
-                chatInput.placeholder = chatInput.dataset.dropHint;
-                delete chatInput.dataset.dropHint;
-            }
         });
         chatInput.addEventListener('drop', async (e) => {
             e.preventDefault();
-            chatInput.classList.remove('border-indigo-400');
-            if (chatInput.dataset.dropHint) {
-                chatInput.placeholder = chatInput.dataset.dropHint;
-                delete chatInput.dataset.dropHint;
-            }
+            _hideDropHint();
             if (e.dataTransfer?.files?.length) {
                 for (const file of e.dataTransfer.files) {
                     const formData = new FormData();
