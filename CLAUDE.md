@@ -34,7 +34,7 @@
     └── Stats: turns, tokens, tool_calls
 ```
 
-Deployed: localhost:8888 (dev) + 147.45.101.84 (VPS клиента, auth enabled)
+Deployed: localhost:8888 (dev) + VPS клиента (auth enabled)
 
 ## Dev Commands
 ```bash

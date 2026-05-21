@@ -93,6 +93,36 @@ TG_LOCAL_API_URL=http://localhost:8081
 DEEPGRAM_API_KEY=your_key
 ```
 
+## Task Manager
+
+Built-in task management with priorities, payments, and YouGile sync.
+
+- `task_create/update/list/get` — MCP tools for agents
+- **Priorities** — critical 🔴, high 🟠, medium 🟡, low 🟢
+- **Payments** — `payment_receive` auto-distributes to done tasks (smallest debt first)
+- **YouGile sync** — bidirectional sync with YouGile boards (optional)
+- **Payment journal** — auto-generated task in YouGile with payment history
+
+## Security
+
+- **Dashboard auth** — cookie session with login/password from `.env`
+- **Internal token** — `INTERNAL_TOKEN` for MCP callback auth
+- **Path traversal protection** — deny-list for dotfiles, credentials, databases
+- **Upload restrictions** — executable extensions blocked
+- **Limit caps** — SSE/logs capped to prevent abuse
+
+## Deployment
+
+Works locally and on remote VPS. See `docs/deploy-amsterdam/PLAN.md` for full deployment guide.
+
+```bash
+# .env for production
+DASHBOARD_USER=admin
+DASHBOARD_PASSWORD=your-secure-password
+INTERNAL_TOKEN=your-random-hex-32
+COOKIE_SECURE=1  # enable after SSL
+```
+
 ## Stack
 
 - Python 3.12+, FastAPI, Jinja2, SSE
@@ -100,3 +130,7 @@ DEEPGRAM_API_KEY=your_key
 - SQLite (WAL mode), git worktrees
 - Tailwind CSS, highlight.js, marked.js, DOMPurify, diff-match-patch (bundled offline)
 - aiogram 3.x (TG bridge)
+
+## License
+
+[AGPL-3.0](LICENSE) — free for open source. Commercial licensing available from [Seedon](https://seedon.ru) (ООО «Сидон»). Contact: maxim-as@bk.ru
