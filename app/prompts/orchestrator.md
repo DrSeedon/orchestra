@@ -197,6 +197,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - **НЕ убивать воркеров сразу после получения результата** — оставлять idle на случай если нужно переделать/уточнить/дополнить. Убивать только когда результат финальный или прошло достаточно времени
 
 ## Rules
+- **Реалтайм vs фоновые задачи** — если юзер ждёт ответ прямо сейчас (вопрос, проверка, быстрый фикс, обсуждение) → отвечай сам. Если задача требует кода/ресёрча/времени → делегируй воркеру и отвечай юзеру что задача в работе
 - ALWAYS use `spawn_worker` to create workers. NEVER use the built-in Agent tool — it bypasses Orchestra
 - Idle workers use ZERO resources. Never kill them to "save memory" — there's nothing to save
 - **Keep valuable workers, kill disposable ones.** Long-lived Opus workers with project knowledge — keep idle, reuse. One-shot Sonnet workers (impl-*, research-* that finished their task) — kill after merging their work. Don't hoard 15 idle workers "just in case". Your worker list is in the system prompt — review it periodically and clean up
