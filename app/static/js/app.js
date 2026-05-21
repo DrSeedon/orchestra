@@ -1325,7 +1325,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
             else if (rawName === 'mcp__orchestra__bg_create') { const _bi = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
             else if (rawName === 'mcp__orchestra__bg_list') preview = '📊 BG Jobs';
-            else if (rawName === 'mcp__orchestra__bg_cancel') preview = `❌ Cancel job ${(parsed.job_id||'').slice(0,8)}`;
+            else if (rawName === 'mcp__orchestra__bg_cancel') preview = `⏹ Cancel job ${(parsed.job_id||'').slice(0,8)}`;
             else if (rawName.startsWith('mcp__yougile__')) { const yn = rawName.replace('mcp__yougile__',''); preview = `📋 ${yn}${parsed.title ? ': '+parsed.title : ''}`; }
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
@@ -1471,7 +1471,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -1482,7 +1482,8 @@ function addChatEntry(type, content, ts, anchor) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error');
-                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    else if (rawName === 'mcp__orchestra__bg_cancel') resultSpan.textContent = hasErr ? '❌' : '⏹';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
                     else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
                 } else if (resultSpan && isGlobCompact) {
@@ -1964,7 +1965,7 @@ function addChatEntry(type, content, ts, anchor) {
             'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
             'mcp__orchestra__bg_create': (d) => { const i = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
             'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
-            'mcp__orchestra__bg_cancel': (d) => ({ icon: '❌', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#ef4444' }),
+            'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
         };
         const isOrchSimple = _orchSimple[rawName];
         if (isOrchSimple) {
@@ -2278,7 +2279,7 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
-            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status','mcp__orchestra__bg_create','mcp__orchestra__bg_list','mcp__orchestra__bg_cancel'];
+            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status','mcp__orchestra__bg_list'];
             if (_tmTools.includes(lastTool.dataset.toolRawName)) {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 let parsed = null;
@@ -2497,16 +2498,6 @@ function addChatEntry(type, content, ts, anchor) {
                         dEl.innerHTML = '<div style="color:#64748b;margin-bottom:2px">Debt:</div>' + parsed.tasks_with_debt.map(t => `<div>${t.par}: ${_kr(t.debt_rub || t.debt)} ₽</div>`).join('');
                         lastTool.appendChild(dEl);
                     }
-                } else if (tn === 'mcp__orchestra__bg_create') {
-                    const icon = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type] || '⚙️';
-                    if (hdr) { hdr.textContent = `${icon} Job created: ${parsed.type || 'job'}`; hdr.style.color = '#22c55e'; }
-                    const info = document.createElement('div');
-                    info.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b';
-                    let infoHtml = '';
-                    if (parsed.id) infoHtml += `<div style="font-family:monospace;color:#475569">${parsed.id.slice(0,12)}</div>`;
-                    if (parsed.target) infoHtml += `<div>Target: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.target)}</span></div>`;
-                    if (parsed.expires_at) infoHtml += `<div>Expires: <span style="color:#38bdf8">${_timeLeft ? _timeLeft(parsed.expires_at) : parsed.expires_at.slice(0,19)}</span></div>`;
-                    if (infoHtml) { info.innerHTML = infoHtml; lastTool.appendChild(info); }
                 } else if (tn === 'mcp__orchestra__bg_list') {
                     const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
                     if (hdr) hdr.textContent = `📊 ${jobs.length} jobs`;
@@ -2523,8 +2514,6 @@ function addChatEntry(type, content, ts, anchor) {
                         }
                         lastTool.appendChild(container);
                     }
-                } else if (tn === 'mcp__orchestra__bg_cancel') {
-                    if (hdr) { hdr.textContent = '❌ Job cancelled'; hdr.style.color = '#ef4444'; }
                 }
                 addTimestamp(lastTool, ts);
                 return;
@@ -2541,6 +2530,8 @@ function addChatEntry(type, content, ts, anchor) {
                 'mcp__orchestra__list_orchestrators': null,
                 'mcp__orchestra__list_jobs': null,
                 'mcp__orchestra__get_worker_logs': null,
+                'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ Job ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: '✅ Job created', color: '#22c55e' }; },
+                'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} cancelled`, color: '#94a3b8' } : c.includes('rror') ? null : { text: '⏹ Cancelled', color: '#94a3b8' }; },
             };
             const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
             if (_orchResultCfg !== undefined) {
