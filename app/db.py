@@ -195,6 +195,14 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE tm_projects ADD COLUMN prefix TEXT NOT NULL DEFAULT 'TASK'")
         c.execute("UPDATE tm_projects SET prefix = 'PAR' WHERE id = 'parsing-hub'")
         c.execute("UPDATE tm_projects SET prefix = 'ORC' WHERE id = 'orchestra'")
+    if "total_turns" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN total_turns INTEGER DEFAULT 0")
+    if "total_input_tokens" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN total_input_tokens INTEGER DEFAULT 0")
+    if "total_output_tokens" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN total_output_tokens INTEGER DEFAULT 0")
+    if "total_tool_calls" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN total_tool_calls INTEGER DEFAULT 0")
     try:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:
@@ -269,16 +277,22 @@ def save_session(s: dict) -> None:
     s.setdefault("backend_type", "claude")
     s.setdefault("task_id", "")
     s.setdefault("description", "")
+    s.setdefault("total_turns", 0)
+    s.setdefault("total_input_tokens", 0)
+    s.setdefault("total_output_tokens", 0)
+    s.setdefault("total_tool_calls", 0)
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
-                progress_pct, progress_status, backend_type, task_id, description)
+                progress_pct, progress_status, backend_type, task_id, description,
+                total_turns, total_input_tokens, total_output_tokens, total_tool_calls)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
-                :progress_pct, :progress_status, :backend_type, :task_id, :description)
+                :progress_pct, :progress_status, :backend_type, :task_id, :description,
+                :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -296,7 +310,11 @@ def save_session(s: dict) -> None:
                 progress_status=excluded.progress_status,
                 backend_type=excluded.backend_type,
                 task_id=excluded.task_id,
-                description=excluded.description
+                description=excluded.description,
+                total_turns=excluded.total_turns,
+                total_input_tokens=excluded.total_input_tokens,
+                total_output_tokens=excluded.total_output_tokens,
+                total_tool_calls=excluded.total_tool_calls
         """, s)
 
 
@@ -315,15 +333,16 @@ def get_session_by_name(name: str, scope: str) -> dict | None:
         return dict(row) if row else None
 
 
-def get_all_sessions(scope: str | None = None) -> list[dict]:
+def get_all_sessions(scope: str | None = None, include_archived: bool = False) -> list[dict]:
     with _conn() as c:
+        archived_filter = "" if include_archived else " AND status != 'archived'"
         if scope:
             rows = c.execute(
-                "SELECT * FROM sessions WHERE scope = ? ORDER BY created_at DESC", (scope,)
+                f"SELECT * FROM sessions WHERE scope = ?{archived_filter} ORDER BY created_at DESC", (scope,)
             ).fetchall()
         else:
             rows = c.execute(
-                "SELECT * FROM sessions ORDER BY created_at DESC"
+                f"SELECT * FROM sessions WHERE 1=1{archived_filter} ORDER BY created_at DESC"
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -336,6 +355,14 @@ def rename_session(session_id: str, new_name: str) -> None:
 def delete_session(session_id: str) -> None:
     with _conn() as c:
         c.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+
+
+def archive_session(session_id: str) -> None:
+    with _conn() as c:
+        c.execute(
+            "UPDATE sessions SET status='archived', finished_at=? WHERE id=?",
+            (datetime.now(timezone.utc).isoformat(), session_id),
+        )
 
 
 def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
@@ -382,6 +409,11 @@ def get_stats(scope: str | None = None) -> dict:
             "status IN ('running', 'starting')",
             params,
         ).fetchone()[0]
+        archived = c.execute(
+            f"SELECT COUNT(*) FROM sessions {where + ' AND ' if where else 'WHERE '}"
+            "status = 'archived'",
+            params,
+        ).fetchone()[0]
         cost = c.execute(
             f"SELECT COALESCE(SUM(cost_usd), 0) FROM sessions {where}", params
         ).fetchone()[0]
@@ -392,11 +424,24 @@ def get_stats(scope: str | None = None) -> dict:
         total_logs = c.execute(
             f"SELECT COUNT(*) FROM logs {logs_where}", params
         ).fetchone()[0]
+        agg = c.execute(
+            f"""SELECT COALESCE(SUM(total_turns), 0),
+                       COALESCE(SUM(total_input_tokens), 0),
+                       COALESCE(SUM(total_output_tokens), 0),
+                       COALESCE(SUM(total_tool_calls), 0)
+                FROM sessions {where}""",
+            params,
+        ).fetchone()
         return {
             "total_sessions": total,
             "active": active,
+            "archived": archived,
             "total_cost_usd": round(cost, 4),
             "total_logs": total_logs,
+            "total_turns": agg[0],
+            "total_input_tokens": agg[1],
+            "total_output_tokens": agg[2],
+            "total_tool_calls": agg[3],
         }
 
 

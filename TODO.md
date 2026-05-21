@@ -1,12 +1,12 @@
 # Orchestra TODO
 
 ## Bugs
-- [ ] **Compact перебивается входящими сообщениями** — compact стартовал, пришёл auto-report от воркера → compact вернул empty summary → listener died → каскад ошибок. Нужно: блокировать входящие send() пока compact идёт, или queue их
-- [ ] **Taskmanager worktree divergence** — после merge worktree остаётся на старом коде (ALLOWED_TRANSITIONS возвращается). Нужно: switch_worker_branch после каждого merge
+- [ ] **Compact перебивается входящими сообщениями** (ORC-4) — compact стартовал, пришёл auto-report от воркера → compact вернул empty summary → listener died → каскад. Нужно: блокировать send() пока compact идёт, или queue
+- [ ] **Taskmanager worktree divergence** — после merge worktree остаётся на старом коде. Нужно: switch_worker_branch после каждого merge
+- [ ] **Одинаковые цвета воркеров** — _pick_color() даёт дубли при auto_resume_all
 
 ## Next
-- [ ] **VPS migration** — OVH отменил. Plan B: Hostinger/Coingate или Timeweb upgrade. Ресёрч: `docs/research/vps-migration.md`
-- [ ] **Worker description в list_agents** — feature request от Mods-orchestrator: показывать роль/описание воркера + task_id
+- [ ] **VPS migration** — OVH отменил. Plan B: Hostinger/Coingate или Timeweb upgrade
 - [ ] **TG pinned status** — закреплённое сообщение в каждом топике, обновляется после turn_end
 
 ## Later

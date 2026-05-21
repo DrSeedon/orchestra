@@ -58,9 +58,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         method = request.method
-        if method == "POST" and "/send" in path and path.startswith("/api/sessions/"):
-            if not check_internal_token(request.headers.get("authorization", "")):
-                return JSONResponse({"error": "unauthorized"}, status_code=401)
+        if check_internal_token(request.headers.get("authorization", "")):
             return await call_next(request)
         if not is_auth_enabled():
             return await call_next(request)
@@ -218,11 +216,10 @@ def _get_allowed_roots() -> list[str]:
         return _ALLOWED_ROOTS
     extra = os.environ.get("ALLOWED_ROOTS", "")
     if extra:
-        for root in extra.split(","):
-            root = root.strip()
-            if root and Path(root).is_dir():
-                _ALLOWED_ROOTS.append(root)
-    for root in ["/mnt/data/Projects", str(Path.home())]:
+        for p in extra.split(":"):
+            if p and Path(p).is_dir():
+                _ALLOWED_ROOTS.append(p)
+    for root in ["/mnt/data/Projects", "/opt", str(Path.home())]:
         if Path(root).is_dir():
             _ALLOWED_ROOTS.append(root)
     uploads = str(Path(__file__).parent.parent / "data" / "uploads")
@@ -231,7 +228,7 @@ def _get_allowed_roots() -> list[str]:
 
 
 _DENIED_PARTS = {".env", ".claude", ".ssh", ".git", ".credentials", ".config", ".gnupg", ".aws"}
-_DENIED_EXTENSIONS = {".db", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
+_DENIED_EXTENSIONS = {".db", ".db-shm", ".db-wal", ".db-journal", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
 
 
 def _is_safe_path(path: str) -> bool:
@@ -308,8 +305,6 @@ async def list_files(path: str):
     items = []
     try:
         for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
-            if entry.name.startswith('.'):
-                continue
             items.append({
                 "name": entry.name,
                 "path": str(entry),
@@ -405,6 +400,7 @@ async def get_session_context(name: str, scope: str):
 
 @app.get("/api/sessions/{name}/stream")
 async def stream_session_logs(name: str, scope: str, request: Request, after_id: int = 0, limit: int = 500):
+    limit = min(limit, 1000)
     import json
     session_id = manager.get_session_id(name, scope)
     if not session_id:
@@ -431,6 +427,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
 @app.get("/api/sessions/{name}/logs")
 async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0, limit: int = 500):
+    limit = min(limit, 1000)
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -567,6 +564,8 @@ async def rename_session(name: str, req: dict):
     new_name = req.get("new_name", "").strip()
     if not new_name:
         return JSONResponse({"error": "new_name required"}, status_code=400)
+    if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", new_name):
+        return JSONResponse({"error": "invalid name: alphanumeric with ._- allowed, 1-50 chars"}, status_code=400)
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -655,6 +654,10 @@ async def switch_branch(name: str, req: dict):
                     found.branch = result.get("branch", new_branch)
                     found.task_id = par
                     found._persist()
+            try:
+                _tm.api_update_task(par, status="in_progress")
+            except Exception:
+                pass
             return result
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
@@ -1093,6 +1096,7 @@ async def tm_payment_history(client: str = "aleksandr-kislinskiy"):
 
 @app.get("/api/tm/sync/log")
 async def tm_sync_log(limit: int = 50):
+    limit = min(limit, 200)
     with _tm._conn() as conn:
         rows = conn.execute(
             "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit,)
