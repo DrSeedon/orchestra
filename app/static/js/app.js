@@ -91,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
     initTabContextMenu();
     initHiddenTabsBtn();
+    initFileDrop();
     $('#restart-btn').addEventListener('click', restartServer);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
@@ -1164,6 +1165,56 @@ function clearPastePreview() {
     pastedImages = [];
     const el = $('#paste-preview');
     if (el) el.remove();
+}
+
+function initFileDrop() {
+    let overlay = null;
+    let dragCounter = 0;
+    const show = () => {
+        if (overlay) return;
+        overlay = document.createElement('div');
+        overlay.id = 'drop-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,0.85);display:flex;align-items:center;justify-content:center;pointer-events:none';
+        overlay.innerHTML = '<div style="font-size:32px;color:#818cf8;text-align:center;pointer-events:none">📎<div style="font-size:14px;margin-top:8px;color:#94a3b8">Drop files here</div></div>';
+        document.body.appendChild(overlay);
+    };
+    const hide = () => { if (overlay) { overlay.remove(); overlay = null; } dragCounter = 0; };
+
+    document.addEventListener('dragenter', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        dragCounter++;
+        show();
+    });
+    document.addEventListener('dragleave', (e) => {
+        dragCounter--;
+        if (dragCounter <= 0) hide();
+    });
+    document.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    });
+    document.addEventListener('drop', async (e) => {
+        hide();
+        if (!e.dataTransfer?.files?.length) return;
+        e.preventDefault();
+        const input = $('#chat-input');
+        for (const file of e.dataTransfer.files) {
+            const formData = new FormData();
+            formData.append('file', file, file.name);
+            try {
+                const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (data.error) continue;
+                if (data.path) {
+                    input.value += (input.value ? '\n' : '') + data.path;
+                    pastedImages.push(data.url);
+                    showImagePreview(data.url, data.path);
+                }
+            } catch {}
+        }
+        input.focus();
+    });
 }
 
 function renderImages(el, content) {
