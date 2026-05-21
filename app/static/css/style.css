@@ -12,6 +12,7 @@ body { background: #0a0e17; color: #c8d6e5; font-family: 'JetBrains Mono', 'Fira
 .log-status { color: #a78bfa; font-style: italic; }
 .log-user_message { color: #818cf8; }
 .log-notification { color: #fbbf24; }
+#chat { user-select: text; -webkit-user-select: text; }
 .chat-user { background: rgba(99, 102, 241, 0.15); border-left: 3px solid #6366f1; }
 .chat-bot { border-left: 3px solid rgba(99,102,241,0.1); }
 .chat-tool { background: rgba(56, 189, 248, 0.05); border-left: 3px solid rgba(56, 189, 248, 0.3); font-size: 12px; }
