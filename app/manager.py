@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -25,12 +26,10 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = str(Path(__file__).parent.parent)
 _MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
 MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
-MCP_BASE_ENV = {
-    "PYTHONPATH": _PROJECT_ROOT,
-    "HTTPS_PROXY": "http://127.0.0.1:12334",
-    "HTTP_PROXY": "http://127.0.0.1:12334",
-    "NO_PROXY": "localhost,127.0.0.1",
-}
+MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
+for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
+    if os.environ.get(_k):
+        MCP_BASE_ENV[_k] = os.environ[_k]
 
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
