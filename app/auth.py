@@ -54,6 +54,15 @@ def cleanup_expired() -> None:
         del _sessions[t]
 
 
+def check_internal_token(auth_header: str) -> bool:
+    token = os.environ.get("INTERNAL_TOKEN", "")
+    if not token:
+        return True
+    if not auth_header:
+        return False
+    return hmac.compare_digest(auth_header.encode(), f"Bearer {token}".encode())
+
+
 def requires_auth(path: str, method: str) -> bool:
     if path in ("/login", "/logout"):
         return False
