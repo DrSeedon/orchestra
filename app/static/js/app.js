@@ -3608,11 +3608,29 @@ function initFilePanel() {
     const chatInput = $('#chat-input');
     if (!chatInput.dataset.fileDropReady) {
         chatInput.dataset.fileDropReady = '1';
-        chatInput.addEventListener('dragover', (e) => { e.preventDefault(); chatInput.classList.add('border-indigo-400'); });
-        chatInput.addEventListener('dragleave', () => chatInput.classList.remove('border-indigo-400'));
+        chatInput.addEventListener('dragover', (e) => {
+            if (!e.dataTransfer?.types?.includes('Files')) return;
+            e.preventDefault();
+            chatInput.classList.add('border-indigo-400');
+            if (!chatInput.dataset.dropHint) {
+                chatInput.dataset.dropHint = chatInput.placeholder;
+                chatInput.placeholder = '📎 Drop files here';
+            }
+        });
+        chatInput.addEventListener('dragleave', () => {
+            chatInput.classList.remove('border-indigo-400');
+            if (chatInput.dataset.dropHint) {
+                chatInput.placeholder = chatInput.dataset.dropHint;
+                delete chatInput.dataset.dropHint;
+            }
+        });
         chatInput.addEventListener('drop', async (e) => {
             e.preventDefault();
             chatInput.classList.remove('border-indigo-400');
+            if (chatInput.dataset.dropHint) {
+                chatInput.placeholder = chatInput.dataset.dropHint;
+                delete chatInput.dataset.dropHint;
+            }
             if (e.dataTransfer?.files?.length) {
                 for (const file of e.dataTransfer.files) {
                     const formData = new FormData();
