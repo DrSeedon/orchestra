@@ -21,13 +21,21 @@ ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
+_INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 
 mcp = FastMCP("orchestra")
 
 
+def _auth_headers() -> dict:
+    if _INTERNAL_TOKEN:
+        return {"Authorization": f"Bearer {_INTERNAL_TOKEN}"}
+    return {}
+
+
 async def _api(method: str, path: str, **kwargs) -> dict | list | None:
     t = kwargs.pop("timeout", 30)
-    async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t) as client:
+    headers = _auth_headers()
+    async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
         if method == "GET":
             r = await client.get(path, params=kwargs.get("params"))
         elif method == "POST":
