@@ -21,9 +21,12 @@ CONTEXT_LIMITS = {
 ALIASES = {
     "opus": "claude-opus-4-6[1m]",
     "claude-opus-4-6": "claude-opus-4-6[1m]",
+    "claude-opus-4-6-1m": "claude-opus-4-6[1m]",
     "sonnet": "claude-sonnet-4-6",
+    "claude-sonnet-4-5": "claude-sonnet-4-6",
     "haiku": "claude-haiku-4-5",
     "gpt5.5": "gpt-5.5",
+    "codex": "gpt-5.5",
     "gpt5.4": "gpt-5.4",
     "gpt5.4mini": "gpt-5.4-mini",
     "gpt-5.4mini": "gpt-5.4-mini",
