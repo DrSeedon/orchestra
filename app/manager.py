@@ -27,7 +27,7 @@ _PROJECT_ROOT = str(Path(__file__).parent.parent)
 _MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
 MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
 MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
-for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
+for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "INTERNAL_TOKEN"):
     if os.environ.get(_k):
         MCP_BASE_ENV[_k] = os.environ[_k]
 
