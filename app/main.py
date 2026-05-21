@@ -521,6 +521,25 @@ async def update_description(name: str, req: dict):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/prompt")
+async def update_prompt(name: str, req: dict):
+    scope = req.get("scope", "")
+    prompt = req.get("system_prompt", "")
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    session = manager.sessions.get(sid)
+    if session:
+        session.system_prompt = prompt
+        session._persist()
+    else:
+        from app.db import _conn
+        with _conn() as c:
+            c.execute("UPDATE sessions SET system_prompt=? WHERE id=?", (prompt, sid))
+    return {"ok": True}
+
+
 @app.post("/api/sessions/{name}/change-model")
 async def change_model(name: str, req: dict):
     scope = req.get("scope", "")

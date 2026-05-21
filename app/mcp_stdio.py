@@ -286,6 +286,14 @@ async def update_worker_description(name: str, description: str) -> str:
     return f"Description updated for '{name}'"
 
 
+@mcp.tool()
+async def update_worker_prompt(name: str, system_prompt: str) -> str:
+    """Update a worker's custom system prompt."""
+    result = await _api("POST", f"/api/sessions/{name}/prompt", json={"system_prompt": system_prompt, "scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return f"System prompt updated for '{name}'"
+
 
 @mcp.tool()
 async def task_create(title: str, project: str, price: int = 0,
