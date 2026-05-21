@@ -297,6 +297,7 @@ async def task_create(title: str, project: str, price: int = 0,
     result = await _api("POST", "/api/tm/tasks", json={
         "title": title, "project": project, "price": price,
         "description": description, "assignee": assignee, "status": status,
+        "scope": SCOPE,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
