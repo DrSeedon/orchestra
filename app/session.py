@@ -70,6 +70,11 @@ class AgentSession:
     progress_pct: int = 0
     progress_status: str = ""
 
+    total_turns: int = 0
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_tool_calls: int = 0
+
     _backend: Optional[object] = field(default=None, repr=False)
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
@@ -276,6 +281,7 @@ class AgentSession:
             self._log("text", event.content)
             self._turn_logs.append(event.content)
         elif event.type == "tool_use":
+            self.total_tool_calls += 1
             self._log("tool", event.content)
             short = event.content[:80]
             self._turn_logs.append(f"[tool] {short}")
@@ -308,11 +314,16 @@ class AgentSession:
         meta = event.metadata
         self._turn_start = 0
         ok = meta.get("ok", True)
+        sr = meta.get("stop_reason", "unknown")
+        nt = meta.get("num_turns", 0)
 
         sid = meta.get("session_id")
         if sid:
             self.session_id = sid
         self.cost_usd += meta.get("cost_usd", 0)
+        self.total_turns += nt
+        self.total_input_tokens += meta.get("input_tokens", 0)
+        self.total_output_tokens += meta.get("output_tokens", 0)
 
         ctx_pct = meta.get("context_pct", 0)
         ctx_tokens = meta.get("context_tokens", 0)
@@ -674,6 +685,10 @@ class AgentSession:
             "backend_type": self.backend_type,
             "task_id": self.task_id,
             "description": self.description,
+            "total_turns": self.total_turns,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "total_tool_calls": self.total_tool_calls,
         }
 
     async def get_context(self) -> dict:
@@ -694,4 +709,8 @@ class AgentSession:
             "task_id": self.task_id,
             "description": self.description,
             "system_prompt": self.system_prompt[:500] if self.system_prompt else "",
+            "total_turns": self.total_turns,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "total_tool_calls": self.total_tool_calls,
         }

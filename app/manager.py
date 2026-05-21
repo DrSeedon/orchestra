@@ -18,7 +18,7 @@ from app.workspace import create_worktree, remove_worktree
 from app.models import resolve_model, backend_for_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
-    delete_session, get_stats,
+    delete_session, archive_session, get_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ _PROJECT_ROOT = str(Path(__file__).parent.parent)
 _MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
 MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
 MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
-for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
+for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "INTERNAL_TOKEN"):
     if os.environ.get(_k):
         MCP_BASE_ENV[_k] = os.environ[_k]
 
@@ -260,14 +260,14 @@ class SessionManager:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
                 except Exception:
                     pass
-        delete_session(session_id)
+        archive_session(session_id)
 
     async def remove_scope(self, scope: str) -> None:
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
         for s in to_remove:
             await self.remove(s.id)
         for row in get_all_sessions(scope):
-            delete_session(row["id"])
+            archive_session(row["id"])
 
     # ── Lookups ──
 

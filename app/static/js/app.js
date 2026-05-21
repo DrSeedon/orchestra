@@ -90,7 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (path) $('#orch-name').value = autoNameFromPath(path);
     });
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
-    $('#delete-orch-btn').addEventListener('click', deleteOrchestrator);
+    initTabContextMenu();
+    initHiddenTabsBtn();
+    initDropHint();
     $('#restart-btn').addEventListener('click', restartServer);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
@@ -581,12 +583,22 @@ function _saveTabOrder() {
     localStorage.setItem('tabOrder', JSON.stringify(order));
 }
 
+function _getHiddenTabs() {
+    try { return new Set(JSON.parse(localStorage.getItem('orchestra_hidden_tabs') || '[]')); } catch { return new Set(); }
+}
+function _setHiddenTabs(set) {
+    localStorage.setItem('orchestra_hidden_tabs', JSON.stringify([...set]));
+}
+
 function renderOrchTabs(sorted) {
     const tabs = $('#orch-tabs');
     tabs.innerHTML = '';
     const ordered = _applyTabOrder(sorted);
+    const hidden = _getHiddenTabs();
     let dragTab = null;
+    _updateHiddenBtn();
     for (const o of ordered) {
+        if (hidden.has(o.name)) continue;
         const tab = document.createElement('button');
         tab.className = `orch-tab ${o.name === selectedAgent && o.scope === currentScope ? 'active' : ''}`;
         tab.dataset.orchName = o.name;
@@ -645,6 +657,124 @@ function renderOrchTabs(sorted) {
             _saveTabOrder();
         });
         tabs.appendChild(tab);
+    }
+}
+
+let _dropDragCounter = 0;
+function _hideDropHint() {
+    _dropDragCounter = 0;
+    const input = $('#chat-input');
+    if (!input) return;
+    if (input.dataset.origPlaceholder) {
+        input.placeholder = input.dataset.origPlaceholder;
+        delete input.dataset.origPlaceholder;
+    }
+    input.classList.remove('border-indigo-400');
+}
+function initDropHint() {
+    document.addEventListener('dragenter', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        _dropDragCounter++;
+        const input = $('#chat-input');
+        if (input) {
+            if (!input.dataset.origPlaceholder) input.dataset.origPlaceholder = input.placeholder;
+            input.placeholder = '📎 Drop files here';
+            input.classList.add('border-indigo-400');
+        }
+    });
+    document.addEventListener('dragleave', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        _dropDragCounter--;
+        if (_dropDragCounter <= 0) _hideDropHint();
+    });
+    document.addEventListener('drop', () => _hideDropHint());
+}
+
+function initTabContextMenu() {
+    let menu = null;
+    const close = () => { if (menu) { menu.remove(); menu = null; } };
+    document.addEventListener('click', close);
+    document.addEventListener('contextmenu', (e) => {
+        const tab = e.target.closest('.orch-tab');
+        if (!tab) { close(); return; }
+        e.preventDefault();
+        close();
+        const name = tab.dataset.orchName;
+        const scope = tab.title;
+        menu = document.createElement('div');
+        menu.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+        const mkItem = (label, color, fn) => {
+            const item = document.createElement('div');
+            item.style.cssText = `padding:6px 14px;font-size:12px;color:${color};cursor:pointer;white-space:nowrap`;
+            item.textContent = label;
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+            item.addEventListener('mouseleave', () => item.style.background = '');
+            item.addEventListener('click', (ev) => { ev.stopPropagation(); close(); fn(); });
+            return item;
+        };
+        menu.appendChild(mkItem('👁 Скрыть', '#94a3b8', () => {
+            const h = _getHiddenTabs(); h.add(name); _setHiddenTabs(h);
+            renderOrchTabs(orchData);
+        }));
+        menu.appendChild(mkItem('🗑 Удалить', '#ef4444', () => {
+            if (!confirm(`Delete "${name}" and all its workers?`)) return;
+            api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
+                .then(() => loadOrchestrators())
+                .catch(e => alert(`Delete failed: ${e.message}`));
+        }));
+        document.body.appendChild(menu);
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+        if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+    });
+}
+
+function _updateHiddenBtn() {
+    const btn = $('#hidden-tabs-btn');
+    if (!btn) return;
+    const hidden = _getHiddenTabs();
+    const hasHidden = [...hidden].some(n => orchData.find(o => o.name === n));
+    btn.classList.toggle('hidden', !hasHidden);
+    if (hasHidden) btn.textContent = `👁 ${[...hidden].filter(n => orchData.find(o => o.name === n)).length}`;
+}
+
+function initHiddenTabsBtn() {
+    const btn = $('#hidden-tabs-btn');
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const existing = document.getElementById('hidden-tabs-dropdown');
+        if (existing) { existing.remove(); return; }
+        const hidden = _getHiddenTabs();
+        const items = [...hidden].filter(n => orchData.find(o => o.name === n));
+        if (!items.length) return;
+        const dd = document.createElement('div');
+        dd.id = 'hidden-tabs-dropdown';
+        const rect = btn.getBoundingClientRect();
+        dd.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+        for (const name of items) {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:6px 14px;font-size:12px;color:#94a3b8;cursor:pointer;white-space:nowrap';
+            item.textContent = `👁 ${name.replace(/-orchestrator$/, '')}`;
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+            item.addEventListener('mouseleave', () => item.style.background = '');
+            item.addEventListener('click', () => {
+                const h = _getHiddenTabs(); h.delete(name); _setHiddenTabs(h);
+                dd.remove();
+                renderOrchTabs(orchData);
+            });
+            dd.appendChild(item);
+        }
+        document.body.appendChild(dd);
+        const closeDd = (ev) => { if (!dd.contains(ev.target) && ev.target !== btn) { dd.remove(); document.removeEventListener('click', closeDd); } };
+        setTimeout(() => document.addEventListener('click', closeDd), 0);
+    });
+    const tabsEl = $('#orch-tabs');
+    if (tabsEl) {
+        tabsEl.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            tabsEl.scrollLeft += e.deltaY;
+        }, { passive: false });
     }
 }
 
@@ -811,7 +941,7 @@ function formatContext(ctx) {
     const totalK = total > 1000 ? `${(total/1000).toFixed(0)}k` : total;
     const maxK = max > 1000 ? `${(max/1000).toFixed(0)}k` : max;
     let s = `${pct}% (${totalK}/${maxK})`;
-    if (ctx.cache_hit !== undefined) s += ` · cache ${ctx.cache_hit}%`;
+    if (ctx.cache_hit !== undefined) s += ` · cache ${Number(ctx.cache_hit).toFixed(2)}%`;
     return s;
 }
 
@@ -1067,6 +1197,7 @@ function clearPastePreview() {
     const el = $('#paste-preview');
     if (el) el.remove();
 }
+
 
 function renderImages(el, content) {
     const re = /(\/\S+\.(png|jpg|jpeg|gif|webp|svg))/gi;
@@ -1503,6 +1634,7 @@ function addChatEntry(type, content, ts, anchor) {
         'chat-bot markdown-body'
     }`;
     if (type === 'user_message') {
+        content = content.replace(/^\[\d{2}:\d{2}\] /, '');
         const fromMatch = content.match(/^\[from:(.+?)\]\s*([\s\S]*)$/);
         if (fromMatch) {
             const sender = fromMatch[1];
@@ -2207,8 +2339,9 @@ function addChatEntry(type, content, ts, anchor) {
                             else changes.push(f);
                         }
                     }
+                    const parNum = (parsed.par || '?').replace(/^[A-Z]+-/, '');
                     const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
-                    if (hdr) { hdr.textContent = `✅ ${parsed.par || '?'}${titleStr}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
+                    if (hdr) { hdr.textContent = `✏️ #${parNum}${titleStr}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
                     if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
                         const titleDiff = document.createElement('div');
                         titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
@@ -2243,8 +2376,8 @@ function addChatEntry(type, content, ts, anchor) {
                     }
                     const detail = document.createElement('div');
                     detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
-                    if (parsed.price_rub != null) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
-                    if (parsed.paid_rub != null) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
+                    if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
+                    if (parsed.paid_rub > 0) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
                     if (parsed.debt_rub > 0) detail.innerHTML += `<span style="color:#ef4444">Debt: ${_kr(parsed.debt_rub)}</span>`;
                     if (detail.innerHTML) lastTool.appendChild(detail);
                 } else if (tn === 'mcp__orchestra__task_list') {
@@ -3392,65 +3525,7 @@ async function loadFileTree(path, container) {
     try {
         const files = await api(`/api/files?path=${encodeURIComponent(path)}`);
         container.innerHTML = '';
-        for (const f of files) {
-            const item = document.createElement('div');
-            item.className = `file-item ${f.is_dir ? 'file-dir' : 'file-file'}`;
-            item.draggable = true;
-            item.dataset.path = f.path;
-            item.dataset.isDir = f.is_dir;
-            item.textContent = `${getFileIcon(f.name, f.is_dir)} ${f.name}`;
-            item.title = f.path;
-
-            item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', f.path);
-                e.dataTransfer.effectAllowed = 'copy';
-            });
-
-            if (f.is_dir) {
-                const savedExpanded = _getExpandedFolders();
-                let expanded = savedExpanded.has(f.path);
-                const children = document.createElement('div');
-                children.className = 'file-children' + (expanded ? '' : ' hidden');
-                if (expanded) {
-                    item.textContent = `📂 ${f.name}`;
-                    loadFileTree(f.path, children);
-                }
-                item.addEventListener('click', async () => {
-                    expanded = !expanded;
-                    if (expanded && children.children.length === 0) {
-                        await loadFileTree(f.path, children);
-                    }
-                    children.classList.toggle('hidden', !expanded);
-                    item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
-                    _saveExpandedFolder(f.path, expanded);
-                });
-                const wrapper = document.createElement('div');
-                wrapper.appendChild(item);
-                wrapper.appendChild(children);
-                container.appendChild(wrapper);
-            } else {
-                item.style.position = 'relative';
-                const sendBtn = document.createElement('span');
-                sendBtn.textContent = '➜';
-                sendBtn.title = 'Send path to chat';
-                sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
-                sendBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const input = $('#chat-input');
-                    input.value += (input.value ? '\n' : '') + f.path;
-                    input.focus();
-                    const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
-                        ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
-                    pastedImages.push(url);
-                    showImagePreview(url, f.path);
-                });
-                item.appendChild(sendBtn);
-                item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
-                item.addEventListener('mouseleave', () => sendBtn.style.opacity = '0');
-                item.addEventListener('click', () => openFilePreview(f.path));
-                container.appendChild(item);
-            }
-        }
+        for (const f of files) container.appendChild(_createFileItem(f, container));
         if (files.length === 0) {
             container.innerHTML = '<div class="text-slate-600 px-2 italic">empty</div>';
         }
@@ -3463,17 +3538,132 @@ async function loadFileTree(path, container) {
     }
 }
 
+function _createFileItem(f, container) {
+    const item = document.createElement('div');
+    item.className = `file-item ${f.is_dir ? 'file-dir' : 'file-file'}`;
+    item.draggable = true;
+    item.dataset.path = f.path;
+    item.dataset.isDir = f.is_dir;
+    item.title = f.path;
+
+    item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', f.path);
+        e.dataTransfer.effectAllowed = 'copy';
+    });
+
+    if (f.is_dir) {
+        const savedExpanded = _getExpandedFolders();
+        let expanded = savedExpanded.has(f.path);
+        const children = document.createElement('div');
+        children.className = 'file-children' + (expanded ? '' : ' hidden');
+        item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+        if (expanded) loadFileTree(f.path, children);
+        item.addEventListener('click', async () => {
+            expanded = !expanded;
+            if (expanded && children.children.length === 0) {
+                await loadFileTree(f.path, children);
+            }
+            children.classList.toggle('hidden', !expanded);
+            item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+            _saveExpandedFolder(f.path, expanded);
+        });
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(item);
+        wrapper.appendChild(children);
+        return wrapper;
+    } else {
+        item.textContent = `${getFileIcon(f.name, false)} ${f.name}`;
+        item.style.position = 'relative';
+        const sendBtn = document.createElement('span');
+        sendBtn.textContent = '➜';
+        sendBtn.title = 'Send path to chat';
+        sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
+        sendBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const input = $('#chat-input');
+            input.value += (input.value ? '\n' : '') + f.path;
+            input.focus();
+            const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
+                ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
+            pastedImages.push(url);
+            showImagePreview(url, f.path);
+        });
+        item.appendChild(sendBtn);
+        item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
+        item.addEventListener('mouseleave', () => sendBtn.style.opacity = '0');
+        item.addEventListener('click', () => openFilePreview(f.path));
+        return item;
+    }
+}
+
+async function _refreshContainer(container, dirPath) {
+    try {
+        const files = await api(`/api/files?path=${encodeURIComponent(dirPath)}`);
+        const newPaths = new Set(files.map(f => f.path));
+        const existing = new Map();
+        for (const child of [...container.children]) {
+            const p = child.dataset?.path || child.querySelector?.('[data-path]')?.dataset?.path;
+            if (p) existing.set(p, child); else child.remove();
+        }
+        for (const [p, el] of existing) {
+            if (!newPaths.has(p)) el.remove();
+        }
+        let insertBefore = container.firstChild;
+        for (const f of files) {
+            if (existing.has(f.path)) {
+                insertBefore = existing.get(f.path).nextSibling;
+                continue;
+            }
+            const el = _createFileItem(f, container);
+            container.insertBefore(el, insertBefore);
+        }
+    } catch {}
+}
+
+async function refreshOpenFolders() {
+    const tree = $('#file-tree');
+    if (!tree || !currentScope) return;
+    await _refreshContainer(tree, currentScope);
+    const containers = tree.querySelectorAll('.file-children:not(.hidden)');
+    for (const container of containers) {
+        const dirItem = container.previousElementSibling;
+        if (!dirItem?.dataset?.path) continue;
+        await _refreshContainer(container, dirItem.dataset.path);
+    }
+}
+
+let _fileRefreshInterval = null;
+
 function initFilePanel() {
     const tree = $('#file-tree');
 
     const chatInput = $('#chat-input');
     if (!chatInput.dataset.fileDropReady) {
         chatInput.dataset.fileDropReady = '1';
-        chatInput.addEventListener('dragover', (e) => { e.preventDefault(); chatInput.classList.add('border-indigo-400'); });
-        chatInput.addEventListener('dragleave', () => chatInput.classList.remove('border-indigo-400'));
-        chatInput.addEventListener('drop', (e) => {
+        chatInput.addEventListener('dragover', (e) => {
+            if (!e.dataTransfer?.types?.includes('Files')) return;
             e.preventDefault();
-            chatInput.classList.remove('border-indigo-400');
+        });
+        chatInput.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            _hideDropHint();
+            if (e.dataTransfer?.files?.length) {
+                for (const file of e.dataTransfer.files) {
+                    const formData = new FormData();
+                    formData.append('file', file, file.name);
+                    try {
+                        const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                        const data = await resp.json();
+                        if (data.path) {
+                            chatInput.value += (chatInput.value ? '\n' : '') + data.path;
+                            pastedImages.push(data.url);
+                            showImagePreview(data.url, data.path);
+                        }
+                    } catch {}
+                }
+                chatInput.focus();
+                return;
+            }
             const path = e.dataTransfer.getData('text/plain');
             if (path) {
                 chatInput.value += (chatInput.value ? '\n' : '') + path;
@@ -3489,6 +3679,8 @@ function initFilePanel() {
     if (currentScope) {
         loadFileTree(currentScope, tree);
     }
+    if (_fileRefreshInterval) clearInterval(_fileRefreshInterval);
+    _fileRefreshInterval = setInterval(refreshOpenFolders, 10000);
 }
 
 // === Refresh Loop ===
@@ -3836,7 +4028,8 @@ function injectTask(par) {
 
 async function showTaskDetail(par) {
     try {
-        const r = await fetch(`/api/tm/tasks/${par}`);
+        const scope = currentScope ? `?scope=${encodeURIComponent(currentScope)}` : '';
+        const r = await fetch(`/api/tm/tasks/${par}${scope}`);
         const t = await r.json();
         if (t.error) return;
         const modal = document.getElementById('prompt-modal');
@@ -3871,7 +4064,14 @@ async function showTaskDetail(par) {
         const commits = t.commits || t.git_commits || [];
         if (commits.length > 0) {
             html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>';
-            for (const c of commits) { html += `<div class="text-xs font-mono">${escHtml(typeof c === 'string' ? c.slice(0,60) : JSON.stringify(c))}</div>`; }
+            for (const c of commits) {
+                if (typeof c === 'string') { html += `<div class="text-xs font-mono">${escHtml(c.slice(0,60))}</div>`; continue; }
+                const hash = (c.hash || '').slice(0, 7);
+                const msg = (c.message || '').length > 50 ? c.message.slice(0, 50) + '…' : (c.message || '');
+                const date = (c.date || '').slice(0, 10);
+                const ins = c.insertions || 0; const del = c.deletions || 0; const files = c.files || 0;
+                html += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.6"><span style="color:#a78bfa;font-family:monospace;flex-shrink:0">${escHtml(hash)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e8f0">${escHtml(msg)}</span><span style="color:#64748b;flex-shrink:0">${escHtml(date)}</span><span style="flex-shrink:0"><span style="color:#22c55e">+${ins}</span>/<span style="color:#ef4444">-${del}</span></span><span style="color:#64748b;flex-shrink:0">${files}f</span></div>`;
+            }
             html += '</div>';
         }
         const sys = [];
