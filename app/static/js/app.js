@@ -3963,11 +3963,11 @@ function renderTasksPanel(panel, data, payData) {
     for (const t of tasks) { (grouped[t.status] ||= []).push(t); }
 
     let html = '';
-    html += '<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">';
+    html += '<div style="padding:3px 8px;border-bottom:1px solid rgba(30,41,59,0.5);font-size:10px">';
     if (payData && payData.balance_display) {
-        html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)} ₽</span></div>`;
+        html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)}</span></div>`;
     }
-    html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')} ₽</span></div>`;
+    html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')}</span></div>`;
     html += '</div>';
 
     if (tasks.length === 0) {
@@ -3976,6 +3976,7 @@ function renderTasksPanel(panel, data, payData) {
         return;
     }
 
+    const _PRI_COLOR = {0:'#ef4444',1:'#f97316',2:'#eab308',3:'#22c55e'};
     for (const status of STATUS_ORDER) {
         const group = grouped[status];
         if (!group || group.length === 0) continue;
@@ -3986,21 +3987,23 @@ function renderTasksPanel(panel, data, payData) {
         let suffix = '';
         if (status === 'done') {
             const debt = group.reduce((s, t) => s + (parseInt(t.debt) || 0), 0);
-            if (debt > 0) suffix = ` → ${debt}k ₽`;
+            if (debt > 0) suffix = ` → ${debt}k`;
         }
-        html += '<div class="mt-1">';
-        html += `<div class="px-2 py-1 flex items-center gap-1.5 cursor-pointer hover:bg-slate-800/30 rounded select-none" onclick="toggleTaskGroup('${status}')">`;
-        html += `<span class="text-[10px]">${arrow}</span>`;
+        html += '<div style="margin-top:2px">';
+        html += `<div style="padding:1px 8px;display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;border-radius:3px" class="hover:bg-slate-800/30 select-none" onclick="toggleTaskGroup('${status}')">`;
+        html += `<span>${arrow}</span>`;
         html += `<span class="w-1.5 h-1.5 rounded-full ${dot} shrink-0"></span>`;
         html += `<span class="text-slate-400 font-bold flex-1">${label} (${group.length})</span>`;
-        if (suffix) html += `<span class="text-amber-400 text-[10px] font-mono">${suffix}</span>`;
+        if (suffix) html += `<span class="text-amber-400 font-mono">${suffix}</span>`;
         html += '</div>';
         if (!isCollapsed) {
             for (const t of group) {
                 const parNum = t.par.replace(/^[A-Z]+-/, '');
                 const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
-                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${t.par}" onclick="showTaskDetail('${t.par}')">`;
-                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${parNum}</span>`;
+                const priColor = _PRI_COLOR[t.priority];
+                html += `<div class="task-item flex items-center hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative;gap:3px;padding:0 8px;font-size:10px;line-height:18px" data-par="${t.par}" onclick="showTaskDetail('${t.par}')">`;
+                if (priColor) html += `<span style="width:5px;height:5px;border-radius:50%;background:${priColor};flex-shrink:0"></span>`;
+                html += `<span class="text-slate-600 font-mono shrink-0" style="width:16px;text-align:right">${parNum}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
                 html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${t.par}')" title="Insert ${t.par} into chat">📩</span>`;
