@@ -13,9 +13,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, UploadFile, Form
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.responses import StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
@@ -48,6 +49,26 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Orchestra", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+from app.auth import is_auth_enabled, validate_session, requires_auth
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not is_auth_enabled():
+            return await call_next(request)
+        if not requires_auth(request.url.path, request.method):
+            return await call_next(request)
+        token = request.cookies.get("session")
+        if token and validate_session(token):
+            return await call_next(request)
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        return RedirectResponse("/login", status_code=302)
+
+
+app.add_middleware(AuthMiddleware)
 
 
 class CreateSessionRequest(BaseModel):
@@ -104,6 +125,37 @@ class ScopeRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    if not is_auth_enabled():
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse(request, "login.html", {"error": ""})
+
+
+@app.post("/login")
+async def login_submit(request: Request, username: str = Form(""), password: str = Form("")):
+    from app.auth import check_credentials, create_session
+    if not is_auth_enabled():
+        return RedirectResponse("/", status_code=302)
+    if check_credentials(username, password):
+        token = create_session(username)
+        response = RedirectResponse("/", status_code=302)
+        response.set_cookie("session", token, httponly=True, samesite="lax", max_age=86400)
+        return response
+    return templates.TemplateResponse(request, "login.html", {"error": "Invalid credentials"})
+
+
+@app.post("/logout")
+async def logout(request: Request):
+    from app.auth import destroy_session
+    token = request.cookies.get("session", "")
+    destroy_session(token)
+    response = RedirectResponse("/login", status_code=302)
+    response.delete_cookie("session")
+    return response
+
 
 
 @app.get("/api/jobs")

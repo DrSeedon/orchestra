@@ -82,14 +82,19 @@ class ClaudeBackend:
         return self._session_id
 
     def _make_client(self) -> ClaudeSDKClient:
-        cli = shutil.which("claude") or "/home/maxim/.local/bin/claude"
+        import os
+        cli = shutil.which("claude") or os.environ.get("CLAUDE_CLI_PATH", "claude")
         resume_id = self._session_id or self._resume_id
+        env = {}
+        for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
+            if os.environ.get(_k):
+                env[_k] = os.environ[_k]
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             include_partial_messages=False, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
-            env={"HTTPS_PROXY": "http://127.0.0.1:12334", "HTTP_PROXY": "http://127.0.0.1:12334", "NO_PROXY": "localhost,127.0.0.1"},
+            env=env,
         )
         if resume_id:
             options.resume = resume_id
