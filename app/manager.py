@@ -2,6 +2,9 @@
 
 import asyncio
 import logging
+import os
+import re
+import subprocess
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -9,11 +12,13 @@ from pathlib import Path
 from typing import Optional
 
 from app.session import AgentSession, AgentStatus
+
+_TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree
-from app.models import resolve_model
+from app.models import resolve_model, backend_for_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
-    delete_session, get_stats, get_resumable_orchestrators,
+    delete_session, archive_session, get_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -21,12 +26,10 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = str(Path(__file__).parent.parent)
 _MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
 MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
-MCP_BASE_ENV = {
-    "PYTHONPATH": _PROJECT_ROOT,
-    "HTTPS_PROXY": "http://127.0.0.1:12334",
-    "HTTP_PROXY": "http://127.0.0.1:12334",
-    "NO_PROXY": "localhost,127.0.0.1",
-}
+MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
+for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "INTERNAL_TOKEN"):
+    if os.environ.get(_k):
+        MCP_BASE_ENV[_k] = os.environ[_k]
 
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
@@ -35,14 +38,66 @@ COLOR_PALETTE = [
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 
+_IDENTITY_PLACEHOLDERS = re.compile(r"\{(worker_name|orchestrator_name|scope|branch)\}")
+
+
+def _safe_format_prompt(template: str, **kwargs: str) -> str:
+    """Substitute only known identity placeholders, leaving other {braces} intact."""
+    return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
+
 
 def _read_prompt(name: str) -> str:
     p = _PROMPTS_DIR / name
     return p.read_text() if p.exists() else ""
 
 
-def ORCHESTRATOR_SYSTEM_PROMPT() -> str:
-    return f"{_read_prompt('base.md')}\n\n{_read_prompt('orchestrator.md')}"
+def _other_orchestrators_block(exclude_scope: str = "") -> str:
+    try:
+        orchs = [s for s in get_all_sessions()
+                 if s.get("is_orchestrator") and s.get("scope") != exclude_scope]
+        if not orchs:
+            return ""
+        lines = ["## Other orchestrators", "You can message other orchestrators via `send_message(to=\"Name\", message=\"...\")`:"]
+        for o in orchs:
+            name = o["name"]
+            scope = o.get("scope", "")
+            project = Path(scope).name if scope else "?"
+            lines.append(f"- **{name}** — project: {project}")
+        lines.append("")
+        lines.append("Use this when the user says \"напиши оркестре X\", \"скажи Y оркестратору\", \"спроси у Z\", etc.")
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
+def _workers_block(scope: str) -> str:
+    try:
+        workers = [s for s in get_all_sessions()
+                   if not s.get("is_orchestrator") and s.get("scope") == scope]
+        if not workers:
+            return ""
+        lines = ["## Your current workers",
+                 "These workers exist in your project. Reuse idle ones instead of spawning new. Kill workers you no longer need (one-shot tasks done, wrong role, duplicate)."]
+        for w in workers:
+            name = w["name"]
+            model = w.get("model", "?")
+            status = w.get("status", "?")
+            ctx = w.get("context_pct", 0) or 0
+            lines.append(f"- **{name}** — {model} | {status} | ctx:{ctx}%")
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
+def ORCHESTRATOR_SYSTEM_PROMPT(scope: str = "") -> str:
+    base = f"{_read_prompt('base.md')}\n\n{_read_prompt('orchestrator.md')}"
+    others = _other_orchestrators_block(scope)
+    if others:
+        base += f"\n\n{others}"
+    workers = _workers_block(scope)
+    if workers:
+        base += f"\n\n{workers}"
+    return base
 
 
 def WORKER_SYSTEM_PROMPT() -> str:
@@ -65,6 +120,12 @@ class SessionManager:
         self.sessions: dict[str, AgentSession] = {}
         self._spawn_queue: asyncio.Queue = asyncio.Queue()
         self._spawn_task: asyncio.Task | None = None
+        self._session_locks: dict[str, asyncio.Lock] = {}
+
+    def get_session_lock(self, session_id: str) -> asyncio.Lock:
+        if session_id not in self._session_locks:
+            self._session_locks[session_id] = asyncio.Lock()
+        return self._session_locks[session_id]
 
     def start_background_tasks(self) -> None:
         if not self._spawn_task or self._spawn_task.done():
@@ -85,6 +146,8 @@ class SessionManager:
                     name=job["name"], scope=job["repo_path"], cwd=job["repo_path"],
                     model=job["model"], system_prompt=job.get("system_prompt", ""),
                     use_worktree=True, repo_path=job["repo_path"],
+                    task_id=job.get("task_id", ""),
+                    description=job.get("description", ""),
                 )
                 await session.send(job["task"])
                 update_job(job_id, "succeeded")
@@ -108,7 +171,8 @@ class SessionManager:
 
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
-                             repo_path: str | None = None, is_orchestrator: bool = False) -> AgentSession:
+                             repo_path: str | None = None, is_orchestrator: bool = False,
+                             task_id: str = "", description: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -118,28 +182,39 @@ class SessionManager:
             raise ValueError(f"session '{name}' already exists in scope '{scope}'")
 
         if is_orchestrator:
-            prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT()
+            prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT(scope)
         else:
             prompt = WORKER_SYSTEM_PROMPT() + ("\n\n" + system_prompt if system_prompt else "")
 
+        bt = backend_for_model(model)
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, is_orchestrator=is_orchestrator,
-            color=self._pick_color(), mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
+            color="" if is_orchestrator else self._pick_color(),
+            mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
+            backend_type=bt, task_id=task_id, description=description,
         )
         save_session(session._to_db_dict())
+
+        if task_id and not is_orchestrator:
+            try:
+                from app.tm import api_update_task
+                api_update_task(task_id, status="in_progress")
+            except Exception:
+                pass
 
         try:
             if use_worktree and repo_path:
                 await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
-                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope)
+                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
 
             if not is_orchestrator:
                 orch_name = self._find_orchestrator_name(scope)
-                session.system_prompt = session.system_prompt.format(
+                session.system_prompt = _safe_format_prompt(
+                    session.system_prompt,
                     worker_name=name, orchestrator_name=orch_name or "orchestrator",
                     scope=scope, branch=session.branch or "main",
                 )
@@ -164,12 +239,19 @@ class SessionManager:
         if session:
             await session.interrupt()
 
+    async def stop_worker(self, session_id: str) -> None:
+        session = self.sessions.get(session_id)
+        if session:
+            await session.interrupt()
+
     async def unload(self, session_id: str) -> None:
         session = self.sessions.pop(session_id, None)
         if session:
             await session.stop()
 
     async def remove(self, session_id: str) -> None:
+        from app.bg_jobs import bg_manager
+        await bg_manager.cancel_by_session(session_id)
         session = self.sessions.pop(session_id, None)
         if session:
             await session.stop()
@@ -178,14 +260,14 @@ class SessionManager:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
                 except Exception:
                     pass
-        delete_session(session_id)
+        archive_session(session_id)
 
     async def remove_scope(self, scope: str) -> None:
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
         for s in to_remove:
             await self.remove(s.id)
         for row in get_all_sessions(scope):
-            delete_session(row["id"])
+            archive_session(row["id"])
 
     # ── Lookups ──
 
@@ -222,18 +304,41 @@ class SessionManager:
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         is_orch = bool(db_row.get("is_orchestrator"))
         old_prompt = db_row.get("system_prompt", "")
-        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT()
+        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT(db_row["scope"]) if is_orch else WORKER_SYSTEM_PROMPT()
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
+        expected_bt = backend_for_model(db_row["model"])
+        stored_bt = db_row.get("backend_type", "claude") or "claude"
+        if stored_bt != expected_bt:
+            logger.warning(f"backend mismatch for {db_row['name']}: stored={stored_bt}, model implies={expected_bt}. Using {expected_bt}.")
+            stored_bt = expected_bt
+        db_branch = db_row.get("branch")
+        db_task_id = db_row.get("task_id") or ""
+        wt_path = db_row.get("worktree_path")
+        if wt_path and Path(wt_path).is_dir():
+            actual = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=wt_path, capture_output=True, text=True,
+            )
+            if actual.returncode == 0:
+                actual_branch = actual.stdout.strip()
+                if actual_branch != db_branch:
+                    db_branch = actual_branch
+                    m = _TASK_BRANCH_RE.match(actual_branch)
+                    db_task_id = m.group(1) if m else ""
+
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
             model=db_row["model"], system_prompt=old_prompt or current_prompt,
             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
-            worktree_path=db_row.get("worktree_path"), branch=db_row.get("branch"),
+            worktree_path=wt_path, branch=db_branch,
             created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
             is_orchestrator=is_orch,
+            color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], is_orch),
+            backend_type=stored_bt, task_id=db_task_id,
+            description=db_row.get("description", ""),
         )
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
@@ -241,19 +346,21 @@ class SessionManager:
             from app.models import CONTEXT_LIMITS
             max_t = CONTEXT_LIMITS.get(db_row["model"], 200000)
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
+        orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None
         if not is_orch:
-            orch_name = self._find_orchestrator_name(db_row["scope"])
-            try:
-                current_prompt = current_prompt.format(
-                    worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
-                    scope=db_row["scope"], branch=db_row.get("branch") or "main",
-                )
-            except (KeyError, ValueError):
-                pass
+            current_prompt = _safe_format_prompt(
+                current_prompt,
+                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
+                scope=db_row["scope"], branch=db_row.get("branch") or "main",
+            )
         if old_prompt and old_prompt != current_prompt:
-            base_role = (ORCHESTRATOR_SYSTEM_PROMPT() if is_orch else WORKER_SYSTEM_PROMPT())
-            if old_prompt.startswith(base_role) and len(old_prompt) > len(base_role):
-                custom_part = old_prompt[len(base_role):]
+            formatted_base = _safe_format_prompt(
+                (ORCHESTRATOR_SYSTEM_PROMPT(db_row["scope"]) if is_orch else WORKER_SYSTEM_PROMPT()),
+                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
+                scope=db_row["scope"], branch=db_row.get("branch") or "main",
+            )
+            if old_prompt.startswith(formatted_base) and len(old_prompt) > len(formatted_base):
+                custom_part = old_prompt[len(formatted_base):]
                 current_prompt = current_prompt + custom_part
         session._current_prompt = current_prompt
         if not is_orch:
@@ -349,20 +456,61 @@ class SessionManager:
 
     # ── Startup / Shutdown ──
 
-    async def auto_resume_orchestrators(self) -> None:
+    async def auto_resume_all(self) -> None:
         from app.db import _conn
         with _conn() as c:
+            was_running = {r["id"] for r in c.execute(
+                "SELECT id FROM sessions WHERE status = 'running'"
+            ).fetchall()}
+            resumable = [dict(r) for r in c.execute(
+                "SELECT * FROM sessions WHERE session_id IS NOT NULL "
+                "AND status IN ('running', 'idle')"
+            ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
-        for orch in get_resumable_orchestrators():
-            if orch["id"] in self.sessions:
+
+        orchs = [r for r in resumable if r.get("is_orchestrator")]
+        workers = [r for r in resumable if not r.get("is_orchestrator")]
+
+        for row in orchs:
+            if row["id"] in self.sessions:
                 continue
-            if not Path(orch["cwd"]).is_dir():
+            if not Path(row.get("cwd") or row["scope"]).is_dir():
                 continue
             try:
-                await self._load_from_db(orch)
-                logger.info(f"Resumed orchestrator: {orch['name']}")
+                session = await self._load_from_db(row)
+                logger.info(f"Resumed orchestrator: {row['name']}")
+                if row["id"] in was_running:
+                    asyncio.create_task(self._inject_restart_notice(session))
             except Exception as e:
-                logger.error(f"Failed to resume {orch['name']}: {e}")
+                logger.error(f"Failed to resume {row['name']}: {e}")
+
+        for row in workers:
+            if row["id"] in self.sessions:
+                continue
+            if not Path(row.get("cwd") or row["scope"]).is_dir():
+                continue
+            try:
+                session = await self._load_from_db(row)
+                logger.info(f"Resumed worker: {row['name']}")
+                if row["id"] in was_running:
+                    asyncio.create_task(self._inject_restart_notice(session))
+            except Exception as e:
+                logger.error(f"Failed to resume worker {row['name']}: {e}")
+
+    async def _inject_restart_notice(self, session: AgentSession) -> None:
+        import random
+        await asyncio.sleep(3 + random.uniform(0, 12))
+        try:
+            await session.send(
+                "[system] Orchestra server restarted. "
+                "Your session was restored — continue where you left off."
+            )
+            logger.info(f"Restart notice injected: {session.name}")
+        except Exception as e:
+            logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
+
+    async def auto_resume_orchestrators(self) -> None:
+        await self.auto_resume_all()
 
     async def shutdown_all(self) -> None:
         for session in list(self.sessions.values()):

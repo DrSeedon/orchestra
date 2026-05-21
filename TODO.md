@@ -1,17 +1,17 @@
 # Orchestra TODO
 
+## Bugs
+- [ ] **Compact перебивается входящими сообщениями** (ORC-4) — compact стартовал, пришёл auto-report от воркера → compact вернул empty summary → listener died → каскад. Нужно: блокировать send() пока compact идёт, или queue
+- [ ] **Taskmanager worktree divergence** — после merge worktree остаётся на старом коде. Нужно: switch_worker_branch после каждого merge
+- [ ] **Одинаковые цвета воркеров** — _pick_color() даёт дубли при auto_resume_all
+
 ## Next
-- [ ] **Global SSE stream** — replace polling with single EventSource for all dashboard updates
-- [ ] **Orchestra skill** — `/orchestra` slash command from any Claude Code session
-- [ ] **Watchdog** — auto-ping worker if idle >10min without send_message after receiving task
-- [ ] **TG images** — картинки из чата (screenshots, uploads) не отображаются в Telegram bridge. На фронте видны, в TG — нет. Нужно отправлять через bot.send_photo()
-- [ ] **Git tree view** — визуализация git веток/коммитов в дашборде (как в Cursor Source Control)
-- [ ] **Usage status bar** — в header дашборда показывать:
-  - Session % (5h block) — из OAuth API `https://api.anthropic.com/api/oauth/usage`
-  - Weekly % (7d rolling) — оттуда же
-  - Per-model: Opus %, Sonnet % — оттуда же
-  - Auth: OAuth token из `~/.claude/.credentials.json` + refresh через `https://platform.claude.com/v1/oauth/token`
-  - Кеш: 60 сек TTL, backend endpoint `/api/usage`
-  - Frontend: progress bars в header рядом со stats
-- [ ] **Auto-merge worker** — автоматический merge веток воркеров с conflict detection. Если конфликт → спросить оркестратора вместо тихого фейла
-- [ ] **Stop vs Kill разделение** — MCP tools: `stop_worker(name)` = interrupt текущий turn, воркер idle, можно посмотреть логи/diff. `kill_worker(name)` = полное удаление. Сейчас kill сразу удаляет без возможности проверить результат
+- [ ] **VPS migration** — OVH отменил. Plan B: Hostinger/Coingate или Timeweb upgrade
+- [ ] **TG pinned status** — закреплённое сообщение в каждом топике, обновляется после turn_end
+
+## Later
+- [ ] **Emergency migrate** — кнопка "⚡ Migrate to GPT"
+- [ ] **Dashboard streaming** — live token streaming
+- [ ] **Task Context Space** — task_context folder при spawn
+- [ ] **HTML артефакты** — preview HTML в дашборде
+- [ ] **Worker templates** — preset system_prompt для частых ролей

@@ -1,6 +1,6 @@
 # Orchestra — AI Agent Orchestrator
 
-**v2.5.0** | [Changelog](CHANGELOG.md)
+[Changelog](CHANGELOG.md)
 
 ## Что это
 Свой оркестратор AI-агентов. Opus оркестратор управляет Haiku/Sonnet воркерами через MCP tools.
@@ -22,7 +22,7 @@
 ├── External MCP Server (app/mcp_stdio.py) — tools для Claude CLI
 ├── Session Manager — spawn/stop/archive
 └── Workers (N штук)
-    ├── Claude CLI (fresh client per turn via SDK)
+    ├── Claude CLI (persistent client per session via SDK)
     ├── git worktree — изолированная рабочая копия
     └── HTTP callback — curl POST /api/sessions/{name}/send
 ```
@@ -38,11 +38,20 @@ sudo systemctl status orchestra
 ```
 
 ## Принципы
-- Fresh client per turn (connect → query → receive → disconnect)
+- Persistent client per session (connect once, `query()` injects mid-turn via stdin)
 - External MCP (no in-process deadlocks)
 - Workers communicate via HTTP callback, not MCP inject
 - Proxy через Hiddify (127.0.0.1:12334) everywhere
 - **НЕ рестартить сервер при изменении фронта** (JS/CSS/HTML) — статика подтягивается автоматически. Рестарт только при изменении Python-кода
+- **sudo без пароля** для `systemctl restart/stop/start/status orchestra` и `telegram-bot-api` — можно рестартить сервер самому через `sudo systemctl restart orchestra`
+- **НЕ рестартить сервер самостоятельно** — только по явной команде юзера ("ок", "рестартни", "перезапусти"). Ребут убивает все активные сессии агентов
+- **TG /restart** — команда в TG группе для рестарта Orchestra
+- **Воркеры могут общаться друг с другом** через `send_message(to="worker-name")`. Пример: backend воркер добавил endpoint → пишет frontend-opus чтобы тот добавил кнопку. Оркестратор не нужен как посредник для координации между воркерами
+
+## Pricing
+- **Max 20x subscription ($200/мес)** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
+- API цены (для калькуляции): Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 per M tokens
+- Не паниковать от "$172 на оркестратора" — monopoly money. Оптимизировать КАЧЕСТВО, не стоимость
 
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool

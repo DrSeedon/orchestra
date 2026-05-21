@@ -71,7 +71,7 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
 .waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes dot-blink { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
-.file-item { padding: 2px 4px; cursor: pointer; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; }
+.file-item { padding: 2px 4px; cursor: pointer; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-item:hover { background: rgba(99, 102, 241, 0.15); }
 .file-item.drag-over { background: rgba(99, 102, 241, 0.3); }
 .file-dir { color: #38bdf8; }

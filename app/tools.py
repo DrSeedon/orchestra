@@ -38,7 +38,7 @@ def _caller_name() -> str:
     "name": str,
     "task": str,
     "repo_path": str,
-    "model": {"type": "string", "description": "Model ID: claude-sonnet-4-6, claude-opus-4-6[1m], claude-haiku-4-5"},
+    "model": {"type": "string", "description": "Model ID: claude-sonnet-4-6, claude-opus-4-6[1m], claude-haiku-4-5, gpt-5.5, gpt-5.4, gpt-5.4-mini. GPT models use Codex CLI backend."},
     "system_prompt": {"type": "string", "description": "Optional system prompt"},
 })
 async def spawn_worker(args):
@@ -131,7 +131,7 @@ async def kill_worker(args):
         add_job(job_id, "kill", name, session.scope)
         async def _do_kill():
             try:
-                await _manager.stop(session.id)
+                await _manager.remove(session.id)
                 update_job(job_id, "succeeded")
             except Exception as e:
                 update_job(job_id, "failed", str(e))
@@ -143,6 +143,21 @@ async def kill_worker(args):
         _manager.archive_by_id(session_id, archived_name)
         return {"content": [{"type": "text", "text": f"Worker '{name}' archived as '{archived_name}'."}]}
     return {"content": [{"type": "text", "text": f"Worker '{name}' not found"}], "is_error": True}
+
+
+@tool("stop_worker", "Interrupt a worker and set it to idle. Worktree and session are preserved — can be resumed with send_message.", {
+    "name": str,
+})
+async def stop_worker(args):
+    if not _manager:
+        return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
+    name = args["name"]
+    scope = _caller_scope()
+    session = _manager.find_worker(name, scope)
+    if not session:
+        return {"content": [{"type": "text", "text": f"Worker '{name}' not found or not running"}], "is_error": True}
+    await _manager.stop_worker(session.id)
+    return {"content": [{"type": "text", "text": f"Worker '{name}' interrupted and set to idle."}]}
 
 
 @tool("list_jobs", "List recent spawn/kill jobs and their status.", {})
@@ -207,7 +222,7 @@ async def list_agents(args):
 
 orchestra_server = create_sdk_mcp_server(
     name="orchestra",
-    tools=[spawn_worker, send_to_worker, list_workers, get_worker_logs, kill_worker, list_jobs, set_agent_color],
+    tools=[spawn_worker, send_to_worker, list_workers, get_worker_logs, kill_worker, stop_worker, list_jobs, set_agent_color],
 )
 
 worker_server = create_sdk_mcp_server(

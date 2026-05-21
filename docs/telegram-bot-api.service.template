@@ -1,0 +1,16 @@
+[Unit]
+Description=Telegram Bot API Server
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/telegram-bot-api \
+    --api-id=REPLACE_API_ID \
+    --api-hash=REPLACE_API_HASH \
+    --local \
+    --http-port=8081 \
+    --dir=/mnt/data/Projects/Python/orchestra/data/tg-bot-api/
+Restart=always
+User=maxim
+
+[Install]
+WantedBy=multi-user.target
