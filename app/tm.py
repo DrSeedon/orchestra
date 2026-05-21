@@ -742,11 +742,11 @@ def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
 
 def api_create_task(project_id: str, title: str, price: int = 0,
                     description: str = "", assignee: str = "",
-                    status: str = "new") -> dict:
+                    status: str = "new", scope: str = "") -> dict:
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            ensure_project(conn, project_id)
+            ensure_project(conn, project_id, scope=scope or None)
             task = create_task(
                 conn, project_id, title,
                 price_rub=price * 1000,
