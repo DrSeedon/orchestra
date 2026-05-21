@@ -910,6 +910,11 @@ function updateAgentInfo(session) {
     $('#ai-cost').textContent = `$${session.cost_usd || 0}`;
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
+    const descEl = $('#ai-desc'); const descLabel = $('#ai-desc-label');
+    if (descEl && descLabel) {
+        if (session.description) { descEl.textContent = session.description; descEl.title = session.description; descEl.classList.remove('hidden'); descLabel.classList.remove('hidden'); }
+        else { descEl.classList.add('hidden'); descLabel.classList.add('hidden'); }
+    }
     const ctxKey = `${currentScope}:${session.name}`;
     if (contextCache[ctxKey]) {
         setContextDisplay(contextCache[ctxKey]);
