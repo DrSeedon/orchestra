@@ -91,6 +91,11 @@ class AgentSession:
     progress_pct: int = 0
     progress_status: str = ""
 
+    total_turns: int = 0
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_tool_calls: int = 0
+
     _client: Optional[ClaudeSDKClient] = field(default=None, repr=False)
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
@@ -201,6 +206,7 @@ class AgentSession:
                                 self._log("text", block.text)
                                 self._turn_logs.append(block.text)
                             elif isinstance(block, ToolUseBlock):
+                                self.total_tool_calls += 1
                                 import json as _j
                                 try:
                                     inp = _j.dumps(block.input, ensure_ascii=False, indent=2)
@@ -249,19 +255,23 @@ class AgentSession:
                         if msg.session_id:
                             self.session_id = msg.session_id
                         self.cost_usd += getattr(msg, "total_cost_usd", 0) or 0
+                        self.total_turns += getattr(msg, "num_turns", 0) or 0
                         usage = getattr(msg, "usage", None)
                         if usage and isinstance(usage, dict):
                             iters = usage.get("iterations", [])
                             last = iters[-1] if iters else usage
                             cache_create = (last.get("cache_creation_input_tokens", 0) or 0)
                             cache_read = (last.get("cache_read_input_tokens", 0) or 0)
-                            total = (last.get("input_tokens", 0) or 0) + cache_create + cache_read
+                            input_t = (last.get("input_tokens", 0) or 0) + cache_create + cache_read
+                            output_t = (last.get("output_tokens", 0) or 0)
                             cache_total = cache_create + cache_read
+                            self.total_input_tokens += input_t
+                            self.total_output_tokens += output_t
                             from app.models import CONTEXT_LIMITS
                             max_t = CONTEXT_LIMITS.get(self.model, 200000)
                             self._last_context = {
-                                "percentage": int(total * 100 / max_t) if max_t else 0,
-                                "total_tokens": total, "max_tokens": max_t,
+                                "percentage": int(input_t * 100 / max_t) if max_t else 0,
+                                "total_tokens": input_t, "max_tokens": max_t,
                                 "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
                                 "cache_read": cache_read, "cache_create": cache_create,
                             }
@@ -566,6 +576,10 @@ class AgentSession:
             "context_tokens": self._last_context.get("total_tokens", 0),
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
+            "total_turns": self.total_turns,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "total_tool_calls": self.total_tool_calls,
         }
 
     async def get_context(self) -> dict:
@@ -581,4 +595,8 @@ class AgentSession:
             "context_pct": self._last_context.get("percentage", 0),
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
+            "total_turns": self.total_turns,
+            "total_input_tokens": self.total_input_tokens,
+            "total_output_tokens": self.total_output_tokens,
+            "total_tool_calls": self.total_tool_calls,
         }

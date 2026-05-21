@@ -14,7 +14,7 @@ from app.workspace import create_worktree, remove_worktree
 from app.models import resolve_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
-    delete_session, get_stats,
+    delete_session, archive_session, get_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -237,14 +237,14 @@ class SessionManager:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
                 except Exception:
                     pass
-        delete_session(session_id)
+        archive_session(session_id)
 
     async def remove_scope(self, scope: str) -> None:
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
         for s in to_remove:
             await self.remove(s.id)
         for row in get_all_sessions(scope):
-            delete_session(row["id"])
+            archive_session(row["id"])
 
     # ── Lookups ──
 
