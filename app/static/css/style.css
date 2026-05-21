@@ -12,6 +12,7 @@ body { background: #0a0e17; color: #c8d6e5; font-family: 'JetBrains Mono', 'Fira
 .log-status { color: #a78bfa; font-style: italic; }
 .log-user_message { color: #818cf8; }
 .log-notification { color: #fbbf24; }
+#chat { user-select: text; -webkit-user-select: text; }
 .chat-user { background: rgba(99, 102, 241, 0.15); border-left: 3px solid #6366f1; }
 .chat-bot { border-left: 3px solid rgba(99,102,241,0.1); }
 .chat-tool { background: rgba(56, 189, 248, 0.05); border-left: 3px solid rgba(56, 189, 248, 0.3); font-size: 12px; }
@@ -70,7 +71,7 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
 .waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes dot-blink { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
-.file-item { padding: 2px 4px; cursor: pointer; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; }
+.file-item { padding: 2px 4px; cursor: pointer; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-item:hover { background: rgba(99, 102, 241, 0.15); }
 .file-item.drag-over { background: rgba(99, 102, 241, 0.3); }
 .file-dir { color: #38bdf8; }
@@ -114,5 +115,10 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .markdown-body td { background: transparent; color: #cbd5e1; font-size: 12px; }
 .markdown-body tr:nth-child(even) td { background: rgba(30,41,59,0.3); }
 .markdown-body input[type="checkbox"] { margin-right: 4px; accent-color: #6366f1; }
+.task-inject-btn { position: absolute; right: 4px; top: 1px; opacity: 0; cursor: pointer; font-size: 11px; color: #818cf8; transition: opacity 0.15s; }
+.task-item:hover .task-inject-btn { opacity: 1; }
+.job-cancel-btn { position: absolute; right: 2px; top: 2px; opacity: 0; cursor: pointer; font-size: 10px; color: #ef4444; transition: opacity 0.15s; }
+.flex:hover > .job-cancel-btn { opacity: 0.7; }
+.job-cancel-btn:hover { opacity: 1 !important; }
 #file-preview-content pre { background: transparent !important; margin: 0; }
 #file-preview-content code.hljs { background: transparent !important; padding: 0; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.5; }

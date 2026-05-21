@@ -32,17 +32,20 @@ This loads the full SKILL.md with correct model (gpt-5.5), flags, and workflow. 
 
 ## Git branching
 Your branch is managed by Orchestra — you do NOT create or switch branches yourself.
-- When spawned with a task_id, your branch is `{PREFIX}-N/your-name` (created automatically)
+- When spawned with a task_id, your branch is `task-N/your-name` (created automatically)
 - When the orchestrator runs `switch_worker_branch`, your branch changes — you'll be told
 - **ALWAYS include task reference in commit messages** when working on a task:
-  `git commit -m "PAR-192: what you did"` or `git commit -m "ORC-1: implemented feature"`
+  `git commit -m "#49: what you did"`
 - Before reporting DONE — make sure all changes are committed (clean working tree)
 - If you get a new task with a different ref — commit current work first, then the orchestrator will switch your branch
+
+## Worker-to-worker coordination
+You can talk to other workers directly via `send_message(to="other-worker-name")`. Use this when tasks span domains — e.g. you finished an API endpoint and need the frontend worker to add a button. Use `list_agents()` to see who's available. Only escalate to orchestrator for decisions or approvals.
 
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)
-3. `git add` and `git commit` your changes (with task ref prefix if applicable)
+3. `git add` and `git commit` your changes (with task ref #N if applicable)
 4. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
 
 

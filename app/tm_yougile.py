@@ -21,7 +21,6 @@ YOUGILE_API = "https://yougile.com/api-v2"
 def _get_yougile_token() -> str:
     return os.environ.get("YOUGILE_SEEDON_TOKEN", "")
 YOUGILE_BOARD_ID = "93007367-153b-4aec-8dd7-96dda1fd1f27"
-PAR_35_TASK_ID = "9bffba06-5091-4f0e-abbe-0408130d6eba"
 DONE_COLUMN_ID = "caf3e21c-7ec8-4dce-b70c-0019290019ea"
 
 STATUS_TO_COLUMN = {
@@ -110,7 +109,7 @@ async def yougile_sync_task(task_id: int) -> str:
             return "task not found"
 
         if not task["yougile_task_id"]:
-            existing = await yougile_find_by_par(f"PAR-{task['par_number']}")
+            existing = await yougile_find_by_par(str(task['par_number'])) or await yougile_find_by_par(f"PAR-{task['par_number']}")
             if existing:
                 conn.execute("BEGIN IMMEDIATE")
                 try:
@@ -185,7 +184,7 @@ async def _yougile_push_create(task: dict) -> dict | None:
         "title": format_yougile_title(task),
         "description": md_to_html(task["description"]),
         "columnId": STATUS_TO_COLUMN.get(task["status"], STATUS_TO_COLUMN["new"]),
-        "idTaskProject": f"PAR-{task['par_number']}",
+        "idTaskProject": str(task['par_number']),
     }
     return await _yougile_request("POST", "/tasks", body)
 
@@ -227,60 +226,88 @@ async def _update_done_column_title() -> None:
     })
 
 
-async def yougile_update_par35(payment_id: int, balance_rub: int,
-                               distributions: list[dict],
-                               total_debt: int, payment_date: str,
-                               amount_rub: int) -> str:
-    marker = f"[#{payment_id}]"
+def _fmt_k(rub: int) -> str:
+    if rub >= 1000:
+        return f"{rub // 1000}k"
+    return str(rub)
 
-    current = await _yougile_request("GET", f"/tasks/{PAR_35_TASK_ID}")
-    if not current or current.get("error"):
-        return f"failed to read PAR-35: {current}"
 
-    desc = current.get("description", "")
+async def _ensure_journal_task(client_id: str) -> str | None:
+    conn = tm._conn()
+    try:
+        client = tm.get_client(conn, client_id)
+        if not client:
+            return None
+        yid = client.get("journal_yougile_id") or ""
+        if yid:
+            check = await _yougile_request("GET", f"/tasks/{yid}")
+            if check and not check.get("error"):
+                return yid
+        result = await _yougile_request("POST", "/tasks", {
+            "title": f"Журнал оплат — {client['name']}",
+            "description": "",
+            "columnId": STATUS_TO_COLUMN["new"],
+        })
+        if not result or result.get("error") or not result.get("id"):
+            logger.error("Failed to create journal task: %s", result)
+            return None
+        yid = result["id"]
+        conn.execute("UPDATE tm_clients SET journal_yougile_id=? WHERE id=?", (yid, client_id))
+        conn.commit()
+        logger.info("Created journal task %s for client %s", yid, client_id)
+        return yid
+    finally:
+        conn.close()
 
-    bal_k = balance_rub // 1000
+
+async def update_payment_journal(payment_result: dict, client_id: str) -> str:
     errors = []
 
-    title_done = marker in (current.get("title", ""))
-    desc_done = marker in desc
-    comment_done = False
+    journal_id = await _ensure_journal_task(client_id)
+    if not journal_id:
+        return "journal task not available"
 
-    if not title_done:
-        title = f"Информация об оплатах | {bal_k}k баланс"
-        r = await _yougile_request("PUT", f"/tasks/{PAR_35_TASK_ID}", {"title": title})
-        if not r or r.get("error"):
-            errors.append(f"title update: {r}")
-
-    amount_k = amount_rub // 1000
-    if not desc_done:
-        new_line = f"• {amount_k}k — оплата ({payment_date}) {marker}"
-        if "Пополнения" in desc:
-            desc = desc.replace("</p>", f"<br>{new_line}</p>", 1)
-        else:
-            desc += f"<p>{new_line}</p>"
-        r = await _yougile_request("PUT", f"/tasks/{PAR_35_TASK_ID}", {"description": desc})
-        if not r or r.get("error"):
-            errors.append(f"description update: {r}")
+    amount_rub = payment_result["amount_rub"]
+    payment_date = payment_result["date"]
+    balance = payment_result.get("new_balance", 0)
+    distributions = payment_result.get("distributions", [])
 
     dist_lines = []
     for d in distributions:
-        status_mark = "✅ → \"Оплачено\"" if d["now_paid"] else "→ остаётся в \"Сделано\""
+        status_mark = ' ✅ → "Оплачено"' if d["now_paid"] else ' → остаётся в "Сделано"'
         dist_lines.append(
-            f"• {d['par']} {d['title']} — {d['allocated'] // 1000}k ₽ {status_mark}"
+            f"• #{d['par']} {d['title']} — {_fmt_k(d['allocated'])} ₽{status_mark}"
         )
-    comment_html = (
-        f"<b>💰 Распределение оплаты {amount_rub:,} ₽ от {payment_date}</b> {marker}<br /><br />"
-        f"Получено: <b>{amount_rub:,} ₽</b><br /><br />"
-        f"<b>Распределение:</b><br />"
-        + "<br />".join(dist_lines)
-        + f"<br /><br /><b>Баланс предоплаты: {bal_k}k ₽</b>"
-    )
-    r = await _yougile_request("POST", f"/tasks/{PAR_35_TASK_ID}/comments", {"text": comment_html})
-    if not r or r.get("error"):
-        errors.append(f"comment: {r}")
+    block_parts = [
+        f"<b>💰 Распределение оплаты {amount_rub:,} ₽ от {payment_date}</b><br /><br />",
+        f"Получено: <b>{amount_rub:,} ₽</b><br /><br />",
+    ]
+    if dist_lines:
+        block_parts.append("<b>Распределение:</b><br />")
+        block_parts.append("<br />".join(dist_lines))
+        block_parts.append("<br /><br />")
+    block_parts.append(f"<b>Баланс предоплаты: {_fmt_k(balance)} ₽</b>")
+    new_block = "".join(block_parts)
 
-    debt_k = total_debt // 1000
+    current = await _yougile_request("GET", f"/tasks/{journal_id}")
+    if not current or current.get("error"):
+        errors.append(f"read task: {current}")
+    else:
+        desc = current.get("description", "") or ""
+        if desc:
+            desc += "<br /><hr /><br />"
+        desc += new_block
+        r = await _yougile_request("PUT", f"/tasks/{journal_id}", {"description": desc})
+        if not r or r.get("error"):
+            errors.append(f"description: {r}")
+
+    r = await _yougile_request("PUT", f"/tasks/{journal_id}", {
+        "title": f"Журнал оплат | {_fmt_k(balance)} баланс",
+    })
+    if not r or r.get("error"):
+        errors.append(f"title: {r}")
+
+    debt_k = payment_result.get("total_debt_remaining", 0) // 1000
     r = await _yougile_request("PUT", f"/columns/{DONE_COLUMN_ID}", {
         "title": f"Сделано → {debt_k}k ₽",
     })

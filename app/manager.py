@@ -2,7 +2,9 @@
 
 import asyncio
 import logging
+import os
 import re
+import subprocess
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -10,8 +12,10 @@ from pathlib import Path
 from typing import Optional
 
 from app.session import AgentSession, AgentStatus
+
+_TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree
-from app.models import resolve_model
+from app.models import resolve_model, backend_for_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
     delete_session, archive_session, get_stats,
@@ -22,12 +26,10 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = str(Path(__file__).parent.parent)
 _MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
 MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
-MCP_BASE_ENV = {
-    "PYTHONPATH": _PROJECT_ROOT,
-    "HTTPS_PROXY": "http://127.0.0.1:12334",
-    "HTTP_PROXY": "http://127.0.0.1:12334",
-    "NO_PROXY": "localhost,127.0.0.1",
-}
+MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
+for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
+    if os.environ.get(_k):
+        MCP_BASE_ENV[_k] = os.environ[_k]
 
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
@@ -118,6 +120,12 @@ class SessionManager:
         self.sessions: dict[str, AgentSession] = {}
         self._spawn_queue: asyncio.Queue = asyncio.Queue()
         self._spawn_task: asyncio.Task | None = None
+        self._session_locks: dict[str, asyncio.Lock] = {}
+
+    def get_session_lock(self, session_id: str) -> asyncio.Lock:
+        if session_id not in self._session_locks:
+            self._session_locks[session_id] = asyncio.Lock()
+        return self._session_locks[session_id]
 
     def start_background_tasks(self) -> None:
         if not self._spawn_task or self._spawn_task.done():
@@ -138,6 +146,8 @@ class SessionManager:
                     name=job["name"], scope=job["repo_path"], cwd=job["repo_path"],
                     model=job["model"], system_prompt=job.get("system_prompt", ""),
                     use_worktree=True, repo_path=job["repo_path"],
+                    task_id=job.get("task_id", ""),
+                    description=job.get("description", ""),
                 )
                 await session.send(job["task"])
                 update_job(job_id, "succeeded")
@@ -161,7 +171,8 @@ class SessionManager:
 
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
-                             repo_path: str | None = None, is_orchestrator: bool = False) -> AgentSession:
+                             repo_path: str | None = None, is_orchestrator: bool = False,
+                             task_id: str = "", description: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -175,17 +186,27 @@ class SessionManager:
         else:
             prompt = WORKER_SYSTEM_PROMPT() + ("\n\n" + system_prompt if system_prompt else "")
 
+        bt = backend_for_model(model)
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, is_orchestrator=is_orchestrator,
-            color="" if is_orchestrator else self._pick_color(), mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
+            color="" if is_orchestrator else self._pick_color(),
+            mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
+            backend_type=bt, task_id=task_id, description=description,
         )
         save_session(session._to_db_dict())
+
+        if task_id and not is_orchestrator:
+            try:
+                from app.tm import api_update_task
+                api_update_task(task_id, status="in_progress")
+            except Exception:
+                pass
 
         try:
             if use_worktree and repo_path:
                 await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
-                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope)
+                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
@@ -229,6 +250,8 @@ class SessionManager:
             await session.stop()
 
     async def remove(self, session_id: str) -> None:
+        from app.bg_jobs import bg_manager
+        await bg_manager.cancel_by_session(session_id)
         session = self.sessions.pop(session_id, None)
         if session:
             await session.stop()
@@ -285,15 +308,37 @@ class SessionManager:
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
+        expected_bt = backend_for_model(db_row["model"])
+        stored_bt = db_row.get("backend_type", "claude") or "claude"
+        if stored_bt != expected_bt:
+            logger.warning(f"backend mismatch for {db_row['name']}: stored={stored_bt}, model implies={expected_bt}. Using {expected_bt}.")
+            stored_bt = expected_bt
+        db_branch = db_row.get("branch")
+        db_task_id = db_row.get("task_id") or ""
+        wt_path = db_row.get("worktree_path")
+        if wt_path and Path(wt_path).is_dir():
+            actual = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=wt_path, capture_output=True, text=True,
+            )
+            if actual.returncode == 0:
+                actual_branch = actual.stdout.strip()
+                if actual_branch != db_branch:
+                    db_branch = actual_branch
+                    m = _TASK_BRANCH_RE.match(actual_branch)
+                    db_task_id = m.group(1) if m else ""
+
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
             model=db_row["model"], system_prompt=old_prompt or current_prompt,
             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
-            worktree_path=db_row.get("worktree_path"), branch=db_row.get("branch"),
+            worktree_path=wt_path, branch=db_branch,
             created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
             is_orchestrator=is_orch,
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], is_orch),
+            backend_type=stored_bt, task_id=db_task_id,
+            description=db_row.get("description", ""),
         )
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
@@ -453,7 +498,8 @@ class SessionManager:
                 logger.error(f"Failed to resume worker {row['name']}: {e}")
 
     async def _inject_restart_notice(self, session: AgentSession) -> None:
-        await asyncio.sleep(3)
+        import random
+        await asyncio.sleep(3 + random.uniform(0, 12))
         try:
             await session.send(
                 "[system] Orchestra server restarted. "

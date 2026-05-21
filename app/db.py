@@ -1,7 +1,7 @@
 """SQLite storage for sessions and logs."""
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
@@ -99,8 +99,7 @@ def init_db() -> None:
                 updated_at TEXT NOT NULL,
                 completed_at TEXT,
                 paid_at TEXT,
-                CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled')),
-                CHECK (paid_rub <= price_rub)
+                CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
             );
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status);
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status);
@@ -145,6 +144,28 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_tm_sync_task ON tm_sync_log(task_id);
         """)
+        c.executescript("""
+            CREATE TABLE IF NOT EXISTS bg_jobs (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL CHECK (type IN ('timer','file','command','ssh','run')),
+                config TEXT NOT NULL DEFAULT '{}',
+                message TEXT NOT NULL DEFAULT '',
+                target_session_id TEXT NOT NULL,
+                target_name TEXT NOT NULL,
+                target_scope TEXT NOT NULL,
+                created_by_name TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'active'
+                    CHECK (status IN ('active','triggering','triggered','expired','cancelled','failed')),
+                error TEXT,
+                expires_at TEXT NOT NULL,
+                trigger_at TEXT,
+                created_at TEXT NOT NULL,
+                triggered_at TEXT,
+                last_output TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_bg_jobs_session ON bg_jobs(target_session_id, status);
+            CREATE INDEX IF NOT EXISTS idx_bg_jobs_scope ON bg_jobs(target_scope, status);
+        """)
         _migrate(c)
 
 
@@ -160,10 +181,17 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN progress_pct INTEGER DEFAULT 0")
     if "progress_status" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN progress_status TEXT DEFAULT ''")
-    tm_proj_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)").fetchall()}
-    if tm_proj_cols and "yougile_enabled" not in tm_proj_cols:
+    if "backend_type" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN backend_type TEXT DEFAULT 'claude'")
+    if "task_id" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN task_id TEXT DEFAULT ''")
+    if "description" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN description TEXT DEFAULT ''")
+    proj_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)").fetchall()}
+    if proj_cols and "yougile_enabled" not in proj_cols:
         c.execute("ALTER TABLE tm_projects ADD COLUMN yougile_enabled INTEGER NOT NULL DEFAULT 0")
-    if tm_proj_cols and "prefix" not in tm_proj_cols:
+        c.execute("UPDATE tm_projects SET yougile_enabled = 1 WHERE id = 'parsing-hub'")
+    if proj_cols and "prefix" not in proj_cols:
         c.execute("ALTER TABLE tm_projects ADD COLUMN prefix TEXT NOT NULL DEFAULT 'TASK'")
         c.execute("UPDATE tm_projects SET prefix = 'PAR' WHERE id = 'parsing-hub'")
         c.execute("UPDATE tm_projects SET prefix = 'ORC' WHERE id = 'orchestra'")
@@ -179,9 +207,76 @@ def _migrate(c) -> None:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:
         pass
+    for old_name in ("_tm_tasks_old", "tm_tasks_old"):
+        old_exists = c.execute(f"SELECT 1 FROM sqlite_master WHERE type='table' AND name='{old_name}'").fetchone()
+        if old_exists:
+            c.execute("DROP TABLE IF EXISTS tm_tasks")
+            c.execute(f"ALTER TABLE {old_name} RENAME TO tm_tasks")
+            break
+    try:
+        auto_idx = [r[1] for r in c.execute("PRAGMA index_list(tm_tasks)").fetchall()
+                    if r[1].startswith("sqlite_autoindex")]
+    except Exception:
+        auto_idx = []
+    needs_recreate = False
+    for idx in auto_idx:
+        try:
+            info = c.execute(f"PRAGMA index_info({idx})").fetchall()
+            if [r[2] for r in info] == ["par_number"]:
+                needs_recreate = True
+                break
+        except Exception:
+            pass
+    if needs_recreate:
+        c.execute("ALTER TABLE tm_tasks RENAME TO _tm_tasks_old")
+        c.execute("""CREATE TABLE tm_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            par_number INTEGER NOT NULL,
+            project_id TEXT NOT NULL REFERENCES tm_projects(id),
+            title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+            price_rub INTEGER NOT NULL DEFAULT 0 CHECK (price_rub >= 0),
+            paid_rub INTEGER NOT NULL DEFAULT 0 CHECK (paid_rub >= 0),
+            status TEXT NOT NULL DEFAULT 'backlog', assignee TEXT NOT NULL DEFAULT '',
+            yougile_task_id TEXT UNIQUE, sync_revision INTEGER NOT NULL DEFAULT 0,
+            worker_session_id TEXT, git_commits TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            completed_at TEXT, paid_at TEXT,
+            CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
+        )""")
+        c.execute("INSERT INTO tm_tasks SELECT * FROM _tm_tasks_old")
+        c.execute("DROP TABLE _tm_tasks_old")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status)")
+    for tbl in ("tm_payment_allocations", "tm_sync_log"):
+        try:
+            schema = c.execute(f"SELECT sql FROM sqlite_master WHERE name='{tbl}' AND type='table'").fetchone()
+            if schema and "tm_tasks_old" in schema[0]:
+                old_name = f"_{tbl}_fix"
+                c.execute(f"ALTER TABLE {tbl} RENAME TO {old_name}")
+                create_sql = schema[0].replace('"tm_tasks_old"', 'tm_tasks').replace("tm_tasks_old", "tm_tasks")
+                c.execute(create_sql)
+                c.execute(f"INSERT INTO {tbl} SELECT * FROM {old_name}")
+                c.execute(f"DROP TABLE {old_name}")
+        except Exception:
+            pass
+    c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
+    task_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)").fetchall()}
+    if task_cols and "priority" not in task_cols:
+        c.execute("ALTER TABLE tm_tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 2")
+    client_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_clients)").fetchall()}
+    if client_cols and "journal_yougile_id" not in client_cols:
+        c.execute("ALTER TABLE tm_clients ADD COLUMN journal_yougile_id TEXT DEFAULT ''")
 
 
 def save_session(s: dict) -> None:
+    s.setdefault("context_pct", 0)
+    s.setdefault("context_tokens", 0)
+    s.setdefault("progress_pct", 0)
+    s.setdefault("progress_status", "")
+    s.setdefault("backend_type", "claude")
+    s.setdefault("task_id", "")
+    s.setdefault("description", "")
     s.setdefault("total_turns", 0)
     s.setdefault("total_input_tokens", 0)
     s.setdefault("total_output_tokens", 0)
@@ -191,12 +286,12 @@ def save_session(s: dict) -> None:
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
-                progress_pct, progress_status,
+                progress_pct, progress_status, backend_type, task_id, description,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
-                :progress_pct, :progress_status,
+                :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
@@ -213,6 +308,9 @@ def save_session(s: dict) -> None:
                 context_tokens=excluded.context_tokens,
                 progress_pct=excluded.progress_pct,
                 progress_status=excluded.progress_status,
+                backend_type=excluded.backend_type,
+                task_id=excluded.task_id,
+                description=excluded.description,
                 total_turns=excluded.total_turns,
                 total_input_tokens=excluded.total_input_tokens,
                 total_output_tokens=excluded.total_output_tokens,
@@ -437,3 +535,166 @@ def get_jobs(scope: str | None = None, status: str | None = None) -> list[dict]:
             query += " WHERE " + " AND ".join(clauses)
         query += " ORDER BY created_at DESC LIMIT 20"
         return [dict(r) for r in c.execute(query, params).fetchall()]
+
+
+# ── Background Jobs ──
+
+def bg_save_job(job: dict) -> None:
+    with _conn() as c:
+        c.execute("""
+            INSERT INTO bg_jobs (id, type, config, message, target_session_id,
+                target_name, target_scope, created_by_name, status, expires_at,
+                trigger_at, created_at, last_output)
+            VALUES (:id, :type, :config, :message, :target_session_id,
+                :target_name, :target_scope, :created_by_name, :status, :expires_at,
+                :trigger_at, :created_at, :last_output)
+        """, job)
+
+
+def bg_claim_trigger(job_id: str) -> bool:
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET status='triggering', triggered_at=? WHERE id=? AND status='active'",
+            (datetime.now(timezone.utc).isoformat(), job_id),
+        )
+        return cur.rowcount > 0
+
+
+def bg_finish_trigger(job_id: str, last_output: str = "") -> None:
+    with _conn() as c:
+        c.execute(
+            "UPDATE bg_jobs SET status='triggered', last_output=? WHERE id=?",
+            (last_output[-3000:], job_id),
+        )
+
+
+def bg_fail_job(job_id: str, error: str) -> None:
+    with _conn() as c:
+        c.execute(
+            "UPDATE bg_jobs SET status='failed', error=? WHERE id=? AND status IN ('active','triggering')",
+            (error[:1000], job_id),
+        )
+
+
+def bg_fail_job_if_active(job_id: str, error: str) -> None:
+    with _conn() as c:
+        c.execute(
+            "UPDATE bg_jobs SET status='failed', error=? WHERE id=? AND status='active'",
+            (error[:1000], job_id),
+        )
+
+
+def bg_cancel_job(job_id: str) -> bool:
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET status='cancelled' WHERE id=? AND status='active'",
+            (job_id,),
+        )
+        return cur.rowcount > 0
+
+
+def bg_expire_job(job_id: str) -> bool:
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET status='expired' WHERE id=? AND status='active'",
+            (job_id,),
+        )
+        return cur.rowcount > 0
+
+
+def bg_update_output(job_id: str, output: str) -> None:
+    with _conn() as c:
+        c.execute("UPDATE bg_jobs SET last_output=? WHERE id=?", (output[-3000:], job_id))
+
+
+def bg_get_jobs(scope: str | None = None, session_id: str | None = None,
+                active_only: bool = False) -> list[dict]:
+    with _conn() as c:
+        clauses, params = [], []
+        if scope:
+            clauses.append("target_scope = ?")
+            params.append(scope)
+        if session_id:
+            clauses.append("target_session_id = ?")
+            params.append(session_id)
+        if active_only:
+            clauses.append("status IN ('active','triggering')")
+        where = "WHERE " + " AND ".join(clauses) if clauses else ""
+        rows = c.execute(
+            f"SELECT * FROM bg_jobs {where} ORDER BY created_at DESC LIMIT 50", params
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def bg_get_active_for_scope(scope: str) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM bg_jobs WHERE target_scope=? AND status IN ('active','triggering')",
+            (scope,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def bg_cancel_by_session(session_id: str) -> int:
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET status='cancelled' WHERE target_session_id=? AND status='active'",
+            (session_id,),
+        )
+        return cur.rowcount
+
+
+def bg_get_active_all() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM bg_jobs WHERE status IN ('active','triggering')"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def bg_expire_overdue() -> list[str]:
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT id FROM bg_jobs WHERE status='active' AND expires_at < ?", (now,)
+        ).fetchall()
+        ids = [r["id"] for r in rows]
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            c.execute(f"UPDATE bg_jobs SET status='expired' WHERE id IN ({placeholders})", ids)
+        stale = c.execute(
+            "SELECT id FROM bg_jobs WHERE status='triggering' AND triggered_at < ?",
+            ((datetime.now(timezone.utc).replace(second=0, microsecond=0)).isoformat(),),
+        ).fetchall()
+        return ids + [r["id"] for r in stale]
+
+
+def bg_reset_stale_triggering(max_age_seconds: int = 120) -> list[str]:
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)).isoformat()
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT id FROM bg_jobs WHERE status='triggering' AND triggered_at < ?", (cutoff,)
+        ).fetchall()
+        ids = [r["id"] for r in rows]
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            c.execute(f"UPDATE bg_jobs SET status='active' WHERE id IN ({placeholders})", ids)
+        return ids
+
+
+def bg_count_active(scope: str) -> int:
+    with _conn() as c:
+        return c.execute(
+            "SELECT COUNT(*) FROM bg_jobs WHERE target_scope=? AND status IN ('active','triggering')",
+            (scope,),
+        ).fetchone()[0]
+
+
+def bg_cleanup_old(max_age_hours: int = 24) -> int:
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
+    with _conn() as c:
+        cur = c.execute(
+            "DELETE FROM bg_jobs WHERE status IN ('triggered','expired','cancelled','failed') AND created_at < ?",
+            (cutoff,),
+        )
+        return cur.rowcount

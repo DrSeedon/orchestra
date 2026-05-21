@@ -12,8 +12,7 @@ let scrollAfterLoad = true;
 let drafts = {};
 
 window.compactMode = localStorage.getItem('compactToolMode') === 'true';
-
-let gitStatusData = {};  // name -> {branch, commits_ahead, dirty_files, last_commit}
+const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
 const $ = (s) => document.querySelector(s);
 
@@ -91,7 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (path) $('#orch-name').value = autoNameFromPath(path);
     });
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
-    $('#delete-orch-btn').addEventListener('click', deleteOrchestrator);
+    initTabContextMenu();
+    initHiddenTabsBtn();
+    initDropHint();
     $('#restart-btn').addEventListener('click', restartServer);
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
@@ -125,7 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadModels();
     loadOrchestrators();
     scheduleRefresh();
-    scheduleGitStatusRefresh();
     initFilePreviewModal();
     initUsageBar();
     initHeartbeat();
@@ -138,22 +138,6 @@ function scheduleRefresh() {
         await refreshSessions();
         scheduleRefresh();
     }, 3000);
-}
-
-async function refreshGitStatus() {
-    if (!currentScope) return;
-    try {
-        const data = await api(`/api/git-status?scope=${encodeURIComponent(currentScope)}`);
-        gitStatusData = {};
-        for (const item of data) gitStatusData[item.name] = item;
-    } catch {}
-}
-
-function scheduleGitStatusRefresh() {
-    setTimeout(async () => {
-        await refreshGitStatus();
-        scheduleGitStatusRefresh();
-    }, 10000);
 }
 
 function connectSSE() {
@@ -309,18 +293,15 @@ async function restartCli() {
     btn.disabled = true;
     btn.textContent = '⏳';
     try {
-        const res = await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli`, {
+        await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({scope: currentScope}),
         });
-        if (res.error) throw new Error(res.error);
         btn.textContent = '✅';
-        addChatEntry('status', 'CLI restarted — next message will reconnect');
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 1500);
     } catch (e) {
         btn.textContent = '❌';
-        addChatEntry('error', `Restart failed: ${e.message}`);
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 2000);
     }
 }
@@ -376,10 +357,8 @@ async function openFilePreview(path) {
                 contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
             }
         } else if (/\.md$/i.test(path)) {
-            contentEl.className = 'flex-1 overflow-auto text-xs text-slate-300 markdown-body p-4';
-            contentEl.style.whiteSpace = '';
-            contentEl.style.overflowX = 'hidden';
-            contentEl.style.wordWrap = '';
+            contentEl.className = 'flex-1 text-xs text-slate-300 markdown-body p-4';
+            contentEl.style.cssText = 'overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:normal;max-height:calc(80vh - 48px)';
             const dir = path.substring(0, path.lastIndexOf('/'));
             const renderer = new marked.Renderer();
             renderer.image = (token) => {
@@ -406,8 +385,8 @@ async function openFilePreview(path) {
             if ((ext === 'csv' || ext === 'tsv') && raw.trim()) {
                 const sep = ext === 'tsv' ? '\t' : ',';
                 const rows = raw.trim().split('\n').map(r => r.split(sep));
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4 markdown-body';
-                contentEl.style.cssText = '';
+                contentEl.className = 'flex-1 text-xs p-4 markdown-body';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
                 let html = '<table><thead><tr>';
                 for (const h of (rows[0] || [])) html += `<th>${DOMPurify.sanitize(h.trim())}</th>`;
                 html += '</tr></thead><tbody>';
@@ -421,8 +400,8 @@ async function openFilePreview(path) {
             } else if (ext === 'json') {
                 let pretty = raw;
                 try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch {}
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4';
-                contentEl.style.cssText = '';
+                contentEl.className = 'flex-1 text-xs p-4';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
                 const pre = document.createElement('pre');
                 pre.style.cssText = 'margin:0;background:transparent';
                 const code = document.createElement('code');
@@ -433,8 +412,8 @@ async function openFilePreview(path) {
                 contentEl.appendChild(pre);
                 if (window.hljs) hljs.highlightElement(code);
             } else if (LANG_MAP[ext] && window.hljs) {
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4';
-                contentEl.style.cssText = '';
+                contentEl.className = 'flex-1 text-xs p-4';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
                 const pre = document.createElement('pre');
                 pre.style.cssText = 'margin:0;background:transparent';
                 const code = document.createElement('code');
@@ -445,10 +424,8 @@ async function openFilePreview(path) {
                 contentEl.appendChild(pre);
                 hljs.highlightElement(code);
             } else {
-                contentEl.className = 'flex-1 overflow-auto text-xs p-4 text-slate-300';
-                contentEl.style.whiteSpace = 'pre';
-                contentEl.style.overflowX = 'auto';
-                contentEl.style.wordWrap = 'normal';
+                contentEl.className = 'flex-1 text-xs p-4 text-slate-300';
+                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px);white-space:pre;word-wrap:normal';
                 contentEl.textContent = raw;
             }
         }
@@ -467,7 +444,6 @@ function initFilePreviewModal() {
     const modal = $('#file-preview-modal');
     if (!modal) return;
     $('#file-preview-close').addEventListener('click', closeFilePreview);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeFilePreview(); });
 }
 
 async function showProjectPicker() {
@@ -607,12 +583,22 @@ function _saveTabOrder() {
     localStorage.setItem('tabOrder', JSON.stringify(order));
 }
 
+function _getHiddenTabs() {
+    try { return new Set(JSON.parse(localStorage.getItem('orchestra_hidden_tabs') || '[]')); } catch { return new Set(); }
+}
+function _setHiddenTabs(set) {
+    localStorage.setItem('orchestra_hidden_tabs', JSON.stringify([...set]));
+}
+
 function renderOrchTabs(sorted) {
     const tabs = $('#orch-tabs');
     tabs.innerHTML = '';
     const ordered = _applyTabOrder(sorted);
+    const hidden = _getHiddenTabs();
     let dragTab = null;
+    _updateHiddenBtn();
     for (const o of ordered) {
+        if (hidden.has(o.name)) continue;
         const tab = document.createElement('button');
         tab.className = `orch-tab ${o.name === selectedAgent && o.scope === currentScope ? 'active' : ''}`;
         tab.dataset.orchName = o.name;
@@ -674,6 +660,124 @@ function renderOrchTabs(sorted) {
     }
 }
 
+let _dropDragCounter = 0;
+function _hideDropHint() {
+    _dropDragCounter = 0;
+    const input = $('#chat-input');
+    if (!input) return;
+    if (input.dataset.origPlaceholder) {
+        input.placeholder = input.dataset.origPlaceholder;
+        delete input.dataset.origPlaceholder;
+    }
+    input.classList.remove('border-indigo-400');
+}
+function initDropHint() {
+    document.addEventListener('dragenter', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        _dropDragCounter++;
+        const input = $('#chat-input');
+        if (input) {
+            if (!input.dataset.origPlaceholder) input.dataset.origPlaceholder = input.placeholder;
+            input.placeholder = '📎 Drop files here';
+            input.classList.add('border-indigo-400');
+        }
+    });
+    document.addEventListener('dragleave', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        _dropDragCounter--;
+        if (_dropDragCounter <= 0) _hideDropHint();
+    });
+    document.addEventListener('drop', () => _hideDropHint());
+}
+
+function initTabContextMenu() {
+    let menu = null;
+    const close = () => { if (menu) { menu.remove(); menu = null; } };
+    document.addEventListener('click', close);
+    document.addEventListener('contextmenu', (e) => {
+        const tab = e.target.closest('.orch-tab');
+        if (!tab) { close(); return; }
+        e.preventDefault();
+        close();
+        const name = tab.dataset.orchName;
+        const scope = tab.title;
+        menu = document.createElement('div');
+        menu.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+        const mkItem = (label, color, fn) => {
+            const item = document.createElement('div');
+            item.style.cssText = `padding:6px 14px;font-size:12px;color:${color};cursor:pointer;white-space:nowrap`;
+            item.textContent = label;
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+            item.addEventListener('mouseleave', () => item.style.background = '');
+            item.addEventListener('click', (ev) => { ev.stopPropagation(); close(); fn(); });
+            return item;
+        };
+        menu.appendChild(mkItem('👁 Скрыть', '#94a3b8', () => {
+            const h = _getHiddenTabs(); h.add(name); _setHiddenTabs(h);
+            renderOrchTabs(orchData);
+        }));
+        menu.appendChild(mkItem('🗑 Удалить', '#ef4444', () => {
+            if (!confirm(`Delete "${name}" and all its workers?`)) return;
+            api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
+                .then(() => loadOrchestrators())
+                .catch(e => alert(`Delete failed: ${e.message}`));
+        }));
+        document.body.appendChild(menu);
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+        if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+    });
+}
+
+function _updateHiddenBtn() {
+    const btn = $('#hidden-tabs-btn');
+    if (!btn) return;
+    const hidden = _getHiddenTabs();
+    const hasHidden = [...hidden].some(n => orchData.find(o => o.name === n));
+    btn.classList.toggle('hidden', !hasHidden);
+    if (hasHidden) btn.textContent = `👁 ${[...hidden].filter(n => orchData.find(o => o.name === n)).length}`;
+}
+
+function initHiddenTabsBtn() {
+    const btn = $('#hidden-tabs-btn');
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const existing = document.getElementById('hidden-tabs-dropdown');
+        if (existing) { existing.remove(); return; }
+        const hidden = _getHiddenTabs();
+        const items = [...hidden].filter(n => orchData.find(o => o.name === n));
+        if (!items.length) return;
+        const dd = document.createElement('div');
+        dd.id = 'hidden-tabs-dropdown';
+        const rect = btn.getBoundingClientRect();
+        dd.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+        for (const name of items) {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:6px 14px;font-size:12px;color:#94a3b8;cursor:pointer;white-space:nowrap';
+            item.textContent = `👁 ${name.replace(/-orchestrator$/, '')}`;
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+            item.addEventListener('mouseleave', () => item.style.background = '');
+            item.addEventListener('click', () => {
+                const h = _getHiddenTabs(); h.delete(name); _setHiddenTabs(h);
+                dd.remove();
+                renderOrchTabs(orchData);
+            });
+            dd.appendChild(item);
+        }
+        document.body.appendChild(dd);
+        const closeDd = (ev) => { if (!dd.contains(ev.target) && ev.target !== btn) { dd.remove(); document.removeEventListener('click', closeDd); } };
+        setTimeout(() => document.addEventListener('click', closeDd), 0);
+    });
+    const tabsEl = $('#orch-tabs');
+    if (tabsEl) {
+        tabsEl.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            tabsEl.scrollLeft += e.deltaY;
+        }, { passive: false });
+    }
+}
+
 function updateOrchTabDots() {
     const tabs = document.querySelectorAll('#orch-tabs .orch-tab');
     tabs.forEach(tab => {
@@ -729,8 +833,11 @@ function onOrchestratorChange() {
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
     updateAgentInfo(null);
+    updateInputState();
     restoreDraft();
     refreshSessions(); connectSSE(); initFilePanel();
+    if (_tasksTabActive) loadTasks();
+    if (_jobsTabActive) loadJobs();
 }
 
 // === Agent Selection ===
@@ -834,7 +941,7 @@ function formatContext(ctx) {
     const totalK = total > 1000 ? `${(total/1000).toFixed(0)}k` : total;
     const maxK = max > 1000 ? `${(max/1000).toFixed(0)}k` : max;
     let s = `${pct}% (${totalK}/${maxK})`;
-    if (ctx.cache_hit !== undefined) s += ` · cache ${ctx.cache_hit}%`;
+    if (ctx.cache_hit !== undefined) s += ` · cache ${Number(ctx.cache_hit).toFixed(2)}%`;
     return s;
 }
 
@@ -933,51 +1040,6 @@ function createAgentItem(s) {
         bar.appendChild(fill);
         info.appendChild(bar);
     }
-
-    const ppct = s.progress_pct || 0;
-    if (ppct > 0) {
-        const wrap = document.createElement('div');
-        wrap.className = 'mt-1';
-        const bar = document.createElement('div');
-        bar.className = 'w-full h-1.5 bg-slate-800 rounded-full';
-        const fill = document.createElement('div');
-        fill.className = 'h-1.5 rounded-full transition-all';
-        fill.style.width = `${Math.min(ppct, 100)}%`;
-        fill.style.backgroundColor = '#22c55e';
-        fill.style.boxShadow = '0 0 4px rgba(34,197,94,0.5)';
-        fill.title = `${ppct}%`;
-        bar.appendChild(fill);
-        wrap.appendChild(bar);
-        if (s.progress_status) {
-            const txt = document.createElement('div');
-            txt.className = 'text-xs text-slate-500 mt-0.5 truncate';
-            txt.textContent = `${ppct}% ${s.progress_status}`;
-            wrap.appendChild(txt);
-        }
-        info.appendChild(wrap);
-    }
-
-    const gs = gitStatusData[s.name];
-    if (gs) {
-        const gsLine = document.createElement('div');
-        gsLine.className = 'font-mono mt-1 truncate';
-        gsLine.style.cssText = 'font-size:10px;line-height:1.4';
-        let html = '';
-        if (gs.branch) {
-            const ahead = gs.commits_ahead;
-            const aheadColor = ahead > 0 ? '#22c55e' : '#6b7280';
-            html += `<span style="color:${aheadColor}">${gs.branch}+${ahead}</span>`;
-        }
-        const dirty = gs.dirty_files;
-        const dirtyColor = dirty > 0 ? '#eab308' : '#6b7280';
-        html += ` <span style="color:${dirtyColor}">💾${dirty}</span>`;
-        if (gs.last_commit) {
-            html += ` <span style="color:#475569">"${gs.last_commit}"</span>`;
-        }
-        gsLine.innerHTML = html;
-        info.appendChild(gsLine);
-    }
-
     item.append(icon, info);
 
     if (isSelected) updateAgentInfo(s);
@@ -1136,6 +1198,7 @@ function clearPastePreview() {
     if (el) el.remove();
 }
 
+
 function renderImages(el, content) {
     const re = /(\/\S+\.(png|jpg|jpeg|gif|webp|svg))/gi;
     const matches = content.match(re);
@@ -1231,20 +1294,33 @@ function buildCompactToolLine(type, content, ts) {
         let preview = body;
         try {
             const parsed = JSON.parse(body);
-            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model] || parsed.model || '?'})`;
+            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model || 'claude-sonnet-4-6'] || parsed.model || 'Sonnet'})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
             else if (rawName === 'mcp__orchestra__send_file') preview = `📎 ${(parsed.path || '').split('/').pop() || '?'}`;
-            else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 ${parsed.name || '?'} (${parsed.limit || 20})`;
-            else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 list_agents';
-            else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 list_orchestrators';
-            else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 list_jobs';
+            else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 Kill: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__stop_worker') preview = `⏸️ Stop: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 Logs: ${parsed.name || '?'} (${parsed.limit || 20})`;
+            else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 Agents';
+            else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 Orchestrators';
+            else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 Compact: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 Jobs';
             else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
+            else if (rawName === 'mcp__orchestra__change_worker_model') preview = `🔄 ${parsed.name || '?'} → ${parsed.model || '?'}`;
+            else if (rawName === 'mcp__orchestra__update_worker_description') preview = `✏️ ${parsed.name || '?'} — description`;
+            else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
+            else if (rawName === 'mcp__orchestra__task_create') { const _pp = {0:'🔴',1:'🟠',3:'🟢'}[parsed.priority]||''; preview = `📋 New: ${_pp}"${parsed.title || '?'}"${parsed.price ? ' | '+parsed.price+'k' : ''}`; }
+            else if (rawName === 'mcp__orchestra__task_update') { const _f = Object.keys(parsed).filter(k=>k!=='par').map(k=>`${k}→${parsed[k]}`).join(', '); preview = `✏️ #${taskNum(parsed.par) || '?'}: ${_f}`; }
+            else if (rawName === 'mcp__orchestra__task_list') { const _fl = [parsed.status,parsed.project,parsed.assignee].filter(Boolean).join(', '); preview = `📋 Tasks${_fl ? ' ('+_fl+')' : ''}`; }
+            else if (rawName === 'mcp__orchestra__task_get') preview = `📋 #${taskNum(parsed.par) || '?'}`;
+            else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'}k ₽`;
+            else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
+            else if (rawName === 'mcp__orchestra__bg_create') { const _bi = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
+            else if (rawName === 'mcp__orchestra__bg_list') preview = '📊 BG Jobs';
+            else if (rawName === 'mcp__orchestra__bg_cancel') preview = `❌ Cancel job ${(parsed.job_id||'').slice(0,8)}`;
             else if (rawName.startsWith('mcp__yougile__')) { const yn = rawName.replace('mcp__yougile__',''); preview = `📋 ${yn}${parsed.title ? ': '+parsed.title : ''}`; }
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
@@ -1390,7 +1466,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -1401,7 +1477,7 @@ function addChatEntry(type, content, ts, anchor) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error');
-                    if (['mcp__orchestra__kill_worker','mcp__orchestra__rename_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
                     else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
                 } else if (resultSpan && isGlobCompact) {
@@ -1497,12 +1573,14 @@ function addChatEntry(type, content, ts, anchor) {
 
     if (type === 'subagent_start' || type === 'subagent_end' || type === 'subagent_progress') {
         const parts = content.split('|').map(p => p.trim());
-        const desc = parts[0] || '';
         const meta = {};
-        for (let i = 1; i < parts.length; i++) {
-            const eq = parts[i].indexOf('=');
-            if (eq > 0) meta[parts[i].slice(0, eq)] = parts[i].slice(eq + 1);
+        const textParts = [];
+        for (const p of parts) {
+            const eq = p.indexOf('=');
+            if (eq > 0 && /^\w+$/.test(p.slice(0, eq))) meta[p.slice(0, eq)] = p.slice(eq + 1);
+            else if (p) textParts.push(p);
         }
+        const desc = textParts[0] || textParts[1] || '';
         const el = document.createElement('div');
         el.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
 
@@ -1522,9 +1600,8 @@ function addChatEntry(type, content, ts, anchor) {
         } else {
             const ok = !meta.status || meta.status === 'completed';
             el.style.cssText += `;border-left:3px solid ${ok ? '#22c55e' : '#ef4444'};background:rgba(${ok ? '34,197,94' : '239,68,68'},0.06);color:${ok ? '#86efac' : '#fca5a5'}`;
-            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
-            const summaryStart = content.indexOf(meta.status || '') + (meta.status || '').length;
-            const summaryText = parts.slice(2).join(' | ').replace(/^status=\w+\s*/, '').trim();
+            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}${desc ? ': "'+DOMPurify.sanitize(desc)+'"' : ''}</span>`;
+            const summaryText = textParts.slice(1).join(' | ').trim();
             if (summaryText) {
                 const sumEl = document.createElement('div');
                 sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;max-height:40px;overflow:hidden;white-space:pre-wrap';
@@ -1557,6 +1634,7 @@ function addChatEntry(type, content, ts, anchor) {
         'chat-bot markdown-body'
     }`;
     if (type === 'user_message') {
+        content = content.replace(/^\[\d{2}:\d{2}\] /, '');
         const fromMatch = content.match(/^\[from:(.+?)\]\s*([\s\S]*)$/);
         if (fromMatch) {
             const sender = fromMatch[1];
@@ -1608,20 +1686,25 @@ function addChatEntry(type, content, ts, anchor) {
                 const msg = d.message || '';
                 header.textContent = `📨 → ${to}`;
                 header.style.color = '#a78bfa';
-                const lines = msg.split('\n');
-                const PREVIEW_LINES = 5;
-                const hasMore = lines.length > PREVIEW_LINES;
-                const previewText = hasMore ? lines.slice(0, PREVIEW_LINES).join('\n') : msg;
-                const msgEl = document.createElement('div');
-                msgEl.className = 'text-xs opacity-80 markdown-body';
-                msgEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
-                div.appendChild(msgEl);
+                const previewText = msg.length > 200 ? msg.slice(0, 200) : msg;
+                const hasMore = msg.length > 200;
+                const previewEl = document.createElement('div');
+                previewEl.className = 'text-xs opacity-80 markdown-body';
+                previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
+                div.appendChild(previewEl);
                 if (hasMore) {
+                    const restEl = document.createElement('div');
+                    restEl.className = 'text-xs opacity-80 markdown-body';
+                    restEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.slice(200)));
+                    restEl.style.display = 'none';
+                    restEl.dataset.role = 'send-rest';
+                    div.appendChild(restEl);
+                    const restLines = msg.slice(200).split('\n').length;
                     const hint = document.createElement('div');
                     hint.className = 'text-xs mt-1';
                     hint.style.color = '#a78bfa';
                     hint.style.cursor = 'pointer';
-                    hint.textContent = `▼ ${lines.length - PREVIEW_LINES} more lines`;
+                    hint.textContent = `▼ ${restLines} more lines`;
                     hint.dataset.role = 'send-hint';
                     div.appendChild(hint);
                     div.style.cursor = 'pointer';
@@ -1629,8 +1712,8 @@ function addChatEntry(type, content, ts, anchor) {
                     div.addEventListener('click', (e) => {
                         if (e.target.tagName === 'A') return;
                         sendExpanded = !sendExpanded;
-                        msgEl.innerHTML = DOMPurify.sanitize(marked.parse(sendExpanded ? msg : previewText));
-                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${lines.length - PREVIEW_LINES} more lines`;
+                        restEl.style.display = sendExpanded ? 'block' : 'none';
+                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
                     });
                 }
                 div.dataset.isEdit = '1';
@@ -1642,7 +1725,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const d = JSON.parse(body);
                 const workerName = d.name || '?';
                 const task = d.task || '';
-                const model = d.model || '';
+                const model = d.model || 'claude-sonnet-4-6';
                 const sysPrompt = d.system_prompt || '';
                 const repoPath = d.repo_path || '';
 
@@ -1857,13 +1940,26 @@ function addChatEntry(type, content, ts, anchor) {
             } catch {}
         }
         const _orchSimple = {
-            'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Killing: ${d.name||'?'}`, color: '#ef4444' }),
-            'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compacting: ${d.name||'?'}`, color: '#eab308' }),
+            'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Kill: ${d.name||'?'}`, color: '#ef4444' }),
+            'mcp__orchestra__stop_worker': (d) => ({ icon: '⏸️', label: `Stop: ${d.name||'?'}`, color: '#eab308' }),
+            'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compact: ${d.name||'?'}`, color: '#eab308' }),
             'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
+            'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `Model: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
+            'mcp__orchestra__update_worker_description': (d) => ({ icon: '✏️', label: `${d.name||'?'} — description updated`, color: '#38bdf8', sub: d.description ? `"${d.description}"` : '' }),
+            'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
             'mcp__orchestra__list_jobs': () => ({ icon: '📊', label: 'Jobs', color: '#38bdf8' }),
             'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
+            'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `New: "${d.title||'?'}"`, color: '#22c55e', sub: d.price ? `${d.price}k ₽` : '' }),
+            'mcp__orchestra__task_update': (d) => { const f = Object.keys(d).filter(k=>k!=='par').map(k=>`${k}→${d[k]}`).join(', '); return { icon: '✏️', label: `#${taskNum(d.par)||'?'}: ${f}`, color: '#38bdf8' }; },
+            'mcp__orchestra__task_list': (d) => { const f = [d.status,d.project,d.assignee].filter(Boolean).join(', '); return { icon: '📋', label: `Tasks${f ? ' ('+f+')' : ''}`, color: '#a78bfa' }; },
+            'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `Task #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
+            'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'}k ₽`, color: '#22c55e', sub: d.note || '' }),
+            'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
+            'mcp__orchestra__bg_create': (d) => { const i = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
+            'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
+            'mcp__orchestra__bg_cancel': (d) => ({ icon: '❌', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#ef4444' }),
         };
         const isOrchSimple = _orchSimple[rawName];
         if (isOrchSimple) {
@@ -1874,7 +1970,7 @@ function addChatEntry(type, content, ts, anchor) {
                 header.style.color = cfg.color;
                 if (cfg.sub) {
                     const subEl = document.createElement('div');
-                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
                     subEl.textContent = cfg.sub;
                     div.appendChild(subEl);
                 }
@@ -2177,38 +2273,330 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
-            const _isListAgents = lastTool.dataset.toolRawName === 'mcp__orchestra__list_agents' || lastTool.dataset.toolRawName === 'mcp__orchestra__list_orchestrators';
-            if (_isListAgents) {
-                const agentEl = renderAgentListResult(clean);
-                if (agentEl) {
-                    const sep = document.createElement('div');
-                    sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-                    sep.appendChild(agentEl);
-                    lastTool.appendChild(sep);
+            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status','mcp__orchestra__bg_create','mcp__orchestra__bg_list','mcp__orchestra__bg_cancel'];
+            if (_tmTools.includes(lastTool.dataset.toolRawName)) {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                let parsed = null;
+                try { parsed = JSON.parse(content); } catch {}
+                const tn = lastTool.dataset.toolRawName;
+                if (!parsed || parsed.error) {
+                    if (hdr) { hdr.textContent = `❌ ${parsed?.error || clean.slice(0, 80)}`; hdr.style.color = '#ef4444'; }
                     addTimestamp(lastTool, ts);
                     return;
                 }
+                if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
+                    const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : String(v)) : v;
+                    if (hdr) { hdr.textContent = `📋 #${parsed.par}: ${parsed.title || '?'}`; hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa'; }
+                    const info = document.createElement('div');
+                    info.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#64748b';
+                    const stColor = {'done':'#22c55e','paid':'#22c55e','in_progress':'#38bdf8','new':'#e2e8f0','cancelled':'#ef4444'}[parsed.status] || '#e2e8f0';
+                    if (parsed.status) info.innerHTML += `<div>Status: <b style="color:${stColor}">${parsed.status}</b></div>`;
+                    if (parsed.project) info.innerHTML += `<div>Project: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.project)}</span></div>`;
+                    const priceRub = parsed.price_rub ?? 0;
+                    info.innerHTML += `<div>Price: <b style="color:#eab308">${_k(priceRub)} ₽</b></div>`;
+                    if (priceRub > 0) info.innerHTML += `<div>Paid: ${_k(parsed.paid_rub||0)}/${_k(priceRub)}${parsed.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(parsed.debt_rub)}</span>` : ''}</div>`;
+                    if (parsed.assignee) info.innerHTML += `<div>Assignee: ${DOMPurify.sanitize(parsed.assignee)}</div>`;
+                    if (parsed.created_at) info.innerHTML += `<div>Created: ${(parsed.created_at||'').slice(0,10)}</div>`;
+                    if (parsed.updated_at) info.innerHTML += `<div>Updated: ${(parsed.updated_at||'').slice(0,10)}</div>`;
+                    if (parsed.completed_at) info.innerHTML += `<div>Done: ${(parsed.completed_at||'').slice(0,10)}</div>`;
+                    if (parsed.paid_at) info.innerHTML += `<div>Paid: ${(parsed.paid_at||'').slice(0,10)}</div>`;
+                    lastTool.appendChild(info);
+                    if (parsed.description) {
+                        const descEl = document.createElement('div');
+                        descEl.className = 'text-xs markdown-body';
+                        descEl.style.cssText = 'margin-top:4px;max-height:54px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;line-height:1.4;color:#94a3b8';
+                        descEl.innerHTML = DOMPurify.sanitize(marked.parse(parsed.description));
+                        lastTool.appendChild(descEl);
+                        lastTool.style.cursor = 'pointer';
+                        let _tgExp = false;
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _tgExp = !_tgExp;
+                            descEl.style.maxHeight = _tgExp ? 'none' : '54px';
+                            descEl.style.overflowY = _tgExp ? 'visible' : 'hidden';
+                        });
+                    }
+                    const sys = [];
+                    if (parsed.yougile_id || parsed.yougile_task_id) sys.push(`yougile: ${parsed.yougile_id || parsed.yougile_task_id}`);
+                    if (parsed.sync_revision) sys.push(`rev: ${parsed.sync_revision}`);
+                    if (sys.length > 0) {
+                        const sEl = document.createElement('div');
+                        sEl.style.cssText = 'margin-top:4px;font-size:9px;color:#475569;font-family:monospace';
+                        sEl.textContent = sys.join(' · ');
+                        lastTool.appendChild(sEl);
+                    }
+                } else if (tn === 'mcp__orchestra__task_update') {
+                    const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    const changes = [];
+                    if (parsed.old_status && parsed.new_status && parsed.old_status !== parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
+                    if (parsed.updated) {
+                        for (const f of parsed.updated) {
+                            if (f === 'status') continue;
+                            if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ₽`);
+                            else if (f === 'assignee' && parsed.assignee != null) changes.push(`assignee→${parsed.assignee || '—'}`);
+                            else if (f === 'title') changes.push('title');
+                            else if (f === 'description') changes.push('description');
+                            else changes.push(f);
+                        }
+                    }
+                    const parNum = (parsed.par || '?').replace(/^[A-Z]+-/, '');
+                    const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
+                    if (hdr) { hdr.textContent = `✏️ #${parNum}${titleStr}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
+                    if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
+                        const titleDiff = document.createElement('div');
+                        titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
+                        titleDiff.innerHTML = `<span style="color:#64748b;text-decoration:line-through">${DOMPurify.sanitize(parsed.old_title.slice(0,60))}</span> → <span style="color:#e2e8f0">${DOMPurify.sanitize(parsed.title.slice(0,60))}</span>`;
+                        lastTool.appendChild(titleDiff);
+                    }
+                    if (parsed.description && (parsed.updated || []).includes('description')) {
+                        const descWrap = document.createElement('div');
+                        descWrap.style.cssText = 'margin-top:4px';
+                        if (parsed.old_description) {
+                            const oldEl = document.createElement('div');
+                            oldEl.style.cssText = 'font-size:10px;color:#64748b;text-decoration:line-through;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                            oldEl.textContent = parsed.old_description.split('\n').slice(0,3).join('\n');
+                            descWrap.appendChild(oldEl);
+                        }
+                        const newEl = document.createElement('div');
+                        newEl.style.cssText = 'font-size:10px;color:#86efac;max-height:40px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px';
+                        newEl.textContent = parsed.description.split('\n').slice(0,3).join('\n') + (parsed.description.split('\n').length > 3 ? '…' : '');
+                        descWrap.appendChild(newEl);
+                        lastTool.appendChild(descWrap);
+                        if (parsed.description.split('\n').length > 3) {
+                            lastTool.style.cursor = 'pointer';
+                            let _duExp = false;
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _duExp = !_duExp;
+                                newEl.textContent = _duExp ? parsed.description : parsed.description.split('\n').slice(0,3).join('\n') + '…';
+                                newEl.style.maxHeight = _duExp ? 'none' : '40px';
+                                newEl.style.overflowY = _duExp ? 'visible' : 'hidden';
+                            });
+                        }
+                    }
+                    const detail = document.createElement('div');
+                    detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
+                    if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
+                    if (parsed.paid_rub > 0) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
+                    if (parsed.debt_rub > 0) detail.innerHTML += `<span style="color:#ef4444">Debt: ${_kr(parsed.debt_rub)}</span>`;
+                    if (detail.innerHTML) lastTool.appendChild(detail);
+                } else if (tn === 'mcp__orchestra__task_list') {
+                    const tasks = parsed.tasks || [];
+                    const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}` : '');
+                    if (tasks.length > 0 && parsed.detailed) {
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:6px';
+                        const PREVIEW = 3;
+                        for (const [i, t] of tasks.entries()) {
+                            const card = document.createElement('div');
+                            card.style.cssText = `padding:6px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${t.status==='done'||t.status==='paid'?'#22c55e':t.status==='in_progress'?'#38bdf8':'#334155'}${i >= PREVIEW ? ';display:none' : ''}`;
+                            card.dataset.taskRow = '1';
+                            let h = `<div style="font-size:11px;color:#e2e8f0;font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
+                            h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;font-size:10px;color:#64748b;margin-top:3px">';
+                            h += `<div>Status: <b style="color:#e2e8f0">${t.status}</b></div>`;
+                            if (t.price_rub > 0) h += `<div>Price: <b style="color:#eab308">${_k(t.price_rub)} ₽</b>${t.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(t.debt_rub)}</span>` : ''}</div>`;
+                            if (t.project) h += `<div>Project: ${DOMPurify.sanitize(t.project)}</div>`;
+                            if (t.assignee) h += `<div>→ ${DOMPurify.sanitize(t.assignee)}</div>`;
+                            if (t.created_at) h += `<div>Created: ${t.created_at.slice(0,10)}</div>`;
+                            if (t.completed_at) h += `<div>Done: ${t.completed_at.slice(0,10)}</div>`;
+                            h += '</div>';
+                            if (t.description) {
+                                const short = t.description.split('\n').slice(0,3).join('\n');
+                                h += `<div style="font-size:10px;color:#94a3b8;margin-top:3px;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere">${DOMPurify.sanitize(short)}${t.description.length > short.length ? '…' : ''}</div>`;
+                            }
+                            card.innerHTML = h;
+                            container.appendChild(card);
+                        }
+                        lastTool.appendChild(container);
+                        if (tasks.length > PREVIEW) {
+                            const hint = document.createElement('div');
+                            hint.className = 'text-xs mt-1';
+                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                            hint.textContent = `▼ ${tasks.length - PREVIEW} more`;
+                            lastTool.appendChild(hint);
+                            let _tlExp = false;
+                            lastTool.style.cursor = 'pointer';
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _tlExp = !_tlExp;
+                                container.querySelectorAll('[data-task-row]').forEach((r, i) => { if (i >= PREVIEW) r.style.display = _tlExp ? 'block' : 'none'; });
+                                hint.textContent = _tlExp ? '▲ collapse' : `▼ ${tasks.length - PREVIEW} more`;
+                            });
+                        }
+                    } else if (tasks.length > 0) {
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
+                        const PREVIEW = 4;
+                        for (const [i, t] of tasks.entries()) {
+                            const row = document.createElement('div');
+                            row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
+                            row.dataset.taskRow = '1';
+                            const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}</span>` : '';
+                            row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
+                            container.appendChild(row);
+                        }
+                        lastTool.appendChild(container);
+                        if (tasks.length > PREVIEW) {
+                            const hint = document.createElement('div');
+                            hint.className = 'text-xs mt-1';
+                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                            hint.textContent = `▼ ${tasks.length - PREVIEW} more`;
+                            lastTool.appendChild(hint);
+                            let _tlExp = false;
+                            lastTool.style.cursor = 'pointer';
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _tlExp = !_tlExp;
+                                container.querySelectorAll('[data-task-row]').forEach((r, i) => { if (i >= PREVIEW) r.style.display = _tlExp ? 'flex' : 'none'; });
+                                hint.textContent = _tlExp ? '▲ collapse' : `▼ ${tasks.length - PREVIEW} more`;
+                            });
+                        }
+                    }
+                } else if (tn === 'mcp__orchestra__payment_receive') {
+                    const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    const amt = parsed.amount_rub ? _kr(parsed.amount_rub) : (parsed.amount || '?') + 'k';
+                    if (hdr) { hdr.textContent = `💰 +${amt} ₽ received`; hdr.style.color = '#22c55e'; }
+                    const payInfo = document.createElement('div');
+                    payInfo.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
+                    let payHtml = '';
+                    if (parsed.distributions && parsed.distributions.length > 0) {
+                        payHtml += parsed.distributions.map(d => {
+                            const a = d.allocated ? _kr(d.allocated) : (d.amount || '?') + 'k';
+                            return `<div style="display:flex;gap:6px"><span style="color:#94a3b8;min-width:60px">${d.par}</span><span style="color:#22c55e">+${a} ₽</span>${d.remaining != null ? `<span style="color:#475569">remaining: ${_kr(d.remaining)}</span>` : ''}</div>`;
+                        }).join('');
+                    }
+                    if (parsed.balance_rub != null) payHtml += `<div style="margin-top:2px;color:#eab308">Balance: ${_kr(parsed.balance_rub)} ₽</div>`;
+                    if (payHtml) { payInfo.innerHTML = payHtml; lastTool.appendChild(payInfo); }
+                } else if (tn === 'mcp__orchestra__payment_status') {
+                    const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
+                    const bal = parsed.balance_rub != null ? _kr(parsed.balance_rub) : (parsed.balance_display || '0');
+                    const debt = parsed.total_debt_rub != null ? _kr(parsed.total_debt_rub) : (parsed.total_debt_display || '0');
+                    if (hdr) {
+                        hdr.textContent = `💰 Balance: ${bal} ₽ | Debt: ${debt} ₽`;
+                        hdr.style.color = '#eab308';
+                    }
+                    const payments = parsed.recent_payments || parsed.payments || [];
+                    if (payments.length > 0) {
+                        const pEl = document.createElement('div');
+                        pEl.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
+                        pEl.innerHTML = payments.slice(0, 5).map(p => {
+                            const a = p.amount_rub ? _kr(p.amount_rub) : p.amount;
+                            return `<div>${p.date}: <span style="color:#22c55e">+${a}</span>${p.note ? ' — '+DOMPurify.sanitize(p.note) : ''}</div>`;
+                        }).join('');
+                        lastTool.appendChild(pEl);
+                    }
+                    if (parsed.tasks_with_debt && parsed.tasks_with_debt.length > 0) {
+                        const dEl = document.createElement('div');
+                        dEl.style.cssText = 'margin-top:4px;font-size:10px;color:#ef4444';
+                        dEl.innerHTML = '<div style="color:#64748b;margin-bottom:2px">Debt:</div>' + parsed.tasks_with_debt.map(t => `<div>${t.par}: ${_kr(t.debt_rub || t.debt)} ₽</div>`).join('');
+                        lastTool.appendChild(dEl);
+                    }
+                } else if (tn === 'mcp__orchestra__bg_create') {
+                    const icon = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type] || '⚙️';
+                    if (hdr) { hdr.textContent = `${icon} Job created: ${parsed.type || 'job'}`; hdr.style.color = '#22c55e'; }
+                    const info = document.createElement('div');
+                    info.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b';
+                    let infoHtml = '';
+                    if (parsed.id) infoHtml += `<div style="font-family:monospace;color:#475569">${parsed.id.slice(0,12)}</div>`;
+                    if (parsed.target) infoHtml += `<div>Target: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.target)}</span></div>`;
+                    if (parsed.expires_at) infoHtml += `<div>Expires: <span style="color:#38bdf8">${_timeLeft ? _timeLeft(parsed.expires_at) : parsed.expires_at.slice(0,19)}</span></div>`;
+                    if (infoHtml) { info.innerHTML = infoHtml; lastTool.appendChild(info); }
+                } else if (tn === 'mcp__orchestra__bg_list') {
+                    const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
+                    if (hdr) hdr.textContent = `📊 ${jobs.length} jobs`;
+                    if (jobs.length > 0) {
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
+                        for (const j of jobs.slice(0, 8)) {
+                            const icon = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[j.type] || '⚙️';
+                            const st = {'active':'🟢','triggered':'✅','expired':'⏰','cancelled':'❌','failed':'❌'}[j.status] || '⚪';
+                            const row = document.createElement('div');
+                            row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:4px;align-items:center';
+                            row.innerHTML = `<span>${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(j.target_name || '')} ${DOMPurify.sanitize((j.message||'').slice(0,30))}</span><span>${st}</span>`;
+                            container.appendChild(row);
+                        }
+                        lastTool.appendChild(container);
+                    }
+                } else if (tn === 'mcp__orchestra__bg_cancel') {
+                    if (hdr) { hdr.textContent = '❌ Job cancelled'; hdr.style.color = '#ef4444'; }
+                }
+                addTimestamp(lastTool, ts);
+                return;
             }
             const _orchSimpleResults = {
-                'mcp__orchestra__kill_worker': { ok: '✅ Worker killed', fail: '❌ Kill failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} killed`, color: '#22c55e' } : null; },
+                'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
+                'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
+                'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
+                'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — description updated`, color: '#22c55e' } : { text: '✅ description updated', color: '#22c55e' }; },
+                'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
                 'mcp__orchestra__compact_worker': null,
-                'mcp__orchestra__rename_worker': { ok: '✅ Renamed', fail: '❌ Rename failed', okColor: '#22c55e', failColor: '#ef4444' },
+                'mcp__orchestra__list_agents': null,
+                'mcp__orchestra__list_orchestrators': null,
                 'mcp__orchestra__list_jobs': null,
                 'mcp__orchestra__get_worker_logs': null,
             };
             const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
             if (_orchResultCfg !== undefined) {
                 const hdr = lastTool.querySelector('.flex.items-center');
-                if (_orchResultCfg) {
-                    const hasErr = content.includes('error') || content.includes('Error');
-                    if (hdr) { hdr.textContent = hasErr ? _orchResultCfg.fail : _orchResultCfg.ok; hdr.style.color = hasErr ? _orchResultCfg.failColor : _orchResultCfg.okColor; }
+                if (typeof _orchResultCfg === 'function') {
+                    const hasErr = content.includes('failed') || content.includes('Failed') || content.includes('error') || content.includes('Error');
+                    if (hasErr) {
+                        const toolAction = lastTool.dataset.toolRawName.split('__').pop().replace(/_/g, ' ');
+                        if (hdr) { hdr.textContent = `❌ ${toolAction} failed`; hdr.style.color = '#ef4444'; }
+                        const errEl = document.createElement('div');
+                        errEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow-y:hidden;overflow-x:hidden';
+                        errEl.textContent = clean;
+                        lastTool.appendChild(errEl);
+                        if (clean.split('\n').length > 3 || clean.length > 200) {
+                            lastTool.style.cursor = 'pointer';
+                            let _errExp = false;
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _errExp = !_errExp;
+                                errEl.style.maxHeight = _errExp ? 'none' : '54px';
+                                errEl.style.overflowY = _errExp ? 'visible' : 'hidden';
+                            });
+                        }
+                    } else {
+                        const result = _orchResultCfg(clean);
+                        if (hdr) { hdr.textContent = result?.text || '✅ Done'; hdr.style.color = result?.color || '#22c55e'; }
+                    }
                     addTimestamp(lastTool, ts);
                     return;
                 }
                 if (lastTool.dataset.toolRawName === 'mcp__orchestra__compact_worker') {
-                    const pctMatch = clean.match(/(\d+)%\s*→\s*(\d+)%/) || clean.match(/(\d+)%.*?(\d+)%/);
-                    if (hdr && pctMatch) { hdr.textContent = `✅ Compact: ${pctMatch[1]}% → ${pctMatch[2]}%`; hdr.style.color = '#22c55e'; }
-                    else if (hdr) { hdr.textContent = '✅ Compacted'; hdr.style.color = '#22c55e'; }
+                    let workerName = '';
+                    try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
+                    const pctMatch = clean.match(/(\d+)%\s*→\s*(\d+)%/);
+                    const sumMatch = clean.match(/Summary \((\d+) chars?\):\s*([\s\S]*)/);
+                    if (hdr && pctMatch) { hdr.textContent = `🗜 ${workerName ? workerName+': ' : ''}${pctMatch[1]}% → ${pctMatch[2]}%`; hdr.style.color = '#22c55e'; }
+                    else if (hdr) { hdr.textContent = `✅ ${workerName ? workerName+' ' : ''}Compacted`; hdr.style.color = '#22c55e'; }
+                    if (sumMatch) {
+                        const chars = sumMatch[1];
+                        const summaryText = sumMatch[2].trim();
+                        const charEl = document.createElement('div');
+                        charEl.style.cssText = 'font-size:10px;color:#64748b;margin-top:2px';
+                        charEl.textContent = `Summary: ${chars} chars`;
+                        lastTool.appendChild(charEl);
+                        if (summaryText) {
+                            const sumEl = document.createElement('div');
+                            sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;max-height:48px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                            sumEl.textContent = summaryText;
+                            lastTool.appendChild(sumEl);
+                            if (summaryText.split('\n').length > 3 || summaryText.length > 200) {
+                                lastTool.style.cursor = 'pointer';
+                                let _cExp = false;
+                                lastTool.addEventListener('click', (e) => {
+                                    if (e.target.tagName === 'A') return;
+                                    _cExp = !_cExp;
+                                    sumEl.style.maxHeight = _cExp ? 'none' : '48px';
+                                    sumEl.style.overflowY = _cExp ? 'visible' : 'hidden';
+                                });
+                            }
+                        }
+                    }
                     addTimestamp(lastTool, ts);
                     return;
                 }
@@ -2223,8 +2611,13 @@ function addChatEntry(type, content, ts, anchor) {
                             const nameRaw = parts[0] || '';
                             const status = parts[1] || '';
                             const model = parts[2] || '';
-                            const cost = parts[3] || '';
-                            const ctxRaw = parts[4] || '';
+                            let ctxRaw = '', taskId = '', desc = '';
+                            for (let pi = 3; pi < parts.length; pi++) {
+                                const p = parts[pi];
+                                if (p.match(/ctx:\d+%/)) ctxRaw = p;
+                                else if (p.startsWith('"')) desc = p.replace(/^"|"$/g, '');
+                                else if (p && !p.startsWith('$')) taskId = p;
+                            }
                             const nameClean = nameRaw.replace(/\*\*/g, '').replace(/^[^\w]*/, '').trim();
                             const icon = nameRaw.match(/[🎯⚙️🔧]/)?.[0] || '⚙️';
                             const ctxPct = parseInt(ctxRaw.match(/(\d+)%/)?.[1] || '0');
@@ -2234,7 +2627,12 @@ function addChatEntry(type, content, ts, anchor) {
                             row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
                             if (i >= PREVIEW_COUNT) row.style.display = 'none';
                             row.dataset.agentRow = '1';
-                            row.innerHTML = `<div style="display:flex;align-items:center;justify-content:between;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div><div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span><span style="color:#22c55e">${DOMPurify.sanitize(cost)}</span><span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:30px;height:3px;border-radius:2px;background:rgba(51,65,85,0.5);overflow:hidden"><span style="display:block;width:${Math.min(ctxPct,100)}%;height:100%;background:${ctxColor};border-radius:2px"></span></span><span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                            let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div>`;
+                            h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span>`;
+                            if (taskId) h += `<span style="color:#a78bfa;font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
+                            h += `<span style="display:inline-flex;align-items:center;gap:3px">ctx:<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                            if (desc) h += `<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
+                            row.innerHTML = h;
                             container.appendChild(row);
                         }
                         lastTool.appendChild(container);
@@ -2826,103 +3224,6 @@ function _wsCollapsible(el) {
     return wrapper;
 }
 
-function renderAgentListResult(raw) {
-    const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
-    const agents = [];
-    for (const line of lines) {
-        // list_agents: 🟢 🎯 **name** | state | model | $cost | ctx:X%
-        let m = line.match(/^(\S+)\s+(\S+)\s+\*\*([^*]+)\*\*\s+\|\s+([^|]+)\|\s+([^|]+)\|\s+\$?([\d.]+)(?:\s+\|\s+ctx:(\d+)%)?/u);
-        if (m) {
-            agents.push({ status: m[1], role: m[2], name: m[3].trim(), state: m[4].trim(), model: m[5].trim(), cost: parseFloat(m[6]), ctx: m[7] ? parseInt(m[7]) : 0 });
-            continue;
-        }
-        // list_orchestrators: 🎯 **name** | state | scope | $cost | ctx:X%
-        m = line.match(/^(\S+)\s+\*\*([^*]+)\*\*\s+\|\s+([^|]+)\|\s+([^|]+)\|\s+\$?([\d.]+)(?:\s+\|\s+ctx:(\d+)%)?/u);
-        if (m) {
-            agents.push({ status: '🟢', role: m[1], name: m[2].trim(), state: m[3].trim(), model: m[4].trim(), cost: parseFloat(m[5]), ctx: m[6] ? parseInt(m[6]) : 0 });
-            continue;
-        }
-        return null;
-    }
-    if (!agents.length) return null;
-
-    const PREVIEW = 4;
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display:flex;flex-direction:column;gap:4px';
-
-    const makeRow = (a) => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding:5px 6px;border-radius:6px;background:rgba(30,41,59,0.6)';
-
-        const top = document.createElement('div');
-        top.style.cssText = 'display:flex;align-items:center;gap:5px';
-        const dot = document.createElement('span');
-        dot.textContent = a.status;
-        dot.style.cssText = 'font-size:10px;line-height:1';
-        const roleEl = document.createElement('span');
-        roleEl.textContent = a.role;
-        roleEl.style.cssText = 'font-size:11px;line-height:1';
-        const nameEl = document.createElement('span');
-        nameEl.textContent = a.name;
-        nameEl.style.cssText = `font-size:12px;font-weight:600;color:${a.role === '🎯' ? '#c4b5fd' : '#e2e8f0'}`;
-        top.append(dot, roleEl, nameEl);
-
-        const bot = document.createElement('div');
-        bot.style.cssText = 'display:flex;align-items:center;gap:6px;padding-left:22px';
-        const stateColor = a.state === 'running' ? '#22c55e' : a.state === 'idle' ? '#94a3b8' : '#6b7280';
-        const meta = document.createElement('span');
-        meta.style.cssText = `font-size:10px;color:${stateColor}`;
-        meta.textContent = `${a.model} · ${a.state} · $${a.cost.toFixed(2)}`;
-        bot.appendChild(meta);
-
-        if (a.ctx > 0) {
-            const barWrap = document.createElement('div');
-            barWrap.style.cssText = 'display:flex;align-items:center;gap:4px';
-            const pctEl = document.createElement('span');
-            pctEl.style.cssText = 'font-size:10px;color:#64748b';
-            pctEl.textContent = `ctx:${a.ctx}%`;
-            const track = document.createElement('div');
-            track.style.cssText = 'width:40px;height:3px;background:rgba(100,116,139,0.2);border-radius:2px;overflow:hidden';
-            const fill = document.createElement('div');
-            const barColor = a.ctx >= 80 ? '#ef4444' : a.ctx >= 50 ? '#eab308' : '#22c55e';
-            fill.style.cssText = `height:100%;width:${Math.min(a.ctx,100)}%;background:${barColor};border-radius:2px`;
-            track.appendChild(fill);
-            barWrap.append(pctEl, track);
-            bot.appendChild(barWrap);
-        }
-
-        row.append(top, bot);
-        return row;
-    };
-
-    const visible = agents.slice(0, PREVIEW);
-    const hidden = agents.slice(PREVIEW);
-
-    visible.forEach(a => wrapper.appendChild(makeRow(a)));
-
-    if (hidden.length > 0) {
-        const restWrap = document.createElement('div');
-        restWrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;display:none';
-        hidden.forEach(a => restWrap.appendChild(makeRow(a)));
-        wrapper.appendChild(restWrap);
-
-        const toggle = document.createElement('div');
-        toggle.style.cssText = 'font-size:10px;color:#38bdf8;cursor:pointer;padding-top:2px';
-        toggle.textContent = `▼ ${hidden.length} more`;
-        wrapper.appendChild(toggle);
-
-        let expanded = false;
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            expanded = !expanded;
-            restWrap.style.display = expanded ? 'flex' : 'none';
-            toggle.textContent = expanded ? '▲ collapse' : `▼ ${hidden.length} more`;
-        });
-    }
-
-    return wrapper;
-}
-
 function renderWebSearchResults(raw) {
     let data;
     try { data = JSON.parse(raw); } catch { data = null; }
@@ -2969,11 +3270,8 @@ function renderWebSearchResults(raw) {
             if (raw[i] === '[') depth++;
             else if (raw[i] === ']') { depth--; if (depth === 0) { arrEnd = i + 1; break; } }
         }
-        if (arrEnd < 0) { arrEnd = raw.length; }
-        let jsonStr = raw.slice(arrStart, arrEnd);
-        if (!jsonStr.endsWith(']')) jsonStr = jsonStr.replace(/,?\s*\{[^}]*$/, '') + ']';
-        try {
-            const links = JSON.parse(jsonStr);
+        if (arrEnd > arrStart) try {
+            const links = JSON.parse(raw.slice(arrStart, arrEnd));
             if (Array.isArray(links) && links.length > 0) {
                 const el = document.createElement('div');
                 const textAfterLinks = raw.slice(arrEnd).trim();
@@ -3227,65 +3525,7 @@ async function loadFileTree(path, container) {
     try {
         const files = await api(`/api/files?path=${encodeURIComponent(path)}`);
         container.innerHTML = '';
-        for (const f of files) {
-            const item = document.createElement('div');
-            item.className = `file-item ${f.is_dir ? 'file-dir' : 'file-file'}`;
-            item.draggable = true;
-            item.dataset.path = f.path;
-            item.dataset.isDir = f.is_dir;
-            item.textContent = `${getFileIcon(f.name, f.is_dir)} ${f.name}`;
-            item.title = f.path;
-
-            item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', f.path);
-                e.dataTransfer.effectAllowed = 'copy';
-            });
-
-            if (f.is_dir) {
-                const savedExpanded = _getExpandedFolders();
-                let expanded = savedExpanded.has(f.path);
-                const children = document.createElement('div');
-                children.className = 'file-children' + (expanded ? '' : ' hidden');
-                if (expanded) {
-                    item.textContent = `📂 ${f.name}`;
-                    loadFileTree(f.path, children);
-                }
-                item.addEventListener('click', async () => {
-                    expanded = !expanded;
-                    if (expanded && children.children.length === 0) {
-                        await loadFileTree(f.path, children);
-                    }
-                    children.classList.toggle('hidden', !expanded);
-                    item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
-                    _saveExpandedFolder(f.path, expanded);
-                });
-                const wrapper = document.createElement('div');
-                wrapper.appendChild(item);
-                wrapper.appendChild(children);
-                container.appendChild(wrapper);
-            } else {
-                item.style.position = 'relative';
-                const sendBtn = document.createElement('span');
-                sendBtn.textContent = '➜';
-                sendBtn.title = 'Send path to chat';
-                sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
-                sendBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const input = $('#chat-input');
-                    input.value += (input.value ? '\n' : '') + f.path;
-                    input.focus();
-                    const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
-                        ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
-                    pastedImages.push(url);
-                    showImagePreview(url, f.path);
-                });
-                item.appendChild(sendBtn);
-                item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
-                item.addEventListener('mouseleave', () => sendBtn.style.opacity = '0');
-                item.addEventListener('click', () => openFilePreview(f.path));
-                container.appendChild(item);
-            }
-        }
+        for (const f of files) container.appendChild(_createFileItem(f, container));
         if (files.length === 0) {
             container.innerHTML = '<div class="text-slate-600 px-2 italic">empty</div>';
         }
@@ -3298,17 +3538,132 @@ async function loadFileTree(path, container) {
     }
 }
 
+function _createFileItem(f, container) {
+    const item = document.createElement('div');
+    item.className = `file-item ${f.is_dir ? 'file-dir' : 'file-file'}`;
+    item.draggable = true;
+    item.dataset.path = f.path;
+    item.dataset.isDir = f.is_dir;
+    item.title = f.path;
+
+    item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', f.path);
+        e.dataTransfer.effectAllowed = 'copy';
+    });
+
+    if (f.is_dir) {
+        const savedExpanded = _getExpandedFolders();
+        let expanded = savedExpanded.has(f.path);
+        const children = document.createElement('div');
+        children.className = 'file-children' + (expanded ? '' : ' hidden');
+        item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+        if (expanded) loadFileTree(f.path, children);
+        item.addEventListener('click', async () => {
+            expanded = !expanded;
+            if (expanded && children.children.length === 0) {
+                await loadFileTree(f.path, children);
+            }
+            children.classList.toggle('hidden', !expanded);
+            item.textContent = `${expanded ? '📂' : '📁'} ${f.name}`;
+            _saveExpandedFolder(f.path, expanded);
+        });
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(item);
+        wrapper.appendChild(children);
+        return wrapper;
+    } else {
+        item.textContent = `${getFileIcon(f.name, false)} ${f.name}`;
+        item.style.position = 'relative';
+        const sendBtn = document.createElement('span');
+        sendBtn.textContent = '➜';
+        sendBtn.title = 'Send path to chat';
+        sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
+        sendBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const input = $('#chat-input');
+            input.value += (input.value ? '\n' : '') + f.path;
+            input.focus();
+            const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
+                ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
+            pastedImages.push(url);
+            showImagePreview(url, f.path);
+        });
+        item.appendChild(sendBtn);
+        item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');
+        item.addEventListener('mouseleave', () => sendBtn.style.opacity = '0');
+        item.addEventListener('click', () => openFilePreview(f.path));
+        return item;
+    }
+}
+
+async function _refreshContainer(container, dirPath) {
+    try {
+        const files = await api(`/api/files?path=${encodeURIComponent(dirPath)}`);
+        const newPaths = new Set(files.map(f => f.path));
+        const existing = new Map();
+        for (const child of [...container.children]) {
+            const p = child.dataset?.path || child.querySelector?.('[data-path]')?.dataset?.path;
+            if (p) existing.set(p, child); else child.remove();
+        }
+        for (const [p, el] of existing) {
+            if (!newPaths.has(p)) el.remove();
+        }
+        let insertBefore = container.firstChild;
+        for (const f of files) {
+            if (existing.has(f.path)) {
+                insertBefore = existing.get(f.path).nextSibling;
+                continue;
+            }
+            const el = _createFileItem(f, container);
+            container.insertBefore(el, insertBefore);
+        }
+    } catch {}
+}
+
+async function refreshOpenFolders() {
+    const tree = $('#file-tree');
+    if (!tree || !currentScope) return;
+    await _refreshContainer(tree, currentScope);
+    const containers = tree.querySelectorAll('.file-children:not(.hidden)');
+    for (const container of containers) {
+        const dirItem = container.previousElementSibling;
+        if (!dirItem?.dataset?.path) continue;
+        await _refreshContainer(container, dirItem.dataset.path);
+    }
+}
+
+let _fileRefreshInterval = null;
+
 function initFilePanel() {
     const tree = $('#file-tree');
 
     const chatInput = $('#chat-input');
     if (!chatInput.dataset.fileDropReady) {
         chatInput.dataset.fileDropReady = '1';
-        chatInput.addEventListener('dragover', (e) => { e.preventDefault(); chatInput.classList.add('border-indigo-400'); });
-        chatInput.addEventListener('dragleave', () => chatInput.classList.remove('border-indigo-400'));
-        chatInput.addEventListener('drop', (e) => {
+        chatInput.addEventListener('dragover', (e) => {
+            if (!e.dataTransfer?.types?.includes('Files')) return;
             e.preventDefault();
-            chatInput.classList.remove('border-indigo-400');
+        });
+        chatInput.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            _hideDropHint();
+            if (e.dataTransfer?.files?.length) {
+                for (const file of e.dataTransfer.files) {
+                    const formData = new FormData();
+                    formData.append('file', file, file.name);
+                    try {
+                        const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                        const data = await resp.json();
+                        if (data.path) {
+                            chatInput.value += (chatInput.value ? '\n' : '') + data.path;
+                            pastedImages.push(data.url);
+                            showImagePreview(data.url, data.path);
+                        }
+                    } catch {}
+                }
+                chatInput.focus();
+                return;
+            }
             const path = e.dataTransfer.getData('text/plain');
             if (path) {
                 chatInput.value += (chatInput.value ? '\n' : '') + path;
@@ -3324,6 +3679,8 @@ function initFilePanel() {
     if (currentScope) {
         loadFileTree(currentScope, tree);
     }
+    if (_fileRefreshInterval) clearInterval(_fileRefreshInterval);
+    _fileRefreshInterval = setInterval(refreshOpenFolders, 10000);
 }
 
 // === Refresh Loop ===
@@ -3476,7 +3833,7 @@ async function fetchUsage() {
 
 function initUsageBar() {
     fetchUsage();
-    setInterval(fetchUsage, 300000);
+    setInterval(fetchUsage, 120000);
     _usageCountdownInterval = setInterval(() => {
         if (_usageData) renderUsageBar();
     }, 60000);
@@ -3536,22 +3893,19 @@ function initHeartbeat() {
     }, 3000);
 }
 
-// --- Task Manager ---
-
-function escHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
+// === Tasks Panel ===
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 let _tasksTabActive = false;
 let _tasksInterval = null;
 
+let _jobsTabActive = false;
+let _jobsInterval = null;
+
 function switchLeftTab(tab) {
     const fileTree = document.getElementById('file-tree');
     const tasksPanel = document.getElementById('tasks-panel');
-    if (!fileTree || !tasksPanel) return;
-
+    const jobsPanel = document.getElementById('jobs-panel');
     document.querySelectorAll('.left-tab').forEach(btn => {
         const isActive = btn.dataset.leftTab === tab;
         btn.classList.toggle('text-white', isActive);
@@ -3559,19 +3913,15 @@ function switchLeftTab(tab) {
         btn.classList.toggle('text-slate-500', !isActive);
         btn.classList.toggle('border-transparent', !isActive);
     });
-
-    if (tab === 'files') {
-        fileTree.classList.remove('hidden');
-        tasksPanel.classList.add('hidden');
-        _tasksTabActive = false;
-        if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; }
-    } else {
-        fileTree.classList.add('hidden');
-        tasksPanel.classList.remove('hidden');
-        _tasksTabActive = true;
-        loadTasks();
-        if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 30000);
-    }
+    if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
+    if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
+    if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
+    _tasksTabActive = tab === 'tasks';
+    _jobsTabActive = tab === 'jobs';
+    if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 30000); }
+    else { if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; } }
+    if (_jobsTabActive) { loadJobs(); if (!_jobsInterval) _jobsInterval = setInterval(loadJobs, 10000); }
+    else { if (_jobsInterval) { clearInterval(_jobsInterval); _jobsInterval = null; } }
 }
 
 const STATUS_ORDER = ['in_progress', 'done', 'new', 'backlog', 'paid', 'cancelled'];
@@ -3590,80 +3940,73 @@ async function loadTasks() {
     const panel = document.getElementById('tasks-panel');
     if (!panel) return;
     try {
-        const scope = _sessions[_currentOrch]?.scope || '';
-        const [tasksResp, payResp, syncResp] = await Promise.all([
+        const scope = currentScope || '';
+        const [tasksResp, payResp] = await Promise.all([
             fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
             fetch('/api/tm/payments/status').catch(() => null),
-            fetch('/api/tm/sync/log?limit=10').catch(() => null),
         ]);
         const data = await tasksResp.json();
         const payData = payResp ? await payResp.json().catch(() => null) : null;
-        const syncData = syncResp ? await syncResp.json().catch(() => null) : null;
-        const pendingSyncs = (syncData?.entries || []).filter(e => e.status === 'error' || e.status === 'pending').length;
-        renderTasksPanel(panel, data, payData, pendingSyncs);
+        renderTasksPanel(panel, data, payData);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
     }
 }
 
-function renderTasksPanel(panel, data, payData, pendingSyncs) {
+function renderTasksPanel(panel, data, payData) {
     const tasks = data.tasks || [];
     const grouped = {};
-    for (const t of tasks) {
-        (grouped[t.status] ||= []).push(t);
-    }
+    for (const t of tasks) { (grouped[t.status] ||= []).push(t); }
 
     let html = '';
-    html += `<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">`;
+    html += '<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">';
     if (payData && payData.balance_display) {
         html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)} ₽</span></div>`;
     }
     html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')} ₽</span></div>`;
-    if (pendingSyncs > 0) {
-        html += `<div class="flex justify-between"><span class="text-slate-500">⚠️ Sync:</span><span class="text-red-400 font-mono">${pendingSyncs} pending</span></div>`;
+    html += '</div>';
+
+    if (tasks.length === 0) {
+        html += '<div class="p-4 text-center text-slate-600 italic">No tasks yet</div>';
+        panel.innerHTML = html;
+        return;
     }
-    html += `</div>`;
 
     for (const status of STATUS_ORDER) {
         const group = grouped[status];
         if (!group || group.length === 0) continue;
-
         const isCollapsed = _taskCollapsed[status] ?? COLLAPSED_DEFAULT.has(status);
         const dot = STATUS_COLORS[status] || 'bg-slate-400';
         const label = STATUS_LABELS[status] || status.toUpperCase();
         const arrow = isCollapsed ? '▸' : '▾';
-
         let suffix = '';
         if (status === 'done') {
-            const debt = group.reduce((s, t) => {
-                const d = parseInt(t.debt) || 0;
-                return s + d;
-            }, 0);
+            const debt = group.reduce((s, t) => s + (parseInt(t.debt) || 0), 0);
             if (debt > 0) suffix = ` → ${debt}k ₽`;
         }
-
-        html += `<div class="mt-1">`;
+        html += '<div class="mt-1">';
         html += `<div class="px-2 py-1 flex items-center gap-1.5 cursor-pointer hover:bg-slate-800/30 rounded select-none" onclick="toggleTaskGroup('${status}')">`;
         html += `<span class="text-[10px]">${arrow}</span>`;
         html += `<span class="w-1.5 h-1.5 rounded-full ${dot} shrink-0"></span>`;
         html += `<span class="text-slate-400 font-bold flex-1">${label} (${group.length})</span>`;
         if (suffix) html += `<span class="text-amber-400 text-[10px] font-mono">${suffix}</span>`;
-        html += `</div>`;
-
+        html += '</div>';
         if (!isCollapsed) {
             for (const t of group) {
-                const par = t.par.replace('PAR-', '');
+                const par = t.par;
+                const _PD = {0:'🔴',1:'🟠',2:'',3:'🟢'};
+                const priDot = _PD[t.priority] || '';
                 const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
-                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" data-par="${par}" onclick="injectTask('${par}')" ondblclick="showTaskDetail('${par}')">`;
-                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
+                html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${par}" onclick="showTaskDetail('${par}')">`;
+                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${priDot}${par}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
-                html += `</div>`;
+                html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${par}')" title="Insert #${par} into chat">📩</span>`;
+                html += '</div>';
             }
         }
-        html += `</div>`;
+        html += '</div>';
     }
-
     panel.innerHTML = html;
 }
 
@@ -3676,64 +4019,143 @@ function toggleTaskGroup(status) {
 function injectTask(par) {
     const input = document.getElementById('chat-input');
     if (!input) return;
-    const ref = `[PAR-${par}] `;
-    if (!input.value.includes(`PAR-${par}`)) {
-        input.value = ref + input.value;
+    const ref = `[#${par}]`;
+    if (!input.value.includes(`#${par}`)) {
+        input.value = (input.value ? input.value + ' ' : '') + ref;
         input.focus();
     }
 }
 
 async function showTaskDetail(par) {
     try {
-        const r = await fetch(`/api/tm/tasks/${par}`);
+        const scope = currentScope ? `?scope=${encodeURIComponent(currentScope)}` : '';
+        const r = await fetch(`/api/tm/tasks/${par}${scope}`);
         const t = await r.json();
         if (t.error) return;
-
         const modal = document.getElementById('prompt-modal');
         const nameEl = document.getElementById('prompt-modal-name');
         const bodyEl = document.getElementById('prompt-modal-body');
         if (!modal || !nameEl || !bodyEl) return;
-
-        nameEl.textContent = t.par + ' ' + t.title;
-
+        nameEl.textContent = '#' + t.par + ' ' + t.title;
         let html = '<div class="space-y-3">';
-        html += `<div class="grid grid-cols-2 gap-2 text-xs">`;
+        html += '<div class="grid grid-cols-2 gap-2 text-xs">';
         html += `<div><span class="text-slate-500">Status:</span> <span class="font-bold">${t.status}</span></div>`;
         html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k ₽' : '—'}</span></div>`;
-        html += `<div><span class="text-slate-500">Paid:</span> ${t.paid_rub/1000}/${t.price_rub/1000}k</div>`;
+        html += `<div><span class="text-slate-500">Paid:</span> ${(t.paid_rub||0)/1000}/${(t.price_rub||0)/1000}k</div>`;
         html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k ₽' : '0'}</span></div>`;
         html += `<div><span class="text-slate-500">Assignee:</span> ${escHtml(t.assignee || '—')}</div>`;
+        const _PRI = {0:'🔴 Critical',1:'🟠 High',2:'🟡 Medium',3:'🟢 Low'};
+        html += `<div><span class="text-slate-500">Priority:</span> ${_PRI[t.priority] || 'Medium'}</div>`;
         html += `<div><span class="text-slate-500">Project:</span> ${escHtml(t.project)}</div>`;
         html += `<div><span class="text-slate-500">Created:</span> ${(t.created_at||'').slice(0,10)}</div>`;
+        if (t.updated_at) html += `<div><span class="text-slate-500">Updated:</span> ${t.updated_at.slice(0,10)}</div>`;
         if (t.completed_at) html += `<div><span class="text-slate-500">Done:</span> ${t.completed_at.slice(0,10)}</div>`;
-        html += `</div>`;
-
+        if (t.paid_at) html += `<div><span class="text-slate-500">Paid at:</span> ${t.paid_at.slice(0,10)}</div>`;
+        html += '</div>';
         if (t.description) {
-            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">DESCRIPTION</div>`;
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">DESCRIPTION</div>';
             html += `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(t.description))}</div></div>`;
         }
-
         if (t.payments && t.payments.length > 0) {
-            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">PAYMENTS</div>`;
-            for (const p of t.payments) {
-                html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`;
-            }
-            html += `</div>`;
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">PAYMENTS</div>';
+            for (const p of t.payments) { html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`; }
+            html += '</div>';
         }
-
-        if (t.commits && t.commits.length > 0) {
-            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>`;
-            for (const c of t.commits) {
-                html += `<div class="text-xs font-mono">${c.slice(0,7)}</div>`;
+        const commits = t.commits || t.git_commits || [];
+        if (commits.length > 0) {
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>';
+            for (const c of commits) {
+                if (typeof c === 'string') { html += `<div class="text-xs font-mono">${escHtml(c.slice(0,60))}</div>`; continue; }
+                const hash = (c.hash || '').slice(0, 7);
+                const msg = (c.message || '').length > 50 ? c.message.slice(0, 50) + '…' : (c.message || '');
+                const date = (c.date || '').slice(0, 10);
+                const ins = c.insertions || 0; const del = c.deletions || 0; const files = c.files || 0;
+                html += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.6"><span style="color:#a78bfa;font-family:monospace;flex-shrink:0">${escHtml(hash)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e8f0">${escHtml(msg)}</span><span style="color:#64748b;flex-shrink:0">${escHtml(date)}</span><span style="flex-shrink:0"><span style="color:#22c55e">+${ins}</span>/<span style="color:#ef4444">-${del}</span></span><span style="color:#64748b;flex-shrink:0">${files}f</span></div>`;
             }
-            html += `</div>`;
+            html += '</div>';
         }
-
+        const sys = [];
+        if (t.yougile_task_id) sys.push(`yougile: ${t.yougile_task_id}`);
+        if (t.sync_revision) sys.push(`sync rev: ${t.sync_revision}`);
+        if (t.worker_session_id) sys.push(`worker: ${t.worker_session_id}`);
+        if (sys.length > 0) {
+            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">SYSTEM</div>';
+            html += `<div class="text-[10px] text-slate-600 font-mono">${sys.join(' · ')}</div></div>`;
+        }
         html += '</div>';
         bodyEl.innerHTML = html;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+    } catch (e) { console.error('Task detail error:', e); }
+}
+
+// === Jobs Panel ===
+const _JOB_ICONS = { timer: '⏰', file: '📄', command: '🖥️', ssh: '🔗', run: '▶️' };
+const _JOB_STATUS = { active: '🟢', triggered: '✅', expired: '⏰', cancelled: '❌', failed: '❌' };
+
+async function loadJobs() {
+    const panel = document.getElementById('jobs-panel');
+    if (!panel) return;
+    try {
+        const scope = currentScope || '';
+        const resp = await fetch(`/api/bg/jobs?scope=${encodeURIComponent(scope)}`);
+        const jobs = await resp.json();
+        renderJobsPanel(panel, Array.isArray(jobs) ? jobs : (jobs.jobs || []));
     } catch (e) {
-        console.error('Task detail error:', e);
+        panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load jobs</div>';
     }
+}
+
+function _timeLeft(expiresAt) {
+    if (!expiresAt) return '';
+    const diff = new Date(expiresAt) - Date.now();
+    if (diff <= 0) return 'expired';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+}
+
+function renderJobsPanel(panel, jobs) {
+    if (jobs.length === 0) {
+        panel.innerHTML = '<div class="p-4 text-center text-slate-600 italic">No background jobs</div>';
+        return;
+    }
+    const active = jobs.filter(j => j.status === 'active');
+    const done = jobs.filter(j => j.status !== 'active');
+    let html = '';
+    if (active.length > 0) {
+        html += '<div class="px-2 py-1 text-slate-400 font-bold text-[10px]">ACTIVE (' + active.length + ')</div>';
+        for (const j of active) html += _renderJobItem(j);
+    }
+    if (done.length > 0) {
+        html += '<div class="px-2 py-1 mt-1 text-slate-500 font-bold text-[10px]">COMPLETED</div>';
+        for (const j of done.slice(0, 10)) html += _renderJobItem(j);
+    }
+    panel.innerHTML = html;
+}
+
+function _renderJobItem(j) {
+    const icon = _JOB_ICONS[j.type] || '⚙️';
+    const statusIcon = _JOB_STATUS[j.status] || '⚪';
+    const target = j.target_name ? escHtml(j.target_name) : '';
+    const msg = j.message ? escHtml(j.message.slice(0, 50)) : '';
+    const timeStr = j.status === 'active' && j.expires_at ? _timeLeft(j.expires_at) : '';
+    const cancelBtn = j.status === 'active' ? `<span class="job-cancel-btn" onclick="event.stopPropagation();cancelJob('${j.id}')" title="Cancel job">✕</span>` : '';
+    return `<div class="flex items-center gap-1.5 px-2 py-1 hover:bg-slate-800/50 rounded text-xs" style="position:relative">
+        <span>${icon}</span>
+        <span class="flex-1 truncate"><span style="color:#e2e8f0">${target}</span>${msg ? ' <span style="color:#64748b">'+msg+'</span>' : ''}</span>
+        ${timeStr ? '<span style="color:#38bdf8;font-size:10px;font-family:monospace">'+timeStr+'</span>' : ''}
+        <span>${statusIcon}</span>
+        ${cancelBtn}
+    </div>`;
+}
+
+async function cancelJob(id) {
+    try {
+        await fetch(`/api/bg/jobs/${id}`, { method: 'DELETE' });
+        loadJobs();
+    } catch (e) { console.warn('Cancel job failed:', e); }
 }
