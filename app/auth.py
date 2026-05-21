@@ -1,13 +1,8 @@
-"""Dashboard authentication — cookie-based sessions from .env credentials."""
+"""Dashboard authentication — deterministic HMAC tokens from .env credentials."""
 
+import hashlib
 import hmac
 import os
-import time
-from uuid import uuid4
-
-SESSION_TTL = 86400
-
-_sessions: dict[str, dict] = {}
 
 
 def is_auth_enabled() -> bool:
@@ -25,33 +20,22 @@ def check_credentials(username: str, password: str) -> bool:
     )
 
 
+def _make_token(username: str) -> str:
+    secret = os.environ.get("DASHBOARD_PASSWORD", "")
+    return hmac.new(secret.encode(), username.encode(), hashlib.sha256).hexdigest()
+
+
 def create_session(username: str) -> str:
-    token = uuid4().hex
-    _sessions[token] = {"user": username, "created_at": time.time()}
-    return token
+    return _make_token(username)
 
 
 def validate_session(token: str) -> bool:
     if not token:
         return False
-    session = _sessions.get(token)
-    if not session:
+    user = os.environ.get("DASHBOARD_USER", "")
+    if not user:
         return False
-    if time.time() - session["created_at"] > SESSION_TTL:
-        _sessions.pop(token, None)
-        return False
-    return True
-
-
-def destroy_session(token: str) -> None:
-    _sessions.pop(token, None)
-
-
-def cleanup_expired() -> None:
-    now = time.time()
-    expired = [t for t, s in _sessions.items() if now - s["created_at"] > SESSION_TTL]
-    for t in expired:
-        del _sessions[t]
+    return hmac.compare_digest(token, _make_token(user))
 
 
 def check_internal_token(auth_header: str) -> bool:
