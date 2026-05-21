@@ -18,14 +18,23 @@
 ```
 Оркестратор (FastAPI :8888)
 ├── Dashboard (HTMX + SSE) — http://localhost:8888
-├── SQLite — sessions, logs, inbox, jobs
+│   ├── Auth (cookie session, login/password from .env)
+│   └── Login page (glass-style dark theme)
+├── SQLite — sessions, logs, inbox, jobs, tasks, payments
 ├── External MCP Server (app/mcp_stdio.py) — tools для Claude CLI
-├── Session Manager — spawn/stop/archive
+│   └── Auth: INTERNAL_TOKEN header для всех API запросов
+├── Auth middleware — cookie OR internal token
+├── Session Manager — spawn/stop/archive/compact
+├── Task Manager (app/tm.py) — CRUD, priorities, payments, YouGile sync
+├── TG Bridge (app/tg_bridge.py) — bidirectional, topics, voice transcription
 └── Workers (N штук)
     ├── Claude CLI (persistent client per session via SDK)
     ├── git worktree — изолированная рабочая копия
-    └── HTTP callback — curl POST /api/sessions/{name}/send
+    ├── MCP: Orchestra + scope .mcp.json (Playwright и т.д.)
+    └── Stats: turns, tokens, tool_calls
 ```
+
+Deployed: localhost:8888 (dev) + 147.45.101.84 (VPS клиента, auth enabled)
 
 ## Dev Commands
 ```bash
@@ -45,6 +54,7 @@ sudo systemctl status orchestra
 - **НЕ рестартить сервер при изменении фронта** (JS/CSS/HTML) — статика подтягивается автоматически. Рестарт только при изменении Python-кода
 - **sudo без пароля** для `systemctl restart/stop/start/status orchestra` и `telegram-bot-api` — можно рестартить сервер самому через `sudo systemctl restart orchestra`
 - **НЕ рестартить сервер самостоятельно** — только по явной команде юзера ("ок", "рестартни", "перезапусти"). Ребут убивает все активные сессии агентов
+- **НЕ обновлять VPS (147.45.101.84) самостоятельно** — git pull, systemctl restart на VPS делает только юзер вручную. Не пушить и не деплоить на VPS без команды
 - **TG /restart** — команда в TG группе для рестарта Orchestra
 - **Воркеры могут общаться друг с другом** через `send_message(to="worker-name")`. Пример: backend воркер добавил endpoint → пишет frontend-opus чтобы тот добавил кнопку. Оркестратор не нужен как посредник для координации между воркерами
 

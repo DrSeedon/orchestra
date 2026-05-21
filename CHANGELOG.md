@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.7.0 — 2026-05-21
+
+### Added
+- 🔒 **Dashboard Auth** — cookie session login/password из .env (`DASHBOARD_USER`/`DASHBOARD_PASSWORD`). Deterministic HMAC token переживает рестарты. 30-day cookie. Backward compat — без переменных = открытый доступ. `app/auth.py`, `login.html`
+- 🔒 **Security hardening** — full Codex audit, 6 critical/high fixes: path traversal deny-list (dotfiles, .db, .key), internal token auth для MCP callbacks, upload extension blocking, safe_path на send_file/session create, limit caps на SSE/logs, rename validation
+- 📊 **Task priorities** — 0=critical 🔴, 1=high 🟠, 2=medium 🟡, 3=low 🟢. CSS dots в task panel. Сортировка по priority. MCP tools `task_create(priority=)`, `task_update(priority=)`
+- 📦 **Worker description** — `description` поле при spawn, `update_worker_description()` tool, отображается в `list_agents` + info panel + list_agents bubble
+- 🔍 **get_worker_info** — MCP tool возвращает полную инфу включая system_prompt (500 chars), description, stats
+- ✏️ **update_worker_prompt** — MCP tool обновляет system_prompt воркера
+- 🗄️ **Archive workers** — kill_worker теперь архивирует (status=archived) вместо удаления. Логи и статистика сохраняются. Archived не блокируют повторный spawn
+- 📈 **Session statistics** — `total_turns`, `total_input_tokens`, `total_output_tokens`, `total_tool_calls` трекаются per session. `/api/stats` endpoint
+- 💰 **Payment journal** — автоматическая таска-журнал в YouGile. Description обновляется при каждом `payment_receive`. Баланс + пополнения + распределения
+- 📂 **File tree auto-refresh** — поллинг открытых папок каждые 10 сек, diff-update без моргания
+- 📎 **Drag & drop файлов** — drop на textarea загружает файл, вставляет путь. Drop hint при dragover
+- 🕐 **Timestamps в сообщениях** — `[HH:MM]` prepend для LLM, strip в dashboard и TG mirror
+- 🔄 **Mid-turn inject восстановлен** — Claude: try inject → fallback queue. Codex: always queue
+- 🪞 **Mirror send_file** — файлы зеркалятся в TG топик агента
+- 📋 **Tab context menu** — правый клик на таб: скрыть/удалить. Wheel scroll. Кнопка скрытых табов
+- ⚖️ **AGPL-3.0 license** — dual licensing: AGPL + commercial от ООО «Сидон»
+- 🚀 **VPS deployment** — Orchestra задеплоена на 147.45.101.84 (Amsterdam). Auth, TG bridge, Deepgram, systemd, nginx
+
+### Changed
+- **Task prefixes removed** — `PAR-49` → `#49`. Plain numbers, legacy prefixes accepted. `format_task_ref()`, `resolve_task_ref()`, workspace branches `task-N/name`
+- **Proxy parametrized** — `HTTPS_PROXY` из os.environ, не hardcoded. cli_path через `CLAUDE_CLI_PATH` env
+- **Merge auto-stash** — `merge_worker` автоматически stash/pop при dirty main repo
+- **MCP scope passthrough** — `task_get`/`task_update` передают scope для disambiguación
+- **Rename full** — обновляет system_prompt identity + git branch + DB
+- **Compact блокирует send()** — сообщения в очередь во время compact, доставляются после
+- **Auto in_progress** — spawn_worker/switch_worker_branch с task_id автоматом ставит in_progress
+- **bg_jobs cleanup** — triggered/expired/cancelled jobs старше 24h автоудаляются
+- **Scope MCP servers** — воркеры получают MCP из `.mcp.json` проекта (Playwright и т.д.)
+
+### Fixed
+- 🔴 **Crash loop sr/nt** — `_handle_turn_end` использовал удалённые переменные → listener reconnect loop
+- 🔴 **Compact interrupted** — incoming messages во время compact → empty summary → cascade crash
+- 💲 **Double "kk"** — price "8k" + фронт "k" = "8kk". Backend уже форматирует
+- 🏷️ **Universal prefix strip** — `replace('PAR-','')` → regex `/^[A-Z]+-/` для всех prefix'ов
+- 🔐 **Internal token для всех API** — MCP tools авторизуются через Bearer token, не только /send
+- 🍪 **Cookie auth на /send** — фронт отправлял cookie, middleware проверял только token
+- 📋 **Ambiguous task numbers** — scope resolves одинаковые номера в разных проектах
+- 📂 **Hidden files visible** — убран `startswith('.')` фильтр в /api/files
+- 🖱️ **Text selection restored** — document-level drag listeners убивали выделение текста
+- 📊 **Sync indicator removed** — бесполезный sync indicator для проектов без YouGile
+- 🎯 **Task detail modal** — pretty commits display, scope passthrough, informative task_update bubble
+- 🔄 **YouGile description sync** — description пушился в push_update (была только title+column)
+
 ## v2.6.0 — 2026-05-14
 
 ### Added
