@@ -219,7 +219,12 @@ _ALLOWED_ROOTS: list[str] = []
 def _get_allowed_roots() -> list[str]:
     if _ALLOWED_ROOTS:
         return _ALLOWED_ROOTS
-    for root in ["/mnt/data/Projects", str(Path.home())]:
+    extra = os.environ.get("ALLOWED_ROOTS", "")
+    if extra:
+        for p in extra.split(":"):
+            if p and Path(p).is_dir():
+                _ALLOWED_ROOTS.append(p)
+    for root in ["/mnt/data/Projects", "/opt", str(Path.home())]:
         if Path(root).is_dir():
             _ALLOWED_ROOTS.append(root)
     uploads = str(Path(__file__).parent.parent / "data" / "uploads")
