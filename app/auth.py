@@ -11,7 +11,7 @@ _sessions: dict[str, dict] = {}
 
 
 def is_auth_enabled() -> bool:
-    return bool(os.environ.get("DASHBOARD_USER") and os.environ.get("DASHBOARD_PASSWORD"))
+    return bool(os.environ.get("DASHBOARD_USER") or os.environ.get("DASHBOARD_PASSWORD"))
 
 
 def check_credentials(username: str, password: str) -> bool:
@@ -66,7 +66,7 @@ def check_internal_token(auth_header: str) -> bool:
 def requires_auth(path: str, method: str) -> bool:
     if path in ("/login", "/logout"):
         return False
-    if path.startswith(("/static/", "/uploads/")):
+    if path.startswith("/static/"):
         return False
     if path.startswith("/api/webhook/"):
         return False
