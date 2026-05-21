@@ -147,7 +147,7 @@ async def login_submit(request: Request, username: str = Form(""), password: str
         token = create_session(username)
         response = RedirectResponse("/", status_code=302)
         secure = request.url.scheme == "https" or os.environ.get("COOKIE_SECURE") == "1"
-        response.set_cookie("session", token, httponly=True, samesite="lax", max_age=86400, secure=secure)
+        response.set_cookie("session", token, httponly=True, samesite="lax", max_age=2592000, secure=secure)
         return response
     return templates.TemplateResponse(request, "login.html", {"error": "Invalid credentials"})
 
