@@ -1,28 +1,69 @@
 # Changelog
 
-## v2.5.0 — 2026-05-10
+## v2.6.0 — 2026-05-14
 
 ### Added
-- 🚀 **Persistent client + mid-turn message injection** — replaced "fresh client per turn" with persistent client per session. `send()` now calls `client.query()` directly — messages inject via SDK stdin transport mid-turn. No more pending queue, no debounce, no turn boundary waiting. User sends message while agent is working → agent sees it IMMEDIATELY as system-reminder. Same mechanism Claude Code CLI uses natively
-  - `_ensure_client()` — connects once, reuses across all turns
-  - `_persistent_listen()` — infinite loop over `receive_messages()`, handles all message types, does NOT disconnect on ResultMessage
-  - `_disconnect_client()` — clean shutdown helper
-  - Removed: `_pending`, `_debounce_task`, `_turn_task`, `_run_turn()`, `_arm_debounce()`, `_on_debounce()`, `debounce_sec`
-  - Triggered case: user sent 4 messages during benchmark turn — all arrived as system-reminders mid-turn, visible in real-time
-- 🎯 **Spawn worker custom bubble** — card-style rendering instead of raw JSON. Shows `🚀 Spawning worker-name` header + model badge pill (color-coded: purple=Opus, blue=Sonnet, green=Haiku) + markdown task preview + system prompt under spoiler + repo path. Single click expands everything
-- 📋 **Compact mode spawn preview** — shows `🚀 worker-name (Opus 1M)` instead of raw JSON in compact mode
+- 🔄 **Auto-resume ALL sessions on restart** — `auto_resume_all()` restores orchestrators AND workers from DB (was orchestrators-only). Sessions that were `running` at shutdown get a restart notice injected after 3s: `[system] Orchestra server restarted. Your session was restored — continue where you left off.`
+  - `_inject_restart_notice()` in `manager.py` — delayed inject with error handling
+  - `auto_resume_orchestrators()` kept as backward-compat wrapper
+- 🤝 **Cross-orchestrator awareness** — `_other_orchestrators_block(scope)` dynamically generates a list of all other orchestrators with project names, injected into `ORCHESTRATOR_SYSTEM_PROMPT`. Each orchestrator knows who else exists and can `send_message` them. List updates on restart/compact
+- 👤 **TG sender name** — all messages from TG now include `[from TG: Name]` prefix so agents know who's writing. Works for text, photos, files, video, audio, voice, video notes, stickers
+- 🔒 **TG polling auto-restart** — `_safe_polling()` wraps `dp.start_polling` with crash recovery (auto-restart after 10s) + logging. No more silent polling deaths
+- 📊 **Usage cache persistence** — `data/usage_cache.json` survives server restarts. No more empty usage bar after reboot caused by Anthropic rate limit + cold cache
+- 🔀 **merge_worker MCP tool** — orchestrator can merge a worker's branch into main with one call. `git merge-tree` precheck detects conflicts before merging. fcntl lock serializes parallel merges. Auto-commits dirty worktree. `workspace.py`, `mcp_stdio.py`, `main.py`
+- 🛑 **stop_worker MCP tool** — interrupt + idle without destroying session/worktree. Resumable via send_message. Separate from kill_worker (full delete)
+- 📈 **Worker progress tracking** — `update_progress(percent, status)` MCP tool. Green glow progress bar in sidebar. Resets on new task. `session.py`, `db.py`, `mcp_stdio.py`, `app.js`
+- 🖼️ **TG images as photos** — `send_file` auto-detects images (.jpg/.png/.gif/.webp/.bmp) → `send_photo()` for inline preview. `as_document=True` forces file attachment
+- 🌿 **Git status in worker cards** — sidebar shows `branch+N 💾N "last commit"` per worker. `GET /api/git-status?scope=` with 10s server cache. Green/yellow/gray coloring
+- 💓 **Persistent client heartbeat** — 60s heartbeat detects silent listener death, auto-reconnects with inject notice. Silence warning >300s. Full tracebacks on crash
 
 ### Changed
-- **`interrupt()`** now uses `client.interrupt()` SDK method (sends control signal) instead of asyncio task cancellation
-- **`compact()`** stops `_listen_task` first to prevent race condition (two consumers on one async generator), then iterates `receive_messages()` directly, disconnects, creates fresh session
-- **Turn timeout** tracked via `_turn_start` timestamp checked on each message instead of `asyncio.wait_for()` wrapper
-- **Orchestrator prompt** — "NEVER kill workers after task completion" rule added. Workers stay idle for reuse — spawning new = $1-2 wasted on context rebuild
-- **Base prompt** — mid-turn message reaction rule: when system-reminder arrives with user message → STOP and respond immediately
+- **Usage cache TTL 120→300s** — backend and frontend polling aligned at 5min to reduce Anthropic API rate limit hits
+- **TG logger** — `tg-bridge` logger now has `StreamHandler` + `DEBUG` level, all TG events visible in journalctl
+- **SSE disconnect leak** — `stream_session_logs` generator now checks `request.is_disconnected()`, stops on tab close
 
 ### Fixed
-- **Load-more (500 more) rendering** — old messages now render through `addChatEntry()` with full custom bubbles (Bash, Edit, Read, Grep, spawn_worker, send_message) instead of plain text
-- **Spawn worker generic body duplication** — `isSpawnWorker` added to exclusion list in generic fallback renderer
-- **compact() race condition** — listener paused before iterating receive_messages() to prevent two consumers on same async generator
+- 🟢🟡 **TG topic status desynced from frontend** — single source of truth via `_any_running_in_scope(scope)`. When orchestrator finishes turn but workers still running → stays 🟢 (was: immediately 🟡). When ANY worker goes idle → `_notify_scope_idle()` checks scope → flips to 🟡 only when ALL idle
+  - `check_scope_idle()` in `tg_bridge.py` — public function called from `session.py` and `stream_logs`
+  - `_notify_scope_idle()` in `session.py` — fires on every worker IDLE transition, not just auto-report
+- 🟢🟡 **TG topic status on startup** — `_sync_all_topic_statuses()` sets correct 🟢/🟡 on all topics when bridge starts
+- 🪞 **TG mirror formatting** — mirror messages now receive `converted` text + `entities` from `md_convert()` (was: raw plain text without formatting). All 3 send paths: text/status, tool, tool_result
+
+## v2.5.0 — 2026-05-11
+
+### Added
+- 🚀 **Persistent client + mid-turn message injection** — replaced "fresh client per turn" with persistent client per session. `send()` → `client.query()` directly via SDK stdin transport. No more pending queue, debounce, turn boundary waiting. Messages inject mid-turn as system-reminders
+  - `_ensure_client()` — connects once, reuses across turns
+  - `_persistent_listen()` — infinite loop over `receive_messages()`, does NOT disconnect on ResultMessage
+  - `_disconnect_client()` — clean shutdown helper
+  - Auto-reconnect: detects dead listener, retries `query()` on failure
+  - Removed: `_pending`, `_debounce_task`, `_turn_task`, `_run_turn()`, `_arm_debounce()`, `_on_debounce()`, `debounce_sec`
+- 📊 **Usage status bar** — global bar at top of dashboard. OAuth API (`/api/oauth/usage`) with 120s cache, shows 5h/7d utilization with HSL gradient color (green=under budget, yellow=on track, red=burning fast), reset progress % in parentheses. `/api/usage` endpoint combines Anthropic data + per-agent cost from DB
+- 🎯 **Spawn worker bubble** — card with `🚀 Spawning name` + model badge pill (color-coded) + markdown task preview + system prompt + repo path. Single click expands all
+- 🌐 **WebSearch result renderer** — bracket-counting JSON parser for Links format, Perplexity markdown with token/cost header, standalone detection when `lastTool` is null. Collapsible (5 lines preview)
+- 🔍 **ToolSearch bubble** — `🔍 Loading: query` → `✅ Loaded: ToolName` on result
+- 🐛 **report_bug bubble** — `🐛 Bug: title` with collapsible description
+- 🖼️ **Base64 image rendering** — tool_results with image data render as `<img>`, not raw base64 text
+- 📝 **Textarea resize upward** — drag handle above textarea, pull up to expand (bottom of screen = can't drag down)
+- 🔄 **Auto-compact for orchestrators** — removed `not self.is_orchestrator` exclusion, orchestrators auto-compact at >90% context
+
+### Changed
+- **`interrupt()`** — uses `client.interrupt()` SDK method instead of asyncio task cancellation
+- **`compact()`** — stops listener first (race condition fix), bracket-counted JSON parse, disconnects cleanly
+- **Turn timeout** — tracked via `_turn_start` timestamp instead of `asyncio.wait_for()`
+- **send_message bubble** — split by lines (5 preview), re-render full on expand. No more mid-word cuts
+- **Tool result expand** — line-based preview (was char-based), single element with maxHeight (no gap/separator), universal click-to-expand on all bubble types
+- **Model aliases** — `claude-opus-4-6` → `claude-opus-4-6[1m]` auto-resolve
+- **Worker custom prompt** — `_safe_format_prompt()` replaces `str.format()`, only substitutes known placeholders. Resume correctly extracts custom portion
+- **Load-more tool_result matching** — `_findLastBefore()` constrains querySelector to prepended batch only
+
+### Fixed
+- **WebSearch `isEdit` bug** — spawn_worker/WebSearch/ToolSearch bubbles had `dataset.isEdit='1'` which caused tool_result handler to early-return, silently swallowing results
+- **WebSearch regex** — replaced fragile regex with bracket-counting parser for Links JSON arrays (handles truncated SDK output, multi-item arrays, special chars)
+- **Load-more rendering** — old messages now use `addChatEntry()` with full custom bubbles
+- **compact() race condition** — listener paused before iterating `receive_messages()`
+- **Persistent client dead process** — `_ensure_client()` checks `_listen_task.done()`, `send()` retries with reconnect on `query()` failure
+- **Universal click-to-expand** — audit of all handlers, WebSearch and Read .md fixed (were hint-only)
 
 ## v2.4.0 — 2026-05-10
 

@@ -7,6 +7,8 @@ import asyncio
 import json
 import logging
 import os
+import re
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import aiohttp
@@ -15,6 +17,9 @@ from aiogram.client.default import DefaultBotProperties
 from telegramify_markdown import convert as md_convert
 
 logger = logging.getLogger("tg-bridge")
+logger.setLevel(logging.DEBUG)
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler())
 
 CONFIG_PATH = Path(__file__).parent.parent / "data" / "tg_bridge.json"
 UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
@@ -79,6 +84,22 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
     return f"{prefix}_{ts}_{msg.message_id}{ext}"
 
 
+UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
+
+
+def _cleanup_uploads():
+    files = [f for f in UPLOADS_DIR.iterdir() if f.is_file() and not f.name.startswith(".")]
+    total = sum(f.stat().st_size for f in files)
+    if total <= UPLOADS_MAX_BYTES:
+        return
+    files.sort(key=lambda f: f.stat().st_mtime)
+    while total > UPLOADS_MAX_BYTES and files:
+        old = files.pop(0)
+        total -= old.stat().st_size
+        old.unlink()
+        logger.info(f"Uploads cleanup: deleted {old.name}")
+
+
 async def _download_file(file_id: str, filename: str, unique_id: str = "") -> str | None:
     global _media_cache
     if unique_id and unique_id in _media_cache:
@@ -86,6 +107,7 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
         if Path(cached).exists():
             return cached
         del _media_cache[unique_id]
+    _cleanup_uploads()
     try:
         f = await bot.get_file(file_id)
         name = Path(filename).name
@@ -96,7 +118,13 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
             while path.exists():
                 path = UPLOADS_DIR / f"{stem}_{i}{suffix}"
                 i += 1
-        await bot.download_file(f.file_path, str(path))
+        local_api = os.getenv("TG_LOCAL_API_URL", "")
+        if local_api and f.file_path and Path(f.file_path).is_absolute() and Path(f.file_path).exists():
+            import shutil
+            shutil.copy2(f.file_path, str(path))
+            logger.info(f"Local API: copied {f.file_path} → {path}")
+        else:
+            await bot.download_file(f.file_path, str(path))
         if unique_id:
             _media_cache[unique_id] = str(path)
             _save_media_cache(_media_cache)
@@ -159,6 +187,8 @@ def _forward_meta(msg: types.Message) -> str:
 
 
 async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
+    sender = msg.from_user.first_name if msg.from_user else "?"
+    logger.debug(f"TG incoming: chat={msg.chat.id} thread={msg.message_thread_id} from={sender} text={str(msg.text or '')[:50]}")
     if not msg.message_thread_id or not _manager:
         return None, None
     thread_id = msg.message_thread_id
@@ -263,6 +293,9 @@ async def _flush_batch(sid: str, batch: list):
             f"--- message {i+1}/{len(valid)} ---\n{content}"
             for i, (_, content) in enumerate(valid)
         )
+    local_tz = timezone(timedelta(hours=7))
+    now = datetime.now(local_tz).strftime("%H:%M")
+    combined = f"[{now}] {combined}"
     await _manager.send(sid, combined)
     for m, _ in valid:
         try:
@@ -271,7 +304,17 @@ async def _flush_batch(sid: str, batch: list):
             pass
 
 
+def _sender_tag(msg: types.Message) -> str:
+    if not msg.from_user:
+        return ""
+    name = msg.from_user.first_name or ""
+    if msg.from_user.last_name:
+        name += " " + msg.from_user.last_name
+    return f"[from TG: {name}] " if name else ""
+
+
 async def _send_to_agent(msg: types.Message, session, content: str):
+    content = f"{_sender_tag(msg)}{content}"
     sid = session.id
     buf = _get_buf(sid)
     async with buf.lock:
@@ -455,27 +498,129 @@ def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
 
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+
+
+def _find_orch_for_scope(scope: str) -> str | None:
+    from app.db import get_all_sessions
+    for s in get_all_sessions():
+        if s.get("is_orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
+            return s["name"]
+    return None
+
+
+def _find_thread_for_scope(scope: str) -> int | None:
+    orch_name = _find_orch_for_scope(scope)
+    if orch_name:
+        return config["topics"].get(orch_name)
+    return None
+
+
+async def _mirror_send_file(orch_name: str, tg_file, caption: str, is_photo: bool):
+    mirror = config.get("mirrors", {}).get(orch_name)
+    if not mirror or not bot:
+        return
+    chat_id = mirror.get("chat_id")
+    topic_id = mirror.get("topic_id")
+    if not chat_id:
+        return
+    try:
+        if is_photo:
+            await bot.send_photo(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+        else:
+            await bot.send_document(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+    except Exception as e:
+        logger.warning(f"Mirror file send failed for {orch_name}: {e}")
+
+
+async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_document: bool = False) -> dict:
+    if not bot or not config["group_id"]:
+        return {"error": "TG bridge not active"}
+    from pathlib import Path as P
+    fp = P(path)
+    if not fp.exists():
+        return {"error": f"file not found: {path}"}
+    if fp.stat().st_size > 50 * 1024 * 1024:
+        return {"error": "file too large (max 50MB)"}
+    orch_name = _find_orch_for_scope(scope)
+    thread_id = config["topics"].get(orch_name) if orch_name else None
+    if not thread_id:
+        return {"error": f"no TG topic for scope: {scope}"}
+    label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
+    label = label[:1024]
+    try:
+        from aiogram.types import FSInputFile
+        tg_file = FSInputFile(path, filename=fp.name)
+        is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
+        if is_photo:
+            await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+        else:
+            await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+        if orch_name:
+            mirror_file = FSInputFile(path, filename=fp.name)
+            await _mirror_send_file(orch_name, mirror_file, label, is_photo)
+        return {"ok": True}
+    except TelegramRetryAfter as e:
+        return {"error": f"TG flood: retry after {e.retry_after}s"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 _topic_status = {}
+
+
+def _any_running_in_scope(scope: str) -> bool:
+    if not _manager or not scope:
+        return False
+    for s in _manager.sessions.values():
+        if s.scope == scope and s.status.value == "running":
+            return True
+    return False
+
+
+async def check_scope_idle(orch_name: str, scope: str):
+    if not _any_running_in_scope(scope):
+        await _update_topic_status(orch_name, False)
+
+
+async def _sync_all_topic_statuses():
+    if not _manager or not bot:
+        return
+    for s in _manager.sessions.values():
+        if not s.is_orchestrator:
+            continue
+        name = s.name
+        if name not in config["topics"]:
+            continue
+        is_running = _any_running_in_scope(s.scope)
+        _topic_status.pop(name, None)
+        await _update_topic_status(name, is_running)
+
+
+_ICON_RUNNING = "5312016608254762256"
+_ICON_IDLE = "5350392020785437399"
+
 
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
     _topic_status[orch_name] = is_running
     short = _short_name(orch_name)
-    icon = "🟢" if is_running else "🟡"
-    new_name = f"{icon} {short}"
+    icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
     thread_id = config["topics"].get(orch_name)
     if thread_id and bot:
         try:
-            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id, name=new_name)
+            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id,
+                                       name=short, icon_custom_emoji_id=icon_id)
         except Exception as e:
-            logger.debug(f"Topic rename failed: {e}")
+            logger.debug(f"Topic status update failed: {e}")
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
         try:
-            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"], name=new_name)
+            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"],
+                                       name=short, icon_custom_emoji_id=icon_id)
         except Exception as e:
-            logger.debug(f"Mirror topic rename failed: {e}")
+            logger.debug(f"Mirror topic status update failed: {e}")
 
 
 async def _mirror_send(orch_name: str, text: str, entities=None):
@@ -565,12 +710,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                 t, c = log["type"], log["content"]
                 if t in ("text", "tool"):
                     await _update_topic_status(orch_name, True)
-                if t == "user_message" and c.startswith("[from:"):
-                    prefix = c.split("]")[0] + "]"
-                    body = c[len(prefix):].strip()
-                    text = f"📨 {prefix}\n{body[:3000]}"
-                elif t == "user_message":
-                    text = f"👤 {c[:3000]}"
+                if t == "user_message":
+                    c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
+                    if c.startswith("[from:"):
+                        prefix = c.split("]")[0] + "]"
+                        body = c[len(prefix):].strip()
+                        text = f"📨 {prefix}\n{body[:3000]}"
+                    else:
+                        text = f"👤 {c[:3000]}"
                 elif t == "text":
                     text = f"💬\n{c[:3900]}"
                 elif t == "tool":
@@ -581,7 +728,12 @@ async def stream_logs(orch_name: str, thread_id: int):
                     header = f"{icon} {short}"
                     _last_tool_text = f"{header}\n{tool_body}"
                     _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
-                    await _mirror_send(orch_name, f"{header}\n{tool_body}")
+                    try:
+                        m_text, m_ents = md_convert(f"{header}\n{tool_body}")
+                        from aiogram.types import MessageEntity as AioEntity
+                        await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
+                    except Exception:
+                        await _mirror_send(orch_name, f"{header}\n{tool_body}")
                     continue
                 elif t == "tool_result":
                     result_preview = c[:80].replace("\n", " ").strip()
@@ -595,13 +747,20 @@ async def stream_logs(orch_name: str, thread_id: int):
                         _last_tool_text = ""
                     else:
                         await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
-                    await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
+                    try:
+                        m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
+                        from aiogram.types import MessageEntity as AioEntity
+                        await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
+                    except Exception:
+                        await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
                     continue
                 elif t == "error":
                     text = f"❌ {c[:1000]}"
                 elif t == "status":
                     if "turn ended" in c:
-                        await _update_topic_status(orch_name, False)
+                        still_running = _any_running_in_scope(scope)
+                        if not still_running:
+                            await _update_topic_status(orch_name, False)
                     text = f"⚡ {c}"
                 else:
                     continue
@@ -614,6 +773,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         message_thread_id=thread_id,
                         parse_mode=None, entities=aio_ents,
                     )
+                    await _mirror_send(orch_name, converted, entities=aio_ents)
                 except Exception:
                     try:
                         await bot.send_message(
@@ -622,10 +782,17 @@ async def stream_logs(orch_name: str, thread_id: int):
                         )
                     except Exception as e:
                         logger.warning(f"TG send failed: {e}")
-                await _mirror_send(orch_name, text)
+                    await _mirror_send(orch_name, text)
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
         await asyncio.sleep(2)
+
+
+@dp.message(F.chat.type.in_({"group", "supergroup"}), F.text, lambda msg: msg.text and msg.text.strip() == "/restart")
+async def handle_restart(msg: types.Message):
+    await msg.reply("🔄 Перезапуск Orchestra...")
+    import subprocess
+    subprocess.Popen(["sudo", "systemctl", "restart", "orchestra"])
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.voice)
@@ -636,14 +803,15 @@ async def handle_voice(msg: types.Message):
     await _react_processing(msg)
     sid, idx = await _register_media(msg, session)
     path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
+    tag = _sender_tag(msg)
     if not path:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: file too large]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: file too large]")
         return
     text, err = await _transcribe_audio(path, msg.voice.file_unique_id)
     if text:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: {path} | {text}]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path} | {text}]")
     else:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[voice: {path}]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.video_note)
@@ -653,9 +821,10 @@ async def handle_video_note(msg: types.Message):
         return
     await _react_processing(msg)
     sid, idx = await _register_media(msg, session)
+    tag = _sender_tag(msg)
     path = await _download_file(msg.video_note.file_id, _media_name("videonote", ".mp4", msg), msg.video_note.file_unique_id)
     if not path:
-        await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: file too large]")
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: file too large]")
         return
     audio_path = path.replace(".mp4", ".oga")
     p = await asyncio.create_subprocess_exec(
@@ -666,9 +835,9 @@ async def handle_video_note(msg: types.Message):
     if p.returncode == 0:
         text, err = await _transcribe_audio(audio_path, msg.video_note.file_unique_id)
         if text:
-            await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: {path} | {text}]")
+            await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path} | {text}]")
             return
-    await _resolve_media(sid, idx, f"{_forward_meta(msg)}[video_note: {path}]")
+    await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
@@ -769,16 +938,49 @@ async def start_bridge(manager):
     config["group_id"] = group
     save_config()
 
-    bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
+    local_api = os.getenv("TG_LOCAL_API_URL", "")
+    if local_api:
+        import aiohttp as _aio
+        for _attempt in range(10):
+            try:
+                async with _aio.ClientSession() as _s:
+                    async with _s.get(local_api, timeout=_aio.ClientTimeout(total=2)):
+                        pass
+                break
+            except Exception:
+                logger.info(f"Waiting for Local Bot API ({_attempt+1}/10)...")
+                await asyncio.sleep(2)
+        from aiogram.client.telegram import TelegramAPIServer
+        server = TelegramAPIServer(base=f"{local_api}/bot{{token}}/{{method}}", file=f"{local_api}/file/bot{{token}}/{{path}}")
+        from aiogram.client.session.aiohttp import AiohttpSession
+        session = AiohttpSession(api=server)
+        bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None), session=session)
+        logger.info(f"TG Bot using LOCAL API: {local_api}")
+    else:
+        bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
 
     await ensure_topics()
+    await _sync_all_topic_statuses()
 
     for name, thread_id in config["topics"].items():
         _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
 
     _tasks.append(asyncio.create_task(topic_sync_loop()))
-    _tasks.append(asyncio.create_task(dp.start_polling(bot)))
+    _tasks.append(asyncio.create_task(_safe_polling()))
     logger.info(f"TG Bridge started | group={group} | topics={len(config['topics'])}")
+
+
+async def _safe_polling():
+    while True:
+        try:
+            logger.info("TG polling started")
+            await dp.start_polling(bot)
+        except Exception as e:
+            logger.error(f"TG polling crashed: {e}, restarting in 10s")
+            await asyncio.sleep(10)
+        else:
+            logger.warning("TG polling exited cleanly, restarting in 5s")
+            await asyncio.sleep(5)
 
 
 async def stop_bridge():
