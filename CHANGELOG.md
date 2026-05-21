@@ -19,7 +19,7 @@
 - 🪞 **Mirror send_file** — файлы зеркалятся в TG топик агента
 - 📋 **Tab context menu** — правый клик на таб: скрыть/удалить. Wheel scroll. Кнопка скрытых табов
 - ⚖️ **AGPL-3.0 license** — dual licensing: AGPL + commercial от ООО «Сидон»
-- 🚀 **VPS deployment** — Orchestra задеплоена на 147.45.101.84 (Amsterdam). Auth, TG bridge, Deepgram, systemd, nginx
+- 🚀 **VPS deployment support** — полный деплой-гайд, systemd service, nginx config, auth, security audit
 
 ### Changed
 - **Task prefixes removed** — `PAR-49` → `#49`. Plain numbers, legacy prefixes accepted. `format_task_ref()`, `resolve_task_ref()`, workspace branches `task-N/name`
