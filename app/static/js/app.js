@@ -1186,6 +1186,7 @@ function initFileDrop() {
         show();
     });
     document.addEventListener('dragleave', (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
         dragCounter--;
         if (dragCounter <= 0) hide();
     });
@@ -1195,6 +1196,7 @@ function initFileDrop() {
         e.dataTransfer.dropEffect = 'copy';
     });
     document.addEventListener('drop', async (e) => {
+        if (!overlay) return;
         hide();
         if (!e.dataTransfer?.files?.length) return;
         e.preventDefault();
