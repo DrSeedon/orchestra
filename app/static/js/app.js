@@ -3709,7 +3709,7 @@ async function refreshSessions() {
         if (capturedScope !== currentScope) return;
         _onServerOk();
 
-        $('#stats-line').textContent = `${stats.active} active · ${stats.total_sessions} total · $${stats.total_cost_usd}`;
+        $('#stats-line').textContent = `${stats.active} active · ${stats.total_sessions} total · $${stats.total_cost_usd} (w/o cache)`;
         renderAgentList(sessions);
 
         try {
