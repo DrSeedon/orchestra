@@ -4003,7 +4003,7 @@ function renderTasksPanel(panel, data, payData) {
                 const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
                 const priColor = _PRI_COLOR[t.priority];
                 html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${par}" onclick="showTaskDetail('${par}')">`;
-                if (priColor) html += `<span style="width:5px;height:5px;border-radius:50%;background:${priColor};flex-shrink:0"></span>`;
+                if (priColor) html += `<span style="width:8px;height:8px;border-radius:50%;background:${priColor};flex-shrink:0"></span>`;
                 html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
