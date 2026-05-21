@@ -5,7 +5,7 @@
 - [ ] **Clipboard на HTTP** — navigator.clipboard требует HTTPS. Fallback на execCommand('copy')
 
 ## Next
-- [ ] **DNS + SSL** — orchestra.zahoron.ru → 147.45.101.84 + certbot
+- [ ] **DNS + SSL** — orchestra.zahoron.ru + certbot
 - [ ] **Раздробить app.js (4200+ строк)** — разбить на модули: chat.js, tools.js, tasks.js, files.js, agents.js, sse.js
 - [ ] **Реальный cost с кешем** — считать real_cost_usd из cache_read/cache_create/input/output tokens по реальным ценам
 - [ ] **TG pinned status** — закреплённое сообщение в каждом топике, обновляется после turn_end

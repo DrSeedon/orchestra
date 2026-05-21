@@ -155,7 +155,7 @@ Orchestra hibernates idle sessions (kills process, preserves context). At steady
 
 ## 4. VPS Options
 
-### 4.1 Existing VPS (147.45.101.84)
+### 4.1 Existing VPS (VPS_IP)
 
 | Spec | Value | Verdict |
 |---|---|---|
@@ -533,6 +533,6 @@ cloudflared tunnel --url http://localhost:8888
 1. **Domain**: What domain to use for dashboard? `orchestra.seedon.ru`? New domain?
 2. **Backup strategy**: Automated DB backups on VPS? To where?
 3. **Monitoring**: Zabbix agent on new VPS? Or simpler (uptime kuma)?
-4. **SSH to other VPS**: Workers SSH to 147.45.101.84 for deploys — keys need to be on new VPS
+4. **SSH to other VPS**: Workers SSH to VPS_IP for deploys — keys need to be on new VPS
 5. **Existing VPS consolidation**: Eventually move other services too? Or keep separate?
 6. **June 15 SDK billing split**: Monitor SDK credit usage closely after cutover
