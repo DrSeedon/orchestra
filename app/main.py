@@ -58,11 +58,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         method = request.method
-        if method == "POST" and "/send" in path and path.startswith("/api/sessions/"):
-            cookie = request.cookies.get("session")
-            if check_internal_token(request.headers.get("authorization", "")) or (cookie and validate_session(cookie)):
-                return await call_next(request)
-            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        if check_internal_token(request.headers.get("authorization", "")):
+            return await call_next(request)
         if not is_auth_enabled():
             return await call_next(request)
         if not requires_auth(path, method):
