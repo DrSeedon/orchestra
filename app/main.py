@@ -216,6 +216,12 @@ _ALLOWED_ROOTS: list[str] = []
 def _get_allowed_roots() -> list[str]:
     if _ALLOWED_ROOTS:
         return _ALLOWED_ROOTS
+    extra = os.environ.get("ALLOWED_ROOTS", "")
+    if extra:
+        for root in extra.split(","):
+            root = root.strip()
+            if root and Path(root).is_dir():
+                _ALLOWED_ROOTS.append(root)
     for root in ["/mnt/data/Projects", str(Path.home())]:
         if Path(root).is_dir():
             _ALLOWED_ROOTS.append(root)
