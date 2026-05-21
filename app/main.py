@@ -1,7 +1,10 @@
 """Orchestra — AI Agent Orchestrator API."""
 
 import asyncio
+import hashlib
+import hmac
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -10,9 +13,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, UploadFile, Form
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.responses import StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
@@ -27,18 +31,51 @@ templates = Jinja2Templates(directory="app/templates")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from dotenv import load_dotenv
+    load_dotenv()
     init_db()
     await manager.auto_resume_orchestrators()
     manager.start_background_tasks()
+    from app.bg_jobs import bg_manager
+    bg_manager.set_session_manager(manager)
+    await bg_manager.restore_from_db()
     from app.tg_bridge import start_bridge, stop_bridge
     await start_bridge(manager)
     yield
     await stop_bridge()
+    await bg_manager.shutdown()
     await manager.shutdown_all()
 
 
 app = FastAPI(title="Orchestra", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        method = request.method
+        if method == "POST" and "/send" in path and path.startswith("/api/sessions/"):
+            cookie = request.cookies.get("session")
+            if check_internal_token(request.headers.get("authorization", "")) or (cookie and validate_session(cookie)):
+                return await call_next(request)
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        if not is_auth_enabled():
+            return await call_next(request)
+        if not requires_auth(path, method):
+            return await call_next(request)
+        token = request.cookies.get("session")
+        if token and validate_session(token):
+            return await call_next(request)
+        if path.startswith("/api/"):
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        return RedirectResponse("/login", status_code=302)
+
+
+app.add_middleware(AuthMiddleware)
 
 
 class CreateSessionRequest(BaseModel):
@@ -50,6 +87,8 @@ class CreateSessionRequest(BaseModel):
     use_worktree: bool = False
     repo_path: Optional[str] = None
     is_orchestrator: bool = False
+    task_id: str = ""
+    description: str = ""
 
     @field_validator("name")
     @classmethod
@@ -93,6 +132,38 @@ class ScopeRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    if not is_auth_enabled():
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse(request, "login.html", {"error": ""})
+
+
+@app.post("/login")
+async def login_submit(request: Request, username: str = Form(""), password: str = Form("")):
+    from app.auth import check_credentials, create_session
+    if not is_auth_enabled():
+        return RedirectResponse("/", status_code=302)
+    if check_credentials(username, password):
+        token = create_session(username)
+        response = RedirectResponse("/", status_code=302)
+        secure = request.url.scheme == "https" or os.environ.get("COOKIE_SECURE") == "1"
+        response.set_cookie("session", token, httponly=True, samesite="lax", max_age=86400, secure=secure)
+        return response
+    return templates.TemplateResponse(request, "login.html", {"error": "Invalid credentials"})
+
+
+@app.post("/logout")
+async def logout(request: Request):
+    from app.auth import destroy_session
+    token = request.cookies.get("session", "")
+    destroy_session(token)
+    response = RedirectResponse("/login", status_code=302)
+    response.delete_cookie("session")
+    return response
+
 
 
 @app.get("/api/jobs")
@@ -143,6 +214,45 @@ async def list_projects():
     return results
 
 
+_ALLOWED_ROOTS: list[str] = []
+
+
+def _get_allowed_roots() -> list[str]:
+    if _ALLOWED_ROOTS:
+        return _ALLOWED_ROOTS
+    extra = os.environ.get("ALLOWED_ROOTS", "")
+    if extra:
+        for p in extra.split(":"):
+            if p and Path(p).is_dir():
+                _ALLOWED_ROOTS.append(p)
+    for root in ["/mnt/data/Projects", "/opt", str(Path.home())]:
+        if Path(root).is_dir():
+            _ALLOWED_ROOTS.append(root)
+    uploads = str(Path(__file__).parent.parent / "data" / "uploads")
+    _ALLOWED_ROOTS.append(uploads)
+    return _ALLOWED_ROOTS
+
+
+_DENIED_PARTS = {".env", ".claude", ".ssh", ".git", ".credentials", ".config", ".gnupg", ".aws"}
+_DENIED_EXTENSIONS = {".db", ".db-shm", ".db-wal", ".db-journal", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
+
+
+def _is_safe_path(path: str) -> bool:
+    try:
+        p = Path(path).resolve()
+        resolved = str(p)
+    except (ValueError, OSError):
+        return False
+    if not any(resolved.startswith(root) for root in _get_allowed_roots()):
+        return False
+    for part in p.parts:
+        if part in _DENIED_PARTS or part.startswith(".env"):
+            return False
+    if p.suffix in _DENIED_EXTENSIONS:
+        return False
+    return True
+
+
 BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
                      '.zip', '.tar', '.gz', '.bz2', '.xz', '.rar', '.7z',
                      '.exe', '.bin', '.so', '.whl', '.dll', '.dylib', '.pyc',
@@ -151,6 +261,8 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
 
 @app.get("/api/files/raw")
 async def get_file_raw(path: str):
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     from starlette.responses import FileResponse
     target = Path(path)
     if not target.is_file():
@@ -160,6 +272,8 @@ async def get_file_raw(path: str):
 
 @app.get("/api/files/content")
 async def get_file_content(path: str):
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     target = Path(path)
     if not target.exists():
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -176,6 +290,8 @@ async def get_file_content(path: str):
 
 @app.post("/api/open-folder")
 async def open_folder(req: dict):
+    if not os.environ.get("ALLOW_OPEN_FOLDER"):
+        return JSONResponse({"error": "disabled on this server"}, status_code=403)
     import subprocess
     path = req.get("path", "")
     if not Path(path).is_dir():
@@ -187,14 +303,14 @@ async def open_folder(req: dict):
 
 @app.get("/api/files")
 async def list_files(path: str):
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     target = Path(path)
     if not target.is_dir():
         return JSONResponse({"error": "not a directory"}, status_code=400)
     items = []
     try:
         for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
-            if entry.name.startswith('.'):
-                continue
             items.append({
                 "name": entry.name,
                 "path": str(entry),
@@ -213,6 +329,8 @@ async def list_sessions(scope: Optional[str] = None):
 
 @app.post("/api/sessions", status_code=201)
 async def create_session(req: CreateSessionRequest):
+    if not _is_safe_path(req.cwd):
+        return JSONResponse({"error": f"cwd not in allowed paths: {req.cwd}"}, status_code=403)
     scope = req.scope or req.cwd
     try:
         session = await manager.create_session(
@@ -224,6 +342,8 @@ async def create_session(req: CreateSessionRequest):
             use_worktree=req.use_worktree,
             repo_path=req.repo_path,
             is_orchestrator=req.is_orchestrator,
+            task_id=req.task_id,
+            description=req.description,
         )
         return session.to_dict()
     except ValueError as e:
@@ -286,6 +406,7 @@ async def get_session_context(name: str, scope: str):
 
 @app.get("/api/sessions/{name}/stream")
 async def stream_session_logs(name: str, scope: str, request: Request, after_id: int = 0, limit: int = 500):
+    limit = min(limit, 1000)
     import json
     session_id = manager.get_session_id(name, scope)
     if not session_id:
@@ -312,6 +433,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
 @app.get("/api/sessions/{name}/logs")
 async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0, limit: int = 500):
+    limit = min(limit, 1000)
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -331,6 +453,11 @@ async def send_message(name: str, req: SendRequest):
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)
+        else:
+            from datetime import datetime, timezone, timedelta
+            local_tz = timezone(timedelta(hours=7))
+            now = datetime.now(local_tz).strftime("%H:%M")
+            msg = f"[{now}] {msg}"
         await manager.send(session.id, msg)
         return {"ok": True}
     except RuntimeError as e:
@@ -381,6 +508,44 @@ async def stop_session(name: str, req: ScopeRequest):
     return {"ok": True}
 
 
+@app.post("/api/sessions/{name}/description")
+async def update_description(name: str, req: dict):
+    scope = req.get("scope", "")
+    desc = req.get("description", "")
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    session = manager.sessions.get(sid)
+    if session:
+        session.description = desc
+        session._persist()
+    else:
+        from app.db import _conn
+        with _conn() as c:
+            c.execute("UPDATE sessions SET description=? WHERE id=?", (desc, sid))
+    return {"ok": True}
+
+
+@app.post("/api/sessions/{name}/prompt")
+async def update_prompt(name: str, req: dict):
+    scope = req.get("scope", "")
+    prompt = req.get("system_prompt", "")
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    session = manager.sessions.get(sid)
+    if session:
+        session.system_prompt = prompt
+        session._persist()
+    else:
+        from app.db import _conn
+        with _conn() as c:
+            c.execute("UPDATE sessions SET system_prompt=? WHERE id=?", (prompt, sid))
+    return {"ok": True}
+
+
 @app.post("/api/sessions/{name}/change-model")
 async def change_model(name: str, req: dict):
     scope = req.get("scope", "")
@@ -405,6 +570,8 @@ async def rename_session(name: str, req: dict):
     new_name = req.get("new_name", "").strip()
     if not new_name:
         return JSONResponse({"error": "new_name required"}, status_code=400)
+    if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", new_name):
+        return JSONResponse({"error": "invalid name: alphanumeric with ._- allowed, 1-50 chars"}, status_code=400)
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -434,17 +601,72 @@ async def merge_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
+    if not isinstance(found, dict):
+        if found.status.value == "running":
+            return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
     worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
     scope = found.get("scope") if isinstance(found, dict) else found.scope
+    session_id = found.get("id") if isinstance(found, dict) else found.id
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     if not scope:
         return JSONResponse({"error": "session has no scope"}, status_code=400)
+    async with manager.get_session_lock(session_id):
+        try:
+            result = merge_worktree_to_main(worktree_path, scope)
+            if result.get("ok"):
+                link_results = {}
+                for task_ref, commits in result.pop("merged_commits", {}).items():
+                    try:
+                        link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits)
+                    except Exception as link_err:
+                        import logging
+                        logging.getLogger(__name__).error("Failed to link commits to %s: %s", task_ref, link_err)
+                        link_results[task_ref] = {"ok": False, "error": str(link_err)}
+                if link_results:
+                    result["linked_tasks"] = link_results
+            return result
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/sessions/{name}/switch-branch")
+async def switch_branch(name: str, req: dict):
+    from app.workspace import switch_worktree_branch, _normalize_task_id
+    scope = req.get("scope", "")
+    task_id = req.get("task_id", "")
+    if not task_id:
+        return JSONResponse({"error": "task_id required"}, status_code=400)
     try:
-        result = merge_worktree_to_main(worktree_path, scope)
-        return result
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        par = _normalize_task_id(task_id)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if not isinstance(found, dict):
+        if found.status.value == "running":
+            return JSONResponse({"error": "worker is running — wait for idle"}, status_code=400)
+    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+    session_id = found.get("id") if isinstance(found, dict) else found.id
+    if not worktree_path:
+        return JSONResponse({"error": "session has no worktree"}, status_code=400)
+    new_branch = f"task-{par}/{name}"
+    async with manager.get_session_lock(session_id):
+        try:
+            result = switch_worktree_branch(worktree_path, new_branch)
+            if not isinstance(found, dict):
+                if result.get("ok") or result.get("branch"):
+                    found.branch = result.get("branch", new_branch)
+                    found.task_id = par
+                    found._persist()
+            try:
+                _tm.api_update_task(par, status="in_progress")
+            except Exception:
+                pass
+            return result
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.post("/api/sessions/{name}/progress")
@@ -650,10 +872,14 @@ UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+_BLOCKED_UPLOAD_EXTS = {".exe", ".sh", ".bat", ".cmd", ".ps1", ".py", ".js", ".php", ".rb", ".pl"}
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile):
     import hashlib
     ext = Path(file.filename or "image.png").suffix or ".png"
+    if ext.lower() in _BLOCKED_UPLOAD_EXTS:
+        return JSONResponse({"error": f"file type {ext} not allowed"}, status_code=400)
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         return JSONResponse({"error": "file too large (max 10MB)"}, status_code=400)
@@ -732,6 +958,8 @@ async def tg_send_file(req: dict):
     as_document = req.get("as_document", False)
     if not path:
         return JSONResponse({"error": "path required"}, status_code=400)
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     from app.tg_bridge import send_file_to_tg
     result = await send_file_to_tg(path, caption, scope, sender, as_document=as_document)
     if result.get("error"):
@@ -763,6 +991,8 @@ class TmTaskCreate(BaseModel):
     description: str = ""
     assignee: str = ""
     status: str = "new"
+    scope: str = ""
+    priority: int = 2
 
 
 class TmTaskUpdate(BaseModel):
@@ -771,6 +1001,7 @@ class TmTaskUpdate(BaseModel):
     price: int | None = None
     status: str | None = None
     assignee: str | None = None
+    priority: int | None = None
 
 
 class TmPaymentReceive(BaseModel):
@@ -785,6 +1016,7 @@ async def tm_create_task(req: TmTaskCreate):
     try:
         return _tm.api_create_task(
             req.project, req.title, req.price, req.description, req.assignee, req.status,
+            scope=req.scope, priority=req.priority,
         )
     except (ValueError, RuntimeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
@@ -799,22 +1031,37 @@ async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
             p = _tm.get_project_by_scope(conn, scope)
             if p:
                 proj = p["id"]
+            else:
+                return {"tasks": [], "count": 0, "total_debt": "0"}
     return _tm.api_list_tasks(proj, status, assignee)
 
 
 @app.get("/api/tm/tasks/{par}")
-async def tm_get_task(par: str):
+async def tm_get_task(par: str, scope: str = ""):
     try:
-        return _tm.api_get_task(par)
+        project = ""
+        if scope:
+            with _tm._conn() as conn:
+                p = _tm.get_project_by_scope(conn, scope)
+                if p:
+                    project = p["id"]
+        return _tm.api_get_task(par, project=project)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=404)
 
 
 @app.put("/api/tm/tasks/{par}")
-async def tm_update_task(par: str, req: TmTaskUpdate):
+async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
     try:
+        project = ""
+        if scope:
+            with _tm._conn() as conn:
+                p = _tm.get_project_by_scope(conn, scope)
+                if p:
+                    project = p["id"]
         return _tm.api_update_task(
             par, req.title, req.description, req.price, req.status, req.assignee,
+            project=project, priority=req.priority,
         )
     except (ValueError, RuntimeError) as e:
         code = 404 if "not found" in str(e).lower() else 400
@@ -855,6 +1102,7 @@ async def tm_payment_history(client: str = "aleksandr-kislinskiy"):
 
 @app.get("/api/tm/sync/log")
 async def tm_sync_log(limit: int = 50):
+    limit = min(limit, 200)
     with _tm._conn() as conn:
         rows = conn.execute(
             "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit,)
@@ -878,3 +1126,173 @@ async def tm_sync_retry(sync_id: int):
         result = await yougile_sync_task(task_id)
         return {"retried": True, "task_id": task_id, "result": result}
     return {"error": "no task_id on sync entry"}
+
+
+# ── Background Jobs API ──
+
+class BgJobCreateRequest(BaseModel):
+    type: str
+    config: dict = {}
+    message: str = ""
+    target_name: str = ""
+    target_scope: str = ""
+    timeout_seconds: int = 3600
+    created_by: str = ""
+
+@app.post("/api/bg/jobs")
+async def bg_job_create(req: BgJobCreateRequest):
+    from app.bg_jobs import bg_manager
+    scope = req.target_scope.rstrip("/")
+    name = req.target_name
+    if not scope or not name:
+        return JSONResponse({"error": "target_name and target_scope required"}, status_code=400)
+    session = manager.get_by_name(name, scope)
+    if not session:
+        return JSONResponse({"error": f"session '{name}' not found in scope"}, status_code=404)
+    session_id = session.id if hasattr(session, "id") else session.get("id")
+    result = await bg_manager.create(
+        job_type=req.type, config=req.config, message=req.message,
+        target_session_id=session_id, target_name=name, target_scope=scope,
+        created_by=req.created_by, timeout_seconds=req.timeout_seconds,
+    )
+    if result.get("error"):
+        return JSONResponse(result, status_code=400)
+    return result
+
+
+@app.get("/api/bg/jobs")
+async def bg_job_list(scope: str = "", session_id: str = ""):
+    from app.db import bg_get_jobs
+    return bg_get_jobs(scope=scope or None, session_id=session_id or None)
+
+
+@app.delete("/api/bg/jobs/{job_id}")
+async def bg_job_cancel(job_id: str):
+    from app.bg_jobs import bg_manager
+    result = await bg_manager.cancel(job_id)
+    if result.get("error"):
+        return JSONResponse(result, status_code=404)
+    return result
+
+
+# ── GitHub Webhook (CI failure routing) ──
+
+logger = logging.getLogger("orchestra.webhook")
+
+_FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
+
+REPO_TO_SCOPE = {
+    "DrSeedon/parsing-hub": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/seo-platform": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/ai-assistants": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/zahoron-mobile": "/mnt/data/Projects/Python/Parsing",
+    "DrSeedon/family-tree": "/mnt/data/Projects/Python/Parsing",
+}
+
+
+def _verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
+    expected = "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+async def _fetch_failed_log(owner: str, repo: str, run_id: int, token: str) -> str:
+    import httpx
+    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+            headers=headers,
+        )
+        if resp.status_code != 200:
+            return f"(failed to fetch jobs: HTTP {resp.status_code})"
+        jobs = resp.json().get("jobs", [])
+        failed_job = next((j for j in jobs if j.get("conclusion") in _FAILURE_CONCLUSIONS), None)
+        if not failed_job:
+            return "(no failed job found)"
+        job_id = failed_job["id"]
+        log_resp = await client.get(
+            f"https://api.github.com/repos/{owner}/{repo}/actions/jobs/{job_id}/logs",
+            headers=headers,
+            follow_redirects=True,
+        )
+        if log_resp.status_code != 200:
+            return f"(failed to fetch log: HTTP {log_resp.status_code})"
+        lines = log_resp.text.splitlines()
+        return "\n".join(lines[-50:])
+
+
+@app.post("/api/webhook/github")
+async def github_webhook(request: Request):
+    secret = os.getenv("GITHUB_WEBHOOK_SECRET", "")
+    if not secret:
+        return JSONResponse({"error": "webhook not configured"}, status_code=500)
+
+    body = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256", "")
+    if not signature or not _verify_github_signature(body, signature, secret):
+        return JSONResponse({"error": "invalid signature"}, status_code=403)
+
+    event = request.headers.get("X-GitHub-Event", "")
+    if event != "workflow_run":
+        return {"ok": True, "skipped": event}
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    action = payload.get("action")
+    workflow_run = payload.get("workflow_run") or {}
+    conclusion = workflow_run.get("conclusion")
+
+    if action != "completed" or conclusion not in _FAILURE_CONCLUSIONS:
+        return {"ok": True, "skipped": f"{action}/{conclusion}"}
+
+    repository = payload.get("repository") or {}
+    repo_full = repository.get("full_name", "")
+    scope = REPO_TO_SCOPE.get(repo_full)
+    if not scope:
+        logger.warning(f"No scope mapping for repo: {repo_full}")
+        return {"ok": True, "skipped": f"unmapped repo {repo_full}"}
+
+    workflow_name = workflow_run.get("name", "unknown")
+    run_id = workflow_run.get("id")
+    run_url = workflow_run.get("html_url", "")
+    head_commit = workflow_run.get("head_commit") or {}
+    commit_sha = str(head_commit.get("id", ""))[:7]
+    commit_msg = str(head_commit.get("message", "")).split("\n")[0]
+
+    token = os.getenv("GITHUB_TOKEN", "")
+    error_log = ""
+    if token and run_id:
+        owner, repo = repo_full.split("/", 1)
+        try:
+            error_log = await _fetch_failed_log(owner, repo, run_id, token)
+        except Exception as e:
+            error_log = f"(log fetch error: {e})"
+
+    message = (
+        f"🔴 CI FAIL: {repo_full}\n"
+        f"Workflow: {workflow_name}, Run #{run_id}\n"
+        f"Commit: {commit_sha} \"{commit_msg}\"\n"
+    )
+    if error_log:
+        message += f"Error:\n{error_log}\n"
+    message += f"URL: {run_url}"
+
+    orch_name = manager._find_orchestrator_name(scope)
+    if not orch_name:
+        logger.warning(f"No orchestrator for scope: {scope}")
+        return JSONResponse({"error": f"no orchestrator for scope {scope}"}, status_code=404)
+
+    session = await manager.ensure_loaded(orch_name, scope)
+    if not session:
+        return JSONResponse({"error": f"orchestrator {orch_name} not loadable"}, status_code=404)
+
+    try:
+        await manager.send(session.id, message)
+        logger.info(f"CI failure routed to {orch_name}: {repo_full} run #{run_id}")
+        return {"ok": True, "routed_to": orch_name}
+    except Exception as e:
+        logger.error(f"Failed to send CI failure to {orch_name}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)

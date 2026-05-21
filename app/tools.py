@@ -38,7 +38,7 @@ def _caller_name() -> str:
     "name": str,
     "task": str,
     "repo_path": str,
-    "model": {"type": "string", "description": "Model ID: claude-sonnet-4-6, claude-opus-4-6[1m], claude-haiku-4-5"},
+    "model": {"type": "string", "description": "Model ID: claude-sonnet-4-6, claude-opus-4-6[1m], claude-haiku-4-5, gpt-5.5, gpt-5.4, gpt-5.4-mini. GPT models use Codex CLI backend."},
     "system_prompt": {"type": "string", "description": "Optional system prompt"},
 })
 async def spawn_worker(args):

@@ -20,12 +20,13 @@
             <div id="orch-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar"></div>
             <select id="orch-picker" class="hidden"></select>
             <button id="new-orch-btn" class="px-2.5 py-1.5 bg-slate-800/50 hover:bg-slate-700 border border-dashed border-slate-700 rounded-full text-xs transition-colors shrink-0" title="New orchestrator">+</button>
-            <button id="delete-orch-btn" class="px-2 py-1.5 hover:bg-red-900/40 rounded-full text-xs transition-colors text-red-400/60 hover:text-red-400 shrink-0" title="Delete current">✕</button>
+            <button id="hidden-tabs-btn" class="px-2 py-1.5 hover:bg-slate-700 rounded-full text-xs transition-colors text-slate-500 hover:text-slate-300 shrink-0 hidden" title="Show hidden tabs">👁</button>
         </div>
         <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
             <span id="stats-line"></span>
             <button id="compact-toggle-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Toggle compact tool view">📋</button>
             <button id="restart-btn" class="px-2 py-1 bg-slate-800 hover:bg-amber-900/60 border border-slate-700 rounded-lg transition-colors text-amber-400" title="Restart Orchestra server">⟳</button>
+            <button id="logout-btn" class="px-2 py-1 bg-slate-800 hover:bg-red-900/60 border border-slate-700 rounded-lg transition-colors text-slate-500 hover:text-red-400" title="Logout" onclick="fetch('/logout',{method:'POST'}).then(()=>location.href='/login')">🚪</button>
         </div>
     </header>
 
@@ -78,10 +79,12 @@
             <div class="flex border-b border-slate-800/50">
                 <button data-left-tab="files" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-white border-b-2 border-indigo-500 transition-colors" onclick="switchLeftTab('files')">FILES</button>
                 <button data-left-tab="tasks" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('tasks')">TASKS</button>
+                <button data-left-tab="jobs" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('jobs')">JOBS</button>
                 <button id="open-folder-btn" title="Open in file manager" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;transition:opacity 0.15s" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='0.5'">📂</button>
             </div>
             <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1"></div>
             <div id="tasks-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
+            <div id="jobs-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
         </div>
 
         <!-- Chat -->
@@ -109,7 +112,7 @@
                     <span id="ai-name" class="font-semibold text-sm truncate min-w-0"></span>
                     <div class="flex items-center gap-2 shrink-0">
                         <button id="compact-btn" class="text-slate-500 hover:text-amber-300 text-xs hidden" title="Compact context">🗜</button>
-                        <button id="restart-cli-btn" class="text-slate-500 hover:text-emerald-300 text-xs hidden" title="Restart CLI connection">♻️</button>
+                        <button id="restart-cli-btn" class="text-slate-500 hover:text-green-300 text-xs hidden" title="Restart CLI">♻️</button>
                         <button id="view-prompt-btn" class="text-slate-500 hover:text-indigo-300 text-xs hidden" title="View system prompt">📜</button>
                         <span id="ai-status" class="text-xs font-mono"></span>
                     </div>
@@ -130,8 +133,8 @@
     </div>
 
     <!-- File Preview Modal -->
-    <div id="file-preview-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
-        <div class="glass glow rounded-xl flex flex-col w-[700px] max-w-[90vw] max-h-[80vh]">
+    <div id="file-preview-modal" class="fixed inset-0 z-50 items-center justify-center hidden" style="pointer-events:none">
+        <div class="glass glow rounded-xl flex flex-col w-[700px] max-w-[90vw] max-h-[80vh]" style="pointer-events:auto;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800/50 shrink-0">
                 <span id="file-preview-path" class="text-xs font-mono text-slate-400 truncate max-w-[80%]"></span>
                 <button id="file-preview-close" class="text-slate-500 hover:text-white text-lg">✕</button>

@@ -7,6 +7,8 @@ import asyncio
 import json
 import logging
 import os
+import re
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import aiohttp
@@ -291,6 +293,9 @@ async def _flush_batch(sid: str, batch: list):
             f"--- message {i+1}/{len(valid)} ---\n{content}"
             for i, (_, content) in enumerate(valid)
         )
+    local_tz = timezone(timedelta(hours=7))
+    now = datetime.now(local_tz).strftime("%H:%M")
+    combined = f"[{now}] {combined}"
     await _manager.send(sid, combined)
     for m, _ in valid:
         try:
@@ -496,14 +501,36 @@ def _short_name(name: str) -> str:
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 
-def _find_thread_for_scope(scope: str) -> int | None:
+def _find_orch_for_scope(scope: str) -> str | None:
     from app.db import get_all_sessions
     for s in get_all_sessions():
         if s.get("is_orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
-            tid = config["topics"].get(s["name"])
-            if tid:
-                return tid
+            return s["name"]
     return None
+
+
+def _find_thread_for_scope(scope: str) -> int | None:
+    orch_name = _find_orch_for_scope(scope)
+    if orch_name:
+        return config["topics"].get(orch_name)
+    return None
+
+
+async def _mirror_send_file(orch_name: str, tg_file, caption: str, is_photo: bool):
+    mirror = config.get("mirrors", {}).get(orch_name)
+    if not mirror or not bot:
+        return
+    chat_id = mirror.get("chat_id")
+    topic_id = mirror.get("topic_id")
+    if not chat_id:
+        return
+    try:
+        if is_photo:
+            await bot.send_photo(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+        else:
+            await bot.send_document(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
+    except Exception as e:
+        logger.warning(f"Mirror file send failed for {orch_name}: {e}")
 
 
 async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_document: bool = False) -> dict:
@@ -515,7 +542,8 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"file not found: {path}"}
     if fp.stat().st_size > 50 * 1024 * 1024:
         return {"error": "file too large (max 50MB)"}
-    thread_id = _find_thread_for_scope(scope)
+    orch_name = _find_orch_for_scope(scope)
+    thread_id = config["topics"].get(orch_name) if orch_name else None
     if not thread_id:
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
@@ -523,10 +551,14 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
     try:
         from aiogram.types import FSInputFile
         tg_file = FSInputFile(path, filename=fp.name)
-        if not as_document and fp.suffix.lower() in _IMAGE_EXTS:
+        is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
+        if is_photo:
             await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
         else:
             await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+        if orch_name:
+            mirror_file = FSInputFile(path, filename=fp.name)
+            await _mirror_send_file(orch_name, mirror_file, label, is_photo)
         return {"ok": True}
     except TelegramRetryAfter as e:
         return {"error": f"TG flood: retry after {e.retry_after}s"}
@@ -565,25 +597,30 @@ async def _sync_all_topic_statuses():
         await _update_topic_status(name, is_running)
 
 
+_ICON_RUNNING = "5312016608254762256"
+_ICON_IDLE = "5350392020785437399"
+
+
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
     _topic_status[orch_name] = is_running
     short = _short_name(orch_name)
-    icon = "🟢" if is_running else "🟡"
-    new_name = f"{icon} {short}"
+    icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
     thread_id = config["topics"].get(orch_name)
     if thread_id and bot:
         try:
-            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id, name=new_name)
+            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id,
+                                       name=short, icon_custom_emoji_id=icon_id)
         except Exception as e:
-            logger.debug(f"Topic rename failed: {e}")
+            logger.debug(f"Topic status update failed: {e}")
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
         try:
-            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"], name=new_name)
+            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"],
+                                       name=short, icon_custom_emoji_id=icon_id)
         except Exception as e:
-            logger.debug(f"Mirror topic rename failed: {e}")
+            logger.debug(f"Mirror topic status update failed: {e}")
 
 
 async def _mirror_send(orch_name: str, text: str, entities=None):
@@ -673,12 +710,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                 t, c = log["type"], log["content"]
                 if t in ("text", "tool"):
                     await _update_topic_status(orch_name, True)
-                if t == "user_message" and c.startswith("[from:"):
-                    prefix = c.split("]")[0] + "]"
-                    body = c[len(prefix):].strip()
-                    text = f"📨 {prefix}\n{body[:3000]}"
-                elif t == "user_message":
-                    text = f"👤 {c[:3000]}"
+                if t == "user_message":
+                    c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
+                    if c.startswith("[from:"):
+                        prefix = c.split("]")[0] + "]"
+                        body = c[len(prefix):].strip()
+                        text = f"📨 {prefix}\n{body[:3000]}"
+                    else:
+                        text = f"👤 {c[:3000]}"
                 elif t == "text":
                     text = f"💬\n{c[:3900]}"
                 elif t == "tool":
@@ -901,6 +940,16 @@ async def start_bridge(manager):
 
     local_api = os.getenv("TG_LOCAL_API_URL", "")
     if local_api:
+        import aiohttp as _aio
+        for _attempt in range(10):
+            try:
+                async with _aio.ClientSession() as _s:
+                    async with _s.get(local_api, timeout=_aio.ClientTimeout(total=2)):
+                        pass
+                break
+            except Exception:
+                logger.info(f"Waiting for Local Bot API ({_attempt+1}/10)...")
+                await asyncio.sleep(2)
         from aiogram.client.telegram import TelegramAPIServer
         server = TelegramAPIServer(base=f"{local_api}/bot{{token}}/{{method}}", file=f"{local_api}/file/bot{{token}}/{{path}}")
         from aiogram.client.session.aiohttp import AiohttpSession

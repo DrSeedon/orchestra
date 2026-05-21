@@ -17,14 +17,6 @@ DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "paid", "cancelled"}
 
-ALLOWED_TRANSITIONS = {
-    "backlog": {"new", "cancelled"},
-    "new": {"in_progress", "backlog", "cancelled"},
-    "in_progress": {"done", "new", "cancelled"},
-    "done": {"paid", "in_progress", "cancelled"},
-    "paid": set(),
-    "cancelled": {"new"},
-}
 
 
 def _conn() -> sqlite3.Connection:
@@ -51,10 +43,10 @@ def _fmt_k(rub: int) -> str:
 
 
 def _parse_task_ref(ref: str) -> tuple[str, int]:
-    """Parse 'PAR-42', 'ORC-1', or just '42' into (prefix, number).
-    Returns ('', number) if no prefix given."""
+    """Parse '42', '#42', 'PAR-42' (legacy), 'ORC-1' (legacy) into (prefix, number).
+    Returns ('', number) for plain numbers. Prefix kept for backward compat lookup."""
     import re
-    ref = ref.strip().upper()
+    ref = ref.strip().lstrip("#").upper()
     m = re.match(r"^([A-Z]{2,5})-(\d+)$", ref)
     if m:
         return m.group(1), int(m.group(2))
@@ -158,7 +150,7 @@ def get_client_for_project(conn: sqlite3.Connection, project_id: str) -> dict | 
 def create_task(conn: sqlite3.Connection, project_id: str, title: str,
                 price_rub: int = 0, description: str = "", assignee: str = "",
                 status: str = "new", yougile_task_id: str | None = None,
-                par_number: int | None = None) -> dict:
+                par_number: int | None = None, priority: int = 2) -> dict:
     if status not in VALID_STATUSES:
         raise ValueError(f"Invalid status: {status}")
     if price_rub < 0:
@@ -171,10 +163,10 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         """INSERT INTO tm_tasks
            (par_number, project_id, title, description, price_rub, paid_rub,
             status, assignee, yougile_task_id, sync_revision,
-            git_commits, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?)""",
+            git_commits, created_at, updated_at, priority)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?, ?)""",
         (par, project_id, title, description, price_rub,
-         status, assignee, yougile_task_id, now, now),
+         status, assignee, yougile_task_id, now, now, priority),
     )
     task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return {
@@ -189,6 +181,7 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         "assignee": assignee,
         "yougile_task_id": yougile_task_id,
         "sync_revision": 0,
+        "priority": priority,
         "created_at": now,
         "updated_at": now,
     }
@@ -199,7 +192,8 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
                 price_rub: int | None = None, status: str | None = None,
                 assignee: str | None = None, worker_session_id: str | None = None,
                 git_commits: str | None = None,
-                yougile_task_id: str | None = None) -> dict:
+                yougile_task_id: str | None = None,
+                priority: int | None = None) -> dict:
     task = get_task_by_id(conn, task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -222,6 +216,11 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
         updates.append("assignee = ?")
         params.append(assignee)
         changed.append("assignee")
+
+    if priority is not None and priority != task.get("priority", 2):
+        updates.append("priority = ?")
+        params.append(priority)
+        changed.append("priority")
 
     if worker_session_id is not None:
         updates.append("worker_session_id = ?")
@@ -255,10 +254,6 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
             raise ValueError(f"Invalid status: {status}")
         if status == "paid":
             raise ValueError("Cannot manually set status to 'paid' — use payment_receive")
-        if status not in ALLOWED_TRANSITIONS.get(old_status, set()):
-            raise ValueError(f"Transition {old_status} → {status} not allowed")
-        if status == "cancelled" and task["paid_rub"] > 0:
-            raise ValueError("Cannot cancel task with payments — void allocations first")
         updates.append("status = ?")
         params.append(status)
         changed.append("status")
@@ -296,32 +291,35 @@ def get_task_by_par(conn: sqlite3.Connection, par_number: int,
             (par_number, project_id),
         ).fetchone()
     else:
-        row = conn.execute(
-            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 1",
+        rows = conn.execute(
+            "SELECT * FROM tm_tasks WHERE par_number = ? ORDER BY id ASC LIMIT 2",
             (par_number,),
-        ).fetchone()
+        ).fetchall()
+        if len(rows) > 1:
+            projects = [r["project_id"] for r in rows]
+            raise ValueError(f"Ambiguous task #{par_number} — exists in projects: {', '.join(projects)}. Use project filter.")
+        row = rows[0] if rows else None
     return dict(row) if row else None
 
 
-def resolve_task_ref(conn: sqlite3.Connection, ref: str) -> dict | None:
-    """Resolve 'PAR-42', 'ORC-1', or '42' to a task dict."""
+def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str = "") -> dict | None:
+    """Resolve '42', '#42', or 'PAR-42' (legacy) to a task dict."""
     prefix, num = _parse_task_ref(ref)
     if prefix:
         proj = get_project_by_prefix(conn, prefix)
         if proj:
             return get_task_by_par(conn, num, proj["id"])
         return None
-    return get_task_by_par(conn, num)
+    return get_task_by_par(conn, num, project_id)
 
 
 def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
-    """Format task as 'PAR-42' using project prefix."""
-    prefix = get_project_prefix(conn, task["project_id"])
-    return f"{prefix}-{task['par_number']}"
+    """Format task as plain number string."""
+    return str(task["par_number"])
 
 
 def link_commits_to_task(task_ref: str, commits: list[dict]) -> dict | None:
-    """Link commits to a task by ref (e.g. 'PAR-192', 'ORC-1').
+    """Link commits to a task by ref (e.g. '192', '#192', or 'PAR-192' legacy).
     commits: list of dicts with at least 'hash' key. Deduplicates by hash."""
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -373,7 +371,7 @@ def list_tasks(conn: sqlite3.Connection, project_id: str = "",
     if assignee:
         query += " AND assignee = ?"
         params.append(assignee)
-    query += " ORDER BY par_number ASC"
+    query += " ORDER BY priority ASC, par_number DESC"
     return [dict(r) for r in conn.execute(query, params).fetchall()]
 
 
@@ -398,9 +396,18 @@ def receive_payment(conn: sqlite3.Connection, client_id: str, amount_rub: int,
 
     result = _distribute_payment(conn, payment_id, client_id, amount_rub)
 
+    now = _now()
+    zero_price_closed = conn.execute(
+        """UPDATE tm_tasks SET status = 'paid', paid_at = ?, updated_at = ?, sync_revision = sync_revision + 1
+           WHERE status = 'done' AND price_rub = 0
+             AND project_id IN (SELECT project_id FROM tm_clients WHERE id = ?)
+           RETURNING par_number""",
+        (now, now, client_id),
+    ).fetchall()
+
     _sanity_check(conn, client_id, payment_id)
 
-    tasks_closed = sum(1 for d in result["distributions"] if d["now_paid"])
+    tasks_closed = sum(1 for d in result["distributions"] if d["now_paid"]) + len(zero_price_closed)
     new_balance = conn.execute(
         "SELECT balance_rub FROM tm_clients WHERE id = ?", (client_id,)
     ).fetchone()[0]
@@ -573,7 +580,7 @@ def get_payment_status(conn: sqlite3.Connection, client_id: str) -> dict:
         "total_debt_display": _fmt_k(total_debt),
         "net_position": client["balance_rub"] - total_debt,
         "tasks_with_debt": [
-            {"par": f"{get_project_prefix(conn, client['project_id'])}-{t['par_number']}",
+            {"par": str(t["par_number"]),
              "title": t["title"],
              "debt": _fmt_k(t["price_rub"] - t["paid_rub"])}
             for t in tasks_with_debt
@@ -608,13 +615,13 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
                   (SELECT COALESCE(SUM(amount_rub), 0) FROM tm_payment_allocations WHERE task_id = tm_tasks.id) as computed_paid
            FROM tm_tasks
            WHERE project_id IN (SELECT project_id FROM tm_clients WHERE id = ?)
-             AND (paid_rub != (SELECT COALESCE(SUM(amount_rub), 0) FROM tm_payment_allocations WHERE task_id = tm_tasks.id)
-                  OR paid_rub > price_rub)""",
+             AND paid_rub != (SELECT COALESCE(SUM(amount_rub), 0) FROM tm_payment_allocations WHERE task_id = tm_tasks.id)
+             AND paid_rub > 0""",
         (client_id,),
     ).fetchall()
     if bad_tasks:
         details = "; ".join(
-            f"PAR-{t['par_number']}: paid_rub={t['paid_rub']}, computed={t['computed_paid']}, price={t['price_rub']}"
+            f"#{t['par_number']}: paid_rub={t['paid_rub']}, computed={t['computed_paid']}, price={t['price_rub']}"
             for t in bad_tasks
         )
         raise RuntimeError(f"Task payment mismatch: {details}")
@@ -638,15 +645,6 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
     if actual < 0:
         raise RuntimeError(f"Negative balance: {actual}")
 
-    bad_paid_status = conn.execute(
-        """SELECT par_number FROM tm_tasks
-           WHERE price_rub > 0 AND paid_rub = price_rub AND status != 'paid'
-             AND project_id IN (SELECT project_id FROM tm_clients WHERE id = ?)""",
-        (client_id,),
-    ).fetchall()
-    if bad_paid_status:
-        pars = ", ".join(f"PAR-{t['par_number']}" for t in bad_paid_status)
-        raise RuntimeError(f"Tasks fully paid but not in 'paid' status: {pars}")
 
 
 # --- Sync log helpers ---
@@ -713,26 +711,19 @@ def _fire_sync(task_id: int) -> None:
         logger.error("Sync fire failed for task %d: %s", task_id, e)
 
 
-def _fire_par35_sync(payment_result: dict) -> None:
+def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
     task_ids = [d["task_id"] for d in payment_result.get("distributions", []) if d.get("task_id")]
     if task_ids and not _is_yougile_enabled(task_ids[0]):
         return
     with _conn() as conn:
-        sync_log_id = log_sync(conn, None, "par35_update", None, "pending",
+        sync_log_id = log_sync(conn, None, "journal_update", None, "pending",
                                payload=str(payment_result.get("payment_id", "")))
     try:
-        from app.tm_yougile import yougile_update_par35
+        from app.tm_yougile import update_payment_journal
 
         async def _do():
             try:
-                result = await yougile_update_par35(
-                    payment_id=payment_result["payment_id"],
-                    balance_rub=payment_result["new_balance"],
-                    distributions=payment_result["distributions"],
-                    total_debt=payment_result["total_debt_remaining"],
-                    payment_date=payment_result["date"],
-                    amount_rub=payment_result["amount_rub"],
-                )
+                result = await update_payment_journal(payment_result, client_id)
                 status = "ok" if result == "ok" else "error"
                 with _conn() as c:
                     c.execute(
@@ -740,7 +731,7 @@ def _fire_par35_sync(payment_result: dict) -> None:
                         (status, result if status == "error" else None, _now(), sync_log_id),
                     )
             except Exception as e:
-                logger.error("PAR-35 sync failed: %s", e)
+                logger.error("Journal sync failed: %s", e)
                 with _conn() as c:
                     c.execute(
                         "UPDATE tm_sync_log SET status = 'error', error = ?, completed_at = ? WHERE id = ?",
@@ -749,35 +740,36 @@ def _fire_par35_sync(payment_result: dict) -> None:
 
         asyncio.get_event_loop().create_task(_do())
     except RuntimeError:
-        logger.debug("No event loop for PAR-35 sync, skipping")
+        logger.debug("No event loop for journal sync, skipping")
     except Exception as e:
-        logger.error("PAR-35 sync fire failed: %s", e)
+        logger.error("Journal sync fire failed: %s", e)
 
 
 # --- High-level API for routes/MCP ---
 
 def api_create_task(project_id: str, title: str, price: int = 0,
                     description: str = "", assignee: str = "",
-                    status: str = "new") -> dict:
+                    status: str = "new", scope: str = "",
+                    priority: int = 2) -> dict:
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            ensure_project(conn, project_id)
+            ensure_project(conn, project_id, scope=scope or None)
             task = create_task(
                 conn, project_id, title,
                 price_rub=price * 1000,
                 description=description,
                 assignee=assignee,
                 status=status,
+                priority=priority,
             )
-            prefix = get_project_prefix(conn, project_id)
             conn.commit()
         except Exception:
             conn.rollback()
             raise
     _fire_sync(task["id"])
     return {
-        "par": f"{prefix}-{task['par_number']}",
+        "par": str(task["par_number"]),
         "id": task["id"],
         "title": task["title"],
         "project": project_id,
@@ -790,12 +782,14 @@ def api_update_task(par: str, title: str | None = None,
                     description: str | None = None,
                     price: int | None = None,
                     status: str | None = None,
-                    assignee: str | None = None) -> dict:
+                    assignee: str | None = None,
+                    project: str = "",
+                    priority: int | None = None) -> dict:
     task_id = None
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            task = resolve_task_ref(conn, par)
+            task = resolve_task_ref(conn, par, project)
             if not task:
                 raise ValueError(f"{par} not found")
             task_id = task["id"]
@@ -805,7 +799,7 @@ def api_update_task(par: str, title: str | None = None,
                 conn, task_id,
                 title=title, description=description,
                 price_rub=price_rub, status=status,
-                assignee=assignee,
+                assignee=assignee, priority=priority,
             )
 
             if status == "done":
@@ -833,11 +827,6 @@ def api_list_tasks(project: str = "", status: str = "",
                    assignee: str = "") -> dict:
     with _conn() as conn:
         tasks = list_tasks(conn, project_id=project, status=status, assignee=assignee)
-        prefix_cache: dict[str, str] = {}
-        for t in tasks:
-            pid = t["project_id"]
-            if pid not in prefix_cache:
-                prefix_cache[pid] = get_project_prefix(conn, pid)
 
     total_debt = sum(
         t["price_rub"] - t["paid_rub"]
@@ -848,7 +837,7 @@ def api_list_tasks(project: str = "", status: str = "",
     return {
         "tasks": [
             {
-                "par": f"{prefix_cache.get(t['project_id'], 'TASK')}-{t['par_number']}",
+                "par": str(t["par_number"]),
                 "title": t["title"],
                 "project": t["project_id"],
                 "price": _fmt_k(t["price_rub"]),
@@ -856,6 +845,7 @@ def api_list_tasks(project: str = "", status: str = "",
                 "debt": _fmt_k(t["price_rub"] - t["paid_rub"]),
                 "status": t["status"],
                 "assignee": t["assignee"],
+                "priority": t.get("priority", 2),
             }
             for t in tasks
         ],
@@ -864,9 +854,9 @@ def api_list_tasks(project: str = "", status: str = "",
     }
 
 
-def api_get_task(par: str) -> dict:
+def api_get_task(par: str, project: str = "") -> dict:
     with _conn() as conn:
-        task = resolve_task_ref(conn, par)
+        task = resolve_task_ref(conn, par, project)
         if not task:
             raise ValueError(f"{par} not found")
 
@@ -893,6 +883,7 @@ def api_get_task(par: str) -> dict:
         "debt_rub": task["price_rub"] - task["paid_rub"],
         "status": task["status"],
         "assignee": task["assignee"],
+        "priority": task.get("priority", 2),
         "created_at": task["created_at"],
         "completed_at": task["completed_at"],
         "payments": [
@@ -919,7 +910,7 @@ def api_receive_payment(amount: int, client: str = "aleksandr-kislinskiy",
 
     for d in result.get("distributions", []):
         _fire_sync(d["task_id"])
-    _fire_par35_sync(result)
+    _fire_journal_sync(result, client)
 
     result["sync_status"] = "pending"
     return result
