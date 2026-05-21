@@ -156,9 +156,6 @@ async def login_submit(request: Request, username: str = Form(""), password: str
 
 @app.post("/logout")
 async def logout(request: Request):
-    from app.auth import destroy_session
-    token = request.cookies.get("session", "")
-    destroy_session(token)
     response = RedirectResponse("/login", status_code=302)
     response.delete_cookie("session")
     return response
