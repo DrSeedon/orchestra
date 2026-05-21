@@ -51,19 +51,25 @@ app = FastAPI(title="Orchestra", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-from app.auth import is_auth_enabled, validate_session, requires_auth
+from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        method = request.method
+        if method == "POST" and "/send" in path and path.startswith("/api/sessions/"):
+            if not check_internal_token(request.headers.get("authorization", "")):
+                return JSONResponse({"error": "unauthorized"}, status_code=401)
+            return await call_next(request)
         if not is_auth_enabled():
             return await call_next(request)
-        if not requires_auth(request.url.path, request.method):
+        if not requires_auth(path, method):
             return await call_next(request)
         token = request.cookies.get("session")
         if token and validate_session(token):
             return await call_next(request)
-        if request.url.path.startswith("/api/"):
+        if path.startswith("/api/"):
             return JSONResponse({"error": "unauthorized"}, status_code=401)
         return RedirectResponse("/login", status_code=302)
 
@@ -206,6 +212,28 @@ async def list_projects():
     return results
 
 
+_ALLOWED_ROOTS: list[str] = []
+
+
+def _get_allowed_roots() -> list[str]:
+    if _ALLOWED_ROOTS:
+        return _ALLOWED_ROOTS
+    for root in ["/mnt/data/Projects", str(Path.home())]:
+        if Path(root).is_dir():
+            _ALLOWED_ROOTS.append(root)
+    uploads = str(Path(__file__).parent.parent / "data" / "uploads")
+    _ALLOWED_ROOTS.append(uploads)
+    return _ALLOWED_ROOTS
+
+
+def _is_safe_path(path: str) -> bool:
+    try:
+        resolved = str(Path(path).resolve())
+    except (ValueError, OSError):
+        return False
+    return any(resolved.startswith(root) for root in _get_allowed_roots())
+
+
 BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
                      '.zip', '.tar', '.gz', '.bz2', '.xz', '.rar', '.7z',
                      '.exe', '.bin', '.so', '.whl', '.dll', '.dylib', '.pyc',
@@ -214,6 +242,8 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
 
 @app.get("/api/files/raw")
 async def get_file_raw(path: str):
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     from starlette.responses import FileResponse
     target = Path(path)
     if not target.is_file():
@@ -223,6 +253,8 @@ async def get_file_raw(path: str):
 
 @app.get("/api/files/content")
 async def get_file_content(path: str):
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     target = Path(path)
     if not target.exists():
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -239,6 +271,8 @@ async def get_file_content(path: str):
 
 @app.post("/api/open-folder")
 async def open_folder(req: dict):
+    if not os.environ.get("ALLOW_OPEN_FOLDER"):
+        return JSONResponse({"error": "disabled on this server"}, status_code=403)
     import subprocess
     path = req.get("path", "")
     if not Path(path).is_dir():
@@ -250,6 +284,8 @@ async def open_folder(req: dict):
 
 @app.get("/api/files")
 async def list_files(path: str):
+    if not _is_safe_path(path):
+        return JSONResponse({"error": "access denied"}, status_code=403)
     target = Path(path)
     if not target.is_dir():
         return JSONResponse({"error": "not a directory"}, status_code=400)
@@ -792,10 +828,14 @@ UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+_BLOCKED_UPLOAD_EXTS = {".exe", ".sh", ".bat", ".cmd", ".ps1", ".py", ".js", ".php", ".rb", ".pl"}
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile):
     import hashlib
     ext = Path(file.filename or "image.png").suffix or ".png"
+    if ext.lower() in _BLOCKED_UPLOAD_EXTS:
+        return JSONResponse({"error": f"file type {ext} not allowed"}, status_code=400)
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         return JSONResponse({"error": "file too large (max 10MB)"}, status_code=400)
@@ -905,6 +945,7 @@ class TmTaskCreate(BaseModel):
     description: str = ""
     assignee: str = ""
     status: str = "new"
+    scope: str = ""
 
 
 class TmTaskUpdate(BaseModel):
@@ -927,6 +968,7 @@ async def tm_create_task(req: TmTaskCreate):
     try:
         return _tm.api_create_task(
             req.project, req.title, req.price, req.description, req.assignee, req.status,
+            scope=req.scope,
         )
     except (ValueError, RuntimeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
