@@ -693,4 +693,5 @@ class AgentSession:
             "hibernated": self._hibernated,
             "task_id": self.task_id,
             "description": self.description,
+            "system_prompt": self.system_prompt[:500] if self.system_prompt else "",
         }

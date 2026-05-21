@@ -296,6 +296,15 @@ async def update_worker_prompt(name: str, system_prompt: str) -> str:
 
 
 @mcp.tool()
+async def get_worker_info(name: str) -> str:
+    """Get full worker info including system_prompt, description, model, status, context, task_id."""
+    result = await _api("GET", f"/api/sessions/{name}", params={"scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
 async def task_create(title: str, project: str, price: int = 0,
                       description: str = "", assignee: str = "",
                       status: str = "new") -> str:
