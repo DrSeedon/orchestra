@@ -253,6 +253,9 @@ def _migrate(c) -> None:
         except Exception:
             pass
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
+    task_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)").fetchall()}
+    if task_cols and "priority" not in task_cols:
+        c.execute("ALTER TABLE tm_tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 2")
     client_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_clients)").fetchall()}
     if client_cols and "journal_yougile_id" not in client_cols:
         c.execute("ALTER TABLE tm_clients ADD COLUMN journal_yougile_id TEXT DEFAULT ''")

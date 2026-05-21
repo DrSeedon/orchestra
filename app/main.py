@@ -992,6 +992,7 @@ class TmTaskCreate(BaseModel):
     assignee: str = ""
     status: str = "new"
     scope: str = ""
+    priority: int = 2
 
 
 class TmTaskUpdate(BaseModel):
@@ -1000,6 +1001,7 @@ class TmTaskUpdate(BaseModel):
     price: int | None = None
     status: str | None = None
     assignee: str | None = None
+    priority: int | None = None
 
 
 class TmPaymentReceive(BaseModel):
@@ -1014,7 +1016,7 @@ async def tm_create_task(req: TmTaskCreate):
     try:
         return _tm.api_create_task(
             req.project, req.title, req.price, req.description, req.assignee, req.status,
-            scope=req.scope,
+            scope=req.scope, priority=req.priority,
         )
     except (ValueError, RuntimeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
@@ -1059,7 +1061,7 @@ async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
                     project = p["id"]
         return _tm.api_update_task(
             par, req.title, req.description, req.price, req.status, req.assignee,
-            project=project,
+            project=project, priority=req.priority,
         )
     except (ValueError, RuntimeError) as e:
         code = 404 if "not found" in str(e).lower() else 400
