@@ -344,6 +344,10 @@ async def create_session(req: CreateSessionRequest):
         return JSONResponse({"error": str(e)}, status_code=409)
     except sqlite3.IntegrityError:
         return JSONResponse({"error": f"session '{req.name}' already exists"}, status_code=409)
+    except Exception as e:
+        import traceback
+        logging.getLogger(__name__).error(f"spawn failed: {traceback.format_exc()}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.get("/api/sessions/{name}")
