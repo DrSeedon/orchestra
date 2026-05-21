@@ -1,0 +1,21 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+Copyright (c) 2026 Seedon ООО (seedon.ru)
+Author: Maxim Astrakhantsev
+
+COMMERCIAL LICENSING
+====================
+For commercial licensing options (use without AGPL obligations),
+contact: katyas16k.ks@gmail.com | seedon.ru
+
+SUMMARY (not a substitute for the full license text)
+=====================================================
+- You may use, modify, and distribute this software under AGPL-3.0
+- If you run a modified version as a network service, you MUST make
+  your source code available to users of that service
+- Any derivative work must also be licensed under AGPL-3.0
+- The copyright holder (Seedon ООО) may offer commercial licenses
+  that waive these requirements
+
+Full text: https://www.gnu.org/licenses/agpl-3.0.html
