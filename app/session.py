@@ -37,6 +37,15 @@ def _load_scope_mcp_servers(scope: str) -> dict:
                     servers[k] = v
         except Exception as e:
             logger.warning(f"Failed to parse MCP servers from {path}: {e}")
+    mcp_json = Path(scope) / ".mcp.json"
+    if mcp_json.is_file():
+        try:
+            data = json.loads(mcp_json.read_text())
+            for k, v in data.get("mcpServers", {}).items():
+                if k != "orchestra":
+                    servers[k] = v
+        except Exception as e:
+            logger.warning(f"Failed to parse .mcp.json from {mcp_json}: {e}")
     return servers
 
 
