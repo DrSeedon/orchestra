@@ -652,7 +652,7 @@ async def ensure_topics():
             continue
         try:
             short = _short_name(name)
-            result = await bot.create_forum_topic(chat_id=config["group_id"], name=f"🎯 {short}")
+            result = await bot.create_forum_topic(chat_id=config["group_id"], name=short, icon_custom_emoji_id=_ICON_IDLE)
             config["topics"][name] = result.message_thread_id
             save_config()
             logger.info(f"Created topic for {name}: {result.message_thread_id}")
@@ -669,7 +669,7 @@ async def ensure_topics():
             continue
         try:
             short = _short_name(name)
-            result = await bot.create_forum_topic(chat_id=chat_id, name=f"🎯 {short}")
+            result = await bot.create_forum_topic(chat_id=chat_id, name=short, icon_custom_emoji_id=_ICON_IDLE)
             mirror["topic_id"] = result.message_thread_id
             save_config()
             logger.info(f"Created mirror topic for {name}: {result.message_thread_id}")
