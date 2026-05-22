@@ -712,6 +712,21 @@ async def stream_logs(orch_name: str, thread_id: int):
                     await _update_topic_status(orch_name, True)
                 if t == "user_message":
                     c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
+                    img_match = re.search(r'(/\S+\.(?:png|jpg|jpeg|gif|webp))', c, re.IGNORECASE)
+                    if img_match and Path(img_match.group(1)).is_file():
+                        img_path = img_match.group(1)
+                        caption = c.replace(img_path, '').strip()[:1024] or None
+                        try:
+                            from aiogram.types import FSInputFile
+                            tg_file = FSInputFile(img_path)
+                            await bot.send_photo(config["group_id"], tg_file, caption=caption, message_thread_id=thread_id)
+                            mirror = config.get("mirrors", {}).get(orch_name)
+                            if mirror and mirror.get("chat_id"):
+                                mirror_file = FSInputFile(img_path)
+                                await bot.send_photo(mirror["chat_id"], mirror_file, caption=caption, message_thread_id=mirror.get("topic_id"))
+                        except Exception as e:
+                            logger.warning(f"TG send photo failed: {e}")
+                        continue
                     if c.startswith("[from:"):
                         prefix = c.split("]")[0] + "]"
                         body = c[len(prefix):].strip()
