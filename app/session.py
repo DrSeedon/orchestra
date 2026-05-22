@@ -271,12 +271,19 @@ class AgentSession:
                         self._persist()
                     return
 
+    CODEX_TURN_TIMEOUT = 600
+
     async def _codex_turn_loop(self) -> None:
         logger.info(f"[{self.name}] codex turn started")
         try:
-            async for event in self._backend.events():
-                self._last_msg_time = asyncio.get_event_loop().time()
-                self._handle_event(event)
+            async with asyncio.timeout(self.CODEX_TURN_TIMEOUT):
+                async for event in self._backend.events():
+                    self._last_msg_time = asyncio.get_event_loop().time()
+                    self._handle_event(event)
+        except TimeoutError:
+            logger.error(f"[{self.name}] codex turn timed out ({self.CODEX_TURN_TIMEOUT}s)")
+            self._log("error", f"codex turn timed out ({self.CODEX_TURN_TIMEOUT}s), killing backend")
+            await self._disconnect_backend()
         except asyncio.CancelledError:
             return
         except Exception as e:
@@ -501,8 +508,15 @@ class AgentSession:
                 elif self.status == AgentStatus.RUNNING and self._last_msg_time > 0:
                     silence = asyncio.get_event_loop().time() - self._last_msg_time
                     if silence > NO_MSG_TIMEOUT:
-                        logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
-                        self._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
+                        if self.backend_type == "codex":
+                            logger.error(f"[{self.name}] heartbeat: codex silent {silence:.0f}s — killing backend")
+                            self._log("error", f"codex no response for {silence:.0f}s, killing backend")
+                            await self._disconnect_backend()
+                            self.status = AgentStatus.IDLE
+                            self._persist()
+                        else:
+                            logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
+                            self._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
             except asyncio.CancelledError:
                 logger.info(f"[{self.name}] heartbeat cancelled")
                 return
