@@ -3771,6 +3771,21 @@ function _resetPctNum(isoStr, windowMs) {
     return Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)));
 }
 
+function _paceIndicator(currentPct, isoStr, windowMs) {
+    if (!isoStr) return '';
+    const remainMs = Math.max(0, new Date(isoStr) - Date.now());
+    const elapsedMs = windowMs - remainMs;
+    const idealPct = (elapsedMs / windowMs) * 100;
+    const delta = currentPct - idealPct;
+    if (delta <= 5) return '<span style="color:#22c55e">ok</span>';
+    const cooldownMin = Math.round(delta * windowMs / 100 / 60000);
+    const color = delta <= 20 ? '#eab308' : '#ef4444';
+    let label;
+    if (cooldownMin < 60) label = `${cooldownMin}m`;
+    else if (cooldownMin < 1440) label = `${Math.floor(cooldownMin/60)}h ${cooldownMin%60}m`;
+    else label = `${Math.floor(cooldownMin/1440)}d ${Math.floor((cooldownMin%1440)/60)}h`;
+    return `<span style="color:${color}">⏸${label}</span>`;
+}
 function _miniBar(pct, color) {
     return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
 }
@@ -3797,7 +3812,8 @@ function renderUsageBar() {
         const c = _usageColor(fh.utilization, rpNum);
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span>`);
+        const pace = _paceIndicator(fh.utilization, fh.resets_at, 5 * 3600000);
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
@@ -3805,7 +3821,8 @@ function renderUsageBar() {
         const c = _usageColor(sd.utilization, rpNum);
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         const cd = _resetCountdown(sd.resets_at);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span>`);
+        const pace = _paceIndicator(sd.utilization, sd.resets_at, 7 * 86400000);
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
     }
 
     parts.push('<span style="flex:1"></span>');
