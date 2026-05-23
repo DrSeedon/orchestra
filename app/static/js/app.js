@@ -1692,36 +1692,29 @@ function addChatEntry(type, content, ts, anchor) {
                 const msg = d.message || '';
                 header.textContent = `📨 → ${to}`;
                 header.style.color = '#a78bfa';
-                const previewText = msg.length > 200 ? msg.slice(0, 200) : msg;
-                const hasMore = msg.length > 200;
-                const previewEl = document.createElement('div');
-                previewEl.className = 'text-xs opacity-80 markdown-body';
-                previewEl.innerHTML = DOMPurify.sanitize(marked.parse(previewText));
-                div.appendChild(previewEl);
-                if (hasMore) {
-                    const restEl = document.createElement('div');
-                    restEl.className = 'text-xs opacity-80 markdown-body';
-                    restEl.innerHTML = DOMPurify.sanitize(marked.parse(msg.slice(200)));
-                    restEl.style.display = 'none';
-                    restEl.dataset.role = 'send-rest';
-                    div.appendChild(restEl);
-                    const restLines = msg.slice(200).split('\n').length;
-                    const hint = document.createElement('div');
-                    hint.className = 'text-xs mt-1';
-                    hint.style.color = '#a78bfa';
-                    hint.style.cursor = 'pointer';
-                    hint.textContent = `▼ ${restLines} more lines`;
-                    hint.dataset.role = 'send-hint';
-                    div.appendChild(hint);
-                    div.style.cursor = 'pointer';
-                    let sendExpanded = false;
-                    div.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'A') return;
-                        sendExpanded = !sendExpanded;
-                        restEl.style.display = sendExpanded ? 'block' : 'none';
-                        hint.textContent = sendExpanded ? '▲ collapse' : `▼ ${restLines} more lines`;
-                    });
-                }
+                const SEND_PREVIEW_H = 90;
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'text-xs opacity-80 markdown-body';
+                bodyEl.style.cssText = `max-height:${SEND_PREVIEW_H}px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word`;
+                bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(msg));
+                div.appendChild(bodyEl);
+                const hint = document.createElement('div');
+                hint.className = 'text-xs mt-1';
+                hint.style.cssText = 'color:#a78bfa;cursor:pointer';
+                hint.textContent = '▼ expand';
+                div.appendChild(hint);
+                div.style.cursor = 'pointer';
+                let sendExpanded = false;
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    sendExpanded = !sendExpanded;
+                    bodyEl.style.maxHeight = sendExpanded ? 'none' : SEND_PREVIEW_H + 'px';
+                    bodyEl.style.overflowY = sendExpanded ? 'visible' : 'hidden';
+                    hint.textContent = sendExpanded ? '▲ collapse' : '▼ expand';
+                });
+                requestAnimationFrame(() => {
+                    if (bodyEl.scrollHeight <= SEND_PREVIEW_H + 4) { hint.style.display = 'none'; bodyEl.style.maxHeight = 'none'; bodyEl.style.overflowY = 'visible'; }
+                });
                 div.dataset.isEdit = '1';
             } catch {}
         }
