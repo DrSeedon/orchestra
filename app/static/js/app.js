@@ -3762,7 +3762,7 @@ function _resetCountdown(isoStr) {
     const ms = new Date(isoStr) - Date.now();
     if (ms <= 0) return '';
     const h = Math.floor(ms / 3600000); const m = Math.floor((ms % 3600000) / 60000);
-    if (h >= 24) { const d = Math.floor(h / 24); return `${d}d ${h % 24}h`; }
+    if (h >= 24) { const d = Math.floor(h / 24); return `${d}d ${h % 24}h ${m}m`; }
     return `${h}h ${m}m`;
 }
 function _resetPctNum(isoStr, windowMs) {
@@ -3784,7 +3784,7 @@ function _paceIndicator(currentPct, isoStr, windowMs) {
     let label;
     if (cooldownMin < 60) label = `${cooldownMin}m`;
     else if (cooldownMin < 1440) label = `${Math.floor(cooldownMin/60)}h ${cooldownMin%60}m`;
-    else label = `${Math.floor(cooldownMin/1440)}d ${Math.floor((cooldownMin%1440)/60)}h`;
+    else label = `${Math.floor(cooldownMin/1440)}d ${Math.floor((cooldownMin%1440)/60)}h ${cooldownMin%60}m`;
     return `<span style="color:${color}">⏸${label}</span>`;
 }
 function _miniBar(pct, color) {
