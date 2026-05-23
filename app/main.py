@@ -129,6 +129,12 @@ class ScopeRequest(BaseModel):
     scope: str
 
 
+class TestLockRequest(BaseModel):
+    scope: str
+    holder: str
+    reason: str = ""
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
@@ -979,6 +985,30 @@ async def list_orchestrators():
 async def delete_orchestrator(name: str, scope: str):
     await manager.remove_scope(scope)
     return {"ok": True}
+
+
+@app.get("/api/test-lock")
+async def test_lock_status_endpoint(scope: str):
+    from app.db import get_test_lock
+    row = get_test_lock(scope)
+    if not row:
+        return {"held": False, "holder": None, "reason": None, "acquired_at": None}
+    return {"held": True, "holder": row["holder"],
+            "reason": row["reason"], "acquired_at": row["acquired_at"]}
+
+
+@app.post("/api/test-lock/acquire")
+async def acquire_lock_endpoint(req: TestLockRequest):
+    from app.db import acquire_test_lock
+    ok, holder = acquire_test_lock(req.scope, req.holder, req.reason)
+    return {"acquired": ok, "holder": holder}
+
+
+@app.post("/api/test-lock/release")
+async def release_lock_endpoint(req: TestLockRequest):
+    from app.db import release_test_lock
+    ok = release_test_lock(req.scope, req.holder)
+    return {"released": ok}
 
 
 @app.get("/api/models")
