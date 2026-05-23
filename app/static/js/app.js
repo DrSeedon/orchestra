@@ -3910,22 +3910,36 @@ async function _loadSparkline(tipEl) {
     }
     try {
         const data = await api('/api/usage/history?hours=168');
-        if (!Array.isArray(data) || data.length < 2) return;
-        const W = 280, H = 60;
+        if (!Array.isArray(data) || data.length < 3) {
+            slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
+            return;
+        }
+        const PL = 28, PB = 14, W = 280, H = 80, gw = W - PL, gh = H - PB;
+        let allVals = [];
+        for (const d of data) { allVals.push(d.five_hour_pct || 0, d.seven_day_pct || 0); }
+        let yMin = Math.floor(Math.min(...allVals)), yMax = Math.ceil(Math.max(...allVals));
+        if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
+        const yRange = yMax - yMin || 1;
         const mkPoints = (key) => {
             const pts = [];
             for (let i = 0; i < data.length; i++) {
-                const x = (i / (data.length - 1)) * W;
-                const y = H - (Math.min(data[i][key] || 0, 100) / 100) * H;
+                const x = PL + (i / (data.length - 1)) * gw;
+                const y = gh - ((Math.min(data[i][key] || 0, 100) - yMin) / yRange) * gh;
                 pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
             }
             return pts.join(' ');
         };
         const last7d = data[data.length - 1]?.seven_day_pct || 0;
         const color7d = last7d >= 80 ? '#ef4444' : last7d >= 50 ? '#eab308' : '#22c55e';
+        const fmtDate = (iso) => { const d = new Date(iso); return d.toLocaleDateString('en', {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit',hour12:false}); };
+        const warnY = yMax >= 80 ? gh - ((80 - yMin) / yRange) * gh : -1;
         let svg = `<div style="font-size:10px;color:#64748b;margin-bottom:4px">📈 7d window</div>`;
         svg += `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">`;
-        svg += `<line x1="0" y1="${H * 0.2}" x2="${W}" y2="${H * 0.2}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
+        svg += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
+        svg += `<text x="${PL - 3}" y="${gh}" text-anchor="end" fill="#64748b" font-size="9">${yMin}%</text>`;
+        svg += `<text x="${PL}" y="${H}" fill="#64748b" font-size="9">${fmtDate(data[0].ts)}</text>`;
+        svg += `<text x="${W}" y="${H}" text-anchor="end" fill="#64748b" font-size="9">${fmtDate(data[data.length-1].ts)}</text>`;
+        if (warnY >= 0 && warnY <= gh) svg += `<line x1="${PL}" y1="${warnY}" x2="${W}" y2="${warnY}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
         svg += `<polyline points="${mkPoints('seven_day_pct')}" fill="none" stroke="${color7d}" stroke-width="1.5" stroke-linejoin="round"/>`;
         svg += `<polyline points="${mkPoints('five_hour_pct')}" fill="none" stroke="#38bdf8" stroke-width="1" stroke-linejoin="round" opacity="0.6"/>`;
         svg += '</svg>';
