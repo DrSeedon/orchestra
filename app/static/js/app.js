@@ -3916,34 +3916,41 @@ async function _loadSparkline(tipEl) {
         }
         const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
         const fmtDate = (iso) => { const d = new Date(iso); return d.toLocaleDateString('en', {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit',hour12:false}); };
-        const mkChart = (key, label, color, showXAxis) => {
+        const mkChart = (key, resetKey, windowMs, label, color, showXAxis) => {
             const vals = data.map(d => d[key] || 0);
-            let yMin = Math.floor(Math.min(...vals)), yMax = Math.ceil(Math.max(...vals));
+            const idealVals = data.map(d => {
+                const ra = d[resetKey]; if (!ra) return 0;
+                const remain = new Date(ra) - new Date(d.ts);
+                const elapsed = windowMs - remain;
+                return Math.max(0, Math.min(100, elapsed / windowMs * 100));
+            });
+            const allV = [...vals, ...idealVals];
+            let yMin = Math.floor(Math.min(...allV)), yMax = Math.ceil(Math.max(...allV));
             if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
             const yRange = yMax - yMin || 1;
-            const pts = [];
-            for (let i = 0; i < data.length; i++) {
+            const toPoints = (arr) => arr.map((v, i) => {
                 const x = PL + (i / (data.length - 1)) * gw;
-                const y = gh - ((Math.min(vals[i], 100) - yMin) / yRange) * gh;
-                pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-            }
+                const y = gh - ((Math.min(v, 100) - yMin) / yRange) * gh;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
             const totalH = showXAxis ? H + 12 : H;
             let s = `<svg width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" style="display:block">`;
             s += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
             s += `<text x="${PL - 3}" y="${gh - 1}" text-anchor="end" fill="#64748b" font-size="9">${yMin}%</text>`;
             const warnY = (yMax >= 80 && yMin <= 80) ? gh - ((80 - yMin) / yRange) * gh : -1;
             if (warnY >= 0) s += `<line x1="${PL}" y1="${warnY}" x2="${W}" y2="${warnY}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
-            s += `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
+            s += `<polyline points="${toPoints(idealVals)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
+            s += `<polyline points="${toPoints(vals)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
             if (showXAxis) {
                 s += `<text x="${PL}" y="${H + 11}" fill="#64748b" font-size="9">${fmtDate(data[0].ts)}</text>`;
                 s += `<text x="${W}" y="${H + 11}" text-anchor="end" fill="#64748b" font-size="9">${fmtDate(data[data.length-1].ts)}</text>`;
             }
             s += '</svg>';
             const cur = vals[vals.length - 1];
-            return `<div style="margin-bottom:4px"><div style="font-size:10px;color:${color};margin-bottom:2px;font-weight:600">${label} <span style="color:#64748b;font-weight:normal">${cur}%</span></div>${s}</div>`;
+            return `<div style="margin-bottom:4px"><div style="font-size:10px;color:${color};margin-bottom:1px;font-weight:600">${label} <span style="color:#64748b;font-weight:normal">${cur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${s}</div>`;
         };
-        let html = mkChart('five_hour_pct', '5h', '#38bdf8', false);
-        html += mkChart('seven_day_pct', '7d', '#f97316', true);
+        let html = mkChart('five_hour_pct', 'five_hour_resets_at', 5*3600000, '5h', '#38bdf8', false);
+        html += mkChart('seven_day_pct', 'seven_day_resets_at', 7*86400000, '7d', '#f97316', true);
         _sparkCache = html;
         _sparkCacheTs = now;
         if (slot.isConnected) slot.innerHTML = html;
