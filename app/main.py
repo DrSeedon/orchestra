@@ -923,6 +923,8 @@ async def upload_file(file: UploadFile):
     path = UPLOADS_DIR / name
     if not path.exists():
         path.write_bytes(content)
+    from app.tg_bridge import _cleanup_uploads
+    _cleanup_uploads()
     return {"path": str(path), "url": f"/uploads/{name}"}
 
 
