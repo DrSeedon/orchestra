@@ -167,6 +167,36 @@ class TestStats:
         assert r.status_code == 200
 
 
+class TestTestLockApi:
+    def test_acquire_and_status_and_release(self, client):
+        # свободен
+        st = client.get("/api/test-lock", params={"scope": "/s"})
+        assert st.status_code == 200
+        assert st.json()["held"] is False
+
+        # захват
+        r = client.post("/api/test-lock/acquire", json={"scope": "/s", "holder": "coder-a", "reason": "suite"})
+        assert r.status_code == 200
+        assert r.json()["acquired"] is True
+
+        # занято другим
+        r2 = client.post("/api/test-lock/acquire", json={"scope": "/s", "holder": "coder-b", "reason": "x"})
+        assert r2.status_code == 200
+        assert r2.json()["acquired"] is False
+        assert r2.json()["holder"] == "coder-a"
+
+        # статус
+        st2 = client.get("/api/test-lock", params={"scope": "/s"})
+        assert st2.status_code == 200
+        assert st2.json()["held"] is True
+        assert st2.json()["holder"] == "coder-a"
+
+        # релиз
+        rel = client.post("/api/test-lock/release", json={"scope": "/s", "holder": "coder-a"})
+        assert rel.status_code == 200
+        assert rel.json()["released"] is True
+
+
 class TestOrchestrators:
     def test_list_orchestrators(self, client):
         r = client.get("/api/orchestrators")
