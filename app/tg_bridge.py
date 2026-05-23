@@ -86,6 +86,11 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
 
 UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 
+# Юзернейм для @mention в сообщениях агента пользователю (его речь, тип "text" → 💬).
+# Пусто → без тэга. Тэгается ТОЛЬКО речь агента, НЕ внутренняя переписка агентов (📨 [from:]).
+# MVP: статичный ник из env. Динамическое определение «это обращение к юзеру» — в backlog.
+TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
+
 
 def _cleanup_uploads():
     files = [f for f in UPLOADS_DIR.iterdir() if f.is_file() and not f.name.startswith(".")]
@@ -745,7 +750,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                     else:
                         text = f"👤 {c}"
                 elif t == "text":
-                    text = f"💬\n{c}"
+                    # @mention пользователя — только в речи агента (text), чтобы уведы
+                    # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
+                    # Обрезание убрано: длинные сообщения дробит _split_message ниже (upstream c36c51d).
+                    head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
+                    text = f"{head}\n{c}"
                 elif t == "tool":
                     tool_name = c.split(":")[0].strip() if ":" in c else "tool"
                     tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
