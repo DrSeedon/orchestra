@@ -238,9 +238,9 @@ async def change_worker_model(name: str, model: str) -> str:
 
 
 @mcp.tool()
-async def merge_worker(name: str) -> str:
-    """Merge a worker's branch into main. Returns commit count or conflict file list."""
-    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE})
+async def merge_worker(name: str, target: str = "main") -> str:
+    """Merge a worker's branch into target branch (default main). Кодер: воркер этапа -> ветка фичи (target=feature/<...>). Мерж фичи в main — отдельно, по согласованию с PM/пользователем. Returns commit count or conflict file list."""
+    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE, "target": target})
     if isinstance(result, dict) and result.get("error"):
         return f"Merge failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):

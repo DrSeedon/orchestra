@@ -641,16 +641,18 @@ async def delete_session(name: str, scope: str):
 
 
 @app.post("/api/sessions/{name}/merge")
-async def merge_session(name: str, req: ScopeRequest):
+async def merge_session(name: str, req: dict):
     from app.workspace import merge_worktree_to_main
-    found = manager.get_by_name(name, req.scope)
+    scope = req.get("scope", "")
+    target = req.get("target", "main")
+    found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
     if not isinstance(found, dict):
         if found.status.value == "running":
             return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
     worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
-    scope = found.get("scope") if isinstance(found, dict) else found.scope
+    scope = (found.get("scope") if isinstance(found, dict) else found.scope) or scope
     session_id = found.get("id") if isinstance(found, dict) else found.id
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
@@ -658,7 +660,7 @@ async def merge_session(name: str, req: ScopeRequest):
         return JSONResponse({"error": "session has no scope"}, status_code=400)
     async with manager.get_session_lock(session_id):
         try:
-            result = merge_worktree_to_main(worktree_path, scope)
+            result = merge_worktree_to_main(worktree_path, scope, target_branch=target)
             if result.get("ok"):
                 link_results = {}
                 for task_ref, commits in result.pop("merged_commits", {}).items():
