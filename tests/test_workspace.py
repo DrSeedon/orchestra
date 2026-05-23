@@ -153,6 +153,71 @@ class TestSwitchWorktreeBranch:
         assert result.get("ok") is True, f"expected ok, got: {result}"
 
 
+class TestMergeTarget:
+    def _wt_with_commit(self, git_repo, wt_root, name, base):
+        from app.workspace import create_worktree
+        wt = create_worktree(str(git_repo), name, "/scope", base_branch=base)
+        (Path(wt.path) / "new.txt").write_text("data")
+        subprocess.run(["git", "add", "."], cwd=wt.path, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "work"], cwd=wt.path, capture_output=True, check=True)
+        return wt
+
+    def test_merge_into_feature_branch(self, git_repo, wt_root):
+        from app.workspace import merge_worktree_to_main
+        subprocess.run(["git", "branch", "feature/auth"], cwd=git_repo, capture_output=True, check=True)
+        wt = self._wt_with_commit(git_repo, wt_root, "worker-1", "feature/auth")
+        res = merge_worktree_to_main(wt.path, str(git_repo), target_branch="feature/auth")
+        assert res["ok"] is True
+        log_feat = subprocess.run(["git", "log", "--oneline", "feature/auth"], cwd=git_repo,
+                                  capture_output=True, text=True).stdout
+        log_main = subprocess.run(["git", "log", "--oneline", "main"], cwd=git_repo,
+                                  capture_output=True, text=True).stdout
+        assert "work" in log_feat
+        assert "work" not in log_main
+
+    def test_default_target_is_main(self, git_repo, wt_root):
+        from app.workspace import merge_worktree_to_main
+        wt = self._wt_with_commit(git_repo, wt_root, "worker-2", "main")
+        res = merge_worktree_to_main(wt.path, str(git_repo))
+        assert res["ok"] is True
+        log_main = subprocess.run(["git", "log", "--oneline", "main"], cwd=git_repo,
+                                  capture_output=True, text=True).stdout
+        assert "work" in log_main
+
+    def test_main_head_restored_after_merge(self, git_repo, wt_root):
+        """После merge в feature/auth основной репо должен вернуться на main (save/restore HEAD)."""
+        from app.workspace import merge_worktree_to_main
+        subprocess.run(["git", "branch", "feature/auth"], cwd=git_repo, capture_output=True, check=True)
+        wt = self._wt_with_commit(git_repo, wt_root, "worker-3", "feature/auth")
+        merge_worktree_to_main(wt.path, str(git_repo), target_branch="feature/auth")
+        head = subprocess.run(["git", "symbolic-ref", "--short", "HEAD"], cwd=git_repo,
+                              capture_output=True, text=True).stdout.strip()
+        assert head == "main", f"expected main, got {head}"
+
+    def test_stash_pop_error_returned(self, git_repo, wt_root, monkeypatch):
+        """Если stash pop возвращает ошибку — merge_worktree_to_main должен вернуть ok=False."""
+        from app.workspace import merge_worktree_to_main
+        import subprocess as real_subprocess
+
+        wt = self._wt_with_commit(git_repo, wt_root, "worker-4", "main")
+        # Делаем main "dirty" — чтобы функция вызвала stash (did_stash=True)
+        (Path(git_repo) / "dirty.txt").write_text("dirty")
+
+        original_run = real_subprocess.run
+
+        def patched_run(cmd, **kw):
+            # stash pop — симулируем провал (конфликт при восстановлении)
+            if isinstance(cmd, list) and "stash" in cmd and "pop" in cmd:
+                result = type("R", (), {"returncode": 1, "stdout": "", "stderr": "conflict during pop"})()
+                return result
+            return original_run(cmd, **kw)
+
+        monkeypatch.setattr("app.workspace.subprocess.run", patched_run)
+        res = merge_worktree_to_main(wt.path, str(git_repo))
+        assert res.get("ok") is False, f"expected ok=False on stash pop failure, got: {res}"
+        assert res.get("state") in ("stash_pop_failed", "dirty"), f"unexpected state: {res}"
+
+
 class TestRemoveWorktree:
     def test_removes(self, git_repo, wt_root):
         from app.workspace import create_worktree, remove_worktree
