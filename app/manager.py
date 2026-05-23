@@ -254,13 +254,13 @@ class SessionManager:
         await bg_manager.cancel_by_session(session_id)
         session = self.sessions.pop(session_id, None)
         if session:
-            await session.stop()
+            await session._disconnect_backend()
             if session.worktree_path:
                 try:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
                 except Exception:
                     pass
-        archive_session(session_id)
+        delete_session(session_id)
 
     async def remove_scope(self, scope: str) -> None:
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
