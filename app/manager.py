@@ -172,7 +172,8 @@ class SessionManager:
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False,
-                             task_id: str = "", description: str = "") -> AgentSession:
+                             task_id: str = "", description: str = "",
+                             base_branch: str = "main") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -206,7 +207,7 @@ class SessionManager:
         try:
             if use_worktree and repo_path:
                 await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
-                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id)
+                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id, base_branch)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
