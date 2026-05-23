@@ -68,6 +68,12 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 finished_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS test_lock (
+                scope TEXT PRIMARY KEY,
+                holder TEXT NOT NULL,
+                reason TEXT DEFAULT '',
+                acquired_at TEXT NOT NULL
+            );
         """)
         c.executescript("""
             CREATE TABLE IF NOT EXISTS tm_projects (
@@ -766,3 +772,43 @@ def usage_cleanup_old(days: int = 30) -> int:
     with _conn() as c:
         cur = c.execute("DELETE FROM usage_snapshots WHERE ts < ?", (cutoff,))
         return cur.rowcount
+
+
+# ── Test Lock ──
+
+def acquire_test_lock(scope: str, holder: str, reason: str = "") -> tuple[bool, str | None]:
+    """Захватить глобальный тест-лок для scope.
+
+    Возвращает (ok, current_holder):
+    - (True, None)   — лок свободен, захвачен
+    - (True, holder) — лок уже за этим же holder (идемпотентно), reason обновлён
+    - (False, name)  — занят другим, name = текущий держатель
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        row = c.execute("SELECT holder FROM test_lock WHERE scope = ?", (scope,)).fetchone()
+        if row is not None:
+            if row["holder"] == holder:
+                c.execute("UPDATE test_lock SET reason = ?, acquired_at = ? WHERE scope = ?",
+                          (reason, now, scope))
+                return True, holder
+            return False, row["holder"]
+        c.execute(
+            "INSERT INTO test_lock (scope, holder, reason, acquired_at) VALUES (?, ?, ?, ?)",
+            (scope, holder, reason, now),
+        )
+        return True, None
+
+
+def release_test_lock(scope: str, holder: str) -> bool:
+    """Освободить лок. True — освобождён (был за этим holder); False — не держатель / лок свободен."""
+    with _conn() as c:
+        cur = c.execute("DELETE FROM test_lock WHERE scope = ? AND holder = ?", (scope, holder))
+        return cur.rowcount > 0
+
+
+def get_test_lock(scope: str) -> dict | None:
+    """Текущий держатель лока для scope или None."""
+    with _conn() as c:
+        row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
+        return dict(row) if row else None
