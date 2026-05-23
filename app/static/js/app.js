@@ -2015,8 +2015,9 @@ function addChatEntry(type, content, ts, anchor) {
         const isBashTool = rawName === 'Bash';
         if (isBashTool) {
             try {
-                const d = JSON.parse(body);
-                const cmd = d.command || body;
+                let cmd = body;
+                try { const d = JSON.parse(body); cmd = d.command || body; } catch {}
+                cmd = cmd.replace(/^\/(?:usr\/)?bin\/(?:bash|zsh) -lc /, '').replace(/^["']|["']$/g, '');
                 const cmdLines = cmd.split('\n');
                 const PREVIEW_LINES = 3;
                 const previewCmd = cmdLines.slice(0, PREVIEW_LINES).join('\n');
@@ -3458,7 +3459,7 @@ function renderReadView(body) {
 
 // === File Browser ===
 const TOOL_ICONS = {
-    'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
+    'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️', 'file': '📄',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
     'Agent': '🤖', 'Task': '🤖', 'TodoWrite': '📝', 'NotebookEdit': '📓',
     'ToolSearch': '🔍', 'AskUserQuestion': '❓', 'SendMessage': '💬',
