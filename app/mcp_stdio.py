@@ -262,11 +262,12 @@ async def merge_worker(name: str) -> str:
 
 
 @mcp.tool()
-async def switch_worker_branch(name: str, task_id: str) -> str:
+async def switch_worker_branch(name: str, task_id: str, from_ref: str = "refs/heads/main") -> str:
     """After merge, switch worker to a new branch for a new task.
+    from_ref — ветка, от которой ответвляется новая (default refs/heads/main; воркер feature-ветки → refs/heads/feature/<...>).
     Worker must be idle with clean working tree."""
     result = await _api("POST", f"/api/sessions/{name}/switch-branch",
-                        json={"scope": SCOPE, "task_id": task_id})
+                        json={"scope": SCOPE, "task_id": task_id, "from_ref": from_ref})
     if isinstance(result, dict) and result.get("error"):
         return f"Switch failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):
