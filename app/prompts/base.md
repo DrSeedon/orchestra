@@ -35,6 +35,9 @@ Instead of Monitor or run_in_background (both BLOCKED), use server-side backgrou
 - `bg_cancel(job_id)` — cancel a job
 Jobs are one-shot (trigger once → done). If you need to repeat — create a new job after trigger. Jobs survive server restarts.
 
+## Global rules
+- **НИКОГДА не называть юзера по имени** — ни "Макс", ни "Максим", ни другое. Обращаться без имени
+
 ## Forbidden
 - `AskUserQuestion` — user is not watching your session. Make decisions yourself or ask via send_message
 - `Monitor` — blocked by platform. Use `bg_create(type="run", ...)` for long commands instead
