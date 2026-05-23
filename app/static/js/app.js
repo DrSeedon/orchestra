@@ -3833,8 +3833,29 @@ function renderUsageBar() {
     if (typeof o.agents_count === 'number') {
         parts.push(`<span style="color:#64748b">${o.agents_count} agents</span>`);
     }
+    parts.push('<span id="usage-info-btn" style="color:#475569;font-size:12px;cursor:help;transition:color 0.15s">ⓘ</span>');
 
     bar.innerHTML = parts.join('');
+
+    const infoBtn = document.getElementById('usage-info-btn');
+    if (infoBtn) {
+        let tip = null, showTimer = null;
+        const hideTip = () => { clearTimeout(showTimer); if (tip) { tip.remove(); tip = null; } };
+        infoBtn.addEventListener('mouseenter', () => {
+            infoBtn.style.color = '#94a3b8';
+            showTimer = setTimeout(() => {
+                if (tip) return;
+                tip = document.createElement('div');
+                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;max-width:320px;backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,0.4);font-size:12px;line-height:1.5;color:#94a3b8';
+                tip.innerHTML = `<div style="color:#e2e8f0;font-weight:600;margin-bottom:8px">📊 Лимиты Claude Max ($200/мес)</div><div style="margin-bottom:6px"><span style="color:#38bdf8;font-weight:600">5h</span> — скользящее 5-часовое окно<br>• <b style="color:#cbd5e1">%</b> использования от лимита<br>• <b style="color:#cbd5e1">(%)</b> в скобках — прогресс окна<br>• Countdown — время до сброса<br>• <span style="color:#22c55e">ok</span>/<span style="color:#ef4444">⏸</span> — темп: ok = в норме, ⏸ = нужна пауза</div><div style="margin-bottom:6px"><span style="color:#38bdf8;font-weight:600">7d</span> — скользящее недельное окно<br>• Те же метрики на 7 дней<br>• Красная полоска = приближаемся к лимиту</div><div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">💡 <b style="color:#cbd5e1">Виртуальные $</b> — стоимость по API ценам без учёта prompt cache. Реальная стоимость с кешем ~10× меньше.</div>`;
+                const rect = infoBtn.getBoundingClientRect();
+                tip.style.left = Math.min(rect.left, window.innerWidth - 336) + 'px';
+                tip.style.top = (rect.bottom + 6) + 'px';
+                document.body.appendChild(tip);
+            }, 200);
+        });
+        infoBtn.addEventListener('mouseleave', () => { infoBtn.style.color = '#475569'; hideTip(); });
+    }
 }
 
 async function fetchUsage() {
