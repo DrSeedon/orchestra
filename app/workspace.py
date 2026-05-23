@@ -311,11 +311,11 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         return {"ok": False, "error": "dirty working tree — commit or discard changes first"}
 
     merged = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", "HEAD", "refs/heads/main"],
+        ["git", "merge-base", "--is-ancestor", "HEAD", from_ref],
         cwd=str(wt), capture_output=True, text=True,
     )
     if merged.returncode != 0:
-        return {"ok": False, "error": "current branch has unmerged commits — merge_worker first"}
+        return {"ok": False, "error": f"current branch has unmerged commits — merge_worker first (relative to {from_ref})"}
 
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
@@ -335,7 +335,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                     return {"ok": False, "error": f"checkout failed: {checkout.stderr.strip()}"}
 
                 merge_main = subprocess.run(
-                    ["git", "merge", "refs/heads/main", "--no-edit"],
+                    ["git", "merge", from_ref, "--no-edit"],
                     cwd=str(wt), capture_output=True, text=True,
                 )
                 if merge_main.returncode != 0:
@@ -348,7 +348,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                         conflict_files = status_out.stdout.strip().splitlines()
                     return {"ok": False, "branch": new_branch, "conflicts": conflict_files,
                             "state": "conflict",
-                            "error": "merge conflict with main — resolve or abort"}
+                            "error": f"merge conflict with {from_ref} — resolve or abort"}
             else:
                 checkout = subprocess.run(
                     ["git", "checkout", "-b", new_branch, from_ref],

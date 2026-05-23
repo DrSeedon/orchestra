@@ -117,6 +117,42 @@ class TestCreateWorktree:
         assert base == head
 
 
+class TestSwitchWorktreeBranch:
+    def test_from_ref_used_for_merge_check(self, git_repo, wt_root):
+        """switch_worktree_branch использует from_ref, а не hardcode main.
+
+        Diverged-сценарий: feature/auth уходит вперёд main (коммит только в feature/auth).
+        Воркер ответвлён от feature/auth — является ancestor feature/auth (ok).
+        Старый код проверял --is-ancestor HEAD refs/heads/main → feature/auth ≠ ancestor main
+        → возвращал error. Новый код с from_ref=refs/heads/feature/auth → ok=True.
+        """
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        # Создаём ветку фичи от текущего main-HEAD
+        subprocess.run(["git", "branch", "feature/auth"], cwd=git_repo,
+                       capture_output=True, check=True)
+
+        # Делаем коммит ТОЛЬКО в feature/auth — main и feature/auth расходятся
+        subprocess.run(["git", "checkout", "feature/auth"], cwd=git_repo,
+                       capture_output=True, check=True)
+        (Path(git_repo) / "feat.txt").write_text("feature work")
+        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "feat commit"], cwd=git_repo,
+                       capture_output=True, check=True)
+        subprocess.run(["git", "checkout", "main"], cwd=git_repo,
+                       capture_output=True, check=True)
+
+        # Воркер ответвляется от feature/auth (HEAD воркера == HEAD feature/auth → ancestor feature/auth)
+        wt = create_worktree(str(git_repo), "worker-1", "/scope", base_branch="feature/auth")
+
+        # Со старым hardcode refs/heads/main: HEAD воркера — НЕ ancestor main (есть расхождение)
+        # → --is-ancestor возвращает 1 → функция вернула бы error "unmerged commits"
+        # С from_ref=refs/heads/feature/auth: HEAD == feature/auth → ancestor → ok
+        result = switch_worktree_branch(wt.path, "task-2/worker-1",
+                                        from_ref="refs/heads/feature/auth")
+        assert result.get("ok") is True, f"expected ok, got: {result}"
+
+
 class TestRemoveWorktree:
     def test_removes(self, git_repo, wt_root):
         from app.workspace import create_worktree, remove_worktree

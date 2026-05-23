@@ -697,9 +697,10 @@ async def switch_branch(name: str, req: dict):
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     new_branch = f"task-{par}/{name}"
+    from_ref = req.get("from_ref", "refs/heads/main")
     async with manager.get_session_lock(session_id):
         try:
-            result = switch_worktree_branch(worktree_path, new_branch)
+            result = switch_worktree_branch(worktree_path, new_branch, from_ref=from_ref)
             if not isinstance(found, dict):
                 if result.get("ok") or result.get("branch"):
                     found.branch = result.get("branch", new_branch)
