@@ -83,6 +83,48 @@ async def spawn_worker(name: str, task: str, repo_path: str,
 
 
 @mcp.tool()
+async def acquire_test_lock(reason: str = "") -> str:
+    """Захватить ГЛОБАЛЬНЫЙ эксклюзивный лок на ПОЛНЫЙ прогон тестов (фулл-сьют) для проекта.
+    Бери его ТОЛЬКО перед полным прогоном и ТОЛЬКО с согласия PM. Узкие тесты этапа лока НЕ требуют.
+    Занято другим агентом → вернётся отказ с именем держателя — НЕ запускай фулл-сьют, жди и попробуй позже.
+    Всегда вызывай release_test_lock() после прогона."""
+    result = await _api("POST", "/api/test-lock/acquire", json={
+        "scope": SCOPE, "holder": WORKER_NAME, "reason": reason,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Lock error: {result['error']}"
+    if result.get("acquired"):
+        return f"Test lock ACQUIRED for '{WORKER_NAME}' (reason: {reason or 'n/a'}). Release it when done."
+    return (f"Test lock BUSY — held by '{result.get('holder')}'. "
+            f"Do NOT run the full suite. Wait and retry, or coordinate via PM.")
+
+
+@mcp.tool()
+async def release_test_lock() -> str:
+    """Освободить глобальный тест-лок (если ты его держишь). Вызывай сразу после полного прогона."""
+    result = await _api("POST", "/api/test-lock/release", json={
+        "scope": SCOPE, "holder": WORKER_NAME,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Lock error: {result['error']}"
+    if result.get("released"):
+        return "Test lock released."
+    return "Test lock was not held by you (nothing to release)."
+
+
+@mcp.tool()
+async def test_lock_status() -> str:
+    """Кто сейчас держит глобальный тест-лок проекта (или свободен)."""
+    result = await _api("GET", "/api/test-lock", params={"scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Lock error: {result['error']}"
+    if not result.get("held"):
+        return "Test lock is FREE."
+    return (f"Test lock HELD by '{result.get('holder')}' "
+            f"(reason: {result.get('reason') or 'n/a'}, since {result.get('acquired_at')}).")
+
+
+@mcp.tool()
 async def send_message(to: str, message: str) -> str:
     """Send a message to any agent by name. Triggers a new turn."""
     result = await _api("POST", f"/api/sessions/{to}/send", json={
