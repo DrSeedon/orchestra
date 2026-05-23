@@ -102,3 +102,71 @@ class TestStop:
             await session.start()
             await session.stop()
         assert session.status == AgentStatus.IDLE
+
+
+# ── Auto-report gate tests (Task 5) ──
+
+def _mk_session(monkeypatch, idle_sec):
+    monkeypatch.setattr("app.session.AUTO_REPORT_IDLE_SEC", idle_sec)
+    from app.session import AgentSession
+    s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp")
+    return s
+
+
+@pytest.mark.asyncio
+async def test_auto_report_fires_after_idle_timeout(monkeypatch):
+    s = _mk_session(monkeypatch, idle_sec=0.05)
+    fired = []
+    async def on_idle(name, scope, texts):
+        fired.append(name)
+    s.on_idle = on_idle
+    s._did_report = False
+    s._turn_logs = ["did stuff"]
+    # имитируем завершение хода: планируем отложенный авто-репорт
+    s._schedule_auto_report()
+    await asyncio.sleep(0.15)
+    assert fired == ["w"]  # сработал после таймаута
+
+
+@pytest.mark.asyncio
+async def test_auto_report_skipped_if_did_report(monkeypatch):
+    s = _mk_session(monkeypatch, idle_sec=0.05)
+    fired = []
+    async def on_idle(name, scope, texts):
+        fired.append(name)
+    s.on_idle = on_idle
+    s._did_report = True  # был явный send_message
+    s._schedule_auto_report()
+    await asyncio.sleep(0.15)
+    assert fired == []  # явный отчёт был → авто-репорт не нужен
+
+
+@pytest.mark.asyncio
+async def test_auto_report_cancelled_by_new_turn(monkeypatch):
+    s = _mk_session(monkeypatch, idle_sec=0.1)
+    fired = []
+    async def on_idle(name, scope, texts):
+        fired.append(name)
+    s.on_idle = on_idle
+    s._did_report = False
+    s._schedule_auto_report()
+    # новый ход стартовал до истечения окна → бампаем поколение
+    await asyncio.sleep(0.02)
+    s._bump_turn_gen()
+    await asyncio.sleep(0.15)
+    assert fired == []  # пришёл новый ход → отложенный репорт отменён
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_never_auto_reports(monkeypatch):
+    s = _mk_session(monkeypatch, idle_sec=0.05)
+    s.is_orchestrator = True   # оркестратор отчитывается наверх ТОЛЬКО явным send_message
+    fired = []
+    async def on_idle(name, scope, texts):
+        fired.append(name)
+    s.on_idle = on_idle
+    s._did_report = False
+    s._turn_logs = ["ответил пользователю в чат"]
+    s._schedule_auto_report()
+    await asyncio.sleep(0.15)
+    assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
