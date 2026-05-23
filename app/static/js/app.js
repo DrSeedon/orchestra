@@ -3763,6 +3763,14 @@ function _usageColor(usagePct, resetPct) {
     return `hsl(${hue}, 80%, 50%)`;
 }
 
+function _resetCountdown(isoStr) {
+    if (!isoStr) return '';
+    const ms = new Date(isoStr) - Date.now();
+    if (ms <= 0) return '';
+    const h = Math.floor(ms / 3600000); const m = Math.floor((ms % 3600000) / 60000);
+    if (h >= 24) { const d = Math.floor(h / 24); return `${d}d ${h % 24}h`; }
+    return `${h}h ${m}m`;
+}
 function _resetPctNum(isoStr, windowMs) {
     if (!isoStr) return null;
     const remaining = new Date(isoStr) - Date.now();
@@ -3795,14 +3803,16 @@ function renderUsageBar() {
         const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
         const c = _usageColor(fh.utilization, rpNum);
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}</span>`);
+        const cd = _resetCountdown(fh.resets_at);
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
         const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
         const c = _usageColor(sd.utilization, rpNum);
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}</span>`);
+        const cd = _resetCountdown(sd.resets_at);
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span>`);
     }
 
     parts.push('<span style="flex:1"></span>');
