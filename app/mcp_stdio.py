@@ -56,8 +56,10 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
                        system_prompt: str = "",
                        task_id: str = "",
-                       description: str = "") -> str:
-    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex."""
+                       description: str = "",
+                       base_branch: str = "main") -> str:
+    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
+    base_branch — от какой ветки ответвить worktree воркера (default main)."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-6[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
@@ -65,6 +67,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "name": name, "scope": scope, "cwd": repo_path,
         "model": model, "system_prompt": system_prompt,
         "use_worktree": True, "repo_path": repo_path,
+        "base_branch": base_branch,
     }
     if task_id:
         body["task_id"] = task_id
