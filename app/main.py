@@ -41,7 +41,9 @@ async def lifespan(app: FastAPI):
     await bg_manager.restore_from_db()
     from app.tg_bridge import start_bridge, stop_bridge
     await start_bridge(manager)
+    snapshot_task = asyncio.create_task(_usage_snapshot_loop())
     yield
+    snapshot_task.cancel()
     await stop_bridge()
     await bg_manager.shutdown()
     await manager.shutdown_all()
@@ -877,6 +879,57 @@ async def get_usage():
         "anthropic": anthropic_data,
         "orchestra": _get_agents_cost(),
     }
+
+
+SNAPSHOT_INTERVAL = 300
+
+
+async def _usage_snapshot_loop():
+    from app.db import usage_save_snapshot, usage_cleanup_old
+    await asyncio.sleep(10)
+    while True:
+        try:
+            token, refresh_token, _tier = _read_oauth_credentials()
+            if token:
+                try:
+                    data = await _fetch_anthropic_usage(token)
+                except PermissionError:
+                    if refresh_token:
+                        new_token = await _refresh_oauth_token(refresh_token)
+                        if new_token:
+                            data = await _fetch_anthropic_usage(new_token)
+                        else:
+                            data = None
+                    else:
+                        data = None
+                except Exception:
+                    data = None
+
+                if data:
+                    fh = data.get("five_hour") or {}
+                    sd = data.get("seven_day") or {}
+                    cost = sum(s.cost_usd for s in manager.sessions.values())
+                    active = sum(1 for s in manager.sessions.values() if s.status.value == "running")
+                    usage_save_snapshot(
+                        fh.get("utilization", 0), sd.get("utilization", 0),
+                        fh.get("resets_at", ""), sd.get("resets_at", ""),
+                        round(cost, 4), active,
+                    )
+                    _usage_cache["data"] = data
+                    _usage_cache["ts"] = time.time()
+                    _save_usage_cache()
+            usage_cleanup_old(30)
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            logging.getLogger(__name__).error(f"usage snapshot error: {e}")
+        await asyncio.sleep(SNAPSHOT_INTERVAL)
+
+
+@app.get("/api/usage/history")
+async def usage_history(hours: int = 24):
+    from app.db import usage_get_history
+    return usage_get_history(hours)
 
 
 @app.get("/api/orchestrators")

@@ -166,6 +166,19 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_bg_jobs_session ON bg_jobs(target_session_id, status);
             CREATE INDEX IF NOT EXISTS idx_bg_jobs_scope ON bg_jobs(target_scope, status);
         """)
+        c.executescript("""
+            CREATE TABLE IF NOT EXISTS usage_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT NOT NULL,
+                five_hour_pct REAL DEFAULT 0,
+                seven_day_pct REAL DEFAULT 0,
+                five_hour_resets_at TEXT,
+                seven_day_resets_at TEXT,
+                total_cost_usd REAL DEFAULT 0,
+                active_agents INTEGER DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_usage_ts ON usage_snapshots(ts);
+        """)
         _migrate(c)
 
 
@@ -698,4 +711,39 @@ def bg_cleanup_old(max_age_hours: int = 24) -> int:
             "DELETE FROM bg_jobs WHERE status IN ('triggered','expired','cancelled','failed') AND created_at < ?",
             (cutoff,),
         )
+        return cur.rowcount
+
+
+# ── Usage Snapshots ──
+
+def usage_save_snapshot(five_hour_pct: float, seven_day_pct: float,
+                        five_hour_resets_at: str, seven_day_resets_at: str,
+                        total_cost_usd: float, active_agents: int) -> None:
+    with _conn() as c:
+        c.execute(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                seven_day_resets_at, total_cost_usd, active_agents)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (datetime.now(timezone.utc).isoformat(),
+             five_hour_pct, seven_day_pct,
+             five_hour_resets_at or "", seven_day_resets_at or "",
+             total_cost_usd, active_agents),
+        )
+
+
+def usage_get_history(hours: int = 24) -> list[dict]:
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM usage_snapshots WHERE ts > ? ORDER BY ts ASC",
+            (cutoff,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def usage_cleanup_old(days: int = 30) -> int:
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    with _conn() as c:
+        cur = c.execute("DELETE FROM usage_snapshots WHERE ts < ?", (cutoff,))
         return cur.rowcount
