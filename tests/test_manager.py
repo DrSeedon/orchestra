@@ -92,6 +92,7 @@ class TestCreateSession:
         (repo / "f.txt").write_text("x")
         subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "i"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=repo, capture_output=True, check=True)
 
         with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
             connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
@@ -103,6 +104,36 @@ class TestCreateSession:
             )
         assert session.worktree_path is not None
         assert session.branch is not None
+
+
+class TestWorktreeBaseBranch:
+    @pytest.mark.asyncio
+    async def test_worktree_from_feature_branch(self, mgr, tmp_path):
+        import subprocess
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=repo, capture_output=True)
+        (repo / "f.txt").write_text("x")
+        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "i"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "branch", "feature/auth"], cwd=repo, capture_output=True, check=True)
+
+        with patch("app.session.AgentSession._make_backend", return_value=AsyncMock(
+            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
+            receive_messages=AsyncMock(return_value=iter([])),
+        )):
+            session = await mgr.create_session(
+                name="w1", scope="/s", cwd=str(repo), model="m",
+                use_worktree=True, repo_path=str(repo), base_branch="feature/auth",
+            )
+        head = subprocess.run(["git", "rev-parse", "feature/auth"], cwd=repo,
+                              capture_output=True, text=True).stdout.strip()
+        base = subprocess.run(["git", "merge-base", session.branch, "feature/auth"], cwd=repo,
+                              capture_output=True, text=True).stdout.strip()
+        assert base == head
 
 
 class TestSendAndControl:
