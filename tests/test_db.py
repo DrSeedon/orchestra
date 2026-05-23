@@ -330,3 +330,48 @@ class TestStats:
         assert stats["active"] == 1
         assert stats["total_cost_usd"] == pytest.approx(1.7)
         assert stats["total_logs"] == 2
+
+
+class TestTestLock:
+    def test_acquire_succeeds_when_free(self, db):
+        from app.db import acquire_test_lock, get_test_lock
+        ok, holder = acquire_test_lock(scope="/s", holder="coder-auth", reason="full suite")
+        assert ok is True
+        assert holder is None  # никто не держал
+        row = get_test_lock("/s")
+        assert row["holder"] == "coder-auth"
+        assert row["reason"] == "full suite"
+        assert row["acquired_at"]
+
+    def test_acquire_fails_when_held(self, db):
+        from app.db import acquire_test_lock
+        acquire_test_lock(scope="/s", holder="coder-a", reason="r1")
+        ok, holder = acquire_test_lock(scope="/s", holder="coder-b", reason="r2")
+        assert ok is False
+        assert holder == "coder-a"  # текущий держатель
+
+    def test_reacquire_by_same_holder_idempotent(self, db):
+        from app.db import acquire_test_lock, get_test_lock
+        acquire_test_lock(scope="/s", holder="coder-a", reason="r1")
+        ok, holder = acquire_test_lock(scope="/s", holder="coder-a", reason="r1-again")
+        assert ok is True  # тот же держатель повторно — ок (не отказ)
+        assert get_test_lock("/s")["holder"] == "coder-a"
+
+    def test_release_by_holder(self, db):
+        from app.db import acquire_test_lock, release_test_lock, get_test_lock
+        acquire_test_lock(scope="/s", holder="coder-a", reason="r1")
+        ok = release_test_lock(scope="/s", holder="coder-a")
+        assert ok is True
+        assert get_test_lock("/s") is None
+
+    def test_release_by_wrong_holder_denied(self, db):
+        from app.db import acquire_test_lock, release_test_lock, get_test_lock
+        acquire_test_lock(scope="/s", holder="coder-a", reason="r1")
+        ok = release_test_lock(scope="/s", holder="coder-b")
+        assert ok is False  # не держатель — не освобождает
+        assert get_test_lock("/s")["holder"] == "coder-a"
+
+    def test_lock_isolated_by_scope(self, db):
+        from app.db import acquire_test_lock
+        assert acquire_test_lock(scope="/a", holder="x", reason="")[0] is True
+        assert acquire_test_lock(scope="/b", holder="y", reason="")[0] is True  # другой scope свободен
