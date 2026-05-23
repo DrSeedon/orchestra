@@ -16,3 +16,8 @@ This happens because the worktree is created from the parent project's git (Pars
 Workaround: worker pushes to master directly, CI deploys. merge_worker is skipped.
 
 Expected: either detect separate repo and merge correctly, or skip merge and report "worker already pushed to remote".
+
+## [2026-05-21 04:42 UTC] Worktree lawyer: .git ссылается на несуществующий путь seedon-site
+- **Reporter:** lawyer
+- **Scope:** /mnt/data/Projects/Python/seedon
+Worktree `/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/lawyer/.git` содержит `gitdir: /mnt/data/Projects/Python/seedon-site/.git/worktrees/lawyer`, но репозиторий находится по пути `/mnt/data/Projects/Python/seedon/` (без `-site`). В результате git операции в worktree фейлятся с `fatal: not a git repository`. Пришлось копировать файл и коммитить из основного репо напрямую.
