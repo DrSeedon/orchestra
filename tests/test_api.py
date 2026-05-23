@@ -13,13 +13,15 @@ def db(tmp_path, monkeypatch):
     wt_root = tmp_path / "worktrees"
     wt_root.mkdir()
     monkeypatch.setattr("app.workspace.WORKTREE_ROOT", wt_root)
+    import app.main as mainmod
+    monkeypatch.setattr(mainmod, "_ALLOWED_ROOTS", ["/tmp", str(tmp_path)])
     from app.db import init_db
     init_db()
 
 
 @pytest.fixture
 def client(db):
-    with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
+    with patch("app.session.AgentSession._make_backend", return_value=AsyncMock(
         connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
         receive_messages=AsyncMock(return_value=iter([])),
     )):
@@ -170,3 +172,42 @@ class TestOrchestrators:
         r = client.get("/api/orchestrators")
         assert r.status_code == 200
         assert isinstance(r.json(), list)
+
+
+def test_create_request_accepts_base_branch():
+    from app.main import CreateSessionRequest
+    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6",
+                               use_worktree=True, repo_path="/tmp",
+                               base_branch="feature/auth")
+    assert req.base_branch == "feature/auth"
+
+
+def test_create_request_base_branch_default_main():
+    from app.main import CreateSessionRequest
+    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6")
+    assert req.base_branch == "main"
+
+
+@pytest.mark.asyncio
+async def test_merge_endpoint_passes_target(monkeypatch):
+    import app.main as mainmod
+    captured = {}
+
+    def fake_merge(worktree_path, repo_path, target_branch="main"):
+        captured["target_branch"] = target_branch
+        return {"ok": True, "commits_merged": 1, "branch": "task-1/w", "merged_commits": {}}
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+
+    class FakeSession:
+        class _S:
+            value = "idle"
+        status = _S()
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "sid"
+        name = "w"
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: FakeSession())
+
+    import asyncio
+    res = await mainmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
+    assert captured["target_branch"] == "feature/auth"
