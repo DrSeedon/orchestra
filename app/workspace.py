@@ -11,7 +11,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
-PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude")
+PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
 
 
 @dataclass
@@ -47,7 +47,8 @@ def _normalize_task_id(task_id: str) -> str:
     raise ValueError(f"Invalid task_id '{task_id}': expected number, #N, or PREFIX-N (legacy)")
 
 
-def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "") -> Worktree:
+def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
+                    base_branch: str = "main") -> Worktree:
     repo = Path(repo_path).resolve()
     if not repo.is_dir():
         raise ValueError(f"repo_path does not exist: {repo_path}")
@@ -70,8 +71,6 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "") ->
         ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
         cwd=str(repo), capture_output=True, text=True,
     )
-    if ref_check.returncode == 0:
-        raise ValueError(f"Branch '{branch}' already exists. Use a different name or clean up.")
 
     fmt_check = subprocess.run(
         ["git", "check-ref-format", "--branch", branch],
@@ -80,10 +79,21 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "") ->
     if fmt_check.returncode != 0:
         raise ValueError(f"Invalid branch name '{branch}': {fmt_check.stderr.strip()}")
 
-    result = subprocess.run(
-        ["git", "worktree", "add", str(wt_path), "-b", branch, "main"],
-        cwd=str(repo), capture_output=True, text=True,
-    )
+    if ref_check.returncode == 0:
+        # ветка уже существует — допустимо только если не занята другим worktree
+        if _is_branch_checked_out_elsewhere(str(repo), branch, wt_path):
+            raise ValueError(f"Branch '{branch}' is checked out in another worktree.")
+        # reuse: git worktree add <path> <branch> (без -b)
+        result = subprocess.run(
+            ["git", "worktree", "add", str(wt_path), branch],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+    else:
+        # ветка новая — создаём через -b
+        result = subprocess.run(
+            ["git", "worktree", "add", str(wt_path), "-b", branch, base_branch],
+            cwd=str(repo), capture_output=True, text=True,
+        )
     if result.returncode != 0:
         raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
 

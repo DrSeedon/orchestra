@@ -20,6 +20,7 @@ def git_repo(tmp_path):
     (repo / ".env").write_text("SECRET=123")
     subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=repo, capture_output=True, check=True)
     return repo
 
 
@@ -102,6 +103,18 @@ class TestCreateWorktree:
         assert wt1.branch != wt2.branch
         assert Path(wt1.path).exists()
         assert Path(wt2.path).exists()
+
+    def test_base_branch_param(self, git_repo, wt_root):
+        from app.workspace import create_worktree
+        subprocess.run(["git", "branch", "feature/auth"], cwd=git_repo, capture_output=True, check=True)
+        wt = create_worktree(str(git_repo), "worker-1", "/scope", base_branch="feature/auth")
+        head = subprocess.run(
+            ["git", "rev-parse", "feature/auth"], cwd=git_repo, capture_output=True, text=True,
+        ).stdout.strip()
+        base = subprocess.run(
+            ["git", "merge-base", wt.branch, "feature/auth"], cwd=git_repo, capture_output=True, text=True,
+        ).stdout.strip()
+        assert base == head
 
 
 class TestRemoveWorktree:
