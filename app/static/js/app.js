@@ -3845,9 +3845,47 @@ function renderUsageBar() {
             infoBtn.style.color = '#94a3b8';
             showTimer = setTimeout(() => {
                 if (tip) return;
+                const _a = _usageData?.anthropic || {};
+                const _o = _usageData?.orchestra || {};
+                const fh = _a.five_hour;
+                const sd = _a.seven_day;
+                const _row = (label, val, color) => `<div style="display:flex;justify-content:space-between"><span>${label}</span><span style="color:${color || '#cbd5e1'}">${val}</span></div>`;
+                let h = '<div style="color:#e2e8f0;font-weight:600;margin-bottom:10px">📊 Claude Max · $200/мес</div>';
+                if (fh) {
+                    const cd = _resetCountdown(fh.resets_at);
+                    const pace = _paceIndicator(fh.utilization, fh.resets_at, 5 * 3600000);
+                    const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
+                    h += `<div style="margin-bottom:8px"><div style="color:#38bdf8;font-weight:600;margin-bottom:2px">5h окно</div>`;
+                    h += _row('Использовано', `${fh.utilization}%`, fh.utilization >= 80 ? '#ef4444' : fh.utilization >= 50 ? '#eab308' : '#22c55e');
+                    if (cd) h += _row('Сброс через', cd, '#64748b');
+                    if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
+                    h += _row('Темп', pace, null);
+                    h += '</div>';
+                }
+                if (sd) {
+                    const cd = _resetCountdown(sd.resets_at);
+                    const pace = _paceIndicator(sd.utilization, sd.resets_at, 7 * 86400000);
+                    const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
+                    h += `<div style="margin-bottom:8px"><div style="color:#38bdf8;font-weight:600;margin-bottom:2px">7d окно</div>`;
+                    h += _row('Использовано', `${sd.utilization}%`, sd.utilization >= 80 ? '#ef4444' : sd.utilization >= 50 ? '#eab308' : '#22c55e');
+                    if (cd) h += _row('Сброс через', cd, '#64748b');
+                    if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
+                    h += _row('Темп', pace, null);
+                    h += '</div>';
+                }
+                if (typeof _o.total_cost_usd === 'number') {
+                    h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
+                    h += _row('💰 Стоимость (w/o cache)', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
+                    h += _row('Реально (~÷10)', `~$${Math.round(_o.total_cost_usd / 10)}`, '#64748b');
+                    h += _row('Подписка', '$200/мес', '#64748b');
+                    h += '</div>';
+                }
+                if (typeof _o.agents_count === 'number') {
+                    h += `<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">📈 Агенты: <span style="color:#cbd5e1">${_o.agents_count}</span></div>`;
+                }
                 tip = document.createElement('div');
-                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;max-width:320px;backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,0.4);font-size:12px;line-height:1.5;color:#94a3b8';
-                tip.innerHTML = `<div style="color:#e2e8f0;font-weight:600;margin-bottom:8px">📊 Лимиты Claude Max ($200/мес)</div><div style="margin-bottom:6px"><span style="color:#38bdf8;font-weight:600">5h</span> — скользящее 5-часовое окно<br>• <b style="color:#cbd5e1">%</b> использования от лимита<br>• <b style="color:#cbd5e1">(%)</b> в скобках — прогресс окна<br>• Countdown — время до сброса<br>• <span style="color:#22c55e">ok</span>/<span style="color:#ef4444">⏸</span> — темп: ok = в норме, ⏸ = нужна пауза</div><div style="margin-bottom:6px"><span style="color:#38bdf8;font-weight:600">7d</span> — скользящее недельное окно<br>• Те же метрики на 7 дней<br>• Красная полоска = приближаемся к лимиту</div><div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">💡 <b style="color:#cbd5e1">Виртуальные $</b> — стоимость по API ценам без учёта prompt cache. Реальная стоимость с кешем ~10× меньше.</div>`;
+                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;max-width:320px;min-width:240px;backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,0.4);font-size:12px;line-height:1.6;color:#94a3b8';
+                tip.innerHTML = h;
                 const rect = infoBtn.getBoundingClientRect();
                 tip.style.left = Math.min(rect.left, window.innerWidth - 336) + 'px';
                 tip.style.top = (rect.bottom + 6) + 'px';
