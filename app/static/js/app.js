@@ -3844,7 +3844,7 @@ function renderUsageBar() {
         const hideTip = () => { clearTimeout(showTimer); if (tip) { tip.remove(); tip = null; } };
         infoBtn.addEventListener('mouseenter', () => {
             infoBtn.style.color = '#94a3b8';
-            showTimer = setTimeout(() => {
+            showTimer = setTimeout(async () => {
                 if (tip) return;
                 const _a = _usageData?.anthropic || {};
                 const _o = _usageData?.orchestra || {};
@@ -3874,6 +3874,7 @@ function renderUsageBar() {
                     h += _row('Темп', pace, null);
                     h += '</div>';
                 }
+                h += '<div id="usage-sparkline-slot" style="margin:8px 0"></div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость (w/o cache)', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
@@ -3891,10 +3892,47 @@ function renderUsageBar() {
                 tip.style.left = Math.min(rect.left, window.innerWidth - 336) + 'px';
                 tip.style.top = (rect.bottom + 6) + 'px';
                 document.body.appendChild(tip);
+                _loadSparkline(tip);
             }, 200);
         });
         infoBtn.addEventListener('mouseleave', () => { infoBtn.style.color = '#475569'; hideTip(); });
     }
+}
+
+let _sparkCache = null, _sparkCacheTs = 0;
+async function _loadSparkline(tipEl) {
+    const slot = tipEl.querySelector('#usage-sparkline-slot');
+    if (!slot) return;
+    const now = Date.now();
+    if (_sparkCache && now - _sparkCacheTs < 300000) {
+        slot.innerHTML = _sparkCache;
+        return;
+    }
+    try {
+        const data = await api('/api/usage/history?hours=168');
+        if (!Array.isArray(data) || data.length < 2) return;
+        const W = 280, H = 60;
+        const mkPoints = (key) => {
+            const pts = [];
+            for (let i = 0; i < data.length; i++) {
+                const x = (i / (data.length - 1)) * W;
+                const y = H - (Math.min(data[i][key] || 0, 100) / 100) * H;
+                pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+            }
+            return pts.join(' ');
+        };
+        const last7d = data[data.length - 1]?.seven_day_pct || 0;
+        const color7d = last7d >= 80 ? '#ef4444' : last7d >= 50 ? '#eab308' : '#22c55e';
+        let svg = `<div style="font-size:10px;color:#64748b;margin-bottom:4px">📈 7d window</div>`;
+        svg += `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">`;
+        svg += `<line x1="0" y1="${H * 0.2}" x2="${W}" y2="${H * 0.2}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
+        svg += `<polyline points="${mkPoints('seven_day_pct')}" fill="none" stroke="${color7d}" stroke-width="1.5" stroke-linejoin="round"/>`;
+        svg += `<polyline points="${mkPoints('five_hour_pct')}" fill="none" stroke="#38bdf8" stroke-width="1" stroke-linejoin="round" opacity="0.6"/>`;
+        svg += '</svg>';
+        _sparkCache = svg;
+        _sparkCacheTs = now;
+        if (slot.isConnected) slot.innerHTML = svg;
+    } catch {}
 }
 
 async function fetchUsage() {
