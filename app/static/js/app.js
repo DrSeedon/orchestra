@@ -3937,8 +3937,6 @@ async function _loadSparkline(tipEl) {
             let s = `<svg width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" style="display:block">`;
             s += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
             s += `<text x="${PL - 3}" y="${gh - 1}" text-anchor="end" fill="#64748b" font-size="9">${yMin}%</text>`;
-            const warnY = (yMax >= 80 && yMin <= 80) ? gh - ((80 - yMin) / yRange) * gh : -1;
-            if (warnY >= 0) s += `<line x1="${PL}" y1="${warnY}" x2="${W}" y2="${warnY}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
             s += `<polyline points="${toPoints(idealVals)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
             s += `<polyline points="${toPoints(vals)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
             if (showXAxis) {
