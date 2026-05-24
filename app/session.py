@@ -371,6 +371,10 @@ class AgentSession:
             asyncio.create_task(self._auto_continue())
             return
 
+        cost = meta.get("cost_usd", 0)
+        ctx_s = f"ctx:{ctx_pct}%" if ctx_pct else ""
+        self._log("status", f"turn ended ({sr}, {nt} turns, ${cost:.2f} {ctx_s})")
+
         self.status = AgentStatus.IDLE
         self._persist()
 
