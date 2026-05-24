@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 _BLOCKED_TOOLS = {"AskUserQuestion", "Monitor"}
 _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
+# Имена инструмента запуска субагентов. Режем на уровне CLI (disallowed_tools),
+# а не через can_use_tool: запуск субагента идёт мимо permission-колбэка
+# (SDK отдаёт его как TaskStartedMessage), поэтому _ORCH_BLOCKED_TOOLS его не ловит.
+# Имя хеджируем двумя вариантами (Task/Agent) — лишнее имя CLI игнорирует.
+_ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
 
 
 def _make_auto_approve(is_orchestrator: bool = False):
@@ -41,6 +46,13 @@ def _make_auto_approve(is_orchestrator: bool = False):
             return PermissionResultDeny(message="run_in_background is disabled in Orchestra — background processes are killed when your turn ends. Run synchronously instead.")
         return PermissionResultAllow(updated_input=tool_input)
     return _auto_approve
+
+
+def _disallowed_tools(is_orchestrator: bool) -> list[str]:
+    """Инструменты, полностью убираемые из набора модели (через CLI),
+    а не через can_use_tool. Оркестратор делегирует через spawn_worker,
+    поэтому субагентов ему отнимаем; воркерам — оставляем."""
+    return list(_ORCH_DISALLOWED_TOOLS) if is_orchestrator else []
 
 
 def _extract_tool_result(block) -> str:
@@ -92,6 +104,7 @@ class ClaudeBackend:
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
+            disallowed_tools=_disallowed_tools(self._is_orchestrator),
             include_partial_messages=False, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
             env=env,
