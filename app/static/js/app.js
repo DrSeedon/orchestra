@@ -902,6 +902,9 @@ function updateAgentInfo(session) {
     $('#view-prompt-btn').classList.remove('hidden');
     $('#compact-btn').classList.remove('hidden');
     $('#restart-cli-btn').classList.remove('hidden');
+    const isRunning = session.status === 'running';
+    $('#compact-btn').disabled = isRunning;
+    $('#compact-btn').title = isRunning ? 'Wait for idle' : 'Compact context';
     $('#ai-name').textContent = session.name;
     const st = $('#ai-status');
     st.textContent = `● ${session.status}`;
@@ -3928,8 +3931,10 @@ async function _loadSparkline(tipEl) {
             let yMin = Math.floor(Math.min(...allV)), yMax = Math.ceil(Math.max(...allV));
             if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
             const yRange = yMax - yMin || 1;
+            const t0 = new Date(data[0].ts).getTime(), t1 = new Date(data[data.length - 1].ts).getTime();
+            const tRange = t1 - t0 || 1;
             const toPoints = (arr) => arr.map((v, i) => {
-                const x = PL + (i / (data.length - 1)) * gw;
+                const x = PL + ((new Date(data[i].ts).getTime() - t0) / tRange) * gw;
                 const y = gh - ((Math.min(v, 100) - yMin) / yRange) * gh;
                 return `${x.toFixed(1)},${y.toFixed(1)}`;
             }).join(' ');

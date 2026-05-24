@@ -276,13 +276,8 @@ async def switch_worker_branch(name: str, task_id: str) -> str:
 @mcp.tool()
 async def report_bug(title: str, description: str) -> str:
     """Report a bug or issue with the Orchestra platform. Saves to bugs.md for the developer."""
-    from datetime import datetime, timezone
-    bugs_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "BUGS.md")
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    entry = f"\n## [{ts}] {title}\n- **Reporter:** {WORKER_NAME}\n- **Scope:** {SCOPE}\n{description}\n"
-    with open(bugs_path, "a") as f:
-        f.write(entry)
-    return f"Bug reported: {title}"
+    r = await _api("POST", "/api/report_bug", json={"title": title, "description": description, "reporter": WORKER_NAME, "scope": SCOPE})
+    return r.get("result", f"Bug reported: {title}")
 
 
 @mcp.tool()

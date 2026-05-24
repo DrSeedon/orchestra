@@ -938,6 +938,25 @@ async def usage_history(hours: int = 24):
     return usage_get_history(hours)
 
 
+@app.post("/api/report_bug")
+async def report_bug_endpoint(req: Request):
+    data = await req.json()
+    title = data.get("title", "Untitled")
+    description = data.get("description", "")
+    reporter = data.get("reporter", "unknown")
+    scope = data.get("scope", "")
+    from datetime import datetime, timezone
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    entry = f"\n## [{ts}] {title}\n- **Reporter:** {reporter}\n- **Scope:** {scope}\n{description}\n"
+    bugs_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "BUGS.md")
+    try:
+        with open(bugs_path, "a") as f:
+            f.write(entry)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    return {"result": f"Bug reported: {title}"}
+
+
 @app.get("/api/orchestrators")
 async def list_orchestrators():
     from app.db import get_all_sessions

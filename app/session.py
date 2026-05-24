@@ -236,6 +236,9 @@ class AgentSession:
         logger.info(f"[{self.name}] claude event loop started")
         while True:
             try:
+                if self._backend is None:
+                    logger.warning(f"[{self.name}] event loop: backend is None, exiting")
+                    return
                 async for event in self._backend.events():
                     self._last_msg_time = asyncio.get_event_loop().time()
                     if self._turn_start and (asyncio.get_event_loop().time() - self._turn_start) > self.TURN_TIMEOUT:
@@ -256,6 +259,8 @@ class AgentSession:
                 logger.error(f"[{self.name}] claude event loop died: {e}\n{tb}")
                 self._log("error", f"listener died (reconnecting): {e}")
                 try:
+                    if self._backend is None:
+                        return
                     await self._backend.reconnect()
                     logger.info(f"[{self.name}] listener reconnected after error")
                     self._log("status", "listener reconnected")
@@ -289,6 +294,14 @@ class AgentSession:
         except Exception as e:
             logger.error(f"[{self.name}] codex turn error: {e}")
             self._log("error", f"codex turn error: {e}")
+        finally:
+            if self.status == AgentStatus.RUNNING:
+                self.status = AgentStatus.IDLE
+                self._persist()
+                if self._pending_messages:
+                    asyncio.create_task(self._flush_pending())
+                else:
+                    self._schedule_hibernate()
 
     # ── Unified event handler ──
 
@@ -479,15 +492,36 @@ class AgentSession:
                 self.status = AgentStatus.IDLE
                 self._persist()
 
+    ZOMBIE_TIMEOUT_CODEX = 600
+    ZOMBIE_TIMEOUT_CLAUDE = 1800
+
     async def _heartbeat_loop(self) -> None:
         HEARTBEAT_INTERVAL = 60
-        NO_MSG_TIMEOUT = 600
         logger.info(f"[{self.name}] heartbeat started")
         while True:
             try:
                 await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+                if self.status == AgentStatus.RUNNING and self._last_msg_time > 0:
+                    silence = asyncio.get_event_loop().time() - self._last_msg_time
+                    zombie_timeout = self.ZOMBIE_TIMEOUT_CODEX if self.backend_type == "codex" else self.ZOMBIE_TIMEOUT_CLAUDE
+                    if silence > zombie_timeout:
+                        if self.backend_type == "codex" or self._backend is None:
+                            logger.error(f"[{self.name}] heartbeat: zombie detected ({silence:.0f}s silence, backend={'alive' if self._backend else 'dead'})")
+                            self._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
+                            if self._backend:
+                                await self._disconnect_backend()
+                            self.status = AgentStatus.IDLE
+                            self._persist()
+                            if self._pending_messages:
+                                asyncio.create_task(self._flush_pending())
+                        else:
+                            logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
+                            self._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
+
                 if self._backend is None:
                     continue
+
                 task_dead = self._listen_task is None or self._listen_task.done()
                 if task_dead and self.status == AgentStatus.RUNNING and self.backend_type != "codex":
                     logger.warning(f"[{self.name}] heartbeat: listener dead but status=RUNNING — reconnecting")
@@ -504,18 +538,6 @@ class AgentSession:
                         self._backend = None
                         self.status = AgentStatus.IDLE
                         self._persist()
-                elif self.status == AgentStatus.RUNNING and self._last_msg_time > 0:
-                    silence = asyncio.get_event_loop().time() - self._last_msg_time
-                    if silence > NO_MSG_TIMEOUT:
-                        if self.backend_type == "codex":
-                            logger.error(f"[{self.name}] heartbeat: codex silent {silence:.0f}s — killing backend")
-                            self._log("error", f"codex no response for {silence:.0f}s, killing backend")
-                            await self._disconnect_backend()
-                            self.status = AgentStatus.IDLE
-                            self._persist()
-                        else:
-                            logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
-                            self._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
             except asyncio.CancelledError:
                 logger.info(f"[{self.name}] heartbeat cancelled")
                 return
