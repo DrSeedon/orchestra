@@ -20,9 +20,9 @@ CODEX_CONTEXT_LIMITS = {
 }
 
 CODEX_TOKEN_PRICES = {
-    "gpt-5.5":      {"input": 1.25, "output": 10.0},
-    "gpt-5.4":      {"input": 0.625, "output": 3.75},
-    "gpt-5.4-mini": {"input": 0.1875, "output": 1.13},
+    "gpt-5.5":      {"input": 5.0, "output": 30.0},
+    "gpt-5.4":      {"input": 2.5, "output": 15.0},
+    "gpt-5.4-mini": {"input": 0.3, "output": 1.25},
 }
 
 

@@ -732,14 +732,33 @@ def usage_save_snapshot(five_hour_pct: float, seven_day_pct: float,
         )
 
 
-def usage_get_history(hours: int = 24) -> list[dict]:
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
+    now = datetime.now(timezone.utc)
+    cutoff = (now - timedelta(hours=hours)).isoformat()
     with _conn() as c:
         rows = c.execute(
             "SELECT * FROM usage_snapshots WHERE ts > ? ORDER BY ts ASC",
             (cutoff,),
         ).fetchall()
-        return [dict(r) for r in rows]
+        raw = [dict(r) for r in rows]
+    if not raw:
+        return []
+    step = timedelta(minutes=step_minutes)
+    start = datetime.fromisoformat(raw[0]["ts"]).replace(tzinfo=timezone.utc)
+    grid: list[dict] = []
+    ri = 0
+    t = start
+    prev = raw[0]
+    while t <= now:
+        while ri < len(raw) - 1:
+            next_ts = datetime.fromisoformat(raw[ri + 1]["ts"]).replace(tzinfo=timezone.utc)
+            if next_ts > t:
+                break
+            ri += 1
+            prev = raw[ri]
+        grid.append({**prev, "ts": t.isoformat()})
+        t += step
+    return grid
 
 
 def usage_cleanup_old(days: int = 30) -> int:
