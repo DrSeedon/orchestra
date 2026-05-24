@@ -297,11 +297,6 @@ async def _flush_batch(sid: str, batch: list):
     now = datetime.now(local_tz).strftime("%H:%M")
     combined = f"[{now}] {combined}"
     await _manager.send(sid, combined)
-    for m, _ in valid:
-        try:
-            await m.react([types.ReactionTypeEmoji(emoji="👍")])
-        except Exception:
-            pass
 
 
 def _sender_tag(msg: types.Message) -> str:
@@ -354,10 +349,7 @@ async def _resolve_media(sid: str, idx: int, content: str):
 
 
 async def _react_processing(msg: types.Message):
-    try:
-        await msg.react([types.ReactionTypeEmoji(emoji="👂")])
-    except Exception:
-        pass
+    pass
 
 
 def _utf16_len(s: str) -> int:
