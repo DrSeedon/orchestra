@@ -466,8 +466,11 @@ async def send_message(name: str, req: SendRequest):
             msg = f"[{now}] {msg}"
         await manager.send(session.id, msg)
         return {"ok": True}
-    except RuntimeError as e:
+    except (RuntimeError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        logger.error(f"send_message failed for {name}: {e}")
+        return JSONResponse({"error": f"Send failed: {e}"}, status_code=500)
 
 
 @app.post("/api/sessions/{name}/compact")
