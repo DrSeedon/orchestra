@@ -479,19 +479,29 @@ def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
 
 
 _flood_until: float = 0
+_last_send: float = 0
+_TG_MIN_INTERVAL = 3.0
 
 
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
                          entities=None, important: bool = False):
-    global _flood_until
+    global _flood_until, _last_send
     now = asyncio.get_event_loop().time()
     if _flood_until > now:
         if not important:
             return None
         await asyncio.sleep(_flood_until - now + 0.1)
+        now = asyncio.get_event_loop().time()
+    gap = now - _last_send
+    if gap < _TG_MIN_INTERVAL:
+        if not important:
+            return None
+        await asyncio.sleep(_TG_MIN_INTERVAL - gap)
     try:
-        return await bot.send_message(chat_id, text, message_thread_id=thread_id,
-                                      parse_mode=None, entities=entities)
+        result = await bot.send_message(chat_id, text, message_thread_id=thread_id,
+                                         parse_mode=None, entities=entities)
+        _last_send = asyncio.get_event_loop().time()
+        return result
     except TelegramRetryAfter as e:
         _flood_until = asyncio.get_event_loop().time() + e.retry_after
         logger.warning(f"TG flood: pausing {e.retry_after}s")
