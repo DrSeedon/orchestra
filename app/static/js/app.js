@@ -918,6 +918,23 @@ function updateAgentInfo(session) {
         if (session.description) { descEl.textContent = session.description; descEl.title = session.description; descEl.classList.remove('hidden'); descLabel.classList.remove('hidden'); }
         else { descEl.classList.add('hidden'); descLabel.classList.add('hidden'); }
     }
+    let progEl = $('#ai-progress'); let progLabel = $('#ai-progress-label');
+    if (!progEl) {
+        const grid = document.querySelector('#agent-info .grid');
+        if (grid) {
+            progLabel = document.createElement('span'); progLabel.id = 'ai-progress-label'; progLabel.className = 'text-slate-500 hidden'; progLabel.textContent = 'Progress';
+            progEl = document.createElement('span'); progEl.id = 'ai-progress'; progEl.className = 'text-indigo-400 text-xs truncate hidden'; progEl.style.maxWidth = '180px';
+            grid.append(progLabel, progEl);
+        }
+    }
+    if (progEl && progLabel) {
+        const pp = session.progress_pct || 0;
+        if (pp > 0) {
+            const ps = session.progress_status ? ` — ${session.progress_status}` : '';
+            progEl.textContent = `${pp}%${ps}`; progEl.title = `${pp}%${ps}`;
+            progEl.classList.remove('hidden'); progLabel.classList.remove('hidden');
+        } else { progEl.classList.add('hidden'); progLabel.classList.add('hidden'); }
+    }
     const ctxKey = `${currentScope}:${session.name}`;
     if (contextCache[ctxKey]) {
         setContextDisplay(contextCache[ctxKey]);
@@ -1047,6 +1064,24 @@ function createAgentItem(s) {
         fill.title = `${pct}% context`;
         bar.appendChild(fill);
         info.appendChild(bar);
+    }
+    const ppct = s.progress_pct || 0;
+    if (ppct > 0) {
+        const pbar = document.createElement('div');
+        pbar.className = 'w-full h-1 bg-slate-800 rounded-full mt-1';
+        const pfill = document.createElement('div');
+        pfill.className = 'h-1 rounded-full transition-all';
+        pfill.style.width = `${Math.min(ppct, 100)}%`;
+        pfill.style.backgroundColor = '#818cf8';
+        pfill.title = `${ppct}% progress`;
+        pbar.appendChild(pfill);
+        info.appendChild(pbar);
+        if (s.progress_status) {
+            const ptext = document.createElement('div');
+            ptext.style.cssText = 'font-size:9px;color:#64748b;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+            ptext.textContent = `${ppct}% — ${s.progress_status}`;
+            info.appendChild(ptext);
+        }
     }
     item.append(icon, info);
 
