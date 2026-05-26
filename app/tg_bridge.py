@@ -458,6 +458,25 @@ async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str)
             logger.warning(f"TG send failed: {e}")
 
 
+TG_MSG_LIMIT = 4096
+
+
+def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+    chunks = []
+    while text:
+        if len(text) <= limit:
+            chunks.append(text)
+            break
+        cut = text.rfind('\n', 0, limit)
+        if cut < limit // 4:
+            cut = limit
+        chunks.append(text[:cut])
+        text = text[cut:].lstrip('\n')
+    return chunks
+
+
 _TG_TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
@@ -722,11 +741,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                     if c.startswith("[from:"):
                         prefix = c.split("]")[0] + "]"
                         body = c[len(prefix):].strip()
-                        text = f"📨 {prefix}\n{body[:3000]}"
+                        text = f"📨 {prefix}\n{body}"
                     else:
-                        text = f"👤 {c[:3000]}"
+                        text = f"👤 {c}"
                 elif t == "text":
-                    text = f"💬\n{c[:3900]}"
+                    text = f"💬\n{c}"
                 elif t == "tool":
                     tool_name = c.split(":")[0].strip() if ":" in c else "tool"
                     tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
@@ -762,7 +781,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
                     continue
                 elif t == "error":
-                    text = f"❌ {c[:1000]}"
+                    text = f"❌ {c}"
                 elif t == "status":
                     if "turn ended" in c:
                         still_running = _any_running_in_scope(scope)
@@ -771,25 +790,26 @@ async def stream_logs(orch_name: str, thread_id: int):
                     text = f"⚡ {c}"
                 else:
                     continue
-                try:
-                    converted, entities = md_convert(text)
-                    from aiogram.types import MessageEntity as AioEntity
-                    aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
-                    await bot.send_message(
-                        config["group_id"], converted,
-                        message_thread_id=thread_id,
-                        parse_mode=None, entities=aio_ents,
-                    )
-                    await _mirror_send(orch_name, converted, entities=aio_ents)
-                except Exception:
+                for chunk in _split_message(text):
                     try:
+                        converted, entities = md_convert(chunk)
+                        from aiogram.types import MessageEntity as AioEntity
+                        aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
                         await bot.send_message(
-                            config["group_id"], text,
+                            config["group_id"], converted,
                             message_thread_id=thread_id,
+                            parse_mode=None, entities=aio_ents,
                         )
-                    except Exception as e:
-                        logger.warning(f"TG send failed: {e}")
-                    await _mirror_send(orch_name, text)
+                        await _mirror_send(orch_name, converted, entities=aio_ents)
+                    except Exception:
+                        try:
+                            await bot.send_message(
+                                config["group_id"], chunk,
+                                message_thread_id=thread_id,
+                            )
+                        except Exception as e:
+                            logger.warning(f"TG send failed: {e}")
+                        await _mirror_send(orch_name, chunk)
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
         await asyncio.sleep(2)
