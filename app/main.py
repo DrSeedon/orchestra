@@ -450,12 +450,12 @@ async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: 
 
 @app.post("/api/sessions/{name}/send")
 async def send_message(name: str, req: SendRequest):
-    session = await manager.ensure_loaded(name, req.scope)
-    if not session:
-        session = await manager.ensure_loaded_any(name)
-    if not session:
-        return JSONResponse({"error": "not found"}, status_code=404)
     try:
+        session = await manager.ensure_loaded(name, req.scope)
+        if not session:
+            session = await manager.ensure_loaded_any(name)
+        if not session:
+            return JSONResponse({"error": "not found"}, status_code=404)
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)
@@ -469,7 +469,7 @@ async def send_message(name: str, req: SendRequest):
     except (RuntimeError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
-        logger.error(f"send_message failed for {name}: {e}")
+        logger.error(f"send_message failed for {name}: {e}", exc_info=True)
         return JSONResponse({"error": f"Send failed: {e}"}, status_code=500)
 
 
