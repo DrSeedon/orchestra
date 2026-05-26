@@ -514,6 +514,28 @@ def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
 
+def _pick_unique_topic_name(orch_name: str) -> str:
+    """Выбрать свободное имя для TG-топика по orch_name с учётом коллизий.
+
+    Если short(orch_name) уже занят другим оркестратором, возвращаем
+    ``<short>-2``, ``<short>-3`` и т.д. Имя оркестратора, для которого
+    уже выбрано имя в ``config['topic_names']``, возвращается без изменений.
+    """
+    topic_names = config.setdefault("topic_names", {})
+    if orch_name in topic_names:
+        return topic_names[orch_name]
+    base = _short_name(orch_name)
+    used = set(topic_names.values()) | {
+        _short_name(k) for k in config["topics"] if k not in topic_names
+    }
+    if base not in used:
+        return base
+    i = 2
+    while f"{base}-{i}" in used:
+        i += 1
+    return f"{base}-{i}"
+
+
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 
@@ -621,7 +643,7 @@ async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
     _topic_status[orch_name] = is_running
-    short = _short_name(orch_name)
+    short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
     thread_id = config["topics"].get(orch_name)
     if thread_id and bot:
@@ -667,11 +689,12 @@ async def ensure_topics():
         if name in config["topics"]:
             continue
         try:
-            short = _short_name(name)
-            result = await bot.create_forum_topic(chat_id=config["group_id"], name=short, icon_custom_emoji_id=_ICON_IDLE)
+            chosen = _pick_unique_topic_name(name)
+            result = await bot.create_forum_topic(chat_id=config["group_id"], name=chosen, icon_custom_emoji_id=_ICON_IDLE)
             config["topics"][name] = result.message_thread_id
+            config.setdefault("topic_names", {})[name] = chosen
             save_config()
-            logger.info(f"Created topic for {name}: {result.message_thread_id}")
+            logger.info(f"Created topic for {name} as '{chosen}': {result.message_thread_id}")
             asyncio.create_task(stream_logs(name, result.message_thread_id))
         except Exception as e:
             logger.error(f"Failed to create topic for {name}: {e}")
