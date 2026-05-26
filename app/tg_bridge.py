@@ -587,7 +587,17 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
             await _mirror_send_file(orch_name, mirror_file, label, is_photo)
         return {"ok": True}
     except TelegramRetryAfter as e:
-        return {"error": f"TG flood: retry after {e.retry_after}s"}
+        logger.warning(f"send_file flood: retry after {e.retry_after}s")
+        await asyncio.sleep(e.retry_after + 0.5)
+        try:
+            tg_file2 = FSInputFile(path, filename=fp.name)
+            if is_photo:
+                await bot.send_photo(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
+            else:
+                await bot.send_document(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
+            return {"ok": True}
+        except Exception as e2:
+            return {"error": f"Send failed after flood retry: {e2}"}
     except Exception as e:
         return {"error": str(e)}
 
