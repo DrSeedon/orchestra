@@ -1,10 +1,27 @@
 """SQLite storage for sessions and logs."""
 
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
+_DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
+
+
+def _resolve_db_path() -> Path:
+    """Путь к БД: ORCHESTRA_DB_PATH из env (если задан) или дефолт data/orchestra.db.
+
+    Позволяет разным worktree/веткам и тестам держать свою БД, не блокируя
+    друг друга через SQLite-лок при параллельной работе.
+    """
+    override = os.getenv("ORCHESTRA_DB_PATH", "").strip()
+    if not override:
+        return _DEFAULT_DB_PATH
+    p = Path(override)
+    return p if p.is_absolute() else (Path(__file__).parent.parent / p)
+
+
+DB_PATH = _resolve_db_path()
 
 
 def _conn() -> sqlite3.Connection:

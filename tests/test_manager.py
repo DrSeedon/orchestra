@@ -28,10 +28,8 @@ def mgr(db, tmp_path, monkeypatch):
 class TestCreateSession:
     @pytest.mark.asyncio
     async def test_returns_session(self, mgr):
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
                 name="worker-1",
                 scope="/test/scope",
@@ -44,10 +42,8 @@ class TestCreateSession:
 
     @pytest.mark.asyncio
     async def test_generates_uuid(self, mgr):
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             s1 = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
             s2 = await mgr.create_session(name="w2", scope="/s", cwd="/tmp", model="m")
         assert s1.id != s2.id
@@ -61,10 +57,8 @@ class TestCreateSession:
 
     @pytest.mark.asyncio
     async def test_duplicate_name_scope_raises(self, mgr):
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
             with pytest.raises(ValueError, match="already exists"):
                 await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
@@ -72,10 +66,8 @@ class TestCreateSession:
     @pytest.mark.asyncio
     async def test_persists_to_db(self, mgr):
         from app.db import get_session_by_name
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
         db_row = get_session_by_name("w1", "/s")
         assert db_row is not None
@@ -94,10 +86,8 @@ class TestCreateSession:
         subprocess.run(["git", "commit", "-m", "i"], cwd=repo, capture_output=True, check=True)
         subprocess.run(["git", "branch", "-M", "main"], cwd=repo, capture_output=True, check=True)
 
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
                 name="w1", scope="/s", cwd=str(repo),
                 model="m", use_worktree=True, repo_path=str(repo),
@@ -121,10 +111,8 @@ class TestWorktreeBaseBranch:
         subprocess.run(["git", "branch", "-M", "main"], cwd=repo, capture_output=True, check=True)
         subprocess.run(["git", "branch", "feature/auth"], cwd=repo, capture_output=True, check=True)
 
-        with patch("app.session.AgentSession._make_backend", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
                 name="w1", scope="/s", cwd=str(repo), model="m",
                 use_worktree=True, repo_path=str(repo), base_branch="feature/auth",
@@ -139,10 +127,8 @@ class TestWorktreeBaseBranch:
 class TestSendAndControl:
     @pytest.mark.asyncio
     async def test_send_routes(self, mgr):
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
             session.send = AsyncMock()
             await mgr.send(session.id, "hello")
@@ -155,10 +141,8 @@ class TestSendAndControl:
 
     @pytest.mark.asyncio
     async def test_stop_and_remove(self, mgr):
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
             await mgr.remove(session.id)
         assert mgr.get(session.id) is None
@@ -166,10 +150,8 @@ class TestSendAndControl:
     @pytest.mark.asyncio
     async def test_remove_deletes_from_dict_and_db(self, mgr):
         from app.db import get_session
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
             await mgr.remove(session.id)
         assert mgr.get(session.id) is None
@@ -179,10 +161,8 @@ class TestSendAndControl:
 class TestListSessions:
     @pytest.mark.asyncio
     async def test_scope_filter(self, mgr):
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             await mgr.create_session(name="w1", scope="/a", cwd="/tmp", model="m")
             await mgr.create_session(name="w2", scope="/b", cwd="/tmp", model="m")
         result = mgr.list_sessions(scope="/a")
@@ -191,10 +171,8 @@ class TestListSessions:
 
     @pytest.mark.asyncio
     async def test_merges_active_and_db(self, mgr):
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="m")
         result = mgr.list_sessions()
         assert len(result) >= 1
@@ -212,10 +190,8 @@ class TestAutoResume:
             "is_orchestrator": True, "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
             "finished_at": None,
         })
-        with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-            connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-            receive_messages=AsyncMock(return_value=iter([])),
-        )):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             await mgr.auto_resume_orchestrators()
         assert mgr.get("orch-1") is not None
 
