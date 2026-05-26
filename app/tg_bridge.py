@@ -13,6 +13,7 @@ from pathlib import Path
 
 import aiohttp
 from aiogram import Bot, Dispatcher, types, F
+from aiogram.exceptions import TelegramRetryAfter
 from aiogram.client.default import DefaultBotProperties
 from telegramify_markdown import convert as md_convert
 
@@ -477,6 +478,20 @@ def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
     return chunks
 
 
+async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None, entities=None, retries: int = 3):
+    for attempt in range(retries):
+        try:
+            return await bot.send_message(chat_id, text, message_thread_id=thread_id,
+                                          parse_mode=None, entities=entities)
+        except TelegramRetryAfter as e:
+            logger.warning(f"TG flood control: retry after {e.retry_after}s (attempt {attempt+1})")
+            await asyncio.sleep(e.retry_after + 0.5)
+        except Exception as e:
+            logger.warning(f"TG send failed: {e}")
+            return None
+    return None
+
+
 _TG_TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
@@ -795,20 +810,10 @@ async def stream_logs(orch_name: str, thread_id: int):
                         converted, entities = md_convert(chunk)
                         from aiogram.types import MessageEntity as AioEntity
                         aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
-                        await bot.send_message(
-                            config["group_id"], converted,
-                            message_thread_id=thread_id,
-                            parse_mode=None, entities=aio_ents,
-                        )
+                        await _tg_send_safe(config["group_id"], converted, thread_id, entities=aio_ents)
                         await _mirror_send(orch_name, converted, entities=aio_ents)
                     except Exception:
-                        try:
-                            await bot.send_message(
-                                config["group_id"], chunk,
-                                message_thread_id=thread_id,
-                            )
-                        except Exception as e:
-                            logger.warning(f"TG send failed: {e}")
+                        await _tg_send_safe(config["group_id"], chunk, thread_id)
                         await _mirror_send(orch_name, chunk)
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
