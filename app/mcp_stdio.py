@@ -56,8 +56,10 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
                        system_prompt: str = "",
                        task_id: str = "",
-                       description: str = "") -> str:
-    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex."""
+                       description: str = "",
+                       base_branch: str = "main") -> str:
+    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-6[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
+    base_branch — от какой ветки ответвить worktree воркера (default main)."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-6[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
@@ -65,6 +67,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "name": name, "scope": scope, "cwd": repo_path,
         "model": model, "system_prompt": system_prompt,
         "use_worktree": True, "repo_path": repo_path,
+        "base_branch": base_branch,
     }
     if task_id:
         body["task_id"] = task_id
@@ -77,6 +80,48 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "message": task, "scope": scope,
     })
     return f"Worker '{name}' spawned. Model: {model}. Task sent."
+
+
+@mcp.tool()
+async def acquire_test_lock(reason: str = "") -> str:
+    """Захватить ГЛОБАЛЬНЫЙ эксклюзивный лок на ПОЛНЫЙ прогон тестов (фулл-сьют) для проекта.
+    Бери его ТОЛЬКО перед полным прогоном и ТОЛЬКО с согласия PM. Узкие тесты этапа лока НЕ требуют.
+    Занято другим агентом → вернётся отказ с именем держателя — НЕ запускай фулл-сьют, жди и попробуй позже.
+    Всегда вызывай release_test_lock() после прогона."""
+    result = await _api("POST", "/api/test-lock/acquire", json={
+        "scope": SCOPE, "holder": WORKER_NAME, "reason": reason,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Lock error: {result['error']}"
+    if result.get("acquired"):
+        return f"Test lock ACQUIRED for '{WORKER_NAME}' (reason: {reason or 'n/a'}). Release it when done."
+    return (f"Test lock BUSY — held by '{result.get('holder')}'. "
+            f"Do NOT run the full suite. Wait and retry, or coordinate via PM.")
+
+
+@mcp.tool()
+async def release_test_lock() -> str:
+    """Освободить глобальный тест-лок (если ты его держишь). Вызывай сразу после полного прогона."""
+    result = await _api("POST", "/api/test-lock/release", json={
+        "scope": SCOPE, "holder": WORKER_NAME,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Lock error: {result['error']}"
+    if result.get("released"):
+        return "Test lock released."
+    return "Test lock was not held by you (nothing to release)."
+
+
+@mcp.tool()
+async def test_lock_status() -> str:
+    """Кто сейчас держит глобальный тест-лок проекта (или свободен)."""
+    result = await _api("GET", "/api/test-lock", params={"scope": SCOPE})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Lock error: {result['error']}"
+    if not result.get("held"):
+        return "Test lock is FREE."
+    return (f"Test lock HELD by '{result.get('holder')}' "
+            f"(reason: {result.get('reason') or 'n/a'}, since {result.get('acquired_at')}).")
 
 
 @mcp.tool()
@@ -235,9 +280,9 @@ async def change_worker_model(name: str, model: str) -> str:
 
 
 @mcp.tool()
-async def merge_worker(name: str) -> str:
-    """Merge a worker's branch into main. Returns commit count or conflict file list."""
-    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE})
+async def merge_worker(name: str, target: str = "main") -> str:
+    """Merge a worker's branch into target branch (default main). Кодер: воркер этапа -> ветка фичи (target=feature/<...>). Мерж фичи в main — отдельно, по согласованию с PM/пользователем. Returns commit count or conflict file list."""
+    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE, "target": target})
     if isinstance(result, dict) and result.get("error"):
         return f"Merge failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):
@@ -259,11 +304,12 @@ async def merge_worker(name: str) -> str:
 
 
 @mcp.tool()
-async def switch_worker_branch(name: str, task_id: str) -> str:
+async def switch_worker_branch(name: str, task_id: str, from_ref: str = "refs/heads/main") -> str:
     """After merge, switch worker to a new branch for a new task.
+    from_ref — ветка, от которой ответвляется новая (default refs/heads/main; воркер feature-ветки → refs/heads/feature/<...>).
     Worker must be idle with clean working tree."""
     result = await _api("POST", f"/api/sessions/{name}/switch-branch",
-                        json={"scope": SCOPE, "task_id": task_id})
+                        json={"scope": SCOPE, "task_id": task_id, "from_ref": from_ref})
     if isinstance(result, dict) and result.get("error"):
         return f"Switch failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):

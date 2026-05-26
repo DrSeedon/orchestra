@@ -172,7 +172,8 @@ class SessionManager:
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False,
-                             task_id: str = "", description: str = "") -> AgentSession:
+                             task_id: str = "", description: str = "",
+                             base_branch: str = "main") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -206,7 +207,7 @@ class SessionManager:
         try:
             if use_worktree and repo_path:
                 await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
-                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id)
+                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id, base_branch)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
@@ -254,20 +255,34 @@ class SessionManager:
         await bg_manager.cancel_by_session(session_id)
         session = self.sessions.pop(session_id, None)
         if session:
-            await session.stop()
+            await session._disconnect_backend()
             if session.worktree_path:
                 try:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
                 except Exception:
                     pass
-        archive_session(session_id)
+        delete_session(session_id)
 
-    async def remove_scope(self, scope: str) -> None:
+    async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict:
+        orch_names: list[str] = []
+        for s in self.sessions.values():
+            if s.scope == scope and s.is_orchestrator and s.name not in orch_names:
+                orch_names.append(s.name)
+        for row in get_all_sessions(scope):
+            if row.get("is_orchestrator") and row["name"] not in orch_names:
+                orch_names.append(row["name"])
+
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
         for s in to_remove:
             await self.remove(s.id)
         for row in get_all_sessions(scope):
             archive_session(row["id"])
+
+        tg_result: dict = {}
+        if delete_tg_topics and orch_names:
+            from app import tg_bridge
+            tg_result = await tg_bridge.remove_topics_for_orchs(orch_names)
+        return {"tg": tg_result}
 
     # ── Lookups ──
 

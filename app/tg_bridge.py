@@ -87,6 +87,11 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
 
 UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 
+# Юзернейм для @mention в сообщениях агента пользователю (его речь, тип "text" → 💬).
+# Пусто → без тэга. Тэгается ТОЛЬКО речь агента, НЕ внутренняя переписка агентов (📨 [from:]).
+# MVP: статичный ник из env. Динамическое определение «это обращение к юзеру» — в backlog.
+TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
+
 
 def _cleanup_uploads():
     files = [f for f in UPLOADS_DIR.iterdir() if f.is_file() and not f.name.startswith(".")]
@@ -550,6 +555,68 @@ def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
 
+def _pick_unique_topic_name(orch_name: str) -> str:
+    """Выбрать свободное имя для TG-топика по orch_name с учётом коллизий.
+
+    Если short(orch_name) уже занят другим оркестратором, возвращаем
+    ``<short>-2``, ``<short>-3`` и т.д. Имя оркестратора, для которого
+    уже выбрано имя в ``config['topic_names']``, возвращается без изменений.
+    """
+    topic_names = config.setdefault("topic_names", {})
+    if orch_name in topic_names:
+        return topic_names[orch_name]
+    base = _short_name(orch_name)
+    used = set(topic_names.values()) | {
+        _short_name(k) for k in config["topics"] if k not in topic_names
+    }
+    if base not in used:
+        return base
+    i = 2
+    while f"{base}-{i}" in used:
+        i += 1
+    return f"{base}-{i}"
+
+
+async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
+    """Удалить TG-топики и записи из ``config['topics']`` для указанных оркестраторов.
+
+    Mirrors не трогаем — их пользователь настраивает руками для отдельных групп.
+    Ошибки Bot API (топик уже удалён в TG) логируются как warning, но запись
+    из ``config`` всё равно убирается, чтобы не оставалось зомби.
+
+    Возвращает структуру с разбивкой по статусу:
+        {"deleted": [name, ...], "failed": [{"name": ..., "error": ...}], "skipped": [name, ...]}
+    """
+    if not bot or not config.get("group_id"):
+        return {"deleted": [], "failed": [], "skipped": list(orch_names), "error": "bridge inactive"}
+
+    deleted: list[str] = []
+    failed: list[dict] = []
+    skipped: list[str] = []
+    topic_names = config.setdefault("topic_names", {})
+
+    for name in orch_names:
+        thread_id = config["topics"].get(name)
+        if not thread_id:
+            skipped.append(name)
+            topic_names.pop(name, None)
+            _topic_status.pop(name, None)
+            continue
+        try:
+            await bot.delete_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id)
+            deleted.append(name)
+        except Exception as e:
+            logger.warning(f"Failed to delete TG topic for {name} (thread_id={thread_id}): {e}")
+            failed.append({"name": name, "error": str(e)})
+        # config очищаем независимо от ответа API: если топика уже нет — тем более
+        config["topics"].pop(name, None)
+        topic_names.pop(name, None)
+        _topic_status.pop(name, None)
+
+    save_config()
+    return {"deleted": deleted, "failed": failed, "skipped": skipped}
+
+
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 
@@ -667,7 +734,7 @@ async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
     _topic_status[orch_name] = is_running
-    short = _short_name(orch_name)
+    short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
     thread_id = config["topics"].get(orch_name)
     if thread_id and bot:
@@ -713,11 +780,12 @@ async def ensure_topics():
         if name in config["topics"]:
             continue
         try:
-            short = _short_name(name)
-            result = await bot.create_forum_topic(chat_id=config["group_id"], name=short, icon_custom_emoji_id=_ICON_IDLE)
+            chosen = _pick_unique_topic_name(name)
+            result = await bot.create_forum_topic(chat_id=config["group_id"], name=chosen, icon_custom_emoji_id=_ICON_IDLE)
             config["topics"][name] = result.message_thread_id
+            config.setdefault("topic_names", {})[name] = chosen
             save_config()
-            logger.info(f"Created topic for {name}: {result.message_thread_id}")
+            logger.info(f"Created topic for {name} as '{chosen}': {result.message_thread_id}")
             asyncio.create_task(stream_logs(name, result.message_thread_id))
         except Exception as e:
             logger.error(f"Failed to create topic for {name}: {e}")
@@ -796,7 +864,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                     else:
                         text = f"👤 {c}"
                 elif t == "text":
-                    text = f"💬\n{c}"
+                    # @mention пользователя — только в речи агента (text), чтобы уведы
+                    # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
+                    # Обрезание убрано: длинные сообщения дробит _split_message ниже (upstream c36c51d).
+                    head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
+                    text = f"{head}\n{c}"
                 elif t == "tool":
                     tool_name = c.split(":")[0].strip() if ":" in c else "tool"
                     tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
