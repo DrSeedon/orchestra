@@ -478,18 +478,34 @@ def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
     return chunks
 
 
-async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None, entities=None, retries: int = 3):
-    for attempt in range(retries):
-        try:
-            return await bot.send_message(chat_id, text, message_thread_id=thread_id,
-                                          parse_mode=None, entities=entities)
-        except TelegramRetryAfter as e:
-            logger.warning(f"TG flood control: retry after {e.retry_after}s (attempt {attempt+1})")
-            await asyncio.sleep(e.retry_after + 0.5)
-        except Exception as e:
-            logger.warning(f"TG send failed: {e}")
+_flood_until: float = 0
+
+
+async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
+                         entities=None, important: bool = False):
+    global _flood_until
+    now = asyncio.get_event_loop().time()
+    if _flood_until > now:
+        if not important:
             return None
-    return None
+        await asyncio.sleep(_flood_until - now + 0.1)
+    try:
+        return await bot.send_message(chat_id, text, message_thread_id=thread_id,
+                                      parse_mode=None, entities=entities)
+    except TelegramRetryAfter as e:
+        _flood_until = asyncio.get_event_loop().time() + e.retry_after
+        logger.warning(f"TG flood: pausing {e.retry_after}s")
+        if important:
+            await asyncio.sleep(e.retry_after + 0.5)
+            try:
+                return await bot.send_message(chat_id, text, message_thread_id=thread_id,
+                                              parse_mode=None, entities=entities)
+            except Exception:
+                pass
+        return None
+    except Exception as e:
+        logger.warning(f"TG send failed: {e}")
+        return None
 
 
 _TG_TOOL_ICONS = {
@@ -815,15 +831,18 @@ async def stream_logs(orch_name: str, thread_id: int):
                     text = f"⚡ {c}"
                 else:
                     continue
+                is_important = t in ("text", "error", "user_message")
                 for chunk in _split_message(text):
                     try:
                         converted, entities = md_convert(chunk)
                         from aiogram.types import MessageEntity as AioEntity
                         aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
-                        await _tg_send_safe(config["group_id"], converted, thread_id, entities=aio_ents)
+                        await _tg_send_safe(config["group_id"], converted, thread_id,
+                                            entities=aio_ents, important=is_important)
                         await _mirror_send(orch_name, converted, entities=aio_ents)
                     except Exception:
-                        await _tg_send_safe(config["group_id"], chunk, thread_id)
+                        await _tg_send_safe(config["group_id"], chunk, thread_id,
+                                            important=is_important)
                         await _mirror_send(orch_name, chunk)
         except Exception as e:
             logger.error(f"Stream error for {orch_name}: {e}")
