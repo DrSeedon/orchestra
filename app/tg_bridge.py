@@ -536,6 +536,46 @@ def _pick_unique_topic_name(orch_name: str) -> str:
     return f"{base}-{i}"
 
 
+async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
+    """Удалить TG-топики и записи из ``config['topics']`` для указанных оркестраторов.
+
+    Mirrors не трогаем — их пользователь настраивает руками для отдельных групп.
+    Ошибки Bot API (топик уже удалён в TG) логируются как warning, но запись
+    из ``config`` всё равно убирается, чтобы не оставалось зомби.
+
+    Возвращает структуру с разбивкой по статусу:
+        {"deleted": [name, ...], "failed": [{"name": ..., "error": ...}], "skipped": [name, ...]}
+    """
+    if not bot or not config.get("group_id"):
+        return {"deleted": [], "failed": [], "skipped": list(orch_names), "error": "bridge inactive"}
+
+    deleted: list[str] = []
+    failed: list[dict] = []
+    skipped: list[str] = []
+    topic_names = config.setdefault("topic_names", {})
+
+    for name in orch_names:
+        thread_id = config["topics"].get(name)
+        if not thread_id:
+            skipped.append(name)
+            topic_names.pop(name, None)
+            _topic_status.pop(name, None)
+            continue
+        try:
+            await bot.delete_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id)
+            deleted.append(name)
+        except Exception as e:
+            logger.warning(f"Failed to delete TG topic for {name} (thread_id={thread_id}): {e}")
+            failed.append({"name": name, "error": str(e)})
+        # config очищаем независимо от ответа API: если топика уже нет — тем более
+        config["topics"].pop(name, None)
+        topic_names.pop(name, None)
+        _topic_status.pop(name, None)
+
+    save_config()
+    return {"deleted": deleted, "failed": failed, "skipped": skipped}
+
+
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 

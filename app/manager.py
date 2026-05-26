@@ -263,12 +263,26 @@ class SessionManager:
                     pass
         delete_session(session_id)
 
-    async def remove_scope(self, scope: str) -> None:
+    async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict:
+        orch_names: list[str] = []
+        for s in self.sessions.values():
+            if s.scope == scope and s.is_orchestrator and s.name not in orch_names:
+                orch_names.append(s.name)
+        for row in get_all_sessions(scope):
+            if row.get("is_orchestrator") and row["name"] not in orch_names:
+                orch_names.append(row["name"])
+
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
         for s in to_remove:
             await self.remove(s.id)
         for row in get_all_sessions(scope):
             archive_session(row["id"])
+
+        tg_result: dict = {}
+        if delete_tg_topics and orch_names:
+            from app import tg_bridge
+            tg_result = await tg_bridge.remove_topics_for_orchs(orch_names)
+        return {"tg": tg_result}
 
     # ── Lookups ──
 

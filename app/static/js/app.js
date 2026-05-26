@@ -717,16 +717,48 @@ function initTabContextMenu() {
             renderOrchTabs(orchData);
         }));
         menu.appendChild(mkItem('🗑 Удалить', '#ef4444', () => {
-            if (!confirm(`Delete "${name}" and all its workers?`)) return;
-            api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
-                .then(() => loadOrchestrators())
-                .catch(e => alert(`Delete failed: ${e.message}`));
+            openDeleteOrchModal(name, scope);
         }));
         document.body.appendChild(menu);
         const rect = menu.getBoundingClientRect();
         if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
         if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
     });
+}
+
+function openDeleteOrchModal(name, scope) {
+    const modal = $('#delete-orch-modal');
+    if (!modal) {
+        if (!confirm(`Delete "${name}" and all its workers?`)) return;
+        api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
+            .then(() => loadOrchestrators())
+            .catch(e => alert(`Delete failed: ${e.message}`));
+        return;
+    }
+    $('#delete-orch-name').textContent = `"${name}"`;
+    $('#delete-tg-topics').checked = false;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    const close = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    };
+
+    $('#delete-orch-confirm').onclick = async () => {
+        const deleteTopics = $('#delete-tg-topics').checked;
+        close();
+        try {
+            const url = `/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}&delete_tg_topics=${deleteTopics}`;
+            await api(url, { method: 'DELETE' });
+            loadOrchestrators();
+        } catch (e) {
+            alert(`Delete failed: ${e.message}`);
+        }
+    };
+    $('#delete-orch-cancel').onclick = close;
+    $('#delete-orch-modal-close').onclick = close;
+    modal.onclick = (e) => { if (e.target === modal) close(); };
 }
 
 function _updateHiddenBtn() {
