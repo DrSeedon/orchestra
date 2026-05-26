@@ -982,9 +982,9 @@ async def list_orchestrators():
 
 
 @app.delete("/api/orchestrators/{name}")
-async def delete_orchestrator(name: str, scope: str):
-    await manager.remove_scope(scope)
-    return {"ok": True}
+async def delete_orchestrator(name: str, scope: str, delete_tg_topics: bool = False):
+    result = await manager.remove_scope(scope, delete_tg_topics=delete_tg_topics)
+    return {"ok": True, **result}
 
 
 @app.get("/api/test-lock")

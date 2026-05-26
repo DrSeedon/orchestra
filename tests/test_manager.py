@@ -178,6 +178,61 @@ class TestListSessions:
         assert len(result) >= 1
 
 
+class TestRemoveScope:
+    @pytest.mark.asyncio
+    async def test_passes_orch_names_to_tg_bridge_when_flag_set(self, mgr, monkeypatch):
+        """remove_scope с delete_tg_topics=True должен передать имена орков в tg_bridge."""
+        from app.db import save_session
+        save_session({
+            "id": "orch-x", "name": "orch-x-orchestrator", "scope": "/scope-x",
+            "cwd": "/tmp", "model": "claude-opus-4-6", "system_prompt": "",
+            "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": True, "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+
+        called = {}
+
+        async def fake_remove(names):
+            called["names"] = list(names)
+            return {"deleted": list(names), "failed": [], "skipped": []}
+
+        monkeypatch.setattr("app.tg_bridge.remove_topics_for_orchs", fake_remove)
+
+        result = await mgr.remove_scope("/scope-x", delete_tg_topics=True)
+
+        assert called["names"] == ["orch-x-orchestrator"]
+        assert result["tg"]["deleted"] == ["orch-x-orchestrator"]
+
+    @pytest.mark.asyncio
+    async def test_skips_tg_bridge_when_flag_false(self, mgr, monkeypatch):
+        from app.db import save_session
+        save_session({
+            "id": "orch-y", "name": "orch-y-orchestrator", "scope": "/scope-y",
+            "cwd": "/tmp", "model": "claude-opus-4-6", "system_prompt": "",
+            "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": True, "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+
+        called = {"hit": False}
+
+        async def fake_remove(names):
+            called["hit"] = True
+            return {}
+
+        monkeypatch.setattr("app.tg_bridge.remove_topics_for_orchs", fake_remove)
+
+        result = await mgr.remove_scope("/scope-y", delete_tg_topics=False)
+
+        assert called["hit"] is False
+        assert result["tg"] == {}
+
+
 class TestAutoResume:
     @pytest.mark.asyncio
     async def test_resumes_orchestrators(self, mgr):
