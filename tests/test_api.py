@@ -21,10 +21,8 @@ def db(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client(db):
-    with patch("app.session.AgentSession._make_backend", return_value=AsyncMock(
-        connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-        receive_messages=AsyncMock(return_value=iter([])),
-    )):
+    from tests.conftest import make_backend_mock
+    with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
         from app.main import app, manager
         manager.sessions.clear()
         with TestClient(app) as c:
