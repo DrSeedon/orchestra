@@ -56,6 +56,14 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    tb = traceback.format_exc()
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}\n{tb}")
+    return JSONResponse({"error": f"Internal: {exc}"}, status_code=500)
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
