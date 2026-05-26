@@ -13,16 +13,16 @@ def db(tmp_path, monkeypatch):
     wt_root = tmp_path / "worktrees"
     wt_root.mkdir()
     monkeypatch.setattr("app.workspace.WORKTREE_ROOT", wt_root)
+    import app.main as mainmod
+    monkeypatch.setattr(mainmod, "_ALLOWED_ROOTS", ["/tmp", str(tmp_path)])
     from app.db import init_db
     init_db()
 
 
 @pytest.fixture
 def client(db):
-    with patch("app.session.AgentSession._make_client", return_value=AsyncMock(
-        connect=AsyncMock(), query=AsyncMock(), disconnect=AsyncMock(),
-        receive_messages=AsyncMock(return_value=iter([])),
-    )):
+    from tests.conftest import make_backend_mock
+    with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
         from app.main import app, manager
         manager.sessions.clear()
         with TestClient(app) as c:
@@ -165,8 +165,77 @@ class TestStats:
         assert r.status_code == 200
 
 
+class TestTestLockApi:
+    def test_acquire_and_status_and_release(self, client):
+        # свободен
+        st = client.get("/api/test-lock", params={"scope": "/s"})
+        assert st.status_code == 200
+        assert st.json()["held"] is False
+
+        # захват
+        r = client.post("/api/test-lock/acquire", json={"scope": "/s", "holder": "coder-a", "reason": "suite"})
+        assert r.status_code == 200
+        assert r.json()["acquired"] is True
+
+        # занято другим
+        r2 = client.post("/api/test-lock/acquire", json={"scope": "/s", "holder": "coder-b", "reason": "x"})
+        assert r2.status_code == 200
+        assert r2.json()["acquired"] is False
+        assert r2.json()["holder"] == "coder-a"
+
+        # статус
+        st2 = client.get("/api/test-lock", params={"scope": "/s"})
+        assert st2.status_code == 200
+        assert st2.json()["held"] is True
+        assert st2.json()["holder"] == "coder-a"
+
+        # релиз
+        rel = client.post("/api/test-lock/release", json={"scope": "/s", "holder": "coder-a"})
+        assert rel.status_code == 200
+        assert rel.json()["released"] is True
+
+
 class TestOrchestrators:
     def test_list_orchestrators(self, client):
         r = client.get("/api/orchestrators")
         assert r.status_code == 200
         assert isinstance(r.json(), list)
+
+
+def test_create_request_accepts_base_branch():
+    from app.main import CreateSessionRequest
+    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6",
+                               use_worktree=True, repo_path="/tmp",
+                               base_branch="feature/auth")
+    assert req.base_branch == "feature/auth"
+
+
+def test_create_request_base_branch_default_main():
+    from app.main import CreateSessionRequest
+    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6")
+    assert req.base_branch == "main"
+
+
+@pytest.mark.asyncio
+async def test_merge_endpoint_passes_target(monkeypatch):
+    import app.main as mainmod
+    captured = {}
+
+    def fake_merge(worktree_path, repo_path, target_branch="main"):
+        captured["target_branch"] = target_branch
+        return {"ok": True, "commits_merged": 1, "branch": "task-1/w", "merged_commits": {}}
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+
+    class FakeSession:
+        class _S:
+            value = "idle"
+        status = _S()
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "sid"
+        name = "w"
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: FakeSession())
+
+    import asyncio
+    res = await mainmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
+    assert captured["target_branch"] == "feature/auth"

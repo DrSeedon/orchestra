@@ -54,6 +54,4 @@ def requires_auth(path: str, method: str) -> bool:
         return False
     if path.startswith("/api/webhook/"):
         return False
-    if method == "POST" and "/send" in path and path.startswith("/api/sessions/"):
-        return False
     return path == "/" or path.startswith("/api/")
