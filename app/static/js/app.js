@@ -907,7 +907,9 @@ function updateAgentInfo(session) {
     st.textContent = `● ${session.status}`;
     st.className = `text-xs font-mono status-${session.status}`;
     $('#ai-model').textContent = session.model || '-';
-    $('#ai-cost').textContent = `$${session.cost_usd || 0}`;
+    const _cached = session.cost_usd_cached > 0 ? session.cost_usd_cached : (session.cost_usd || 0) / 10;
+    $('#ai-cost').textContent = `$${(session.cost_usd || 0).toFixed(0)} / $${_cached.toFixed(0)}`;
+    $('#ai-cost').title = `API: $${(session.cost_usd || 0).toFixed(2)} / Cached: $${_cached.toFixed(2)}`;
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
     const descEl = $('#ai-desc'); const descLabel = $('#ai-desc-label');
@@ -1044,7 +1046,9 @@ function createAgentItem(s) {
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
         costSpan.className = 'text-green-400';
-        costSpan.textContent = `$${s.cost_usd.toFixed(2)}`;
+        const cached = s.cost_usd_cached > 0 ? s.cost_usd_cached : s.cost_usd / 10;
+        costSpan.textContent = `$${cached.toFixed(2)}`;
+        costSpan.title = `API: $${s.cost_usd.toFixed(2)} / cached: $${cached.toFixed(2)}`;
         meta.appendChild(costSpan);
     }
 
@@ -3864,7 +3868,8 @@ function renderUsageBar() {
     parts.push('<span style="flex:1"></span>');
 
     if (typeof o.total_cost_usd === 'number') {
-        parts.push(`<span style="color:#22c55e">$${o.total_cost_usd.toFixed(2)}</span>`);
+        const tc = o.total_cost_usd_cached > 0 ? o.total_cost_usd_cached : o.total_cost_usd / 10;
+        parts.push(`<span style="color:#22c55e" title="API: $${o.total_cost_usd.toFixed(0)}">$${tc.toFixed(0)}</span>`);
     }
     if (typeof o.agents_count === 'number') {
         parts.push(`<span style="color:#64748b">${o.agents_count} agents</span>`);
@@ -3911,9 +3916,10 @@ function renderUsageBar() {
                 }
                 h += '<div id="usage-sparkline-slot" style="margin:8px 0"></div>';
                 if (typeof _o.total_cost_usd === 'number') {
+                    const _tc = _o.total_cost_usd_cached > 0 ? _o.total_cost_usd_cached : _o.total_cost_usd / 10;
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
-                    h += _row('💰 Стоимость (w/o cache)', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
-                    h += _row('Реально (~÷10)', `~$${Math.round(_o.total_cost_usd / 10)}`, '#64748b');
+                    h += _row('💰 Стоимость (API)', `$${_o.total_cost_usd.toFixed(0)}`, '#64748b');
+                    h += _row('С кешем', `$${_tc.toFixed(0)}`, '#22c55e');
                     h += _row('Подписка', '$200/мес', '#64748b');
                     h += '</div>';
                 }
