@@ -225,6 +225,9 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN description TEXT DEFAULT ''")
     if "cost_usd_cached" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN cost_usd_cached REAL DEFAULT 0.0")
+    if "cost_reset_v1" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN cost_reset_v1 INTEGER DEFAULT 0")
+        c.execute("UPDATE sessions SET cost_usd = 0, cost_usd_cached = 0, cost_reset_v1 = 1")
     proj_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)").fetchall()}
     if proj_cols and "yougile_enabled" not in proj_cols:
         c.execute("ALTER TABLE tm_projects ADD COLUMN yougile_enabled INTEGER NOT NULL DEFAULT 0")
