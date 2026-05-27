@@ -4075,8 +4075,9 @@ function _renderSparklines(slot) {
     const fhData = data.filter(d => new Date(d.ts).getTime() >= sixHoursAgo);
     const fhSlice = fhData.length >= 2 ? fhData : data.slice(-20);
     const fh = mkPts(fhSlice, 'five_hour_pct', 'five_hour_resets_at', 5*3600000);
+    const fhMids = getMidnights(fhSlice);
     const fhCur = data[data.length-1]?.five_hour_pct || 0;
-    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', false, [])}</div>`;
+    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', true, fhMids)}</div>`;
 
     // 7d — split by weeks (detect reset: seven_day_pct drops >30% between adjacent points)
     const weeks = []; let curWeek = [data[0]];
