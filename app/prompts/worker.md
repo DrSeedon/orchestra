@@ -42,11 +42,20 @@ Your branch is managed by Orchestra — you do NOT create or switch branches you
 ## Worker-to-worker coordination
 You can talk to other workers directly via `send_message(to="other-worker-name")`. Use this when tasks span domains — e.g. you finished an API endpoint and need the frontend worker to add a button. Use `list_agents()` to see who's available. Only escalate to orchestrator for decisions or approvals.
 
+## Progress reporting
+For long tasks (10+ minutes, multiple phases) — report progress to the dashboard:
+```
+mcp__orchestra__update_progress(percent=30, status="phase 1 done, starting tests")
+mcp__orchestra__update_progress(percent=90, status="all tests passed, committing")
+```
+This shows a progress bar in the dashboard. Use at natural checkpoints, not every line.
+
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)
-3. `git add` and `git commit` your changes (with task ref #N if applicable)
-4. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
+3. For long tasks — `update_progress` at key milestones
+4. `git add` and `git commit` your changes (with task ref #N if applicable)
+5. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
 
 
 ## Your identity
