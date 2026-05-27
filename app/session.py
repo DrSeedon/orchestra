@@ -56,6 +56,7 @@ class AgentSession:
     status: AgentStatus = AgentStatus.IDLE
     session_id: str | None = None
     cost_usd: float = 0.0
+    cost_usd_cached: float = 0.0
     worktree_path: str | None = None
     branch: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -328,6 +329,7 @@ class AgentSession:
         if sid:
             self.session_id = sid
         self.cost_usd += meta.get("cost_usd", 0)
+        self.cost_usd_cached += meta.get("cost_usd_cached", 0)
         self.total_turns += nt
         self.total_input_tokens += meta.get("input_tokens", 0)
         self.total_output_tokens += meta.get("output_tokens", 0)
@@ -690,7 +692,8 @@ class AgentSession:
             "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
             "model": self.model, "system_prompt": self.system_prompt,
             "status": self.status.value, "session_id": self.session_id,
-            "cost_usd": self.cost_usd, "worktree_path": self.worktree_path,
+            "cost_usd": self.cost_usd, "cost_usd_cached": self.cost_usd_cached,
+            "worktree_path": self.worktree_path,
             "branch": self.branch, "is_orchestrator": self.is_orchestrator,
             "color": self.color, "created_at": self.created_at.isoformat(),
             "finished_at": None,
@@ -714,7 +717,9 @@ class AgentSession:
         return {
             "id": self.id, "name": self.name, "scope": self.scope,
             "status": self.status.value, "model": self.model,
-            "cost_usd": round(self.cost_usd, 4), "branch": self.branch,
+            "cost_usd": round(self.cost_usd, 4),
+            "cost_usd_cached": round(self.cost_usd_cached, 4),
+            "branch": self.branch,
             "is_orchestrator": self.is_orchestrator, "color": self.color,
             "created_at": self.created_at.isoformat(),
             "context_pct": self._last_context.get("percentage", 0),
