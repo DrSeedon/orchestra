@@ -4407,6 +4407,7 @@ function _timeLeft(expiresAt) {
 }
 
 let _jobsTimerInterval = null;
+const _expandedJobs = new Set();
 function renderJobsPanel(panel, jobs) {
     if (_jobsTimerInterval) { clearInterval(_jobsTimerInterval); _jobsTimerInterval = null; }
     if (jobs.length === 0) {
@@ -4497,10 +4498,12 @@ function _createJobItem(j) {
     if (j.output) dh += `<div><span style="color:#475569">Output:</span> <pre style="margin:2px 0;padding:3px 6px;background:#0d1117;border-radius:4px;font-size:10px;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;max-height:80px;overflow-y:auto">${escHtml(String(j.output).slice(0, 500))}</pre></div>`;
     detail.innerHTML = dh;
 
-    let expanded = false;
+    const isExpanded = _expandedJobs.has(j.id);
+    detail.style.display = isExpanded ? 'block' : 'none';
     row.addEventListener('click', () => {
-        expanded = !expanded;
-        detail.style.display = expanded ? 'block' : 'none';
+        const show = detail.style.display === 'none';
+        detail.style.display = show ? 'block' : 'none';
+        if (show) _expandedJobs.add(j.id); else _expandedJobs.delete(j.id);
     });
 
     wrap.appendChild(row);
