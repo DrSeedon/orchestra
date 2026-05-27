@@ -426,12 +426,13 @@ async def task_get(par: str) -> str:
 
 
 @mcp.tool()
-async def payment_receive(amount: int, client: str = "aleksandr-kislinskiy",
+async def payment_receive(amount: int, client: str = "",
                           date: str = "", note: str = "") -> str:
     """Record incoming payment. Auto-distributes to done tasks (smallest debt first).
     amount in thousands (e.g. 30 = 30,000₽)."""
     result = await _api("POST", "/api/tm/payments", json={
         "amount": amount, "client": client, "date": date, "note": note,
+        "scope": SCOPE,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
@@ -439,9 +440,10 @@ async def payment_receive(amount: int, client: str = "aleksandr-kislinskiy",
 
 
 @mcp.tool()
-async def payment_status(client: str = "aleksandr-kislinskiy") -> str:
+async def payment_status(client: str = "") -> str:
     """Get payment overview: balance, total debt, recent payments."""
-    result = await _api("GET", "/api/tm/payments/status", params={"client": client})
+    result = await _api("GET", "/api/tm/payments/status",
+                        params={"client": client, "scope": SCOPE})
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)

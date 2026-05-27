@@ -1170,7 +1170,8 @@ class TmTaskUpdate(BaseModel):
 
 class TmPaymentReceive(BaseModel):
     amount: int
-    client: str = "aleksandr-kislinskiy"
+    client: str = ""
+    scope: str = ""
     date: str = ""
     note: str = ""
 
@@ -1232,28 +1233,47 @@ async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
         return JSONResponse({"error": str(e)}, status_code=code)
 
 
+def _resolve_client_id(client: str, scope: str) -> str:
+    if client:
+        return client
+    if scope:
+        with _tm._conn() as conn:
+            proj = _tm.get_project_by_scope(conn, scope)
+            if proj:
+                cl = _tm.get_client_for_project(conn, proj["id"])
+                if cl:
+                    return cl["id"]
+    raise ValueError("No client specified and no client found for project scope")
+
+
 @app.post("/api/tm/payments")
 async def tm_receive_payment(req: TmPaymentReceive):
     try:
-        return _tm.api_receive_payment(req.amount, req.client, req.date, req.note)
+        client_id = _resolve_client_id(req.client, req.scope)
+        return _tm.api_receive_payment(req.amount, client_id, req.date, req.note)
     except (ValueError, RuntimeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
 @app.get("/api/tm/payments/status")
-async def tm_payment_status(client: str = "aleksandr-kislinskiy"):
+async def tm_payment_status(client: str = "", scope: str = ""):
     try:
-        return _tm.api_payment_status(client)
+        client_id = _resolve_client_id(client, scope)
+        return _tm.api_payment_status(client_id)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=404)
 
 
 @app.get("/api/tm/payments/history")
-async def tm_payment_history(client: str = "aleksandr-kislinskiy"):
+async def tm_payment_history(client: str = "", scope: str = ""):
+    try:
+        client_id = _resolve_client_id(client, scope)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     with _tm._conn() as conn:
         rows = conn.execute(
             "SELECT * FROM tm_payments WHERE client_id = ? ORDER BY id DESC LIMIT 50",
-            (client,),
+            (client_id,),
         ).fetchall()
     return {
         "payments": [
