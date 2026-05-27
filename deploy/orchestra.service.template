@@ -1,0 +1,19 @@
+[Unit]
+Description=Orchestra AI Agent Orchestrator
+After=network.target
+
+[Service]
+Type=simple
+User=orchestra
+Group=orchestra
+WorkingDirectory=/opt/orchestra
+Environment=PATH=/opt/orchestra/.venv/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/opt/orchestra/.env
+ExecStart=/opt/orchestra/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8888
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
