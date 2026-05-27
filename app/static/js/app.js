@@ -4031,6 +4031,7 @@ function _renderSparklines(slot) {
         if (warnY >= 0) s += `<line x1="${PL}" y1="${warnY}" x2="${W}" y2="${warnY}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
         if (idealPts.length >= 2) s += `<polyline points="${toStr(idealPts)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
         if (pts.length >= 2) s += `<polyline points="${toStr(pts)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
+        else if (pts.length === 1) { const px = PL + pts[0].t * gw, py = gh - ((Math.min(pts[0].v, 100) - yMin) / yRange) * gh; s += `<circle cx="${px}" cy="${py}" r="3" fill="${color}"/>`; }
         s += '</svg>';
         return s;
     };
@@ -4048,7 +4049,7 @@ function _renderSparklines(slot) {
     };
 
     const mkPts = (slice, key, resetKey, windowMs) => {
-        if (slice.length < 2) return { pts: [], ideal: [] };
+        if (!slice.length) return { pts: [], ideal: [] };
         const t0 = new Date(slice[0].ts).getTime(), tN = new Date(slice[slice.length-1].ts).getTime();
         const range = tN - t0 || 1;
         const pts = [], ideal = [];
