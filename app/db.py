@@ -205,6 +205,32 @@ def init_db() -> None:
         _migrate(c)
 
 
+def _reconstruct_costs(c) -> None:
+    import re as _re
+    sessions = c.execute("SELECT id FROM sessions").fetchall()
+    for s in sessions:
+        logs = c.execute(
+            "SELECT content FROM logs WHERE session_id=? AND type='status' "
+            "AND (content LIKE 'turn ended%$%' OR content LIKE 'turn done%$%') ORDER BY id ASC",
+            (s["id"],),
+        ).fetchall()
+        prev = 0.0
+        real_cost = 0.0
+        for l in logs:
+            m = _re.search(r'\$(\d+\.?\d*)', l["content"])
+            if not m:
+                continue
+            val = float(m.group(1))
+            if val == 0:
+                continue
+            if val < prev:
+                real_cost += prev
+            prev = val
+        real_cost += prev
+        c.execute("UPDATE sessions SET cost_usd=?, cost_usd_cached=0, cost_reset_v1=1 WHERE id=?",
+                  (round(real_cost, 4), s["id"]))
+
+
 def _migrate(c) -> None:
     cols = {row[1] for row in c.execute("PRAGMA table_info(sessions)").fetchall()}
     if "color" not in cols:
@@ -227,7 +253,7 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN cost_usd_cached REAL DEFAULT 0.0")
     if "cost_reset_v1" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN cost_reset_v1 INTEGER DEFAULT 0")
-        c.execute("UPDATE sessions SET cost_usd = 0, cost_usd_cached = 0, cost_reset_v1 = 1")
+        _reconstruct_costs(c)
     proj_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)").fetchall()}
     if proj_cols and "yougile_enabled" not in proj_cols:
         c.execute("ALTER TABLE tm_projects ADD COLUMN yougile_enabled INTEGER NOT NULL DEFAULT 0")
