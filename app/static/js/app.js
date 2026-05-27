@@ -4070,11 +4070,10 @@ function _renderSparklines(slot) {
         return { pts, ideal };
     };
 
-    // 5h — all data
+    // 5h — all data, no midnight lines (5h window too short for day separators)
     const fh = mkPts(data, 'five_hour_pct', 'five_hour_resets_at', 5*3600000);
-    const fhMids = getMidnights(data);
     const fhCur = data[data.length-1]?.five_hour_pct || 0;
-    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', false, fhMids)}</div>`;
+    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', false, [])}</div>`;
 
     // 7d — split by weeks (detect reset: seven_day_resets_at changes)
     const weeks = []; let curWeek = [data[0]];
