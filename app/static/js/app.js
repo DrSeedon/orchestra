@@ -4406,39 +4406,106 @@ function _timeLeft(expiresAt) {
     return `${s}s`;
 }
 
+let _jobsTimerInterval = null;
 function renderJobsPanel(panel, jobs) {
+    if (_jobsTimerInterval) { clearInterval(_jobsTimerInterval); _jobsTimerInterval = null; }
     if (jobs.length === 0) {
         panel.innerHTML = '<div class="p-4 text-center text-slate-600 italic">No background jobs</div>';
         return;
     }
     const active = jobs.filter(j => j.status === 'active');
     const done = jobs.filter(j => j.status !== 'active');
-    let html = '';
+    panel.innerHTML = '';
     if (active.length > 0) {
-        html += '<div class="px-2 py-1 text-slate-400 font-bold text-[10px]">ACTIVE (' + active.length + ')</div>';
-        for (const j of active) html += _renderJobItem(j);
+        const hdr = document.createElement('div');
+        hdr.className = 'px-2 py-1 text-slate-400 font-bold text-[10px]';
+        hdr.textContent = `ACTIVE (${active.length})`;
+        panel.appendChild(hdr);
+        for (const j of active) panel.appendChild(_createJobItem(j));
     }
     if (done.length > 0) {
-        html += '<div class="px-2 py-1 mt-1 text-slate-500 font-bold text-[10px]">COMPLETED</div>';
-        for (const j of done.slice(0, 10)) html += _renderJobItem(j);
+        const hdr = document.createElement('div');
+        hdr.className = 'px-2 py-1 mt-1 text-slate-500 font-bold text-[10px]';
+        hdr.textContent = 'COMPLETED';
+        panel.appendChild(hdr);
+        for (const j of done.slice(0, 10)) panel.appendChild(_createJobItem(j));
     }
-    panel.innerHTML = html;
+    if (active.length > 0) {
+        _jobsTimerInterval = setInterval(() => {
+            panel.querySelectorAll('[data-job-elapsed]').forEach(el => {
+                const created = el.dataset.jobElapsed;
+                if (created) el.textContent = _elapsed(created);
+            });
+            panel.querySelectorAll('[data-job-expires]').forEach(el => {
+                const exp = el.dataset.jobExpires;
+                if (exp) el.textContent = _timeLeft(exp);
+            });
+        }, 1000);
+    }
 }
 
-function _renderJobItem(j) {
+function _elapsed(isoStr) {
+    const ms = Date.now() - new Date(isoStr).getTime();
+    if (ms < 0) return '0s';
+    const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
+    if (h > 0) return `${h}h ${m % 60}m`;
+    if (m > 0) return `${m}m ${s % 60}s`;
+    return `${s}s`;
+}
+
+function _createJobItem(j) {
     const icon = _JOB_ICONS[j.type] || '⚙️';
     const statusIcon = _JOB_STATUS[j.status] || '⚪';
-    const target = j.target_name ? escHtml(j.target_name) : '';
-    const msg = j.message ? escHtml(j.message.slice(0, 50)) : '';
-    const timeStr = j.status === 'active' && j.expires_at ? _timeLeft(j.expires_at) : '';
-    const cancelBtn = j.status === 'active' ? `<span class="job-cancel-btn" onclick="event.stopPropagation();cancelJob('${j.id}')" title="Cancel job">✕</span>` : '';
-    return `<div class="flex items-center gap-1.5 px-2 py-1 hover:bg-slate-800/50 rounded text-xs" style="position:relative">
-        <span>${icon}</span>
-        <span class="flex-1 truncate"><span style="color:#e2e8f0">${target}</span>${msg ? ' <span style="color:#64748b">'+msg+'</span>' : ''}</span>
-        ${timeStr ? '<span style="color:#38bdf8;font-size:10px;font-family:monospace">'+timeStr+'</span>' : ''}
-        <span>${statusIcon}</span>
-        ${cancelBtn}
-    </div>`;
+    const target = j.target_name || '';
+    const msg = j.message ? j.message.slice(0, 50) : '';
+    let cfg = {};
+    try { cfg = JSON.parse(j.config || '{}'); } catch {}
+
+    const wrap = document.createElement('div');
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-1.5 px-2 py-1 hover:bg-slate-800/50 rounded text-xs cursor-pointer';
+    row.style.position = 'relative';
+
+    let timerHtml = '';
+    if (j.status === 'active' && j.created_at) {
+        timerHtml = `<span data-job-elapsed="${j.created_at}" style="color:#38bdf8;font-size:10px;font-family:monospace">${_elapsed(j.created_at)}</span>`;
+    }
+    if (j.status === 'active' && j.expires_at) {
+        timerHtml += `<span data-job-expires="${j.expires_at}" style="color:#64748b;font-size:10px;font-family:monospace">${_timeLeft(j.expires_at)}</span>`;
+    }
+    const cancelBtn = j.status === 'active' ? `<span class="job-cancel-btn" title="Cancel job">✕</span>` : '';
+
+    row.innerHTML = `<span>${icon}</span><span class="flex-1 truncate"><span style="color:#e2e8f0">${escHtml(target)}</span>${msg ? ' <span style="color:#64748b">'+escHtml(msg)+'</span>' : ''}</span>${timerHtml}<span>${statusIcon}</span>${cancelBtn}`;
+
+    const cancelEl = row.querySelector('.job-cancel-btn');
+    if (cancelEl) cancelEl.addEventListener('click', (e) => { e.stopPropagation(); cancelJob(j.id); });
+
+    const detail = document.createElement('div');
+    detail.style.cssText = 'display:none;padding:4px 8px 6px 24px;font-size:10px;color:#64748b;line-height:1.6';
+    const _dr = (k, v) => v ? `<div><span style="color:#475569">${k}:</span> <span style="color:#94a3b8">${escHtml(String(v))}</span></div>` : '';
+    let dh = _dr('Type', j.type);
+    dh += _dr('Target', target);
+    dh += _dr('Status', j.status);
+    if (cfg.command) dh += `<div><span style="color:#475569">Command:</span> <pre style="margin:2px 0;padding:3px 6px;background:#0d1117;border-radius:4px;font-size:10px;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;max-height:60px;overflow-y:auto">${escHtml(cfg.command)}</pre></div>`;
+    if (cfg.pattern) dh += _dr('Pattern', cfg.pattern);
+    if (cfg.path) dh += _dr('Path', cfg.path);
+    if (cfg.host) dh += _dr('Host', cfg.host);
+    if (cfg.interval_seconds) dh += _dr('Interval', `${cfg.interval_seconds}s`);
+    dh += _dr('Message', j.message);
+    if (j.created_at) dh += _dr('Created', new Date(j.created_at).toLocaleString());
+    if (j.expires_at) dh += _dr('Expires', new Date(j.expires_at).toLocaleString());
+    if (j.output) dh += `<div><span style="color:#475569">Output:</span> <pre style="margin:2px 0;padding:3px 6px;background:#0d1117;border-radius:4px;font-size:10px;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;max-height:80px;overflow-y:auto">${escHtml(String(j.output).slice(0, 500))}</pre></div>`;
+    detail.innerHTML = dh;
+
+    let expanded = false;
+    row.addEventListener('click', () => {
+        expanded = !expanded;
+        detail.style.display = expanded ? 'block' : 'none';
+    });
+
+    wrap.appendChild(row);
+    wrap.appendChild(detail);
+    return wrap;
 }
 
 async function cancelJob(id) {
