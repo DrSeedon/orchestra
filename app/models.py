@@ -41,6 +41,12 @@ BACKENDS = {
     "gpt-5.4-mini": "codex",
 }
 
+TOKEN_PRICES = {
+    "claude-opus-4-6[1m]": {"input": 15.0, "output": 75.0},
+    "claude-sonnet-4-6":   {"input": 3.0,  "output": 15.0},
+    "claude-haiku-4-5":    {"input": 0.80, "output": 4.0},
+}
+
 DEFAULT_MODEL = "claude-sonnet-4-6"
 
 
