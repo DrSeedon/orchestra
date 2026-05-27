@@ -1,5 +1,41 @@
 # Changelog
 
+## v2.8.0 — 2026-05-27
+
+### Added
+- 🚀 **Deploy script** — `deploy/install.sh root@IP` ставит Orchestra на чистый VPS за 5 мин. systemd + nginx + .env с рандомными кредами. `deploy/`
+- 🔐 **Test lock** — глобальный лок для параллельных тестов. `acquire_test_lock`/`release_test_lock` MCP tools + API + DB table (PR #1, Вадим)
+- 🌿 **Base branch** — воркеры ответвляются от произвольной ветки (не только main). `spawn_worker(base_branch="feature/x")`, `switch_worker_branch(from_ref=)`. Merge в произвольный target (PR #1)
+- 📊 **Progress bar** — `update_progress(percent, status)` показывает индиго-бар в карточке агента + инфо-панели + красивый рендеринг в ленте логов. `app/static/js/app.js`, `app/session.py`
+- 📈 **Usage sparkline** — 7d график с понедельной навигацией (◀ ▶), midnight разделители, split по сбросам. Forward-fill пробелов в данных. `app/db.py`, `app/static/js/app.js`
+- 💰 **cost_usd_cached** — расчёт стоимости с учётом prompt cache (cache_read×0.1 + cache_create×1.25). `app/backend_claude.py`, `app/session.py`, `app/models.py`
+- 🔔 **TG @mention** — `TG_USER_MENTION` env для тега юзера в речи агента (не в agent-to-agent). (PR #1)
+- 📱 **TG topic collision** — `_pick_unique_topic_name()`: pm-taksa → pm-taksa-2 при коллизии. Backward-compat. (PR #1)
+- 🗑️ **TG topic cleanup** — чекбокс "Удалить TG-топики" при удалении проекта. Модалка. (PR #1)
+- ⏱️ **Jobs UI** — realtime таймер (elapsed + expires каждую секунду), expandable details по клику, persistent expanded state
+- 💳 **Payment auto-resolve** — `payment_receive` без client параметра, определяет клиента по scope проекта автоматически
+
+### Changed
+- **Codex token prices** — обновлены с заниженных ($1.25/$10) до реальных ($5/$30 per 1M). `backend_codex.py`
+- **TG flood handling** — 3s min interval, important/unimportant prioritизация, drop tool/status при flood. `tg_bridge.py`
+- **TG long messages** — `_split_message()` разбивает на чанки по 4096 вместо молчаливой обрезки
+- **Worker prompt** — `update_progress` добавлен в инструкции воркеров
+
+### Fixed
+- 🔴 **cost_usd overcounting x85** — CLI отдаёт cumulative cost, мы складывали как delta. $24,609 → $302 реальных. Delta tracking + реконструкция из логов. `session.py`, `db.py`
+- 🧟 **Codex zombie detection** — `_codex_turn_loop` не ставил IDLE при timeout/error. Heartbeat проверял backend=None → skip. Теперь: finally блок + zombie check до backend check. `session.py` (#11)
+- 💥 **Compact running crash** — event loop обращался к None backend. Guard + disabled кнопка на фронте. `session.py`, `app.js` (#12)
+- 📝 **report_bug permission denied** — воркеры писали напрямую в файл из worktree. Теперь через API endpoint. `mcp_stdio.py`, `main.py` (#13)
+- ⚡ **TG иконка не возвращалась** — `_handle_turn_end` не логировал "turn ended" → stream_logs не ловил для icon update. `session.py` (#14)
+- 🔇 **TG реакции убраны** — 👍/👂 на каждое сообщение убраны. `tg_bridge.py`
+- 🔓 **Auth на /send** — POST /api/sessions/*/send был доступен без авторизации. (PR #1)
+- 🤖 **Disallowed sub-agents** — оркестраторы спавнили Claude sub-agents вместо MCP spawn_worker. (PR #1)
+- 🗑️ **manager.remove() leak** — не удалял session из DB, оставлял сироту. (PR #1)
+- 🧪 **Test suite revival** — 128 passed, 5 skipped. conftest.py с моками, ORCHESTRA_DB_PATH изоляция. (PR #1)
+- 📁 **/tmp allowed** — send_file из /tmp возвращал "access denied"
+- 🌐 **Global exception handler** — все 500 теперь логируются с traceback
+- 📊 **5h sparkline** — убраны лишние midnight линии (14 на 2 недели данных), обрезка до текущей недели
+
 ## v2.7.0 — 2026-05-21
 
 ### Added
