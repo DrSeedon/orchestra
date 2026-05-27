@@ -848,15 +848,18 @@ def _get_agents_cost() -> dict:
     from app.db import _conn
     with _conn() as c:
         rows = c.execute(
-            "SELECT name, model, cost_usd FROM sessions ORDER BY cost_usd DESC"
+            "SELECT name, model, cost_usd, cost_usd_cached FROM sessions ORDER BY cost_usd DESC"
         ).fetchall()
         total = sum(r["cost_usd"] for r in rows)
+        total_cached = sum(r["cost_usd_cached"] or 0 for r in rows)
         agents = [
-            {"name": r["name"], "cost_usd": round(r["cost_usd"], 4), "model": r["model"]}
+            {"name": r["name"], "cost_usd": round(r["cost_usd"], 4),
+             "cost_usd_cached": round(r["cost_usd_cached"] or 0, 4), "model": r["model"]}
             for r in rows if r["cost_usd"] > 0
         ]
         return {
             "total_cost_usd": round(total, 4),
+            "total_cost_usd_cached": round(total_cached, 4),
             "agents_count": len(agents),
             "agents": agents,
         }
