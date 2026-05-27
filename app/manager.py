@@ -347,6 +347,7 @@ class SessionManager:
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
             model=db_row["model"], system_prompt=old_prompt or current_prompt,
             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
+            cost_usd_cached=db_row.get("cost_usd_cached", 0),
             worktree_path=wt_path, branch=db_branch,
             created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
             is_orchestrator=is_orch,

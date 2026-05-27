@@ -216,20 +216,39 @@ class ClaudeBackend:
             cache_hit = 0
             cache_read = 0
             cache_create = 0
+            input_tokens = 0
+            output_tokens = 0
+            cost_cached = 0.0
 
             if usage and isinstance(usage, dict):
                 iters = usage.get("iterations", [])
                 last = iters[-1] if iters else usage
                 cache_create = last.get("cache_creation_input_tokens", 0) or 0
                 cache_read = last.get("cache_read_input_tokens", 0) or 0
-                total = (last.get("input_tokens", 0) or 0) + cache_create + cache_read
+                input_tokens = last.get("input_tokens", 0) or 0
+                output_tokens = last.get("output_tokens", 0) or 0
+                total = input_tokens + cache_create + cache_read
                 cache_total = cache_create + cache_read
 
-                from app.models import CONTEXT_LIMITS
+                from app.models import CONTEXT_LIMITS, TOKEN_PRICES
                 max_tokens = CONTEXT_LIMITS.get(self.model, 200000)
                 ctx_pct = int(total * 100 / max_tokens) if max_tokens else 0
                 ctx_tokens = total
                 cache_hit = int(cache_read * 100 / cache_total) if cache_total else 0
+
+                prices = TOKEN_PRICES.get(self.model)
+                if prices:
+                    p_in = prices["input"]
+                    p_out = prices["output"]
+                    if iters:
+                        for it in iters:
+                            i_in = it.get("input_tokens", 0) or 0
+                            i_cr = it.get("cache_read_input_tokens", 0) or 0
+                            i_cc = it.get("cache_creation_input_tokens", 0) or 0
+                            i_out = it.get("output_tokens", 0) or 0
+                            cost_cached += (i_in * p_in + i_cr * p_in * 0.1 + i_cc * p_in * 1.25 + i_out * p_out) / 1_000_000
+                    else:
+                        cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
 
             events.append(AgentEvent("turn_end", f"stop_reason={sr}, num_turns={nt}", metadata={
                 "session_id": self._session_id,
@@ -237,12 +256,15 @@ class ClaudeBackend:
                 "stop_reason": sr,
                 "num_turns": nt,
                 "cost_usd": cost,
+                "cost_usd_cached": round(cost_cached, 6),
                 "context_pct": ctx_pct,
                 "context_tokens": ctx_tokens,
                 "max_tokens": max_tokens,
                 "cache_hit": cache_hit,
                 "cache_read": cache_read,
                 "cache_create": cache_create,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
             }))
 
         return events

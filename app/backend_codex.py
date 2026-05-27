@@ -165,6 +165,7 @@ class CodexBackend:
                     "ok": True,
                     "stop_reason": "end_turn",
                     "cost_usd": cost,
+                    "cost_usd_cached": cost,
                     "context_pct": ctx_pct,
                     "context_tokens": input_t,
                     "max_tokens": ctx_window,
