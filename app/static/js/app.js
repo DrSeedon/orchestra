@@ -1545,7 +1545,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel','mcp__orchestra__update_progress'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -1556,7 +1556,8 @@ function addChatEntry(type, content, ts, anchor) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error');
-                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    if (rawName === 'mcp__orchestra__update_progress') { resultSpan.textContent = '✓'; resultSpan.style.color = '#818cf8'; }
+                    else if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
                     else if (rawName === 'mcp__orchestra__bg_cancel') resultSpan.textContent = hasErr ? '❌' : '⏹';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
                     else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
@@ -1758,6 +1759,36 @@ function addChatEntry(type, content, ts, anchor) {
         header.innerHTML = `${icon} ${DOMPurify.sanitize(short)}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
         div.appendChild(header);
 
+        const isProgress = rawName === 'mcp__orchestra__update_progress' || rawName === 'update_progress';
+        if (isProgress) {
+            try {
+                const d = JSON.parse(body);
+                const pct = d.percent || 0;
+                const status = d.status || '';
+                div.className = 'px-3 py-1 rounded-lg text-xs';
+                div.style.cssText = 'border-left:3px solid #818cf8;background:rgba(99,102,241,0.08)';
+                div.innerHTML = '';
+                div.dataset.lastTool = '1';
+                div.dataset.toolContent = content;
+                div.dataset.toolRawName = rawName;
+                const bar = document.createElement('div');
+                bar.style.cssText = 'display:flex;align-items:center;gap:8px';
+                const track = document.createElement('div');
+                track.style.cssText = 'flex:1;height:6px;background:rgba(51,65,85,0.5);border-radius:3px;overflow:hidden';
+                const fill = document.createElement('div');
+                fill.style.cssText = `width:${Math.min(pct,100)}%;height:100%;background:#818cf8;border-radius:3px;transition:width 0.3s`;
+                track.appendChild(fill);
+                const label = document.createElement('span');
+                label.style.cssText = 'color:#e2e8f0;font-weight:600;white-space:nowrap';
+                label.textContent = `${pct}%`;
+                const desc = document.createElement('span');
+                desc.style.cssText = 'color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px';
+                desc.textContent = status;
+                bar.append(track, label, desc);
+                div.appendChild(bar);
+                div.dataset.isEdit = '1';
+            } catch {}
+        }
         const isSendMsg = rawName === 'mcp__orchestra__send_message';
         if (isSendMsg) {
             try {
@@ -2600,6 +2631,7 @@ function addChatEntry(type, content, ts, anchor) {
                 'mcp__orchestra__get_worker_logs': null,
                 'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ Job ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: '✅ Job created', color: '#22c55e' }; },
                 'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} cancelled`, color: '#94a3b8' } : c.includes('rror') ? null : { text: '⏹ Cancelled', color: '#94a3b8' }; },
+                'mcp__orchestra__update_progress': () => ({ text: '✓', color: '#818cf8' }),
             };
             const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
             if (_orchResultCfg !== undefined) {
