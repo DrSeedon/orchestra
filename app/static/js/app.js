@@ -3934,62 +3934,124 @@ function renderUsageBar() {
     }
 }
 
-let _sparkCache = null, _sparkCacheTs = 0;
+let _sparkData = null, _sparkDataTs = 0, _spark7dWeekIdx = 0;
 async function _loadSparkline(tipEl) {
     const slot = tipEl.querySelector('#usage-sparkline-slot');
     if (!slot) return;
     const now = Date.now();
-    if (_sparkCache && now - _sparkCacheTs < 300000) {
-        slot.innerHTML = _sparkCache;
+    if (!_sparkData || now - _sparkDataTs >= 300000) {
+        try {
+            _sparkData = await api('/api/usage/history?hours=336');
+            _sparkDataTs = now;
+        } catch { _sparkData = null; }
+    }
+    if (!Array.isArray(_sparkData) || _sparkData.length < 3) {
+        slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
         return;
     }
-    try {
-        const data = await api('/api/usage/history?hours=168');
-        if (!Array.isArray(data) || data.length < 3) {
-            slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
-            return;
+    _spark7dWeekIdx = 0;
+    _renderSparklines(slot);
+}
+
+function _renderSparklines(slot) {
+    const data = _sparkData;
+    if (!data || data.length < 3) return;
+    const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const fmtDate = (iso) => { const d = new Date(iso); return d.toLocaleDateString('en', {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit',hour12:false}); };
+
+    const mkSvg = (pts, idealPts, color, xLabels, midnights) => {
+        const allV = [...pts.map(p=>p.v), ...idealPts.map(p=>p.v)];
+        let yMin = Math.floor(Math.min(...allV)), yMax = Math.ceil(Math.max(...allV));
+        if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
+        const yRange = yMax - yMin || 1;
+        const toStr = (arr) => arr.map(p => {
+            const x = PL + p.t * gw;
+            const y = gh - ((Math.min(p.v, 100) - yMin) / yRange) * gh;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        const totalH = xLabels ? H + 12 : H;
+        let s = `<svg width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" style="display:block">`;
+        s += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
+        s += `<text x="${PL - 3}" y="${gh - 1}" text-anchor="end" fill="#64748b" font-size="9">${yMin}%</text>`;
+        for (const m of midnights) {
+            const mx = PL + m.t * gw;
+            s += `<line x1="${mx}" y1="0" x2="${mx}" y2="${gh}" stroke="rgba(100,116,139,0.3)" stroke-width="0.5"/>`;
+            if (xLabels) s += `<text x="${mx}" y="${H + 11}" text-anchor="middle" fill="#64748b" font-size="8">${m.label}</text>`;
         }
-        const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
-        const fmtDate = (iso) => { const d = new Date(iso); return d.toLocaleDateString('en', {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit',hour12:false}); };
-        const mkChart = (key, resetKey, windowMs, label, color, showXAxis) => {
-            const vals = data.map(d => d[key] || 0);
-            const idealVals = data.map(d => {
-                const ra = d[resetKey]; if (!ra) return 0;
-                const remain = new Date(ra) - new Date(d.ts);
-                const elapsed = windowMs - remain;
-                return Math.max(0, Math.min(100, elapsed / windowMs * 100));
-            });
-            const allV = [...vals, ...idealVals];
-            let yMin = Math.floor(Math.min(...allV)), yMax = Math.ceil(Math.max(...allV));
-            if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
-            const yRange = yMax - yMin || 1;
-            const toPoints = (arr) => arr.map((v, i) => {
-                const x = PL + (i / (data.length - 1)) * gw;
-                const y = gh - ((Math.min(v, 100) - yMin) / yRange) * gh;
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-            }).join(' ');
-            const totalH = showXAxis ? H + 12 : H;
-            let s = `<svg width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" style="display:block">`;
-            s += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
-            s += `<text x="${PL - 3}" y="${gh - 1}" text-anchor="end" fill="#64748b" font-size="9">${yMin}%</text>`;
-            const warnY = (yMax >= 80 && yMin <= 80) ? gh - ((80 - yMin) / yRange) * gh : -1;
-            if (warnY >= 0) s += `<line x1="${PL}" y1="${warnY}" x2="${W}" y2="${warnY}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
-            s += `<polyline points="${toPoints(idealVals)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
-            s += `<polyline points="${toPoints(vals)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
-            if (showXAxis) {
-                s += `<text x="${PL}" y="${H + 11}" fill="#64748b" font-size="9">${fmtDate(data[0].ts)}</text>`;
-                s += `<text x="${W}" y="${H + 11}" text-anchor="end" fill="#64748b" font-size="9">${fmtDate(data[data.length-1].ts)}</text>`;
-            }
-            s += '</svg>';
-            const cur = vals[vals.length - 1];
-            return `<div style="margin-bottom:4px"><div style="font-size:10px;color:${color};margin-bottom:1px;font-weight:600">${label} <span style="color:#64748b;font-weight:normal">${cur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${s}</div>`;
-        };
-        let html = mkChart('five_hour_pct', 'five_hour_resets_at', 5*3600000, '5h', '#38bdf8', false);
-        html += mkChart('seven_day_pct', 'seven_day_resets_at', 7*86400000, '7d', '#f97316', true);
-        _sparkCache = html;
-        _sparkCacheTs = now;
-        if (slot.isConnected) slot.innerHTML = html;
-    } catch {}
+        const warnY = (yMax >= 80 && yMin <= 80) ? gh - ((80 - yMin) / yRange) * gh : -1;
+        if (warnY >= 0) s += `<line x1="${PL}" y1="${warnY}" x2="${W}" y2="${warnY}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
+        if (idealPts.length >= 2) s += `<polyline points="${toStr(idealPts)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
+        if (pts.length >= 2) s += `<polyline points="${toStr(pts)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
+        s += '</svg>';
+        return s;
+    };
+
+    const getMidnights = (slice) => {
+        if (slice.length < 2) return [];
+        const t0 = new Date(slice[0].ts).getTime(), tN = new Date(slice[slice.length-1].ts).getTime();
+        const range = tN - t0 || 1;
+        const mids = [];
+        const first = new Date(slice[0].ts); first.setHours(0,0,0,0); first.setDate(first.getDate()+1);
+        for (let d = first.getTime(); d < tN; d += 86400000) {
+            mids.push({ t: (d - t0) / range, label: DAYS[new Date(d).getDay()] });
+        }
+        return mids;
+    };
+
+    const mkPts = (slice, key, resetKey, windowMs) => {
+        if (slice.length < 2) return { pts: [], ideal: [] };
+        const t0 = new Date(slice[0].ts).getTime(), tN = new Date(slice[slice.length-1].ts).getTime();
+        const range = tN - t0 || 1;
+        const pts = [], ideal = [];
+        for (const d of slice) {
+            const t = (new Date(d.ts).getTime() - t0) / range;
+            pts.push({ t, v: d[key] || 0 });
+            const ra = d[resetKey]; if (!ra) { ideal.push({ t, v: 0 }); continue; }
+            const remain = new Date(ra) - new Date(d.ts);
+            const elapsed = windowMs - remain;
+            ideal.push({ t, v: Math.max(0, Math.min(100, elapsed / windowMs * 100)) });
+        }
+        return { pts, ideal };
+    };
+
+    // 5h — all data
+    const fh = mkPts(data, 'five_hour_pct', 'five_hour_resets_at', 5*3600000);
+    const fhMids = getMidnights(data);
+    const fhCur = data[data.length-1]?.five_hour_pct || 0;
+    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', false, fhMids)}</div>`;
+
+    // 7d — split by weeks (detect reset: seven_day_resets_at changes)
+    const weeks = []; let curWeek = [data[0]];
+    for (let i = 1; i < data.length; i++) {
+        const prevReset = data[i-1].seven_day_resets_at;
+        const curReset = data[i].seven_day_resets_at;
+        if (prevReset && curReset && prevReset !== curReset) {
+            weeks.push(curWeek);
+            curWeek = [];
+        }
+        curWeek.push(data[i]);
+    }
+    if (curWeek.length > 0) weeks.push(curWeek);
+
+    const wi = Math.max(0, Math.min(_spark7dWeekIdx, weeks.length - 1));
+    const weekData = weeks[weeks.length - 1 - wi];
+    const hasPrev = wi < weeks.length - 1;
+    const hasNext = wi > 0;
+    const sd = mkPts(weekData, 'seven_day_pct', 'seven_day_resets_at', 7*86400000);
+    const sdMids = getMidnights(weekData);
+    const sdCur = weekData[weekData.length-1]?.seven_day_pct || 0;
+    const navLeft = hasPrev ? `<span id="spark-7d-prev" style="cursor:pointer;color:#64748b;hover:color:#94a3b8">◀</span> ` : '<span style="color:#1e293b">◀</span> ';
+    const navRight = hasNext ? ` <span id="spark-7d-next" style="cursor:pointer;color:#64748b">▶</span>` : ` <span style="color:#1e293b">▶</span>`;
+    const weekLabel = wi === 0 ? 'current' : `${wi}w ago`;
+    html += `<div style="margin-bottom:4px"><div style="font-size:10px;margin-bottom:1px;display:flex;align-items:center;gap:4px">${navLeft}<span style="color:#f97316;font-weight:600">7d</span> <span style="color:#64748b;font-weight:normal">${sdCur}% · ${weekLabel}</span>${navRight}</div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${weekData.length >= 2 ? mkSvg(sd.pts, sd.ideal, '#f97316', true, sdMids) : '<div style="font-size:10px;color:#475569;font-style:italic">Not enough data</div>'}</div>`;
+
+    slot.innerHTML = html;
+
+    const prevBtn = slot.querySelector('#spark-7d-prev');
+    const nextBtn = slot.querySelector('#spark-7d-next');
+    if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); _spark7dWeekIdx++; _renderSparklines(slot); });
+    if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); _spark7dWeekIdx--; _renderSparklines(slot); });
 }
 
 async function fetchUsage() {
