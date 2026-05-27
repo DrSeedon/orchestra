@@ -4033,8 +4033,7 @@ function _renderSparklines(slot) {
             s += `<line x1="${mx}" y1="0" x2="${mx}" y2="${gh}" stroke="rgba(100,116,139,0.3)" stroke-width="0.5"/>`;
             if (xLabels) s += `<text x="${mx}" y="${H + 11}" text-anchor="middle" fill="#64748b" font-size="8">${m.label}</text>`;
         }
-        const warnY = (yMax >= 80 && yMin <= 80) ? gh - ((80 - yMin) / yRange) * gh : -1;
-        if (warnY >= 0) s += `<line x1="${PL}" y1="${warnY}" x2="${W}" y2="${warnY}" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,3"/>`;
+
         if (idealPts.length >= 2) s += `<polyline points="${toStr(idealPts)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
         if (pts.length >= 2) s += `<polyline points="${toStr(pts)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
         else if (pts.length === 1) { const px = PL + pts[0].t * gw, py = gh - ((Math.min(pts[0].v, 100) - yMin) / yRange) * gh; s += `<circle cx="${px}" cy="${py}" r="3" fill="${color}"/>`; }
@@ -4070,15 +4069,6 @@ function _renderSparklines(slot) {
         return { pts, ideal };
     };
 
-    // 5h — last 6 hours of data only
-    const sixHoursAgo = Date.now() - 6 * 3600000;
-    const fhData = data.filter(d => new Date(d.ts).getTime() >= sixHoursAgo);
-    const fhSlice = fhData.length >= 2 ? fhData : data.slice(-20);
-    const fh = mkPts(fhSlice, 'five_hour_pct', 'five_hour_resets_at', 5*3600000);
-    const fhMids = getMidnights(fhSlice);
-    const fhCur = data[data.length-1]?.five_hour_pct || 0;
-    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', true, fhMids)}</div>`;
-
     // 7d — split by weeks (detect reset: seven_day_pct drops >30% between adjacent points)
     const weeks = []; let curWeek = [data[0]];
     for (let i = 1; i < data.length; i++) {
@@ -4098,6 +4088,12 @@ function _renderSparklines(slot) {
     const hasNext = wi > 0;
     const sd = mkPts(weekData, 'seven_day_pct', 'seven_day_resets_at', 7*86400000);
     const sdMids = getMidnights(weekData);
+    // 5h — same time window as 7d (current week data)
+    const fh = mkPts(weekData, 'five_hour_pct', 'five_hour_resets_at', 5*3600000);
+    const fhMids = getMidnights(weekData);
+    const fhCur = weekData[weekData.length-1]?.five_hour_pct || 0;
+    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', true, fhMids)}</div>`;
+
     const sdCur = weekData[weekData.length-1]?.seven_day_pct || 0;
     const navLeft = hasPrev ? `<span id="spark-7d-prev" style="cursor:pointer;color:#64748b;hover:color:#94a3b8">◀</span> ` : '<span style="color:#1e293b">◀</span> ';
     const navRight = hasNext ? ` <span id="spark-7d-next" style="cursor:pointer;color:#64748b">▶</span>` : ` <span style="color:#1e293b">▶</span>`;
