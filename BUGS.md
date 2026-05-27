@@ -1,23 +1,25 @@
 # Orchestra Bug Reports (from agents)
 
-No open bugs.
+## Open
 
-## [2026-05-19 09:10 UTC] merge_worker fails with "unrelated histories" for separate repos
-- **Reporter:** Parsing-orchestrator
-- **Scope:** /mnt/data/Projects/Python/Parsing
-When a worker is spawned with repo_path pointing to a separate git repo (e.g. /mnt/data/Projects/Python/Parsing/zahoron-laravel which is kislinsky/zahoron), merge_worker fails with:
+### merge_worker fails with "unrelated histories" for separate repos
+- **Reporter:** Parsing-orchestrator (2026-05-19)
+- Worktree created from parent project's git, but worker pushes to separate repo → fatal
+- **Workaround:** push to master directly, skip merge_worker
 
-```
-fatal: отказ слияния несвязанных историй изменений
-```
+### send_message к idle воркерам возвращает 500 после рестарта
+- **Reporter:** Parsing-orchestrator (2026-05-26)
+- После restart, send_message к существующим idle воркерам = 500. Свежие воркеры работают
+- Фиксы в main.py (global exception handler, ensure_loaded в try/except) не помогли — ошибка до HTTP слоя
+- **Workaround:** respawn воркера
 
-This happens because the worktree is created from the parent project's git (Parsing), but the worker pushes directly to the separate repo's master branch.
+## Fixed (v2.8.0)
 
-Workaround: worker pushes to master directly, CI deploys. merge_worker is skipped.
-
-Expected: either detect separate repo and merge correctly, or skip merge and report "worker already pushed to remote".
-
-## [2026-05-21 04:42 UTC] Worktree lawyer: .git ссылается на несуществующий путь seedon-site
-- **Reporter:** lawyer
-- **Scope:** /mnt/data/Projects/Python/seedon
-Worktree `/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/lawyer/.git` содержит `gitdir: /mnt/data/Projects/Python/seedon-site/.git/worktrees/lawyer`, но репозиторий находится по пути `/mnt/data/Projects/Python/seedon/` (без `-site`). В результате git операции в worktree фейлятся с `fatal: not a git repository`. Пришлось копировать файл и коммитить из основного репо напрямую.
+- ~~Worktree .git → несуществующий путь seedon-site~~ — одноразовый баг после rename
+- ~~Codex zombie 7-9 часов~~ — heartbeat + finally в codex_turn_loop (#11)
+- ~~Compact running crash~~ — guard + disabled button (#12)
+- ~~report_bug permission denied~~ — через API endpoint (#13)
+- ~~TG иконка ⚡→☕️ не возвращалась~~ — turn ended лог (#14)
+- ~~cost_usd overcounting x85~~ — CLI cumulative vs delta fix
+- ~~TG сообщения обрезались молча~~ — _split_message chunking
+- ~~TG flood теряет сообщения~~ — retry + priority system
