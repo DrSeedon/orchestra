@@ -92,6 +92,8 @@ class AgentSession:
     _hibernate_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _hibernated: bool = field(default=False, repr=False)
     _compacting: bool = field(default=False, repr=False)
+    _last_cost: float = field(default=0.0, repr=False)
+    _last_cost_cached: float = field(default=0.0, repr=False)
     _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
     TURN_TIMEOUT = 600
@@ -328,8 +330,12 @@ class AgentSession:
         sid = meta.get("session_id")
         if sid:
             self.session_id = sid
-        self.cost_usd += meta.get("cost_usd", 0)
-        self.cost_usd_cached += meta.get("cost_usd_cached", 0)
+        new_cost = meta.get("cost_usd", 0)
+        self.cost_usd += max(0, new_cost - self._last_cost)
+        self._last_cost = new_cost
+        new_cost_cached = meta.get("cost_usd_cached", 0)
+        self.cost_usd_cached += max(0, new_cost_cached - self._last_cost_cached)
+        self._last_cost_cached = new_cost_cached
         self.total_turns += nt
         self.total_input_tokens += meta.get("input_tokens", 0)
         self.total_output_tokens += meta.get("output_tokens", 0)
