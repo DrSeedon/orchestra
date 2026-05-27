@@ -200,6 +200,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN task_id TEXT DEFAULT ''")
     if "description" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN description TEXT DEFAULT ''")
+    if "cost_usd_cached" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN cost_usd_cached REAL DEFAULT 0.0")
     proj_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)").fetchall()}
     if proj_cols and "yougile_enabled" not in proj_cols:
         c.execute("ALTER TABLE tm_projects ADD COLUMN yougile_enabled INTEGER NOT NULL DEFAULT 0")
@@ -290,6 +292,7 @@ def save_session(s: dict) -> None:
     s.setdefault("backend_type", "claude")
     s.setdefault("task_id", "")
     s.setdefault("description", "")
+    s.setdefault("cost_usd_cached", 0.0)
     s.setdefault("total_turns", 0)
     s.setdefault("total_input_tokens", 0)
     s.setdefault("total_output_tokens", 0)
@@ -300,11 +303,13 @@ def save_session(s: dict) -> None:
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
                 progress_pct, progress_status, backend_type, task_id, description,
+                cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
+                :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
@@ -312,6 +317,7 @@ def save_session(s: dict) -> None:
                 status=excluded.status,
                 session_id=excluded.session_id,
                 cost_usd=excluded.cost_usd,
+                cost_usd_cached=excluded.cost_usd_cached,
                 worktree_path=excluded.worktree_path,
                 branch=excluded.branch,
                 cwd=excluded.cwd,
