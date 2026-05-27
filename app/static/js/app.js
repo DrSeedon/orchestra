@@ -3910,9 +3910,20 @@ function renderUsageBar() {
 
     const infoBtn = document.getElementById('usage-info-btn');
     if (infoBtn) {
-        let tip = null, showTimer = null;
-        const hideTip = () => { clearTimeout(showTimer); if (tip) { tip.remove(); tip = null; } };
+        let tip = null, showTimer = null, hideTimer = null;
+        const hideTip = () => {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+            if (tip) { tip.remove(); tip = null; }
+        };
+        const delayedHide = () => {
+            hideTimer = setTimeout(() => {
+                if (tip && tip.matches(':hover')) return;
+                hideTip();
+            }, 200);
+        };
         infoBtn.addEventListener('mouseenter', () => {
+            clearTimeout(hideTimer);
             infoBtn.style.color = '#94a3b8';
             showTimer = setTimeout(async () => {
                 if (tip) return;
@@ -3961,11 +3972,13 @@ function renderUsageBar() {
                 const rect = infoBtn.getBoundingClientRect();
                 tip.style.left = Math.min(rect.left, window.innerWidth - 336) + 'px';
                 tip.style.top = (rect.bottom + 6) + 'px';
+                tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+                tip.addEventListener('mouseleave', () => { delayedHide(); });
                 document.body.appendChild(tip);
                 _loadSparkline(tip);
             }, 200);
         });
-        infoBtn.addEventListener('mouseleave', () => { infoBtn.style.color = '#475569'; hideTip(); });
+        infoBtn.addEventListener('mouseleave', () => { infoBtn.style.color = '#475569'; delayedHide(); });
     }
 }
 
@@ -4079,7 +4092,7 @@ function _renderSparklines(slot) {
     const navLeft = hasPrev ? `<span id="spark-7d-prev" style="cursor:pointer;color:#64748b;hover:color:#94a3b8">◀</span> ` : '<span style="color:#1e293b">◀</span> ';
     const navRight = hasNext ? ` <span id="spark-7d-next" style="cursor:pointer;color:#64748b">▶</span>` : ` <span style="color:#1e293b">▶</span>`;
     const weekLabel = wi === 0 ? 'current' : `${wi}w ago`;
-    html += `<div style="margin-bottom:4px"><div style="font-size:10px;margin-bottom:1px;display:flex;align-items:center;gap:4px">${navLeft}<span style="color:#f97316;font-weight:600">7d</span> <span style="color:#64748b;font-weight:normal">${sdCur}% · ${weekLabel}</span>${navRight}</div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${weekData.length >= 2 ? mkSvg(sd.pts, sd.ideal, '#f97316', true, sdMids) : '<div style="font-size:10px;color:#475569;font-style:italic">Not enough data</div>'}</div>`;
+    html += `<div style="margin-bottom:4px"><div style="font-size:10px;margin-bottom:1px;display:flex;align-items:center;gap:4px">${navLeft}<span style="color:#f97316;font-weight:600">7d</span> <span style="color:#64748b;font-weight:normal">${sdCur}% · ${weekLabel}</span>${navRight}</div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${sd.pts.length >= 1 ? mkSvg(sd.pts, sd.ideal, '#f97316', true, sdMids) : '<div style="font-size:10px;color:#475569;font-style:italic">Not enough data</div>'}</div>`;
 
     slot.innerHTML = html;
 
