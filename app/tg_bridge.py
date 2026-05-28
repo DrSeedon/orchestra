@@ -617,6 +617,33 @@ async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
     return {"deleted": deleted, "failed": failed, "skipped": skipped}
 
 
+async def rename_orch_topic(old_name: str, new_name: str) -> dict:
+    """Переименовать оркестратора в TG config — обновить ключ в topics + topic_names,
+    и переименовать сам топик в TG если бот доступен."""
+    thread_id = config.get("topics", {}).pop(old_name, None)
+    if thread_id is None:
+        return {"error": f"no topic for '{old_name}'"}
+    config["topics"][new_name] = thread_id
+    topic_names = config.get("topic_names", {})
+    old_display = topic_names.pop(old_name, None)
+    new_display = _short_name(new_name)
+    topic_names[new_name] = new_display
+    config["topic_names"] = topic_names
+    if old_name in _topic_status:
+        _topic_status[new_name] = _topic_status.pop(old_name)
+    save_config()
+    if bot:
+        try:
+            await bot.edit_forum_topic(
+                chat_id=config["group_id"],
+                message_thread_id=thread_id,
+                name=new_display,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to rename TG topic {old_name} → {new_name}: {e}")
+    return {"ok": True, "old_name": old_name, "new_name": new_name, "display": new_display, "thread_id": thread_id}
+
+
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 

@@ -644,6 +644,15 @@ async def rename_session(name: str, req: dict):
                 ["git", "branch", "-m", old_branch, new_branch],
                 cwd=wt_path, capture_output=True,
             )
+    is_orch = (session.is_orchestrator if session else
+               (found.get("is_orchestrator") if isinstance(found, dict) else False))
+    if is_orch:
+        try:
+            from app.tg_bridge import rename_orch_topic
+            await rename_orch_topic(name, new_name)
+        except Exception as e:
+            logger.warning(f"TG topic rename failed: {e}")
+
     return {"ok": True, "old_name": name, "new_name": new_name, "branch": new_branch}
 
 
