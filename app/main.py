@@ -41,9 +41,12 @@ async def lifespan(app: FastAPI):
     await bg_manager.restore_from_db()
     from app.tg_bridge import start_bridge, stop_bridge
     await start_bridge(manager)
+    from app.ssh_tunnel import start_tunnel, stop_tunnel
+    await start_tunnel()
     snapshot_task = asyncio.create_task(_usage_snapshot_loop())
     yield
     snapshot_task.cancel()
+    await stop_tunnel()
     await stop_bridge()
     await bg_manager.shutdown()
     await manager.shutdown_all()
@@ -1512,3 +1515,10 @@ async def proxy_select(proxy_id: str):
     if result.get("error"):
         return JSONResponse(result, status_code=400)
     return result
+
+
+from app.ssh_tunnel import tunnel_status
+
+@app.get("/api/tunnel/status")
+async def api_tunnel_status():
+    return tunnel_status()
