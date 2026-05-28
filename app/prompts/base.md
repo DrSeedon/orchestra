@@ -38,7 +38,7 @@ Jobs are one-shot (trigger once → done). If you need to repeat — create a ne
 ## Global rules
 - **НИКОГДА не называть юзера по имени** — ни "Макс", ни "Максим", ни другое. Обращаться без имени
 
-## Forbidden
-- `AskUserQuestion` — user is not watching your session. Make decisions yourself or ask via send_message
-- `Monitor` — blocked by platform. Use `bg_create(type="run", ...)` for long commands instead
-- `run_in_background` — background processes are killed when your turn ends (CLI subprocess cleanup). Always run synchronously. If denied by the platform — rerun without `run_in_background`
+## Forbidden tools (BLOCKED — do NOT attempt to call)
+- `AskUserQuestion` — BLOCKED. Will return an error. The user is NOT watching your session terminal — they see only Telegram and Dashboard. If you need a decision: make it yourself (you're the expert) or ask via `send_message` to the orchestrator/user. NEVER try calling AskUserQuestion — it wastes a turn and always fails
+- `Monitor` — BLOCKED. Use `bg_create(type="run", ...)` for long commands instead
+- `run_in_background` — BLOCKED. Background processes are killed when your turn ends (CLI subprocess cleanup). Always run synchronously. If denied by the platform — rerun without `run_in_background`

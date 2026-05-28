@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initHiddenTabsBtn();
     initDropHint();
     $('#restart-btn').addEventListener('click', restartServer);
+    initProxy();
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     $('#view-prompt-btn').addEventListener('click', openPromptModal);
@@ -4592,4 +4593,102 @@ async function cancelJob(id) {
         await fetch(`/api/bg/jobs/${id}`, { method: 'DELETE' });
         loadJobs();
     } catch (e) { console.warn('Cancel job failed:', e); }
+}
+
+// ── Proxy Manager ──
+
+let _proxyDropdownOpen = false;
+
+function initProxy() {
+    const btn = $('#proxy-btn');
+    const dropdown = $('#proxy-dropdown');
+    if (!btn || !dropdown) return;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _proxyDropdownOpen = !_proxyDropdownOpen;
+        dropdown.classList.toggle('hidden', !_proxyDropdownOpen);
+        if (_proxyDropdownOpen) loadProxyList();
+    });
+    document.addEventListener('click', (e) => {
+        if (_proxyDropdownOpen && !dropdown.contains(e.target) && e.target !== btn) {
+            _proxyDropdownOpen = false;
+            dropdown.classList.add('hidden');
+        }
+    });
+    $('#proxy-check-all')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const btn = e.target;
+        btn.textContent = '...';
+        try {
+            const data = await (await fetch('/api/proxy/list')).json();
+            const ids = (data.proxies || []).map(p => p.id);
+            await Promise.all(ids.map(id => fetch(`/api/proxy/check/${id}`, {method:'POST'})));
+            await loadProxyList();
+        } finally { btn.textContent = 'Check All'; }
+    });
+    loadProxyList();
+}
+
+async function loadProxyList() {
+    try {
+        const data = await (await fetch('/api/proxy/list')).json();
+        const list = $('#proxy-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const proxies = data.proxies || [];
+        if (!proxies.length) {
+            list.innerHTML = '<div class="text-[10px] text-slate-500 text-center py-2">No proxies configured.<br>Set PROXY_LIST in .env</div>';
+            return;
+        }
+        for (const p of proxies) {
+            const el = document.createElement('div');
+            el.className = `flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${p.active ? 'bg-indigo-900/40 border border-indigo-500/50' : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50'}`;
+            const status = p.ok === true ? '🟢' : p.ok === false ? '🔴' : '⚪';
+            const flag = p.flag || '🏳️';
+            const ip = p.ip || '';
+            const location = p.city ? `${p.city}, ${p.country || ''}` : p.country || '';
+            el.innerHTML = `
+                <span class="text-sm">${status}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-medium text-white">${escHtml(p.name)}</span>
+                        ${p.active ? '<span class="text-[9px] px-1 py-0.5 bg-indigo-500/30 text-indigo-300 rounded">ACTIVE</span>' : ''}
+                    </div>
+                    <div class="text-[10px] text-slate-500 truncate">${escHtml(p.url)}</div>
+                    ${ip ? `<div class="text-[10px] text-slate-400">${flag} ${ip} ${location ? '· ' + escHtml(location) : ''}</div>` : ''}
+                    ${p.error ? `<div class="text-[10px] text-red-400 truncate">${escHtml(String(p.error).slice(0, 60))}</div>` : ''}
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button class="proxy-check-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300" data-id="${p.id}" title="Check">🔍</button>
+                    ${!p.active ? `<button class="proxy-select-btn text-[10px] px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-500 rounded text-white" data-id="${p.id}" title="Activate">✓</button>` : ''}
+                </div>
+            `;
+            list.appendChild(el);
+        }
+        list.querySelectorAll('.proxy-check-btn').forEach(b => {
+            b.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                b.textContent = '⏳';
+                try {
+                    await fetch(`/api/proxy/check/${b.dataset.id}`, {method:'POST'});
+                    await loadProxyList();
+                } catch(err) { b.textContent = '❌'; }
+            });
+        });
+        list.querySelectorAll('.proxy-select-btn').forEach(b => {
+            b.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                b.textContent = '⏳';
+                try {
+                    await fetch(`/api/proxy/select/${b.dataset.id}`, {method:'POST'});
+                    await loadProxyList();
+                } catch(err) { b.textContent = '❌'; }
+            });
+        });
+        const active = proxies.find(p => p.active);
+        if (active) {
+            $('#proxy-flag').textContent = active.flag || '🌐';
+            $('#proxy-ip').textContent = active.ip || '';
+        }
+    } catch (e) { console.warn('loadProxyList failed:', e); }
 }
