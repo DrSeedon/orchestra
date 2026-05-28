@@ -101,8 +101,9 @@ class ClaudeBackend:
         for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
             if os.environ.get(_k):
                 env[_k] = os.environ[_k]
+        cli_model = self.model.replace("[1m]", "")
         options = ClaudeAgentOptions(
-            model=self.model, cwd=self.cwd, cli_path=cli,
+            model=cli_model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             disallowed_tools=_disallowed_tools(self._is_orchestrator),
             include_partial_messages=False, max_turns=200,
