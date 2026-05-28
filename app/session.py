@@ -188,11 +188,12 @@ class AgentSession:
                 from app.manager import _prompt_template_hash
                 current_th = _prompt_template_hash(self.is_orchestrator)
                 old_th = self._template_hash or current_th
-                if old_th != current_th:
+                templates_changed = old_th != current_th
+                if templates_changed:
                     self._log("status", f"prompt updated: {old_th} → {current_th}")
-                    message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
                     self._template_hash = current_th
-                    self.system_prompt = self._current_prompt
+                message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
+                self.system_prompt = self._current_prompt
                 self._prompt_injected = True
 
             if self.status == AgentStatus.IDLE:
