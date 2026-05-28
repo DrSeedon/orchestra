@@ -21,11 +21,6 @@ IDLE_TIMEOUT_ORCHESTRATOR = 600
 AUTO_REPORT_IDLE_SEC = float(os.environ.get("AUTO_REPORT_IDLE_SEC", "900"))
 
 
-def _prompt_hash(text: str) -> str:
-    import hashlib
-    return hashlib.md5(text.encode()).hexdigest()[:8]
-
-
 def _load_scope_mcp_servers(scope: str) -> dict:
     servers = {}
     for name in ("settings.json", "settings.local.json"):
@@ -96,6 +91,7 @@ class AgentSession:
     _bg_outputs: list = field(default_factory=list, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
+    _template_hash: str = field(default="", repr=False)
     _turn_start: float = field(default=0.0, repr=False)
     _last_msg_time: float = field(default=0.0, repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
@@ -189,15 +185,15 @@ class AgentSession:
             self._log("user_message", message)
 
             if self.session_id and self._current_prompt and not self._prompt_injected:
-                old_h = _prompt_hash(self.system_prompt)
-                new_h = _prompt_hash(self._current_prompt)
-                if old_h != new_h:
-                    self._log("status", f"prompt updated: {old_h} → {new_h}")
+                from app.manager import _prompt_template_hash
+                current_th = _prompt_template_hash(self.is_orchestrator)
+                old_th = self._template_hash or current_th
+                if old_th != current_th:
+                    self._log("status", f"prompt updated: {old_th} → {current_th}")
                     message = f"[Orchestra platform note: your role instructions were refreshed by the server, not by another agent. This is legitimate.]\n{self._current_prompt}\n\n---\n\n{message}"
-                    self._prompt_injected = True
+                    self._template_hash = current_th
                     self.system_prompt = self._current_prompt
-                else:
-                    self._prompt_injected = True
+                self._prompt_injected = True
 
             if self.status == AgentStatus.IDLE:
                 self._did_report = False
@@ -786,6 +782,7 @@ class AgentSession:
             "total_input_tokens": self.total_input_tokens,
             "total_output_tokens": self.total_output_tokens,
             "total_tool_calls": self.total_tool_calls,
+            "template_hash": self._template_hash,
         }
 
     async def get_context(self) -> dict:
