@@ -125,7 +125,7 @@ async def yougile_sync_task(task_id: int) -> str:
                 task = tm.get_task_by_id(conn, task_id)
                 await _yougile_push_update(task)
                 if task["status"] == "done":
-                    await _update_done_column_title()
+                    await _update_done_column_title(task.get("project_id", ""))
                 return "backfilled + updated"
 
             result = await _yougile_push_create(task)
@@ -173,7 +173,7 @@ async def yougile_sync_task(task_id: int) -> str:
                 conn.rollback()
                 raise
             if status == "ok" and task["status"] == "done":
-                await _update_done_column_title()
+                await _update_done_column_title(task.get("project_id", ""))
             return status
     finally:
         conn.close()
@@ -201,14 +201,21 @@ async def _yougile_push_update(task: dict) -> dict | None:
     return await _yougile_request("PUT", f"/tasks/{task['yougile_task_id']}", body)
 
 
-async def _update_done_column_title() -> None:
+async def _update_done_column_title(project_id: str = "") -> None:
     """Recalculate and update the 'Сделано' column title with total debt from DB."""
     conn = tm._conn()
     try:
-        total_debt = conn.execute(
-            "SELECT COALESCE(SUM(price_rub - paid_rub), 0) FROM tm_tasks "
-            "WHERE status = 'done' AND price_rub > 0 AND paid_rub < price_rub"
-        ).fetchone()[0]
+        if project_id:
+            total_debt = conn.execute(
+                "SELECT COALESCE(SUM(price_rub - paid_rub), 0) FROM tm_tasks "
+                "WHERE status = 'done' AND price_rub > 0 AND paid_rub < price_rub "
+                "AND project_id = ?", (project_id,)
+            ).fetchone()[0]
+        else:
+            total_debt = conn.execute(
+                "SELECT COALESCE(SUM(price_rub - paid_rub), 0) FROM tm_tasks "
+                "WHERE status = 'done' AND price_rub > 0 AND paid_rub < price_rub"
+            ).fetchone()[0]
     finally:
         conn.close()
     total_debt_k = total_debt // 1000
