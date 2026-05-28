@@ -104,6 +104,17 @@ def WORKER_SYSTEM_PROMPT() -> str:
     return f"{_read_prompt('base.md')}\n\n{_read_prompt('worker.md')}"
 
 
+def _prompt_template_hash(is_orchestrator: bool) -> str:
+    """Hash only the static template files (base.md + role.md).
+    Ignores dynamic parts (worker list, orchestrator list) so that
+    prompt injection only triggers on real template code changes,
+    not on every restart."""
+    import hashlib
+    role = "orchestrator.md" if is_orchestrator else "worker.md"
+    content = _read_prompt("base.md") + _read_prompt(role)
+    return hashlib.md5(content.encode()).hexdigest()[:8]
+
+
 def _make_mcp_config(name: str, scope: str, is_orch: bool) -> dict:
     env = {
         **MCP_BASE_ENV,
@@ -195,6 +206,7 @@ class SessionManager:
             mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
             backend_type=bt, task_id=task_id, description=description,
         )
+        session._template_hash = _prompt_template_hash(is_orchestrator)
         save_session(session._to_db_dict())
 
         if task_id and not is_orchestrator:
@@ -379,6 +391,7 @@ class SessionManager:
                 custom_part = old_prompt[len(formatted_base):]
                 current_prompt = current_prompt + custom_part
         session._current_prompt = current_prompt
+        session._template_hash = db_row.get("template_hash") or _prompt_template_hash(is_orch)
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])
         await session.start()

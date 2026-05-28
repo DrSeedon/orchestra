@@ -270,6 +270,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN total_output_tokens INTEGER DEFAULT 0")
     if "total_tool_calls" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN total_tool_calls INTEGER DEFAULT 0")
+    if "template_hash" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN template_hash TEXT DEFAULT ''")
     try:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:
@@ -349,6 +351,7 @@ def save_session(s: dict) -> None:
     s.setdefault("total_input_tokens", 0)
     s.setdefault("total_output_tokens", 0)
     s.setdefault("total_tool_calls", 0)
+    s.setdefault("template_hash", "")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -356,13 +359,15 @@ def save_session(s: dict) -> None:
                 color, created_at, finished_at, context_pct, context_tokens,
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached,
-                total_turns, total_input_tokens, total_output_tokens, total_tool_calls)
+                total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
+                template_hash)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached,
-                :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls)
+                :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
+                :template_hash)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -385,7 +390,8 @@ def save_session(s: dict) -> None:
                 total_turns=excluded.total_turns,
                 total_input_tokens=excluded.total_input_tokens,
                 total_output_tokens=excluded.total_output_tokens,
-                total_tool_calls=excluded.total_tool_calls
+                total_tool_calls=excluded.total_tool_calls,
+                template_hash=excluded.template_hash
         """, s)
 
 
