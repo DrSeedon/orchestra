@@ -202,25 +202,16 @@ async def _yougile_push_update(task: dict) -> dict | None:
 
 
 async def _update_done_column_title() -> None:
-    """Recalculate and update the 'Сделано' column title with total debt."""
-    import re
-    offset = 0
-    total_debt_k = 0
-    while True:
-        result = await _yougile_request("GET", f"/tasks?columnId={DONE_COLUMN_ID}&offset={offset}&limit=50")
-        if not result or "content" not in result:
-            break
-        content = result["content"]
-        for t in content:
-            title = t.get("title", "")
-            m = re.search(r"\|\s*(\d+)/(\d+)k\s*₽", title)
-            if m:
-                paid_k = int(m.group(1))
-                price_k = int(m.group(2))
-                total_debt_k += price_k - paid_k
-        if len(content) < 50:
-            break
-        offset += 50
+    """Recalculate and update the 'Сделано' column title with total debt from DB."""
+    conn = tm._conn()
+    try:
+        total_debt = conn.execute(
+            "SELECT COALESCE(SUM(price_rub - paid_rub), 0) FROM tm_tasks "
+            "WHERE status = 'done' AND price_rub > 0 AND paid_rub < price_rub"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    total_debt_k = total_debt // 1000
     await _yougile_request("PUT", f"/columns/{DONE_COLUMN_ID}", {
         "title": f"Сделано → {total_debt_k}k ₽",
     })
