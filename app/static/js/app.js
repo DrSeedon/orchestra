@@ -885,6 +885,41 @@ function updateInputState() {
 let contextCache = {};
 let agentColors = {};
 
+const _MODELS = [
+    { id: 'claude-opus-4-7[1m]', label: 'Opus 4.7 (1M)' },
+    { id: 'claude-opus-4-6[1m]', label: 'Opus 4.6 (1M)' },
+    { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+];
+function _showModelPicker(agentName, currentModel, anchor) {
+    const existing = document.getElementById('model-picker-dd');
+    if (existing) { existing.remove(); return; }
+    const dd = document.createElement('div');
+    dd.id = 'model-picker-dd';
+    const rect = anchor.getBoundingClientRect();
+    dd.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+    for (const m of _MODELS) {
+        const item = document.createElement('div');
+        const isCurrent = currentModel === m.id;
+        item.style.cssText = `padding:5px 14px;font-size:11px;color:${isCurrent ? '#818cf8' : '#94a3b8'};cursor:${isCurrent ? 'default' : 'pointer'};white-space:nowrap`;
+        item.textContent = `${isCurrent ? '● ' : ''}${m.label}`;
+        if (!isCurrent) {
+            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+            item.addEventListener('mouseleave', () => item.style.background = '');
+            item.addEventListener('click', async () => {
+                dd.remove();
+                try {
+                    await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
+                    $('#ai-model').textContent = m.id;
+                } catch (e) { console.warn('Change model failed:', e); }
+            });
+        }
+        dd.appendChild(item);
+    }
+    document.body.appendChild(dd);
+    const close = (e) => { if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', close); } };
+    setTimeout(() => document.addEventListener('click', close), 0);
+}
+
 function updateAgentInfo(session) {
     if (!session) {
         $('#ai-name').textContent = '-';
@@ -906,7 +941,21 @@ function updateAgentInfo(session) {
     const st = $('#ai-status');
     st.textContent = `● ${session.status}`;
     st.className = `text-xs font-mono status-${session.status}`;
-    $('#ai-model').textContent = session.model || '-';
+    const modelEl = $('#ai-model');
+    modelEl.textContent = session.model || '-';
+    let changeBtn = $('#ai-model-change');
+    if (!changeBtn) {
+        changeBtn = document.createElement('span');
+        changeBtn.id = 'ai-model-change';
+        changeBtn.style.cssText = 'cursor:pointer;font-size:10px;margin-left:4px;color:#475569;transition:color 0.15s';
+        changeBtn.textContent = '⇄';
+        changeBtn.addEventListener('mouseenter', () => changeBtn.style.color = '#94a3b8');
+        changeBtn.addEventListener('mouseleave', () => changeBtn.style.color = '#475569');
+        modelEl.parentElement.appendChild(changeBtn);
+    }
+    const isIdle = session.status === 'idle' || session.status === 'stopped';
+    changeBtn.style.display = isIdle ? 'inline' : 'none';
+    changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
     const _cached = session.cost_usd_cached > 0 ? session.cost_usd_cached : (session.cost_usd || 0) / 10;
     $('#ai-cost').textContent = `$${(session.cost_usd || 0).toFixed(0)} / $${_cached.toFixed(0)}`;
     $('#ai-cost').title = `API: $${(session.cost_usd || 0).toFixed(2)} / Cached: $${_cached.toFixed(2)}`;
@@ -2234,7 +2283,7 @@ function addChatEntry(type, content, ts, anchor) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch && !isSendFile && !isOrchSimple && !isGlob && !isSkill && !isYougile) {
+        } else if (!isProgress && !isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch && !isSendFile && !isOrchSimple && !isGlob && !isSkill && !isYougile) {
             const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
             const toolFull = body.length > 200 ? body : null;
             if (body) {
