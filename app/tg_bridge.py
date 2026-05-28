@@ -629,6 +629,10 @@ async def rename_orch_topic(old_name: str, new_name: str) -> dict:
     new_display = _short_name(new_name)
     topic_names[new_name] = new_display
     config["topic_names"] = topic_names
+    mirrors = config.get("mirrors", {})
+    if old_name in mirrors:
+        mirrors[new_name] = mirrors.pop(old_name)
+        config["mirrors"] = mirrors
     if old_name in _topic_status:
         _topic_status[new_name] = _topic_status.pop(old_name)
     save_config()
