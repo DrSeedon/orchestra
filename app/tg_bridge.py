@@ -974,15 +974,21 @@ async def start_bridge(manager):
     else:
         bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
 
-    await ensure_topics()
-    await _sync_all_topic_statuses()
-
-    for name, thread_id in config["topics"].items():
-        _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
-
-    _tasks.append(asyncio.create_task(topic_sync_loop()))
     _tasks.append(asyncio.create_task(_safe_polling()))
-    logger.info(f"TG Bridge started | group={group} | topics={len(config['topics'])}")
+    _tasks.append(asyncio.create_task(_deferred_startup()))
+    logger.info(f"TG Bridge started (polling immediate, topics deferred) | group={group}")
+
+
+async def _deferred_startup():
+    try:
+        await ensure_topics()
+        await _sync_all_topic_statuses()
+        for name, thread_id in config["topics"].items():
+            _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
+        _tasks.append(asyncio.create_task(topic_sync_loop()))
+        logger.info(f"TG deferred startup done | topics={len(config['topics'])}")
+    except Exception as e:
+        logger.error(f"TG deferred startup failed: {e}")
 
 
 async def _safe_polling():
