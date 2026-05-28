@@ -1480,3 +1480,26 @@ async def github_webhook(request: Request):
     except Exception as e:
         logger.error(f"Failed to send CI failure to {orch_name}: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Proxy Manager ──
+
+from app.proxy_manager import proxy_manager
+
+@app.get("/api/proxy/list")
+async def proxy_list():
+    return await proxy_manager.list_proxies()
+
+@app.post("/api/proxy/check/{proxy_id}")
+async def proxy_check(proxy_id: str):
+    result = await proxy_manager.check_proxy(proxy_id)
+    if result.get("error"):
+        return JSONResponse(result, status_code=400)
+    return result
+
+@app.post("/api/proxy/select/{proxy_id}")
+async def proxy_select(proxy_id: str):
+    result = await proxy_manager.select_proxy(proxy_id)
+    if result.get("error"):
+        return JSONResponse(result, status_code=400)
+    return result
