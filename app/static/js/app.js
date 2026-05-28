@@ -2663,6 +2663,7 @@ function addChatEntry(type, content, ts, anchor) {
                     }
                 }
                 addTimestamp(lastTool, ts);
+                if (['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__payment_receive'].includes(tn)) loadTasks();
                 return;
             }
             const _orchSimpleResults = {
@@ -4282,7 +4283,7 @@ function switchLeftTab(tab) {
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
-    if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 30000); }
+    if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 5000); }
     else { if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; } }
     if (_jobsTabActive) { loadJobs(); if (!_jobsInterval) _jobsInterval = setInterval(loadJobs, 10000); }
     else { if (_jobsInterval) { clearInterval(_jobsInterval); _jobsInterval = null; } }
