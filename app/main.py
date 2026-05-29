@@ -1377,13 +1377,19 @@ logger = logging.getLogger("orchestra.webhook")
 
 _FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
 
-REPO_TO_SCOPE = {
-    "DrSeedon/parsing-hub": "/mnt/data/Projects/Python/Parsing",
-    "DrSeedon/seo-platform": "/mnt/data/Projects/Python/Parsing",
-    "DrSeedon/ai-assistants": "/mnt/data/Projects/Python/Parsing",
-    "DrSeedon/zahoron-mobile": "/mnt/data/Projects/Python/Parsing",
-    "DrSeedon/family-tree": "/mnt/data/Projects/Python/Parsing",
-}
+def _parse_repo_to_scope() -> dict[str, str]:
+    raw = os.environ.get("GITHUB_REPO_SCOPE_MAP", "")
+    if not raw:
+        return {}
+    result = {}
+    for item in raw.split(","):
+        item = item.strip()
+        if "=" in item:
+            repo, scope = item.split("=", 1)
+            result[repo.strip()] = scope.strip()
+    return result
+
+REPO_TO_SCOPE = _parse_repo_to_scope()
 
 
 def _verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:

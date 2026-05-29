@@ -11,7 +11,7 @@ from app.events import AgentEvent
 
 logger = logging.getLogger(__name__)
 
-CODEX_BIN = shutil.which("codex") or "/home/maxim/.npm-global/bin/codex"
+CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
 
 CODEX_CONTEXT_LIMITS = {
     "gpt-5.5": 258400,
