@@ -537,6 +537,86 @@ async def bg_cancel(job_id: str) -> str:
     return f"Job {job_id} cancelled."
 
 
+_CODEX_BIN = "/home/maxim/.npm-global/bin/codex"
+_REVIEW_CONTEXT = (
+    "PROJECT CONTEXT (calibrate review severity):\n"
+    "- Scale: small team, MVP stage\n"
+    "- Philosophy: simple, flat, minimal abstractions\n"
+    "- blocking = crash/corrupt/security. suggestion = real improvement. nit = skip\n"
+)
+
+
+@mcp.tool()
+async def codex_review(
+    target: str = "",
+    output: str = "CODEX_REVIEW.md",
+    context: str = "",
+    mode: str = "review",
+) -> str:
+    """Run Codex (GPT-5.5) cross-LLM review in background. Returns immediately, notifies when done.
+    target: file path for review, or empty for git diff review.
+    output: where to write results (relative to your cwd).
+    context: extra instructions for the review prompt.
+    mode: 'review' (git diff, default) or 'exec' (review specific file)."""
+    info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
+    if isinstance(info, dict) and info.get("error"):
+        return f"Error resolving worker cwd: {info['error']}"
+    cwd = info.get("worktree_path") or info.get("cwd") or info.get("scope", SCOPE)
+    output_abs = f"{cwd}/{output}" if not output.startswith("/") else output
+
+    prompt_parts = [_REVIEW_CONTEXT]
+    if context:
+        prompt_parts.append(f"Additional context: {context}\n")
+    prompt_parts.append(f"Write your review to {output}.")
+    prompt_parts.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
+    review_prompt = "\n".join(prompt_parts)
+
+    prompt_file = f"/tmp/codex_review_{WORKER_NAME}.txt"
+
+    if mode == "review":
+        cmd = (
+            f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{review_prompt}\nCODEX_PROMPT_EOF\n"
+            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
+            f" --uncommitted --skip-git-repo-check --full-auto --ephemeral"
+            f" -o {output_abs}"
+            f" - < {prompt_file}"
+        )
+    elif mode == "exec":
+        if not target:
+            return "Error: target file required for mode='exec'"
+        prompt_parts_exec = [_REVIEW_CONTEXT]
+        if context:
+            prompt_parts_exec.append(f"Additional context: {context}\n")
+        prompt_parts_exec.append(f"Review the file: {target}")
+        prompt_parts_exec.append(f"Write your findings to {output}.")
+        prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
+        exec_prompt = "\n".join(prompt_parts_exec)
+
+        cmd = (
+            f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{exec_prompt}\nCODEX_PROMPT_EOF\n"
+            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
+            f" -s workspace-write --skip-git-repo-check --full-auto --ephemeral"
+            f" -o {output_abs}"
+            f" - < {prompt_file}"
+        )
+    else:
+        return f"Error: unknown mode '{mode}'. Use 'review' or 'exec'."
+
+    result = await _api("POST", "/api/bg/jobs", json={
+        "type": "run",
+        "config": {"command": cmd},
+        "message": f"Codex {mode} done. Results in {output}",
+        "target_name": WORKER_NAME,
+        "target_scope": SCOPE,
+        "timeout_seconds": 600,
+        "created_by": WORKER_NAME,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error creating bg job: {result['error']}"
+    job_id = result.get("id", "?")
+    return f"Codex {mode} started (bg job {job_id}). You'll be notified when done. Results → {output}"
+
+
 if __name__ == "__main__":
     logger.info(f"Orchestra MCP stdio (url={ORCHESTRA_URL}, scope={SCOPE})")
     mcp.run(transport="stdio")
