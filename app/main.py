@@ -301,6 +301,19 @@ async def open_folder(req: dict):
     return {"ok": True}
 
 
+@app.get("/api/open-file")
+async def open_file(path: str):
+    if not os.environ.get("ALLOW_OPEN_FOLDER"):
+        return JSONResponse({"error": "disabled on this server"}, status_code=403)
+    import subprocess
+    p = Path(path)
+    if not p.exists():
+        return JSONResponse({"error": "file not found"}, status_code=404)
+    env = {**os.environ, "DISPLAY": ":0", "WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": f"/run/user/{os.getuid()}"}
+    subprocess.Popen(["xdg-open", str(p)], env=env)
+    return {"ok": True}
+
+
 @app.get("/api/files")
 async def list_files(path: str):
     if not _is_safe_path(path):
