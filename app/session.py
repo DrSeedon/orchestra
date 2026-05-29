@@ -77,6 +77,7 @@ class AgentSession:
     parent_name: str = ""
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
+    mcp_servers_custom: dict = field(default_factory=dict, repr=False)
     on_error: Optional[callable] = field(default=None, repr=False)
     backend_type: str = "claude"
     task_id: str = ""
@@ -797,6 +798,7 @@ class AgentSession:
             "total_output_tokens": self.total_output_tokens,
             "total_tool_calls": self.total_tool_calls,
             "template_hash": self._template_hash,
+            "mcp_servers_custom": json.dumps(self.mcp_servers_custom) if self.mcp_servers_custom else "",
         }
 
     async def get_context(self) -> dict:
