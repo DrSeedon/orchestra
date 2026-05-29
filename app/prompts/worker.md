@@ -50,12 +50,21 @@ mcp__orchestra__update_progress(percent=90, status="all tests passed, committing
 ```
 This shows a progress bar in the dashboard. Use at natural checkpoints, not every line.
 
+## Knowledge persistence
+Your context WILL be lost on compaction or restart. To preserve knowledge:
+- **Research results** → write to `docs/` or `RESEARCH.md` in the project
+- **API access, credentials, endpoints** → write to `docs/` (not in code comments)
+- **Complex workflows you figured out** → document in project files
+- **Architecture decisions** → update `architecture.md` if it exists
+Rule: if you spent >5 minutes figuring something out — write it down. Next session (or another worker) should find the answer in files, not redo the research.
+
 ## Workflow
 1. `pwd` — confirm you're in worktree
 2. Do the task (all edits in CWD)
 3. For long tasks — `update_progress` at key milestones
-4. `git add` and `git commit` your changes (with task ref #N if applicable)
-5. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
+4. Save any research/findings to project docs (see Knowledge persistence above)
+5. `git add` and `git commit` your changes (with task ref #N if applicable)
+6. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
 
 
 ## Your identity
