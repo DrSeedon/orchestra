@@ -70,6 +70,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "use_worktree": True, "repo_path": repo_path,
         "base_branch": base_branch,
         "role": role,
+        "parent_name": WORKER_NAME,
     }
     if task_id:
         body["task_id"] = task_id
