@@ -89,19 +89,72 @@ def _workers_block(scope: str) -> str:
         return ""
 
 
+def _parse_role_frontmatter(text: str) -> tuple[dict, str]:
+    """Parse YAML frontmatter from role .md file. Returns (meta, body)."""
+    if not text.startswith("---"):
+        return {}, text
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}, text
+    try:
+        import yaml
+        meta = yaml.safe_load(parts[1]) or {}
+    except Exception:
+        meta = {}
+    body = parts[2].strip()
+    return meta, body
+
+
 def _role_prompt_file(role: str) -> str:
-    """Find the best prompt file for a role: roles/<role>.md → orchestrator.md/worker.md fallback."""
+    """Find the best prompt for a role. Parses frontmatter, returns body only.
+    If body is empty, uses `prompt:` field from frontmatter as fallback file."""
     role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
     if role_path.exists():
-        return role_path.read_text()
+        meta, body = _parse_role_frontmatter(role_path.read_text())
+        if body:
+            return body
+        fallback = meta.get("prompt", "")
+        if fallback:
+            return _read_prompt(fallback)
     if is_orchestrator_role(role):
         return _read_prompt("orchestrator.md")
     return _read_prompt("worker.md")
 
 
+def _roles_catalog() -> str:
+    """Build a catalog of available worker roles from roles/ directory frontmatter.
+    Injected into orchestrator prompt so it knows what roles exist."""
+    roles_dir = _PROMPTS_DIR / "roles"
+    if not roles_dir.is_dir():
+        return ""
+    entries = []
+    for f in sorted(roles_dir.glob("*.md")):
+        meta, _ = _parse_role_frontmatter(f.read_text())
+        if not meta or meta.get("name") == "orchestrator":
+            continue
+        name = meta.get("name", f.stem)
+        label = meta.get("label", name)
+        model = meta.get("model", "any")
+        desc = meta.get("description", "").strip().replace("\n", " ")
+        when = meta.get("when", "").strip()
+        not_for = meta.get("not_for", "").strip()
+        entry = f"### `{name}` ({label}) — model: {model}\n{desc}"
+        if when:
+            entry += f"\n- ✅ **When**: {when}"
+        if not_for:
+            entry += f"\n- ❌ **Not for**: {not_for}"
+        entries.append(entry)
+    if not entries:
+        return ""
+    return "## Available worker roles\nSpawn with `role=\"<name>\"`. If no role specified, defaults to `worker`.\n\n" + "\n\n".join(entries)
+
+
 def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
     base = f"{_read_prompt('base.md')}\n\n{_role_prompt_file(role)}"
     if is_orchestrator_role(role):
+        catalog = _roles_catalog()
+        if catalog:
+            base += f"\n\n{catalog}"
         others = _other_orchestrators_block(scope)
         if others:
             base += f"\n\n{others}"
