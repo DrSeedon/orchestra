@@ -336,6 +336,13 @@ def _migrate(c) -> None:
     client_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_clients)").fetchall()}
     if client_cols and "journal_yougile_id" not in client_cols:
         c.execute("ALTER TABLE tm_clients ADD COLUMN journal_yougile_id TEXT DEFAULT ''")
+    if "role" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN role TEXT DEFAULT 'worker'")
+        c.execute("UPDATE sessions SET role = 'orchestrator' WHERE is_orchestrator = 1")
+    if "parent_id" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN parent_id TEXT DEFAULT ''")
+    if "parent_name" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN parent_name TEXT DEFAULT ''")
 
 
 def save_session(s: dict) -> None:
@@ -352,6 +359,9 @@ def save_session(s: dict) -> None:
     s.setdefault("total_output_tokens", 0)
     s.setdefault("total_tool_calls", 0)
     s.setdefault("template_hash", "")
+    s.setdefault("role", "worker")
+    s.setdefault("parent_id", "")
+    s.setdefault("parent_name", "")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -360,14 +370,14 @@ def save_session(s: dict) -> None:
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
-                template_hash)
+                template_hash, role, parent_id, parent_name)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
-                :template_hash)
+                :template_hash, :role, :parent_id, :parent_name)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -391,7 +401,10 @@ def save_session(s: dict) -> None:
                 total_input_tokens=excluded.total_input_tokens,
                 total_output_tokens=excluded.total_output_tokens,
                 total_tool_calls=excluded.total_tool_calls,
-                template_hash=excluded.template_hash
+                template_hash=excluded.template_hash,
+                role=excluded.role,
+                parent_id=excluded.parent_id,
+                parent_name=excluded.parent_name
         """, s)
 
 
@@ -525,7 +538,7 @@ def get_stats(scope: str | None = None) -> dict:
 def get_orchestrators() -> list[dict]:
     with _conn() as c:
         rows = c.execute(
-            "SELECT * FROM sessions WHERE is_orchestrator = 1 "
+            "SELECT * FROM sessions WHERE (is_orchestrator = 1 OR role IN ('orchestrator', 'sub-orchestrator')) "
             "AND status IN ('starting', 'running', 'idle')"
         ).fetchall()
         return [dict(r) for r in rows]
@@ -534,7 +547,7 @@ def get_orchestrators() -> list[dict]:
 def get_resumable_orchestrators() -> list[dict]:
     with _conn() as c:
         rows = c.execute(
-            "SELECT * FROM sessions WHERE is_orchestrator = 1 "
+            "SELECT * FROM sessions WHERE (is_orchestrator = 1 OR role IN ('orchestrator', 'sub-orchestrator')) "
             "AND session_id IS NOT NULL AND status IN ('running', 'idle')"
         ).fetchall()
         return [dict(r) for r in rows]
