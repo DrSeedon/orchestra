@@ -20,6 +20,12 @@ IDLE_TIMEOUT_WORKER = 300
 IDLE_TIMEOUT_ORCHESTRATOR = 600
 AUTO_REPORT_IDLE_SEC = float(os.environ.get("AUTO_REPORT_IDLE_SEC", "900"))
 
+_ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
+
+
+def is_orchestrator_role(role: str) -> bool:
+    return role in _ORCHESTRATOR_ROLES
+
 
 def _load_scope_mcp_servers(scope: str) -> dict:
     servers = {}
@@ -66,7 +72,9 @@ class AgentSession:
     worktree_path: str | None = None
     branch: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    is_orchestrator: bool = False
+    role: str = "worker"
+    parent_id: str = ""
+    parent_name: str = ""
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
     on_error: Optional[callable] = field(default=None, repr=False)
@@ -106,6 +114,10 @@ class AgentSession:
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
 
     TURN_TIMEOUT = 600
+
+    @property
+    def is_orchestrator(self) -> bool:
+        return is_orchestrator_role(self.role)
 
     def _make_backend(self):
         if self.backend_type == "codex":
@@ -186,7 +198,7 @@ class AgentSession:
 
             if self.session_id and self._current_prompt and not self._prompt_injected:
                 from app.manager import _prompt_template_hash
-                current_th = _prompt_template_hash(self.is_orchestrator)
+                current_th = _prompt_template_hash(self.role)
                 old_th = self._template_hash or current_th
                 templates_changed = old_th != current_th
                 if templates_changed:
@@ -770,6 +782,7 @@ class AgentSession:
             "cost_usd": self.cost_usd, "cost_usd_cached": self.cost_usd_cached,
             "worktree_path": self.worktree_path,
             "branch": self.branch, "is_orchestrator": self.is_orchestrator,
+            "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
             "color": self.color, "created_at": self.created_at.isoformat(),
             "finished_at": None,
             "context_pct": self._last_context.get("percentage", 0),
@@ -796,7 +809,9 @@ class AgentSession:
             "cost_usd": round(self.cost_usd, 4),
             "cost_usd_cached": round(self.cost_usd_cached, 4),
             "branch": self.branch,
-            "is_orchestrator": self.is_orchestrator, "color": self.color,
+            "is_orchestrator": self.is_orchestrator,
+            "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
+            "color": self.color,
             "created_at": self.created_at.isoformat(),
             "context_pct": self._last_context.get("percentage", 0),
             "progress_pct": self.progress_pct,

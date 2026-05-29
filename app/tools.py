@@ -20,7 +20,7 @@ def _caller_scope() -> str | None:
     if not _manager:
         return None
     for s in _manager.sessions.values():
-        if s.is_orchestrator:
+        if s.role in ("orchestrator", "sub-orchestrator"):
             return s.scope
     return None
 
@@ -29,7 +29,7 @@ def _caller_name() -> str:
     if not _manager:
         return "orchestrator"
     for s in _manager.sessions.values():
-        if s.is_orchestrator:
+        if s.role in ("orchestrator", "sub-orchestrator"):
             return s.name
     return "orchestrator"
 
@@ -80,8 +80,8 @@ async def send_to_worker(args):
 async def list_workers(args):
     if not _manager:
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
-    active = [s for s in _manager.sessions.values() if not s.is_orchestrator]
-    archived = [a for a in _manager.archived.values() if not a.get("is_orchestrator")]
+    active = [s for s in _manager.sessions.values() if s.role not in ("orchestrator", "sub-orchestrator")]
+    archived = [a for a in _manager.archived.values() if a.get("role", "worker") not in ("orchestrator", "sub-orchestrator")]
     if not active and not archived:
         return {"content": [{"type": "text", "text": "No workers"}]}
     lines = []
@@ -215,7 +215,7 @@ async def list_agents(args):
         return {"content": [{"type": "text", "text": "Orchestra not initialized"}], "is_error": True}
     if not _manager.sessions:
         return {"content": [{"type": "text", "text": "No active agents"}]}
-    lines = [f"- **{s.name}** ({'orchestrator' if s.is_orchestrator else 'worker'}) | {s.status.value} | {s.model}"
+    lines = [f"- **{s.name}** ({s.role}) | {s.status.value} | {s.model}"
              for s in _manager.sessions.values()]
     return {"content": [{"type": "text", "text": "\n".join(lines)}]}
 

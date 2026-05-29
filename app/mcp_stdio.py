@@ -57,7 +57,8 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        system_prompt: str = "",
                        task_id: str = "",
                        description: str = "",
-                       base_branch: str = "main") -> str:
+                       base_branch: str = "main",
+                       role: str = "worker") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
     base_branch — от какой ветки ответвить worktree воркера (default main)."""
     if not model:
@@ -68,6 +69,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "model": model, "system_prompt": system_prompt,
         "use_worktree": True, "repo_path": repo_path,
         "base_branch": base_branch,
+        "role": role,
     }
     if task_id:
         body["task_id"] = task_id
@@ -144,8 +146,10 @@ async def list_agents() -> str:
     if not sessions:
         return "No agents"
     lines = []
+    _ROLE_ICONS = {"orchestrator": "🎯", "sub-orchestrator": "🎯", "reviewer": "🔍", "watcher": "👁️"}
     for s in sessions:
-        role = "🎯" if s.get("is_orchestrator") else "⚙️"
+        r = s.get("role", "worker")
+        role = _ROLE_ICONS.get(r, "⚙️")
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
