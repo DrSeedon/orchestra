@@ -1,5 +1,6 @@
 """SQLite storage for sessions and logs."""
 
+import json
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -51,6 +52,7 @@ def init_db() -> None:
                 branch TEXT,
                 is_orchestrator INTEGER DEFAULT 0,
                 color TEXT DEFAULT '',
+                mcp_servers_custom TEXT DEFAULT '',
                 created_at TEXT NOT NULL,
                 finished_at TEXT,
                 UNIQUE(name, scope)
@@ -170,7 +172,7 @@ def init_db() -> None:
         c.executescript("""
             CREATE TABLE IF NOT EXISTS bg_jobs (
                 id TEXT PRIMARY KEY,
-                type TEXT NOT NULL CHECK (type IN ('timer','file','command','ssh','run')),
+                type TEXT NOT NULL,
                 config TEXT NOT NULL DEFAULT '{}',
                 message TEXT NOT NULL DEFAULT '',
                 target_session_id TEXT NOT NULL,
@@ -272,6 +274,41 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN total_tool_calls INTEGER DEFAULT 0")
     if "template_hash" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN template_hash TEXT DEFAULT ''")
+    if "mcp_servers_custom" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN mcp_servers_custom TEXT DEFAULT ''")
+    bg_ddl = c.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='bg_jobs'"
+    ).fetchone()
+    if bg_ddl and "type IN ('timer'" in bg_ddl[0]:
+        _bg_cols = ("id", "type", "config", "message", "target_session_id", "target_name",
+                    "target_scope", "created_by_name", "status", "error", "expires_at",
+                    "trigger_at", "created_at", "triggered_at", "last_output")
+        _bg_col_list = ", ".join(_bg_cols)
+        c.execute("ALTER TABLE bg_jobs RENAME TO bg_jobs_old")
+        c.execute("""
+            CREATE TABLE bg_jobs (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                config TEXT NOT NULL DEFAULT '{}',
+                message TEXT NOT NULL DEFAULT '',
+                target_session_id TEXT NOT NULL,
+                target_name TEXT NOT NULL,
+                target_scope TEXT NOT NULL,
+                created_by_name TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'active'
+                    CHECK (status IN ('active','triggering','triggered','expired','cancelled','failed')),
+                error TEXT,
+                expires_at TEXT NOT NULL,
+                trigger_at TEXT,
+                created_at TEXT NOT NULL,
+                triggered_at TEXT,
+                last_output TEXT NOT NULL DEFAULT ''
+            )
+        """)
+        c.execute(f"INSERT INTO bg_jobs ({_bg_col_list}) SELECT {_bg_col_list} FROM bg_jobs_old")
+        c.execute("DROP TABLE bg_jobs_old")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_bg_jobs_session ON bg_jobs(target_session_id, status)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_bg_jobs_scope ON bg_jobs(target_scope, status)")
     try:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:
@@ -362,6 +399,7 @@ def save_session(s: dict) -> None:
     s.setdefault("role", "worker")
     s.setdefault("parent_id", "")
     s.setdefault("parent_name", "")
+    s.setdefault("mcp_servers_custom", "")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -370,14 +408,14 @@ def save_session(s: dict) -> None:
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
-                template_hash, role, parent_id, parent_name)
+                template_hash, role, parent_id, parent_name, mcp_servers_custom)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
-                :template_hash, :role, :parent_id, :parent_name)
+                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -404,7 +442,8 @@ def save_session(s: dict) -> None:
                 template_hash=excluded.template_hash,
                 role=excluded.role,
                 parent_id=excluded.parent_id,
-                parent_name=excluded.parent_name
+                parent_name=excluded.parent_name,
+                mcp_servers_custom=excluded.mcp_servers_custom
         """, s)
 
 
@@ -640,6 +679,37 @@ def bg_save_job(job: dict) -> None:
                 :target_name, :target_scope, :created_by_name, :status, :expires_at,
                 :trigger_at, :created_at, :last_output)
         """, job)
+
+
+def bg_cron_should_fire(job_id: str) -> bool:
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        row = c.execute(
+            "SELECT 1 FROM bg_jobs WHERE id=? AND status='active' AND expires_at >= ?",
+            (job_id, now),
+        ).fetchone()
+        return row is not None
+
+
+def bg_cron_record_fire(job_id: str) -> None:
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute("SELECT config, status FROM bg_jobs WHERE id=?", (job_id,)).fetchone()
+        if not row or row["status"] != "active":
+            c.execute("ROLLBACK")
+            return
+        try:
+            cfg = json.loads(row["config"])
+        except (json.JSONDecodeError, TypeError):
+            cfg = {}
+        now_iso = datetime.now(timezone.utc).isoformat()
+        cfg["last_fired_at"] = now_iso
+        cfg["fire_count"] = cfg.get("fire_count", 0) + 1
+        c.execute(
+            "UPDATE bg_jobs SET config=?, last_output=? WHERE id=? AND status='active'",
+            (json.dumps(cfg), f"fired #{cfg['fire_count']} at {now_iso}", job_id),
+        )
+        c.execute("COMMIT")
 
 
 def bg_claim_trigger(job_id: str) -> bool:

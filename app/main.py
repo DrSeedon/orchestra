@@ -102,6 +102,7 @@ class CreateSessionRequest(BaseModel):
     description: str = ""
     base_branch: str = "main"
     parent_name: str = ""
+    mcp_servers: dict = {}
 
     @field_validator("name")
     @classmethod
@@ -382,6 +383,7 @@ async def create_session(req: CreateSessionRequest):
             description=req.description,
             base_branch=req.base_branch,
             parent_name=req.parent_name,
+            mcp_servers=req.mcp_servers,
         )
         return session.to_dict()
     except ValueError as e:
