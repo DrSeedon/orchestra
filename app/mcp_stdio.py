@@ -58,9 +58,11 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        task_id: str = "",
                        description: str = "",
                        base_branch: str = "main",
-                       role: str = "worker") -> str:
+                       role: str = "worker",
+                       mcp_servers: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
-    base_branch — от какой ветки ответвить worktree воркера (default main)."""
+    base_branch — от какой ветки ответвить worktree воркера (default main).
+    mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-8[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
@@ -72,6 +74,16 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "role": role,
         "parent_name": WORKER_NAME,
     }
+    if mcp_servers:
+        import json
+        try:
+            parsed = json.loads(mcp_servers)
+            if isinstance(parsed, dict):
+                body["mcp_servers"] = parsed
+            else:
+                return "Error: mcp_servers must be a JSON object, e.g. {\"playwright\": {\"command\": \"npx\", \"args\": [...]}}"
+        except json.JSONDecodeError as e:
+            return f"Error: mcp_servers is not valid JSON: {e}"
     if task_id:
         body["task_id"] = task_id
     if description:

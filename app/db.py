@@ -51,6 +51,7 @@ def init_db() -> None:
                 branch TEXT,
                 is_orchestrator INTEGER DEFAULT 0,
                 color TEXT DEFAULT '',
+                mcp_servers_custom TEXT DEFAULT '',
                 created_at TEXT NOT NULL,
                 finished_at TEXT,
                 UNIQUE(name, scope)
@@ -272,6 +273,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN total_tool_calls INTEGER DEFAULT 0")
     if "template_hash" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN template_hash TEXT DEFAULT ''")
+    if "mcp_servers_custom" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN mcp_servers_custom TEXT DEFAULT ''")
     try:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
     except Exception:
@@ -362,6 +365,7 @@ def save_session(s: dict) -> None:
     s.setdefault("role", "worker")
     s.setdefault("parent_id", "")
     s.setdefault("parent_name", "")
+    s.setdefault("mcp_servers_custom", "")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -370,14 +374,14 @@ def save_session(s: dict) -> None:
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
-                template_hash, role, parent_id, parent_name)
+                template_hash, role, parent_id, parent_name, mcp_servers_custom)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
-                :template_hash, :role, :parent_id, :parent_name)
+                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -404,7 +408,8 @@ def save_session(s: dict) -> None:
                 template_hash=excluded.template_hash,
                 role=excluded.role,
                 parent_id=excluded.parent_id,
-                parent_name=excluded.parent_name
+                parent_name=excluded.parent_name,
+                mcp_servers_custom=excluded.mcp_servers_custom
         """, s)
 
 
