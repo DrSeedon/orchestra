@@ -2,6 +2,7 @@
 name: full-cycle
 label: Full-Cycle
 model: opus
+skills: [codex-review]
 when: New feature with unknowns, large refactoring (5+ files), external integration, anything where wrong approach = wasted day
 not_for: Bug fixes, config changes, implementation from clear spec
 description: >

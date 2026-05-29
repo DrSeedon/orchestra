@@ -121,6 +121,48 @@ def _role_prompt_file(role: str) -> str:
     return _read_prompt("worker.md")
 
 
+_SKILLS_DIR = _PROMPTS_DIR / "skills"
+
+
+def _load_role_skills(role: str) -> str:
+    """Load skills listed in role's frontmatter `skills:` field.
+    Reads each skill .md from skills/ dir, strips frontmatter, returns combined text."""
+    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
+    if not role_path.exists():
+        return ""
+    meta, _ = _parse_role_frontmatter(role_path.read_text())
+    skill_names = meta.get("skills", [])
+    if not skill_names or not _SKILLS_DIR.is_dir():
+        return ""
+    parts = []
+    for sname in skill_names:
+        skill_path = _SKILLS_DIR / f"{sname}.md"
+        if not skill_path.exists():
+            logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
+            continue
+        _, body = _parse_role_frontmatter(skill_path.read_text())
+        if body:
+            parts.append(body)
+    if not parts:
+        return ""
+    return "## Skills\n\n" + "\n\n---\n\n".join(parts)
+
+
+def _skills_catalog() -> str:
+    """Build catalog of available skills from skills/ directory for orchestrator."""
+    if not _SKILLS_DIR.is_dir():
+        return ""
+    entries = []
+    for f in sorted(_SKILLS_DIR.glob("*.md")):
+        meta, _ = _parse_role_frontmatter(f.read_text())
+        name = meta.get("name", f.stem)
+        desc = meta.get("description", "").strip().replace("\n", " ")
+        entries.append(f"- `{name}` — {desc}")
+    if not entries:
+        return ""
+    return "## Available skills (for roles)\nSkills are auto-injected into worker prompts via `skills:` in role frontmatter.\n" + "\n".join(entries)
+
+
 def _roles_catalog() -> str:
     """Build a catalog of available worker roles from roles/ directory frontmatter.
     Injected into orchestrator prompt so it knows what roles exist."""
@@ -138,11 +180,14 @@ def _roles_catalog() -> str:
         desc = meta.get("description", "").strip().replace("\n", " ")
         when = meta.get("when", "").strip()
         not_for = meta.get("not_for", "").strip()
+        skills_list = meta.get("skills", [])
         entry = f"### `{name}` ({label}) — model: {model}\n{desc}"
         if when:
             entry += f"\n- ✅ **When**: {when}"
         if not_for:
             entry += f"\n- ❌ **Not for**: {not_for}"
+        if skills_list:
+            entry += f"\n- 🔧 **Skills**: {', '.join(skills_list)}"
         entries.append(entry)
     if not entries:
         return ""
@@ -151,10 +196,16 @@ def _roles_catalog() -> str:
 
 def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
     base = f"{_read_prompt('base.md')}\n\n{_role_prompt_file(role)}"
+    skills = _load_role_skills(role)
+    if skills:
+        base += f"\n\n{skills}"
     if is_orchestrator_role(role):
         catalog = _roles_catalog()
         if catalog:
             base += f"\n\n{catalog}"
+        skills_cat = _skills_catalog()
+        if skills_cat:
+            base += f"\n\n{skills_cat}"
         others = _other_orchestrators_block(scope)
         if others:
             base += f"\n\n{others}"
@@ -173,14 +224,14 @@ def WORKER_SYSTEM_PROMPT() -> str:
 
 
 def _prompt_template_hash(role_or_orch) -> str:
-    """Hash only the static template files (base.md + role.md).
+    """Hash only the static template files (base.md + role.md + skills).
     Accepts role string or legacy bool (is_orchestrator)."""
     import hashlib
     if isinstance(role_or_orch, bool):
         role = "orchestrator" if role_or_orch else "worker"
     else:
         role = role_or_orch
-    content = _read_prompt("base.md") + _role_prompt_file(role)
+    content = _read_prompt("base.md") + _role_prompt_file(role) + _load_role_skills(role)
     return hashlib.md5(content.encode()).hexdigest()[:8]
 
 
