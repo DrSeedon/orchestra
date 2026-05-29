@@ -7,6 +7,7 @@
 - [ ] **send_file ошибка без текста** — MCP send_file возвращает пустую ошибку, нет диагностики
 
 ## Next
+- [ ] **TG очередь сообщений** — сейчас non-important (tool/status) дропаются при gap < 3с. Нужна asyncio.Queue с rate-limit вместо drop. Текущий _tg_send_safe дропает ~70% tool-логов при активной работе воркера. TG лимит группы ~20 msg/min, наш throttle 0.33 msg/s = 20 msg/min — можно снизить интервал до 1-2с или добавить батчинг
 - [ ] **DNS + SSL** — orchestra.zahoron.ru + certbot
 - [ ] **Раздробить app.js (4500+ строк)** — разбить на модули: chat.js, tools.js, tasks.js, files.js, agents.js, sse.js
 - [ ] **Модульные промпты** — вынести TaskManager/YouGile/платежи в опциональные модули (#15)
