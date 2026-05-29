@@ -250,3 +250,121 @@ class TestAutoResume:
             await mgr.auto_resume_orchestrators()
         assert mgr.get("orch-1") is not None
 
+
+
+class TestCanSpawn:
+    def _write_role(self, roles_dir, name, frontmatter_body):
+        (roles_dir / f"{name}.md").write_text(f"---\n{frontmatter_body}\n---\n\nBody for {name}.\n")
+
+    @pytest.fixture
+    def roles_dir(self, tmp_path, monkeypatch):
+        prompts = tmp_path / "prompts"
+        rdir = prompts / "roles"
+        rdir.mkdir(parents=True)
+        (prompts / "base.md").write_text("BASE")
+        monkeypatch.setattr("app.manager._PROMPTS_DIR", prompts)
+        monkeypatch.setattr("app.manager._SKILLS_DIR", prompts / "skills")
+        return rdir
+
+    def test_role_can_spawn_absent_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\nmodel: opus")
+        assert _role_can_spawn("boss") is None
+
+    def test_role_can_spawn_yaml_null_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn:")
+        assert _role_can_spawn("boss") is None
+
+    def test_role_can_spawn_non_list_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: worker")
+        assert _role_can_spawn("boss") is None
+
+    def test_role_can_spawn_empty_list_is_terminal(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "leaf", "name: leaf\ncan_spawn: []")
+        assert _role_can_spawn("leaf") == []
+
+    def test_role_can_spawn_whitelist(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker, reviewer]")
+        assert _role_can_spawn("boss") == ["worker", "reviewer"]
+
+    def test_role_can_spawn_missing_file_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        assert _role_can_spawn("ghost") is None
+
+    @pytest.mark.asyncio
+    async def test_whitelist_allows_listed(self, mgr, roles_dir):
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker]")
+        self._write_role(roles_dir, "worker", "name: worker")
+        save_session({
+            "id": "p-1", "name": "parent", "scope": "/s", "cwd": "/tmp",
+            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "boss",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="child", scope="/s", cwd="/tmp", model="m",
+                role="worker", parent_name="parent",
+            )
+        assert session.name == "child"
+
+    @pytest.mark.asyncio
+    async def test_whitelist_blocks_unlisted(self, mgr, roles_dir):
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker]")
+        self._write_role(roles_dir, "full-cycle", "name: full-cycle")
+        save_session({
+            "id": "p-2", "name": "parent", "scope": "/s", "cwd": "/tmp",
+            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "boss",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            with pytest.raises(ValueError, match="not allowed to spawn"):
+                await mgr.create_session(
+                    name="child", scope="/s", cwd="/tmp", model="m",
+                    role="full-cycle", parent_name="parent",
+                )
+
+    @pytest.mark.asyncio
+    async def test_empty_can_spawn_blocks_all(self, mgr, roles_dir):
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "leaf", "name: leaf\ncan_spawn: []")
+        self._write_role(roles_dir, "worker", "name: worker")
+        save_session({
+            "id": "p-3", "name": "parent", "scope": "/s", "cwd": "/tmp",
+            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "leaf",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            with pytest.raises(ValueError, match="terminal role"):
+                await mgr.create_session(
+                    name="child", scope="/s", cwd="/tmp", model="m",
+                    role="worker", parent_name="parent",
+                )
+
+    @pytest.mark.asyncio
+    async def test_unknown_parent_fails_open(self, mgr, roles_dir):
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "worker", "name: worker")
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="child", scope="/s", cwd="/tmp", model="m",
+                role="worker", parent_name="ghost-parent",
+            )
+        assert session.name == "child"

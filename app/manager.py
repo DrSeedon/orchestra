@@ -148,6 +148,25 @@ def _load_role_skills(role: str) -> str:
     return "## Skills\n\n" + "\n\n---\n\n".join(parts)
 
 
+def _role_can_spawn(role: str):
+    """Return the can_spawn whitelist for a role, or None if unrestricted.
+    None  = field absent OR malformed -> no restriction (spawn anything)
+    []    = empty list                -> terminal role (spawn nothing)
+    [...] = whitelist of allowed child roles
+    """
+    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
+    if not role_path.exists():
+        return None
+    meta, _ = _parse_role_frontmatter(role_path.read_text())
+    if "can_spawn" not in meta:
+        return None
+    val = meta["can_spawn"]
+    if not isinstance(val, list):
+        logger.warning(f"role '{role}' has non-list can_spawn ({val!r}); treating as unrestricted")
+        return None
+    return [str(x) for x in val]
+
+
 def _skills_catalog() -> str:
     """Build catalog of available skills from skills/ directory for orchestrator."""
     if not _SKILLS_DIR.is_dir():
@@ -332,6 +351,17 @@ class SessionManager:
             if p_session:
                 parent_id = p_session.id if isinstance(p_session, AgentSession) else p_session.get("id", "")
 
+        if parent_name:
+            parent_role = self._resolve_role(parent_name, scope)
+            if parent_role:
+                whitelist = _role_can_spawn(parent_role)
+                if whitelist is not None and role not in whitelist:
+                    allowed = ", ".join(whitelist) if whitelist else "(none — terminal role)"
+                    raise ValueError(
+                        f"role '{parent_role}' is not allowed to spawn role '{role}'. "
+                        f"Allowed: {allowed}"
+                    )
+
         bt = backend_for_model(model)
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
@@ -443,6 +473,13 @@ class SessionManager:
                 return s
         db_row = get_session_by_name(name, scope)
         return db_row
+
+    def _resolve_role(self, name: str, scope: str) -> str | None:
+        for s in self.sessions.values():
+            if s.name == name and s.scope == scope:
+                return s.role
+        row = get_session_by_name(name, scope)
+        return row.get("role") if row else None
 
     async def ensure_loaded(self, name: str, scope: str) -> Optional[AgentSession]:
         scope = scope.rstrip("/")
