@@ -10,11 +10,14 @@ import time
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
+from croniter import croniter
+
 from app.db import (
     bg_save_job, bg_claim_trigger, bg_finish_trigger, bg_fail_job,
     bg_cancel_job, bg_expire_job, bg_update_output, bg_get_active_all,
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
     bg_reset_stale_triggering, bg_cleanup_old,
+    bg_cron_should_fire, bg_cron_record_fire,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,6 +79,12 @@ def _validate_config(job_type: str, config: dict) -> str | None:
     elif job_type == "run":
         if not config.get("command"):
             return "command is required"
+    elif job_type == "cron":
+        expr = config.get("cron_expr", "")
+        if not expr:
+            return "cron_expr is required"
+        if not croniter.is_valid(expr):
+            return f"invalid cron expression: {expr!r}"
     else:
         return f"unknown job type: {job_type}"
     return None
@@ -118,12 +127,19 @@ class BgJobManager:
         err = _validate_config(job_type, config)
         if err:
             return {"error": err}
-        timeout_seconds = max(1, min(timeout_seconds, MAX_TIMEOUT))
         count = bg_count_active(target_scope)
         if count >= MAX_JOBS_PER_SCOPE:
             return {"error": f"too many active jobs ({count}/{MAX_JOBS_PER_SCOPE})"}
 
         now = datetime.now(timezone.utc)
+        no_expiry = (job_type == "cron" and timeout_seconds <= 0)
+        if no_expiry:
+            config = {**config, "no_expiry": True}
+            expires_at = (now + timedelta(days=36500)).isoformat()
+        else:
+            timeout_seconds = max(1, min(timeout_seconds, MAX_TIMEOUT))
+            expires_at = (now + timedelta(seconds=timeout_seconds)).isoformat()
+
         job_id = f"bg-{uuid4().hex[:10]}"
         trigger_at = None
         if job_type == "timer":
@@ -134,7 +150,7 @@ class BgJobManager:
             "message": message, "target_session_id": target_session_id,
             "target_name": target_name, "target_scope": target_scope,
             "created_by_name": created_by, "status": "active",
-            "expires_at": (now + timedelta(seconds=timeout_seconds)).isoformat(),
+            "expires_at": expires_at,
             "trigger_at": trigger_at, "created_at": now.isoformat(),
             "last_output": "",
         }
@@ -167,6 +183,10 @@ class BgJobManager:
             host = config.get("host")
             coro = self._run_exec(job_id, config["command"], message, target_name,
                                   target_scope, timeout, host=host)
+        elif job_type == "cron":
+            cron_timeout = None if config.get("no_expiry") else timeout
+            coro = self._run_cron(job_id, config["cron_expr"], message,
+                                  target_name, target_scope, cron_timeout)
         else:
             return
         task = asyncio.create_task(coro)
@@ -285,6 +305,40 @@ class BgJobManager:
             await self._trigger(job_id, message, target_name, target_scope)
         except asyncio.CancelledError:
             pass
+
+    async def _run_cron(self, job_id, cron_expr, message, target_name, target_scope, timeout):
+        deadline = (time.time() + timeout) if timeout else None
+        try:
+            while True:
+                now = datetime.now(timezone.utc)
+                nxt = croniter(cron_expr, now).get_next(datetime)
+                sleep_s = max(0, (nxt - now).total_seconds())
+                if deadline is not None and time.time() + sleep_s > deadline:
+                    await asyncio.sleep(max(0, deadline - time.time()))
+                    break
+                await asyncio.sleep(sleep_s)
+                await self._fire_cron(job_id, message, target_name, target_scope)
+            self._expire(job_id)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            bg_fail_job(job_id, str(e)[:500])
+
+    async def _fire_cron(self, job_id, message, target_name, target_scope):
+        if not bg_cron_should_fire(job_id):
+            return
+        try:
+            session = await self._session_manager.ensure_loaded(target_name, target_scope)
+            if not session:
+                session = await self._session_manager.ensure_loaded_any(target_name)
+            if not session:
+                logger.warning(f"cron {job_id}: target {target_name} not found, skipping fire")
+                return
+            await session.send(f"[Cron job fired] {message}")
+            bg_cron_record_fire(job_id)
+            logger.info(f"cron {job_id}: fired → {target_name}")
+        except Exception as e:
+            logger.error(f"cron {job_id}: fire failed (continuing schedule): {e}")
 
     async def _run_file_watch(self, job_id, path, pattern, message,
                               target_name, target_scope, timeout):
