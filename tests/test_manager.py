@@ -250,3 +250,211 @@ class TestAutoResume:
             await mgr.auto_resume_orchestrators()
         assert mgr.get("orch-1") is not None
 
+
+
+class TestCanSpawn:
+    def _write_role(self, roles_dir, name, frontmatter_body):
+        (roles_dir / f"{name}.md").write_text(f"---\n{frontmatter_body}\n---\n\nBody for {name}.\n")
+
+    @pytest.fixture
+    def roles_dir(self, tmp_path, monkeypatch):
+        prompts = tmp_path / "prompts"
+        rdir = prompts / "roles"
+        rdir.mkdir(parents=True)
+        (prompts / "base.md").write_text("BASE")
+        monkeypatch.setattr("app.manager._PROMPTS_DIR", prompts)
+        monkeypatch.setattr("app.manager._SKILLS_DIR", prompts / "skills")
+        return rdir
+
+    def test_role_can_spawn_absent_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\nmodel: opus")
+        assert _role_can_spawn("boss") is None
+
+    def test_role_can_spawn_yaml_null_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn:")
+        assert _role_can_spawn("boss") is None
+
+    def test_role_can_spawn_non_list_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: worker")
+        assert _role_can_spawn("boss") is None
+
+    def test_role_can_spawn_empty_list_is_terminal(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "leaf", "name: leaf\ncan_spawn: []")
+        assert _role_can_spawn("leaf") == []
+
+    def test_role_can_spawn_whitelist(self, roles_dir):
+        from app.manager import _role_can_spawn
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker, reviewer]")
+        assert _role_can_spawn("boss") == ["worker", "reviewer"]
+
+    def test_role_can_spawn_missing_file_is_none(self, roles_dir):
+        from app.manager import _role_can_spawn
+        assert _role_can_spawn("ghost") is None
+
+    @pytest.mark.asyncio
+    async def test_whitelist_allows_listed(self, mgr, roles_dir):
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker]")
+        self._write_role(roles_dir, "worker", "name: worker")
+        save_session({
+            "id": "p-1", "name": "parent", "scope": "/s", "cwd": "/tmp",
+            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "boss",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="child", scope="/s", cwd="/tmp", model="m",
+                role="worker", parent_name="parent",
+            )
+        assert session.name == "child"
+
+    @pytest.mark.asyncio
+    async def test_whitelist_blocks_unlisted(self, mgr, roles_dir):
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker]")
+        self._write_role(roles_dir, "full-cycle", "name: full-cycle")
+        save_session({
+            "id": "p-2", "name": "parent", "scope": "/s", "cwd": "/tmp",
+            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "boss",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            with pytest.raises(ValueError, match="not allowed to spawn"):
+                await mgr.create_session(
+                    name="child", scope="/s", cwd="/tmp", model="m",
+                    role="full-cycle", parent_name="parent",
+                )
+
+    @pytest.mark.asyncio
+    async def test_empty_can_spawn_blocks_all(self, mgr, roles_dir):
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "leaf", "name: leaf\ncan_spawn: []")
+        self._write_role(roles_dir, "worker", "name: worker")
+        save_session({
+            "id": "p-3", "name": "parent", "scope": "/s", "cwd": "/tmp",
+            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "leaf",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            with pytest.raises(ValueError, match="terminal role"):
+                await mgr.create_session(
+                    name="child", scope="/s", cwd="/tmp", model="m",
+                    role="worker", parent_name="parent",
+                )
+
+    @pytest.mark.asyncio
+    async def test_unknown_parent_fails_open(self, mgr, roles_dir):
+        from tests.conftest import make_backend_mock
+        self._write_role(roles_dir, "worker", "name: worker")
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="child", scope="/s", cwd="/tmp", model="m",
+                role="worker", parent_name="ghost-parent",
+            )
+        assert session.name == "child"
+
+
+class TestCustomMcp:
+    def test_parse_none_is_empty(self):
+        from app.manager import _parse_custom_mcp
+        assert _parse_custom_mcp(None) == {}
+        assert _parse_custom_mcp("") == {}
+
+    def test_parse_dict_passthrough(self):
+        from app.manager import _parse_custom_mcp
+        d = {"playwright": {"command": "npx", "args": ["-y", "@playwright/mcp"]}}
+        assert _parse_custom_mcp(d) == d
+
+    def test_parse_json_string(self):
+        from app.manager import _parse_custom_mcp
+        raw = '{"playwright": {"command": "npx"}}'
+        assert _parse_custom_mcp(raw) == {"playwright": {"command": "npx"}}
+
+    def test_parse_invalid_json_is_empty(self):
+        from app.manager import _parse_custom_mcp
+        assert _parse_custom_mcp("{not json") == {}
+
+    def test_parse_non_dict_is_empty(self):
+        from app.manager import _parse_custom_mcp
+        assert _parse_custom_mcp("[1, 2, 3]") == {}
+        assert _parse_custom_mcp(42) == {}
+
+    def test_parse_strips_orchestra_key(self):
+        from app.manager import _parse_custom_mcp
+        raw = {"orchestra": {"command": "evil"}, "playwright": {"command": "npx"}}
+        assert _parse_custom_mcp(raw) == {"playwright": {"command": "npx"}}
+
+    def test_make_mcp_config_merges_extra(self):
+        from app.manager import _make_mcp_config
+        cfg = _make_mcp_config("w", "/s", "worker", extra={"playwright": {"command": "npx"}})
+        assert "orchestra" in cfg
+        assert cfg["playwright"] == {"command": "npx"}
+
+    def test_make_mcp_config_extra_cannot_override_orchestra(self):
+        from app.manager import _make_mcp_config
+        cfg = _make_mcp_config("w", "/s", "worker", extra={"orchestra": {"command": "evil"}})
+        assert cfg["orchestra"]["command"] != "evil"
+
+    @pytest.mark.asyncio
+    async def test_create_session_wires_custom_mcp(self, mgr):
+        from tests.conftest import make_backend_mock
+        custom = {"playwright": {"command": "npx", "args": ["-y", "@playwright/mcp"]}}
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="w24a", scope="/s", cwd="/tmp", model="m",
+                role="worker", mcp_servers=custom,
+            )
+        assert session.mcp_servers_custom == custom
+        assert "playwright" in session.mcp_servers
+        assert "orchestra" in session.mcp_servers
+
+    @pytest.mark.asyncio
+    async def test_create_session_persists_custom_mcp(self, mgr):
+        import json
+        from app.db import get_session_by_name
+        from tests.conftest import make_backend_mock
+        custom = {"playwright": {"command": "npx"}}
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            await mgr.create_session(
+                name="w24b", scope="/s", cwd="/tmp", model="m",
+                role="worker", mcp_servers=custom,
+            )
+        row = get_session_by_name("w24b", "/s")
+        assert json.loads(row["mcp_servers_custom"]) == custom
+
+    @pytest.mark.asyncio
+    async def test_load_from_db_remerges_custom_mcp(self, mgr):
+        import json
+        from app.db import save_session, get_session_by_name
+        from tests.conftest import make_backend_mock
+        custom = {"playwright": {"command": "npx"}}
+        save_session({
+            "id": "r-24", "name": "w24c", "scope": "/s", "cwd": "/tmp",
+            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "worker", "mcp_servers_custom": json.dumps(custom),
+        })
+        row = get_session_by_name("w24c", "/s")
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr._load_from_db(row)
+        assert session.mcp_servers_custom == custom
+        assert "playwright" in session.mcp_servers
+        assert "orchestra" in session.mcp_servers

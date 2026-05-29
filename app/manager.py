@@ -148,6 +148,25 @@ def _load_role_skills(role: str) -> str:
     return "## Skills\n\n" + "\n\n---\n\n".join(parts)
 
 
+def _role_can_spawn(role: str):
+    """Return the can_spawn whitelist for a role, or None if unrestricted.
+    None  = field absent OR malformed -> no restriction (spawn anything)
+    []    = empty list                -> terminal role (spawn nothing)
+    [...] = whitelist of allowed child roles
+    """
+    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
+    if not role_path.exists():
+        return None
+    meta, _ = _parse_role_frontmatter(role_path.read_text())
+    if "can_spawn" not in meta:
+        return None
+    val = meta["can_spawn"]
+    if not isinstance(val, list):
+        logger.warning(f"role '{role}' has non-list can_spawn ({val!r}); treating as unrestricted")
+        return None
+    return [str(x) for x in val]
+
+
 def _skills_catalog() -> str:
     """Build catalog of available skills from skills/ directory for orchestrator."""
     if not _SKILLS_DIR.is_dir():
@@ -235,7 +254,25 @@ def _prompt_template_hash(role_or_orch) -> str:
     return hashlib.md5(content.encode()).hexdigest()[:8]
 
 
-def _make_mcp_config(name: str, scope: str, role: str = "worker") -> dict:
+def _parse_custom_mcp(raw) -> dict:
+    """Sanitize custom MCP servers (from DB JSON string or a dict).
+    Returns a dict with the `orchestra` key stripped. Non-dict input -> {}."""
+    if not raw:
+        return {}
+    if isinstance(raw, str):
+        import json
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("invalid mcp_servers_custom JSON; ignoring")
+            return {}
+    if not isinstance(raw, dict):
+        logger.warning(f"mcp_servers_custom is not an object ({type(raw).__name__}); ignoring")
+        return {}
+    return {k: v for k, v in raw.items() if k != "orchestra"}
+
+
+def _make_mcp_config(name: str, scope: str, role: str = "worker", extra: dict | None = None) -> dict:
     env = {
         **MCP_BASE_ENV,
         "ORCHESTRA_URL": "http://127.0.0.1:8888",
@@ -243,7 +280,14 @@ def _make_mcp_config(name: str, scope: str, role: str = "worker") -> dict:
         "ORCHESTRA_ROLE": role,
         "WORKER_NAME": name,
     }
-    return {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": env, "alwaysLoad": True}}
+    cfg = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": env, "alwaysLoad": True}}
+    if extra:
+        for k, v in extra.items():
+            if k == "orchestra":
+                logger.warning("custom MCP server 'orchestra' would override Orchestra MCP — ignored")
+                continue
+            cfg[k] = v
+    return cfg
 
 
 class SessionManager:
@@ -281,6 +325,7 @@ class SessionManager:
                     task_id=job.get("task_id", ""),
                     description=job.get("description", ""),
                     parent_name=job.get("parent_name", ""),
+                    mcp_servers=job.get("mcp_servers"),
                 )
                 await session.send(job["task"])
                 update_job(job_id, "succeeded")
@@ -307,7 +352,8 @@ class SessionManager:
                              repo_path: str | None = None, is_orchestrator: bool = False,
                              role: str = "", task_id: str = "", description: str = "",
                              base_branch: str = "main",
-                             parent_id: str = "", parent_name: str = "") -> AgentSession:
+                             parent_id: str = "", parent_name: str = "",
+                             mcp_servers: dict | None = None) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -332,13 +378,26 @@ class SessionManager:
             if p_session:
                 parent_id = p_session.id if isinstance(p_session, AgentSession) else p_session.get("id", "")
 
+        if parent_name:
+            parent_role = self._resolve_role(parent_name, scope)
+            if parent_role:
+                whitelist = _role_can_spawn(parent_role)
+                if whitelist is not None and role not in whitelist:
+                    allowed = ", ".join(whitelist) if whitelist else "(none — terminal role)"
+                    raise ValueError(
+                        f"role '{parent_role}' is not allowed to spawn role '{role}'. "
+                        f"Allowed: {allowed}"
+                    )
+
+        custom_mcp = _parse_custom_mcp(mcp_servers)
         bt = backend_for_model(model)
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, role=role,
             parent_id=parent_id, parent_name=parent_name,
             color="" if is_orch else self._pick_color(),
-            mcp_servers=_make_mcp_config(name, scope, role),
+            mcp_servers=_make_mcp_config(name, scope, role, extra=custom_mcp),
+            mcp_servers_custom=custom_mcp,
             backend_type=bt, task_id=task_id, description=description,
         )
         session._template_hash = _prompt_template_hash(role)
@@ -444,6 +503,13 @@ class SessionManager:
         db_row = get_session_by_name(name, scope)
         return db_row
 
+    def _resolve_role(self, name: str, scope: str) -> str | None:
+        for s in self.sessions.values():
+            if s.name == name and s.scope == scope:
+                return s.role
+        row = get_session_by_name(name, scope)
+        return row.get("role") if row else None
+
     async def ensure_loaded(self, name: str, scope: str) -> Optional[AgentSession]:
         scope = scope.rstrip("/")
         for s in self.sessions.values():
@@ -491,6 +557,7 @@ class SessionManager:
                     m = _TASK_BRANCH_RE.match(actual_branch)
                     db_task_id = m.group(1) if m else ""
 
+        custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
             model=db_row["model"], system_prompt=old_prompt or current_prompt,
@@ -502,7 +569,8 @@ class SessionManager:
             parent_id=db_row.get("parent_id", ""),
             parent_name=db_row.get("parent_name", ""),
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
-            mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role),
+            mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role, extra=custom_mcp),
+            mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, task_id=db_task_id,
             description=db_row.get("description", ""),
         )

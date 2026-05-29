@@ -1,7 +1,7 @@
 """TDD tests for db.py — written BEFORE implementation."""
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -375,3 +375,139 @@ class TestTestLock:
         from app.db import acquire_test_lock
         assert acquire_test_lock(scope="/a", holder="x", reason="")[0] is True
         assert acquire_test_lock(scope="/b", holder="y", reason="")[0] is True  # другой scope свободен
+
+
+def _save_bg(job_id="bg-1", type="cron", config=None, status="active",
+             expires_offset_s=3600):
+    import json
+    from app.db import bg_save_job
+    now = datetime.now(timezone.utc)
+    bg_save_job({
+        "id": job_id, "type": type, "config": json.dumps(config or {}),
+        "message": "ping", "target_session_id": "s-1", "target_name": "w1",
+        "target_scope": "/s", "created_by_name": "orch", "status": status,
+        "expires_at": (now + timedelta(seconds=expires_offset_s)).isoformat(),
+        "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+    })
+
+
+class TestBgCron:
+    def test_accepts_cron_type(self, db):
+        # No CHECK error on type='cron' in the fresh schema.
+        _save_bg(type="cron", config={"cron_expr": "*/5 * * * *"})
+        from app.db import bg_get_active_all
+        assert any(j["type"] == "cron" for j in bg_get_active_all())
+
+    def test_should_fire_active(self, db):
+        from app.db import bg_cron_should_fire
+        _save_bg(job_id="bg-a", status="active", expires_offset_s=3600)
+        assert bg_cron_should_fire("bg-a") is True
+
+    def test_should_fire_false_when_cancelled(self, db):
+        from app.db import bg_cron_should_fire, bg_cancel_job
+        _save_bg(job_id="bg-b", status="active")
+        bg_cancel_job("bg-b")
+        assert bg_cron_should_fire("bg-b") is False
+
+    def test_should_fire_false_when_expired_time(self, db):
+        from app.db import bg_cron_should_fire
+        _save_bg(job_id="bg-c", status="active", expires_offset_s=-10)
+        assert bg_cron_should_fire("bg-c") is False
+
+    def test_should_fire_false_when_missing(self, db):
+        from app.db import bg_cron_should_fire
+        assert bg_cron_should_fire("ghost") is False
+
+    def test_record_fire_increments(self, db):
+        import json
+        from app.db import bg_cron_record_fire, bg_get_active_all
+        _save_bg(job_id="bg-d", config={"cron_expr": "* * * * *"})
+        bg_cron_record_fire("bg-d")
+        bg_cron_record_fire("bg-d")
+        job = next(j for j in bg_get_active_all() if j["id"] == "bg-d")
+        cfg = json.loads(job["config"])
+        assert cfg["fire_count"] == 2
+        assert "last_fired_at" in cfg
+
+    def test_record_fire_noop_when_not_active(self, db):
+        import json
+        from app.db import bg_cron_record_fire, bg_cancel_job, bg_get_jobs
+        _save_bg(job_id="bg-e", config={"cron_expr": "* * * * *"})
+        bg_cancel_job("bg-e")
+        bg_cron_record_fire("bg-e")
+        job = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "bg-e")
+        cfg = json.loads(job["config"])
+        assert "fire_count" not in cfg
+
+
+class TestBgMigration:
+    def _make_old_schema_db(self, db_path):
+        """Create a bg_jobs table WITH the old type CHECK + seed a row."""
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("""
+            CREATE TABLE bg_jobs (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL CHECK (type IN ('timer','file','command','ssh','run')),
+                config TEXT NOT NULL DEFAULT '{}',
+                message TEXT NOT NULL DEFAULT '',
+                target_session_id TEXT NOT NULL,
+                target_name TEXT NOT NULL,
+                target_scope TEXT NOT NULL,
+                created_by_name TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'active'
+                    CHECK (status IN ('active','triggering','triggered','expired','cancelled','failed')),
+                error TEXT,
+                expires_at TEXT NOT NULL,
+                trigger_at TEXT,
+                created_at TEXT NOT NULL,
+                triggered_at TEXT,
+                last_output TEXT NOT NULL DEFAULT ''
+            )
+        """)
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "INSERT INTO bg_jobs (id, type, config, target_session_id, target_name, "
+            "target_scope, status, expires_at, created_at) "
+            "VALUES ('old-1','timer','{}','s','n','/s','active',?,?)",
+            (now, now),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_migrate_drops_type_check(self, tmp_path, monkeypatch):
+        import json
+        db_path = tmp_path / "old.db"
+        self._make_old_schema_db(db_path)
+        monkeypatch.setattr("app.db.DB_PATH", db_path)
+        from app.db import init_db, bg_save_job, bg_get_active_all
+        init_db()  # runs _migrate, rebuilds bg_jobs without type CHECK
+        # original row preserved
+        ddl = None
+        from app.db import _conn
+        with _conn() as c:
+            ddl = c.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='bg_jobs'"
+            ).fetchone()[0]
+            assert "type IN ('timer'" not in ddl
+            cnt = c.execute("SELECT COUNT(*) FROM bg_jobs").fetchone()[0]
+            assert cnt == 1
+            old_exists = c.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='bg_jobs_old'"
+            ).fetchone()
+            assert old_exists is None
+        # cron type now accepted
+        now = datetime.now(timezone.utc)
+        bg_save_job({
+            "id": "cron-1", "type": "cron", "config": json.dumps({"cron_expr": "* * * * *"}),
+            "message": "", "target_session_id": "s", "target_name": "n",
+            "target_scope": "/s", "created_by_name": "", "status": "active",
+            "expires_at": (now + timedelta(hours=1)).isoformat(),
+            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+        })
+        assert any(j["type"] == "cron" for j in bg_get_active_all())
+
+    def test_migrate_idempotent_on_fresh_db(self, db):
+        # Fresh DB already has no type CHECK; init_db again must not error.
+        from app.db import init_db
+        init_db()
