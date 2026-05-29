@@ -16,13 +16,16 @@
 ## Ideas
 
 ### Из форка Вадима (mccalpink/orchestra, ветки v2-pipeline + personal)
-- [ ] **Роли агентов (v2 pipeline)** — типизированные роли: `pm-glava`, `pm-fichi`, `analyst`, `coder`, `tester`. Каждая роль = свой промпт в `app/prompts/roles/`. Оркестратор спавнит по ролям, а не по именам. Файлы: `roles/*.md`, `manager.py`, `session.py`
-- [ ] **Иерархия parent-child** — оркестратор → суб-оркестраторы → воркеры. DB колонки `role`, `parent_id`, `parent_name`. Авто-репорт идёт к parent, не к root. Файлы: `db.py`, `session.py`, `manager.py`
 - [ ] **docs_feature scaffold** — при spawn воркера на фичу автоматом создаётся `docs_work/<feature>/` с шаблонами `_sprint.md`, `_pm.md`, `_analysis.md`, `_impl.md`. Symlink в worktree. Решает проблему "контекст потерялся при compaction". Файлы: `workspace.py`, `manager.py`
 - [ ] **TG topic labels по ролям** — формат `<метка> | <Роль>` вместо просто имени. Группировка по feature. Subtree running check per orchestrator. Файлы: `tg_bridge.py`
 - [ ] **UI дерево агентов** — `renderAgentList` показывает parent-child дерево вместо плоского списка. Файлы: `app.js`, `dashboard.html`
 - [ ] **codex-debate** — замена codex-review: итеративный дебат между моделями вместо одноразового ревью. 421 строк SKILL.md. Файлы: `app/skills/codex-debate/`
 - [ ] **TG тесты** — 289 строк тестов для tg_bridge.py. Файлы: `tests/test_tg_bridge.py`
+
+### Swarm (рой агентов)
+- [ ] **Best-of-N solving** — `spawn_swarm(task, n=3, strategy="best-of-n")` MCP tool. Спавнит N воркеров на одну задачу разными подходами, reviewer/мета-оркестратор выбирает лучший результат. Аналог xAI Grok Arena Mode. Файлы: `manager.py`, `mcp_stdio.py`
+- [ ] **Shared swarm memory** — SQLite таблица `swarm_state(swarm_id, key, value, worker, ts)`. Воркеры одного роя читают/пишут общий контекст. Решает проблему дублирования работы при параллельных воркерах. Файлы: `db.py`, `mcp_stdio.py`
+- [ ] **Swarm judge** — `judge_results(swarm_id)` — reviewer-агент сравнивает результаты N воркеров, выбирает/мерджит лучший. Можно Opus reviewer или cross-model (GPT-5.5 vs Opus). Файлы: `manager.py`, `mcp_stdio.py`
 
 ### Наши
 - [ ] **Cross-server messaging** — связь между Orchestra на разных серверах через webhook
