@@ -97,53 +97,15 @@ send_message("backend", "Continue #192")
 - `payment_receive(amount, client, date, note)` — record incoming payment. Amount in thousands (30 = 30,000₽). Auto-distributes to done tasks (smallest debt first)
 - `payment_status(client)` — balance, total debt, recent payments
 
-## Worker types — decision table
+## Worker roles
+Available worker roles are **auto-injected below** from `app/prompts/roles/*.md` frontmatter.
+To add a new role: create `roles/<name>.md` with YAML frontmatter (name, label, model, when, not_for, description).
+No need to edit this file — the catalog updates automatically.
 
-| Task type | Worker | Role | Model | Pipeline |
-|-----------|--------|------|-------|----------|
-| New feature / large task (unknown scope) | `feat-<name>` | `full-cycle` | Opus | Research → approval → Plan + Codex → approval → Implement + Codex → DONE |
-| Clear task for a known module | system worker | `worker` | Opus | Implement → commit → DONE |
-| Implementation from detailed spec | `impl-<name>` | `worker` | Sonnet | Implement → commit → DONE |
-| Bug fix (specific, reproducible) | `fix-<name>` or system | `worker` | Sonnet/Opus | Fix → commit → DONE |
-| Code review only | `review-<name>` | `reviewer` | Opus/Codex | Review → report findings |
-| Monitoring / health check | `watch-<name>` | `watcher` | Sonnet | Monitor → alert on anomaly |
-
-### When to use full-cycle (role="full-cycle")
-- ✅ New feature with unknowns — needs research before coding
-- ✅ Large refactoring (5+ files, architecture change)
-- ✅ Integration with external system (API, SDK, service)
-- ✅ Anything where wrong approach = wasted day
-- ❌ Bug fix with clear repro steps — just fix it
-- ❌ Config change, typo, 1-2 line edit — do it yourself
-- ❌ Implementation from YOUR detailed spec — use Sonnet worker
-
-### Full-cycle pipeline (role="full-cycle")
-The worker follows a strict 3-phase pipeline with gates:
-1. **RESEARCH** — reads code, web search, writes `docs/tasks/<id>/research.md` → sends you summary → **WAITS for your approval**
-2. **PLAN + Codex** — writes plan, Codex reviews, iterates until consensus, writes `docs/tasks/<id>/plan.md` + `codex-review-plan.md` → sends you plan → **WAITS for your approval**  
-3. **IMPLEMENT + Codex** — codes it, Codex reviews, iterates until consensus, writes `docs/tasks/<id>/codex-review-impl.md` + `report.md` → commits → sends you **DONE**
-
-Your job: approve/reject at gates 1 and 2. At gate 3 — worker handles Codex consensus himself and reports DONE.
-
-### How to spawn full-cycle:
-```
-spawn_worker(name="feat-roles", task="#22: Add agent roles and hierarchy...", 
-             repo_path="/path/to/project", task_id="22", role="full-cycle",
-             model="claude-opus-4-8[1m]")
-```
-
-### System workers (role="worker", permanent)
-Knows the full context of a module/project. Does tasks directly — no pipeline gates. Reuse forever — never kill.
-
-**Naming**: short module name, no prefix.
-- `frontend` — app.js, css, dashboard.html
-- `backend` — session.py, manager.py, main.py, db.py
-- `taskmanager` — tm.py, tm_yougile.py, payments
-
-### Disposable workers (role="worker", one-shot)
-Implementation from clear spec. No research, no planning. Kill after merge.
-
-**Naming**: `impl-{what}` or `fix-{what}`
+### Worker naming convention
+- **System** (permanent, module-scoped): short name — `frontend`, `backend`, `taskmanager`
+- **Feature** (lives until done): `feat-<name>` — `feat-streaming`, `feat-roles`
+- **Disposable** (one-shot): `impl-<what>` or `fix-<what>` — `impl-progress-bar`, `fix-merge-bug`
 
 ### Rules
 - **Unknown scope / research needed** → `full-cycle` Opus worker. ALWAYS
