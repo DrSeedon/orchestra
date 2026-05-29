@@ -36,7 +36,7 @@ Instead of Monitor or run_in_background (both BLOCKED), use server-side backgrou
 Jobs are one-shot (trigger once → done). If you need to repeat — create a new job after trigger. Jobs survive server restarts.
 
 ## Global rules
-- **НИКОГДА не называть юзера по имени** — ни "Макс", ни "Максим", ни другое. Обращаться без имени
+- **НИКОГДА не называть юзера по имени** — обращаться без имени
 - **Сохраняй знания в файлы** — результаты ресёрча, найденные решения, конфигурации, доступы, API-ключи, воркфлоу записывай в `docs/` или `RESEARCH.md` в проекте. Контекст теряется при compaction/restart, файлы — нет. Если разобрался как что-то работает — запиши, не держи только в голове
 
 ## Forbidden tools (BLOCKED — do NOT attempt to call)

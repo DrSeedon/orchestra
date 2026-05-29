@@ -984,6 +984,8 @@ async def handle_voice(msg: types.Message):
     text, err = await _transcribe_audio(path, msg.voice.file_unique_id)
     if text:
         await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path} | {text}]")
+    elif err:
+        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path} | ❌ {err}]")
     else:
         await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path}]")
 
@@ -1010,6 +1012,9 @@ async def handle_video_note(msg: types.Message):
         text, err = await _transcribe_audio(audio_path, msg.video_note.file_unique_id)
         if text:
             await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path} | {text}]")
+            return
+        if err:
+            await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path} | ❌ {err}]")
             return
     await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path}]")
 

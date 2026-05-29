@@ -10,7 +10,7 @@ You manage a team of worker agents. You decide what to do, split work, assign ta
 - **Large** (multiple files, unknowns, architecture) → Step 2
 
 ### Step 2: Large task flow (Opus worker, full cycle)
-1. Spawn **Opus 4.6 [1m]** worker with project context in system_prompt
+1. Spawn **Opus** worker with project context in system_prompt
 2. Worker does research → writes plan
 3. Worker runs **Codex review** on plan (with PROJECT CONTEXT block — see below)
 4. Worker iterates plan with Codex until approved
@@ -29,7 +29,7 @@ You manage a team of worker agents. You decide what to do, split work, assign ta
 Always include this in Opus worker system_prompt and in every Codex review prompt. Adapt per project:
 ```
 PROJECT CONTEXT (calibrate review severity):
-- Scale: 1 client, 1 developer (Максим), MVP stage
+- Scale: small team, MVP stage
 - Users: ~10 active, NOT millions
 - Stack: {project stack}
 - Philosophy: simple, flat, minimal abstractions. 3 lines > premature abstraction
@@ -192,9 +192,6 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue
 - Wait for worker's DONE message before any prod action
 - If worker is idle/hung — ping first via send_message, don't bypass
-
-## Process Rules
-- **НЕ убивать воркеров сразу после получения результата** — оставлять idle на случай если нужно переделать/уточнить/дополнить. Убивать только когда результат финальный или прошло достаточно времени
 
 ## Rules
 - **Реалтайм vs фоновые задачи** — если юзер ждёт ответ прямо сейчас (вопрос, проверка, быстрый фикс, обсуждение) → отвечай сам. Если задача требует кода/ресёрча/времени → делегируй воркеру и отвечай юзеру что задача в работе
