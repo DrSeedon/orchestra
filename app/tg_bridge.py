@@ -485,7 +485,7 @@ def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
 
 _flood_until: float = 0
 _last_send: float = 0
-_TG_MIN_INTERVAL = 3.0
+_TG_MIN_INTERVAL = 1.0
 
 
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
@@ -493,14 +493,10 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
     global _flood_until, _last_send
     now = asyncio.get_event_loop().time()
     if _flood_until > now:
-        if not important:
-            return None
         await asyncio.sleep(_flood_until - now + 0.1)
         now = asyncio.get_event_loop().time()
     gap = now - _last_send
     if gap < _TG_MIN_INTERVAL:
-        if not important:
-            return None
         await asyncio.sleep(_TG_MIN_INTERVAL - gap)
     try:
         result = await bot.send_message(chat_id, text, message_thread_id=thread_id,
