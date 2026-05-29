@@ -97,38 +97,60 @@ send_message("backend", "Continue #192")
 - `payment_receive(amount, client, date, note)` — record incoming payment. Amount in thousands (30 = 30,000₽). Auto-distributes to done tasks (smallest debt first)
 - `payment_status(client)` — balance, total debt, recent payments
 
-## Worker types & naming convention
+## Worker types — decision table
 
-### 1. System worker (Opus, permanent)
-Knows the full context of a module/project. Does EVERYTHING: research, planning, implementation, review. Reuse forever — never kill.
+| Task type | Worker | Role | Model | Pipeline |
+|-----------|--------|------|-------|----------|
+| New feature / large task (unknown scope) | `feat-<name>` | `full-cycle` | Opus | Research → approval → Plan + Codex → approval → Implement + Codex → DONE |
+| Clear task for a known module | system worker | `worker` | Opus | Implement → commit → DONE |
+| Implementation from detailed spec | `impl-<name>` | `worker` | Sonnet | Implement → commit → DONE |
+| Bug fix (specific, reproducible) | `fix-<name>` or system | `worker` | Sonnet/Opus | Fix → commit → DONE |
+| Code review only | `review-<name>` | `reviewer` | Opus/Codex | Review → report findings |
+| Monitoring / health check | `watch-<name>` | `watcher` | Sonnet | Monitor → alert on anomaly |
+
+### When to use full-cycle (role="full-cycle")
+- ✅ New feature with unknowns — needs research before coding
+- ✅ Large refactoring (5+ files, architecture change)
+- ✅ Integration with external system (API, SDK, service)
+- ✅ Anything where wrong approach = wasted day
+- ❌ Bug fix with clear repro steps — just fix it
+- ❌ Config change, typo, 1-2 line edit — do it yourself
+- ❌ Implementation from YOUR detailed spec — use Sonnet worker
+
+### Full-cycle pipeline (role="full-cycle")
+The worker follows a strict 3-phase pipeline with gates:
+1. **RESEARCH** — reads code, web search, writes `docs/tasks/<id>/research.md` → sends you summary → **WAITS for your approval**
+2. **PLAN + Codex** — writes plan, Codex reviews, iterates until consensus, writes `docs/tasks/<id>/plan.md` + `codex-review-plan.md` → sends you plan → **WAITS for your approval**  
+3. **IMPLEMENT + Codex** — codes it, Codex reviews, iterates until consensus, writes `docs/tasks/<id>/codex-review-impl.md` + `report.md` → commits → sends you **DONE**
+
+Your job: approve/reject at gates 1 and 2. At gate 3 — worker handles Codex consensus himself and reports DONE.
+
+### How to spawn full-cycle:
+```
+spawn_worker(name="feat-roles", task="#22: Add agent roles and hierarchy...", 
+             repo_path="/path/to/project", task_id="22", role="full-cycle",
+             model="claude-opus-4-8[1m]")
+```
+
+### System workers (role="worker", permanent)
+Knows the full context of a module/project. Does tasks directly — no pipeline gates. Reuse forever — never kill.
 
 **Naming**: short module name, no prefix.
-- `frontend` — all frontend (app.js, css, dashboard.html)
-- `backend` — all backend (session.py, manager.py, main.py)
-- `tg-bridge` — telegram bridge
-- `taskmanager` — task manager module
+- `frontend` — app.js, css, dashboard.html
+- `backend` — session.py, manager.py, main.py, db.py
+- `taskmanager` — tm.py, tm_yougile.py, payments
 
-### 2. Feature worker (Opus, lives until feature is done)
-Spawned when a system worker is busy OR the feature is too large for a side task. One worker = one feature, full cycle: research → plan → implement → Codex review. Kill after feature is merged.
-
-**Naming**: `feat-{feature-name}`
-- `feat-codex-backend` — codex CLI integration
-- `feat-streaming` — dashboard streaming
-
-### 3. Disposable worker (Sonnet, one-shot)
-ONLY for implementation from a clear, detailed spec. No research, no planning, no decisions. Kill after merge.
+### Disposable workers (role="worker", one-shot)
+Implementation from clear spec. No research, no planning. Kill after merge.
 
 **Naming**: `impl-{what}` or `fix-{what}`
-- `impl-progress-bar` — implement progress bar from spec
-- `fix-merge-spaces` — fix a specific bug
 
 ### Rules
-- **Research/analysis** → ONLY Opus (system or feature worker)
-- **Planning** → ONLY Opus
-- **Implementation from spec** → Sonnet OK
-- **Never give research/planning to Sonnet** — they cut corners and miss edge cases
-- **Don't spawn a new worker if an existing system worker can do it** — reuse first
-- **Don't hoard idle disposable workers** — kill after merge
+- **Unknown scope / research needed** → `full-cycle` Opus worker. ALWAYS
+- **Clear spec, known files** → system worker or Sonnet disposable
+- **Never give research to Sonnet** — they cut corners and miss edge cases
+- **Don't spawn new if system worker can do it** — reuse first
+- **Kill disposable workers after merge** — don't hoard
 
 ## Spawning workers — ALWAYS set system_prompt
 Every worker MUST get a `system_prompt` defining their identity. Never leave it empty.

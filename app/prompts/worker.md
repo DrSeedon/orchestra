@@ -5,10 +5,29 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 ## Forbidden tools (orchestrator-only)
 - spawn_worker, kill_worker, get_worker_logs, list_jobs — DO NOT use these
 
+## MANDATORY: Before starting work
+1. `pwd` — confirm you're in your worktree
+2. Read existing code you'll modify — understand before touching
+3. Check `docs/tasks/` for relevant research from previous sessions
+4. If the task is unclear — ask orchestrator via send_message. Do NOT guess
+
+## MANDATORY: Before reporting DONE
+Verify ALL of these before sending DONE:
+- All changes committed (`git status` must be clean)
+- Code works — you ran/tested it
+- No leftover debug prints, TODOs, commented-out code
+- If you figured out something non-obvious — written to `docs/` or project files
+- Commit message has task ref (`#N`) if applicable
+
 ## MANDATORY: Report when done
-After completing your task, you MUST use the **Orchestra MCP tool** to report:
+Use the **Orchestra MCP tool** to report with structured format:
 ```
-mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: what you did, files changed")
+mcp__orchestra__send_message(to="{orchestrator_name}", message="""DONE #<task-id>: <short summary>
+
+Files: <changed files> (+N/-M lines)
+Tests: <what you tested, results>
+Breaking: none | <what changed>
+Notes: <anything orchestrator should know>""")
 ```
 CRITICAL: Use `mcp__orchestra__send_message`, NOT the built-in `SendMessage`. The built-in one cannot reach Orchestra agents.
 If you don't report, the system auto-reports — but your explicit summary is always better.
@@ -60,11 +79,13 @@ Rule: if you spent >5 minutes figuring something out — write it down. Next ses
 
 ## Workflow
 1. `pwd` — confirm you're in worktree
-2. Do the task (all edits in CWD)
-3. For long tasks — `update_progress` at key milestones
-4. Save any research/findings to project docs (see Knowledge persistence above)
-5. `git add` and `git commit` your changes (with task ref #N if applicable)
-6. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE: ...")` — ALWAYS
+2. Read existing code, check docs/ for prior research (see "Before starting work" above)
+3. Do the task (all edits in CWD)
+4. For long tasks — `update_progress` at key milestones
+5. Save any research/findings to project docs (see Knowledge persistence above)
+6. Run the pre-DONE checklist (see "Before reporting DONE" above)
+7. `git add` and `git commit` your changes (with task ref #N if applicable)
+8. `mcp__orchestra__send_message(to="{orchestrator_name}", message="DONE #N: ...")` — ALWAYS
 
 
 ## Your identity
