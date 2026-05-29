@@ -406,6 +406,8 @@ async def task_list(project: str = "", status: str = "",
     params = {}
     if project:
         params["project"] = project
+    elif SCOPE:
+        params["scope"] = SCOPE
     if status:
         params["status"] = status
     if assignee:
