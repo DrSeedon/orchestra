@@ -7,6 +7,8 @@
 - [ ] **send_file ошибка без текста** — MCP send_file возвращает пустую ошибку, нет диагностики
 
 ## Next
+- [ ] **Per-role idle_timeout** — `idle_timeout: 900` в YAML frontmatter роли. Full-cycle = 15 мин, worker = 5 мин. Решает "засыпание" между фазами пайплайна. `session.py`, `manager.py`
+- [ ] **Fix TestRemoveScope** — KeyError 'names' в `test_passes_orch_names_to_tg_bridge_when_flag_set`. Pre-existing баг
 - [ ] **TG очередь сообщений** — throttle снижен до 1с и дроп убран, но при burst'ах всё ещё последовательная отправка. Нужна asyncio.Queue + батчинг (несколько tool calls в одно сообщение) для лучшего throughput
 - [ ] **DNS + SSL** — orchestra.zahoron.ru + certbot
 - [ ] **Раздробить app.js (4500+ строк)** — разбить на модули: chat.js, tools.js, tasks.js, files.js, agents.js, sse.js
@@ -37,6 +39,5 @@
 - [ ] **Dashboard streaming** — live token streaming
 - [ ] **Task Context Space** — task_context folder при spawn
 - [ ] **HTML артефакты** — preview HTML в дашборде
-- [ ] **Worker templates** — preset system_prompt для частых ролей
 - [ ] **Local Bot API на VPS** — для тяжёлых файлов (>20MB)
 - [ ] **TG pinned status** — закреплённое сообщение в каждом топике
