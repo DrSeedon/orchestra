@@ -1487,6 +1487,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 Kill: ${parsed.name || '?'}`;
             else if (rawName === 'mcp__orchestra__stop_worker') preview = `⏸️ Stop: ${parsed.name || '?'}`;
             else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 Logs: ${parsed.name || '?'} (${parsed.limit || 20})`;
+            else if (rawName === 'mcp__orchestra__get_worker_info') preview = `🤖 Info: ${parsed.name || '?'}`;
             else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 Agents';
             else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 Orchestrators';
             else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 Compact: ${parsed.name || '?'}`;
@@ -1651,7 +1652,7 @@ function addChatEntry(type, content, ts, anchor) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel','mcp__orchestra__update_progress'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__send_message','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs','mcp__orchestra__get_worker_info','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel','mcp__orchestra__update_progress'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -1664,8 +1665,10 @@ function addChatEntry(type, content, ts, anchor) {
                     const hasErr = clean.includes('error') || clean.includes('Error');
                     if (rawName === 'mcp__orchestra__update_progress') { resultSpan.textContent = '✓'; resultSpan.style.color = '#818cf8'; }
                     else if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    else if (rawName === 'mcp__orchestra__send_message') { const m = clean.match(/sent to '(.+?)'/i); resultSpan.textContent = hasErr ? '❌' : m ? `✅ → ${m[1]}` : '✅'; }
                     else if (rawName === 'mcp__orchestra__bg_cancel') resultSpan.textContent = hasErr ? '❌' : '⏹';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
+                    else if (rawName === 'mcp__orchestra__get_worker_info') { try { const d = JSON.parse(clean); resultSpan.textContent = `${d.status === 'running' ? '🟢' : d.status === 'idle' ? '🟡' : '⚪'} ${d.name || '?'}`; } catch { resultSpan.textContent = '✅'; } }
                     else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
                 } else if (resultSpan && isGlobCompact) {
                     const ct = clean.split('\n').filter(l=>l.trim()).length;
@@ -2162,6 +2165,7 @@ function addChatEntry(type, content, ts, anchor) {
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
             'mcp__orchestra__list_jobs': () => ({ icon: '📊', label: 'Jobs', color: '#38bdf8' }),
             'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
+            'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `Info: ${d.name||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `New: "${d.title||'?'}"`, color: '#22c55e', sub: d.price ? `${d.price}k ₽` : '' }),
             'mcp__orchestra__task_update': (d) => { const f = Object.keys(d).filter(k=>k!=='par').map(k=>`${k}→${d[k]}`).join(', '); return { icon: '✏️', label: `#${taskNum(d.par)||'?'}: ${f}`, color: '#38bdf8' }; },
             'mcp__orchestra__task_list': (d) => { const f = [d.status,d.project,d.assignee].filter(Boolean).join(', '); return { icon: '📋', label: `Tasks${f ? ' ('+f+')' : ''}`, color: '#a78bfa' }; },
@@ -2500,7 +2504,7 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
-            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status','mcp__orchestra__bg_list'];
+            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status','mcp__orchestra__bg_list','mcp__orchestra__get_worker_info'];
             if (_tmTools.includes(lastTool.dataset.toolRawName)) {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 let parsed = null;
@@ -2735,6 +2739,44 @@ function addChatEntry(type, content, ts, anchor) {
                         }
                         lastTool.appendChild(container);
                     }
+                } else if (tn === 'mcp__orchestra__get_worker_info') {
+                    const stColor = {'running':'#22c55e','idle':'#eab308','error':'#ef4444','stopped':'#6b7280','starting':'#f97316'}[parsed.status] || '#94a3b8';
+                    const MODEL_SHORT = {'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-7[1m]':'Opus 4.7 1M','claude-opus-4-6[1m]':'Opus 4.6 1M','claude-opus-4-6':'Opus 4.6','claude-sonnet-4-6':'Sonnet 4.6','claude-haiku-4-5':'Haiku 4.5','gpt-5.5':'GPT 5.5'};
+                    const modelShort = MODEL_SHORT[parsed.model] || parsed.model || '?';
+                    if (hdr) {
+                        hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${parsed.status || '?'}</span>`;
+                    }
+                    const grid = document.createElement('div');
+                    grid.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px';
+                    const _row = (label, val, color) => { if (val != null && val !== '') grid.innerHTML += `<span style="color:#64748b">${label}</span><span style="color:${color||'#cbd5e1'}">${DOMPurify.sanitize(String(val))}</span>`; };
+                    _row('Role', parsed.is_orchestrator ? '🎯 orchestrator' : '⚙️ worker');
+                    _row('Branch', parsed.branch, '#818cf8');
+                    const ctxPct = parsed.context_pct || 0;
+                    const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
+                    _row('Context', `${ctxPct}%`, ctxColor);
+                    _row('Cost', `$${parsed.cost_usd ?? 0}`, '#22c55e');
+                    if (parsed.task_id) _row('Task', `#${parsed.task_id}`, '#a78bfa');
+                    if (parsed.total_turns) _row('Turns', parsed.total_turns);
+                    if (parsed.total_tool_calls) _row('Tool calls', parsed.total_tool_calls);
+                    if (parsed.total_input_tokens || parsed.total_output_tokens) _row('Tokens', `${(parsed.total_input_tokens||0).toLocaleString()} in / ${(parsed.total_output_tokens||0).toLocaleString()} out`);
+                    if (parsed.progress_pct > 0) _row('Progress', `${parsed.progress_pct}%${parsed.progress_status ? ' — '+parsed.progress_status : ''}`, '#38bdf8');
+                    lastTool.appendChild(grid);
+                    if (parsed.description) {
+                        const descEl = document.createElement('div');
+                        descEl.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;font-style:italic;max-height:40px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere';
+                        descEl.textContent = parsed.description;
+                        lastTool.appendChild(descEl);
+                        if (parsed.description.length > 120) {
+                            lastTool.style.cursor = 'pointer';
+                            let _wiExp = false;
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _wiExp = !_wiExp;
+                                descEl.style.maxHeight = _wiExp ? 'none' : '40px';
+                                descEl.style.overflowY = _wiExp ? 'visible' : 'hidden';
+                            });
+                        }
+                    }
                 }
                 addTimestamp(lastTool, ts);
                 if (['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__payment_receive'].includes(tn)) loadTasks();
@@ -2747,6 +2789,7 @@ function addChatEntry(type, content, ts, anchor) {
                 'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
                 'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — description updated`, color: '#22c55e' } : { text: '✅ description updated', color: '#22c55e' }; },
                 'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
+                'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('failed') ? null : { text: '✅ Sent', color: '#22c55e' }; },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__list_agents': null,
                 'mcp__orchestra__list_orchestrators': null,
@@ -2876,6 +2919,47 @@ function addChatEntry(type, content, ts, anchor) {
                         addTimestamp(lastTool, ts);
                         return;
                     }
+                }
+                if (lastTool.dataset.toolRawName === 'mcp__orchestra__get_worker_logs') {
+                    const lines = clean.split('\n').filter(l => l.trim());
+                    let workerName = '';
+                    try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
+                    if (hdr) { hdr.textContent = `📋 ${workerName ? workerName+': ' : ''}${lines.length} log entries`; hdr.style.color = '#a78bfa'; }
+                    if (lines.length > 0) {
+                        const PREVIEW_LOG = 6;
+                        const container = document.createElement('div');
+                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:1px';
+                        for (const [i, line] of lines.entries()) {
+                            const row = document.createElement('div');
+                            row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:3px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                            row.dataset.logRow = '1';
+                            if (i >= PREVIEW_LOG) row.style.display = 'none';
+                            if (line.startsWith('❌')) row.style.color = '#f87171';
+                            else if (line.startsWith('👤')) row.style.color = '#818cf8';
+                            else if (line.startsWith('🔧')) row.style.color = '#38bdf8';
+                            row.textContent = line;
+                            row.title = line;
+                            container.appendChild(row);
+                        }
+                        lastTool.appendChild(container);
+                        if (lines.length > PREVIEW_LOG) {
+                            const hint = document.createElement('div');
+                            hint.className = 'text-xs mt-1';
+                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                            hint.textContent = `▼ ${lines.length - PREVIEW_LOG} more`;
+                            lastTool.appendChild(hint);
+                            let _logExp = false;
+                            lastTool.style.cursor = 'pointer';
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _logExp = !_logExp;
+                                container.querySelectorAll('[data-log-row]').forEach((r, i) => { if (i >= PREVIEW_LOG) r.style.display = _logExp ? 'block' : 'none'; });
+                                hint.textContent = _logExp ? '▲ collapse' : `▼ ${lines.length - PREVIEW_LOG} more`;
+                            });
+                        }
+                    }
+                    addTimestamp(lastTool, ts);
+                    return;
                 }
                 const resultEl = document.createElement('div');
                 resultEl.className = 'text-xs markdown-body';
