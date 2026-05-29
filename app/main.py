@@ -97,9 +97,11 @@ class CreateSessionRequest(BaseModel):
     use_worktree: bool = False
     repo_path: Optional[str] = None
     is_orchestrator: bool = False
+    role: str = ""
     task_id: str = ""
     description: str = ""
     base_branch: str = "main"
+    parent_name: str = ""
 
     @field_validator("name")
     @classmethod
@@ -362,9 +364,11 @@ async def create_session(req: CreateSessionRequest):
             use_worktree=req.use_worktree,
             repo_path=req.repo_path,
             is_orchestrator=req.is_orchestrator,
+            role=req.role,
             task_id=req.task_id,
             description=req.description,
             base_branch=req.base_branch,
+            parent_name=req.parent_name,
         )
         return session.to_dict()
     except ValueError as e:
@@ -997,9 +1001,10 @@ async def report_bug_endpoint(req: Request):
 @app.get("/api/orchestrators")
 async def list_orchestrators():
     from app.db import get_all_sessions
+    from app.session import is_orchestrator_role
     active = [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
     active_ids = {s["id"] for s in active}
-    db_orchs = [s for s in get_all_sessions() if s.get("is_orchestrator") and s["id"] not in active_ids]
+    db_orchs = [s for s in get_all_sessions() if is_orchestrator_role(s.get("role", "worker")) and s["id"] not in active_ids]
     result = active + db_orchs
     running_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "running"}
     for o in result:
