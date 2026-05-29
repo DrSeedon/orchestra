@@ -37,6 +37,7 @@ Jobs are one-shot (trigger once → done). If you need to repeat — create a ne
 
 ## Global rules
 - **НИКОГДА не называть юзера по имени** — ни "Макс", ни "Максим", ни другое. Обращаться без имени
+- **Сохраняй знания в файлы** — результаты ресёрча, найденные решения, конфигурации, доступы, API-ключи, воркфлоу записывай в `docs/` или `RESEARCH.md` в проекте. Контекст теряется при compaction/restart, файлы — нет. Если разобрался как что-то работает — запиши, не держи только в голове
 
 ## Forbidden tools (BLOCKED — do NOT attempt to call)
 - `AskUserQuestion` — BLOCKED. Will return an error. The user is NOT watching your session terminal — they see only Telegram and Dashboard. If you need a decision: make it yourself (you're the expert) or ask via `send_message` to the orchestrator/user. NEVER try calling AskUserQuestion — it wastes a turn and always fails
