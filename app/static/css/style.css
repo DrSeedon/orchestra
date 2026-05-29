@@ -53,7 +53,13 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .markdown-body li { margin: 0.15em 0; }
 .markdown-body strong { color: #f1f5f9; }
 .markdown-body em { color: #94a3b8; }
-.markdown-body code { background: rgba(99, 102, 241, 0.15); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
+.markdown-body code { background: rgba(99, 102, 241, 0.15); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; cursor: pointer; transition: background 0.15s; position: relative; }
+.markdown-body code:hover { background: rgba(99, 102, 241, 0.35); }
+.markdown-body pre code { cursor: default; }
+.markdown-body pre code:hover { background: none; }
+.code-copied { background: rgba(34, 197, 94, 0.3) !important; }
+.copy-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(34, 197, 94, 0.9); color: #fff; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-family: system-ui, sans-serif; z-index: 9999; pointer-events: none; animation: toast-fade 1.2s ease forwards; }
+@keyframes toast-fade { 0% { opacity: 0; transform: translateX(-50%) translateY(10px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; } }
 .markdown-body pre { background: #0d1117; border: 1px solid #1e293b; border-radius: 8px; padding: 0.8em; margin: 0.4em 0; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
 .markdown-body pre code { background: none; padding: 0; white-space: pre-wrap; word-break: break-all; }
 .markdown-body table { font-size: 0.85em; max-width: 100%; border-collapse: collapse; table-layout: fixed; width: 100%; }
