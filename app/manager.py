@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from app.session import AgentSession, AgentStatus
+from app.session import AgentSession, AgentStatus, is_orchestrator_role
 
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree
@@ -54,7 +54,7 @@ def _read_prompt(name: str) -> str:
 def _other_orchestrators_block(exclude_scope: str = "") -> str:
     try:
         orchs = [s for s in get_all_sessions()
-                 if s.get("is_orchestrator") and s.get("scope") != exclude_scope]
+                 if is_orchestrator_role(s.get("role", "worker")) and s.get("scope") != exclude_scope]
         if not orchs:
             return ""
         lines = ["## Other orchestrators", "You can message other orchestrators via `send_message(to=\"Name\", message=\"...\")`:"]
@@ -73,7 +73,7 @@ def _other_orchestrators_block(exclude_scope: str = "") -> str:
 def _workers_block(scope: str) -> str:
     try:
         workers = [s for s in get_all_sessions()
-                   if not s.get("is_orchestrator") and s.get("scope") == scope]
+                   if not is_orchestrator_role(s.get("role", "worker")) and s.get("scope") == scope]
         if not workers:
             return ""
         lines = ["## Your current workers",
@@ -89,38 +89,54 @@ def _workers_block(scope: str) -> str:
         return ""
 
 
-def ORCHESTRATOR_SYSTEM_PROMPT(scope: str = "") -> str:
-    base = f"{_read_prompt('base.md')}\n\n{_read_prompt('orchestrator.md')}"
-    others = _other_orchestrators_block(scope)
-    if others:
-        base += f"\n\n{others}"
-    workers = _workers_block(scope)
-    if workers:
-        base += f"\n\n{workers}"
+def _role_prompt_file(role: str) -> str:
+    """Find the best prompt file for a role: roles/<role>.md → orchestrator.md/worker.md fallback."""
+    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
+    if role_path.exists():
+        return role_path.read_text()
+    if is_orchestrator_role(role):
+        return _read_prompt("orchestrator.md")
+    return _read_prompt("worker.md")
+
+
+def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
+    base = f"{_read_prompt('base.md')}\n\n{_role_prompt_file(role)}"
+    if is_orchestrator_role(role):
+        others = _other_orchestrators_block(scope)
+        if others:
+            base += f"\n\n{others}"
+        workers = _workers_block(scope)
+        if workers:
+            base += f"\n\n{workers}"
     return base
 
 
+def ORCHESTRATOR_SYSTEM_PROMPT(scope: str = "") -> str:
+    return ROLE_SYSTEM_PROMPT("orchestrator", scope)
+
+
 def WORKER_SYSTEM_PROMPT() -> str:
-    return f"{_read_prompt('base.md')}\n\n{_read_prompt('worker.md')}"
+    return ROLE_SYSTEM_PROMPT("worker")
 
 
-def _prompt_template_hash(is_orchestrator: bool) -> str:
+def _prompt_template_hash(role_or_orch) -> str:
     """Hash only the static template files (base.md + role.md).
-    Ignores dynamic parts (worker list, orchestrator list) so that
-    prompt injection only triggers on real template code changes,
-    not on every restart."""
+    Accepts role string or legacy bool (is_orchestrator)."""
     import hashlib
-    role = "orchestrator.md" if is_orchestrator else "worker.md"
-    content = _read_prompt("base.md") + _read_prompt(role)
+    if isinstance(role_or_orch, bool):
+        role = "orchestrator" if role_or_orch else "worker"
+    else:
+        role = role_or_orch
+    content = _read_prompt("base.md") + _role_prompt_file(role)
     return hashlib.md5(content.encode()).hexdigest()[:8]
 
 
-def _make_mcp_config(name: str, scope: str, is_orch: bool) -> dict:
+def _make_mcp_config(name: str, scope: str, role: str = "worker") -> dict:
     env = {
         **MCP_BASE_ENV,
         "ORCHESTRA_URL": "http://127.0.0.1:8888",
         "ORCHESTRA_SCOPE": scope,
-        "ORCHESTRA_ROLE": name if is_orch else "worker",
+        "ORCHESTRA_ROLE": role,
         "WORKER_NAME": name,
     }
     return {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": env, "alwaysLoad": True}}
@@ -157,8 +173,10 @@ class SessionManager:
                     name=job["name"], scope=job["repo_path"], cwd=job["repo_path"],
                     model=job["model"], system_prompt=job.get("system_prompt", ""),
                     use_worktree=True, repo_path=job["repo_path"],
+                    role=job.get("role", "worker"),
                     task_id=job.get("task_id", ""),
                     description=job.get("description", ""),
+                    parent_name=job.get("parent_name", ""),
                 )
                 await session.send(job["task"])
                 update_job(job_id, "succeeded")
@@ -183,8 +201,9 @@ class SessionManager:
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False,
-                             task_id: str = "", description: str = "",
-                             base_branch: str = "main") -> AgentSession:
+                             role: str = "", task_id: str = "", description: str = "",
+                             base_branch: str = "main",
+                             parent_id: str = "", parent_name: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -193,23 +212,35 @@ class SessionManager:
         if get_session_by_name(name, scope):
             raise ValueError(f"session '{name}' already exists in scope '{scope}'")
 
-        if is_orchestrator:
-            prompt = system_prompt or ORCHESTRATOR_SYSTEM_PROMPT(scope)
+        if not role:
+            role = "orchestrator" if is_orchestrator else "worker"
+        is_orch = is_orchestrator_role(role)
+
+        if is_orch:
+            prompt = system_prompt or ROLE_SYSTEM_PROMPT(role, scope)
         else:
-            prompt = WORKER_SYSTEM_PROMPT() + ("\n\n" + system_prompt if system_prompt else "")
+            prompt = ROLE_SYSTEM_PROMPT(role) + ("\n\n" + system_prompt if system_prompt else "")
+
+        if not parent_name and not is_orch:
+            parent_name = self._find_orchestrator_name(scope) or ""
+        if not parent_id and parent_name:
+            p_session = self.get_by_name(parent_name, scope)
+            if p_session:
+                parent_id = p_session.id if isinstance(p_session, AgentSession) else p_session.get("id", "")
 
         bt = backend_for_model(model)
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
-            system_prompt=prompt, is_orchestrator=is_orchestrator,
-            color="" if is_orchestrator else self._pick_color(),
-            mcp_servers=_make_mcp_config(name, scope, is_orchestrator),
+            system_prompt=prompt, role=role,
+            parent_id=parent_id, parent_name=parent_name,
+            color="" if is_orch else self._pick_color(),
+            mcp_servers=_make_mcp_config(name, scope, role),
             backend_type=bt, task_id=task_id, description=description,
         )
-        session._template_hash = _prompt_template_hash(is_orchestrator)
+        session._template_hash = _prompt_template_hash(role)
         save_session(session._to_db_dict())
 
-        if task_id and not is_orchestrator:
+        if task_id and not is_orch:
             try:
                 from app.tm import api_update_task
                 api_update_task(task_id, status="in_progress")
@@ -224,8 +255,8 @@ class SessionManager:
                 session.worktree_path = wt.path
                 session.branch = wt.branch
 
-            if not is_orchestrator:
-                orch_name = self._find_orchestrator_name(scope)
+            if not is_orch:
+                orch_name = parent_name or self._find_orchestrator_name(scope)
                 session.system_prompt = _safe_format_prompt(
                     session.system_prompt,
                     worker_name=name, orchestrator_name=orch_name or "orchestrator",
@@ -281,7 +312,7 @@ class SessionManager:
             if s.scope == scope and s.is_orchestrator and s.name not in orch_names:
                 orch_names.append(s.name)
         for row in get_all_sessions(scope):
-            if row.get("is_orchestrator") and row["name"] not in orch_names:
+            if is_orchestrator_role(row.get("role", "worker")) and row["name"] not in orch_names:
                 orch_names.append(row["name"])
 
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
@@ -329,9 +360,10 @@ class SessionManager:
         return None
 
     async def _load_from_db(self, db_row: dict) -> AgentSession:
-        is_orch = bool(db_row.get("is_orchestrator"))
+        role = db_row.get("role") or ("orchestrator" if db_row.get("is_orchestrator") else "worker")
+        is_orch = is_orchestrator_role(role)
         old_prompt = db_row.get("system_prompt", "")
-        current_prompt = ORCHESTRATOR_SYSTEM_PROMPT(db_row["scope"]) if is_orch else WORKER_SYSTEM_PROMPT()
+        current_prompt = ROLE_SYSTEM_PROMPT(role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(role)
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
@@ -362,9 +394,11 @@ class SessionManager:
             cost_usd_cached=db_row.get("cost_usd_cached", 0),
             worktree_path=wt_path, branch=db_branch,
             created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
-            is_orchestrator=is_orch,
+            role=role,
+            parent_id=db_row.get("parent_id", ""),
+            parent_name=db_row.get("parent_name", ""),
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
-            mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], is_orch),
+            mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role),
             backend_type=stored_bt, task_id=db_task_id,
             description=db_row.get("description", ""),
         )
@@ -383,7 +417,7 @@ class SessionManager:
             )
         if old_prompt and old_prompt != current_prompt:
             formatted_base = _safe_format_prompt(
-                (ORCHESTRATOR_SYSTEM_PROMPT(db_row["scope"]) if is_orch else WORKER_SYSTEM_PROMPT()),
+                ROLE_SYSTEM_PROMPT(role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(role),
                 worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
                 scope=db_row["scope"], branch=db_row.get("branch") or "main",
             )
@@ -391,7 +425,7 @@ class SessionManager:
                 custom_part = old_prompt[len(formatted_base):]
                 current_prompt = current_prompt + custom_part
         session._current_prompt = current_prompt
-        session._template_hash = db_row.get("template_hash") or _prompt_template_hash(is_orch)
+        session._template_hash = db_row.get("template_hash") or _prompt_template_hash(role)
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])
         await session.start()
@@ -497,8 +531,8 @@ class SessionManager:
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
 
-        orchs = [r for r in resumable if r.get("is_orchestrator")]
-        workers = [r for r in resumable if not r.get("is_orchestrator")]
+        orchs = [r for r in resumable if is_orchestrator_role(r.get("role", "orchestrator" if r.get("is_orchestrator") else "worker"))]
+        workers = [r for r in resumable if not is_orchestrator_role(r.get("role", "orchestrator" if r.get("is_orchestrator") else "worker"))]
 
         for row in orchs:
             if row["id"] in self.sessions:

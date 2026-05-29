@@ -650,7 +650,7 @@ _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 def _find_orch_for_scope(scope: str) -> str | None:
     from app.db import get_all_sessions
     for s in get_all_sessions():
-        if s.get("is_orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
+        if s.get("role", "worker") in ("orchestrator", "sub-orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
             return s["name"]
     return None
 
@@ -743,7 +743,7 @@ async def _sync_all_topic_statuses():
     if not _manager or not bot:
         return
     for s in _manager.sessions.values():
-        if not s.is_orchestrator:
+        if s.role not in ("orchestrator", "sub-orchestrator"):
             continue
         name = s.name
         if name not in config["topics"]:
@@ -798,7 +798,7 @@ async def ensure_topics():
     if not bot or not config["group_id"] or not _manager:
         return
     from app.db import get_all_sessions
-    orchs = [s for s in get_all_sessions() if s.get("is_orchestrator")]
+    orchs = [s for s in get_all_sessions() if s.get("role", "worker") in ("orchestrator", "sub-orchestrator")]
     if not orchs:
         return
 
