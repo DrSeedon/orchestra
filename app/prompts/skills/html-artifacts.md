@@ -19,7 +19,8 @@ Generate `.html` files when content benefits from layout, color, diagrams, inter
 - Disposable summaries
 
 ## Rules
-1. **Single .html file** — CSS in `<style>`, JS in `<script>`, SVG inline
+1. **Language** — write ALL text content (titles, labels, TL;DR, descriptions) in the SAME language the user is communicating in. User speaks Russian → artifact in Russian. English → English
+2. **Single .html file** — CSS in `<style>`, JS in `<script>`, SVG inline
 2. **Works offline** — CDN only for Chart.js if charts needed
 3. **System fonts** — `system-ui, sans-serif`
 4. **Dark-first** — `prefers-color-scheme` for light mode
