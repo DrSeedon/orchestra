@@ -128,29 +128,6 @@ def _role_prompt_file(role: str) -> str:
 _SKILLS_DIR = _PROMPTS_DIR / "skills"
 
 
-def _load_role_skills(role: str) -> str:
-    """Load skills listed in role's frontmatter `skills:` field.
-    Reads each skill .md from skills/ dir, strips frontmatter, returns combined text."""
-    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
-    if not role_path.exists():
-        return ""
-    meta, _ = _parse_role_frontmatter(role_path.read_text())
-    skill_names = meta.get("skills", [])
-    if not skill_names or not _SKILLS_DIR.is_dir():
-        return ""
-    parts = []
-    for sname in skill_names:
-        skill_path = _SKILLS_DIR / f"{sname}.md"
-        if not skill_path.exists():
-            logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
-            continue
-        _, body = _parse_role_frontmatter(skill_path.read_text())
-        if body:
-            parts.append(body)
-    if not parts:
-        return ""
-    return "## Skills\n\n" + "\n\n---\n\n".join(parts)
-
 
 def _role_can_spawn(role: str):
     """Return the can_spawn whitelist for a role, or None if unrestricted.
@@ -219,9 +196,6 @@ def _roles_catalog() -> str:
 
 def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
     base = f"{_read_prompt('base.md')}\n\n{_role_prompt_file(role)}"
-    skills = _load_role_skills(role)
-    if skills:
-        base += f"\n\n{skills}"
     if is_orchestrator_role(role):
         catalog = _roles_catalog()
         if catalog:
@@ -254,8 +228,30 @@ def _prompt_template_hash(role_or_orch) -> str:
         role = "orchestrator" if role_or_orch else "worker"
     else:
         role = role_or_orch
-    content = _read_prompt("base.md") + _role_prompt_file(role) + _load_role_skills(role)
+    content = _read_prompt("base.md") + _role_prompt_file(role)
     return hashlib.md5(content.encode()).hexdigest()[:8]
+
+
+def _inject_skills_to_worktree(role: str, worktree_path: str) -> None:
+    """Copy role skills into worktree/.claude/skills/ as native Claude CLI skills."""
+    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
+    if not role_path.exists():
+        return
+    meta, _ = _parse_role_frontmatter(role_path.read_text())
+    skill_names = meta.get("skills", [])
+    if not skill_names or not _SKILLS_DIR.is_dir():
+        return
+    wt = Path(worktree_path)
+    for sname in skill_names:
+        skill_src = _SKILLS_DIR / f"{sname}.md"
+        if not skill_src.exists():
+            logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
+            continue
+        skill_dir = wt / ".claude" / "skills" / sname
+        skill_dir.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(skill_src, skill_dir / "SKILL.md")
+    logger.info(f"Injected {len(skill_names)} skills into {worktree_path}/.claude/skills/")
 
 
 def _parse_custom_mcp(raw) -> dict:
@@ -421,6 +417,7 @@ class SessionManager:
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
+                await asyncio.to_thread(_inject_skills_to_worktree, role, wt.path)
 
             if not is_orch:
                 orch_name = parent_name or self._find_orchestrator_name(scope)
