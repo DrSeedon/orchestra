@@ -23,3 +23,7 @@
 - ~~cost_usd overcounting x85~~ — CLI cumulative vs delta fix
 - ~~TG сообщения обрезались молча~~ — _split_message chunking
 - ~~TG flood теряет сообщения~~ — retry + priority system
+
+## Fixed (v2.9.0)
+
+- ~~task_update "Balance mismatch" crash~~ — `_sanity_check` now warns instead of crashing. Root cause: mass task deletion left orphaned allocations → computed vs stored divergence
