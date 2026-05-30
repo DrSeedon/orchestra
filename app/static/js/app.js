@@ -401,10 +401,21 @@ async function openFilePreview(path) {
     const modal = $('#file-preview-modal');
     const pathEl = $('#file-preview-path');
     const contentEl = $('#file-preview-content');
+    const openBtn = $('#file-preview-open');
     pathEl.textContent = path;
     contentEl.textContent = 'Loading…';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    const rawUrl = `/api/files/raw?path=${encodeURIComponent(path)}`;
+    if (/\.html?$/i.test(path)) {
+        openBtn.href = rawUrl;
+        openBtn.classList.remove('hidden');
+        contentEl.className = 'flex-1 p-0';
+        contentEl.style.cssText = 'overflow:hidden;max-height:calc(80vh - 48px)';
+        contentEl.innerHTML = `<iframe src="${rawUrl}" style="width:100%;height:100%;border:none;border-radius:0 0 12px 12px;min-height:60vh" sandbox="allow-scripts allow-same-origin"></iframe>`;
+        return;
+    }
+    openBtn.classList.add('hidden');
     try {
         const res = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
         const data = await res.json();
@@ -497,6 +508,10 @@ function closeFilePreview() {
     const modal = $('#file-preview-modal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    const openBtn = $('#file-preview-open');
+    if (openBtn) openBtn.classList.add('hidden');
+    const contentEl = $('#file-preview-content');
+    if (contentEl) contentEl.innerHTML = '';
 }
 
 function initFilePreviewModal() {
@@ -977,6 +992,7 @@ let contextCache = {};
 let agentColors = {};
 
 const _MODELS = [
+    { id: 'claude-opus-4-8[1m]', label: 'Opus 4.8 (1M)' },
     { id: 'claude-opus-4-7[1m]', label: 'Opus 4.7 (1M)' },
     { id: 'claude-opus-4-6[1m]', label: 'Opus 4.6 (1M)' },
     { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
@@ -1579,7 +1595,7 @@ function buildCompactToolLine(type, content, ts) {
         let preview = body;
         try {
             const parsed = JSON.parse(body);
-            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model || 'claude-sonnet-4-6'] || parsed.model || 'Sonnet'})`;
+            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-7[1m]':'Opus 4.7 1M','claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model || 'claude-sonnet-4-6'] || parsed.model || 'Sonnet'})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
@@ -2046,6 +2062,8 @@ function addChatEntry(type, content, ts, anchor) {
                 header.style.color = '#a78bfa';
 
                 const MODEL_SHORT = {
+                    'claude-opus-4-8[1m]': 'Opus 4.8 1M',
+                    'claude-opus-4-7[1m]': 'Opus 4.7 1M',
                     'claude-opus-4-6[1m]': 'Opus 4.6 1M',
                     'claude-opus-4-6': 'Opus 4.6',
                     'claude-sonnet-4-6': 'Sonnet 4.6',
@@ -2053,6 +2071,8 @@ function addChatEntry(type, content, ts, anchor) {
                     'claude-haiku-4-6': 'Haiku 4.6',
                 };
                 const MODEL_COLOR = {
+                    'claude-opus-4-8[1m]': '#c084fc',
+                    'claude-opus-4-7[1m]': '#a78bfa',
                     'claude-opus-4-6[1m]': '#a78bfa',
                     'claude-opus-4-6': '#a78bfa',
                     'claude-sonnet-4-6': '#38bdf8',
