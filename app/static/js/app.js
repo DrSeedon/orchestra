@@ -1464,6 +1464,106 @@ function addCopyBtn(el, text) {
 let streamBubble = null;
 let streamContent = '';
 
+function _renderJsonGrid(obj, container, maxDepth) {
+    if (maxDepth === undefined) maxDepth = 2;
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px;align-items:baseline';
+    const entries = Object.entries(obj);
+    for (const [key, val] of entries) {
+        if (key === 'system_prompt' || key === 'error_trace') continue;
+        const keyEl = document.createElement('span');
+        keyEl.style.cssText = 'color:#64748b;white-space:nowrap;font-family:monospace';
+        keyEl.textContent = key;
+        grid.appendChild(keyEl);
+        const valEl = document.createElement('span');
+        valEl.style.cssText = 'overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere;min-width:0';
+        if (val === null || val === undefined) {
+            valEl.textContent = 'null';
+            valEl.style.color = '#6b7280';
+        } else if (typeof val === 'boolean') {
+            valEl.textContent = String(val);
+            valEl.style.color = val ? '#22c55e' : '#ef4444';
+        } else if (typeof val === 'number') {
+            valEl.textContent = String(val);
+            valEl.style.color = '#eab308';
+        } else if (typeof val === 'string') {
+            const MAX_STR = 150;
+            const short = val.length > MAX_STR ? val.slice(0, MAX_STR) + '…' : val;
+            valEl.textContent = short;
+            valEl.style.color = '#cbd5e1';
+            if (val.length > MAX_STR) {
+                valEl.style.cursor = 'pointer';
+                valEl.title = 'Click to expand';
+                let _strExp = false;
+                valEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    _strExp = !_strExp;
+                    valEl.textContent = _strExp ? val : short;
+                });
+            }
+        } else if (Array.isArray(val)) {
+            if (val.length === 0) {
+                valEl.textContent = '[]';
+                valEl.style.color = '#6b7280';
+            } else if (val.every(v => typeof v === 'string' || typeof v === 'number')) {
+                const arrStr = val.join(', ');
+                valEl.textContent = arrStr.length > 120 ? arrStr.slice(0, 120) + '…' : arrStr;
+                valEl.style.color = '#cbd5e1';
+            } else {
+                valEl.textContent = `[${val.length} items]`;
+                valEl.style.color = '#38bdf8';
+                valEl.style.cursor = 'pointer';
+                let _arrExp = false;
+                valEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    _arrExp = !_arrExp;
+                    if (_arrExp) {
+                        valEl.textContent = '';
+                        const pre = document.createElement('pre');
+                        pre.style.cssText = 'font-size:10px;color:#94a3b8;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow-y:auto';
+                        pre.textContent = JSON.stringify(val, null, 2);
+                        valEl.appendChild(pre);
+                    } else {
+                        valEl.textContent = `[${val.length} items]`;
+                    }
+                });
+            }
+        } else if (typeof val === 'object' && maxDepth > 0) {
+            const subKeys = Object.keys(val);
+            if (subKeys.length <= 4) {
+                const sub = document.createElement('div');
+                _renderJsonGrid(val, sub, maxDepth - 1);
+                valEl.textContent = '';
+                valEl.appendChild(sub);
+            } else {
+                valEl.textContent = `{${subKeys.length} keys}`;
+                valEl.style.color = '#38bdf8';
+                valEl.style.cursor = 'pointer';
+                let _objExp = false;
+                valEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    _objExp = !_objExp;
+                    if (_objExp) {
+                        valEl.textContent = '';
+                        const pre = document.createElement('pre');
+                        pre.style.cssText = 'font-size:10px;color:#94a3b8;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow-y:auto';
+                        pre.textContent = JSON.stringify(val, null, 2);
+                        valEl.appendChild(pre);
+                    } else {
+                        valEl.textContent = `{${subKeys.length} keys}`;
+                    }
+                });
+            }
+        } else {
+            valEl.textContent = JSON.stringify(val);
+            valEl.style.color = '#94a3b8';
+        }
+        grid.appendChild(valEl);
+    }
+    container.appendChild(grid);
+    return grid;
+}
+
 function buildCompactToolLine(type, content, ts) {
     const line = document.createElement('div');
     line.className = 'flex items-center gap-2 text-xs py-0.5 px-2 cursor-pointer rounded group';
@@ -2381,9 +2481,23 @@ function addChatEntry(type, content, ts, anchor) {
                 }
             });
         } else if (!isProgress && !isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch && !isSendFile && !isOrchSimple && !isGlob && !isSkill && !isYougile) {
-            const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
-            const toolFull = body.length > 200 ? body : null;
+            let _inputJsonRendered = false;
             if (body) {
+                try {
+                    const _inputParsed = JSON.parse(body);
+                    if (_inputParsed && typeof _inputParsed === 'object' && !Array.isArray(_inputParsed)) {
+                        const gridWrap = document.createElement('div');
+                        gridWrap.className = 'text-xs opacity-80 tool-body';
+                        gridWrap.style.cssText = 'margin-top:2px';
+                        _renderJsonGrid(_inputParsed, gridWrap);
+                        div.appendChild(gridWrap);
+                        _inputJsonRendered = true;
+                    }
+                } catch {}
+            }
+            if (!_inputJsonRendered && body) {
+                const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+                const toolFull = body.length > 200 ? body : null;
                 const bodyEl = document.createElement('div');
                 bodyEl.style.whiteSpace = 'pre-wrap';
                 bodyEl.className = 'text-xs opacity-70 tool-body';
@@ -2400,19 +2514,18 @@ function addChatEntry(type, content, ts, anchor) {
                     hint.dataset.role = 'expand-hint';
                     div.appendChild(hint);
                 }
+                let expanded = false;
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    expanded = !expanded;
+                    const tb = div.querySelector('.tool-body');
+                    if (tb && tb.dataset.full) tb.textContent = expanded ? tb.dataset.full : tb.dataset.preview;
+                    const hint = div.querySelector('[data-role="expand-hint"]');
+                    if (hint) hint.style.display = expanded ? 'none' : 'block';
+                    const rb = div.querySelector('.result-body');
+                    if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
+                });
             }
-
-            let expanded = false;
-            div.addEventListener('click', (e) => {
-                if (e.target.tagName === 'A') return;
-                expanded = !expanded;
-                const tb = div.querySelector('.tool-body');
-                if (tb && tb.dataset.full) tb.textContent = expanded ? tb.dataset.full : tb.dataset.preview;
-                const hint = div.querySelector('[data-role="expand-hint"]');
-                if (hint) hint.style.display = expanded ? 'none' : 'block';
-                const rb = div.querySelector('.result-body');
-                if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
-            });
         }
     }
     else if (type === 'tool_result') {
@@ -3291,6 +3404,35 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(lastTool, ts);
                 return;
             }
+            let _resultJsonParsed = null;
+            try { _resultJsonParsed = JSON.parse(content); } catch {}
+            if (_resultJsonParsed && typeof _resultJsonParsed === 'object' && !Array.isArray(_resultJsonParsed)) {
+                let data = _resultJsonParsed;
+                if (data.result !== undefined && Object.keys(data).length === 1) {
+                    if (typeof data.result === 'string') {
+                        try { data = JSON.parse(data.result); } catch { data = null; }
+                    } else if (typeof data.result === 'object' && data.result !== null) {
+                        data = data.result;
+                    } else { data = null; }
+                }
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    const hdr = lastTool.querySelector('.flex.items-center');
+                    const hasErr = data.error || data.Error;
+                    if (hdr && hasErr) {
+                        hdr.textContent = `❌ ${DOMPurify.sanitize(String(data.error || data.Error)).slice(0, 80)}`;
+                        hdr.style.color = '#ef4444';
+                    } else if (hdr && !hdr.textContent.includes('✅') && !hdr.textContent.includes('❌')) {
+                        hdr.textContent = hdr.textContent.replace(/⏳.*$/, '✅ Done');
+                    }
+                    lastTool.dataset.toolContent += '\n\n' + content;
+                    const gridWrap = document.createElement('div');
+                    gridWrap.style.cssText = 'margin-top:4px';
+                    _renderJsonGrid(data, gridWrap);
+                    lastTool.appendChild(gridWrap);
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+            }
             lastTool.dataset.toolContent += '\n\n' + content;
             const oldCopy = lastTool.querySelector('.copy-btn');
             if (oldCopy) oldCopy.remove();
@@ -3332,6 +3474,27 @@ function addChatEntry(type, content, ts, anchor) {
             return;
         }
 
+        let _standaloneJson = null;
+        try { _standaloneJson = JSON.parse(content); } catch {}
+        if (_standaloneJson && typeof _standaloneJson === 'object' && !Array.isArray(_standaloneJson)) {
+            let sData = _standaloneJson;
+            if (sData.result !== undefined && Object.keys(sData).length === 1) {
+                if (typeof sData.result === 'string') { try { sData = JSON.parse(sData.result); } catch { sData = null; } }
+                else if (typeof sData.result === 'object' && sData.result !== null) sData = sData.result;
+                else sData = null;
+            }
+            if (sData && typeof sData === 'object' && !Array.isArray(sData)) {
+                const gridWrap = document.createElement('div');
+                gridWrap.style.cssText = 'margin-top:4px';
+                _renderJsonGrid(sData, gridWrap);
+                div.appendChild(gridWrap);
+                addTimestamp(div, ts);
+                const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+                _insert(div);
+                if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+                return;
+            }
+        }
         const resultBody = document.createElement('div');
         resultBody.style.whiteSpace = 'pre-wrap';
         resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
