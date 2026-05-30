@@ -9,6 +9,7 @@ Group=orchestra
 WorkingDirectory=/opt/orchestra
 Environment=PATH=/opt/orchestra/.venv/bin:/usr/local/bin:/usr/bin:/bin
 EnvironmentFile=/opt/orchestra/.env
+ExecStartPre=/usr/local/bin/uv sync --quiet
 ExecStart=/opt/orchestra/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8888
 Restart=always
 RestartSec=5
