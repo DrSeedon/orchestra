@@ -153,7 +153,8 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
                 audio_data = af.read()
             async with http.post(
                 "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true",
-                headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg"},
+                headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg",
+                         "Accept-Encoding": "gzip, deflate"},
                 data=audio_data,
                 timeout=aiohttp.ClientTimeout(total=120),
             ) as resp:
