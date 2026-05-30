@@ -1,32 +1,32 @@
 ---
 name: html-artifacts
-description: Генерация интерактивных HTML артефактов вместо markdown
+description: Generate interactive HTML artifacts instead of markdown
 ---
 
 # HTML Artifacts
 
-Генерируй `.html` файлы когда контент выигрывает от layout, цвета, диаграмм, интерактивности.
+Generate `.html` files when content benefits from layout, color, diagrams, interactivity.
 
-## Когда делать HTML
-- Сравнение 2+ вариантов — side-by-side
-- Диаграммы, flowcharts, архитектурные схемы
-- Дашборды, метрики, статусы
-- Отчёты >100 строк
-- Всё что юзер будет шарить или перечитывать
+## When to use HTML
+- Comparing 2+ options — side-by-side
+- Diagrams, flowcharts, architecture schemas
+- Dashboards, metrics, status reports
+- Reports >100 lines
+- Anything the user will share or re-read
 
-## Когда НЕ делать
-- Короткие ответы, код, команды терминала
-- Одноразовые саммари
+## When NOT to use
+- Short replies, code, terminal commands
+- Disposable summaries
 
-## Правила
-1. **Один файл .html** — CSS в `<style>`, JS в `<script>`, SVG inline
-2. **Работает offline** — CDN только для Chart.js если нужны графики
-3. **Системные шрифты** — `system-ui, sans-serif`
-4. **Dark-first** — `prefers-color-scheme` для light mode
+## Rules
+1. **Single .html file** — CSS in `<style>`, JS in `<script>`, SVG inline
+2. **Works offline** — CDN only for Chart.js if charts needed
+3. **System fonts** — `system-ui, sans-serif`
+4. **Dark-first** — `prefers-color-scheme` for light mode
 5. **Responsive** — `<meta name="viewport">`
-6. **Readable за 5 сек** — заголовок, TL;DR, потом суть
+6. **Readable in 5 sec** — title, TL;DR, then substance
 
-## CSS база
+## CSS base
 ```css
 :root {
   --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
@@ -40,24 +40,24 @@ description: Генерация интерактивных HTML артефакт
 }
 ```
 
-## Куда сохранять
-1. `artifacts/` в корне проекта
-2. `docs/artifacts/` если есть `docs/`
+## Where to save
+1. `artifacts/` in project root
+2. `docs/artifacts/` if `docs/` exists
 
-## После сохранения
-1. Сказать путь
+## After saving
+1. Tell the path
 2. `xdg-open <file>` (Linux)
-3. В Orchestra: `send_file(path, caption)` в Telegram
+3. In Orchestra: `send_file(path, caption)` to Telegram
 
-## Анти-паттерны (НИКОГДА)
-- Cards с тенями на сером фоне
+## Anti-patterns (NEVER)
+- Cards with shadows on gray background
 - Gradient hero section
-- Emoji как заголовки секций
+- Emoji as section headers
 - Glass morphism, frosted blur
 - Generic Tailwind aesthetic
 
-## SVG правила
-- `viewBox`, не фиксированные width/height
-- `currentColor` для адаптации к теме
-- `<text>` не paths — копируемый текст
-- Arrow markers через `<defs><marker>`
+## SVG rules
+- `viewBox`, not fixed width/height
+- `currentColor` for theme adaptation
+- `<text>` not paths — copyable text
+- Arrow markers via `<defs><marker>`
