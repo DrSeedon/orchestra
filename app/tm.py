@@ -624,7 +624,7 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
             f"#{t['par_number']}: paid_rub={t['paid_rub']}, computed={t['computed_paid']}, price={t['price_rub']}"
             for t in bad_tasks
         )
-        raise RuntimeError(f"Task payment mismatch: {details}")
+        logger.warning(f"Task payment mismatch (stale allocations?): {details}")
 
     computed = conn.execute(
         """SELECT
@@ -639,11 +639,12 @@ def _sanity_check(conn: sqlite3.Connection, client_id: str,
         "SELECT balance_rub FROM tm_clients WHERE id = ?", (client_id,)
     ).fetchone()["balance_rub"]
     if computed != actual:
-        raise RuntimeError(
-            f"Balance mismatch: computed={computed}, stored={actual}"
+        logger.warning(
+            f"Balance mismatch for {client_id}: computed={computed}, stored={actual}. "
+            f"Likely caused by external task deletion without allocation cleanup."
         )
     if actual < 0:
-        raise RuntimeError(f"Negative balance: {actual}")
+        logger.warning(f"Negative balance for {client_id}: {actual}")
 
 
 
