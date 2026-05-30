@@ -62,7 +62,9 @@ def _other_orchestrators_block(exclude_scope: str = "") -> str:
             name = o["name"]
             scope = o.get("scope", "")
             project = Path(scope).name if scope else "?"
-            lines.append(f"- **{name}** — project: {project}")
+            desc = o.get("description", "")
+            desc_part = f" — {desc}" if desc else ""
+            lines.append(f"- **{name}** — project: {project}{desc_part}")
         lines.append("")
         lines.append("Use this when the user says \"напиши оркестре X\", \"скажи Y оркестратору\", \"спроси у Z\", etc.")
         return "\n".join(lines)
@@ -83,7 +85,9 @@ def _workers_block(scope: str) -> str:
             model = w.get("model", "?")
             status = w.get("status", "?")
             ctx = w.get("context_pct", 0) or 0
-            lines.append(f"- **{name}** — {model} | {status} | ctx:{ctx}%")
+            desc = w.get("description", "")
+            desc_part = f" | \"{desc}\"" if desc else ""
+            lines.append(f"- **{name}** — {model} | {status} | ctx:{ctx}%{desc_part}")
         return "\n".join(lines)
     except Exception:
         return ""

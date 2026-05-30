@@ -187,7 +187,9 @@ async def list_orchestrators() -> str:
         scope_short = o.get("scope", "").rstrip("/").split("/")[-1]
         ctx = o.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
-        lines.append(f"🎯 **{o['name']}** | {o.get('status','?')} | {scope_short} | ${o.get('cost_usd',0):.4f}{ctx_str}")
+        desc = o.get('description', '')
+        desc_str = f' | "{desc}"' if desc else ""
+        lines.append(f"🎯 **{o['name']}** | {o.get('status','?')} | {scope_short} | ${o.get('cost_usd',0):.4f}{ctx_str}{desc_str}")
     return "\n".join(lines)
 
 
