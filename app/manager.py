@@ -111,18 +111,19 @@ def _parse_role_frontmatter(text: str) -> tuple[dict, str]:
 
 def _role_prompt_file(role: str) -> str:
     """Find the best prompt for a role. Parses frontmatter, returns body only.
-    If body is empty, uses `prompt:` field from frontmatter as fallback file."""
+    Falls back to 'worker' role if role file not found."""
     role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
     if role_path.exists():
         meta, body = _parse_role_frontmatter(role_path.read_text())
         if body:
             return body
-        fallback = meta.get("prompt", "")
-        if fallback:
-            return _read_prompt(fallback)
-    if is_orchestrator_role(role):
-        return _read_prompt("orchestrator.md")
-    return _read_prompt("worker.md")
+    if role != "worker":
+        fallback = _PROMPTS_DIR / "roles" / ("orchestrator.md" if is_orchestrator_role(role) else "worker.md")
+        if fallback.exists():
+            _, body = _parse_role_frontmatter(fallback.read_text())
+            if body:
+                return body
+    return ""
 
 
 _SKILLS_DIR = _PROMPTS_DIR / "skills"
