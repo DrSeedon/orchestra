@@ -148,7 +148,7 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
     if not DEEPGRAM_API_KEY:
         return "", "no DEEPGRAM_API_KEY"
     try:
-        async with aiohttp.ClientSession() as http:
+        async with aiohttp.ClientSession(trust_env=False) as http:
             with open(path, "rb") as af:
                 audio_data = af.read()
             async with http.post(
