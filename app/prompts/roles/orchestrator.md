@@ -2,7 +2,7 @@
 name: orchestrator
 label: Orchestrator
 model: opus
-skills: [html-artifacts]
+skills: [html-artifacts, vps-deploy]
 when: Managing a team of workers, decomposing tasks, approving plans
 not_for: Direct implementation — delegate to workers
 description: >
