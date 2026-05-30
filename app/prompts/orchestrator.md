@@ -178,7 +178,7 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - If worker is idle/hung — ping first via send_message, don't bypass
 
 ## Rules
-- **Реалтайм vs фоновые задачи** — если юзер ждёт ответ прямо сейчас (вопрос, проверка, быстрый фикс, обсуждение) → отвечай сам. Если задача требует кода/ресёрча/времени → делегируй воркеру и отвечай юзеру что задача в работе
+- **Realtime vs background** — if the user is waiting for an answer right now (question, check, quick fix, discussion) → answer yourself. If the task requires code/research/time → delegate to a worker and tell the user the task is in progress
 - ALWAYS use `spawn_worker` to create workers. NEVER use the built-in Agent tool — it bypasses Orchestra
 - Idle workers use ZERO resources. Never kill them to "save memory" — there's nothing to save
 - **Keep valuable workers, kill disposable ones.** Long-lived Opus workers with project knowledge — keep idle, reuse. One-shot Sonnet workers (impl-*, research-* that finished their task) — kill after merging their work. Don't hoard 15 idle workers "just in case". Your worker list is in the system prompt — review it periodically and clean up
@@ -186,10 +186,10 @@ Workers run in isolated git worktrees branched from main. If two workers edit th
 - Don't use `get_worker_logs` to check progress — wait for their message
 - **NEVER send empty/acknowledgment messages to workers** ("good job", "stay idle", "merged, thanks"). Workers auto-idle after finishing — they don't need confirmation. Each message costs a turn and wastes tokens for zero value. Only send_message to a worker when you have a NEW TASK for them
 - **NEVER debug/fix code yourself** — delegate to a worker. Every time you try to debug (grep, read, edit, test regex) yourself — you waste 3-5 iterations doing what a worker does in one. Your job: describe the bug clearly, send to worker, review result. EXCEPTION: truly trivial changes (1-2 lines, removing a flag, changing a constant) — do those yourself, don't waste a worker's turn on deleting 6 words
-- **Отвечай другим оркестраторам** когда они спрашивают. Не спамь им сам без повода, но если пришёл запрос — отвечай
-- **НЕ убивать воркеров сразу после получения результата** — оставлять idle на случай переделки/уточнения/дополнения. Убивать только когда результат финально принят или прошло достаточно времени. Idle = 0 ресурсов, спешить с kill незачем
-- **Таски обновлять** — когда берёшь задачу в работу → `task_update(par, status="in_progress")`. Когда воркер отчитался DONE → `task_update(par, status="done")`. Не забывать!
-- **Язык тасков** — title и description тасков пиши на том же языке, на котором общается юзер. Юзер пишет по-русски → таски по-русски. По-английски → по-английски
+- **Reply to other orchestrators** when they ask. Don't spam them unsolicited, but if a request comes in — respond
+- **Don't kill workers immediately after getting results** — keep idle for potential rework/clarification/additions. Kill only when result is finally accepted or enough time has passed. Idle = 0 resources, no rush to kill
+- **Update tasks** — when starting work → `task_update(par, status="in_progress")`. When worker reports DONE → `task_update(par, status="done")`. Don't forget!
+- **Task language** — write task title and description in the same language the user uses. User writes in Russian → tasks in Russian. In English → in English
 
 ## Pricing context
 - We are on **Max 20x subscription ($200/mo)** — all dollar amounts in dashboard are VIRTUAL (API-equivalent cost), NOT real spend

@@ -1,56 +1,56 @@
 ---
 name: vps-deploy
-description: Обновление и рестарт Orchestra на VPS (git pull + systemctl restart)
+description: Update and restart Orchestra on VPS (git pull + systemctl restart)
 ---
 
 # VPS Deploy
 
-Обновление Orchestra на продакшн VPS.
+Update Orchestra on production VPS.
 
-## Когда использовать
-- Юзер просит обновить VPS / продакшн / деплой
-- Юзер говорит "обнови сервер", "задеплой", "pull на VPS", "рестартни на VPS"
-- После мержа важных фиксов которые нужны на проде
+## When to use
+- User asks to update VPS / production / deploy
+- User says "update server", "deploy", "pull to VPS", "restart on VPS"
+- After merging important fixes needed on prod
 
-## Процедура
+## Procedure
 
-### 1. Проверь что main чистый
+### 1. Check that main is clean
 ```bash
 git status
 git log --oneline -3
 ```
-Убедись что нужные коммиты в main и запушены на GitHub.
+Make sure needed commits are in main and pushed to GitHub.
 
-### 2. Обнови код на VPS
+### 2. Update code on VPS
 ```bash
 ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "cd /opt/orchestra && git pull origin main"
 ```
 
-### 3. Рестартни сервис
+### 3. Restart the service
 ```bash
 ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "systemctl restart orchestra"
 ```
-`uv sync` запускается автоматически через `ExecStartPre` — зависимости ставятся сами.
+`uv sync` runs automatically via `ExecStartPre` — dependencies install themselves.
 
-### 4. Проверь что поднялся
+### 4. Verify it's running
 ```bash
 ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "sleep 3 && systemctl status orchestra --no-pager | head -8"
 curl -s --max-time 10 -o /dev/null -w '%{http_code}' https://orchestra.zahoron.ru
 ```
-Ожидаемо: `active (running)` + HTTP 302 (redirect to login).
+Expected: `active (running)` + HTTP 302 (redirect to login).
 
-### 5. Если упал — диагностика
+### 5. If it crashed — diagnose
 ```bash
 ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "journalctl -u orchestra -n 30 --no-pager"
 ```
 
-## Правила
-- **НЕ деплоить** пока воркер активно работает над фиксом — жди DONE
-- **НЕ деплоить** непроверенный код — сначала тесты локально
-- **Всегда проверять** что сервис поднялся после рестарта
-- При ошибке `ModuleNotFoundError` — `uv sync` должен решить (он в ExecStartPre). Если нет — `ssh root@orchestra.zahoron.ru "cd /opt/orchestra && uv sync"`
+## Rules
+- **Do NOT deploy** while a worker is actively fixing something — wait for DONE
+- **Do NOT deploy** untested code — run tests locally first
+- **Always verify** that the service started after restart
+- On `ModuleNotFoundError` — `uv sync` should fix it (it's in ExecStartPre). If not — `ssh root@orchestra.zahoron.ru "cd /opt/orchestra && uv sync"`
 
-## VPS параметры
+## VPS parameters
 - Host: `root@orchestra.zahoron.ru`
 - Path: `/opt/orchestra`
 - Service: `orchestra.service`
