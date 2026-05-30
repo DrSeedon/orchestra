@@ -1032,6 +1032,7 @@ function updateAgentInfo(session) {
         $('#ai-name').textContent = '-';
         $('#ai-status').textContent = '';
         $('#ai-model').textContent = '-';
+        $('#ai-role').textContent = '-';
         $('#ai-cost').textContent = '-';
         $('#ai-branch').textContent = '-';
         $('#ai-scope').textContent = '-';
@@ -1066,6 +1067,7 @@ function updateAgentInfo(session) {
     const isIdle = session.status === 'idle' || session.status === 'stopped';
     changeBtn.style.display = isIdle ? 'inline' : 'none';
     changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
+    $('#ai-role').textContent = session.role || 'worker';
     $('#ai-cost').textContent = `$${(session.cost_usd || 0).toFixed(0)}`;
     $('#ai-cost').title = `$${(session.cost_usd || 0).toFixed(2)} (CLI cost, includes cache)`;
     $('#ai-branch').textContent = session.branch || '-';
