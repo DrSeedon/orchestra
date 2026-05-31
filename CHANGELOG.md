@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.13.0 — 2026-05-31
+
+### Fixed
+- 🐛 **[1m] betas NOT PASSED** — `_make_client()` stripped `[1m]` from model name but NEVER passed `betas=["context-1m-2025-08-07"]` to `ClaudeAgentOptions`. ALL [1m] agents (including orchestrator) silently ran on 200K context instead of 1M. Now `options.betas` is set when model contains `[1m]`
+- 🐛 **Context % знаменатель 1M вместо 200K** — `CONTEXT_LIMITS` маппинг отдавал 1M для [1m] моделей, что рисовало 17% когда CLI задыхался на 95%. Теперь `max_tokens` берётся из реального CLI ответа через `get_context_usage()`
+- 🐛 **compact_boundary невидим** — CLI `SystemMessage` с `subtype="compact_boundary"` не ловился ни одним branch в `_convert()`. Теперь эмитится `status` event "CLI auto-compacted" с до/после токенов
+
+### Reasoning
+Root cause: `_make_client()` line `cli_model = self.model.replace("[1m]", "")` removed the suffix but never told the SDK to enable 1M context beta. This made all [1m] models equivalent to their non-[1m] variants (200K). Combined with `CONTEXT_LIMITS` showing 1M as denominator, agents appeared at 17% when actually at 95%. The betas fix is 3 lines; the display fixes are in backend_claude.py + session.py.
+
 ## v2.12.0 — 2026-05-31
 
 ### Fixed
