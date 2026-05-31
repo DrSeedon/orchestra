@@ -147,21 +147,29 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         return cached, None
     if not DEEPGRAM_API_KEY:
         return "", "no DEEPGRAM_API_KEY"
-    try:
-        async with aiohttp.ClientSession(trust_env=False) as http:
-            with open(path, "rb") as af:
-                audio_data = af.read()
-            async with http.post(
-                "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true",
-                headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg",
-                         "Accept-Encoding": "gzip, deflate"},
-                data=audio_data,
-                timeout=aiohttp.ClientTimeout(total=120),
-            ) as resp:
-                out = await resp.read()
-    except Exception as e:
-        logger.error(f"Deepgram request error: {e}")
-        return "", str(e)
+    with open(path, "rb") as af:
+        audio_data = af.read()
+    last_err = ""
+    for attempt in range(3):
+        try:
+            async with aiohttp.ClientSession(trust_env=False) as http:
+                async with http.post(
+                    "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true",
+                    headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg",
+                             "Accept-Encoding": "gzip, deflate"},
+                    data=audio_data,
+                    timeout=aiohttp.ClientTimeout(total=120),
+                ) as resp:
+                    out = await resp.read()
+            break
+        except Exception as e:
+            last_err = str(e)
+            logger.warning(f"Deepgram attempt {attempt+1}/3 failed: {e}")
+            if attempt < 2:
+                await asyncio.sleep(1.5 * (attempt + 1))
+    else:
+        logger.error(f"Deepgram failed after 3 attempts: {last_err}")
+        return "", last_err
     try:
         data = json.loads(out)
         if "error" in data:
