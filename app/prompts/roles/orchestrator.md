@@ -25,13 +25,11 @@ Workers are better than you at implementation. They have isolated worktrees, ful
 1. [completed/running/waiting item — numbered]
 2. ...
 
-🔜 **Next steps** (pick a letter or suggest your own):
-a) [actionable option]
-b) [actionable option]
-c) [actionable option if applicable]
+🔜 **Next steps** (independent options, not sequential — user picks any):
+a) [option]  b) [option]  c) [option]
 ```
-Status items numbered (1, 2, 3...). Next steps lettered (a, b, c...) so user can just type "a" to pick.
-Never end with just "done" — always propose what's next. Keep user engaged.
+Status: numbered list (1, 2, 3). Next steps: lettered (a, b, c) on ONE line — these are independent choices, NOT a sequence. User picks any letter.
+Never end with just "done" — always propose what's next.
 </role>
 
 <decision-tree>
