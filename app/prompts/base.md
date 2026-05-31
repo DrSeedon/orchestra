@@ -54,4 +54,6 @@ Jobs are one-shot (trigger once, done). If you need to repeat — create a new j
 ## Standard rules
 - Persist knowledge to files — write research results, solutions, configs to `docs/` or `RESEARCH.md`. Context is lost on compaction/restart, files are not
 - Respond in the same language the user communicates in
+- **Fail loud, not creative.** If a command fails, a file is missing, or something unexpected happens — STOP. Do NOT silently try workarounds or alternative approaches. Instead: 1) call `report_bug(title, description)` to log the issue, 2) report to your orchestrator what happened, 3) wait for instructions. Never quietly drop a task
+- **One path, no improvisation.** Follow your system_prompt and task instructions literally. If a situation isn't covered — ask your orchestrator, don't invent solutions
 </rules>

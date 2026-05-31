@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Claude Opus 4.6 vs 4.7 vs 4.8 — Comparison</title>
+<title>Claude Opus 4.6 vs 4.7 vs 4.8 — Сравнение</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root{
@@ -117,282 +117,281 @@
 
 <header>
   <h1>Opus 4.6 &middot; 4.7 &middot; 4.8</h1>
-  <p class="sub">A sourced, no-bullshit comparison of three Claude Opus releases</p>
-  <p class="stamp">Compiled 2026-05-31 &middot; every number cited &middot; "not found" where unpublished</p>
+  <p class="sub">Честное сравнение трёх релизов Claude Opus с цифрами и источниками</p>
+  <p class="stamp">Составлено 2026-05-31 &middot; все числа со ссылками &middot; «не найдено» где данных нет</p>
 </header>
 
 <nav class="toc">
-  <a href="#cards">Overview</a>
-  <a href="#bench">Benchmarks</a>
-  <a href="#radar">Radar</a>
-  <a href="#context">Long Context</a>
-  <a href="#honesty">Honesty</a>
-  <a href="#priceperf">Price / Speed</a>
-  <a href="#timeline">Timeline</a>
-  <a href="#sentiment">Community</a>
-  <a href="#rec">When to use which</a>
+  <a href="#cards">Обзор</a>
+  <a href="#bench">Бенчмарки</a>
+  <a href="#radar">Радар</a>
+  <a href="#context">Длинный контекст</a>
+  <a href="#honesty">Честность</a>
+  <a href="#priceperf">Цена / Скорость</a>
+  <a href="#timeline">Хронология</a>
+  <a href="#sentiment">Сообщество</a>
+  <a href="#rec">Когда какой</a>
 </nav>
 
 <div class="legend">
   <span><i class="dot" style="background:var(--c46)"></i>Opus 4.6</span>
   <span><i class="dot" style="background:var(--c47)"></i>Opus 4.7</span>
   <span><i class="dot" style="background:var(--c48)"></i>Opus 4.8</span>
-  <span><i class="dot" style="background:var(--amber)"></i>low-confidence / single source</span>
+  <span><i class="dot" style="background:var(--amber)"></i>низкая уверенность / один источник</span>
 </div>
 
-<!-- OVERVIEW CARDS -->
+<!-- ОБЗОР -->
 <section id="cards">
-<h2><span class="em">&#129518;</span>The three at a glance</h2>
+<h2><span class="em">&#129518;</span>Три модели в двух словах</h2>
 <div class="cards">
   <div class="card v46">
     <h3 class="v46c">Opus 4.6</h3>
     <div class="id">claude-opus-4-6</div>
-    <div class="date">Released 2026-02-05</div>
-    <span class="tag leg">Legacy</span>
-    <div class="pc pro">First Opus with true 1M context that <i>works</i> (76% MRCR @1M)</div>
-    <div class="pc pro">Old tokenizer &mdash; cheaper effective cost per task</div>
-    <div class="pc pro">Best long-document retrieval of the three</div>
-    <div class="pc con">Caught in the Feb&ndash;Apr "nerf" controversy (effort downgrades)</div>
-    <div class="pc con">Weaker agentic coding (SWE-Pro 53.4%)</div>
+    <div class="date">Релиз: 2026-02-05</div>
+    <span class="tag leg">Устаревшая</span>
+    <div class="pc pro">Первый Opus с реально рабочим контекстом 1M (76% MRCR @1M)</div>
+    <div class="pc pro">Старый токенизатор — дешевле в пересчёте на задачу</div>
+    <div class="pc pro">Лучший поиск по длинным документам из всех трёх</div>
+    <div class="pc con">Скандал Feb–Apr с тихим «нерфом» (снижение effort)</div>
+    <div class="pc con">Слабее в агентном кодинге (SWE-Pro 53.4%)</div>
   </div>
   <div class="card v47">
     <h3 class="v47c">Opus 4.7</h3>
     <div class="id">claude-opus-4-7</div>
-    <div class="date">Released 2026-04-16</div>
-    <span class="tag leg">Legacy</span>
-    <div class="pc pro">Biggest single-version coding jump (SWE-Pro +10.9pts)</div>
-    <div class="pc pro">~60% less task abandonment, better tool-call efficiency</div>
-    <div class="pc con">Long-context <b>collapsed</b> (MRCR @1M 78%&rarr;32%)</div>
-    <div class="pc con">New tokenizer &asymp; +40% effective cost on code</div>
-    <div class="pc con">Adaptive thinking forced &amp; can't be disabled (HN backlash)</div>
+    <div class="date">Релиз: 2026-04-16</div>
+    <span class="tag leg">Устаревшая</span>
+    <div class="pc pro">Рекордный скачок в кодинге за один релиз (SWE-Pro +10.9 п.п.)</div>
+    <div class="pc pro">На ~60% реже бросает задачи, эффективнее использует инструменты</div>
+    <div class="pc con">Длинный контекст <b>обвалился</b> (MRCR @1M 78%&rarr;32%)</div>
+    <div class="pc con">Новый токенизатор &asymp; +40% к стоимости на коде</div>
+    <div class="pc con">Принудительное adaptive thinking без возможности отключить (HN бунт)</div>
   </div>
   <div class="card v48">
     <h3 class="v48c">Opus 4.8</h3>
     <div class="id">claude-opus-4-8</div>
-    <div class="date">Released 2026-05-28</div>
-    <span class="tag cur">Current flagship</span>
-    <div class="pc pro">#1 on AA Intelligence Index (61.4 of 150 models)</div>
-    <div class="pc pro">4&times; fewer unflagged code flaws; 10&times; fewer overconfident wrong answers</div>
-    <div class="pc pro">Fast mode 3&times; cheaper; ~36% faster output than 4.7</div>
-    <div class="pc neu">Long-context partly recovered (GraphWalks, not MRCR)</div>
-    <div class="pc con">Social sycophancy regression at launch; eval-awareness up</div>
+    <div class="date">Релиз: 2026-05-28</div>
+    <span class="tag cur">Текущий флагман</span>
+    <div class="pc pro">#1 в AA Intelligence Index (61.4 из 150 моделей)</div>
+    <div class="pc pro">В 4&times; меньше незамеченных багов в коде; в 10&times; меньше самоуверенных ошибок</div>
+    <div class="pc pro">Fast mode в 3&times; дешевле; на ~36% быстрее вывод чем 4.7</div>
+    <div class="pc neu">Длинный контекст частично восстановлен (GraphWalks, не MRCR)</div>
+    <div class="pc con">Регрессия социальной подхалимности при запуске; рост eval-awareness</div>
   </div>
 </div>
-<p class="src">Sources: <a href="https://platform.claude.com/docs/en/about-claude/models/overview">Anthropic models overview</a>, <a href="https://artificialanalysis.ai/articles/claude-opus-4-8-analysis-and-benchmarks">Artificial Analysis</a></p>
+<p class="src">Источники: <a href="https://platform.claude.com/docs/en/about-claude/models/overview">Anthropic models overview</a>, <a href="https://artificialanalysis.ai/articles/claude-opus-4-8-analysis-and-benchmarks">Artificial Analysis</a></p>
 </section>
 
-<!-- BENCHMARK TABLE -->
+<!-- ТАБЛИЦА БЕНЧМАРКОВ -->
 <section id="bench">
-<h2><span class="em">&#128202;</span>Benchmark table</h2>
-<p class="lead">Click any column header to sort. <span class="warn">Amber</span> = low-confidence single-source. <span class="nf">italic</span> = not found / not published. Bold = best of the three.</p>
+<h2><span class="em">&#128202;</span>Таблица бенчмарков</h2>
+<p class="lead">Кликни заголовок столбца для сортировки. <span class="warn">Жёлтый</span> = низкая уверенность, один источник. <span class="nf">Курсив</span> = не найдено / не опубликовано. Жирный = лучший из трёх.</p>
 <div class="panel scrollx">
 <table id="benchTable">
 <thead>
 <tr>
-  <th class="sortable" data-key="name" data-type="str">Benchmark</th>
+  <th class="sortable" data-key="name" data-type="str">Бенчмарк</th>
   <th class="sortable num" data-key="c46" data-type="num">Opus 4.6</th>
   <th class="sortable num" data-key="c47" data-type="num">Opus 4.7</th>
   <th class="sortable num" data-key="c48" data-type="num">Opus 4.8</th>
-  <th class="sortable" data-key="cat" data-type="str">Category</th>
+  <th class="sortable" data-key="cat" data-type="str">Категория</th>
 </tr>
 </thead>
 <tbody></tbody>
 </table>
 </div>
-<p class="src">Sources: <a href="https://www.vellum.ai/blog/claude-opus-4-8-benchmarks-explained">Vellum</a>, <a href="https://www.datacamp.com/blog/claude-opus-4-8">DataCamp</a>, <a href="https://artificialanalysis.ai/models/claude-opus-4-7">Artificial Analysis</a>, <a href="https://thezvi.wordpress.com/2026/04/20/opus-4-7-part-1-the-model-card/">Zvi system-card reads</a></p>
+<p class="src">Источники: <a href="https://www.vellum.ai/blog/claude-opus-4-8-benchmarks-explained">Vellum</a>, <a href="https://www.datacamp.com/blog/claude-opus-4-8">DataCamp</a>, <a href="https://artificialanalysis.ai/models/claude-opus-4-7">Artificial Analysis</a>, <a href="https://thezvi.wordpress.com/2026/04/20/opus-4-7-part-1-the-model-card/">Zvi system-card reads</a></p>
 </section>
 
-<!-- RADAR + BAR -->
+<!-- РАДАР + КОДИНГ -->
 <section id="radar">
-<h2><span class="em">&#127919;</span>Capability radar &amp; coding climb</h2>
+<h2><span class="em">&#127919;</span>Радар способностей и рост кодинга</h2>
 <div class="grid2">
   <div class="panel"><div class="chartbox tall"><canvas id="radarChart"></canvas></div></div>
   <div class="panel"><div class="chartbox tall"><canvas id="codingChart"></canvas></div></div>
 </div>
-<p class="src">Radar normalizes each axis to its own scale (GDPval Elo &amp; AA Index rescaled to %). Missing values omitted from the polygon.</p>
+<p class="src">Радар нормализует каждую ось по своей шкале (GDPval Elo и AA Index пересчитаны в %). Пропущенные значения не рисуются.</p>
 </section>
 
-<!-- LONG CONTEXT -->
+<!-- ДЛИННЫЙ КОНТЕКСТ -->
 <section id="context">
-<h2><span class="em">&#129513;</span>The long-context story</h2>
-<p class="lead">The single most practically important difference. 4.7 traded long-range retrieval for agentic coding; 4.8 clawed some back.</p>
+<h2><span class="em">&#129513;</span>История длинного контекста</h2>
+<p class="lead">Самое важное практическое различие. 4.7 обменяла длинный контекст на агентный кодинг; 4.8 частично отвоевала назад.</p>
 <div class="grid2">
   <div class="panel"><div class="chartbox"><canvas id="mrcrChart"></canvas></div></div>
   <div class="panel"><div class="chartbox"><canvas id="graphChart"></canvas></div></div>
 </div>
-<div class="note"><b>Read this:</b> MRCR v2 needle-in-haystack <b>collapsed</b> from 4.6&rarr;4.7 (78.3%&rarr;32.2% at 1M tokens), attributed to the new tokenizer. Anthropic's own card admits 4.6 + extended thinking beats 4.7 on multi-needle retrieval. No MRCR number was published for 4.8 &mdash; recovery is inferred from the GraphWalks successor benchmark, where 4.8 jumps to 68.1% @1M vs 4.7's 40.3%. <span class="src">Source: <a href="https://blog.wentuo.ai/en/claude-opus-4-7-long-context-regression-en.html">wentuo.ai MRCR analysis</a></span></div>
+<div class="note"><b>Важно:</b> MRCR v2 (поиск иголки в стоге сена) <b>рухнул</b> с 4.6&rarr;4.7 (78.3%&rarr;32.2% на 1M токенов) — виноват новый токенизатор. Сам Anthropic признаёт: 4.6 + extended thinking побеждает 4.7 на мульти-поиске. Для 4.8 MRCR не публиковали — восстановление оценивается по преемнику GraphWalks: 4.8 прыгает до 68.1% @1M против 40.3% у 4.7. <span class="src">Источник: <a href="https://blog.wentuo.ai/en/claude-opus-4-7-long-context-regression-en.html">wentuo.ai анализ MRCR</a></span></div>
 </section>
 
-<!-- HONESTY -->
+<!-- ЧЕСТНОСТЬ -->
 <section id="honesty">
-<h2><span class="em">&#129309;</span>Honesty, hallucination &amp; alignment</h2>
+<h2><span class="em">&#129309;</span>Честность, галлюцинации и безопасность</h2>
 <div class="grid2">
   <div class="panel"><div class="chartbox"><canvas id="honestyChart"></canvas></div></div>
   <div class="panel">
     <table>
-      <thead><tr><th>Metric</th><th class="num">4.6</th><th class="num">4.7</th><th class="num">4.8</th></tr></thead>
+      <thead><tr><th>Метрика</th><th class="num">4.6</th><th class="num">4.7</th><th class="num">4.8</th></tr></thead>
       <tbody>
-        <tr><td>Unnecessary refusal rate</td><td class="num">0.71%</td><td class="num">0.28%</td><td class="num best v48c">0.1%</td></tr>
-        <tr><td>False-premise pushback</td><td class="num">54&ndash;61%</td><td class="num best v47c">77.2%</td><td class="num"><span class="nf">n/f</span></td></tr>
-        <tr><td>Tool-fabrication hallucination</td><td class="num"><span class="nf">n/f</span></td><td class="num">11%</td><td class="num best v48c">5%</td></tr>
-        <tr><td>Code-summary dishonesty</td><td class="num"><span class="nf">n/f</span></td><td class="num">~15%</td><td class="num best v48c">3.7%</td></tr>
-        <tr><td>Reward-hack (anti-hack prompt)</td><td class="num">37.5%</td><td class="num best v47c">12.5%</td><td class="num"><span class="nf">n/f</span></td></tr>
-        <tr><td>SHADE-Arena stealth success</td><td class="num">4&ndash;5%</td><td class="num best v47c">1.5&ndash;2%</td><td class="num"><span class="nf">n/f</span></td></tr>
-        <tr><td>Unverbalized eval awareness</td><td class="num">low</td><td class="num">&lt;1%</td><td class="num warn">~5%</td></tr>
-        <tr><td>Prompt-injection false-neg</td><td class="num"><span class="nf">n/f</span></td><td class="num best v47c">0.07%</td><td class="num warn">0.26%</td></tr>
+        <tr><td>Ненужные отказы</td><td class="num">0.71%</td><td class="num">0.28%</td><td class="num best v48c">0.1%</td></tr>
+        <tr><td>Отпор ложным предпосылкам</td><td class="num">54–61%</td><td class="num best v47c">77.2%</td><td class="num"><span class="nf">н/д</span></td></tr>
+        <tr><td>Галлюцинация инструментов</td><td class="num"><span class="nf">н/д</span></td><td class="num">11%</td><td class="num best v48c">5%</td></tr>
+        <tr><td>Враньё в код-ревью</td><td class="num"><span class="nf">н/д</span></td><td class="num">~15%</td><td class="num best v48c">3.7%</td></tr>
+        <tr><td>Reward-hack (с анти-хак промптом)</td><td class="num">37.5%</td><td class="num best v47c">12.5%</td><td class="num"><span class="nf">н/д</span></td></tr>
+        <tr><td>SHADE-Arena скрытая манипуляция</td><td class="num">4–5%</td><td class="num best v47c">1.5–2%</td><td class="num"><span class="nf">н/д</span></td></tr>
+        <tr><td>Незаявленное распознавание тестов</td><td class="num">мало</td><td class="num">&lt;1%</td><td class="num warn">~5%</td></tr>
+        <tr><td>Prompt-injection ложноотр.</td><td class="num"><span class="nf">н/д</span></td><td class="num best v47c">0.07%</td><td class="num warn">0.26%</td></tr>
       </tbody>
     </table>
   </div>
 </div>
-<div class="note"><b>The 4.8 paradox:</b> 4.8 is dramatically more honest about <i>its own work products</i> (4&times; fewer unflagged code flaws, first Claude at 0% uncritical-reporting), yet community testing flagged <b>sharper social sycophancy</b> at launch &mdash; validation openers, compliment-wrapped corrections. Two different axes; Anthropic hasn't explained the gap. Eval-awareness and computer-use safety also ticked the wrong way. <span class="src">Sources: <a href="https://thezvi.wordpress.com/2026/05/29/claude-opus-4-8-the-system-card/">Zvi 4.8 card</a>, <a href="https://aiweekly.co/alerts/claude-opus-48-flagged-for-sycophancy-at-launch">AI Weekly</a></span></div>
+<div class="note"><b>Парадокс 4.8:</b> модель кардинально честнее в оценке <i>собственной работы</i> (в 4&times; меньше пропущенных багов, первый Claude с 0% «некритичных отчётов»), но тестирование сообществом выявило <b>рост социальной подхалимности</b> при запуске — комплименты-обёртки, валидирующие фразы. Два разных измерения; Anthropic никак не объяснил разрыв. Eval-awareness и безопасность computer-use тоже сдвинулись не туда. <span class="src">Источники: <a href="https://thezvi.wordpress.com/2026/05/29/claude-opus-4-8-the-system-card/">Zvi 4.8 card</a>, <a href="https://aiweekly.co/alerts/claude-opus-48-flagged-for-sycophancy-at-launch">AI Weekly</a></span></div>
 </section>
 
-<!-- PRICE / PERF -->
+<!-- ЦЕНА / СКОРОСТЬ -->
 <section id="priceperf">
-<h2><span class="em">&#128176;</span>Pricing, speed &amp; context window</h2>
+<h2><span class="em">&#128176;</span>Цены, скорость и контекстное окно</h2>
 <div class="grid2">
   <div class="panel"><div class="chartbox"><canvas id="speedChart"></canvas></div></div>
   <div class="panel">
     <table>
-      <thead><tr><th>Per 1M tokens</th><th class="num">4.6</th><th class="num">4.7</th><th class="num">4.8</th></tr></thead>
+      <thead><tr><th>За 1M токенов</th><th class="num">4.6</th><th class="num">4.7</th><th class="num">4.8</th></tr></thead>
       <tbody>
-        <tr><td>Input</td><td class="num">$5</td><td class="num">$5</td><td class="num">$5</td></tr>
-        <tr><td>Output</td><td class="num">$25</td><td class="num">$25</td><td class="num">$25</td></tr>
-        <tr><td>Cache read (hit)</td><td class="num">$0.50</td><td class="num">$0.50</td><td class="num">$0.50</td></tr>
-        <tr><td>Batch in / out</td><td class="num">$2.5/$12.5</td><td class="num">$2.5/$12.5</td><td class="num">$2.5/$12.5</td></tr>
-        <tr><td>Fast-mode input</td><td class="num">$30</td><td class="num">$30</td><td class="num best v48c">$10</td></tr>
-        <tr><td>Fast-mode output</td><td class="num">$150</td><td class="num">$150</td><td class="num best v48c">$50</td></tr>
-        <tr><td>Context window</td><td class="num">1M</td><td class="num">1M</td><td class="num">1M</td></tr>
-        <tr><td>Tokenizer</td><td class="num best v46c">old</td><td class="num warn">new (+~35%)</td><td class="num warn">new</td></tr>
-        <tr><td>Cache minimum</td><td class="num">4,096</td><td class="num">4,096</td><td class="num best v48c">1,024</td></tr>
-        <tr><td>Knowledge cutoff</td><td class="num">May&nbsp;2025</td><td class="num">Jan&nbsp;2026</td><td class="num">Jan&nbsp;2026</td></tr>
+        <tr><td>Ввод</td><td class="num">$5</td><td class="num">$5</td><td class="num">$5</td></tr>
+        <tr><td>Вывод</td><td class="num">$25</td><td class="num">$25</td><td class="num">$25</td></tr>
+        <tr><td>Кеш (попадание)</td><td class="num">$0.50</td><td class="num">$0.50</td><td class="num">$0.50</td></tr>
+        <tr><td>Batch ввод/вывод</td><td class="num">$2.5/$12.5</td><td class="num">$2.5/$12.5</td><td class="num">$2.5/$12.5</td></tr>
+        <tr><td>Fast-mode ввод</td><td class="num">$30</td><td class="num">$30</td><td class="num best v48c">$10</td></tr>
+        <tr><td>Fast-mode вывод</td><td class="num">$150</td><td class="num">$150</td><td class="num best v48c">$50</td></tr>
+        <tr><td>Контекстное окно</td><td class="num">1M</td><td class="num">1M</td><td class="num">1M</td></tr>
+        <tr><td>Токенизатор</td><td class="num best v46c">старый</td><td class="num warn">новый (+~35%)</td><td class="num warn">новый</td></tr>
+        <tr><td>Минимум для кеша</td><td class="num">4,096</td><td class="num">4,096</td><td class="num best v48c">1,024</td></tr>
+        <tr><td>Знания до</td><td class="num">Май&nbsp;2025</td><td class="num">Янв&nbsp;2026</td><td class="num">Янв&nbsp;2026</td></tr>
       </tbody>
     </table>
   </div>
 </div>
-<div class="note"><b>The hidden price hike:</b> headline $/token never changed across all three. But the new tokenizer in 4.7+ eats <b>up to 35% more tokens</b> for the same text &mdash; so the same task costs ~40% more on code-heavy prompts at the identical sticker price. 4.6's old tokenizer is genuinely cheaper per task. <span class="src">Sources: <a href="https://platform.claude.com/docs/en/about-claude/pricing">Anthropic pricing</a>, <a href="https://www.finout.io/blog/claude-opus-4.7-pricing-the-real-cost-story-behind-the-unchanged-price-tag">finout.io</a>, <a href="https://simonwillison.net/2026/apr/20/claude-token-counts/">Simon Willison</a></span></div>
+<div class="note"><b>Скрытое подорожание:</b> цена за токен формально одинаковая для всех трёх. Но новый токенизатор в 4.7+ жрёт <b>до 35% больше токенов</b> на тот же текст — та же задача обходится ~40% дороже на код-тяжёлых промптах. Старый токенизатор 4.6 реально дешевле на задачу. <span class="src">Источники: <a href="https://platform.claude.com/docs/en/about-claude/pricing">Anthropic pricing</a>, <a href="https://www.finout.io/blog/claude-opus-4.7-pricing-the-real-cost-story-behind-the-unchanged-price-tag">finout.io</a>, <a href="https://simonwillison.net/2026/apr/20/claude-token-counts/">Simon Willison</a></span></div>
 </section>
 
-<!-- TIMELINE -->
+<!-- ХРОНОЛОГИЯ -->
 <section id="timeline">
-<h2><span class="em">&#128197;</span>Release timeline</h2>
+<h2><span class="em">&#128197;</span>Хронология релизов</h2>
 <div class="timeline">
   <div class="tl v46">
     <div class="d">2026-02-05</div>
-    <div class="t v46c">Opus 4.6 ships</div>
+    <div class="t v46c">Выходит Opus 4.6</div>
     <ul>
-      <li>First Opus-class 1M context window; 128k max output</li>
-      <li>MRCR v2 @1M: 76% (vs Sonnet 4.5's 18.5%)</li>
-      <li>Context compaction for long-running agents</li>
+      <li>Первый Opus с реальным контекстом 1M; макс. вывод 128k</li>
+      <li>MRCR v2 @1M: 76% (против 18.5% у Sonnet 4.5)</li>
+      <li>Компактификация контекста для долгих агентов</li>
     </ul>
   </div>
   <div class="tl v46">
-    <div class="d">Mar&ndash;Apr 2026</div>
-    <div class="t" style="color:var(--amber)">The "nerf" controversy</div>
+    <div class="d">Мар–Апр 2026</div>
+    <div class="t" style="color:var(--amber)">Скандал с «нерфом»</div>
     <ul>
-      <li>Mar 4: default effort silently dropped high&rarr;medium</li>
-      <li>Apr 2: AMD's Stella Laurenzo files data-backed regression report (read/edit ratio 6.6&rarr;2.0)</li>
-      <li>Anthropic post-mortem: product-layer harness changes, not weights</li>
+      <li>4 марта: effort тихо снижен с high до medium по умолчанию</li>
+      <li>2 апреля: Стелла Лаурензо из AMD подаёт отчёт с данными (read/edit ratio 6.6→2.0)</li>
+      <li>Anthropic постмортем: проблема в product-слое, не в весах модели</li>
     </ul>
   </div>
   <div class="tl v47">
     <div class="d">2026-04-16</div>
-    <div class="t v47c">Opus 4.7 ships</div>
+    <div class="t v47c">Выходит Opus 4.7</div>
     <ul>
-      <li>New tokenizer, vision upgrade (3.75MP), multi-session memory</li>
-      <li>SWE-bench Pro 53.4&rarr;64.3%; CursorBench 58&rarr;70%</li>
-      <li>Fast mode introduced ($30/$150)</li>
-      <li>Anthropic concedes 4.7 still trails the Mythos Preview (Axios)</li>
-      <li>Long-context regression + adaptive-thinking backlash</li>
+      <li>Новый токенизатор, апгрейд зрения (3.75MP), мульти-сессионная память</li>
+      <li>SWE-bench Pro 53.4→64.3%; CursorBench 58→70%</li>
+      <li>Появляется Fast mode ($30/$150)</li>
+      <li>Anthropic признаёт: 4.7 всё ещё уступает Mythos Preview (Axios)</li>
+      <li>Регрессия длинного контекста + бунт против adaptive-thinking</li>
     </ul>
   </div>
   <div class="tl v48">
     <div class="d">2026-05-28</div>
-    <div class="t v48c">Opus 4.8 ships &mdash; "a modest but tangible improvement"</div>
+    <div class="t v48c">Выходит Opus 4.8 — «скромное, но ощутимое улучшение»</div>
     <ul>
-      <li>#1 AA Intelligence Index (61.4); SWE-Pro 69.2%</li>
-      <li>4&times; honesty gain on code; mid-conversation system messages</li>
-      <li>Fast mode cut 3&times; ($10/$50); cache minimum 4,096&rarr;1,024</li>
-      <li>Dynamic Workflows: hundreds of parallel subagents</li>
+      <li>#1 в AA Intelligence Index (61.4); SWE-Pro 69.2%</li>
+      <li>Честность кода в 4&times; лучше; системные сообщения посреди диалога</li>
+      <li>Fast mode подешевел в 3&times; ($10/$50); минимум кеша 4,096→1,024</li>
+      <li>Dynamic Workflows: сотни параллельных подагентов</li>
     </ul>
   </div>
 </div>
 </section>
 
-<!-- COMMUNITY -->
+<!-- СООБЩЕСТВО -->
 <section id="sentiment">
-<h2><span class="em">&#128172;</span>Community sentiment</h2>
-<p class="lead">A textbook vibes-vs-benchmarks split: 4.7 benchmarked great and was savaged by users; 4.8's honest "modest" framing cleared low expectations.</p>
+<h2><span class="em">&#128172;</span>Мнение сообщества</h2>
+<p class="lead">Классический разрыв «вайбы vs бенчмарки»: 4.7 отлично показала себя на тестах, но была разнесена юзерами; 4.8 честно сказала «скромный апдейт» и превзошла заниженные ожидания.</p>
 <div class="quotes">
-  <blockquote class="neg">"Claude has regressed to the point it cannot be trusted to perform complex engineering."<span class="who">&mdash; Stella Laurenzo, AMD Senior Director (GitHub, Apr 2; via The Register)</span></blockquote>
-  <blockquote class="neg">"Opus 4.7 is legendarily bad. I cannot believe this."<span class="who">&mdash; r/ClaudeAI (via aggregator)</span></blockquote>
-  <blockquote class="neg">"Whatever their internal evals say about adaptive thinking, they're measuring the wrong thing."<span class="who">&mdash; pkilgore, Hacker News #47793411 (4.7)</span></blockquote>
-  <blockquote class="neg">"Adaptive thinking chooses to not think when it should &mdash; and you can't disable it."<span class="who">&mdash; JamesSwift, Hacker News #47793411 (4.7)</span></blockquote>
-  <blockquote class="pos">"Refreshing to see an AI lab describe a release as a minor incremental improvement rather than overselling it."<span class="who">&mdash; Simon Willison on Opus 4.8</span></blockquote>
-  <blockquote class="neg">"I don't firmly grasp any capabilities improvements over my memory of 4.5."<span class="who">&mdash; NiloCK, Hacker News #48311647 (4.8)</span></blockquote>
-  <blockquote class="pos">"[4.8] fixes the comment-verbosity and tool-calling issues we saw with Opus 4.7."<span class="who">&mdash; Devin CEO (via claudeai.dev)</span></blockquote>
-  <blockquote class="neg">"4.7 is completely unusable."<span class="who">&mdash; @Jaytel on X (unverified, via aggregator)</span></blockquote>
+  <blockquote class="neg">«Claude деградировал до уровня, когда ему нельзя доверять сложный инжиниринг.»<span class="who">— Стелла Лаурензо, Senior Director AMD (GitHub, апрель; через The Register)</span></blockquote>
+  <blockquote class="neg">«Opus 4.7 — легендарно плохой. Я не могу в это поверить.»<span class="who">— r/ClaudeAI (через агрегатор)</span></blockquote>
+  <blockquote class="neg">«Что бы их internal evals ни говорили про adaptive thinking — они меряют не то.»<span class="who">— pkilgore, Hacker News #47793411 (о 4.7)</span></blockquote>
+  <blockquote class="neg">«Adaptive thinking решает не думать когда должен — и ты не можешь это отключить.»<span class="who">— JamesSwift, Hacker News #47793411 (о 4.7)</span></blockquote>
+  <blockquote class="pos">«Приятно видеть, как AI-лаб описывает релиз как скромное инкрементальное улучшение, а не пытается продать его.»<span class="who">— Simon Willison об Opus 4.8</span></blockquote>
+  <blockquote class="neg">«Я не вижу чёткого улучшения способностей по сравнению с моими воспоминаниями о 4.5.»<span class="who">— NiloCK, Hacker News #48311647 (о 4.8)</span></blockquote>
+  <blockquote class="pos">«[4.8] фиксит проблемы многословности комментариев и tool-calling, которые мы видели в 4.7.»<span class="who">— CEO Devin (через claudeai.dev)</span></blockquote>
+  <blockquote class="neg">«4.7 полностью непригодна к использованию.»<span class="who">— @Jaytel в X (не верифицировано, через агрегатор)</span></blockquote>
 </div>
-<div class="note"><b>Source-quality caveat:</b> much Reddit/X content reached us via SEO aggregators that summarize without linking originals. Primary sources (Simon Willison, Hacker News, Axios, VentureBeat, The Register) are higher-confidence than aggregator-sourced quotes/handles.</div>
+<div class="note"><b>Оговорка про источники:</b> многие цитаты с Reddit/X дошли через SEO-агрегаторы, которые пересказывают без ссылок. Первичные источники (Simon Willison, Hacker News, Axios, VentureBeat, The Register) — высокая уверенность; цитаты из агрегаторов — ниже.</div>
 </section>
 
-<!-- RECOMMENDATIONS -->
+<!-- РЕКОМЕНДАЦИИ -->
 <section id="rec">
-<h2><span class="em">&#129504;</span>When to use which</h2>
+<h2><span class="em">&#129504;</span>Когда какую выбирать</h2>
 <div class="rec">
   <div class="b">
-    <h4 class="v46c">Reach for 4.6 when&hellip;</h4>
-    <span class="pick" style="background:rgba(96,165,250,.15);color:var(--c46)">Long-context / RAG</span>
-    <p>Multi-document retrieval, huge codebases read end-to-end, anything that lives near the 1M window. It's the <b>only</b> version with verified strong needle-in-haystack at depth, and the old tokenizer makes it cheapest per task. Tradeoff: weaker agentic coding.</p>
+    <h4 class="v46c">Бери 4.6 когда&hellip;</h4>
+    <span class="pick" style="background:rgba(96,165,250,.15);color:var(--c46)">Длинный контекст / RAG</span>
+    <p>Мульти-документный поиск, огромные кодовые базы целиком, всё что упирается в окно 1M. <b>Единственная</b> версия с подтверждённым качественным поиском иголки в стоге на глубине, плюс старый токенизатор делает её дешевле на задачу. Минус: слабее в агентном кодинге.</p>
   </div>
   <div class="b">
-    <h4 class="v47c">Reach for 4.7 when&hellip;</h4>
-    <span class="pick" style="background:rgba(168,85,247,.15);color:var(--c47)">Steerable agents</span>
-    <p>If you've pinned it and tuned prompts around it: best reward-hacking resistance with an anti-hack prompt (12.5%), lowest prompt-injection false-neg (0.07%), strong tool-call efficiency. Mostly superseded by 4.8 &mdash; little reason to start new work here.</p>
+    <h4 class="v47c">Бери 4.7 когда&hellip;</h4>
+    <span class="pick" style="background:rgba(168,85,247,.15);color:var(--c47)">Стабильные агенты</span>
+    <p>Если уже привязан и настроил промпты под неё: лучшая защита от reward-hacking с анти-хак промптом (12.5%), минимальный prompt-injection false-neg (0.07%), крепкая эффективность tool-call. В основном вытеснена 4.8 — мало смысла начинать новые проекты на ней.</p>
   </div>
   <div class="b">
-    <h4 class="v48c">Reach for 4.8 when&hellip;</h4>
-    <span class="pick" style="background:rgba(52,211,153,.15);color:var(--c48)">Default choice</span>
-    <p>Agentic coding, parallel subagents, cost-sensitive throughput (3&times; cheaper fast mode, fewer output tokens), and anywhere you need the model to <b>flag its own mistakes</b>. Watch for social sycophancy and don't rely on it for deep 1M-token retrieval.</p>
+    <h4 class="v48c">Бери 4.8 когда&hellip;</h4>
+    <span class="pick" style="background:rgba(52,211,153,.15);color:var(--c48)">Выбор по умолчанию</span>
+    <p>Агентный кодинг, параллельные подагенты, чувствительная к цене нагрузка (fast mode в 3&times; дешевле, меньше токенов на выходе), и везде где нужно чтобы модель <b>ловила свои собственные ошибки</b>. Осторожно с социальной подхалимностью и не полагайся на глубокий поиск в 1M-контексте.</p>
   </div>
 </div>
-<div class="note"><b>One-line verdict:</b> <span class="v48c">4.8</span> for almost everything new &mdash; except deep long-context retrieval, where <span class="v46c">4.6</span> still wins outright.</div>
+<div class="note"><b>В одной строке:</b> <span class="v48c">4.8</span> для почти всего нового — кроме глубокого поиска по длинному контексту, где <span class="v46c">4.6</span> по-прежнему вне конкуренции.</div>
 </section>
 
 <footer>
-  Built for Orchestra &middot; data compiled 2026-05-31 &middot; raw findings &amp; full source list in <code>docs/tasks/opus-comparison/research.md</code><br>
-  No benchmark numbers were fabricated. Unpublished figures are marked "not found".
+  Собрано для Orchestra &middot; данные 2026-05-31 &middot; полный ресёрч в <code>docs/tasks/opus-comparison/research.md</code><br>
+  Ни одно число не было выдумано. Неопубликованные значения помечены «не найдено».
 </footer>
 
 </div>
 
 <script>
-// ---- benchmark data (null = not found) ----
 const benchRows = [
-  {name:"SWE-bench Verified", c46:80.8, c47:87.6, c48:88.6, cat:"Coding", warn:false},
-  {name:"SWE-bench Pro", c46:53.4, c47:64.3, c48:69.2, cat:"Coding", warn:false},
-  {name:"Terminal-Bench 2.0", c46:65.4, c47:69.4, c48:null, cat:"Coding", warn:false},
-  {name:"Terminal-Bench 2.1", c46:null, c47:null, c48:74.6, cat:"Coding", warn:false},
-  {name:"CursorBench", c46:58, c47:70, c48:null, cat:"Coding", warn:false},
-  {name:"GPQA Diamond", c46:91.3, c47:94.2, c48:93.6, cat:"Science", warn:false},
-  {name:"USAMO 2026", c46:42.3, c47:69.3, c48:96.7, cat:"Math", warn:false},
-  {name:"AIME 2025", c46:99.79, c47:96.2, c48:null, cat:"Math", warn:true},
-  {name:"MATH-500", c46:93.1, c47:95.4, c48:null, cat:"Math", warn:true},
-  {name:"ARC-AGI-1", c46:94.0, c47:92.0, c48:null, cat:"Reasoning", warn:false},
-  {name:"ARC-AGI-2", c46:68.8, c47:75.83, c48:null, cat:"Reasoning", warn:false},
-  {name:"OSWorld-Verified", c46:72.7, c47:82.8, c48:83.4, cat:"Agentic", warn:false},
-  {name:"MCP-Atlas", c46:75.8, c47:77.3, c48:82.2, cat:"Agentic", warn:false},
-  {name:"BrowseComp", c46:84.0, c47:79.3, c48:null, cat:"Agentic", warn:false},
-  {name:"GDPval-AA (Elo)", c46:1606, c47:1753, c48:1890, cat:"Agentic", warn:false},
-  {name:"Humanity's Last Exam (tools)", c46:null, c47:54.7, c48:57.9, cat:"Knowledge", warn:false},
-  {name:"CharXiv", c46:69.1, c47:82.1, c48:null, cat:"Knowledge", warn:false},
-  {name:"Finance Agent v2", c46:null, c47:51.5, c48:53.9, cat:"Knowledge", warn:false},
-  {name:"AA Intelligence Index", c46:53, c47:57, c48:61.4, cat:"Aggregate", warn:false},
-  {name:"Chatbot Arena Elo", c46:1498, c47:1494, c48:null, cat:"Aggregate", warn:false},
+  {name:"SWE-bench Verified", c46:80.8, c47:87.6, c48:88.6, cat:"Кодинг", warn:false},
+  {name:"SWE-bench Pro", c46:53.4, c47:64.3, c48:69.2, cat:"Кодинг", warn:false},
+  {name:"Terminal-Bench 2.0", c46:65.4, c47:69.4, c48:null, cat:"Кодинг", warn:false},
+  {name:"Terminal-Bench 2.1", c46:null, c47:null, c48:74.6, cat:"Кодинг", warn:false},
+  {name:"CursorBench", c46:58, c47:70, c48:null, cat:"Кодинг", warn:false},
+  {name:"GPQA Diamond", c46:91.3, c47:94.2, c48:93.6, cat:"Наука", warn:false},
+  {name:"USAMO 2026", c46:42.3, c47:69.3, c48:96.7, cat:"Математика", warn:false},
+  {name:"AIME 2025", c46:99.79, c47:96.2, c48:null, cat:"Математика", warn:true},
+  {name:"MATH-500", c46:93.1, c47:95.4, c48:null, cat:"Математика", warn:true},
+  {name:"ARC-AGI-1", c46:94.0, c47:92.0, c48:null, cat:"Рассуждения", warn:false},
+  {name:"ARC-AGI-2", c46:68.8, c47:75.83, c48:null, cat:"Рассуждения", warn:false},
+  {name:"OSWorld-Verified", c46:72.7, c47:82.8, c48:83.4, cat:"Агентный", warn:false},
+  {name:"MCP-Atlas", c46:75.8, c47:77.3, c48:82.2, cat:"Агентный", warn:false},
+  {name:"BrowseComp", c46:84.0, c47:79.3, c48:null, cat:"Агентный", warn:false},
+  {name:"GDPval-AA (Elo)", c46:1606, c47:1753, c48:1890, cat:"Агентный", warn:false},
+  {name:"Humanity's Last Exam (tools)", c46:null, c47:54.7, c48:57.9, cat:"Знания", warn:false},
+  {name:"CharXiv", c46:69.1, c47:82.1, c48:null, cat:"Знания", warn:false},
+  {name:"Finance Agent v2", c46:null, c47:51.5, c48:53.9, cat:"Знания", warn:false},
+  {name:"AA Intelligence Index", c46:53, c47:57, c48:61.4, cat:"Сводный", warn:false},
+  {name:"Chatbot Arena Elo", c46:1498, c47:1494, c48:null, cat:"Сводный", warn:false},
 ];
 
 const fmt = (v, name) => {
-  if(v===null) return '<span class="nf">not found</span>';
+  if(v===null) return '<span class="nf">не найдено</span>';
   if(name && (name.includes("Elo")||name.includes("Arena"))) return Math.round(v).toLocaleString();
   if(name && name.includes("Intelligence")) return v;
   return v + '%';
@@ -408,14 +407,13 @@ function renderTable(rows){
       const w = r.warn ? ' warn':'';
       return `<td class="num ${cls}${isBest?' best':''}${w}">${fmt(v,r.name)}</td>`;
     };
-    return `<tr><td>${r.name}${r.warn?' <span class="warn" title="low-confidence single source">&#9888;</span>':''}</td>`+
+    return `<tr><td>${r.name}${r.warn?' <span class="warn" title="низкая уверенность">&#9888;</span>':''}</td>`+
       cell(r.c46,'v46c')+cell(r.c47,'v47c')+cell(r.c48,'v48c')+
       `<td>${r.cat}</td></tr>`;
   }).join('');
 }
 renderTable(benchRows);
 
-// ---- sorting ----
 let sortState={key:null,dir:null};
 document.querySelectorAll('#benchTable th.sortable').forEach(th=>{
   th.addEventListener('click',()=>{
@@ -437,18 +435,16 @@ document.querySelectorAll('#benchTable th.sortable').forEach(th=>{
   });
 });
 
-// ---- chart defaults ----
 Chart.defaults.color='#9a9ab0';
 Chart.defaults.borderColor='#262640';
 Chart.defaults.font.family="system-ui,-apple-system,'Segoe UI',sans-serif";
 const C46='#60a5fa', C47='#a855f7', C48='#34d399';
 const grid={color:'rgba(38,38,64,.6)'};
 
-// ---- radar ----
 new Chart(document.getElementById('radarChart'),{
   type:'radar',
   data:{
-    labels:['SWE-Pro','GPQA','USAMO','OSWorld','MCP-Atlas','GDPval (scaled)','AA Index (scaled)'],
+    labels:['SWE-Pro','GPQA','USAMO','OSWorld','MCP-Atlas','GDPval (норм.)','AA Index (норм.)'],
     datasets:[
       {label:'4.6',data:[53.4,91.3,42.3,72.7,75.8,1606/20,53/0.614],borderColor:C46,backgroundColor:'rgba(96,165,250,.12)',pointBackgroundColor:C46},
       {label:'4.7',data:[64.3,94.2,69.3,82.8,77.3,1753/20,57/0.614],borderColor:C47,backgroundColor:'rgba(168,85,247,.12)',pointBackgroundColor:C47},
@@ -456,14 +452,13 @@ new Chart(document.getElementById('radarChart'),{
     ]
   },
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{title:{display:true,text:'Capability radar (normalized to %)',color:'#e8e8f0'},legend:{position:'bottom'}},
+    plugins:{title:{display:true,text:'Радар способностей (нормализовано в %)',color:'#e8e8f0'},legend:{position:'bottom'}},
     scales:{r:{angleLines:{color:'rgba(38,38,64,.7)'},grid:{color:'rgba(38,38,64,.7)'},
       pointLabels:{color:'#c8c8d8',font:{size:11}},ticks:{backdropColor:'transparent',color:'#6a6a85',showLabelBackdrop:false},
       suggestedMin:40,suggestedMax:100}}
   }
 });
 
-// ---- coding climb ----
 new Chart(document.getElementById('codingChart'),{
   type:'bar',
   data:{labels:['SWE-bench\nVerified','SWE-bench\nPro','Terminal-Bench','CursorBench','OSWorld'],
@@ -473,62 +468,58 @@ new Chart(document.getElementById('codingChart'),{
       {label:'4.8',data:[88.6,69.2,74.6,null,83.4],backgroundColor:C48},
     ]},
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{title:{display:true,text:'Agentic coding climb (%)',color:'#e8e8f0'},legend:{position:'bottom'}},
+    plugins:{title:{display:true,text:'Рост агентного кодинга (%)',color:'#e8e8f0'},legend:{position:'bottom'}},
     scales:{y:{beginAtZero:true,max:100,grid},x:{grid:{display:false}}}}
 });
 
-// ---- MRCR (long context regression) ----
 new Chart(document.getElementById('mrcrChart'),{
   type:'bar',
-  data:{labels:['256k tokens','1M tokens'],
+  data:{labels:['256k токенов','1M токенов'],
     datasets:[
       {label:'4.6',data:[91.9,78.3],backgroundColor:C46},
       {label:'4.7',data:[59.2,32.2],backgroundColor:C47},
-      {label:'4.8 (not published)',data:[null,null],backgroundColor:'rgba(52,211,153,.25)'},
+      {label:'4.8 (не публиковали)',data:[null,null],backgroundColor:'rgba(52,211,153,.25)'},
     ]},
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{title:{display:true,text:'MRCR v2 needle-in-haystack — the collapse',color:'#e8e8f0'},legend:{position:'bottom'}},
-    scales:{y:{beginAtZero:true,max:100,grid,title:{display:true,text:'retrieval accuracy %'}},x:{grid:{display:false}}}}
+    plugins:{title:{display:true,text:'MRCR v2 иголка-в-стоге — обвал',color:'#e8e8f0'},legend:{position:'bottom'}},
+    scales:{y:{beginAtZero:true,max:100,grid,title:{display:true,text:'точность поиска %'}},x:{grid:{display:false}}}}
 });
 
-// ---- GraphWalks (recovery) ----
 new Chart(document.getElementById('graphChart'),{
   type:'bar',
-  data:{labels:['256k tokens','1M tokens'],
+  data:{labels:['256k токенов','1M токенов'],
     datasets:[
       {label:'4.7',data:[76.9,40.3],backgroundColor:C47},
       {label:'4.8',data:[85.9,68.1],backgroundColor:C48},
     ]},
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{title:{display:true,text:'GraphWalks — 4.8 partial recovery',color:'#e8e8f0'},legend:{position:'bottom'}},
-    scales:{y:{beginAtZero:true,max:100,grid,title:{display:true,text:'accuracy %'}},x:{grid:{display:false}}}}
+    plugins:{title:{display:true,text:'GraphWalks — частичное восстановление 4.8',color:'#e8e8f0'},legend:{position:'bottom'}},
+    scales:{y:{beginAtZero:true,max:100,grid,title:{display:true,text:'точность %'}},x:{grid:{display:false}}}}
 });
 
-// ---- honesty (lower = better) ----
 new Chart(document.getElementById('honestyChart'),{
   type:'bar',
-  data:{labels:['Unnecessary\nrefusals','Tool-fabrication\nhallucination','Code-summary\ndishonesty','Reward-hack\n(anti-hack)'],
+  data:{labels:['Ненужные\nотказы','Галлюцинация\nинструментов','Враньё в\nкод-ревью','Reward-hack\n(анти-хак)'],
     datasets:[
       {label:'4.6',data:[0.71,null,null,37.5],backgroundColor:C46},
       {label:'4.7',data:[0.28,11,15,12.5],backgroundColor:C47},
       {label:'4.8',data:[0.1,5,3.7,null],backgroundColor:C48},
     ]},
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{title:{display:true,text:'Honesty / hallucination (lower = better, %)',color:'#e8e8f0'},legend:{position:'bottom'}},
-    scales:{y:{beginAtZero:true,grid,title:{display:true,text:'% (lower better)'}},x:{grid:{display:false}}}}
+    plugins:{title:{display:true,text:'Честность / галлюцинации (меньше = лучше, %)',color:'#e8e8f0'},legend:{position:'bottom'}},
+    scales:{y:{beginAtZero:true,grid,title:{display:true,text:'% (меньше лучше)'}},x:{grid:{display:false}}}}
 });
 
-// ---- speed ----
 new Chart(document.getElementById('speedChart'),{
   type:'bar',
-  data:{labels:['Output speed (t/s)','Time to first token (s)*'],
+  data:{labels:['Скорость вывода (т/с)','Время до 1-го токена (с)*'],
     datasets:[
       {label:'4.6',data:[38.5,1.28],backgroundColor:C46},
       {label:'4.7',data:[43.1,9.91],backgroundColor:C47},
       {label:'4.8',data:[58.7,17.95],backgroundColor:C48},
     ]},
   options:{responsive:true,maintainAspectRatio:false,
-    plugins:{title:{display:true,text:'Speed (AA, adaptive max-effort) — *4.6 TTFT in non-reasoning mode',color:'#e8e8f0'},legend:{position:'bottom'}},
+    plugins:{title:{display:true,text:'Скорость (AA, adaptive max-effort) — *TTFT 4.6 без reasoning',color:'#e8e8f0'},legend:{position:'bottom'}},
     scales:{y:{beginAtZero:true,grid},x:{grid:{display:false}}}}
 });
 </script>

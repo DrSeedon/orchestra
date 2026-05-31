@@ -248,7 +248,7 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
     }
 
 
-def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "main", squash: bool = True) -> dict:
+def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "main") -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
     lock_path = repo / ".git" / "orchestra-merge.lock"
@@ -341,65 +341,38 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                     )
                                     commits_merged = int(commits_result.stdout.strip() or "0")
 
-                                    if squash:
-                                        messages = _get_commit_messages(str(repo), branch, target_branch)
-                                        merge = subprocess.run(
-                                            ["git", "merge", "--squash", branch],
+                                    messages = _get_commit_messages(str(repo), branch, target_branch)
+                                    merge = subprocess.run(
+                                        ["git", "merge", "--squash", branch],
+                                        cwd=str(repo), capture_output=True, text=True,
+                                    )
+                                    if merge.returncode != 0:
+                                        subprocess.run(
+                                            ["git", "reset", "--merge"],
                                             cwd=str(repo), capture_output=True, text=True,
                                         )
-                                        if merge.returncode != 0:
-                                            subprocess.run(
-                                                ["git", "reset", "--merge"],
-                                                cwd=str(repo), capture_output=True, text=True,
-                                            )
-                                            err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
-                                            logger.error(f"merge_worktree squash failed: repo={repo} branch={branch} err={err}")
-                                            result = {"ok": False, "error": err}
-                                        else:
-                                            staged = subprocess.run(
-                                                ["git", "diff", "--cached", "--quiet"],
-                                                cwd=str(repo), capture_output=True, text=True,
-                                            )
-                                            if staged.returncode != 0:
-                                                commit_msg = _build_squash_message(branch, messages)
-                                                commit = subprocess.run(
-                                                    ["git", "commit", "-m", commit_msg],
-                                                    cwd=str(repo), capture_output=True, text=True,
-                                                )
-                                                if commit.returncode != 0:
-                                                    err = commit.stderr.strip() or commit.stdout.strip()
-                                                    result = {"ok": False, "error": f"squash commit failed: {err}"}
-                                                else:
-                                                    merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
-                                                    result = {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
-                                            else:
-                                                result = {"ok": True, "commits_merged": 0, "branch": branch, "merged_commits": {}}
+                                        err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
+                                        logger.error(f"merge_worktree squash failed: repo={repo} branch={branch} err={err}")
+                                        result = {"ok": False, "error": err}
                                     else:
-                                        merge = subprocess.run(
-                                            ["git", "merge", "--no-edit", branch],
+                                        staged = subprocess.run(
+                                            ["git", "diff", "--cached", "--quiet"],
                                             cwd=str(repo), capture_output=True, text=True,
                                         )
-                                        if merge.returncode != 0:
-                                            subprocess.run(
-                                                ["git", "merge", "--abort"],
+                                        if staged.returncode != 0:
+                                            commit_msg = _build_squash_message(branch, messages)
+                                            commit = subprocess.run(
+                                                ["git", "commit", "-m", commit_msg],
                                                 cwd=str(repo), capture_output=True, text=True,
                                             )
-                                            conflict_files = []
-                                            status_out = subprocess.run(
-                                                ["git", "diff", "--name-only", "--diff-filter=U"],
-                                                cwd=str(repo), capture_output=True, text=True,
-                                            )
-                                            conflict_files = status_out.stdout.strip().splitlines() if status_out.stdout.strip() else []
-                                            err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
-                                            logger.error(f"merge_worktree failed: repo={repo} branch={branch} err={err}")
-                                            if conflict_files:
-                                                result = {"ok": False, "state": "conflict", "conflicts": conflict_files,
-                                                          "error": "merge conflict — manual resolution required"}
+                                            if commit.returncode != 0:
+                                                err = commit.stderr.strip() or commit.stdout.strip()
+                                                result = {"ok": False, "error": f"squash commit failed: {err}"}
                                             else:
-                                                result = {"ok": False, "error": err}
+                                                merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
+                                                result = {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
                                         else:
-                                            merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
-                                            result = {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
+                                            result = {"ok": True, "commits_merged": 0, "branch": branch, "merged_commits": {}}
         finally:
             # ПОРЯДОК КРИТИЧЕН: сначала restore исходной ветки, ПОТОМ stash pop.
             restore_ok = True

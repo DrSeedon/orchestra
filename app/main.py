@@ -693,7 +693,6 @@ async def merge_session(name: str, req: dict):
     from app.workspace import merge_worktree_to_main
     scope = req.get("scope", "")
     target = req.get("target", "main")
-    squash = req.get("squash", True)
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -709,7 +708,7 @@ async def merge_session(name: str, req: dict):
         return JSONResponse({"error": "session has no scope"}, status_code=400)
     async with manager.get_session_lock(session_id):
         try:
-            result = merge_worktree_to_main(worktree_path, scope, target_branch=target, squash=squash)
+            result = merge_worktree_to_main(worktree_path, scope, target_branch=target)
             if result.get("ok"):
                 link_results = {}
                 for task_ref, commits in result.pop("merged_commits", {}).items():
