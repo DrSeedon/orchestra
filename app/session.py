@@ -419,7 +419,7 @@ class AgentSession:
         ctx_s = f"ctx:{ctx_pct}%" if ctx_pct else ""
         self._log("status", f"turn ended ({sr}, {nt} turns, ${cost:.2f} {ctx_s})")
 
-        from app.main import bg_manager
+        from app.bg_jobs import bg_manager
         if bg_manager and bg_manager.has_active_jobs(self.id):
             self.status = AgentStatus.WAITING
             self._log("status", "waiting for bg jobs")
