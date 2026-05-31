@@ -107,18 +107,14 @@ class ClaudeBackend:
         for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
             if os.environ.get(_k):
                 env[_k] = os.environ[_k]
-        is_1m = "[1m]" in self.model
-        cli_model = self.model.replace("[1m]", "")
         options = ClaudeAgentOptions(
-            model=cli_model, cwd=self.cwd, cli_path=cli,
+            model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             disallowed_tools=_disallowed_tools(self._is_orchestrator),
             include_partial_messages=False, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
             env=env,
         )
-        if is_1m:
-            options.betas = ["context-1m-2025-08-07"]
         if resume_id:
             options.resume = resume_id
         else:
@@ -258,7 +254,8 @@ class ClaudeBackend:
                 total = input_tokens + cache_create + cache_read
                 cache_total = cache_create + cache_read
 
-                from app.models import TOKEN_PRICES
+                from app.models import CONTEXT_LIMITS, TOKEN_PRICES
+                max_tokens = CONTEXT_LIMITS.get(self.model, 200000)
                 ctx_pct = int(total * 100 / max_tokens) if max_tokens else 0
                 ctx_tokens = total
                 cache_hit = int(cache_read * 100 / cache_total) if cache_total else 0
