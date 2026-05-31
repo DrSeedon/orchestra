@@ -249,7 +249,6 @@ class AgentSession:
             self._listen_task.add_done_callback(self._on_task_done)
         if self._heartbeat_task is None or self._heartbeat_task.done():
             self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-        asyncio.create_task(self._refresh_context_from_api())
         return self._backend
 
     # ── Event loops ──
@@ -693,15 +692,17 @@ class AgentSession:
         if not self._backend or not hasattr(self._backend, 'context_usage'):
             return
         try:
-            usage = await self._backend.context_usage()
+            usage = await asyncio.wait_for(self._backend.context_usage(), timeout=5)
             if usage and usage.get("percentage") is not None:
                 old_pct = self._last_context.get("percentage", 0)
                 self._last_context["percentage"] = usage["percentage"]
                 self._last_context["total_tokens"] = usage.get("total_tokens", 0)
                 self._last_context["max_tokens"] = usage.get("max_tokens", 200000)
-                if abs(old_pct - usage["percentage"]) > 20:
-                    self._log("status", f"context corrected: {old_pct}% → {usage['percentage']}% (authoritative)")
+                if abs(old_pct - usage["percentage"]) > 30:
+                    logger.info(f"[{self.name}] context corrected: {old_pct}% → {usage['percentage']}%")
                 self._persist()
+        except asyncio.TimeoutError:
+            logger.debug(f"[{self.name}] context refresh timeout (5s)")
         except Exception as e:
             logger.debug(f"[{self.name}] context refresh failed: {e}")
 

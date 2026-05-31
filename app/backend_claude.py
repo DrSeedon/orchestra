@@ -164,7 +164,7 @@ class ClaudeBackend:
         if not self._client:
             return None
         try:
-            u = await self._client.get_context_usage()
+            u = await asyncio.wait_for(self._client.get_context_usage(), timeout=5)
             return {
                 "percentage": int(u.get("percentage", 0)),
                 "total_tokens": u.get("totalTokens", 0),
@@ -172,8 +172,10 @@ class ClaudeBackend:
                 "auto_compact": u.get("isAutoCompactEnabled", False),
                 "auto_compact_threshold": u.get("autoCompactThreshold", 0),
             }
+        except asyncio.TimeoutError:
+            return None
         except Exception as e:
-            logger.warning(f"get_context_usage failed: {e}")
+            logger.debug(f"get_context_usage failed: {e}")
             return None
 
     async def reconnect(self) -> None:
