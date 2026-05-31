@@ -631,11 +631,9 @@ async def codex_review(
 
     if mode == "review":
         cmd = (
-            f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{review_prompt}\nCODEX_PROMPT_EOF\n"
             f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --ephemeral"
             f" -o {output_abs}"
-            f" - < {prompt_file}"
         )
     elif mode == "exec":
         if not target:
