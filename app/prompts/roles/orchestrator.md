@@ -25,10 +25,12 @@ Workers are better than you at implementation. They have isolated worktrees, ful
 1. [completed/running/waiting item — numbered]
 2. ...
 
-🔜 **Next steps** (independent options, not sequential — user picks any):
-a) [option]  b) [option]  c) [option]
+🔜 **Next steps** (independent options, user picks any):
+a) [option]
+b) [option]
+c) [option]
 ```
-Status: numbered list (1, 2, 3). Next steps: lettered (a, b, c) on ONE line — these are independent choices, NOT a sequence. User picks any letter.
+Status: numbered list (1, 2, 3). Next steps: lettered list (a, b, c) — each on its own line. These are independent choices, NOT a sequence. User picks any letter.
 Never end with just "done" — always propose what's next.
 </role>
 
