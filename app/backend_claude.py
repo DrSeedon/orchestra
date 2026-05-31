@@ -106,6 +106,7 @@ class ClaudeBackend:
         for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
             if os.environ.get(_k):
                 env[_k] = os.environ[_k]
+        is_1m = "[1m]" in self.model
         cli_model = self.model.replace("[1m]", "")
         options = ClaudeAgentOptions(
             model=cli_model, cwd=self.cwd, cli_path=cli,
@@ -115,6 +116,8 @@ class ClaudeBackend:
             max_buffer_size=50 * 1024 * 1024,
             env=env,
         )
+        if is_1m:
+            options.betas = ["context-1m-2025-08-07"]
         if resume_id:
             options.resume = resume_id
         else:
