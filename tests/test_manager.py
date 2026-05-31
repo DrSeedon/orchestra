@@ -458,3 +458,42 @@ class TestCustomMcp:
         assert session.mcp_servers_custom == custom
         assert "playwright" in session.mcp_servers
         assert "orchestra" in session.mcp_servers
+
+
+class TestSystemPromptAppend:
+    @pytest.mark.asyncio
+    async def test_worker_custom_prompt_appended(self, mgr):
+        from tests.conftest import make_backend_mock
+        with patch("app.manager.ROLE_SYSTEM_PROMPT", return_value="ROLE_BASE"):
+            with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+                session = await mgr.create_session(
+                    name="w-sp1", scope="/s", cwd="/tmp", model="m",
+                    role="worker", system_prompt="CUSTOM",
+                )
+        assert "ROLE_BASE" in session.system_prompt
+        assert "CUSTOM" in session.system_prompt
+        assert session.system_prompt.index("ROLE_BASE") < session.system_prompt.index("CUSTOM")
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_custom_prompt_appended(self, mgr):
+        from tests.conftest import make_backend_mock
+        with patch("app.manager.ROLE_SYSTEM_PROMPT", return_value="ROLE_BASE"):
+            with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+                session = await mgr.create_session(
+                    name="w-sp2", scope="/s", cwd="/tmp", model="m",
+                    role="orchestrator", system_prompt="CUSTOM",
+                )
+        assert "ROLE_BASE" in session.system_prompt
+        assert "CUSTOM" in session.system_prompt
+        assert session.system_prompt.index("ROLE_BASE") < session.system_prompt.index("CUSTOM")
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_no_custom_prompt_uses_role_base(self, mgr):
+        from tests.conftest import make_backend_mock
+        with patch("app.manager.ROLE_SYSTEM_PROMPT", return_value="ROLE_BASE"):
+            with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+                session = await mgr.create_session(
+                    name="w-sp3", scope="/s", cwd="/tmp", model="m",
+                    role="orchestrator",
+                )
+        assert session.system_prompt == "ROLE_BASE"
