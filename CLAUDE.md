@@ -63,6 +63,25 @@ sudo systemctl status orchestra
 - API цены (для калькуляции): Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 per M tokens
 - Не паниковать от "$172 на оркестратора" — monopoly money. Оптимизировать КАЧЕСТВО, не стоимость
 
+## AI Efficiency (design principle)
+Orchestra automates humans — but the AI agents themselves must be optimized too.
+Every feature should minimize agent overhead: fewer tool calls, less context waste, less repetition.
+
+**Design for AI, not humans:**
+- If an agent does the same 3 tool calls every time → automate into 1 MCP tool or server-side logic
+- If agents waste context reading the same files → pre-inject via system prompt or worktree setup
+- If a pattern causes context rot (agent re-reads, re-explains, loops) → fix the root cause, don't add more instructions
+- Measure cost-per-task, not just "does it work". $2 task done in 3 tool calls > $8 task done in 30 tool calls
+- Prompt engineering = agent optimization. Shorter, clearer prompts = fewer confused retries = less $ burned
+- Every new feature ask: "does this reduce total agent tool calls/tokens across typical workflows?"
+
+**Anti-patterns to avoid:**
+- Agent reads entire file when it needs 5 lines → give it grep/line-range hints
+- Agent asks orchestrator for permission it could decide itself → expand decision tree
+- Agent retries failed command 5 times → fail fast, report, let orchestrator decide
+- Two agents duplicate work because they don't know about each other → worker-to-worker communication
+- Agent spends 20 tool calls on setup that could be pre-configured → inject at spawn time
+
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool
 - Баги пишутся в `BUGS.md` в корне проекта
