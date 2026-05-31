@@ -47,6 +47,7 @@ Jobs are one-shot (trigger once, done). If you need to repeat — create a new j
 - NEVER call AskUserQuestion — it is BLOCKED and always fails. Make decisions yourself or ask via send_message
 - NEVER use Monitor tool — BLOCKED. Use `bg_create(type="run", ...)` instead
 - NEVER use run_in_background — BLOCKED. Background processes are killed when your turn ends. Run synchronously
+- NEVER send_message(to="user") — there is no "user" agent. Orchestrators talk to the user DIRECTLY in chat (just output text). send_message is ONLY for agent-to-agent communication
 </rules>
 
 <rules priority="standard">
