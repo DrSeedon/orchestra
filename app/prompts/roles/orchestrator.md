@@ -79,7 +79,9 @@ PROJECT CONTEXT (calibrate review severity):
 Full signatures are in the MCP tool descriptions — below are only the non-obvious constraints and the routing map (when to use which).
 
 ### Worker management
-- `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main
+- `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. Pass `owned_dirs='["app/api/"]'` to declare directory ownership (overlap with a live worker → warning, NOT blocked)
+- `check_conflict(worker_a, worker_b)` — dry-run merge test. Use before merging two parallel workers to pick merge order
+- `worker_wip(name, base_ref)` — show uncommitted files + unmerged commits. Use before resuming a worker
 - `merge_worker` / `switch_worker_branch` / `change_worker_model` — worker must be **idle** (+ clean tree for merge)
 - `compact_worker` — takes 30-60s; do NOT retry on timeout, check `list_agents` instead
 - `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
@@ -127,13 +129,14 @@ send_message("backend", "#234: new task description...")
 
 ### Urgent task (interrupt → switch → work → merge → switch back):
 ```
-send_message("backend", "URGENT: commit WIP and stop")
-# worker commits "WIP: #192", reports STOPPED
+send_message("backend", "URGENT: commit descriptive WIP and stop")
+# worker commits "WIP: #192 — done X; TODO: Y", reports STOPPED
 switch_worker_branch("backend", task_id="999")
 send_message("backend", "#999: urgent fix...")
 # worker finishes, reports DONE
 merge_worker("backend")
 switch_worker_branch("backend", task_id="192")
+worker_wip("backend", base_ref="refs/heads/task-192/backend")  # see what's left before resuming
 send_message("backend", "Continue #192")
 ```
 </task-workflow>
@@ -213,6 +216,16 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Context management — when you see `CONTEXT CRITICAL: N%` warning, compact_worker or spawn fresh
 </rules>
+
+<parallel-tasks>
+## Parallel tasks — file conflict rule
+Workers run in isolated git worktrees branched from main. If two workers edit the SAME files — their changes WILL conflict.
+- Same files → ONE worker, sequential tasks. Different files → parallel workers OK
+- When in doubt — sequential is safer
+- While a worker is editing files — do NOT edit the same files yourself
+- **Declare `owned_dirs` when spawning parallel workers on the same repo** — `spawn_worker(..., owned_dirs='["app/api/"]')`. Overlap with a live worker → you get a warning at spawn (advisory, not blocked). It also tells the worker which dirs are off-limits
+- **Before merging two parallel workers** — `check_conflict(a, b)` to see if their branches collide; merge the clean one first
+</parallel-tasks>
 
 <pricing>
 ## Pricing context

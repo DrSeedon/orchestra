@@ -35,3 +35,11 @@ Researcher worker was spawned by seedon-orchestrator (me, the PM orchestrator in
 Root cause: spawn_worker sets parent based on session context. Since I'm running as seedon-orchestrator, the worker correctly identifies parent. But the worker should send DONE to whoever gave it the task, not just to parent_name.
 
 In this case the worker completed and hibernated without me knowing — I had to check logs manually to see results.
+
+## [2026-05-31 10:31 UTC] codex_review output пишется в main worktree, не в worktree воркера
+- **Reporter:** Orchestra-orchestrator
+- **Scope:** /mnt/data/Projects/Python/orchestra
+codex_review(output="docs/tasks/.../file.md") пишет файл относительно CWD Orchestra-сервера (main repo), а не worktree вызвавшего воркера. Воркер потом не может прочитать файл у себя — приходится искать в main и копировать вручную.
+
+Воркараунд: воркер сам находит файл через find и копирует контент.
+Фикс: codex_review должен принимать абсолютный путь или резолвить output относительно worktree вызывающего агента.

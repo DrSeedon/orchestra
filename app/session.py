@@ -82,6 +82,7 @@ class AgentSession:
     backend_type: str = "claude"
     task_id: str = ""
     description: str = ""
+    owned_dirs: list = field(default_factory=list, repr=False)
 
     progress_pct: int = 0
     progress_status: str = ""
@@ -112,6 +113,7 @@ class AgentSession:
     _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     _turn_gen: int = field(default=0, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _spawn_warning: str = field(default="", repr=False)
 
     TURN_TIMEOUT = 600
 
@@ -764,6 +766,7 @@ class AgentSession:
             "total_tool_calls": self.total_tool_calls,
             "template_hash": self._template_hash,
             "mcp_servers_custom": json.dumps(self.mcp_servers_custom) if self.mcp_servers_custom else "",
+            "owned_dirs": json.dumps(self.owned_dirs) if self.owned_dirs else "",
         }
 
     async def get_context(self) -> dict:
@@ -787,6 +790,7 @@ class AgentSession:
             "hibernated": self._hibernated,
             "task_id": self.task_id,
             "description": self.description,
+            "owned_dirs": self.owned_dirs,
             "system_prompt": self.system_prompt[:500] if self.system_prompt else "",
             "total_turns": self.total_turns,
             "total_input_tokens": self.total_input_tokens,

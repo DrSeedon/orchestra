@@ -103,6 +103,7 @@ class CreateSessionRequest(BaseModel):
     base_branch: str = "main"
     parent_name: str = ""
     mcp_servers: dict = {}
+    owned_dirs: list[str] = []
 
     @field_validator("name")
     @classmethod
@@ -384,8 +385,12 @@ async def create_session(req: CreateSessionRequest):
             base_branch=req.base_branch,
             parent_name=req.parent_name,
             mcp_servers=req.mcp_servers,
+            owned_dirs=req.owned_dirs,
         )
-        return session.to_dict()
+        d = session.to_dict()
+        if session._spawn_warning:
+            d["spawn_warning"] = session._spawn_warning
+        return d
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=409)
     except sqlite3.IntegrityError:
@@ -763,6 +768,43 @@ async def switch_branch(name: str, req: dict):
             return result
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/sessions/{name}/wip")
+async def session_wip(name: str, scope: str = "", base_ref: str = "refs/heads/main"):
+    from app.workspace import branch_wip_status
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+    if not worktree_path:
+        return JSONResponse({"error": "session has no worktree"}, status_code=400)
+    try:
+        return branch_wip_status(worktree_path, base_ref=base_ref)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/sessions/check-conflict")
+async def check_conflict_endpoint(req: dict):
+    from app.workspace import simulate_conflict
+    scope = req.get("scope", "")
+    name_a = req.get("worker_a", "")
+    name_b = req.get("worker_b", "")
+    a = manager.get_by_name(name_a, scope)
+    b = manager.get_by_name(name_b, scope)
+    if not a or not b:
+        missing = name_a if not a else name_b
+        return JSONResponse({"error": f"worker '{missing}' not found"}, status_code=404)
+    wt_a = a.get("worktree_path") if isinstance(a, dict) else a.worktree_path
+    branch_a = a.get("branch") if isinstance(a, dict) else a.branch
+    branch_b = b.get("branch") if isinstance(b, dict) else b.branch
+    if not wt_a or not branch_a or not branch_b:
+        return JSONResponse({"error": "both workers must have a worktree and branch"}, status_code=400)
+    try:
+        return simulate_conflict(wt_a, branch_a, branch_b)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.post("/api/sessions/{name}/progress")
