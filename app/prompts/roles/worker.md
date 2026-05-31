@@ -23,6 +23,7 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 - NEVER use `until/while/sleep` loops to poll for external state. One-shot check only
 - ALWAYS commit before reporting DONE — `git status` must be clean
 - ALWAYS use `mcp__orchestra__send_message` to report, NOT the built-in SendMessage
+- When you see a CONTEXT CRITICAL warning — finish your current sub-task, commit, report progress to orchestrator. Do NOT start new sub-tasks
 </rules>
 
 <before-work>
@@ -53,16 +54,6 @@ Breaking: none | <what changed>
 Notes: <anything orchestrator should know>""")
 ```
 </report-format>
-
-<git>
-## Git branching
-Your branch is managed by Orchestra — you do NOT create or switch branches yourself.
-- When spawned with a task_id, your branch is `task-N/your-name` (created automatically)
-- ALWAYS include task reference in commit messages: `git commit -m "#49: what you did"`
-- Before reporting DONE — make sure all changes are committed (clean working tree)
-- When asked to STOP mid-task: commit a DESCRIPTIVE WIP — what's done, what's left:
-  `git commit -m "WIP: #49 — done X, Y; TODO: Z, edge-case W"`. Vague `WIP: #49` loses the thread on resume
-</git>
 
 <rules priority="standard">
 ## Standard worker rules

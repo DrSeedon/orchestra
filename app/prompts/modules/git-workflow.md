@@ -2,7 +2,8 @@
 ## Git workflow rules
 
 ### Branching
-- Each worker runs in an isolated `git worktree` on its own branch (`task-<id>/<worker-name>`)
+- Each worker runs in an isolated `git worktree` on its own branch (`task-<id>/<worker-name>`), created automatically by Orchestra
+- Workers do NOT create or switch branches themselves — branching is managed by Orchestra
 - Workers NEVER touch `main` directly — only the orchestrator merges via `merge_worker()`
 - All merges are **squash** — one clean commit per task in main history
 
@@ -19,7 +20,7 @@
 ### Commits
 - ALWAYS commit before reporting DONE — `git status` must be clean
 - Commit messages: `#<task-id>: <what you did>` (e.g. `#49: add rate limiting`)
-- WIP commits (when interrupted): `WIP #<task-id>: <what's unfinished and why>`
+- WIP commits (when interrupted): `WIP: #<task-id> — done X, Y; TODO: Z, edge-case W`. Descriptive — vague `WIP` loses the thread on resume
 - Never amend commits — create new ones
 
 ### Before merge
