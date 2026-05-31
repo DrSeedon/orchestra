@@ -67,7 +67,7 @@ Your branch is managed by Orchestra — you do NOT create or switch branches you
 - Worker-to-worker coordination — talk to other workers via `send_message(to="name")` when tasks span domains. Use `list_agents()` to see who's available. Only escalate to orchestrator for decisions
 - Progress reporting — for long tasks, use `update_progress(percent=N, status="phase description")` at natural checkpoints
 - Knowledge persistence — if you spent >5 minutes figuring something out, write it to `docs/` or project files. Context is lost on compaction
-- Codex review — when asked, use the `codex-review` skill via `Skill(skill="codex-review")`. NEVER invent codex commands from memory
+- Codex review — when asked, use the `codex_review()` MCP tool, NOT bash/skill. NEVER invent codex commands from memory
 - Long-running commands (>60s) will timeout your turn. Keep Bash commands short
 </rules>
 
