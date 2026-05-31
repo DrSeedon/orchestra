@@ -1152,26 +1152,43 @@ function renderAgentList(sessions) {
     const list = $('#agent-list');
     list.innerHTML = '';
 
-    const active = sessions;
-    const archive = [];
-
-    for (const s of active) {
+    for (const s of sessions) {
         if (s.color) agentColors[s.name] = s.color;
-        list.appendChild(createAgentItem(s));
     }
 
-    if (archive.length > 0) {
-        const divider = document.createElement('div');
-        divider.className = 'text-xs text-slate-700 uppercase tracking-wider px-3 pt-3 pb-1';
-        divider.textContent = `Archive (${archive.length})`;
-        list.appendChild(divider);
-        for (const s of archive) {
-            list.appendChild(createAgentItem(s));
+    const byName = new Map();
+    for (const s of sessions) byName.set(s.name, s);
+
+    const children = new Map();
+    const roots = [];
+    for (const s of sessions) {
+        const pn = s.parent_name || '';
+        if (pn && byName.has(pn)) {
+            if (!children.has(pn)) children.set(pn, []);
+            children.get(pn).push(s);
+        } else {
+            roots.push(s);
         }
+    }
+
+    const seen = new Set();
+    const walk = (node, depth) => {
+        if (seen.has(node.name)) return;
+        seen.add(node.name);
+        list.appendChild(createAgentItem(node, depth));
+        const kids = children.get(node.name) || [];
+        for (const k of kids) walk(k, depth + 1);
+    };
+    for (const r of roots) walk(r, 0);
+    for (const s of sessions) {
+        if (!seen.has(s.name)) { seen.add(s.name); list.appendChild(createAgentItem(s, 0)); }
     }
 }
 
-function createAgentItem(s) {
+const _roleIcons = {'orchestrator':'👑','worker':'⚙️','full-cycle':'🔄','sub-orchestrator':'🎯','reviewer':'🔍','watcher':'👁️'};
+
+function createAgentItem(s, depth) {
+    if (depth === undefined) depth = 0;
     const isSelected = s.name === selectedAgent;
     const isDead = s.status === 'stopped' || s.status === 'error';
     const item = document.createElement('div');
@@ -1181,10 +1198,13 @@ function createAgentItem(s) {
     }`;
     item.addEventListener('click', () => selectAgent(s.name));
 
+    if (depth > 0) item.style.marginLeft = `${depth * 16}px`;
+
     if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
 
     const icon = document.createElement('span');
-    icon.textContent = s.is_orchestrator ? '🎯' : isDead ? '🪦' : '⚙️';
+    const roleKey = s.role || (s.is_orchestrator ? 'orchestrator' : 'worker');
+    icon.textContent = isDead ? '🪦' : (_roleIcons[roleKey] || '⚙️');
     icon.className = 'text-sm';
 
     const info = document.createElement('div');
