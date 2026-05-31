@@ -354,17 +354,21 @@ class AgentSession:
         elif event.type == "status":
             self._log("status", event.content)
 
-    def _bump_turn_gen(self) -> None:
-        """Новый ход начался — инвалидируем отложенный авто-репорт прошлого хода."""
-        self._turn_gen += 1
+    def _cancel_auto_report(self) -> None:
         if self._auto_report_task and not self._auto_report_task.done():
             self._auto_report_task.cancel()
         self._auto_report_task = None
 
+    def _bump_turn_gen(self) -> None:
+        """Новый ход начался — инвалидируем отложенный авто-репорт прошлого хода."""
+        self._turn_gen += 1
+        self._cancel_auto_report()
+
     def _fire_auto_report(self) -> None:
         """Send auto-report to parent immediately when worker goes idle.
         Orchestrators don't auto-report — they reply to user directly.
-        Skipped if worker already sent explicit send_message or has pending messages.
+        Skipped if worker already sent explicit send_message, has pending messages,
+        or was interrupted/stopped by user.
         """
         if self.is_orchestrator or not self.on_idle or self._did_report:
             return
@@ -575,6 +579,7 @@ class AgentSession:
     async def interrupt(self) -> None:
         if self._backend and self.status == AgentStatus.RUNNING:
             await self._backend.interrupt()
+        self._cancel_auto_report()
         self.status = AgentStatus.IDLE
         self._log("status", "interrupted")
         self._persist()
@@ -731,6 +736,7 @@ class AgentSession:
             await backend.disconnect()
 
     async def stop(self) -> None:
+        self._cancel_auto_report()
         await self._disconnect_backend()
         self._hibernated = False
         self.status = AgentStatus.IDLE
