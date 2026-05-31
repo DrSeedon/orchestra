@@ -18,6 +18,7 @@ from claude_agent_sdk import (
     TaskStartedMessage,
     TaskProgressMessage,
     TaskNotificationMessage,
+    SystemMessage,
 )
 from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
@@ -257,8 +258,7 @@ class ClaudeBackend:
                 total = input_tokens + cache_create + cache_read
                 cache_total = cache_create + cache_read
 
-                from app.models import CONTEXT_LIMITS, TOKEN_PRICES
-                max_tokens = CONTEXT_LIMITS.get(self.model, 200000)
+                from app.models import TOKEN_PRICES
                 ctx_pct = int(total * 100 / max_tokens) if max_tokens else 0
                 ctx_tokens = total
                 cache_hit = int(cache_read * 100 / cache_total) if cache_total else 0
@@ -293,5 +293,16 @@ class ClaudeBackend:
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
             }))
+
+        if (isinstance(msg, SystemMessage)
+                and not isinstance(msg, (TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage))
+                and getattr(msg, "subtype", "") == "compact_boundary"):
+            data = getattr(msg, "data", {}) or {}
+            meta = data.get("compactMetadata", data)
+            pre = meta.get("preTokens", 0)
+            post = meta.get("postTokens", 0)
+            trigger = meta.get("trigger", "unknown")
+            events.append(AgentEvent("status",
+                f"CLI auto-compacted ({trigger}): {pre:,}→{post:,} tokens"))
 
         return events

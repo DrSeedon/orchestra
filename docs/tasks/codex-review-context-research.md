@@ -1,0 +1,5 @@
+Done: [docs/tasks/codex-review-context-research.md](/mnt/data/Projects/Python/orchestra/docs/tasks/codex-review-context-research.md).
+
+I reviewed the research doc from the `research-context-full` worktree because `docs/research-context-full.md` is not present on the current checkout. Main finding: the observed 167K auto-compactions are real evidence, but the claimed cause, “`[1m]` stripped / no beta passed,” is unproven and likely misleading. I also flagged the `CLAUDE_CODE_AUTO_COMPACT_WINDOW` disable claim as wrong: official docs say it adjusts compaction capacity and is capped, not a disable switch.
+
+References checked included local SDK 0.1.72 / Claude CLI 2.1.150 plus Anthropic docs for [pricing/1M context](https://platform.claude.com/docs/en/about-claude/pricing), [Claude Code env vars](https://code.claude.com/docs/en/env-vars), and [compact hooks](https://code.claude.com/docs/en/hooks).

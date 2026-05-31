@@ -697,6 +697,8 @@ class AgentSession:
                 old_pct = self._last_context.get("percentage", 0)
                 self._last_context["percentage"] = usage["percentage"]
                 self._last_context["total_tokens"] = usage.get("total_tokens", 0)
+                if usage.get("max_tokens"):
+                    self._last_context["max_tokens"] = usage["max_tokens"]
                 if abs(old_pct - usage["percentage"]) > 30:
                     logger.info(f"[{self.name}] context corrected: {old_pct}% → {usage['percentage']}%")
                 self._persist()
