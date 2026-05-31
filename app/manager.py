@@ -542,6 +542,88 @@ class SessionManager:
                     pass
         delete_session(session_id)
 
+    async def change_orchestrator_scope(self, name: str, old_scope: str,
+                                         new_scope: str, new_cwd: str) -> dict:
+        """Move an idle, worker-free orchestrator to a new scope/cwd.
+
+        Updates DB (db.change_scope), then rebuilds the runtime: kills the old MCP
+        subprocess via _disconnect_backend(), swaps scope/cwd/mcp_servers, and lets
+        the backend lazily reconnect on the next send() with the new ORCHESTRA_SCOPE.
+        session_id is preserved → context survives.
+        """
+        old_scope = old_scope.rstrip("/")
+        new_scope = new_scope.rstrip("/")
+        new_cwd = new_cwd.rstrip("/")
+        session = self.get_by_name(name, old_scope)
+        if not isinstance(session, AgentSession):
+            return {"error": f"orchestrator '{name}' not loaded in scope '{old_scope}'"}
+        if not session.is_orchestrator:
+            return {"error": f"'{name}' is not an orchestrator — scope change is orchestrator-only"}
+        if not Path(new_cwd).is_dir():
+            return {"error": f"new_cwd does not exist: {new_cwd}"}
+
+        live_workers = self._live_workers_in_scope(old_scope)
+        if live_workers:
+            return {"error": f"cannot change scope: live workers in '{old_scope}' — "
+                             f"merge+kill first: {', '.join(live_workers)}"}
+
+        # Hold the session lifecycle lock so a concurrent send() cannot flip
+        # the session IDLE→RUNNING between the idle check and the disconnect.
+        # (send() only starts a fresh turn inside this same lock.)
+        async with session._lifecycle_lock:
+            if session.status.value == "running":
+                return {"error": "cannot change scope while running — wait for idle"}
+
+            # Re-check under the lock right before the DB write to shrink the
+            # worker-spawn TOCTOU window (a spawn could have landed since the
+            # pre-lock scan). Full closure needs a scope-level spawn lock.
+            live_workers = self._live_workers_in_scope(old_scope)
+            if live_workers:
+                return {"error": f"cannot change scope: live workers appeared in '{old_scope}' — "
+                                 f"merge+kill first: {', '.join(live_workers)}"}
+
+            # Stop the backend (no new persists from this session) and drain any
+            # in-flight _persist() BEFORE the transaction, so change_scope()'s
+            # synchronous scope+cwd write is the last writer. Otherwise a stale
+            # queued persist (snapshot cwd=/old) could land after the transaction
+            # and clobber cwd, leaving scope=/new + cwd=/old on disk.
+            await session._disconnect_backend()
+            await session._drain_persist()
+
+            from app.db import change_scope
+            result = change_scope(session.id, old_scope, new_scope, new_cwd)
+            if not result.get("ok"):
+                return result
+
+            session.scope = new_scope
+            session.cwd = new_cwd
+            session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
+                                                   extra=session.mcp_servers_custom)
+            # No session._persist() here: change_scope() already wrote scope+cwd
+            # synchronously in its transaction (the last writer after the drain).
+        logger.info(f"Orchestrator '{name}' scope changed: {old_scope} → {new_scope}")
+        return result
+
+    def _live_workers_in_scope(self, scope: str) -> list[str]:
+        """Names of active (idle/running/waiting) workers in scope, from both the
+        in-memory registry and the DB (catches unloaded-but-active worker rows).
+        Deduplicated by session id."""
+        active = ("idle", "running", "waiting")
+        seen_ids: set[str] = set()
+        names: set[str] = set()
+        for s in self.sessions.values():
+            if s.scope == scope and not s.is_orchestrator and s.status.value in active:
+                seen_ids.add(s.id)
+                names.add(s.name)
+        for row in get_all_sessions(scope):
+            if row["id"] in seen_ids:
+                continue
+            if is_orchestrator_role(row.get("role", "worker")):
+                continue
+            if (row.get("status") or "") in active:
+                names.add(row["name"])
+        return sorted(names)
+
     async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict:
         orch_names: list[str] = []
         for s in self.sessions.values():

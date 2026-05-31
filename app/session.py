@@ -111,6 +111,7 @@ class AgentSession:
     _last_cost: float = field(default=0.0, repr=False)
     _last_cost_cached: float = field(default=0.0, repr=False)
     _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    _persist_futs: set = field(default_factory=set, repr=False)
     _turn_gen: int = field(default=0, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _spawn_warning: str = field(default="", repr=False)
@@ -743,7 +744,14 @@ class AgentSession:
         self._persist()
 
     def _persist(self) -> None:
-        asyncio.get_event_loop().run_in_executor(None, save_session, self._to_db_dict())
+        fut = asyncio.get_event_loop().run_in_executor(None, save_session, self._to_db_dict())
+        self._persist_futs.add(fut)
+        fut.add_done_callback(self._persist_futs.discard)
+
+    async def _drain_persist(self) -> None:
+        pending = [f for f in self._persist_futs if not f.done()]
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     def _log(self, type: str, content: str) -> None:
         asyncio.get_event_loop().run_in_executor(None, add_log, self.id, datetime.now(timezone.utc), type, content)

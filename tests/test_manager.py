@@ -497,3 +497,181 @@ class TestSystemPromptAppend:
                     role="orchestrator",
                 )
         assert session.system_prompt == "ROLE_BASE"
+
+
+class TestChangeOrchestratorScope:
+    async def _make_orch(self, mgr, name="orch", scope="/old/proj"):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            s = await mgr.create_session(
+                name=name, scope=scope, cwd="/tmp", model="claude-opus-4-8",
+                is_orchestrator=True,
+            )
+        s.session_id = "sdk-resume-token"
+        from app.session import AgentStatus
+        s.status = AgentStatus.IDLE
+        return s
+
+    async def _make_worker(self, mgr, name="w1", scope="/old/proj"):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            s = await mgr.create_session(name=name, scope=scope, cwd="/tmp", model="claude-sonnet-4-6")
+        from app.session import AgentStatus
+        s.status = AgentStatus.IDLE
+        return s
+
+    @pytest.mark.asyncio
+    async def test_happy_path_updates_runtime_and_db(self, mgr, tmp_path):
+        from app.db import get_session
+        orch = await self._make_orch(mgr)
+        newdir = tmp_path / "newproj"
+        newdir.mkdir()
+        res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        assert res["ok"] is True
+        assert orch.scope == str(newdir)
+        assert orch.cwd == str(newdir)
+        # mcp env rebuilt with new scope
+        assert orch.mcp_servers["orchestra"]["env"]["ORCHESTRA_SCOPE"] == str(newdir)
+        # db reflects change
+        assert get_session(orch.id)["scope"] == str(newdir)
+        # context preserved
+        assert orch.session_id == "sdk-resume-token"
+
+    @pytest.mark.asyncio
+    async def test_disconnects_backend(self, mgr, tmp_path):
+        orch = await self._make_orch(mgr)
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        orch._disconnect_backend = AsyncMock()
+        await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        orch._disconnect_backend.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_rejects_when_running(self, mgr, tmp_path):
+        from app.session import AgentStatus
+        orch = await self._make_orch(mgr)
+        orch.status = AgentStatus.RUNNING
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        assert res.get("ok") is not True
+        assert "running" in res["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_rejects_non_orchestrator(self, mgr, tmp_path):
+        w = await self._make_worker(mgr, name="w1")
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        res = await mgr.change_orchestrator_scope("w1", "/old/proj", str(newdir), str(newdir))
+        assert res.get("ok") is not True
+        assert "orchestrator" in res["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_rejects_when_live_workers_in_old_scope(self, mgr, tmp_path):
+        orch = await self._make_orch(mgr)
+        await self._make_worker(mgr, name="w1", scope="/old/proj")
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        assert res.get("ok") is not True
+        assert "worker" in res["error"].lower()
+        assert "w1" in res["error"]
+
+    @pytest.mark.asyncio
+    async def test_rejects_nonexistent_cwd(self, mgr):
+        await self._make_orch(mgr)
+        res = await mgr.change_orchestrator_scope("orch", "/old/proj", "/new/proj", "/nonexistent/xyz")
+        assert res.get("ok") is not True
+        assert "error" in res
+
+    @pytest.mark.asyncio
+    async def test_not_found(self, mgr, tmp_path):
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        res = await mgr.change_orchestrator_scope("ghost", "/old/proj", str(newdir), str(newdir))
+        assert res.get("ok") is not True
+        assert "not" in res["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_drains_persist_before_db_write(self, mgr, tmp_path):
+        # fence: any in-flight _persist() must be drained BEFORE change_scope()
+        # so the transaction's cwd write is the last writer (no stale clobber).
+        orch = await self._make_orch(mgr)
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        order = []
+        orch._drain_persist = AsyncMock(side_effect=lambda: order.append("drain"))
+        import app.db as dbmod
+        real_change = dbmod.change_scope
+        def traced(*a, **k):
+            order.append("change_scope")
+            return real_change(*a, **k)
+        with patch("app.db.change_scope", side_effect=traced):
+            res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        assert res["ok"] is True
+        orch._drain_persist.assert_awaited_once()
+        assert order == ["drain", "change_scope"]  # drain strictly before the write
+
+    @pytest.mark.asyncio
+    async def test_db_cwd_is_new_after_inflight_persist(self, mgr, tmp_path):
+        # end-to-end: even with several queued _persist() (old cwd snapshots)
+        # the final DB cwd must be the new one — _drain_persist awaits ALL,
+        # not just the last submitted future.
+        from app.db import get_session
+        orch = await self._make_orch(mgr)
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        orch._persist(); orch._persist(); orch._persist()  # queue stale snapshots
+        assert len(orch._persist_futs) >= 1
+        res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        assert res["ok"] is True
+        assert get_session(orch.id)["cwd"] == str(newdir)
+        # all drained before the transaction → nothing left to clobber
+        assert all(f.done() for f in orch._persist_futs)
+
+
+class TestChangeScopeUnloadedWorkerGuard:
+    @pytest.mark.asyncio
+    async def test_rejects_unloaded_active_worker_in_old_scope(self, mgr, tmp_path):
+        """An active worker row in the DB but NOT in self.sessions must still block."""
+        from tests.conftest import make_backend_mock
+        from app.session import AgentStatus
+        from app.db import save_session, get_session
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            orch = await mgr.create_session(
+                name="orch", scope="/old/proj", cwd="/tmp",
+                model="claude-opus-4-8", is_orchestrator=True,
+            )
+        orch.session_id = "sdk-tok"
+        orch.status = AgentStatus.IDLE
+        # Worker row exists in DB only (not loaded into manager.sessions)
+        save_session({
+            "id": "ghost-worker-id", "name": "ghostw", "scope": "/old/proj",
+            "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",
+            "status": "idle", "session_id": "x", "cost_usd": 0.0,
+            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None, "role": "worker",
+        })
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        assert res.get("ok") is not True
+        assert "ghostw" in res["error"]
+        assert get_session(orch.id)["scope"] == "/old/proj"  # not moved
+
+    @pytest.mark.asyncio
+    async def test_archived_worker_does_not_block(self, mgr, tmp_path):
+        from tests.conftest import make_backend_mock
+        from app.session import AgentStatus
+        from app.db import save_session
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            orch = await mgr.create_session(
+                name="orch", scope="/old/proj", cwd="/tmp",
+                model="claude-opus-4-8", is_orchestrator=True,
+            )
+        orch.session_id = "sdk-tok"
+        orch.status = AgentStatus.IDLE
+        save_session({
+            "id": "dead-worker-id", "name": "deadw", "scope": "/old/proj",
+            "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",
+            "status": "archived", "session_id": "x", "cost_usd": 0.0,
+            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None, "role": "worker",
+        })
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
+        assert res["ok"] is True
