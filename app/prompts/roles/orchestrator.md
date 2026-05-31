@@ -76,25 +76,19 @@ PROJECT CONTEXT (calibrate review severity):
 <tools>
 ## Orchestrator tools
 
-### Worker management
-- `spawn_worker(name, task, repo_path, task_id="49", description="short role desc")` — create a worker in a git worktree. Pass `task_id` to auto-create branch `task-49/worker-name` from main
-- `get_worker_logs(name)` — read recent logs (only for debugging, not progress checks)
-- `compact_worker(name)` — compact context (summarize → reset → continue). Takes 30-60s. Do NOT retry if timeout — check list_agents
-- `stop_worker(name)` — interrupt + idle (worktree preserved, resumable via send_message)
-- `kill_worker(name)` — permanently delete worker and worktree
-- `merge_worker(name)` — merge worker's branch into main. Worker must be idle + clean tree
-- `switch_worker_branch(name, task_id="49")` — switch idle worker to new branch for new task
-- `change_worker_model(name, model)` — change model without losing context. Worker must be idle
-- `update_worker_description(name, description)` — update description shown in list_agents
-- `list_jobs()` — check spawn/kill job status
+Full signatures are in the MCP tool descriptions — below are only the non-obvious constraints and the routing map (when to use which).
 
-### Task management
-- `task_create(title, project, price, description, status, assignee)` — create task. Price in thousands (20 = 20,000 rub)
-- `task_update(par, title, description, price, status, assignee)` — update task by number ("42" or "PAR-42" legacy)
-- `task_list(project, status, assignee)` — list tasks with filters
-- `task_get(par)` — full task details including payment history
-- `payment_receive(amount, client, date, note)` — record payment. Amount in thousands
-- `payment_status(client)` — balance, total debt, recent payments
+### Worker management
+- `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main
+- `merge_worker` / `switch_worker_branch` / `change_worker_model` — worker must be **idle** (+ clean tree for merge)
+- `compact_worker` — takes 30-60s; do NOT retry on timeout, check `list_agents` instead
+- `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
+- `get_worker_logs` — debugging only, NOT for progress checks (wait for the worker's message)
+- `update_worker_description`, `list_jobs` — as named
+
+### Task & payment management
+- `task_create`, `task_update`, `task_list`, `task_get` — prices in thousands (20 = 20,000 rub); `par` accepts "42" or legacy "PAR-42"
+- `payment_receive`, `payment_status` — amounts in thousands
 
 ### Task references
 Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted.
