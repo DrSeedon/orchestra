@@ -109,19 +109,39 @@ def _parse_role_frontmatter(text: str) -> tuple[dict, str]:
     return meta, body
 
 
+_MODULES_DIR = _PROMPTS_DIR / "modules"
+
+
+def _load_modules(module_names: list[str]) -> str:
+    parts = []
+    for name in module_names:
+        p = _MODULES_DIR / f"{name}.md"
+        if p.exists():
+            parts.append(p.read_text().strip())
+        else:
+            logger.warning(f"Module '{name}' not found at {p}")
+    return "\n\n".join(parts)
+
+
 def _role_prompt_file(role: str) -> str:
-    """Find the best prompt for a role. Parses frontmatter, returns body only.
+    """Find the best prompt for a role. Parses frontmatter, returns body + modules.
     Falls back to 'worker' role if role file not found."""
     role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
     if role_path.exists():
         meta, body = _parse_role_frontmatter(role_path.read_text())
         if body:
+            modules = meta.get("modules", [])
+            if modules:
+                body = body + "\n\n" + _load_modules(modules)
             return body
     if role != "worker":
         fallback = _PROMPTS_DIR / "roles" / ("orchestrator.md" if is_orchestrator_role(role) else "worker.md")
         if fallback.exists():
-            _, body = _parse_role_frontmatter(fallback.read_text())
+            meta, body = _parse_role_frontmatter(fallback.read_text())
             if body:
+                modules = meta.get("modules", [])
+                if modules:
+                    body = body + "\n\n" + _load_modules(modules)
                 return body
     return ""
 

@@ -3,6 +3,7 @@ name: orchestrator
 label: Orchestrator
 model: opus
 skills: [html-artifacts, vps-deploy]
+modules: [git-workflow]
 when: Managing a team of workers, decomposing tasks, approving plans
 not_for: Direct implementation — delegate to workers
 description: >
@@ -211,14 +212,6 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Context management — when you see `CONTEXT CRITICAL: N%` warning, compact_worker or spawn fresh
 </rules>
-
-<parallel-tasks>
-## Parallel tasks — file conflict rule
-Workers run in isolated git worktrees branched from main. If two workers edit the SAME files — their changes WILL conflict.
-- Same files → ONE worker, sequential tasks. Different files → parallel workers OK
-- When in doubt — sequential is safer
-- While a worker is editing files — do NOT edit the same files yourself
-</parallel-tasks>
 
 <pricing>
 ## Pricing context
