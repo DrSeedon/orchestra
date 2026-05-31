@@ -26,3 +26,12 @@
 ## Fixed (v2.9.0)
 
 - ~~task_update "Balance mismatch" crash~~ — `_sanity_check` now warns instead of crashing. Root cause: mass task deletion left orphaned allocations → computed vs stored divergence
+
+## [2026-05-31 09:20 UTC] Worker sends DONE report to seedon-orchestrator instead of spawning agent
+- **Reporter:** seedon-orchestrator
+- **Scope:** /mnt/data/Projects/Python/seedon
+Researcher worker was spawned by seedon-orchestrator (me, the PM orchestrator in main session). But it set parent_name=seedon-orchestrator and sent its DONE message to seedon-orchestrator instead of me. The spawning agent (me) never received the completion report.
+
+Root cause: spawn_worker sets parent based on session context. Since I'm running as seedon-orchestrator, the worker correctly identifies parent. But the worker should send DONE to whoever gave it the task, not just to parent_name.
+
+In this case the worker completed and hibernated without me knowing — I had to check logs manually to see results.
