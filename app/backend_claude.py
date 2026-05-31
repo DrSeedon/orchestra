@@ -34,6 +34,7 @@ _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
 # (SDK отдаёт его как TaskStartedMessage), поэтому _ORCH_BLOCKED_TOOLS его не ловит.
 # Имя хеджируем двумя вариантами (Task/Agent) — лишнее имя CLI игнорирует.
 _ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
+_ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList"]
 
 
 def _make_auto_approve(is_orchestrator: bool = False):
@@ -51,8 +52,12 @@ def _make_auto_approve(is_orchestrator: bool = False):
 def _disallowed_tools(is_orchestrator: bool) -> list[str]:
     """Инструменты, полностью убираемые из набора модели (через CLI),
     а не через can_use_tool. Оркестратор делегирует через spawn_worker,
-    поэтому субагентов ему отнимаем; воркерам — оставляем."""
-    return list(_ORCH_DISALLOWED_TOOLS) if is_orchestrator else []
+    поэтому субагентов ему отнимаем; воркерам — оставляем.
+    ScheduleWakeup/Cron* убираем у ВСЕХ — Orchestra управляет scheduling сама."""
+    base = list(_ALWAYS_DISALLOWED)
+    if is_orchestrator:
+        base.extend(_ORCH_DISALLOWED_TOOLS)
+    return base
 
 
 def _extract_tool_result(block) -> str:
