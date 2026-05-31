@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orchestra — Git Workflow</title>
+<style>
+  :root {
+    --bg: #0a0b14;
+    --surface: #111320;
+    --surface2: #161928;
+    --border: rgba(99,102,241,0.2);
+    --border-bright: rgba(99,102,241,0.5);
+    --indigo: #6366f1;
+    --indigo-dim: #4f46e5;
+    --purple: #a855f7;
+    --cyan: #22d3ee;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-muted: #475569;
+    --glow: 0 0 20px rgba(99,102,241,0.3);
+    --glow-lg: 0 0 40px rgba(99,102,241,0.2);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 2rem 2rem 1.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 200px;
+    background: radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  header h1 {
+    font-size: 2rem; font-weight: 800; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, var(--indigo) 60%, var(--purple) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: .5rem;
+  }
+  header p { color: var(--text-dim); font-size: .95rem; }
+
+  /* ── NAV ── */
+  nav {
+    display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap;
+    padding: 1rem 2rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  nav button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: .4rem 1rem;
+    border-radius: 99px;
+    font-size: .85rem;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  nav button:hover, nav button.active {
+    background: rgba(99,102,241,0.15);
+    border-color: var(--border-bright);
+    color: #fff;
+  }
+  nav button.active { box-shadow: var(--glow); }
+
+  /* ── LAYOUT ── */
+  main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  .section {
+    display: none;
+    animation: fadeIn .3s ease;
+  }
+  .section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .card:hover { border-color: var(--border-bright); box-shadow: var(--glow); }
+  .card-title {
+    font-size: 1.1rem; font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .card-title .icon {
+    width: 28px; height: 28px;
+    background: rgba(99,102,241,0.2);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem;
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .section-header h2 {
+    font-size: 1.6rem; font-weight: 800; letter-spacing: -.01em;
+  }
+  .section-header .num {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--indigo), var(--purple));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  /* ── SVG DIAGRAMS ── */
+  .diagram-wrap {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .diagram-wrap svg { display: block; width: 100%; height: auto; }
+
+  /* ── BEFORE/AFTER ── */
+  .ba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  @media (max-width: 640px) { .ba-grid { grid-template-columns: 1fr; } }
+  .ba-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1.2rem;
+    border: 1px solid var(--border);
+  }
+  .ba-card.before { border-color: rgba(239,68,68,0.3); }
+  .ba-card.after { border-color: rgba(16,185,129,0.3); }
+  .ba-label {
+    font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    margin-bottom: .75rem;
+    padding: .25rem .6rem; border-radius: 4px; display: inline-block;
+  }
+  .before .ba-label { background: rgba(239,68,68,0.15); color: var(--red); }
+  .after .ba-label { background: rgba(16,185,129,0.15); color: var(--green); }
+
+  /* ── COMMIT LOG ── */
+  .commit-log { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .82rem; }
+  .commit { display: flex; align-items: flex-start; gap: .6rem; margin-bottom: .4rem; }
+  .commit-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 4px;
+  }
+  .dot-red { background: var(--red); }
+  .dot-amber { background: var(--amber); }
+  .dot-green { background: var(--green); }
+  .dot-indigo { background: var(--indigo); }
+  .dot-cyan { background: var(--cyan); }
+  .commit-hash { color: var(--indigo); font-size: .78rem; }
+  .commit-msg { color: var(--text-dim); }
+  .commit-msg strong { color: var(--text); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th {
+    background: rgba(99,102,241,0.1);
+    color: var(--indigo);
+    font-size: .75rem; text-transform: uppercase; letter-spacing: .06em;
+    padding: .6rem 1rem; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: .6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+    vertical-align: top;
+  }
+  tr:hover td { background: rgba(99,102,241,0.04); }
+  td:first-child { color: var(--text); font-weight: 600; }
+  .badge {
+    display: inline-block;
+    padding: .15rem .5rem; border-radius: 4px; font-size: .75rem; font-weight: 600;
+  }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--green); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .badge-indigo { background: rgba(99,102,241,0.15); color: var(--indigo); }
+  .badge-purple { background: rgba(168,85,247,0.15); color: var(--purple); }
+
+  /* ── EXPAND ── */
+  .expand-block {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .expand-header {
+    padding: .9rem 1.2rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface);
+    user-select: none;
+    transition: background .2s;
+  }
+  .expand-header:hover { background: var(--surface2); }
+  .expand-header .title { font-weight: 600; display: flex; align-items: center; gap: .6rem; }
+  .expand-arrow { transition: transform .2s; color: var(--text-muted); }
+  .expand-block.open .expand-arrow { transform: rotate(180deg); }
+  .expand-body {
+    display: none;
+    padding: 1.2rem;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+  }
+  .expand-block.open .expand-body { display: block; }
+
+  /* ── TIPS ── */
+  .tip {
+    display: flex; gap: .8rem;
+    padding: .9rem 1.1rem;
+    border-radius: 8px;
+    margin-bottom: .75rem;
+    font-size: .9rem;
+  }
+  .tip-info { background: rgba(99,102,241,0.08); border-left: 3px solid var(--indigo); }
+  .tip-warn { background: rgba(245,158,11,0.08); border-left: 3px solid var(--amber); }
+  .tip-ok { background: rgba(16,185,129,0.08); border-left: 3px solid var(--green); }
+  .tip-danger { background: rgba(239,68,68,0.08); border-left: 3px solid var(--red); }
+  .tip-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+  .tip-text { color: var(--text-dim); }
+  .tip-text strong { color: var(--text); }
+
+  /* ── STEP LIST ── */
+  .steps { list-style: none; }
+  .steps li {
+    display: flex; gap: 1rem; padding: .8rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--indigo), var(--purple));
+    font-size: .8rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-content { flex: 1; }
+  .step-title { font-weight: 600; margin-bottom: .2rem; }
+  .step-desc { color: var(--text-dim); font-size: .88rem; }
+
+  /* ── CODE ── */
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: .82rem;
+    background: rgba(99,102,241,0.1);
+    padding: .1rem .4rem;
+    border-radius: 4px;
+    color: var(--cyan);
+  }
+
+  /* ── GRID UTILS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ── PILL STATUS ── */
+  .status-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+  .pill {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .3rem .75rem;
+    border-radius: 99px;
+    font-size: .8rem; font-weight: 600;
+    border: 1px solid;
+  }
+  .pill-ok { border-color: rgba(16,185,129,0.4); color: var(--green); background: rgba(16,185,129,0.08); }
+  .pill-warn { border-color: rgba(245,158,11,0.4); color: var(--amber); background: rgba(245,158,11,0.08); }
+  .pill-no { border-color: rgba(239,68,68,0.4); color: var(--red); background: rgba(239,68,68,0.08); }
+
+  /* ── FLOW LANE (worker cards) ── */
+  .flow-lanes { display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: stretch; }
+  .flow-lane {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    min-width: 0;
+  }
+  .flow-lane h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: .75rem; }
+  .flow-lane.hl { border-color: var(--border-bright); box-shadow: var(--glow); }
+  @media (max-width: 700px) { .flow-lanes { flex-direction: column; } }
+
+  hr.dim { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+  /* ── RADAR / COMPARE BARS ── */
+  .compare-bar-row { margin-bottom: .7rem; }
+  .compare-bar-label { display: flex; justify-content: space-between; font-size: .85rem; margin-bottom: .25rem; }
+  .compare-bar-label span:last-child { color: var(--text-muted); }
+  .compare-bar-track { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+  .compare-bar-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: .8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Orchestra — Git Workflow</h1>
+  <p>Как агенты работают в параллельных ветках без конфликтов &nbsp;·&nbsp; Руководство для PM</p>
+</header>
+
+<nav id="nav">
+  <button class="active" data-target="s1">1 · Как это работает</button>
+  <button data-target="s2">2 · Squash merge</button>
+  <button data-target="s3">3 · Изоляция воркеров</button>
+  <button data-target="s4">4 · Граничные случаи</button>
+  <button data-target="s5">5 · Индустрия vs Orchestra</button>
+  <button data-target="s6">6 · Лучшие практики</button>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════════
+     SECTION 1 — КАК ЭТО РАБОТАЕТ
+═══════════════════════════════════════════════ -->
+<section class="section active" id="s1">
+  <div class="section-header">
+    <div class="num">1</div>
+    <h2>Как это работает сейчас</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">🗺️</div> Общий поток: от репозитория до мержа</div>
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 960 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#6366f1"/>
+            <stop offset="100%" stop-color="#a855f7"/>
+          </linearGradient>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#6366f1"/>
+          </marker>
+          <marker id="arrG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+          </marker>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Main repo -->
+        <rect x="30" y="170" width="130" height="80" rx="10" fill="rgba(99,102,241,0.12)" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="95" y="205" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Репозиторий</text>
+        <text x="95" y="224" text-anchor="middle" fill="#94a3b8" font-size="11">main ветка</text>
+        <text x="95" y="240" text-anchor="middle" fill="#94a3b8" font-size="10">( реальный код )</text>
+
+        <!-- Arrow repo → wt1 -->
+        <line x1="160" y1="195" x2="235" y2="150" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+        <!-- Arrow repo → wt2 -->
+        <line x1="160" y1="210" x2="235" y2="210" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+        <!-- Arrow repo → wt3 -->
+        <line x1="160" y1="225" x2="235" y2="270" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+        <!-- Worktree 1 -->
+        <rect x="240" y="90" width="140" height="80" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="310" y="126" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="700">WORKTREE A</text>
+        <text x="310" y="143" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Воркер Backend</text>
+        <text x="310" y="159" text-anchor="middle" fill="#94a3b8" font-size="10">task-49/backend-opus</text>
+
+        <!-- Worktree 2 -->
+        <rect x="240" y="170" width="140" height="80" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="310" y="206" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="700">WORKTREE B</text>
+        <text x="310" y="223" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Воркер Frontend</text>
+        <text x="310" y="239" text-anchor="middle" fill="#94a3b8" font-size="10">task-49/frontend-opus</text>
+
+        <!-- Worktree 3 -->
+        <rect x="240" y="250" width="140" height="80" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="310" y="286" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="700">WORKTREE C</text>
+        <text x="310" y="303" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Воркер Tests</text>
+        <text x="310" y="319" text-anchor="middle" fill="#94a3b8" font-size="10">task-50/tests-sonnet</text>
+
+        <!-- Arrows wt → commits -->
+        <line x1="380" y1="130" x2="460" y2="130" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="380" y1="210" x2="460" y2="210" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="380" y1="290" x2="460" y2="290" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- Commits clouds -->
+        <rect x="465" y="100" width="130" height="60" rx="8" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,2"/>
+        <text x="530" y="126" text-anchor="middle" fill="#22d3ee" font-size="10">commits: wip · fix · done</text>
+        <text x="530" y="142" text-anchor="middle" fill="#94a3b8" font-size="10">( рабочая история )</text>
+
+        <rect x="465" y="180" width="130" height="60" rx="8" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,2"/>
+        <text x="530" y="206" text-anchor="middle" fill="#22d3ee" font-size="10">commits: feat · refactor</text>
+        <text x="530" y="222" text-anchor="middle" fill="#94a3b8" font-size="10">( рабочая история )</text>
+
+        <rect x="465" y="260" width="130" height="60" rx="8" fill="rgba(34,211,238,0.08)" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,2"/>
+        <text x="530" y="286" text-anchor="middle" fill="#22d3ee" font-size="10">commits: add tests · fix</text>
+        <text x="530" y="302" text-anchor="middle" fill="#94a3b8" font-size="10">( рабочая история )</text>
+
+        <!-- Lock icon -->
+        <rect x="618" y="185" width="24" height="50" rx="4" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="630" y="216" text-anchor="middle" fill="#f59e0b" font-size="14">🔒</text>
+
+        <!-- Arrows commits → merge gate -->
+        <line x1="595" y1="130" x2="620" y2="190" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="595" y1="210" x2="620" y2="210" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+        <line x1="595" y1="290" x2="620" y2="230" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
+
+        <!-- Arrow merge gate → main result -->
+        <line x1="642" y1="210" x2="710" y2="210" stroke="#10b981" stroke-width="2" marker-end="url(#arrG)"/>
+
+        <!-- Main result -->
+        <rect x="715" y="170" width="150" height="80" rx="10" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1.5" filter="url(#glow)"/>
+        <text x="790" y="203" text-anchor="middle" fill="#10b981" font-size="13" font-weight="700">main</text>
+        <text x="790" y="221" text-anchor="middle" fill="#e2e8f0" font-size="12">1 чистый коммит</text>
+        <text x="790" y="237" text-anchor="middle" fill="#94a3b8" font-size="10">на задачу (#49)</text>
+
+        <!-- Labels -->
+        <text x="630" y="248" text-anchor="middle" fill="#f59e0b" font-size="9">глобальный</text>
+        <text x="630" y="258" text-anchor="middle" fill="#f59e0b" font-size="9">лок мержа</text>
+
+        <!-- Step labels on top -->
+        <text x="95" y="164" text-anchor="middle" fill="#475569" font-size="10">① Репо</text>
+        <text x="310" y="84" text-anchor="middle" fill="#475569" font-size="10">② Worktrees</text>
+        <text x="530" y="93" text-anchor="middle" fill="#475569" font-size="10">③ Рабочие коммиты</text>
+        <text x="630" y="175" text-anchor="middle" fill="#475569" font-size="10">④ Лок</text>
+        <text x="790" y="163" text-anchor="middle" fill="#475569" font-size="10">⑤ Чистый main</text>
+      </svg>
+    </div>
+    <div class="tip tip-info">
+      <span class="tip-icon">💡</span>
+      <div class="tip-text">Каждый воркер — это агент Claude в <strong>отдельной папке</strong> со своей веткой. Они работают параллельно и не мешают друг другу, пока не наступает момент мержа.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">📋</div> Пошаговый процесс</div>
+    <ol class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Оркестратор создаёт воркер</div>
+          <div class="step-desc">Указывает <code>task_id</code> — автоматически создаётся ветка <code>task-49/backend-opus</code> и изолированная папка (worktree). Файлы проекта (<code>CLAUDE.md</code>, <code>.env</code>) копируются туда же.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Агент работает в своём worktree</div>
+          <div class="step-desc">Claude делает коммиты прямо в свою ветку — <code>wip: trying approach</code>, <code>fix: typo</code>, <code>feat: add endpoint</code>. Никто другой эту ветку не трогает.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Предварительная проверка конфликтов</div>
+          <div class="step-desc">Перед мержем Orchestra симулирует объединение (<code>git merge-tree</code>) без изменения реального кода. Если конфликты есть — сообщит заранее, не сломав ничего.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Глобальный лок → squash merge</div>
+          <div class="step-desc">Только один мерж происходит в каждый момент времени (файловый лок). Все шумные «рабочие» коммиты агента сворачиваются в <strong>один чистый</strong> коммит на main с привязкой к задаче <code>#49</code>.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Очистка или следующая задача</div>
+          <div class="step-desc">Worktree удаляется, либо воркер переключается на следующую задачу (<code>switch_worker_branch</code>) — ему создаётся новая ветка от обновлённого main.</div>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 2 — SQUASH MERGE
+═══════════════════════════════════════════════ -->
+<section class="section" id="s2">
+  <div class="section-header">
+    <div class="num">2</div>
+    <h2>Что меняет squash merge</h2>
+  </div>
+
+  <div class="tip tip-info">
+    <span class="tip-icon">🎯</span>
+    <div class="tip-text"><strong>Проблема:</strong> AI-агенты делают много «черновых» коммитов — <code>wip: try A</code>, <code>revert</code>, <code>fix typo</code>. Если мержить их все в main, история становится нечитаемой. Squash merge сворачивает всё это в один осмысленный коммит.</div>
+  </div>
+
+  <div class="ba-grid">
+    <div class="ba-card before">
+      <div class="ba-label">❌ До: merge commit</div>
+      <div class="commit-log">
+        <div style="color:#475569;font-size:.78rem;margin-bottom:.5rem;">История в main:</div>
+        <div class="commit"><div class="commit-dot dot-indigo"></div><span class="commit-hash">a1b2c3d</span> <span class="commit-msg">Merge branch 'task-49/backend'</span></div>
+        <div style="border-left:2px solid #374151;margin-left:4px;padding-left:.8rem;margin-bottom:.4rem;">
+          <div class="commit"><div class="commit-dot dot-red"></div><span class="commit-hash">7f3e1a2</span> <span class="commit-msg">wip: trying approach 3</span></div>
+          <div class="commit"><div class="commit-dot dot-red"></div><span class="commit-hash">6c2d9b1</span> <span class="commit-msg">revert: approach 2 broken</span></div>
+          <div class="commit"><div class="commit-dot dot-amber"></div><span class="commit-hash">5b1c8a0</span> <span class="commit-msg">fix: typo in endpoint</span></div>
+          <div class="commit"><div class="commit-dot dot-amber"></div><span class="commit-hash">4a0b7z9</span> <span class="commit-msg">wip: auto-save</span></div>
+          <div class="commit"><div class="commit-dot dot-amber"></div><span class="commit-hash">3f9a6y8</span> <span class="commit-msg">try: different SQL query</span></div>
+          <div class="commit"><div class="commit-dot dot-green"></div><span class="commit-hash">2e8b5x7</span> <span class="commit-msg">#49: add user endpoint</span></div>
+        </div>
+        <div class="commit"><div class="commit-dot dot-cyan"></div><span class="commit-hash">1d7a4w6</span> <span class="commit-msg">prev task...</span></div>
+      </div>
+      <div style="margin-top:.8rem;font-size:.82rem;color:#ef4444;">⚠️ 6 мусорных коммитов агента попали в main. Через месяц — непонятно что было, когда и зачем.</div>
+    </div>
+
+    <div class="ba-card after">
+      <div class="ba-label">✅ После: squash merge</div>
+      <div class="commit-log">
+        <div style="color:#475569;font-size:.78rem;margin-bottom:.5rem;">История в main:</div>
+        <div class="commit"><div class="commit-dot dot-green"></div><span class="commit-hash">a1b2c3d</span> <span class="commit-msg"><strong>#49: add user endpoint</strong></span></div>
+        <div style="font-size:.75rem;color:#6366f1;margin:.1rem 0 .4rem 1.2rem;">task-49/backend-opus (6 commits squashed)</div>
+        <div class="commit"><div class="commit-dot dot-cyan"></div><span class="commit-hash">1d7a4w6</span> <span class="commit-msg">prev task...</span></div>
+      </div>
+      <div style="margin-top:.8rem;font-size:.82rem;color:#10b981;">✅ Один коммит = одна задача. История читается. <code>git bisect</code> работает. Ссылка <code>#49</code> сохранена.</div>
+
+      <hr class="dim" style="margin:.8rem 0;">
+      <div style="font-size:.82rem;color:#94a3b8;">Полная рабочая история агента <em>не удаляется</em> — она остаётся в ветке <code>refs/agents/task-49</code> для аудита, просто не засоряет main.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">🔄</div> Как работает squash технически</div>
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 880 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#6366f1"/>
+          </marker>
+          <marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+          </marker>
+        </defs>
+
+        <!-- Branch commits -->
+        <text x="20" y="40" fill="#a855f7" font-size="11" font-weight="700">Ветка агента:</text>
+        <circle cx="80" cy="80" r="16" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+        <text x="80" y="84" text-anchor="middle" fill="#ef4444" font-size="9">wip</text>
+        <line x1="96" y1="80" x2="124" y2="80" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <circle cx="140" cy="80" r="16" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+        <text x="140" y="84" text-anchor="middle" fill="#ef4444" font-size="9">rev</text>
+        <line x1="156" y1="80" x2="184" y2="80" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <circle cx="200" cy="80" r="16" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="200" y="84" text-anchor="middle" fill="#f59e0b" font-size="9">fix</text>
+        <line x1="216" y1="80" x2="244" y2="80" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <circle cx="260" cy="80" r="16" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="260" y="84" text-anchor="middle" fill="#f59e0b" font-size="9">wip</text>
+        <line x1="276" y1="80" x2="304" y2="80" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <circle cx="320" cy="80" r="16" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="320" y="84" text-anchor="middle" fill="#10b981" font-size="9">#49</text>
+
+        <!-- Bracket -->
+        <rect x="64" y="112" width="272" height="4" rx="2" fill="rgba(99,102,241,0.4)"/>
+        <line x1="64" y1="116" x2="64" y2="130" stroke="#6366f1" stroke-width="1.5"/>
+        <line x1="336" y1="116" x2="336" y2="130" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="200" y="148" text-anchor="middle" fill="#6366f1" font-size="11">git merge --squash</text>
+
+        <!-- Arrow to result -->
+        <line x1="370" y1="80" x2="430" y2="80" stroke="#10b981" stroke-width="2.5" marker-end="url(#arr3)"/>
+        <text x="400" y="72" text-anchor="middle" fill="#94a3b8" font-size="10">squash</text>
+
+        <!-- Result main -->
+        <text x="450" y="40" fill="#10b981" font-size="11" font-weight="700">main ветка:</text>
+
+        <!-- Prev commits on main -->
+        <circle cx="480" cy="80" r="16" fill="rgba(99,102,241,0.1)" stroke="#4f46e5" stroke-width="1.5"/>
+        <text x="480" y="84" text-anchor="middle" fill="#6366f1" font-size="9">old</text>
+        <line x1="496" y1="80" x2="524" y2="80" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <circle cx="540" cy="80" r="16" fill="rgba(99,102,241,0.1)" stroke="#4f46e5" stroke-width="1.5"/>
+        <text x="540" y="84" text-anchor="middle" fill="#6366f1" font-size="9">old</text>
+        <line x1="556" y1="80" x2="584" y2="80" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- New squash commit -->
+        <circle cx="620" cy="80" r="22" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2"/>
+        <text x="620" y="76" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">#49</text>
+        <text x="620" y="88" text-anchor="middle" fill="#94a3b8" font-size="8">squash</text>
+
+        <!-- Commit details -->
+        <rect x="660" y="55" width="190" height="55" rx="8" fill="rgba(16,185,129,0.06)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+        <text x="670" y="74" fill="#10b981" font-size="10" font-weight="700">#49: add user endpoint</text>
+        <text x="670" y="90" fill="#94a3b8" font-size="9">Squashed 5 commits from</text>
+        <text x="670" y="103" fill="#94a3b8" font-size="9">task-49/backend-opus</text>
+        <line x1="642" y1="80" x2="660" y2="80" stroke="rgba(16,185,129,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+
+        <!-- Labels -->
+        <text x="200" y="210" text-anchor="middle" fill="#94a3b8" font-size="11">5 рабочих коммитов агента</text>
+        <text x="200" y="228" text-anchor="middle" fill="#6366f1" font-size="11">→ превращаются в один коммит на main</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><div class="icon">✅</div> Преимущества squash</div>
+      <ul style="list-style:none;padding:0;">
+        <li class="tip tip-ok" style="margin-bottom:.5rem;"><span class="tip-icon">📖</span><div class="tip-text">История main <strong>читается как книга</strong> — один коммит на фичу/задачу</div></li>
+        <li class="tip tip-ok" style="margin-bottom:.5rem;"><span class="tip-icon">🔍</span><div class="tip-text"><strong>git bisect</strong> работает быстро — нет «мусорных» промежуточных состояний</div></li>
+        <li class="tip tip-ok" style="margin-bottom:.5rem;"><span class="tip-icon">🔗</span><div class="tip-text">Привязка <strong>#49 в одном месте</strong> — легко найти что изменилось по задаче</div></li>
+        <li class="tip tip-ok"><span class="tip-icon">🕵️</span><div class="tip-text">Полная рабочая история агента сохраняется в refs/agents — <strong>аудит всегда доступен</strong></div></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="icon">⚡</div> Когда оставлять merge commit</div>
+      <div style="color:var(--text-dim);font-size:.9rem;margin-bottom:.8rem;">Squash — умолчание. Merge commit нужен только если:</div>
+      <ul style="list-style:none;padding:0;">
+        <li class="tip tip-warn" style="margin-bottom:.5rem;"><span class="tip-icon">📋</span><div class="tip-text"><strong>Аудиторские требования</strong> — нужна полная история каждого шага в main</div></li>
+        <li class="tip tip-warn"><span class="tip-icon">🔧</span><div class="tip-text"><strong>Отладка сложного рефакторинга</strong> — важно видеть каждый промежуточный шаг прямо в main</div></li>
+      </ul>
+      <div style="margin-top:.8rem;font-size:.85rem;color:var(--indigo);">Флаг: <code>merge_worker(strategy="merge")</code></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 3 — ИЗОЛЯЦИЯ ВОРКЕРОВ
+═══════════════════════════════════════════════ -->
+<section class="section" id="s3">
+  <div class="section-header">
+    <div class="num">3</div>
+    <h2>Изоляция воркеров: worktrees</h2>
+  </div>
+
+  <div class="tip tip-info">
+    <span class="tip-icon">🏗️</span>
+    <div class="tip-text"><strong>Worktree</strong> — это отдельная папка на диске, которая указывает на ту же базу кода, но находится в другой ветке. Несколько воркеров могут работать одновременно над одним репозиторием — каждый в своей папке, в своей ветке.</div>
+  </div>
+
+  <div class="diagram-wrap" style="margin-bottom:1.5rem;">
+    <svg viewBox="0 0 960 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#a855f7"/>
+        </marker>
+      </defs>
+
+      <!-- Git object store (shared) -->
+      <rect x="20" y="110" width="160" height="100" rx="12" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="100" y="150" text-anchor="middle" fill="#6366f1" font-size="12" font-weight="700">Git Object Store</text>
+      <text x="100" y="168" text-anchor="middle" fill="#94a3b8" font-size="10">( общий для всех )</text>
+      <text x="100" y="183" text-anchor="middle" fill="#94a3b8" font-size="10">Хранит историю</text>
+      <text x="100" y="197" text-anchor="middle" fill="#94a3b8" font-size="10">commits, blobs, trees</text>
+      <text x="100" y="100" text-anchor="middle" fill="#475569" font-size="10">📦 Одна копия объектов на диске</text>
+
+      <!-- Arrows to worktrees -->
+      <line x1="180" y1="145" x2="255" y2="110" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <line x1="180" y1="160" x2="255" y2="195" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <line x1="180" y1="175" x2="255" y2="280" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+      <!-- Worktree A -->
+      <rect x="260" y="60" width="200" height="100" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+      <text x="360" y="92" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="700">worktrees/backend-opus/</text>
+      <text x="360" y="108" text-anchor="middle" fill="#e2e8f0" font-size="11">ветка: task-49/backend</text>
+      <text x="360" y="124" text-anchor="middle" fill="#94a3b8" font-size="10">app/api/users.py ← редактирует</text>
+      <text x="360" y="140" text-anchor="middle" fill="#94a3b8" font-size="10">.git → ../../../.git (ссылка)</text>
+      <text x="360" y="50" text-anchor="middle" fill="#475569" font-size="10">🤖 Агент #1</text>
+
+      <!-- Worktree B -->
+      <rect x="260" y="145" width="200" height="100" rx="10" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+      <text x="360" y="177" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="700">worktrees/frontend-opus/</text>
+      <text x="360" y="193" text-anchor="middle" fill="#e2e8f0" font-size="11">ветка: task-49/frontend</text>
+      <text x="360" y="209" text-anchor="middle" fill="#94a3b8" font-size="10">app/static/app.js ← редактирует</text>
+      <text x="360" y="225" text-anchor="middle" fill="#94a3b8" font-size="10">.git → ../../../.git (ссылка)</text>
+      <text x="360" y="135" text-anchor="middle" fill="#475569" font-size="10">🤖 Агент #2</text>
+
+      <!-- Worktree C -->
+      <rect x="260" y="230" width="200" height="80" rx="10" fill="rgba(99,102,241,0.08)" stroke="#4f46e5" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="360" y="258" text-anchor="middle" fill="#6366f1" font-size="11" font-weight="700">worktrees/tests-sonnet/</text>
+      <text x="360" y="274" text-anchor="middle" fill="#e2e8f0" font-size="11">ветка: task-50/tests</text>
+      <text x="360" y="290" text-anchor="middle" fill="#94a3b8" font-size="10">tests/ ← редактирует</text>
+      <text x="360" y="220" text-anchor="middle" fill="#475569" font-size="10">🤖 Агент #3</text>
+
+      <!-- What's NOT shared -->
+      <rect x="510" y="40" width="200" height="240" rx="12" fill="rgba(239,68,68,0.05)" stroke="rgba(239,68,68,0.25)" stroke-width="1.5"/>
+      <text x="610" y="66" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">НЕ изолировано</text>
+      <text x="610" y="88" text-anchor="middle" fill="#94a3b8" font-size="10">Воркеры в одном процессе —</text>
+      <text x="610" y="103" text-anchor="middle" fill="#94a3b8" font-size="10">делят порты, базу данных,</text>
+      <text x="610" y="118" text-anchor="middle" fill="#94a3b8" font-size="10">переменные окружения</text>
+      <text x="610" y="150" text-anchor="middle" fill="#ef4444" font-size="24">⚡</text>
+      <text x="610" y="180" text-anchor="middle" fill="#94a3b8" font-size="10">Если нужна процессная</text>
+      <text x="610" y="195" text-anchor="middle" fill="#94a3b8" font-size="10">изоляция — используют</text>
+      <text x="610" y="210" text-anchor="middle" fill="#94a3b8" font-size="10">Docker-контейнеры</text>
+      <text x="610" y="230" text-anchor="middle" fill="#475569" font-size="9">(для Orchestra доверенный код,</text>
+      <text x="610" y="243" text-anchor="middle" fill="#475569" font-size="9">контейнеры не нужны)</text>
+
+      <!-- What IS shared -->
+      <rect x="730" y="40" width="200" height="240" rx="12" fill="rgba(16,185,129,0.05)" stroke="rgba(16,185,129,0.25)" stroke-width="1.5"/>
+      <text x="830" y="66" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700">Изолировано</text>
+      <text x="830" y="90" text-anchor="middle" fill="#94a3b8" font-size="10">✅ Рабочие файлы</text>
+      <text x="830" y="108" text-anchor="middle" fill="#94a3b8" font-size="10">( у каждого свои )</text>
+      <line x1="750" y1="118" x2="910" y2="118" stroke="rgba(16,185,129,0.15)" stroke-width="1"/>
+      <text x="830" y="136" text-anchor="middle" fill="#94a3b8" font-size="10">✅ Ветка Git</text>
+      <text x="830" y="154" text-anchor="middle" fill="#94a3b8" font-size="10">( агент не видит чужих)</text>
+      <line x1="750" y1="164" x2="910" y2="164" stroke="rgba(16,185,129,0.15)" stroke-width="1"/>
+      <text x="830" y="182" text-anchor="middle" fill="#94a3b8" font-size="10">✅ CLAUDE.md, .env</text>
+      <text x="830" y="200" text-anchor="middle" fill="#94a3b8" font-size="10">( копируются при создании )</text>
+      <line x1="750" y1="210" x2="910" y2="210" stroke="rgba(16,185,129,0.15)" stroke-width="1"/>
+      <text x="830" y="228" text-anchor="middle" fill="#94a3b8" font-size="10">✅ Staged/unstaged изменения</text>
+      <text x="830" y="246" text-anchor="middle" fill="#94a3b8" font-size="10">( каждый коммитит своё )</text>
+    </svg>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><div class="icon">💡</div> Как создаётся worktree</div>
+      <div class="tip tip-info">
+        <span class="tip-icon">⚡</span>
+        <div class="tip-text">Worktree создаётся за <strong>миллисекунды</strong> — копируются только рабочие файлы. Git-объекты (история) не дублируются.</div>
+      </div>
+      <div style="font-size:.88rem;color:var(--text-dim);margin-top:.5rem;">
+        <div style="margin-bottom:.4rem;">Именование ветки:</div>
+        <div style="background:var(--surface2);padding:.7rem;border-radius:6px;font-family:monospace;font-size:.82rem;">
+          <div>С task_id: <span style="color:#22d3ee">task-49/backend-opus</span></div>
+          <div style="margin-top:.3rem;">Без task_id: <span style="color:#22d3ee">feat/orchestra/worker-name</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="icon">🛡️</div> Защита от конфликтов</div>
+      <div class="tip tip-ok" style="margin-bottom:.5rem;">
+        <span class="tip-icon">🔒</span>
+        <div class="tip-text"><strong>Предварительная симуляция</strong> — перед мержем Orchestra проверяет конфликты без изменения кода</div>
+      </div>
+      <div class="tip tip-ok">
+        <span class="tip-icon">⏳</span>
+        <div class="tip-text"><strong>Сериализованный мерж</strong> — только один мерж в момент времени через глобальный файловый лок</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">🔀</div> Параллельная работа без конфликтов — как это выглядит</div>
+    <div class="flow-lanes">
+      <div class="flow-lane hl">
+        <h4>🤖 Агент Backend</h4>
+        <div style="font-size:.83rem;color:var(--text-dim);">
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">📁 Своя папка</div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">🌿 Ветка: task-49/backend</div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">✏️ Редактирует: <code>app/api/</code></div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">💾 Коммитит: свободно</div>
+          <div style="padding:.3rem 0;">🏁 Мержит первым → clean</div>
+        </div>
+      </div>
+      <div class="flow-lane hl">
+        <h4>🤖 Агент Frontend</h4>
+        <div style="font-size:.83rem;color:var(--text-dim);">
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">📁 Своя папка</div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">🌿 Ветка: task-49/frontend</div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">✏️ Редактирует: <code>app/static/</code></div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">💾 Коммитит: свободно</div>
+          <div style="padding:.3rem 0;">🏁 Мержит вторым → clean</div>
+        </div>
+      </div>
+      <div class="flow-lane">
+        <h4>⚠️ Риск конфликта</h4>
+        <div style="font-size:.83rem;color:var(--text-dim);">
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">❌ Оба редактируют</div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);"><code>app/config.py</code></div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">→ Конфликт при мерже</div>
+          <div style="padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">→ Pre-check поймает</div>
+          <div style="padding:.3rem 0;">→ Оркестратор решает</div>
+        </div>
+      </div>
+    </div>
+    <div class="tip tip-warn">
+      <span class="tip-icon">💡</span>
+      <div class="tip-text"><strong>Лучшая практика</strong>: давать агентам разные «территории» — backend меняет <code>app/api/</code>, frontend меняет <code>app/static/</code>. Меньше конфликтов = быстрее работа.</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 4 — ГРАНИЧНЫЕ СЛУЧАИ
+═══════════════════════════════════════════════ -->
+<section class="section" id="s4">
+  <div class="section-header">
+    <div class="num">4</div>
+    <h2>Граничные случаи и защита</h2>
+  </div>
+
+  <div class="expand-block open" id="ec1">
+    <div class="expand-header" onclick="toggle('ec1')">
+      <div class="title"><span>🔀</span> Несвязанные истории (unrelated histories)</div>
+      <span class="expand-arrow">▼</span>
+    </div>
+    <div class="expand-body">
+      <div class="tip tip-warn">
+        <span class="tip-icon">⚠️</span>
+        <div class="tip-text"><strong>Проблема:</strong> Если внутри репозитория есть <em>другой</em> git-репозиторий (со своим <code>.git</code> папкой), и агент работает в нём — его коммиты идут в «чужую» историю. При попытке мержа в main оказывается, что у веток нет общего предка.</div>
+      </div>
+      <div class="diagram-wrap" style="margin:1rem 0;">
+        <svg viewBox="0 0 820 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="a5" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#6366f1"/>
+            </marker>
+          </defs>
+          <!-- Outer repo -->
+          <rect x="20" y="40" width="140" height="120" rx="8" fill="rgba(99,102,241,0.08)" stroke="#6366f1" stroke-width="1.5"/>
+          <text x="90" y="68" text-anchor="middle" fill="#6366f1" font-size="11" font-weight="700">orchestra/</text>
+          <text x="90" y="88" text-anchor="middle" fill="#94a3b8" font-size="10">.git/  ← главный</text>
+          <text x="90" y="105" text-anchor="middle" fill="#94a3b8" font-size="10">app/</text>
+
+          <!-- Inner repo (danger!) -->
+          <rect x="50" y="110" width="80" height="45" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="90" y="130" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">projects/</text>
+          <text x="90" y="146" text-anchor="middle" fill="#ef4444" font-size="9">.git/ ← ⚠️ вложен!</text>
+
+          <text x="90" y="175" text-anchor="middle" fill="#ef4444" font-size="9">ОПАСНАЯ ЗОНА</text>
+
+          <!-- Arrow: agent works in inner -->
+          <line x1="160" y1="135" x2="230" y2="135" stroke="#ef4444" stroke-width="1.5" marker-end="url(#a5)"/>
+          <text x="195" y="126" text-anchor="middle" fill="#ef4444" font-size="9">агент</text>
+          <text x="195" y="150" text-anchor="middle" fill="#ef4444" font-size="9">пишет сюда</text>
+
+          <!-- Agent commits in wrong history -->
+          <rect x="235" y="105" width="150" height="65" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,2"/>
+          <text x="310" y="130" text-anchor="middle" fill="#ef4444" font-size="10">Коммиты идут</text>
+          <text x="310" y="147" text-anchor="middle" fill="#ef4444" font-size="10">в историю projects/.git</text>
+          <text x="310" y="160" text-anchor="middle" fill="#ef4444" font-size="9">(не в main orchestra!)</text>
+
+          <!-- Merge attempt -->
+          <line x1="385" y1="135" x2="455" y2="135" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#a5)"/>
+          <text x="420" y="126" text-anchor="middle" fill="#94a3b8" font-size="9">merge...</text>
+
+          <!-- Fail -->
+          <rect x="460" y="105" width="155" height="65" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="538" y="130" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">❌ FAIL</text>
+          <text x="538" y="148" text-anchor="middle" fill="#94a3b8" font-size="9">fatal: refusing to merge</text>
+          <text x="538" y="162" text-anchor="middle" fill="#94a3b8" font-size="9">unrelated histories</text>
+
+          <!-- Fix arrow -->
+          <line x1="615" y1="135" x2="680" y2="135" stroke="#10b981" stroke-width="1.5" marker-end="url(#a5)"/>
+          <rect x="685" y="105" width="115" height="65" rx="8" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="743" y="130" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700">Cherry-pick</text>
+          <text x="743" y="147" text-anchor="middle" fill="#94a3b8" font-size="9">replay commits</text>
+          <text x="743" y="162" text-anchor="middle" fill="#94a3b8" font-size="9">(fallback)</text>
+        </svg>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div style="font-weight:600;margin-bottom:.5rem;color:var(--text-dim);">Сейчас (fallback):</div>
+          <div class="tip tip-warn"><span class="tip-icon">🔄</span><div class="tip-text">Orchestra автоматически использует <strong>cherry-pick fallback</strong> — переигрывает каждый коммит. Работает, но может создавать дубли.</div></div>
+        </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:.5rem;color:var(--text-dim);">Рекомендуемый фикс:</div>
+          <div class="tip tip-ok"><span class="tip-icon">🎯</span><div class="tip-text">Обнаружение вложенного <code>.git</code> при создании воркера → сразу сообщить оркестратору. Задать правильный <code>repo_path</code>.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="expand-block" id="ec2">
+    <div class="expand-header" onclick="toggle('ec2')">
+      <div class="title"><span>🏗️</span> Создание worktree — защитные проверки</div>
+      <span class="expand-arrow">▼</span>
+    </div>
+    <div class="expand-body">
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Проверка имени ветки</div>
+            <div class="step-desc"><code>git check-ref-format</code> — убеждаемся, что имя ветки валидно (нет спецсимволов, не начинается с дефиса и т.д.)</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Ветка уже занята?</div>
+            <div class="step-desc"><code>_is_branch_checked_out_elsewhere</code> — Git позволяет одну ветку держать в одном worktree одновременно. Если ветка уже занята другим воркером — reuse без <code>-b</code>.</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Авто-сохранение main</div>
+            <div class="step-desc"><code>_auto_commit_if_dirty</code> — если в main есть незакоммиченные изменения, они автоматически коммитятся как <code>wip: auto-save</code>. Воркер ветвится от чистого состояния.</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Копирование конфигов</div>
+            <div class="step-desc"><code>CLAUDE.md</code>, <code>.env</code>, <code>.mcp.json</code>, <code>.worktreeinclude</code> — копируются в worktree. Воркер сразу знает правила проекта.</div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="expand-block" id="ec3">
+    <div class="expand-header" onclick="toggle('ec3')">
+      <div class="title"><span>🔐</span> Мерж — цепочка защит</div>
+      <span class="expand-arrow">▼</span>
+    </div>
+    <div class="expand-body">
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Глобальный лок</div>
+            <div class="step-desc">Файловый лок <code>.git/orchestra-merge.lock</code> — если два воркера пытаются мержиться одновременно, второй ждёт. Нет race conditions.</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Проверка чистоты</div>
+            <div class="step-desc">Если в worktree есть незакоммиченные изменения — мерж отклонён с ошибкой. Агент должен сначала закоммитить.</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Симуляция конфликтов</div>
+            <div class="step-desc"><code>git merge-tree --write-tree</code> — вычисляет результат мержа без изменения файлов. Если конфликты есть — возвращает список файлов, не ломая дерево.</div>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Restore в finally</div>
+            <div class="step-desc">Оркестратор стеширует свои изменения → переключается на target ветку → делает мерж → возвращается на свою ветку → pop stash. Порядок критичен: сначала ветка, потом pop.</div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="expand-block" id="ec4">
+    <div class="expand-header" onclick="toggle('ec4')">
+      <div class="title"><span>🔄</span> Переключение на новую задачу (switch_worker_branch)</div>
+      <span class="expand-arrow">▼</span>
+    </div>
+    <div class="expand-body">
+      <div class="tip tip-info">
+        <span class="tip-icon">💡</span>
+        <div class="tip-text">После завершения задачи воркер не удаляется — он может перейти на следующую задачу в той же папке. Это быстрее, чем создавать новый worktree.</div>
+      </div>
+      <div class="grid-2" style="margin-top:1rem;">
+        <div>
+          <div style="font-size:.85rem;color:var(--text-dim);margin-bottom:.5rem;">Условия для switch:</div>
+          <div class="tip tip-ok" style="margin-bottom:.4rem;"><span class="tip-icon">✓</span><div class="tip-text">Рабочее дерево чистое (все закоммичено)</div></div>
+          <div class="tip tip-ok"><span class="tip-icon">✓</span><div class="tip-text">Текущая ветка полностью смержена в <code>from_ref</code></div></div>
+        </div>
+        <div>
+          <div style="font-size:.85rem;color:var(--text-dim);margin-bottom:.5rem;">Что происходит:</div>
+          <div style="background:var(--surface2);padding:.8rem;border-radius:8px;font-size:.82rem;color:var(--text-dim);">
+            <div>1. Создаётся ветка <code>task-50/name</code></div>
+            <div style="margin-top:.3rem;">2. Мержится свежий <code>main</code> (auto-sync)</div>
+            <div style="margin-top:.3rem;">3. Воркер продолжает работу</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 5 — ИНДУСТРИЯ vs ORCHESTRA
+═══════════════════════════════════════════════ -->
+<section class="section" id="s5">
+  <div class="section-header">
+    <div class="num">5</div>
+    <h2>Orchestra vs индустриальные инструменты</h2>
+  </div>
+
+  <div class="tip tip-ok">
+    <span class="tip-icon">🏆</span>
+    <div class="tip-text"><strong>Вывод:</strong> Orchestra уже соответствует отраслевому стандарту по ключевым принципам. Основное расхождение — стратегия мержа (сейчас merge commit, отрасль предпочитает squash).</div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:1.5rem;">
+    <table>
+      <thead>
+        <tr>
+          <th>Параметр</th>
+          <th>Orchestra</th>
+          <th>Cursor 2.0</th>
+          <th>OpenAI Codex</th>
+          <th>Devin</th>
+          <th>Copilot Agent</th>
+          <th>Claude Code</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Изоляция</td>
+          <td><span class="badge badge-green">git worktree</span></td>
+          <td><span class="badge badge-green">worktree</span></td>
+          <td><span class="badge badge-green">worktree</span></td>
+          <td><span class="badge badge-purple">VM</span></td>
+          <td><span class="badge badge-indigo">cloud</span></td>
+          <td><span class="badge badge-green">worktree</span></td>
+        </tr>
+        <tr>
+          <td>Параллельность</td>
+          <td><span class="badge badge-green">N воркеров</span></td>
+          <td><span class="badge badge-green">до 8</span></td>
+          <td><span class="badge badge-green">15 managed</span></td>
+          <td><span class="badge badge-green">✅</span></td>
+          <td><span class="badge badge-indigo">1 задача</span></td>
+          <td><span class="badge badge-green">subagent</span></td>
+        </tr>
+        <tr>
+          <td>Стратегия мержа</td>
+          <td><span class="badge badge-amber">merge commit</span> <span style="font-size:.75rem;color:var(--text-muted)">→ squash скоро</span></td>
+          <td><span class="badge badge-green">apply-worktree</span></td>
+          <td><span class="badge badge-green">squash</span></td>
+          <td><span class="badge badge-indigo">PR → human</span></td>
+          <td><span class="badge badge-indigo">draft PR</span></td>
+          <td><span class="badge badge-indigo">ручной</span></td>
+        </tr>
+        <tr>
+          <td>Pre-merge проверка</td>
+          <td><span class="badge badge-green">merge-tree ✅</span></td>
+          <td><span class="badge badge-green">✅</span></td>
+          <td><span class="badge badge-amber">частично</span></td>
+          <td><span class="badge badge-green">✅</span></td>
+          <td><span class="badge badge-amber">branch protect</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+        </tr>
+        <tr>
+          <td>Сериализация мержа</td>
+          <td><span class="badge badge-green">fcntl lock ✅</span></td>
+          <td><span class="badge badge-green">✅</span></td>
+          <td><span class="badge badge-green">✅</span></td>
+          <td><span class="badge badge-green">✅</span></td>
+          <td><span class="badge badge-green">✅</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+        </tr>
+        <tr>
+          <td>Процессная изоляция</td>
+          <td><span class="badge badge-amber">нет (доверен.)</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+          <td><span class="badge badge-green">VM полная</span></td>
+          <td><span class="badge badge-green">cloud</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+        </tr>
+        <tr>
+          <td>Авто-PR</td>
+          <td><span class="badge badge-amber">нет</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+          <td><span class="badge badge-green">✅ draft PR</span></td>
+          <td><span class="badge badge-green">✅ draft PR</span></td>
+          <td><span class="badge badge-amber">нет</span></td>
+        </tr>
+        <tr>
+          <td>Хранение</td>
+          <td>self-hosted</td>
+          <td>local</td>
+          <td>cloud</td>
+          <td>cloud VM</td>
+          <td>GitHub cloud</td>
+          <td>local/cloud</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">📊</div> Зрелость по ключевым параметрам</div>
+    <div style="padding:.5rem 0;">
+      <div class="compare-bar-row">
+        <div class="compare-bar-label"><span>Изоляция файлов</span><span>Orchestra ✅ = индустрия</span></div>
+        <div class="compare-bar-track"><div class="compare-bar-fill" style="width:95%;background:linear-gradient(90deg,#6366f1,#a855f7);"></div></div>
+      </div>
+      <div class="compare-bar-row">
+        <div class="compare-bar-label"><span>Сериализация мержа</span><span>Orchestra ✅ = индустрия</span></div>
+        <div class="compare-bar-track"><div class="compare-bar-fill" style="width:95%;background:linear-gradient(90deg,#6366f1,#a855f7);"></div></div>
+      </div>
+      <div class="compare-bar-row">
+        <div class="compare-bar-label"><span>Pre-merge проверка</span><span>Orchestra ✅ = топ</span></div>
+        <div class="compare-bar-track"><div class="compare-bar-fill" style="width:90%;background:linear-gradient(90deg,#6366f1,#a855f7);"></div></div>
+      </div>
+      <div class="compare-bar-row">
+        <div class="compare-bar-label"><span>Стратегия мержа</span><span>⚠️ нужен squash</span></div>
+        <div class="compare-bar-track"><div class="compare-bar-fill" style="width:55%;background:linear-gradient(90deg,#f59e0b,#ef4444);"></div></div>
+      </div>
+      <div class="compare-bar-row">
+        <div class="compare-bar-label"><span>Процессная изоляция</span><span>Не нужна для trusted code</span></div>
+        <div class="compare-bar-track"><div class="compare-bar-fill" style="width:30%;background:linear-gradient(90deg,#475569,#6b7280);"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><div class="icon">🎯</div> Что Orchestra делает лучше</div>
+      <div class="tip tip-ok" style="margin-bottom:.5rem;"><span class="tip-icon">🔒</span><div class="tip-text"><strong>Файловый лок мержа</strong> — явная защита от race conditions. Многие инструменты надеются на порядок PR.</div></div>
+      <div class="tip tip-ok" style="margin-bottom:.5rem;"><span class="tip-icon">🌿</span><div class="tip-text"><strong>Per-task именование</strong> веток <code>task-N/name</code> — привязка к системе задач из коробки.</div></div>
+      <div class="tip tip-ok"><span class="tip-icon">🔄</span><div class="tip-text"><strong>switch_worker_branch</strong> — воркер переходит на новую задачу без пересоздания окружения.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div class="icon">🚀</div> Что можно добавить</div>
+      <div class="tip tip-warn" style="margin-bottom:.5rem;"><span class="tip-icon">📦</span><div class="tip-text"><strong>Squash merge по умолчанию</strong> — самое важное изменение. Чистая история в main.</div></div>
+      <div class="tip tip-warn" style="margin-bottom:.5rem;"><span class="tip-icon">🗂️</span><div class="tip-text"><strong>Directory ownership</strong> — явная «территория» каждого агента. Структурное предотвращение конфликтов.</div></div>
+      <div class="tip tip-warn"><span class="tip-icon">🧪</span><div class="tip-text"><strong>Pre-dispatch симуляция</strong> — проверить конфликт двух агентов до их запуска.</div></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 6 — ЛУЧШИЕ ПРАКТИКИ
+═══════════════════════════════════════════════ -->
+<section class="section" id="s6">
+  <div class="section-header">
+    <div class="num">6</div>
+    <h2>Лучшие практики</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">🌿</div> Ветки: короткие и конкретные</div>
+    <div class="grid-2">
+      <div>
+        <div class="ba-card before" style="margin-bottom:0;">
+          <div class="ba-label">❌ Антипаттерн</div>
+          <div style="font-size:.85rem;color:var(--text-dim);">
+            <div style="margin-bottom:.4rem;font-family:monospace;color:#ef4444;">feat/scope/worker-name</div>
+            <div>Долгоживущая ветка на воркера — накапливает задачи, расходится с main, сложно мержить. Конфликты растут пропорционально времени жизни ветки.</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="ba-card after" style="margin-bottom:0;">
+          <div class="ba-label">✅ Правильно</div>
+          <div style="font-size:.85rem;color:var(--text-dim);">
+            <div style="margin-bottom:.4rem;font-family:monospace;color:#10b981;">task-49/backend-opus</div>
+            <div>Одна ветка = одна задача. Создать → сделать → смержить → удалить (или switch). История чистая, конфликты минимальны.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">🗺️</div> Разделение территорий между агентами</div>
+    <div class="tip tip-ok">
+      <span class="tip-icon">🏆</span>
+      <div class="tip-text">Лучший способ избежать конфликтов — <strong>структурное разделение</strong>. Каждый агент «владеет» своей частью кода.</div>
+    </div>
+    <div class="table-wrap" style="margin-top:1rem;">
+      <table>
+        <thead>
+          <tr>
+            <th>Агент</th>
+            <th>Его территория</th>
+            <th>Запрещено трогать</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🤖 backend-opus</td>
+            <td><code>app/api/</code>, <code>app/models/</code></td>
+            <td><code>app/static/</code>, <code>app/templates/</code></td>
+          </tr>
+          <tr>
+            <td>🤖 frontend-sonnet</td>
+            <td><code>app/static/</code>, <code>app/templates/</code></td>
+            <td><code>app/api/</code>, <code>app/models/</code></td>
+          </tr>
+          <tr>
+            <td>🤖 tests-haiku</td>
+            <td><code>tests/</code></td>
+            <td>любой production код</td>
+          </tr>
+          <tr>
+            <td>🤖 docs-haiku</td>
+            <td><code>docs/</code>, <code>*.md</code></td>
+            <td>любой python/js файл</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip tip-warn">
+      <span class="tip-icon">⚠️</span>
+      <div class="tip-text"><strong>Общие файлы</strong> (<code>pyproject.toml</code>, <code>app/config.py</code>) — источник конфликтов. Либо один агент их «владеет», либо изменения в них координируются через оркестратора.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">🤖</div> Opus vs Sonnet vs Haiku — когда что использовать</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Модель</th>
+            <th>Когда использовать</th>
+            <th>Не использовать</th>
+            <th>Стоимость</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>🧠 <strong>Opus 4.7</strong></td>
+            <td>Оркестратор (принятие решений), сложная архитектура, research, планирование задач</td>
+            <td>Простые рутинные задачи — дорого</td>
+            <td><span class="badge badge-red">$5/$25 per M</span></td>
+          </tr>
+          <tr>
+            <td>⚡ <strong>Sonnet 4.6</strong></td>
+            <td>Реализация фич по спецификации, код по готовому плану, frontend</td>
+            <td>Архитектурные решения без supervision</td>
+            <td><span class="badge badge-amber">$3/$15 per M</span></td>
+          </tr>
+          <tr>
+            <td>🚀 <strong>Haiku 4.5</strong></td>
+            <td>Тесты, документация, простые CRUD, рутинные правки, задачи «по шаблону»</td>
+            <td>Сложная логика, архитектура</td>
+            <td><span class="badge badge-green">$1/$5 per M</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip tip-info">
+      <span class="tip-icon">💡</span>
+      <div class="tip-text"><strong>Принцип:</strong> На подписке Max 20x все цифры виртуальные — реальных расходов нет. Но оптимизировать стоит ради <em>качества</em>: Opus медленнее, зато принимает более взвешенные решения. Haiku быстрый, но делает поверхностный анализ.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">📋</div> Чеклист запуска параллельных агентов</div>
+    <ol class="steps">
+      <li>
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Определить территории</div>
+          <div class="step-desc">Перед спавном убедиться: какие файлы/директории будет трогать каждый агент. Перекрытие = потенциальный конфликт.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Указать task_id</div>
+          <div class="step-desc">Всегда передавать <code>task_id</code> при спавне — это создаёт правильное именование ветки <code>task-N/name</code> и позволяет привязать мерж к задаче.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Мержить в правильном порядке</div>
+          <div class="step-desc">Если агенты зависят друг от друга (B использует API от A) — сначала мержить A, потом B <code>switch_worker_branch</code> забирает обновлённый main.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Убедиться что worktree чистый перед мержем</div>
+          <div class="step-desc">Агент должен закоммитить всё перед мержем. Orchestra проверит и откажет если есть незакоммиченные изменения.</div>
+        </div>
+      </li>
+      <li>
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Следить за вложенными репозиториями</div>
+          <div class="step-desc">Если воркер работает внутри папки с собственным <code>.git</code> — указать правильный <code>repo_path</code>. Иначе коммиты уйдут «не туда».</div>
+        </div>
+      </li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><div class="icon">🗺️</div> Дорожная карта улучшений</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Приоритет</th><th>Изменение</th><th>Ценность</th><th>Сложность</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-red">1 — Критично</span></td>
+            <td>Squash merge по умолчанию</td>
+            <td>🏆 Чистая история main</td>
+            <td><span class="badge badge-green">Низкая</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-amber">2 — Важно</span></td>
+            <td>Детектор вложенных .git</td>
+            <td>🔒 Устраняет unrelated histories</td>
+            <td><span class="badge badge-green">Низкая</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-indigo">3 — Улучшение</span></td>
+            <td>Directory ownership при спавне</td>
+            <td>🛡️ Структурная защита от конфликтов</td>
+            <td><span class="badge badge-amber">Средняя</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-indigo">4 — Улучшение</span></td>
+            <td>Pre-dispatch симуляция конфликтов</td>
+            <td>🧪 Предупреждение до запуска</td>
+            <td><span class="badge badge-amber">Средняя</span></td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-purple">5 — Полировка</span></td>
+            <td>Безопаснее auto-commit (не прятать WIP)</td>
+            <td>📖 Прозрачность для разработчика</td>
+            <td><span class="badge badge-green">Низкая</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Orchestra Git Workflow Guide &nbsp;·&nbsp; 2026-05-31 &nbsp;·&nbsp; Данные: docs/tasks/git-workflow-research.md
+</footer>
+
+<script>
+  // Navigation
+  const nav = document.getElementById('nav');
+  nav.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const target = btn.dataset.target;
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(target).classList.add('active');
+  });
+
+  // Expand/collapse
+  function toggle(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+
+  // Animate bars on scroll / section switch
+  function animateBars() {
+    document.querySelectorAll('.compare-bar-fill').forEach(bar => {
+      const width = bar.style.width;
+      bar.style.width = '0%';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { bar.style.width = width; });
+      });
+    });
+  }
+
+  // Re-animate bars when section 5 becomes active
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      if (m.target.id === 's5' && m.target.classList.contains('active')) {
+        setTimeout(animateBars, 50);
+      }
+    });
+  });
+  const s5 = document.getElementById('s5');
+  if (s5) observer.observe(s5, { attributes: true, attributeFilter: ['class'] });
+</script>
+</body>
+</html>
