@@ -755,7 +755,12 @@ def api_create_task(project_id: str, title: str, price: int = 0,
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            ensure_project(conn, project_id, scope=scope or None)
+            eff_scope = scope or None
+            if eff_scope:
+                existing_by_scope = get_project_by_scope(conn, eff_scope)
+                if existing_by_scope and existing_by_scope["id"] != project_id:
+                    eff_scope = None
+            ensure_project(conn, project_id, scope=eff_scope)
             task = create_task(
                 conn, project_id, title,
                 price_rub=price * 1000,

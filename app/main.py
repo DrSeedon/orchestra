@@ -371,6 +371,12 @@ async def list_files(path: str):
     return items
 
 
+@app.get("/api/role-icons")
+async def role_icons():
+    from app.manager import get_role_icons
+    return get_role_icons()
+
+
 @app.get("/api/sessions")
 async def list_sessions(scope: Optional[str] = None):
     return manager.list_sessions(scope)
