@@ -101,6 +101,13 @@ Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted
 - `spawn_worker` with `task_id="49"` → auto-sets status=in_progress, creates branch `task-49/worker-name`
 - Worker commits with task ref: `git commit -m "#49: implemented feature"`
 - After merge, commits are auto-linked to the task via `link_commits_to_task()`
+
+### Task backlog workflow
+Use tasks as a backlog queue for workers:
+- Bug/task found → `task_create(assignee="backend", status="backlog")` — queue it for a specific worker
+- Worker finishes current task → `task_list(assignee="backend", status="backlog")` — check their queue
+- Pick highest priority → `task_update(par, status="in_progress")` → `send_message` with task details
+- Never forget a task — if you can't assign now, backlog it with assignee
 </tools>
 
 <task-workflow>
