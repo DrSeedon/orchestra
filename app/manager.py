@@ -184,6 +184,20 @@ def _skills_catalog() -> str:
     return "## Available skills (for roles)\nSkills are auto-injected into worker prompts via `skills:` in role frontmatter.\n" + "\n".join(entries)
 
 
+def get_role_icons() -> dict[str, str]:
+    roles_dir = _PROMPTS_DIR / "roles"
+    icons = {}
+    if roles_dir.is_dir():
+        for f in sorted(roles_dir.glob("*.md")):
+            meta, _ = _parse_role_frontmatter(f.read_text())
+            if meta:
+                name = meta.get("name", f.stem)
+                icon = meta.get("icon", "")
+                if icon:
+                    icons[name] = icon
+    return icons
+
+
 def _roles_catalog() -> str:
     """Build a catalog of available worker roles from roles/ directory frontmatter.
     Injected into orchestrator prompt so it knows what roles exist."""

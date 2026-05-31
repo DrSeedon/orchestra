@@ -178,10 +178,11 @@ async def list_agents() -> str:
     if not sessions:
         return "No agents"
     lines = []
-    _ROLE_ICONS = {"orchestrator": "🎯", "sub-orchestrator": "🎯", "reviewer": "🔍", "watcher": "👁️"}
+    icons_data = await _api("GET", "/api/role-icons")
+    _icons = icons_data if isinstance(icons_data, dict) else {}
     for s in sessions:
         r = s.get("role", "worker")
-        role = _ROLE_ICONS.get(r, "⚙️")
+        role = _icons.get(r, "⚙️")
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""

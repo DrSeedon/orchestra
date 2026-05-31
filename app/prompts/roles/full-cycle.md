@@ -1,5 +1,6 @@
 ---
 name: full-cycle
+icon: "🔄"
 label: Full-Cycle
 model: opus
 modules: [git-workflow, codex-review, report-format]
