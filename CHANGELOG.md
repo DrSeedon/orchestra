@@ -1,14 +1,14 @@
 # Changelog
 
-## v2.13.0 — 2026-05-31
+## v2.13.0 — 2026-06-01
 
 ### Fixed
-- 🐛 **[1m] betas NOT PASSED** — `_make_client()` stripped `[1m]` from model name but NEVER passed `betas=["context-1m-2025-08-07"]` to `ClaudeAgentOptions`. ALL [1m] agents (including orchestrator) silently ran on 200K context instead of 1M. Now `options.betas` is set when model contains `[1m]`
-- 🐛 **Context % знаменатель 1M вместо 200K** — `CONTEXT_LIMITS` маппинг отдавал 1M для [1m] моделей, что рисовало 17% когда CLI задыхался на 95%. Теперь `max_tokens` берётся из реального CLI ответа через `get_context_usage()`
-- 🐛 **compact_boundary невидим** — CLI `SystemMessage` с `subtype="compact_boundary"` не ловился ни одним branch в `_convert()`. Теперь эмитится `status` event "CLI auto-compacted" с до/после токенов
+- 🐛 **[1m] suffix stripped — ALL agents on 200K instead of 1M** — `_make_client()` did `model.replace("[1m]", "")` before passing to CLI. CLI REQUIRES `[1m]` suffix to enable 1M context window (`claude-opus-4-6` = 200K, `claude-opus-4-6[1m]` = 1M). Every [1m] agent in Orchestra silently ran on 1/5 of their context. Fix: pass `self.model` as-is, no stripping
+- 🐛 **compact_boundary invisible** — CLI `SystemMessage` with `subtype="compact_boundary"` was not caught by any branch in `_convert()`. Now emits status event "CLI auto-compacted (trigger): pre→post tokens"
+- 🐛 **max_tokens from API** — `_refresh_context_from_api()` now updates `max_tokens` from SDK alongside percentage and total_tokens
 
 ### Reasoning
-Root cause: `_make_client()` line `cli_model = self.model.replace("[1m]", "")` removed the suffix but never told the SDK to enable 1M context beta. This made all [1m] models equivalent to their non-[1m] variants (200K). Combined with `CONTEXT_LIMITS` showing 1M as denominator, agents appeared at 17% when actually at 95%. The betas fix is 3 lines; the display fixes are in backend_claude.py + session.py.
+CLI changelog 2.1.75: "Added 1M for Opus 4.6 by default for Max plans" — but ONLY when model name includes `[1m]` suffix. Our `_make_client` stripped it → CLI saw `claude-opus-4-6` (200K). Betas approach (`context-1m-2025-08-07`) also doesn't work on subscription ("Custom betas are only available for API key users"). The ONLY way to get 1M on subscription is passing the full model name with `[1m]`.
 
 ## v2.12.0 — 2026-05-31
 
