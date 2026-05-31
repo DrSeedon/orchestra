@@ -249,6 +249,7 @@ class AgentSession:
             self._listen_task.add_done_callback(self._on_task_done)
         if self._heartbeat_task is None or self._heartbeat_task.done():
             self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        asyncio.create_task(self._refresh_context_from_api())
         return self._backend
 
     # ── Event loops ──
@@ -417,6 +418,8 @@ class AgentSession:
             "cache_read": meta.get("cache_read", 0),
             "cache_create": meta.get("cache_create", 0),
         }
+
+        asyncio.create_task(self._refresh_context_from_api())
 
         if sr in ("error_max_turns", "max_turns") and ok:
             self._log("status", f"max_turns reached ({nt}), auto-continuing")
@@ -642,8 +645,8 @@ class AgentSession:
             self._compacting = False
             return {"ok": False, "error": "empty summary", "before_pct": before_pct}
 
+        old_session_id = self.session_id
         self.session_id = None
-        self._persist()
         self._compacting = False
 
         preamble = PREAMBLE.format(summary=summary)
@@ -686,15 +689,28 @@ class AgentSession:
             self.status = AgentStatus.IDLE
             self._persist()
 
+    async def _refresh_context_from_api(self) -> None:
+        if not self._backend or not hasattr(self._backend, 'context_usage'):
+            return
+        try:
+            usage = await self._backend.context_usage()
+            if usage and usage.get("percentage") is not None:
+                old_pct = self._last_context.get("percentage", 0)
+                self._last_context["percentage"] = usage["percentage"]
+                self._last_context["total_tokens"] = usage.get("total_tokens", 0)
+                self._last_context["max_tokens"] = usage.get("max_tokens", 200000)
+                if abs(old_pct - usage["percentage"]) > 20:
+                    self._log("status", f"context corrected: {old_pct}% → {usage['percentage']}% (authoritative)")
+                self._persist()
+        except Exception as e:
+            logger.debug(f"[{self.name}] context refresh failed: {e}")
+
     async def _auto_compact(self) -> None:
-        self._compacting = True
         await asyncio.sleep(2)
         try:
             await self.compact()
         except Exception as e:
             logger.warning(f"[{self.name}] auto-compact failed: {e}")
-        finally:
-            self._compacting = False
 
     async def change_model(self, new_model: str) -> dict:
         from app.models import backend_for_model
