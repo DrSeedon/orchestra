@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 IDLE_TIMEOUT_WORKER = 300
 IDLE_TIMEOUT_ORCHESTRATOR = 600
-AUTO_REPORT_IDLE_SEC = float(os.environ.get("AUTO_REPORT_IDLE_SEC", "900"))
+AUTO_REPORT_IDLE_SEC = float(os.environ.get("AUTO_REPORT_IDLE_SEC", "10"))
 
 _ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
@@ -388,8 +388,8 @@ class AgentSession:
                 return
             try:
                 await self.on_idle(self.name, self.scope, last_texts)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Auto-report failed for {self.name}: {e}")
 
         self._auto_report_task = asyncio.create_task(_delayed_auto_report())
 
