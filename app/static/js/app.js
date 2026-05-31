@@ -1075,8 +1075,8 @@ function updateAgentInfo(session) {
     changeBtn.style.display = isIdle ? 'inline' : 'none';
     changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
     $('#ai-role').textContent = session.role || 'worker';
-    $('#ai-cost').textContent = `$${(session.cost_usd || 0).toFixed(0)}`;
-    $('#ai-cost').title = `$${(session.cost_usd || 0).toFixed(2)} (CLI cost, includes cache)`;
+    $('#ai-cost').textContent = `$${(session.cost_usd || 0).toFixed(2)}`;
+    $('#ai-cost').title = `$${(session.cost_usd || 0).toFixed(4)} (CLI cost, includes cache)`;
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
     const descEl = $('#ai-desc'); const descLabel = $('#ai-desc-label');
