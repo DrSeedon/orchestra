@@ -21,3 +21,8 @@
 - Воркер спавнен orchestrator-A, задачу дал orchestrator-B через send_message. DONE уходит к A (parent), B не знает что задача выполнена
 - **Root cause:** send_message DONE идёт к `{orchestrator_name}` из промпта = parent при спавне
 - **Assignee:** нет
+
+## [2026-05-31 17:36 UTC] codex_review не видит diff суб-репо (git worktree с вложенным .git)
+- **Reporter:** infra
+- **Scope:** /mnt/data/Projects/Python/seedon
+При запуске codex_review(mode="review") из воркера infra, Codex работает в основном репо /mnt/data/Projects/Python/seedon/ и видит diff основного git, а не суб-репо infra/ который имеет отдельный .git. Результат: Codex ревьюит не тот diff ("documentation describing agent hierarchy") вместо proxy/main.py изменений. Также не может записать output файл (путь docs/tasks/30/ не существует в основном репо). Воркараунд: self-review вместо Codex для суб-репо.
