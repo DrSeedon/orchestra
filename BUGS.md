@@ -2,10 +2,6 @@
 
 ## Open
 
-### ~~merge_worker fails with "unrelated histories" for separate repos~~ → Fixed
-- **Reporter:** Parsing-orchestrator (2026-05-19)
-- **Fix:** cherry-pick fallback — `git merge-base` detects unrelated histories before merge, uses `_cherry_pick_branch()` instead
-
 ### send_message к idle воркерам возвращает 500 после рестарта
 - **Reporter:** Parsing-orchestrator (2026-05-26)
 - После restart, send_message к существующим idle воркерам = 500. Свежие воркеры работают
@@ -43,3 +39,7 @@ codex_review(output="docs/tasks/.../file.md") пишет файл относит
 
 Воркараунд: воркер сам находит файл через find и копирует контент.
 Фикс: codex_review должен принимать абсолютный путь или резолвить output относительно worktree вызывающего агента.
+
+## ~~[2026-05-31 11:25 UTC] codex_review(mode="review") fails: --uncommitted cannot be combined with piped PROMPT~~ → Fixed
+- **Reporter:** feat-scope-change
+- **Fix:** dropped piped prompt from review mode — `--uncommitted` analyzes git diff directly without stdin prompt (97a6a94)
