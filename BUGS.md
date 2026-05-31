@@ -2,10 +2,9 @@
 
 ## Open
 
-### merge_worker fails with "unrelated histories" for separate repos
+### ~~merge_worker fails with "unrelated histories" for separate repos~~ → Fixed
 - **Reporter:** Parsing-orchestrator (2026-05-19)
-- Worktree created from parent project's git, but worker pushes to separate repo → fatal
-- **Workaround:** push to master directly, skip merge_worker
+- **Fix:** cherry-pick fallback — `git merge-base` detects unrelated histories before merge, uses `_cherry_pick_branch()` instead
 
 ### send_message к idle воркерам возвращает 500 после рестарта
 - **Reporter:** Parsing-orchestrator (2026-05-26)
