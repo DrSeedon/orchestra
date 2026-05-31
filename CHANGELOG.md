@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.9.1 — 2026-05-31
+
+### Fixed
+- 🍒 **merge_worker unrelated histories** — `git merge-base` detects unrelated histories before merge attempt. Falls back to `_cherry_pick_branch()` which replays commits individually via `git cherry-pick --no-commit`. Clean linear history, no fake merge nodes. `workspace.py`
+
+### Changed
+- **merge precheck flow** — `git merge-base` check added before `merge-tree --write-tree`. Unrelated histories skip precheck entirely (it would fail anyway) and go straight to cherry-pick strategy
+- **Prompt restructuring** — all role prompts migrated to XML tags (`<role>`, `<rules priority="critical">`, `<tools>`, etc). Critical rules deduplicated into `base.md`. English-only prompts
+- **Native skills** — skills copied as `worktree/.claude/skills/{name}/SKILL.md` instead of system prompt injection. `_inject_skills_to_worktree()` in `manager.py`
+- **Agent role in dashboard** — info panel shows role (worker/orchestrator/full-cycle) in purple
+- **Cost precision** — `.toFixed(2)` instead of rounded integer
+- **File preview** — Download button + Open in browser button for HTML files
+
+### Added
+- 🧠 **Opus 4.8** model option in all frontend model pickers
+
 ## v2.9.0 — 2026-05-29
 
 ### Added
