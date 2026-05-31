@@ -382,6 +382,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN parent_name TEXT DEFAULT ''")
     if "owned_dirs" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN owned_dirs TEXT DEFAULT ''")
+    if "tg_topic" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN tg_topic INTEGER DEFAULT 0")
 
 
 def save_session(s: dict) -> None:
@@ -403,6 +405,7 @@ def save_session(s: dict) -> None:
     s.setdefault("parent_name", "")
     s.setdefault("mcp_servers_custom", "")
     s.setdefault("owned_dirs", "")
+    s.setdefault("tg_topic", 0)
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -411,14 +414,16 @@ def save_session(s: dict) -> None:
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
-                template_hash, role, parent_id, parent_name, mcp_servers_custom, owned_dirs)
+                template_hash, role, parent_id, parent_name, mcp_servers_custom, owned_dirs,
+                tg_topic)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
-                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :owned_dirs)
+                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :owned_dirs,
+                :tg_topic)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -447,7 +452,8 @@ def save_session(s: dict) -> None:
                 parent_id=excluded.parent_id,
                 parent_name=excluded.parent_name,
                 mcp_servers_custom=excluded.mcp_servers_custom,
-                owned_dirs=excluded.owned_dirs
+                owned_dirs=excluded.owned_dirs,
+                tg_topic=excluded.tg_topic
         """, s)
 
 

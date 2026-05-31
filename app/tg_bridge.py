@@ -807,7 +807,7 @@ async def ensure_topics():
     if not bot or not config["group_id"] or not _manager:
         return
     from app.db import get_all_sessions
-    orchs = [s for s in get_all_sessions() if s.get("role", "worker") in ("orchestrator", "sub-orchestrator")]
+    orchs = [s for s in get_all_sessions() if s.get("tg_topic") or s.get("role", "worker") in ("orchestrator", "sub-orchestrator")]
     if not orchs:
         return
 

@@ -104,6 +104,7 @@ class CreateSessionRequest(BaseModel):
     parent_name: str = ""
     mcp_servers: dict = {}
     owned_dirs: list[str] = []
+    tg_topic: bool = False
 
     @field_validator("name")
     @classmethod
@@ -397,6 +398,7 @@ async def create_session(req: CreateSessionRequest):
             parent_name=req.parent_name,
             mcp_servers=req.mcp_servers,
             owned_dirs=req.owned_dirs,
+            tg_topic=req.tg_topic,
         )
         d = session.to_dict()
         if session._spawn_warning:
@@ -588,6 +590,25 @@ async def update_description(name: str, req: dict):
         with _conn() as c:
             c.execute("UPDATE sessions SET description=? WHERE id=?", (desc, sid))
     return {"ok": True}
+
+
+@app.post("/api/sessions/{name}/tg_topic")
+async def update_tg_topic(name: str, req: dict):
+    scope = req.get("scope", "")
+    enabled = bool(req.get("enabled", False))
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    session = manager.sessions.get(sid)
+    if session:
+        session.tg_topic = enabled
+        session._persist()
+    else:
+        from app.db import _conn
+        with _conn() as c:
+            c.execute("UPDATE sessions SET tg_topic=? WHERE id=?", (int(enabled), sid))
+    return {"ok": True, "tg_topic": enabled}
 
 
 @app.post("/api/sessions/{name}/prompt")
