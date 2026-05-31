@@ -59,10 +59,12 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        description: str = "",
                        base_branch: str = "main",
                        role: str = "worker",
-                       mcp_servers: str = "") -> str:
+                       mcp_servers: str = "",
+                       owned_dirs: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
     base_branch — от какой ветки ответвить worktree воркера (default main).
-    mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт."""
+    mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
+    owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → предупреждение (НЕ блок)."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-8[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
@@ -84,6 +86,16 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                 return "Error: mcp_servers must be a JSON object, e.g. {\"playwright\": {\"command\": \"npx\", \"args\": [...]}}"
         except json.JSONDecodeError as e:
             return f"Error: mcp_servers is not valid JSON: {e}"
+    if owned_dirs:
+        import json
+        try:
+            parsed = json.loads(owned_dirs)
+            if isinstance(parsed, list):
+                body["owned_dirs"] = parsed
+            else:
+                return "Error: owned_dirs must be a JSON array, e.g. [\"app/api/\", \"app/models/\"]"
+        except json.JSONDecodeError as e:
+            return f"Error: owned_dirs is not valid JSON: {e}"
     if task_id:
         body["task_id"] = task_id
     if description:
@@ -94,7 +106,10 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     await _api("POST", f"/api/sessions/{name}/send", json={
         "message": task, "scope": scope,
     })
-    return f"Worker '{name}' spawned. Model: {model}. Task sent."
+    out = f"Worker '{name}' spawned. Model: {model}. Task sent."
+    if isinstance(result, dict) and result.get("spawn_warning"):
+        out += f"\n⚠️ {result['spawn_warning']}"
+    return out
 
 
 @mcp.tool()
@@ -336,6 +351,45 @@ async def switch_worker_branch(name: str, task_id: str, from_ref: str = "refs/he
     if isinstance(result, dict) and result.get("conflicts"):
         return f"Merge conflict with main on: {', '.join(result['conflicts'])}"
     return f"Switch result: {result}"
+
+
+@mcp.tool()
+async def check_conflict(worker_a: str, worker_b: str) -> str:
+    """Dry-run: would merging these two workers' branches conflict? Both must have committed work.
+    Use to decide merge order or whether two parallel workers collided. No changes made."""
+    result = await _api("POST", "/api/sessions/check-conflict",
+                        json={"scope": SCOPE, "worker_a": worker_a, "worker_b": worker_b})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Check failed: {result['error']}"
+    if isinstance(result, dict) and result.get("ok"):
+        conflicts = result.get("conflicts", [])
+        if conflicts:
+            return f"⚠️ {worker_a} and {worker_b} would CONFLICT in: {', '.join(conflicts)}"
+        return f"✅ No conflict between {worker_a} and {worker_b} — safe to merge both"
+    return f"Cannot simulate: {result.get('error', 'unknown') if isinstance(result, dict) else result}"
+
+
+@mcp.tool()
+async def worker_wip(name: str, base_ref: str = "refs/heads/main") -> str:
+    """Show a worker's WIP: uncommitted files + unmerged commits. Call before resuming to see what's left.
+    base_ref default refs/heads/main — pass the worker's actual base branch if it was spawned from a feature branch."""
+    result = await _api("GET", f"/api/sessions/{name}/wip",
+                        params={"scope": SCOPE, "base_ref": base_ref})
+    if isinstance(result, dict) and result.get("error"):
+        return f"WIP check failed: {result['error']}"
+    if not isinstance(result, dict):
+        return f"WIP result: {result}"
+    uncommitted = result.get("uncommitted", [])
+    unmerged = result.get("unmerged_commits", [])
+    if not uncommitted and not unmerged:
+        return f"'{name}': clean — no uncommitted changes, no unmerged commits (vs {base_ref})"
+    parts = [f"WIP for '{name}' (vs {base_ref}):"]
+    if uncommitted:
+        parts.append(f"  Uncommitted ({len(uncommitted)}): " + ", ".join(uncommitted[:20]))
+    if unmerged:
+        parts.append(f"  Unmerged commits ({len(unmerged)}):")
+        parts.extend(f"    - {s}" for s in unmerged[:20])
+    return "\n".join(parts)
 
 
 @mcp.tool()

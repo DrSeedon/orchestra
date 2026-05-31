@@ -1,6 +1,7 @@
 """Worktree management — create and remove git worktrees for agent sessions."""
 
 import fcntl
+import json
 import logging
 import re
 import shutil
@@ -566,3 +567,93 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
     )
     if result.returncode != 0:
         logger.warning(f"worktree remove failed: {result.stderr}")
+
+
+def parse_owned_dirs(raw) -> list[str]:
+    """Normalize owned_dirs from any source (JSON string, list, None). Bad input → []."""
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (ValueError, TypeError):
+            return []
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for d in raw:
+        if not isinstance(d, str):
+            continue
+        p = d.strip().strip("/")
+        if p and p not in out:
+            out.append(p)
+    return out
+
+
+def dirs_overlap(a: list[str], b: list[str]) -> list[str]:
+    """Return overlapping dirs (prefix-aware): app/api conflicts with app/api/v1."""
+    hits = []
+    for x in a:
+        for y in b:
+            if x == y or x.startswith(y + "/") or y.startswith(x + "/"):
+                hits.append(x if len(x) >= len(y) else y)
+    return sorted(set(hits))
+
+
+def simulate_conflict(repo_path: str, branch_a: str, branch_b: str) -> dict:
+    """Dry-run merge of two existing branches. {ok:True, conflicts:[...]} = simulation ran.
+    {ok:False, error} = couldn't run (missing branch / unrelated histories)."""
+    repo = _resolve_repo(repo_path, repo_path)
+    for ref in (branch_a, branch_b):
+        v = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if v.returncode != 0:
+            return {"ok": False, "error": f"branch '{ref}' not found"}
+    mb = subprocess.run(
+        ["git", "merge-base", branch_a, branch_b],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if mb.returncode != 0:
+        return {"ok": False, "error": "unrelated histories — cannot simulate"}
+    r = subprocess.run(
+        ["git", "merge-tree", "--write-tree", branch_a, branch_b],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if r.returncode == 0:
+        return {"ok": True, "conflicts": []}
+    conflicts = []
+    for line in r.stdout.splitlines():
+        if not line.startswith("CONFLICT"):
+            continue
+        m = re.search(r"Merge conflict in (.+)$", line)
+        if not m:
+            m = re.search(r"CONFLICT \([^)]+\): (\S+) ", line)
+        if m:
+            path = m.group(1).strip()
+            if path not in conflicts:
+                conflicts.append(path)
+    if conflicts:
+        return {"ok": True, "conflicts": conflicts}
+    return {"ok": False, "error": (r.stderr.strip() or r.stdout.strip() or "merge-tree failed")}
+
+
+def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> dict:
+    """Report uncommitted files + unmerged commit subjects for a worktree (relative to base_ref).
+    Returns {"error": ...} if git status or the base_ref comparison fails — never a false 'clean'."""
+    wt = Path(worktree_path).resolve()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+    )
+    if dirty.returncode != 0:
+        return {"error": f"git status failed: {dirty.stderr.strip()}"}
+    uncommitted = [l[3:] for l in dirty.stdout.strip().splitlines()] if dirty.stdout.strip() else []
+    log = subprocess.run(
+        ["git", "log", f"{base_ref}..HEAD", "--format=%s"],
+        cwd=str(wt), capture_output=True, text=True,
+    )
+    if log.returncode != 0:
+        return {"error": f"base_ref '{base_ref}' not found or comparison failed: {log.stderr.strip()}"}
+    unmerged = [l for l in log.stdout.strip().splitlines() if l.strip()]
+    return {"uncommitted": uncommitted, "unmerged_commits": unmerged}

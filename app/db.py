@@ -380,6 +380,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN parent_id TEXT DEFAULT ''")
     if "parent_name" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN parent_name TEXT DEFAULT ''")
+    if "owned_dirs" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN owned_dirs TEXT DEFAULT ''")
 
 
 def save_session(s: dict) -> None:
@@ -400,6 +402,7 @@ def save_session(s: dict) -> None:
     s.setdefault("parent_id", "")
     s.setdefault("parent_name", "")
     s.setdefault("mcp_servers_custom", "")
+    s.setdefault("owned_dirs", "")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -408,14 +411,14 @@ def save_session(s: dict) -> None:
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
-                template_hash, role, parent_id, parent_name, mcp_servers_custom)
+                template_hash, role, parent_id, parent_name, mcp_servers_custom, owned_dirs)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
-                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom)
+                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :owned_dirs)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -443,7 +446,8 @@ def save_session(s: dict) -> None:
                 role=excluded.role,
                 parent_id=excluded.parent_id,
                 parent_name=excluded.parent_name,
-                mcp_servers_custom=excluded.mcp_servers_custom
+                mcp_servers_custom=excluded.mcp_servers_custom,
+                owned_dirs=excluded.owned_dirs
         """, s)
 
 

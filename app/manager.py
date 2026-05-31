@@ -14,7 +14,7 @@ from typing import Optional
 from app.session import AgentSession, AgentStatus, is_orchestrator_role
 
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
-from app.workspace import create_worktree, remove_worktree
+from app.workspace import create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap
 from app.models import resolve_model, backend_for_model
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
@@ -358,13 +358,45 @@ class SessionManager:
                 self._spawn_queue.task_done()
 
     @staticmethod
-    def _auto_commit_if_dirty(repo_path: str):
-        import subprocess
+    def _auto_commit_if_dirty(repo_path: str) -> str:
+        import subprocess, datetime
         r = subprocess.run(["git", "status", "--porcelain"], cwd=repo_path, capture_output=True, text=True)
-        if r.stdout.strip():
-            subprocess.run(["git", "add", "-A"], cwd=repo_path, capture_output=True)
-            subprocess.run(["git", "commit", "-m", "wip: auto-save before worker spawn"], cwd=repo_path, capture_output=True)
-            logger.info(f"Auto-committed dirty working tree in {repo_path}")
+        if r.returncode != 0:
+            logger.error(f"auto-commit git status failed in {repo_path}: {r.stderr.strip()}")
+            return f"FAILED to check repo status (git status rc={r.returncode}) — spawn proceeds, auto-save NOT run"
+        if not r.stdout.strip():
+            return ""
+        files = [l[3:] for l in r.stdout.strip().splitlines()]
+        cur = subprocess.run(["git", "symbolic-ref", "--short", "HEAD"], cwd=repo_path, capture_output=True, text=True)
+        branch = cur.stdout.strip() or "(detached HEAD)"
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        msg = (f"WIP: auto-saved uncommitted changes before worker spawn ({ts})\n\n"
+               f"Orchestra committed {len(files)} dirty path(s) in the source repo checkout "
+               f"(branch {branch}) to give the new worker a clean base. Review and amend/reset "
+               f"if this buried work-in-progress:\n"
+               + "\n".join(f"- {f}" for f in files))
+        add = subprocess.run(["git", "add", "-A"], cwd=repo_path, capture_output=True, text=True)
+        if add.returncode != 0:
+            logger.error(f"auto-commit git add failed in {repo_path}: {add.stderr.strip()}")
+            return f"FAILED to auto-save dirty source repo (git add rc={add.returncode}) — spawn proceeds on DIRTY base"
+        commit = subprocess.run(["git", "commit", "-m", msg], cwd=repo_path, capture_output=True, text=True)
+        if commit.returncode != 0:
+            logger.error(f"auto-commit failed in {repo_path}: {commit.stderr.strip()}")
+            return (f"FAILED to auto-save dirty source repo (git commit rc={commit.returncode}: "
+                    f"{commit.stderr.strip()[:120]}) — spawn proceeds, changes NOT committed")
+        logger.warning(f"Auto-committed {len(files)} dirty path(s) in {repo_path} (branch {branch}) before spawn")
+        return f"auto-committed {len(files)} dirty file(s) (branch {branch}) before spawn — review the WIP commit"
+
+    @staticmethod
+    def _ownership_prompt(owned_dirs: list[str]) -> str:
+        if not owned_dirs:
+            return ""
+        lines = "\n".join(f"- {d}/" for d in owned_dirs)
+        return ("\n\n## Directory ownership\n"
+                "You OWN these directories — edit ONLY files under them:\n"
+                f"{lines}\n"
+                "Do NOT touch files outside your owned directories. "
+                "If the task requires it — STOP and ask the orchestrator.")
 
     # ── Session CRUD ──
 
@@ -374,7 +406,8 @@ class SessionManager:
                              role: str = "", task_id: str = "", description: str = "",
                              base_branch: str = "main",
                              parent_id: str = "", parent_name: str = "",
-                             mcp_servers: dict | None = None) -> AgentSession:
+                             mcp_servers: dict | None = None,
+                             owned_dirs: list | None = None) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -387,10 +420,24 @@ class SessionManager:
             role = "orchestrator" if is_orchestrator else "worker"
         is_orch = is_orchestrator_role(role)
 
+        owned_dirs = parse_owned_dirs(owned_dirs)
+        ownership_warning = ""
+        if owned_dirs:
+            conflicts = []
+            for s in self.sessions.values():
+                if s.scope == scope and s.status.value in ("idle", "running") and s.owned_dirs:
+                    ov = dirs_overlap(owned_dirs, s.owned_dirs)
+                    if ov:
+                        conflicts.append((s.name, ov))
+            if conflicts:
+                ownership_warning = "; ".join(f"{n} owns {ov}" for n, ov in conflicts)
+                logger.warning(f"owned_dirs overlap for new worker '{name}': {ownership_warning}")
+
         if is_orch:
             prompt = system_prompt or ROLE_SYSTEM_PROMPT(role, scope)
         else:
             prompt = ROLE_SYSTEM_PROMPT(role) + ("\n\n" + system_prompt if system_prompt else "")
+            prompt += self._ownership_prompt(owned_dirs)
 
         if not parent_name and not is_orch:
             parent_name = self._find_orchestrator_name(scope) or ""
@@ -420,8 +467,10 @@ class SessionManager:
             mcp_servers=_make_mcp_config(name, scope, role, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
             backend_type=bt, task_id=task_id, description=description,
+            owned_dirs=owned_dirs,
         )
         session._template_hash = _prompt_template_hash(role)
+        session._spawn_warning = ownership_warning
         save_session(session._to_db_dict())
 
         if task_id and not is_orch:
@@ -433,7 +482,9 @@ class SessionManager:
 
         try:
             if use_worktree and repo_path:
-                await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
+                wip_note = await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
+                if wip_note:
+                    session._spawn_warning = (session._spawn_warning + "; " + wip_note).strip("; ")
                 wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id, base_branch)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
@@ -595,6 +646,7 @@ class SessionManager:
             mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, task_id=db_task_id,
             description=db_row.get("description", ""),
+            owned_dirs=parse_owned_dirs(db_row.get("owned_dirs")),
         )
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0

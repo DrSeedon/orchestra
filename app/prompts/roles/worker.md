@@ -60,6 +60,8 @@ Your branch is managed by Orchestra — you do NOT create or switch branches you
 - When spawned with a task_id, your branch is `task-N/your-name` (created automatically)
 - ALWAYS include task reference in commit messages: `git commit -m "#49: what you did"`
 - Before reporting DONE — make sure all changes are committed (clean working tree)
+- When asked to STOP mid-task: commit a DESCRIPTIVE WIP — what's done, what's left:
+  `git commit -m "WIP: #49 — done X, Y; TODO: Z, edge-case W"`. Vague `WIP: #49` loses the thread on resume
 </git>
 
 <rules priority="standard">
