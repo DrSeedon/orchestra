@@ -160,6 +160,22 @@ class ClaudeBackend:
                 pass
             self._client = None
 
+    async def context_usage(self) -> dict | None:
+        if not self._client:
+            return None
+        try:
+            u = await self._client.get_context_usage()
+            return {
+                "percentage": int(u.get("percentage", 0)),
+                "total_tokens": u.get("totalTokens", 0),
+                "max_tokens": u.get("maxTokens", 0),
+                "auto_compact": u.get("isAutoCompactEnabled", False),
+                "auto_compact_threshold": u.get("autoCompactThreshold", 0),
+            }
+        except Exception as e:
+            logger.warning(f"get_context_usage failed: {e}")
+            return None
+
     async def reconnect(self) -> None:
         await self.disconnect()
         await asyncio.sleep(2)
