@@ -797,6 +797,9 @@ function initTabContextMenu() {
             const h = _getHiddenTabs(); h.add(name); _setHiddenTabs(h);
             renderOrchTabs(orchData);
         }));
+        menu.appendChild(mkItem('📁 Сменить папку', '#60a5fa', () => {
+            changeOrchScope(name, scope);
+        }));
         menu.appendChild(mkItem('🗑 Удалить', '#ef4444', () => {
             openDeleteOrchModal(name, scope);
         }));
@@ -840,6 +843,23 @@ function openDeleteOrchModal(name, scope) {
     $('#delete-orch-cancel').onclick = close;
     $('#delete-orch-modal-close').onclick = close;
     modal.onclick = (e) => { if (e.target === modal) close(); };
+}
+
+async function changeOrchScope(name, oldScope) {
+    const newScope = prompt(`Новая папка для "${name}" (контекст сессии сохранится):`, oldScope);
+    if (!newScope || newScope.trim() === oldScope) return;
+    const ns = newScope.trim().replace(/\/+$/, '');
+    try {
+        const res = await api(`/api/orchestrators/${name}/change-scope`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_scope: oldScope, new_scope: ns }),
+        });
+        await loadOrchestrators();
+        selectOrchestrator(name, res.scope || ns);
+    } catch (e) {
+        alert(`Смена папки не удалась: ${e.message}`);
+    }
 }
 
 function _updateHiddenBtn() {

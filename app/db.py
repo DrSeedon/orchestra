@@ -451,6 +451,54 @@ def save_session(s: dict) -> None:
         """, s)
 
 
+def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) -> dict:
+    """Move an orchestrator's session to a new scope in one transaction.
+
+    Migrates session.scope+cwd, and (best-effort) tm_projects.scope, active
+    bg_jobs.target_scope, and test_lock.scope from old_scope to new_scope.
+    session_id (Claude resume token) is left intact — context survives.
+
+    Rejected if another session with the same name already lives in new_scope
+    (UNIQUE(name, scope)). tm_projects/test_lock migration is skipped on UNIQUE
+    collision (target already taken) but the session move still succeeds.
+    """
+    with _conn() as c:
+        row = c.execute("SELECT name FROM sessions WHERE id=?", (session_id,)).fetchone()
+        if not row:
+            return {"error": f"session not found: {session_id}"}
+        name = row["name"]
+        clash = c.execute(
+            "SELECT 1 FROM sessions WHERE name=? AND scope=? AND id!=? AND status!='archived'",
+            (name, new_scope, session_id),
+        ).fetchone()
+        if clash:
+            return {"error": f"session '{name}' already exists in scope '{new_scope}'"}
+
+        cur = c.execute(
+            "UPDATE sessions SET scope=?, cwd=? WHERE id=? AND scope=?",
+            (new_scope, new_cwd, session_id, old_scope),
+        )
+        if cur.rowcount == 0:
+            return {"error": f"session no longer in scope '{old_scope}' (stale or concurrent move)"}
+
+        tm_migrated = False
+        target_taken = c.execute("SELECT 1 FROM tm_projects WHERE scope=?", (new_scope,)).fetchone()
+        if not target_taken:
+            cur = c.execute("UPDATE tm_projects SET scope=? WHERE scope=?", (new_scope, old_scope))
+            tm_migrated = cur.rowcount > 0
+
+        c.execute(
+            "UPDATE bg_jobs SET target_scope=? WHERE target_scope=? AND status IN ('active','triggering')",
+            (new_scope, old_scope),
+        )
+
+        lock_target_taken = c.execute("SELECT 1 FROM test_lock WHERE scope=?", (new_scope,)).fetchone()
+        if not lock_target_taken:
+            c.execute("UPDATE test_lock SET scope=? WHERE scope=?", (new_scope, old_scope))
+
+        return {"ok": True, "scope": new_scope, "cwd": new_cwd, "tm_project_migrated": tm_migrated}
+
+
 def get_session(session_id: str) -> dict | None:
     with _conn() as c:
         row = c.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()

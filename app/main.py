@@ -150,6 +150,12 @@ class TestLockRequest(BaseModel):
     reason: str = ""
 
 
+class ChangeScopeRequest(BaseModel):
+    old_scope: str
+    new_scope: str
+    new_cwd: Optional[str] = None
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html")
@@ -262,7 +268,12 @@ def _is_safe_path(path: str) -> bool:
         resolved = str(p)
     except (ValueError, OSError):
         return False
-    if not any(resolved.startswith(root) for root in _get_allowed_roots()):
+    def _within(root: str) -> bool:
+        try:
+            return os.path.commonpath([os.path.realpath(root), resolved]) == os.path.realpath(root)
+        except (ValueError, OSError):
+            return False
+    if not any(_within(root) for root in _get_allowed_roots()):
         return False
     home = str(Path.home())
     for part in p.parts:
@@ -1075,6 +1086,19 @@ async def list_orchestrators():
 async def delete_orchestrator(name: str, scope: str, delete_tg_topics: bool = False):
     result = await manager.remove_scope(scope, delete_tg_topics=delete_tg_topics)
     return {"ok": True, **result}
+
+
+@app.post("/api/orchestrators/{name}/change-scope")
+async def change_orchestrator_scope_endpoint(name: str, req: ChangeScopeRequest):
+    new_scope = req.new_scope.rstrip("/")
+    new_cwd = (req.new_cwd or req.new_scope).rstrip("/")
+    if not _is_safe_path(new_scope) or not _is_safe_path(new_cwd):
+        return JSONResponse({"error": "path not in allowed roots"}, status_code=403)
+    result = await manager.change_orchestrator_scope(
+        name, req.old_scope.rstrip("/"), new_scope, new_cwd)
+    if result.get("error"):
+        return JSONResponse(result, status_code=409)
+    return result
 
 
 @app.get("/api/test-lock")

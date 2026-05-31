@@ -239,3 +239,60 @@ async def test_merge_endpoint_passes_target(monkeypatch):
     import asyncio
     res = await mainmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
     assert captured["target_branch"] == "feature/auth"
+
+
+class TestChangeScopeEndpoint:
+    def test_success(self, client, tmp_path):
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        from app.main import manager
+        with patch.object(manager, "change_orchestrator_scope",
+                          new=AsyncMock(return_value={"ok": True, "scope": str(newdir), "cwd": str(newdir)})) as m:
+            r = client.post("/api/orchestrators/orch/change-scope", json={
+                "old_scope": "/tmp", "new_scope": str(newdir),
+            })
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+        # new_cwd defaults to new_scope
+        m.assert_awaited_once_with("orch", "/tmp", str(newdir), str(newdir))
+
+    def test_explicit_cwd(self, client, tmp_path):
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        cwddir = tmp_path / "cwddir"; cwddir.mkdir()
+        from app.main import manager
+        with patch.object(manager, "change_orchestrator_scope",
+                          new=AsyncMock(return_value={"ok": True})) as m:
+            client.post("/api/orchestrators/orch/change-scope", json={
+                "old_scope": "/tmp", "new_scope": str(newdir), "new_cwd": str(cwddir),
+            })
+        m.assert_awaited_once_with("orch", "/tmp", str(newdir), str(cwddir))
+
+    def test_403_unsafe_path(self, client):
+        r = client.post("/api/orchestrators/orch/change-scope", json={
+            "old_scope": "/tmp", "new_scope": "/etc/passwd",
+        })
+        assert r.status_code == 403
+
+    def test_409_on_manager_error(self, client, tmp_path):
+        newdir = tmp_path / "newproj"; newdir.mkdir()
+        from app.main import manager
+        with patch.object(manager, "change_orchestrator_scope",
+                          new=AsyncMock(return_value={"error": "live workers in scope"})):
+            r = client.post("/api/orchestrators/orch/change-scope", json={
+                "old_scope": "/tmp", "new_scope": str(newdir),
+            })
+        assert r.status_code == 409
+        assert "error" in r.json()
+
+    def test_422_missing_fields(self, client):
+        r = client.post("/api/orchestrators/orch/change-scope", json={"old_scope": "/tmp"})
+        assert r.status_code == 422
+
+    def test_403_sibling_prefix_escape(self, client, tmp_path):
+        # /tmp_evil must NOT pass just because it shares the "/tmp" prefix
+        from app.main import manager
+        with patch.object(manager, "change_orchestrator_scope", new=AsyncMock()) as m:
+            r = client.post("/api/orchestrators/orch/change-scope", json={
+                "old_scope": "/tmp", "new_scope": "/tmproot_escape",
+            })
+        assert r.status_code == 403
+        m.assert_not_awaited()
