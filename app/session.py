@@ -96,7 +96,6 @@ class AgentSession:
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
-    _bg_outputs: list = field(default_factory=list, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
     _template_hash: str = field(default="", repr=False)
@@ -336,10 +335,6 @@ class AgentSession:
                 self._did_report = True
         elif event.type == "tool_result":
             self._log("tool_result", event.content)
-            if "Command running in background" in event.content and "Output is being written to:" in event.content:
-                m = re.search(r"Output is being written to:\s*(\S+)", event.content)
-                if m:
-                    self._bg_outputs.append(m.group(1))
         elif event.type == "file_change":
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")
@@ -432,10 +427,6 @@ class AgentSession:
             self._log("status", f"auto-compact triggered ({ctx_pct}%)")
             asyncio.create_task(self._auto_compact())
 
-        if self._bg_outputs:
-            paths = list(self._bg_outputs)
-            self._bg_outputs.clear()
-            asyncio.create_task(self._poll_bg_outputs(paths))
 
         self._fire_auto_report()
 
@@ -499,27 +490,6 @@ class AgentSession:
             await self._disconnect_backend()
             self._hibernated = True
 
-    # ── Background output polling ──
-
-    async def _poll_bg_outputs(self, paths: list[str]) -> None:
-        from pathlib import Path
-        for path in paths:
-            p = Path(path)
-            for _ in range(120):
-                await asyncio.sleep(5)
-                if p.exists():
-                    size = p.stat().st_size
-                    await asyncio.sleep(2)
-                    if p.stat().st_size == size:
-                        try:
-                            content = p.read_text()[-3000:]
-                        except Exception:
-                            content = "(could not read)"
-                        self._log("status", f"background task finished: {p.name}")
-                        await self.send(f"[Background task completed]\nOutput file: {path}\nLast output:\n{content}")
-                        break
-            else:
-                self._log("status", f"background task timed out: {p.name}")
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
