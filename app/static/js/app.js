@@ -402,11 +402,16 @@ async function openFilePreview(path) {
     const pathEl = $('#file-preview-path');
     const contentEl = $('#file-preview-content');
     const openBtn = $('#file-preview-open');
+    const dlBtn = $('#file-preview-download');
     pathEl.textContent = path;
     contentEl.textContent = 'Loading…';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     const rawUrl = `/api/files/raw?path=${encodeURIComponent(path)}`;
+    const fileName = path.split('/').pop() || 'file';
+    dlBtn.href = rawUrl;
+    dlBtn.download = fileName;
+    dlBtn.classList.remove('hidden');
     if (/\.html?$/i.test(path)) {
         openBtn.href = rawUrl;
         openBtn.classList.remove('hidden');
@@ -510,6 +515,8 @@ function closeFilePreview() {
     modal.classList.remove('flex');
     const openBtn = $('#file-preview-open');
     if (openBtn) openBtn.classList.add('hidden');
+    const dlBtn = $('#file-preview-download');
+    if (dlBtn) dlBtn.classList.add('hidden');
     const contentEl = $('#file-preview-content');
     if (contentEl) contentEl.innerHTML = '';
 }
