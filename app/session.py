@@ -83,6 +83,7 @@ class AgentSession:
     task_id: str = ""
     description: str = ""
     owned_dirs: list = field(default_factory=list, repr=False)
+    tg_topic: bool = False
 
     progress_pct: int = 0
     progress_status: str = ""
@@ -781,6 +782,7 @@ class AgentSession:
             "template_hash": self._template_hash,
             "mcp_servers_custom": json.dumps(self.mcp_servers_custom) if self.mcp_servers_custom else "",
             "owned_dirs": json.dumps(self.owned_dirs) if self.owned_dirs else "",
+            "tg_topic": int(self.tg_topic),
         }
 
     async def get_context(self) -> dict:
@@ -805,6 +807,7 @@ class AgentSession:
             "task_id": self.task_id,
             "description": self.description,
             "owned_dirs": self.owned_dirs,
+            "tg_topic": self.tg_topic,
             "system_prompt": self.system_prompt[:500] if self.system_prompt else "",
             "total_turns": self.total_turns,
             "total_input_tokens": self.total_input_tokens,

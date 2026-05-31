@@ -407,7 +407,8 @@ class SessionManager:
                              base_branch: str = "main",
                              parent_id: str = "", parent_name: str = "",
                              mcp_servers: dict | None = None,
-                             owned_dirs: list | None = None) -> AgentSession:
+                             owned_dirs: list | None = None,
+                             tg_topic: bool = False) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -457,6 +458,10 @@ class SessionManager:
                         f"Allowed: {allowed}"
                     )
 
+        # Root orchestrators (no parent) always get a TG topic
+        if is_orch and not parent_name:
+            tg_topic = True
+
         custom_mcp = _parse_custom_mcp(mcp_servers)
         bt = backend_for_model(model)
         session = AgentSession(
@@ -468,6 +473,7 @@ class SessionManager:
             mcp_servers_custom=custom_mcp,
             backend_type=bt, task_id=task_id, description=description,
             owned_dirs=owned_dirs,
+            tg_topic=tg_topic,
         )
         session._template_hash = _prompt_template_hash(role)
         session._spawn_warning = ownership_warning
@@ -729,6 +735,7 @@ class SessionManager:
             backend_type=stored_bt, task_id=db_task_id,
             description=db_row.get("description", ""),
             owned_dirs=parse_owned_dirs(db_row.get("owned_dirs")),
+            tg_topic=bool(db_row.get("tg_topic", 0)),
         )
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
