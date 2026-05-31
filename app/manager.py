@@ -434,7 +434,7 @@ class SessionManager:
                 logger.warning(f"owned_dirs overlap for new worker '{name}': {ownership_warning}")
 
         if is_orch:
-            prompt = system_prompt or ROLE_SYSTEM_PROMPT(role, scope)
+            prompt = ROLE_SYSTEM_PROMPT(role, scope) + ("\n\n" + system_prompt if system_prompt else "")
         else:
             prompt = ROLE_SYSTEM_PROMPT(role) + ("\n\n" + system_prompt if system_prompt else "")
             prompt += self._ownership_prompt(owned_dirs)
