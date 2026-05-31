@@ -1022,8 +1022,10 @@ async def list_orchestrators():
     db_orchs = [s for s in get_all_sessions() if is_orchestrator_role(s.get("role", "worker")) and s["id"] not in active_ids]
     result = active + db_orchs
     running_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "running"}
+    waiting_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "waiting"}
     for o in result:
         o["any_running"] = o.get("scope", "") in running_scopes
+        o["any_waiting"] = o.get("scope", "") in waiting_scopes
     return result
 
 

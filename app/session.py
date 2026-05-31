@@ -54,6 +54,7 @@ def _load_scope_mcp_servers(scope: str) -> dict:
 class AgentStatus(str, Enum):
     IDLE = "idle"
     RUNNING = "running"
+    WAITING = "waiting"
 
 
 @dataclass
@@ -207,7 +208,7 @@ class AgentSession:
                 self.system_prompt = self._current_prompt
                 self._prompt_injected = True
 
-            if self.status == AgentStatus.IDLE:
+            if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 self._did_report = False
                 self._bump_turn_gen()
                 self._turn_logs = []
@@ -418,7 +419,12 @@ class AgentSession:
         ctx_s = f"ctx:{ctx_pct}%" if ctx_pct else ""
         self._log("status", f"turn ended ({sr}, {nt} turns, ${cost:.2f} {ctx_s})")
 
-        self.status = AgentStatus.IDLE
+        from app.main import bg_manager
+        if bg_manager and bg_manager.has_active_jobs(self.id):
+            self.status = AgentStatus.WAITING
+            self._log("status", "waiting for bg jobs")
+        else:
+            self.status = AgentStatus.IDLE
         self._persist()
 
         asyncio.create_task(self._notify_scope_idle())

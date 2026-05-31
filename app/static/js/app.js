@@ -686,7 +686,7 @@ function renderOrchTabs(sorted) {
         tab.draggable = true;
         const dot = document.createElement('span');
         dot.className = 'tab-dot';
-        dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
+        dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : o.any_waiting ? '#f59e0b' : '#eab308';
         const label = document.createElement('span');
         const shortName = o.name.replace(/-orchestrator$/, '');
         label.textContent = shortName;
@@ -898,7 +898,7 @@ function updateOrchTabDots() {
         const o = orchData.find(x => x.scope === scope);
         if (!o) return;
         const dot = tab.querySelector('.tab-dot');
-        if (dot) dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
+        if (dot) dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : o.any_waiting ? '#f59e0b' : '#eab308';
         const existing = tab.querySelector('.tab-unread');
         if (_unreadTabs.has(scope) && !existing) {
             const unread = document.createElement('span');
@@ -1071,7 +1071,7 @@ function updateAgentInfo(session) {
         changeBtn.addEventListener('mouseleave', () => changeBtn.style.color = '#475569');
         modelEl.parentElement.appendChild(changeBtn);
     }
-    const isIdle = session.status === 'idle' || session.status === 'stopped';
+    const isIdle = session.status === 'idle' || session.status === 'stopped' || session.status === 'waiting';
     changeBtn.style.display = isIdle ? 'inline' : 'none';
     changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
     $('#ai-role').textContent = session.role || 'worker';
@@ -1195,14 +1195,15 @@ function createAgentItem(s) {
     nameEl.className = 'text-xs font-medium truncate';
     nameEl.textContent = s.name;
     const statusEl = document.createElement('span');
-    const statusColor = s.status === 'running' ? '#22c55e' : s.status === 'idle' ? '#eab308' : '#6b7280';
-    const statusBg = s.status === 'running' ? 'rgba(34,197,94,0.15)' : s.status === 'idle' ? 'rgba(234,179,8,0.12)' : 'rgba(107,114,128,0.1)';
+    const statusColors = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b'};
+    const statusBgs = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)'};
+    const statusIcons = {running: '⚡', idle: '☕️', waiting: '⏳'};
     statusEl.className = 'text-xs font-mono font-bold shrink-0';
-    statusEl.style.color = statusColor;
-    statusEl.style.backgroundColor = statusBg;
+    statusEl.style.color = statusColors[s.status] || '#6b7280';
+    statusEl.style.backgroundColor = statusBgs[s.status] || 'rgba(107,114,128,0.1)';
     statusEl.style.padding = '1px 6px';
     statusEl.style.borderRadius = '4px';
-    statusEl.textContent = `● ${s.status}`;
+    statusEl.textContent = `${statusIcons[s.status] || '●'} ${s.status}`;
     nameRow.append(nameEl, statusEl);
 
     const meta = document.createElement('div');
