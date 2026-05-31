@@ -1179,36 +1179,53 @@ function renderAgentList(sessions) {
     const byName = new Map();
     for (const s of sessions) byName.set(s.name, s);
 
-    const children = new Map();
+    const childrenMap = new Map();
     const roots = [];
     for (const s of sessions) {
         const pn = s.parent_name || '';
         if (pn && byName.has(pn)) {
-            if (!children.has(pn)) children.set(pn, []);
-            children.get(pn).push(s);
+            if (!childrenMap.has(pn)) childrenMap.set(pn, []);
+            childrenMap.get(pn).push(s);
         } else {
             roots.push(s);
         }
     }
 
     const seen = new Set();
-    const walk = (node, depth) => {
-        if (seen.has(node.name)) return;
-        seen.add(node.name);
-        list.appendChild(createAgentItem(node, depth));
-        const kids = children.get(node.name) || [];
-        for (const k of kids) walk(k, depth + 1);
+    const buildNode = (session, isChild, isLast) => {
+        if (seen.has(session.name)) return null;
+        seen.add(session.name);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tree-node' + (isChild ? ' tree-child' : '') + (isLast ? ' tree-last' : '');
+        wrapper.appendChild(createAgentItem(session));
+        const kids = childrenMap.get(session.name) || [];
+        if (kids.length > 0) {
+            const childContainer = document.createElement('div');
+            childContainer.className = 'tree-children';
+            for (let i = 0; i < kids.length; i++) {
+                const childNode = buildNode(kids[i], true, i === kids.length - 1);
+                if (childNode) childContainer.appendChild(childNode);
+            }
+            wrapper.appendChild(childContainer);
+        }
+        return wrapper;
     };
-    for (const r of roots) walk(r, 0);
+    for (const r of roots) {
+        const node = buildNode(r, false, false);
+        if (node) list.appendChild(node);
+    }
     for (const s of sessions) {
-        if (!seen.has(s.name)) { seen.add(s.name); list.appendChild(createAgentItem(s, 0)); }
+        if (!seen.has(s.name)) {
+            seen.add(s.name);
+            const node = buildNode(s, false, false);
+            if (node) list.appendChild(node);
+        }
     }
 }
 
 const _roleIcons = {'orchestrator':'👑','worker':'⚙️','full-cycle':'🔄','sub-orchestrator':'🎯','reviewer':'🔍','watcher':'👁️'};
 
-function createAgentItem(s, depth) {
-    if (depth === undefined) depth = 0;
+function createAgentItem(s) {
     const isSelected = s.name === selectedAgent;
     const isDead = s.status === 'stopped' || s.status === 'error';
     const item = document.createElement('div');
@@ -1217,8 +1234,6 @@ function createAgentItem(s, depth) {
         isDead ? 'opacity-50 hover:opacity-70' : 'hover:bg-slate-800/50'
     }`;
     item.addEventListener('click', () => selectAgent(s.name));
-
-    if (depth > 0) item.style.marginLeft = `${depth * 16}px`;
 
     if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
 
