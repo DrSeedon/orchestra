@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 IDLE_TIMEOUT_WORKER = 300
 IDLE_TIMEOUT_ORCHESTRATOR = 600
-AUTO_REPORT_IDLE_SEC = float(os.environ.get("AUTO_REPORT_IDLE_SEC", "10"))
 
 _ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
@@ -364,34 +363,24 @@ class AgentSession:
             self._auto_report_task.cancel()
         self._auto_report_task = None
 
-    def _schedule_auto_report(self) -> None:
-        """Запланировать авто-репорт родителю, но только если агент реально простоит idle.
-
-        Срабатывает через AUTO_REPORT_IDLE_SEC, если за это время:
-        не начался новый ход (turn-gen не изменился) и не было явного send_message.
-        Оркестраторы auto-report НЕ планируют — отчитываются наверх только явным send_message.
+    def _fire_auto_report(self) -> None:
+        """Send auto-report to parent immediately when worker goes idle.
+        Orchestrators don't auto-report — they reply to user directly.
+        Skipped if worker already sent explicit send_message or has pending messages.
         """
         if self.is_orchestrator or not self.on_idle or self._did_report:
             return
-        gen = self._turn_gen
+        if self._pending_messages:
+            return
         last_texts = self._turn_logs[-5:] if self._turn_logs else []
 
-        async def _delayed_auto_report():
-            try:
-                await asyncio.sleep(AUTO_REPORT_IDLE_SEC)
-            except asyncio.CancelledError:
-                return
-            # за время ожидания мог начаться новый ход или прийти явный отчёт
-            if self._turn_gen != gen or self._did_report:
-                return
-            if self.status != AgentStatus.IDLE:
-                return
+        async def _do_report():
             try:
                 await self.on_idle(self.name, self.scope, last_texts)
             except Exception as e:
                 logger.error(f"Auto-report failed for {self.name}: {e}")
 
-        self._auto_report_task = asyncio.create_task(_delayed_auto_report())
+        self._auto_report_task = asyncio.create_task(_do_report())
 
     def _handle_turn_end(self, event: AgentEvent) -> None:
         meta = event.metadata
@@ -448,7 +437,7 @@ class AgentSession:
             self._bg_outputs.clear()
             asyncio.create_task(self._poll_bg_outputs(paths))
 
-        self._schedule_auto_report()
+        self._fire_auto_report()
 
         if self._pending_messages:
             asyncio.create_task(self._flush_pending())
