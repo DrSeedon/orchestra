@@ -2589,6 +2589,27 @@ function addChatEntry(type, content, ts, anchor) {
             }
             return;
         }
+        const toolErrorMatch = content.match(/<tool_use_error>([\s\S]*?)<\/tool_use_error>/);
+        if (toolErrorMatch) {
+            const errMsg = toolErrorMatch[1].trim();
+            const errDiv = document.createElement('div');
+            errDiv.className = 'px-3 py-2 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-900/50';
+            errDiv.textContent = '⚠️ ' + errMsg;
+            if (lastTool) {
+                delete lastTool.dataset.lastTool;
+                const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
+                if (skeleton) skeleton.remove();
+                lastTool.appendChild(errDiv);
+                addTimestamp(lastTool, ts);
+            } else {
+                div.appendChild(errDiv);
+                addTimestamp(div, ts);
+                const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+                _insert(div);
+                if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+            }
+            return;
+        }
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
         const escaped = clean.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const linked = escaped.replace(/(https?:\/\/[^\s\])"&]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
