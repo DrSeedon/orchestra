@@ -194,6 +194,60 @@ class TestInjectSkillsGating:
         inject.assert_called_once()
 
 
+class TestResolveBaseBranch:
+    """DESIGN §10: резолв base_branch по стратегии манифеста (B3).
+
+    Тестируем ``_resolve_base_branch`` напрямую на инстансе manager, мокая
+    ``app.manager.get_role`` (как в TestInjectSkillsGating) и подсовывая
+    родителя в ``mgr.sessions`` через лёгкий объект с атрибутом ``branch``.
+    """
+
+    def _put_parent(self, mgr, name, scope, branch):
+        """Лёгкий родитель в кэше сессий с нужной веткой (без БД)."""
+        parent = MagicMock()
+        parent.name = name
+        parent.scope = scope
+        parent.branch = branch
+        mgr.sessions[name] = parent
+
+    def test_strategy_main_returns_main(self, mgr):
+        rr = MagicMock(base_branch_strategy="main")
+        with patch("app.manager.get_role", lambda p, r: rr):
+            out = mgr._resolve_base_branch("", "default", "pm-glava", "", "/s")
+        assert out == "main"
+
+    def test_strategy_parent_uses_parent_branch(self, mgr):
+        rr = MagicMock(base_branch_strategy="parent")
+        self._put_parent(mgr, "pm", "/s", "feature/x")
+        with patch("app.manager.get_role", lambda p, r: rr):
+            out = mgr._resolve_base_branch("", "sapto-pm", "coder", "pm", "/s")
+        assert out == "feature/x"
+
+    def test_strategy_parent_no_branch_falls_back_to_main(self, mgr, caplog):
+        import logging
+        rr = MagicMock(base_branch_strategy="parent")
+        self._put_parent(mgr, "pm", "/s", "")  # у родителя нет ветки
+        with patch("app.manager.get_role", lambda p, r: rr), caplog.at_level(logging.WARNING):
+            out = mgr._resolve_base_branch("", "sapto-pm", "coder", "pm", "/s")
+        assert out == "main"
+        assert any("fallback на main" in rec.message for rec in caplog.records)
+
+    def test_explicit_branch_overrides_strategy(self, mgr):
+        # B3: явная ветка важнее strategy="parent" — get_role даже не зовётся.
+        rr = MagicMock(base_branch_strategy="parent")
+        self._put_parent(mgr, "pm", "/s", "feature/x")
+        with patch("app.manager.get_role", lambda p, r: rr):
+            out = mgr._resolve_base_branch("dev", "sapto-pm", "coder", "pm", "/s")
+        assert out == "dev"
+
+    def test_no_manifest_returns_main(self, mgr):
+        def _raise(p, r):
+            raise FileNotFoundError("no manifest")
+        with patch("app.manager.get_role", _raise):
+            out = mgr._resolve_base_branch("", "nope", "coder", "pm", "/s")
+        assert out == "main"
+
+
 class TestSendAndControl:
     @pytest.mark.asyncio
     async def test_send_routes(self, mgr):

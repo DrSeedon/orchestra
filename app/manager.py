@@ -485,7 +485,7 @@ class SessionManager:
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False,
                              role: str = "", task_id: str = "", description: str = "",
-                             base_branch: str = "main",
+                             base_branch: str = "",
                              parent_id: str = "", parent_name: str = "",
                              mcp_servers: dict | None = None,
                              pipeline: str = "", profile: str = "",
@@ -557,6 +557,10 @@ class SessionManager:
                         f"role '{parent_role}' is not allowed to spawn role '{role}'. "
                         f"Allowed: {allowed}"
                     )
+
+        # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
+        # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
+        base_branch = self._resolve_base_branch(base_branch, pipeline, role, parent_name, scope)
 
         custom_mcp = _parse_custom_mcp(mcp_servers)
         bt = backend_for_model(model)
@@ -716,6 +720,43 @@ class SessionManager:
                 return s.profile or ""
         row = get_session_by_name(name, scope)
         return (row.get("profile") or "") if row else ""
+
+    def _resolve_base_branch(self, base_branch: str, pipeline: str, role: str,
+                             parent_name: str, scope: str) -> str:
+        """Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
+
+        Приоритеты:
+        - явно переданная ``base_branch`` важнее стратегии манифеста (B3);
+        - нет манифеста / ``strategy=main`` → ``"main"`` (back-compat с апстримом);
+        - ``strategy=parent`` → ветка рабочего дерева родителя; если её нет —
+          fallback на ``"main"`` с warning (корневой Хаб без worktree и т.п.).
+        """
+        # B3: явно переданная ветка важнее стратегии манифеста.
+        if base_branch:
+            return base_branch
+        try:
+            rr = get_role(pipeline, role)
+        except FileNotFoundError:
+            rr = None
+        # Нет манифеста / стратегия main → от main (back-compat, default 1:1 upstream).
+        if rr is None or rr.base_branch_strategy == "main":
+            return "main"
+        # strategy == "parent": ветка рабочего дерева родителя.
+        parent_branch = ""
+        if parent_name:
+            ps = self.get_by_name(parent_name, scope)
+            if ps is not None:
+                parent_branch = getattr(ps, "branch", "") or (
+                    ps.get("branch", "") if isinstance(ps, dict) else "")
+            if not parent_branch:
+                row = get_session_by_name(parent_name, scope)
+                parent_branch = (row.get("branch") or "") if row else ""
+        if not parent_branch:
+            logger.warning(
+                "base_branch_strategy=parent, но у родителя '%s' нет ветки — fallback на main",
+                parent_name)
+            return "main"
+        return parent_branch
 
     @staticmethod
     def _role_is_orchestrator(pipeline: str, role: str) -> bool:

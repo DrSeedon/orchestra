@@ -49,6 +49,9 @@ def _normalize_task_id(task_id: str) -> str:
 
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
                     base_branch: str = "main") -> Worktree:
+    # Защитный дефолт: пустая строка (sentinel из manager) → main, чтобы git не упал.
+    if not base_branch:
+        base_branch = "main"
     repo = Path(repo_path).resolve()
     if not repo.is_dir():
         raise ValueError(f"repo_path does not exist: {repo_path}")

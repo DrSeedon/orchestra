@@ -104,7 +104,7 @@ class CreateSessionRequest(BaseModel):
     role: str = ""
     task_id: str = ""
     description: str = ""
-    base_branch: str = "main"
+    base_branch: str = ""
     parent_name: str = ""
     mcp_servers: dict = {}
     pipeline: str = ""

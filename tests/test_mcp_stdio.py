@@ -20,7 +20,9 @@ async def test_spawn_passes_base_branch(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_spawn_base_branch_default_main(monkeypatch):
+async def test_spawn_base_branch_default_empty(monkeypatch):
+    # Sentinel "" = авто-резолв базовой ветки по стратегии пайплайна (DESIGN §10):
+    # parent → от ветки родителя, иначе main. Явная ветка переопределяет стратегию.
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "x")
@@ -31,7 +33,7 @@ async def test_spawn_base_branch_default_main(monkeypatch):
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
         await m.spawn_worker(name="w", task="t", repo_path="/s", model="claude-sonnet-4-6")
-    assert captured["base_branch"] == "main"
+    assert captured["base_branch"] == ""
 
 
 @pytest.mark.asyncio

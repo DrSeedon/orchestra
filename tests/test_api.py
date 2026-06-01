@@ -210,10 +210,12 @@ def test_create_request_accepts_base_branch():
     assert req.base_branch == "feature/auth"
 
 
-def test_create_request_base_branch_default_main():
+def test_create_request_base_branch_default_empty():
+    # Sentinel "" = авто-резолв базовой ветки по стратегии пайплайна (DESIGN §10).
+    # Резолв в "main" происходит в manager/workspace, а не в дефолте запроса.
     from app.main import CreateSessionRequest
     req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6")
-    assert req.base_branch == "main"
+    assert req.base_branch == ""
 
 
 @pytest.mark.asyncio

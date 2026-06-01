@@ -57,11 +57,11 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        system_prompt: str = "",
                        task_id: str = "",
                        description: str = "",
-                       base_branch: str = "main",
+                       base_branch: str = "",
                        role: str = "worker",
                        mcp_servers: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
-    base_branch — от какой ветки ответвить worktree воркера (default main).
+    base_branch — от какой ветки ответвить worktree воркера. Пусто ("") = авто по стратегии пайплайна (parent → от ветки родителя, иначе main); явно указанная ветка переопределяет стратегию.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-8[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
