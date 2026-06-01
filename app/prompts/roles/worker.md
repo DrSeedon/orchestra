@@ -1,6 +1,5 @@
 ---
 name: worker
-icon: "⚙️"
 label: Worker
 model: sonnet/opus
 modules: [git-workflow, codex-review, report-format]
