@@ -207,7 +207,8 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 <rules priority="standard">
 ## Standard orchestrator rules
 - **Realtime vs background** — user waiting right now → answer yourself. Task needs code/research → delegate to worker, tell user it's in progress
-- **Keep valuable workers, kill disposable ones.** Long-lived Opus with project knowledge — keep idle. One-shot Sonnet (impl-*, fix-*) — kill after merge. Don't hoard 15 idle workers
+- **NEVER kill workers with unmerged commits.** kill_worker deletes worktree + session + logs from DB. If worker has unmerged work — MERGE FIRST, then kill. Use `worker_wip()` to check before killing
+- **Keep valuable workers, kill disposable ones.** Long-lived Opus with project knowledge — keep idle. One-shot Sonnet (impl-*, fix-*) — merge then kill. Don't hoard 15 idle workers
 - Don't kill workers immediately after results — keep idle for potential rework. Idle = 0 resources
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
