@@ -86,3 +86,8 @@ Worker review-reliability, task #35. codex_review(target="docs/tasks/35/review-r
 - **Reporter:** review-sdk
 - **Scope:** /mnt/data/Projects/Python/orchestra
 Task #35. Called codex_review(target="docs/tasks/35/review-sdk.md", output="docs/tasks/35/codex-sdk.md", mode="exec", context=...) TWICE (bg jobs bg-1a3847c59f, bg-abb94ed3bc). Both returned "Codex exec started" but the output file docs/tasks/35/codex-sdk.md was never created. No `codex` process running (pgrep codex empty), .codex file is 0 bytes. Waited 120s + 180s after 2nd retry — nothing. First bg job "expired" per orchestrator. The GPT-5.5 codex backend appears not to complete/write for mode=exec on a markdown target. Worker could not obtain cross-review; finalized the SDK review on direct-source verification instead. Repro: codex_review with mode=exec pointing at a docs/*.md file.
+
+## [2026-06-01 10:23 UTC] payment_receive amount в тысячах — теряются дробные (500₽)
+- **Reporter:** ParsingMaxim
+- **Scope:** /mnt/data/Projects/Python/Parsing
+payment_receive(amount=29) = 29 000₽, но реальная оплата 29 500₽. TM принимает amount только в целых тысячах (int), дробные теряются. Нужно либо принимать в рублях, либо поддерживать float. Пример: 29.5k → сейчас невозможно передать, округляется до 29k, потеря 500₽ в учёте.
