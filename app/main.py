@@ -21,7 +21,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import init_db, get_logs, get_logs_before
+from app.db import (
+    init_db, get_logs, get_logs_before,
+    list_profiles, upsert_profile, delete_profile,
+)
+from app.pipeline import list_pipelines
 from app.manager import SessionManager
 from app.models import resolve_model, MODELS
 
@@ -103,6 +107,8 @@ class CreateSessionRequest(BaseModel):
     base_branch: str = "main"
     parent_name: str = ""
     mcp_servers: dict = {}
+    pipeline: str = ""
+    profile: str = ""
 
     @field_validator("name")
     @classmethod
@@ -131,6 +137,12 @@ class CreateSessionRequest(BaseModel):
         if self.use_worktree and not self.repo_path:
             raise ValueError("repo_path required when use_worktree=True")
         return self
+
+
+class ProfileRequest(BaseModel):
+    """Тело запроса для создания/обновления профиля Claude."""
+    name: str
+    config_dir: str = ""
 
 
 class SendRequest(BaseModel):
@@ -384,6 +396,8 @@ async def create_session(req: CreateSessionRequest):
             base_branch=req.base_branch,
             parent_name=req.parent_name,
             mcp_servers=req.mcp_servers,
+            pipeline=req.pipeline,
+            profile=req.profile,
         )
         return session.to_dict()
     except ValueError as e:
@@ -394,6 +408,44 @@ async def create_session(req: CreateSessionRequest):
         import traceback
         logging.getLogger(__name__).error(f"spawn failed: {traceback.format_exc()}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pipelines")
+async def get_pipelines():
+    """Только валидные пайплайны для UI-дропдаунa: ``[{name, description, roles}]``."""
+    return [
+        {"name": p["name"], "description": p["description"], "roles": p["roles"]}
+        for p in list_pipelines()
+        if p["valid"]
+    ]
+
+
+@app.get("/api/profiles")
+async def get_profiles():
+    """Все профили Claude: ``[{name, config_dir}]``."""
+    return list_profiles()
+
+
+@app.post("/api/profiles")
+async def create_profile(req: ProfileRequest):
+    """Создать или обновить профиль. Имя валидируется тем же regex, что у сессий."""
+    if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", req.name):
+        return JSONResponse(
+            {"error": "name must be alphanumeric with ._- allowed, 1-50 chars"},
+            status_code=400,
+        )
+    upsert_profile(req.name, req.config_dir)
+    return list_profiles()
+
+
+@app.delete("/api/profiles/{name}")
+async def remove_profile(name: str):
+    """Удалить профиль. Сид-профиль ``personal`` защищён → 409."""
+    try:
+        delete_profile(name)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=409)
+    return list_profiles()
 
 
 @app.get("/api/sessions/{name}")

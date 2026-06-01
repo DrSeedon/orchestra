@@ -239,3 +239,92 @@ async def test_merge_endpoint_passes_target(monkeypatch):
     import asyncio
     res = await mainmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
     assert captured["target_branch"] == "feature/auth"
+
+
+class TestPipelines:
+    def test_list_valid_only(self, client):
+        r = client.get("/api/pipelines")
+        assert r.status_code == 200
+        data = r.json()
+        names = [p["name"] for p in data]
+        assert "default" in names
+        # все возвращённые — валидны (поле valid не отдаётся, но битых быть не должно)
+        for p in data:
+            assert "name" in p and "description" in p and "roles" in p
+
+    def test_excludes_invalid(self, client, monkeypatch):
+        import app.main as mainmod
+        monkeypatch.setattr(mainmod, "list_pipelines", lambda: [
+            {"name": "good", "description": "d", "roles": ["pm"], "valid": True, "error": None},
+            {"name": "broken", "description": "", "roles": [], "valid": False, "error": "boom"},
+        ])
+        r = client.get("/api/pipelines")
+        names = [p["name"] for p in r.json()]
+        assert "good" in names
+        assert "broken" not in names
+
+
+class TestProfiles:
+    def test_list_contains_personal(self, client):
+        r = client.get("/api/profiles")
+        assert r.status_code == 200
+        names = [p["name"] for p in r.json()]
+        assert "personal" in names
+
+    def test_create_and_update(self, client):
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": "/tmp/x"})
+        assert r.status_code == 200
+        g = client.get("/api/profiles").json()
+        work = [p for p in g if p["name"] == "work"]
+        assert len(work) == 1
+        assert work[0]["config_dir"] == "/tmp/x"
+
+        # повторный POST с другим config_dir — обновляет, не дублирует
+        r2 = client.post("/api/profiles", json={"name": "work", "config_dir": "/tmp/y"})
+        assert r2.status_code == 200
+        g2 = client.get("/api/profiles").json()
+        work2 = [p for p in g2 if p["name"] == "work"]
+        assert len(work2) == 1
+        assert work2[0]["config_dir"] == "/tmp/y"
+
+    def test_create_invalid_name_400(self, client):
+        r = client.post("/api/profiles", json={"name": "a b!", "config_dir": "/tmp/x"})
+        assert r.status_code == 400
+
+    def test_delete_profile(self, client):
+        client.post("/api/profiles", json={"name": "work", "config_dir": "/tmp/x"})
+        r = client.delete("/api/profiles/work")
+        assert r.status_code == 200
+        names = [p["name"] for p in client.get("/api/profiles").json()]
+        assert "work" not in names
+
+    def test_delete_personal_protected(self, client):
+        r = client.delete("/api/profiles/personal")
+        assert r.status_code == 409
+        names = [p["name"] for p in client.get("/api/profiles").json()]
+        assert "personal" in names
+
+
+@pytest.mark.asyncio
+async def test_create_session_passes_pipeline_and_profile(monkeypatch):
+    import app.main as mainmod
+    captured = {}
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+
+        class _Sess:
+            def to_dict(self):
+                return {"name": kwargs["name"], "id": "sid"}
+        return _Sess()
+
+    monkeypatch.setattr(mainmod.manager, "create_session", fake_create)
+    monkeypatch.setattr(mainmod, "_is_safe_path", lambda p: True)
+
+    req = mainmod.CreateSessionRequest(
+        name="w1", cwd="/tmp", model="claude-sonnet-4-6",
+        pipeline="default", profile="work",
+    )
+    await mainmod.create_session(req)
+    assert captured["pipeline"] == "default"
+    assert captured["profile"] == "work"
