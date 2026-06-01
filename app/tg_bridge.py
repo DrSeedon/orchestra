@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -114,6 +115,7 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
             return cached
         del _media_cache[unique_id]
     _cleanup_uploads()
+    t0 = time.monotonic()
     try:
         f = await bot.get_file(file_id)
         name = Path(filename).name
@@ -128,9 +130,10 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
         if local_api and f.file_path and Path(f.file_path).is_absolute() and Path(f.file_path).exists():
             import shutil
             shutil.copy2(f.file_path, str(path))
-            logger.info(f"Local API: copied {f.file_path} → {path}")
+            logger.info(f"download {filename}: local copy in {(time.monotonic()-t0)*1000:.0f}ms ({f.file_path})")
         else:
             await bot.download_file(f.file_path, str(path))
+            logger.info(f"download {filename}: remote download in {(time.monotonic()-t0)*1000:.0f}ms")
         if unique_id:
             _media_cache[unique_id] = str(path)
             _save_media_cache(_media_cache)
@@ -147,10 +150,12 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         return cached, None
     if not DEEPGRAM_API_KEY:
         return "", "no DEEPGRAM_API_KEY"
+    file_size = Path(path).stat().st_size
     with open(path, "rb") as af:
         audio_data = af.read()
     last_err = ""
-    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY") or None
+    t0 = time.monotonic()
+    # Deepgram не требует прокси — прямой запрос в 9x быстрее (3.8s vs 34s)
     for attempt in range(3):
         try:
             async with aiohttp.ClientSession() as http:
@@ -160,7 +165,6 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
                              "Accept-Encoding": "gzip, deflate"},
                     data=audio_data,
                     timeout=aiohttp.ClientTimeout(total=120),
-                    proxy=proxy,
                 ) as resp:
                     out = await resp.read()
             break
@@ -172,13 +176,14 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
     else:
         logger.error(f"Deepgram failed after 3 attempts: {last_err}")
         return "", last_err
+    transcribe_ms = (time.monotonic() - t0) * 1000
     try:
         data = json.loads(out)
         if "error" in data:
             return "", data["error"]
         text = data["results"]["channels"][0]["alternatives"][0]["transcript"]
         duration = data.get("metadata", {}).get("duration", 0)
-        logger.info(f"Deepgram: {duration:.1f}s, {len(text)} chars")
+        logger.info(f"Deepgram: audio={duration:.1f}s size={file_size//1024}KB transcribe={transcribe_ms:.0f}ms")
         if unique_id and text:
             _transcription_cache[unique_id] = text
             _save_transcription_cache(_transcription_cache)
@@ -981,6 +986,7 @@ async def handle_voice(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
+    t_total = time.monotonic()
     await _react_processing(msg)
     sid, idx = await _register_media(msg, session)
     path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
@@ -989,6 +995,8 @@ async def handle_voice(msg: types.Message):
         await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: file too large]")
         return
     text, err = await _transcribe_audio(path, msg.voice.file_unique_id)
+    total_ms = (time.monotonic() - t_total) * 1000
+    logger.info(f"handle_voice total={total_ms:.0f}ms duration={msg.voice.duration}s")
     if text:
         await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path} | {text}]")
     elif err:
