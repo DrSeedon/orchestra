@@ -179,6 +179,7 @@ class ClaudeBackend:
                 "percentage": int(u.get("percentage", 0)),
                 "total_tokens": u.get("totalTokens", 0),
                 "max_tokens": u.get("maxTokens", 0),
+                "raw_max_tokens": u.get("rawMaxTokens", 0),
                 "auto_compact": u.get("isAutoCompactEnabled", False),
                 "auto_compact_threshold": u.get("autoCompactThreshold", 0),
             }

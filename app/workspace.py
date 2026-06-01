@@ -160,10 +160,6 @@ def _ensure_repo_on_branch(repo: str, target_branch: str = "main") -> tuple[str 
     return None, did_stash
 
 
-# Алиас для обратной совместимости
-_ensure_repo_on_main = _ensure_repo_on_branch
-
-
 def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
     """Return subject lines of commits in branch not in base."""
     log = subprocess.run(

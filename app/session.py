@@ -109,6 +109,7 @@ class AgentSession:
     _backend: Optional[object] = field(default=None, repr=False)
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _background_tasks: set = field(default_factory=set, repr=False)
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
@@ -164,9 +165,19 @@ class AgentSession:
             )
 
     def _codex_reasoning_effort(self) -> str:
-        if self.is_orchestrator:
-            return "high"
         return "high"
+
+    def _spawn_bg(self, coro) -> asyncio.Task:
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        def _on_done(t):
+            self._background_tasks.discard(t)
+            if not t.cancelled():
+                exc = t.exception()
+                if exc:
+                    logger.warning(f"[{self.name}] background task failed: {exc}")
+        task.add_done_callback(_on_done)
+        return task
 
     def _build_codex_mcp_env(self) -> dict[str, str]:
         env = {}
@@ -281,8 +292,11 @@ class AgentSession:
 
     # ── Event loops ──
 
+    MAX_CONSECUTIVE_FAILURES = 5
+
     async def _claude_event_loop(self) -> None:
         logger.info(f"[{self.name}] claude event loop started")
+        consecutive_failures = 0
         while True:
             try:
                 if self._backend is None:
@@ -299,31 +313,48 @@ class AgentSession:
                         await self._backend.send("[system] Turn timed out. Continue where you left off.")
                         continue
                     self._handle_event(event)
+                    consecutive_failures = 0
+                # events() exhausted normally — treat as failure
+                consecutive_failures += 1
+                logger.warning(f"[{self.name}] events() exhausted normally (attempt {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES})")
+                self._log("error", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
             except asyncio.CancelledError:
                 logger.info(f"[{self.name}] claude event loop cancelled")
                 return
             except Exception as e:
+                consecutive_failures += 1
                 import traceback
                 tb = traceback.format_exc()
                 logger.error(f"[{self.name}] claude event loop died: {e}\n{tb}")
-                self._log("error", f"listener died (reconnecting): {e}")
-                try:
-                    if self._backend is None:
-                        return
-                    await self._backend.reconnect()
-                    logger.info(f"[{self.name}] listener reconnected after error")
-                    self._log("status", "listener reconnected")
-                    if self.status == AgentStatus.RUNNING:
-                        await self._backend.send("[system] Connection was restored after interruption. Continue your work.")
-                    continue
-                except Exception as re_err:
-                    logger.error(f"[{self.name}] listener reconnect failed: {re_err}")
-                    self._log("error", f"listener reconnect failed: {re_err}")
-                    self._backend = None
-                    if self.status == AgentStatus.RUNNING:
-                        self.status = AgentStatus.IDLE
-                        self._persist()
+                self._log("error", f"listener died (attempt {consecutive_failures}): {e}")
+
+            if consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
+                logger.error(f"[{self.name}] reconnect limit reached ({consecutive_failures} consecutive failures), giving up")
+                self._log("error", f"backend unstable: {consecutive_failures} consecutive failures, giving up")
+                self._turn_start = 0
+                await self._disconnect_backend()
+                if self.status == AgentStatus.RUNNING:
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                return
+
+            try:
+                if self._backend is None:
                     return
+                await self._backend.reconnect()
+                logger.info(f"[{self.name}] listener reconnected after error")
+                self._log("status", "listener reconnected")
+                if self.status == AgentStatus.RUNNING:
+                    await self._backend.send("[system] Connection was restored after interruption. Continue your work.")
+                continue
+            except Exception as re_err:
+                logger.error(f"[{self.name}] listener reconnect failed: {re_err}")
+                self._log("error", f"listener reconnect failed: {re_err}")
+                self._backend = None
+                if self.status == AgentStatus.RUNNING:
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                return
 
     CODEX_TURN_TIMEOUT = 600
 
@@ -348,7 +379,7 @@ class AgentSession:
                 self.status = AgentStatus.IDLE
                 self._persist()
                 if self._pending_messages:
-                    asyncio.create_task(self._flush_pending())
+                    self._spawn_bg(self._flush_pending())
                 else:
                     self._schedule_hibernate()
 
@@ -454,7 +485,7 @@ class AgentSession:
         self._last_context["cache_read"] = meta.get("cache_read", 0)
         self._last_context["cache_create"] = meta.get("cache_create", 0)
 
-        asyncio.create_task(self._refresh_context_from_api())
+        self._spawn_bg(self._refresh_context_from_api())
 
         if not ok:
             errors = meta.get("errors") or []
@@ -463,7 +494,7 @@ class AgentSession:
 
         if sr in ("error_max_turns", "max_turns") and ok:
             self._log("status", f"max_turns reached ({nt}), auto-continuing")
-            asyncio.create_task(self._auto_continue())
+            self._spawn_bg(self._auto_continue())
             return
 
         cost = meta.get("cost_usd", 0)
@@ -482,17 +513,16 @@ class AgentSession:
         if self._compact_ack_event is not None and self._turn_gen == self._compact_ack_gen:
             self._compact_ack_event.set()
 
-        asyncio.create_task(self._notify_scope_idle())
+        self._spawn_bg(self._notify_scope_idle())
 
         if live_pct > 90 and not self.is_orchestrator and not self._compacting:
             self._log("status", f"auto-compact triggered ({live_pct}%)")
-            asyncio.create_task(self._auto_compact())
-
+            self._spawn_bg(self._auto_compact())
 
         self._fire_auto_report()
 
         if self._pending_messages:
-            asyncio.create_task(self._flush_pending())
+            self._spawn_bg(self._flush_pending())
             return
 
         self._schedule_hibernate()
@@ -552,12 +582,13 @@ class AgentSession:
         async with self._lifecycle_lock:
             if self.status != AgentStatus.IDLE:
                 return
+            if self._pending_messages:
+                return
             if self._backend is None:
                 return
             logger.info(f"[{self.name}] hibernating (idle {int(timeout)}s)")
             await self._disconnect_backend()
             self._hibernated = True
-
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
@@ -568,6 +599,7 @@ class AgentSession:
             import traceback
             tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
             logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
+            self._turn_start = 0
             self.status = AgentStatus.IDLE
             self._log("error", f"listen task exception: {exc}")
             self._persist()
@@ -575,6 +607,7 @@ class AgentSession:
             logger.warning(f"[{self.name}] listen task exited without exception (silent death), status={self.status}")
             if self.status == AgentStatus.RUNNING:
                 self._log("error", "listen task exited unexpectedly while RUNNING")
+                self._turn_start = 0
                 self.status = AgentStatus.IDLE
                 self._persist()
 
@@ -600,7 +633,7 @@ class AgentSession:
                             self.status = AgentStatus.IDLE
                             self._persist()
                             if self._pending_messages:
-                                asyncio.create_task(self._flush_pending())
+                                self._spawn_bg(self._flush_pending())
                         else:
                             logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
                             self._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
@@ -729,7 +762,7 @@ class AgentSession:
             self._compact_ack_gen = -1
             self._compacting = False
             if self._pending_messages:
-                asyncio.create_task(self._flush_pending())
+                self._spawn_bg(self._flush_pending())
 
         after_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
@@ -772,8 +805,9 @@ class AgentSession:
                 old_pct = self._last_context.get("percentage", 0)
                 self._last_context["percentage"] = usage["percentage"]
                 self._last_context["total_tokens"] = usage.get("total_tokens", 0)
-                if usage.get("max_tokens"):
-                    self._last_context["max_tokens"] = usage["max_tokens"]
+                raw_max = usage.get("raw_max_tokens") or usage.get("max_tokens")
+                if raw_max:
+                    self._last_context["max_tokens"] = raw_max
                 if abs(old_pct - usage["percentage"]) > 30:
                     logger.info(f"[{self.name}] context corrected: {old_pct}% → {usage['percentage']}%")
                 self._persist()
