@@ -1,9 +1,11 @@
-"""Тесты дефолтного пайплайна ``pipelines/default/`` (Этап 4).
+"""Тесты дефолтного пайплайна ``pipelines/default/`` (Этап 4, обновлён под v2.16).
 
 Проверяют, что портированный из апстрима (mccalpink/orchestra main, DrSeedon)
 манифест + промпты грузятся нашим loader'ом (app/pipeline.py) и воспроизводят
-поведение апстрима 1:1: 3 роли (orchestrator/worker/full-cycle), worker на
-Sonnet, fail-open валидация, сборка промпта без слоя ``_pipeline.md``.
+поведение апстрима 1:1: 6 ролей (orchestrator/sub-orchestrator/worker/full-cycle/
+reviewer/watcher), worker на Sonnet, watcher на Haiku, fail-open валидация, сборка
+промпта без слоя ``_pipeline.md``, инлайн ``modules`` (git-workflow/codex-review/
+report-format) после слоёв роли.
 
 В отличие от test_pipeline.py (tmp-фикстуры), здесь тесты идут по РЕАЛЬНОМУ
 ``pipelines/default/`` на диске — это и есть характеризация 1:1 с апстримом.
@@ -36,18 +38,23 @@ class TestDefaultManifestLoads:
         assert cfg.name == "default"
         assert cfg.validation == "fail-open"  # дух апстрима — мягкая валидация
 
-    def test_has_three_upstream_roles(self):
-        """Ровно 3 роли апстрима: orchestrator / worker / full-cycle."""
+    def test_has_six_upstream_roles(self):
+        """Ровно 6 ролей апстрима v2.16."""
         cfg = P.load_pipeline(PIPELINE)
-        assert set(cfg.roles) == {"orchestrator", "worker", "full-cycle"}
+        assert set(cfg.roles) == {
+            "orchestrator", "sub-orchestrator", "worker",
+            "full-cycle", "reviewer", "watcher"}
 
     def test_kinds_match_upstream(self):
-        """ТОЛЬКО orchestrator — kind:orchestrator; worker и full-cycle — kind:worker
-        (совпадает с frozenset апстрима — full-cycle там НЕ оркестратор)."""
+        """orchestrator и sub-orchestrator — kind:orchestrator; worker/full-cycle/
+        reviewer/watcher — kind:worker (full-cycle/reviewer/watcher НЕ оркестраторы)."""
         cfg = P.load_pipeline(PIPELINE)
         assert cfg.roles["orchestrator"].kind == "orchestrator"
+        assert cfg.roles["sub-orchestrator"].kind == "orchestrator"
         assert cfg.roles["worker"].kind == "worker"
         assert cfg.roles["full-cycle"].kind == "worker"
+        assert cfg.roles["reviewer"].kind == "worker"
+        assert cfg.roles["watcher"].kind == "worker"
 
     def test_defaults_reproduce_upstream(self):
         """Дефолты пайплайна = поведение апстрима: model opus, без skills/mcp-форса,
@@ -110,6 +117,47 @@ class TestDefaultRolesResolve:
         rr = P.get_role(PIPELINE, "full-cycle")
         assert rr is not None
         assert rr.model == "opus"
+
+    def test_sub_orchestrator_is_orchestrator_opus(self):
+        """sub-orchestrator — kind:orchestrator, opus, can_spawn=['*']."""
+        rr = P.get_role(PIPELINE, "sub-orchestrator")
+        assert rr is not None
+        assert rr.is_orchestrator is True
+        assert rr.model == "opus"
+        assert rr.can_spawn == ["*"]
+        assert rr.allow_unrouted_workers is True
+
+    def test_reviewer_is_worker_opus_terminal(self):
+        rr = P.get_role(PIPELINE, "reviewer")
+        assert rr is not None
+        assert rr.is_orchestrator is False
+        assert rr.model == "opus"
+        assert rr.can_spawn == []  # терминал
+
+    def test_watcher_model_resolves_to_haiku(self):
+        """watcher — лёгкий фоновый агент на haiku (известный alias реестра)."""
+        rr = P.get_role(PIPELINE, "watcher")
+        assert rr is not None
+        assert rr.model == "haiku"
+        assert "haiku" in P.ALIASES
+        assert rr.is_orchestrator is False
+
+    def test_modules_resolve_from_manifest(self):
+        """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
+        assert P.get_role(PIPELINE, "orchestrator").modules == ["git-workflow"]
+        assert P.get_role(PIPELINE, "sub-orchestrator").modules == ["git-workflow"]
+        assert P.get_role(PIPELINE, "worker").modules == [
+            "git-workflow", "codex-review", "report-format"]
+        assert P.get_role(PIPELINE, "full-cycle").modules == [
+            "git-workflow", "codex-review", "report-format"]
+        assert P.get_role(PIPELINE, "reviewer").modules == ["codex-review"]
+        assert P.get_role(PIPELINE, "watcher").modules == []  # без modules → []
+
+    def test_tg_emoji_for_v216_roles(self):
+        """icon апстрима → tg.emoji для новых ролей v2.16."""
+        assert P.get_role(PIPELINE, "sub-orchestrator").tg.emoji == "🎯"
+        assert P.get_role(PIPELINE, "reviewer").tg.emoji == "🔍"
+        assert P.get_role(PIPELINE, "watcher").tg.emoji == "👁️"
 
     def test_orchestrator_skills_from_manifest(self):
         """Скиллы оркестратора ровно из его frontmatter: html-artifacts, vps-deploy."""
@@ -196,6 +244,62 @@ class TestDefaultBuildSystemPrompt:
         assert "## Role: Full-Cycle Worker" not in out
 
 
+# ── modules: инлайн переиспользуемых блоков после слоёв роли ────────────────
+
+class TestDefaultModulesInline:
+    # характерные подстроки из соответствующих prompts/modules/*.md
+    GIT_MARKER = "Each worker runs in an isolated"          # git-workflow.md
+    CODEX_MARKER = "Codex review (cross-LLM review"          # codex-review.md
+    REPORT_MARKER = "## Report format"                       # report-format.md
+
+    def test_worker_prompt_inlines_all_three_modules(self):
+        """worker.modules=[git-workflow, codex-review, report-format] — все три блока
+        присутствуют в собранном промпте (по характерной подстроке каждого .md)."""
+        out = P.build_system_prompt(PIPELINE, "worker")
+        assert self.GIT_MARKER in out
+        assert self.CODEX_MARKER in out
+        assert self.REPORT_MARKER in out
+
+    def test_full_cycle_prompt_inlines_all_three_modules(self):
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert self.GIT_MARKER in out
+        assert self.CODEX_MARKER in out
+        assert self.REPORT_MARKER in out
+
+    def test_orchestrator_inlines_only_git_workflow(self):
+        """orchestrator.modules=[git-workflow] — только git-блок, без codex/report."""
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        assert self.GIT_MARKER in out
+        assert self.CODEX_MARKER not in out
+        assert self.REPORT_MARKER not in out
+
+    def test_reviewer_inlines_only_codex(self):
+        out = P.build_system_prompt(PIPELINE, "reviewer")
+        assert self.CODEX_MARKER in out
+        assert self.GIT_MARKER not in out
+        assert self.REPORT_MARKER not in out
+
+    def test_watcher_has_no_modules(self):
+        """watcher без modules — ни одного блока модулей в промпте."""
+        out = P.build_system_prompt(PIPELINE, "watcher")
+        assert self.GIT_MARKER not in out
+        assert self.CODEX_MARKER not in out
+        assert self.REPORT_MARKER not in out
+
+    def test_modules_appended_after_role_layers(self):
+        """Модули идут ПОСЛЕ тела роли: маркер роли встречается раньше git-блока."""
+        out = P.build_system_prompt(PIPELINE, "worker")
+        assert out.index("## Role: Worker") < out.index(self.GIT_MARKER)
+
+    def test_unsafe_module_name_rejected(self):
+        """Безопасность изоляции: modules с '..' → ValidationError на загрузке."""
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            P.RoleSpec(kind="worker", label="X", modules=["../escape"])
+        with pytest.raises(ValidationError):
+            P.RoleSpec(kind="worker", label="X", modules=["/abs/path"])
+
+
 # ── Характеризация 1:1 с апстримом: содержимое слоёв = его файлы ───────────
 
 class TestUpstreamCharacterization:
@@ -210,7 +314,8 @@ class TestUpstreamCharacterization:
 
     def test_role_files_have_frontmatter_stripped(self):
         """У ролей frontmatter срезан — тело начинается с <role>, без YAML '---'/'name:'."""
-        for role in ("orchestrator", "worker", "full-cycle"):
+        for role in ("orchestrator", "sub-orchestrator", "worker",
+                     "full-cycle", "reviewer", "watcher"):
             body = P.prompt_path(PIPELINE, f"roles/{role}.md").read_text()
             assert body.startswith("<role>"), f"{role}.md must start with <role>"
             # метаданные переехали в yaml — в теле их быть не должно как frontmatter
@@ -226,11 +331,12 @@ class TestUpstreamCharacterization:
             assert f"name: {skill}" in text
 
     def test_build_prompt_matches_concatenation_of_layers(self):
-        """build_system_prompt(orchestrator) ≡ base.md + '\\n\\n' + тело orchestrator.md
-        (характеризация формулы сборки апстрима для орка: base + роль)."""
+        """build_system_prompt(orchestrator) ≡ base.md + роль + модуль git-workflow
+        (формула сборки: слои роли, затем modules через '\\n\\n')."""
         base = P.prompt_path(PIPELINE, "base.md").read_text()
         role = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text()
-        expected = f"{base}\n\n{role}"
+        git = P.prompt_path(PIPELINE, "modules/git-workflow.md").read_text()
+        expected = f"{base}\n\n{role}\n\n{git}"
         assert P.build_system_prompt(PIPELINE, "orchestrator") == expected
 
 
@@ -243,6 +349,15 @@ class TestDefaultValidateSpawn:
 
     def test_orchestrator_spawns_full_cycle_ok(self):
         assert P.validate_spawn(PIPELINE, "orchestrator", "full-cycle") is None
+
+    def test_orchestrator_spawns_v216_roles_ok(self):
+        """can_spawn=['*'] → новые роли v2.16 спавнятся оркестратором."""
+        for child in ("sub-orchestrator", "reviewer", "watcher"):
+            assert P.validate_spawn(PIPELINE, "orchestrator", child) is None
+
+    def test_sub_orchestrator_spawns_worker_ok(self):
+        """sub-orchestrator тоже can_spawn=['*'] — делегирует вниз."""
+        assert P.validate_spawn(PIPELINE, "sub-orchestrator", "worker") is None
 
     def test_orchestrator_unrouted_worker_ok(self):
         """allow_unrouted_workers=true → пустая роль (генерик-воркер) допустима."""

@@ -147,6 +147,9 @@ class RoleSpec(BaseModel):
     order: int = 100
     can_spawn: list[str] = Field(default_factory=list)  # "*" = любая роль; [] = терминал
     allow_unrouted_workers: bool = False
+    # Модули — переиспользуемые блоки промпта (prompts/modules/{m}.md), инлайнятся
+    # в system_prompt после слоёв роли. Пусто → ничего не добавляется.
+    modules: list[str] = Field(default_factory=list)
     # Переопределения defaults (None → наследуем):
     model: str | None = None
     skills: AllOrList | None = None
@@ -166,6 +169,16 @@ class RoleSpec(BaseModel):
     def _model_known(cls, v: str | None) -> str | None:
         if v is not None and not _model_is_known(v):
             raise ValueError(f"unknown model '{v}'")
+        return v
+
+    @field_validator("modules")
+    @classmethod
+    def _safe_modules(cls, v: list[str]) -> list[str]:
+        # B2: имя модуля → prompts/modules/{m}.md; не должно выходить за изоляцию
+        # (abs или '..'). Та же защита, что у docs_dir/prompt_layers.
+        for m in v:
+            if not _is_safe_rel(m):
+                raise ValueError(f"unsafe module name '{m}' (abs или '..')")
         return v
 
 
@@ -204,6 +217,7 @@ class ResolvedRole(BaseModel):
     order: int
     can_spawn: list[str]
     allow_unrouted_workers: bool
+    modules: list[str]
     model: str
     skills: AllOrList
     mcp_servers: AllOrList
@@ -298,6 +312,7 @@ def resolve_role(pipeline: PipelineConfig, role: str) -> ResolvedRole:
         name=role, pipeline=pipeline.name, kind=spec.kind, label=spec.label,
         order=spec.order, can_spawn=spec.can_spawn,
         allow_unrouted_workers=spec.allow_unrouted_workers,
+        modules=spec.modules,
         model=_merge_scalar(d.model, spec.model),
         skills=_merge_list(d.skills, spec.skills),
         mcp_servers=_merge_list(d.mcp_servers, spec.mcp_servers),
@@ -346,6 +361,10 @@ def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
     блоки других оркестраторов/воркеров) добавляется вызывающим в manager — здесь
     только статика из файлов.
 
+    После слоёв роли инлайнятся ``modules`` — переиспользуемые блоки промпта из
+    ``prompts/modules/{m}.md`` (та же изоляция). Отсутствующий модуль пропускается с
+    warning (роль не должна падать из-за недостающего блока).
+
     :raises FileNotFoundError: если манифест пайплайна отсутствует (на Этапе 3 manager
         ловит и делегирует в legacy-путь апстрима).
     """
@@ -355,6 +374,14 @@ def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
         p = prompt_path(pipeline_name, layer)
         if p.is_file():
             parts.append(p.read_text())
+    for m in rr.modules:
+        mp = prompt_path(pipeline_name, f"modules/{m}.md")
+        if mp.is_file():
+            parts.append(mp.read_text())
+        else:
+            logger.warning(
+                "pipeline '%s' role '%s': module '%s' not found at %s — skipped",
+                pipeline_name, role, m, mp)
     return "\n\n".join(parts)
 
 
