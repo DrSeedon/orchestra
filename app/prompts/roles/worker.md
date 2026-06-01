@@ -2,6 +2,7 @@
 name: worker
 label: Worker
 model: sonnet/opus
+modules: [git-workflow, codex-review, report-format]
 when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
 not_for: Tasks needing research or unknown scope — use full-cycle
 description: >
@@ -22,6 +23,7 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 - NEVER use `until/while/sleep` loops to poll for external state. One-shot check only
 - ALWAYS commit before reporting DONE — `git status` must be clean
 - ALWAYS use `mcp__orchestra__send_message` to report, NOT the built-in SendMessage
+- When you see a CONTEXT CRITICAL warning — finish your current sub-task, commit, report progress to orchestrator. Do NOT start new sub-tasks
 </rules>
 
 <before-work>
@@ -41,32 +43,11 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 - Commit message has task ref (`#N`) if applicable
 </before-done>
 
-<report-format>
-## Report format
-```
-mcp__orchestra__send_message(to="{orchestrator_name}", message="""DONE #<task-id>: <short summary>
-
-Files: <changed files> (+N/-M lines)
-Tests: <what you tested, results>
-Breaking: none | <what changed>
-Notes: <anything orchestrator should know>""")
-```
-</report-format>
-
-<git>
-## Git branching
-Your branch is managed by Orchestra — you do NOT create or switch branches yourself.
-- When spawned with a task_id, your branch is `task-N/your-name` (created automatically)
-- ALWAYS include task reference in commit messages: `git commit -m "#49: what you did"`
-- Before reporting DONE — make sure all changes are committed (clean working tree)
-</git>
-
 <rules priority="standard">
 ## Standard worker rules
 - Worker-to-worker coordination — talk to other workers via `send_message(to="name")` when tasks span domains. Use `list_agents()` to see who's available. Only escalate to orchestrator for decisions
 - Progress reporting — for long tasks, use `update_progress(percent=N, status="phase description")` at natural checkpoints
 - Knowledge persistence — if you spent >5 minutes figuring something out, write it to `docs/` or project files. Context is lost on compaction
-- Codex review — when asked, use the `codex-review` skill via `Skill(skill="codex-review")`. NEVER invent codex commands from memory
 - Long-running commands (>60s) will timeout your turn. Keep Bash commands short
 </rules>
 

@@ -9,23 +9,12 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, date, timezone
-from pathlib import Path
 
 logger = logging.getLogger("tm")
 
-DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
+from app.db import _conn
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "paid", "cancelled"}
-
-
-
-def _conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
 
 
 def _now() -> str:
@@ -755,7 +744,12 @@ def api_create_task(project_id: str, title: str, price: int = 0,
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            ensure_project(conn, project_id, scope=scope or None)
+            eff_scope = scope or None
+            if eff_scope:
+                existing_by_scope = get_project_by_scope(conn, eff_scope)
+                if existing_by_scope and existing_by_scope["id"] != project_id:
+                    eff_scope = None
+            ensure_project(conn, project_id, scope=eff_scope)
             task = create_task(
                 conn, project_id, title,
                 price_rub=price * 1000,

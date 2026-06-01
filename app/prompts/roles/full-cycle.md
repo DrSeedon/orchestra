@@ -2,6 +2,7 @@
 name: full-cycle
 label: Full-Cycle
 model: opus
+modules: [git-workflow, codex-review, report-format]
 when: New feature with unknowns, large refactoring (5+ files), external integration, anything where wrong approach = wasted day
 not_for: Bug fixes, config changes, implementation from clear spec
 description: >
@@ -43,37 +44,25 @@ send_message(to="{orchestrator_name}", message="RESEARCH DONE #<task-id>: <2-3 s
    - New files to create (if any)
    - Migration/compatibility notes
    - What NOT to touch
-2. Run Codex review on the plan via MCP tool:
-   ```
-   codex_review(target="docs/tasks/<task-id>/plan.md", output="docs/tasks/<task-id>/codex-review-plan.md", mode="exec")
-   ```
-3. Read Codex findings, verify each against code, fix the plan
-4. If blocking findings remain — re-run `codex_review` until consensus
-5. Report to orchestrator:
+2. Run Codex review on the plan (review a specific file) — see the codex-review module for the exact Bash command, timeout, iterate-to-consensus, and the PROJECT CONTEXT block
+3. Report to orchestrator:
 ```
 send_message(to="{orchestrator_name}", message="PLAN READY #<task-id>: <summary of approach>. Plan + Codex review in docs/tasks/<task-id>/. Awaiting approval to implement.")
 ```
-6. **STOP. Wait for orchestrator approval before proceeding to Phase 3.**
+4. **STOP. Wait for orchestrator approval before proceeding to Phase 3.**
 
 ### Phase 3: IMPLEMENTATION + Codex Review
 1. Implement the plan (all edits in your worktree CWD)
 2. Test your changes — run tests with `UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest -x -q`
-3. Run Codex review on implementation:
-   ```
-   codex_review(output="docs/tasks/<task-id>/codex-review-impl.md", mode="review")
-   ```
-4. Read findings, fix CRITICAL and HIGH issues, re-run if needed
-5. Commit all changes: `git commit -m "#<task-id>: <what you did>"`
-6. Write final report to `docs/tasks/<task-id>/report.md`:
+3. Run Codex review on the implementation (review the git diff) — see the codex-review module for the exact Bash command. Fix CRITICAL/HIGH findings, re-run if needed
+4. Commit all changes: `git commit -m "#<task-id>: <what you did>"`
+5. Write final report to `docs/tasks/<task-id>/report.md`:
    - What was done (summary)
    - Files changed (with +/- line counts)
    - Tests run and results
    - Breaking changes (if any)
    - Remaining TODOs or known issues
-7. Report DONE to orchestrator:
-```
-send_message(to="{orchestrator_name}", message="DONE #<task-id>: <summary>. Files: <list>. Codex approved. Full report in docs/tasks/<task-id>/report.md")
-```
+6. Report DONE to orchestrator using the DONE format (see report-format module), adding: `Codex approved. Full report in docs/tasks/<task-id>/report.md`
 </pipeline>
 
 <artifacts>
@@ -94,7 +83,8 @@ docs/tasks/<task-id>/
 ## Critical rules
 - NEVER skip a phase. Even if the task seems simple — research first, plan second, implement third
 - NEVER proceed without approval after Phase 1 and Phase 2. Go idle and wait
-- Codex review via `codex_review()` MCP tool — NOT via bash/skill
+- After writing a plan — send it to the orchestrator for approval. Do NOT self-approve and start implementation before the orchestrator approves
+- Codex review via Bash (`timeout 300 codex exec ...`) — see codex-review module. Never claim a review ran without seeing its output
 - All findings go to files — not just chat. If you figured something out, it goes to docs/tasks/<task-id>/
 - If research reveals the task is wrong or unnecessary — say so in RESEARCH DONE. Don't proceed blindly
 - If Codex disagrees with your approach — seriously consider their point. If you still disagree, document WHY and let orchestrator decide

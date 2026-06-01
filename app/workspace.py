@@ -1,6 +1,7 @@
 """Worktree management — create and remove git worktrees for agent sessions."""
 
 import fcntl
+import json
 import logging
 import re
 import shutil
@@ -100,12 +101,19 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
     if result.returncode != 0:
         raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
 
-    for fname in PROJECT_FILES:
-        src = repo / fname
-        if not src.exists():
-            src = repo.parent / fname
-        if src.exists():
-            shutil.copy2(str(src), str(wt_path / fname))
+    try:
+        for fname in PROJECT_FILES:
+            src = repo / fname
+            if not src.exists():
+                src = repo.parent / fname
+            if src.exists():
+                shutil.copy2(str(src), str(wt_path / fname))
+    except Exception:
+        subprocess.run(
+            ["git", "worktree", "remove", str(wt_path), "--force"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        raise
 
     return Worktree(path=str(wt_path), branch=branch)
 
@@ -155,8 +163,117 @@ def _ensure_repo_on_branch(repo: str, target_branch: str = "main") -> tuple[str 
     return None, did_stash
 
 
-# Алиас для обратной совместимости
-_ensure_repo_on_main = _ensure_repo_on_branch
+def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
+    """Return subject lines of commits in branch not in base."""
+    log = subprocess.run(
+        ["git", "log", f"{base}..{branch}", "--format=%s", "--reverse"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if log.returncode != 0 or not log.stdout.strip():
+        return []
+    return [line for line in log.stdout.strip().splitlines() if line.strip()]
+
+
+def _build_squash_message(branch: str, messages: list[str]) -> str:
+    """Build squash commit message with task refs prefix and message list."""
+    all_refs: list[str] = []
+    seen: set[str] = set()
+    for msg in messages:
+        for m in _TASK_REF_RE.finditer(msg):
+            if m.group(3):
+                ref = f"#{m.group(3)}"
+            else:
+                ref = f"#{m.group(2)}"
+            if ref not in seen:
+                seen.add(ref)
+                all_refs.append(ref)
+
+    if messages:
+        summary = messages[-1] if len(messages) == 1 else messages[0]
+    else:
+        summary = f"merge {branch}"
+
+    prefix = ", ".join(all_refs) + ": " if all_refs else ""
+    header = f"{prefix}{summary}"
+
+    body_lines = "\n".join(f"- {m}" for m in messages)
+    if len(messages) > 1:
+        return f"{header}\n\nSquashed commits:\n{body_lines}"
+    return header
+
+
+def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
+    """Cherry-pick all commits from branch onto current HEAD.
+    Fallback for unrelated histories where git merge refuses to work.
+    """
+    rev_list = subprocess.run(
+        ["git", "rev-list", "--reverse", branch],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if rev_list.returncode != 0 or not rev_list.stdout.strip():
+        return {"ok": False, "error": f"cannot list commits on {branch}: {rev_list.stderr.strip()}"}
+
+    commits = rev_list.stdout.strip().splitlines()
+    logger.info(f"cherry-pick fallback: {len(commits)} commits from {branch}")
+
+    messages = _get_commit_messages(repo, branch, "")
+
+    for i, sha in enumerate(commits):
+        cp = subprocess.run(
+            ["git", "cherry-pick", "--no-commit", sha],
+            cwd=repo, capture_output=True, text=True,
+        )
+        if cp.returncode != 0:
+            cp_err = cp.stderr.strip() or cp.stdout.strip()
+            if "nothing to commit" in cp_err or "empty" in cp_err.lower():
+                subprocess.run(["git", "reset"], cwd=repo, capture_output=True, text=True)
+                continue
+            subprocess.run(
+                ["git", "cherry-pick", "--abort"],
+                cwd=repo, capture_output=True, text=True,
+            )
+            return {"ok": False, "error": f"cherry-pick failed on commit {sha[:7]} ({i+1}/{len(commits)}): {cp_err}"}
+
+    status = subprocess.run(
+        ["git", "diff", "--cached", "--quiet"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if status.returncode != 0:
+        commit_msg = _build_squash_message(branch, messages)
+        subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=repo, capture_output=True, text=True,
+        )
+
+    merged_commits = _parse_merged_commits(repo, old_head) if old_head else {}
+    return {
+        "ok": True,
+        "commits_merged": len(commits),
+        "branch": branch,
+        "strategy": "cherry-pick",
+        "merged_commits": merged_commits,
+    }
+
+
+def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None:
+    wt = Path(worktree_path).resolve()
+    repo = _resolve_repo(worktree_path, repo_path)
+    rev = subprocess.run(
+        ["git", "rev-parse", ref],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if rev.returncode != 0:
+        logger.warning(f"_reset_worktree_to_ref: cannot resolve {ref}: {rev.stderr.strip()}")
+        return
+    target_sha = rev.stdout.strip()
+    reset = subprocess.run(
+        ["git", "reset", "--hard", target_sha],
+        cwd=str(wt), capture_output=True, text=True,
+    )
+    if reset.returncode != 0:
+        logger.warning(f"_reset_worktree_to_ref: reset failed in {wt}: {reset.stderr.strip()}")
+    else:
+        logger.info(f"_reset_worktree_to_ref: {wt} reset to {ref} ({target_sha[:8]})")
 
 
 def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "main") -> dict:
@@ -208,65 +325,87 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                         if main_err:
                             result = {"ok": False, "error": main_err}
                         else:
-                            precheck = subprocess.run(
-                                ["git", "merge-tree", "--write-tree", target_branch, branch],
+                            merge_base = subprocess.run(
+                                ["git", "merge-base", target_branch, branch],
                                 cwd=str(repo), capture_output=True, text=True,
                             )
-                            if precheck.returncode != 0:
-                                conflict_files = []
-                                for line in precheck.stdout.splitlines():
-                                    if line.startswith("CONFLICT"):
-                                        parts = line.split()
-                                        if parts:
-                                            conflict_files.append(parts[-1])
-                                if not conflict_files:
-                                    err = precheck.stderr.strip() or precheck.stdout.strip() or f"merge-tree exit code {precheck.returncode}"
-                                    logger.error(f"merge-tree failed: repo={repo} branch={branch} err={err}")
-                                    result = {"ok": False, "error": f"merge precheck failed: {err}"}
-                                else:
-                                    result = {"ok": False, "conflicts": conflict_files}
-                            else:
-                                commits_result = subprocess.run(
-                                    ["git", "rev-list", "--count", f"{target_branch}..{branch}"],
+                            unrelated = merge_base.returncode != 0
+
+                            precheck_ok = True
+                            if not unrelated:
+                                precheck = subprocess.run(
+                                    ["git", "merge-tree", "--write-tree", target_branch, branch],
                                     cwd=str(repo), capture_output=True, text=True,
                                 )
-                                commits_merged = int(commits_result.stdout.strip() or "0")
+                                if precheck.returncode != 0:
+                                    conflict_files = []
+                                    for line in precheck.stdout.splitlines():
+                                        if line.startswith("CONFLICT"):
+                                            parts = line.split()
+                                            if parts:
+                                                conflict_files.append(parts[-1])
+                                    if not conflict_files:
+                                        err = precheck.stderr.strip() or precheck.stdout.strip() or f"merge-tree exit code {precheck.returncode}"
+                                        logger.error(f"merge-tree failed: repo={repo} branch={branch} err={err}")
+                                        result = {"ok": False, "error": f"merge precheck failed: {err}"}
+                                    else:
+                                        result = {"ok": False, "conflicts": conflict_files}
+                                    precheck_ok = False
 
+                            if precheck_ok:
                                 old_head_result = subprocess.run(
                                     ["git", "rev-parse", "HEAD"],
                                     cwd=str(repo), capture_output=True, text=True,
                                 )
                                 old_head = old_head_result.stdout.strip() if old_head_result.returncode == 0 else ""
 
-                                merge = subprocess.run(
-                                    ["git", "merge", "--no-edit", branch],
-                                    cwd=str(repo), capture_output=True, text=True,
-                                )
-                                if merge.returncode != 0:
-                                    # Пытаемся прибрать за собой — best-effort
-                                    abort = subprocess.run(
-                                        ["git", "merge", "--abort"],
+                                if unrelated:
+                                    logger.info(f"unrelated histories for {branch} — using cherry-pick")
+                                    result = _cherry_pick_branch(str(repo), branch, old_head)
+                                    if result and result.get("ok"):
+                                        _reset_worktree_to_ref(str(wt), target_branch, str(repo))
+                                else:
+                                    commits_result = subprocess.run(
+                                        ["git", "rev-list", "--count", f"{target_branch}..{branch}"],
                                         cwd=str(repo), capture_output=True, text=True,
                                     )
-                                    # Собираем conflicted files
-                                    conflict_files = []
-                                    if abort.returncode != 0:
-                                        status_out = subprocess.run(
-                                            ["git", "diff", "--name-only", "--diff-filter=U"],
+                                    commits_merged = int(commits_result.stdout.strip() or "0")
+
+                                    messages = _get_commit_messages(str(repo), branch, target_branch)
+                                    merge = subprocess.run(
+                                        ["git", "merge", "--squash", branch],
+                                        cwd=str(repo), capture_output=True, text=True,
+                                    )
+                                    if merge.returncode != 0:
+                                        subprocess.run(
+                                            ["git", "reset", "--merge"],
                                             cwd=str(repo), capture_output=True, text=True,
                                         )
-                                        conflict_files = status_out.stdout.strip().splitlines() if status_out.stdout.strip() else []
-                                    err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
-                                    logger.error(f"merge_worktree failed: repo={repo} branch={branch} err={err}")
-                                    if conflict_files:
-                                        result = {"ok": False, "state": "conflict", "conflicts": conflict_files,
-                                                  "error": "merge conflict — manual resolution required"}
-                                    else:
+                                        err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
+                                        logger.error(f"merge_worktree squash failed: repo={repo} branch={branch} err={err}")
                                         result = {"ok": False, "error": err}
-                                    # НЕ return — управление уйдёт в finally (stash pop + restore HEAD)
-                                else:
-                                    merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
-                                    result = {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
+                                    else:
+                                        staged = subprocess.run(
+                                            ["git", "diff", "--cached", "--quiet"],
+                                            cwd=str(repo), capture_output=True, text=True,
+                                        )
+                                        if staged.returncode != 0:
+                                            commit_msg = _build_squash_message(branch, messages)
+                                            commit = subprocess.run(
+                                                ["git", "commit", "-m", commit_msg],
+                                                cwd=str(repo), capture_output=True, text=True,
+                                            )
+                                            if commit.returncode != 0:
+                                                err = commit.stderr.strip() or commit.stdout.strip()
+                                                result = {"ok": False, "error": f"squash commit failed: {err}"}
+                                            else:
+                                                merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
+                                                result = {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
+                                        else:
+                                            result = {"ok": True, "commits_merged": 0, "branch": branch, "merged_commits": {}}
+
+                                        if result and result.get("ok"):
+                                            _reset_worktree_to_ref(str(wt), target_branch, str(repo))
         finally:
             # ПОРЯДОК КРИТИЧЕН: сначала restore исходной ветки, ПОТОМ stash pop.
             restore_ok = True
@@ -314,13 +453,15 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
         full_hash, message, date = parts
         short_hash = full_hash[:7]
 
-        m = _TASK_REF_RE.search(message)
-        if not m:
+        refs: list[str] = []
+        seen_refs: set[str] = set()
+        for m in _TASK_REF_RE.finditer(message):
+            ref = m.group(3) if m.group(3) else f"{m.group(1)}-{m.group(2)}"
+            if ref not in seen_refs:
+                seen_refs.add(ref)
+                refs.append(ref)
+        if not refs:
             continue
-        if m.group(3):
-            task_ref = m.group(3)
-        else:
-            task_ref = f"{m.group(1)}-{m.group(2)}"
 
         stat = subprocess.run(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],
@@ -347,7 +488,8 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
             "insertions": insertions,
             "deletions": deletions,
         }
-        by_par.setdefault(task_ref, []).append(commit)
+        for ref in refs:
+            by_par.setdefault(ref, []).append(commit)
 
     return by_par
 
@@ -384,7 +526,13 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         cwd=str(wt), capture_output=True, text=True,
     )
     if merged.returncode != 0:
-        return {"ok": False, "error": f"current branch has unmerged commits — merge_worker first (relative to {from_ref})"}
+        content_diff = subprocess.run(
+            ["git", "diff", "HEAD", from_ref, "--stat"],
+            cwd=str(wt), capture_output=True, text=True,
+        )
+        if content_diff.stdout.strip():
+            return {"ok": False, "error": f"current branch has unmerged commits — merge_worker first (relative to {from_ref})"}
+        logger.info(f"switch_worktree_branch: HEAD not ancestor of {from_ref} but content identical (squash merge)")
 
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
@@ -448,9 +596,105 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
                         break
         except Exception:
             pass
-    result = subprocess.run(
-        ["git", "worktree", "remove", str(wt), "--force"],
-        cwd=cwd, capture_output=True, text=True,
+    lock_path = _resolve_repo(str(wt), repo_path) / ".git" / "orchestra-merge.lock"
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            result = subprocess.run(
+                ["git", "worktree", "remove", str(wt), "--force"],
+                cwd=cwd, capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                logger.warning(f"worktree remove failed: {result.stderr}")
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def parse_owned_dirs(raw) -> list[str]:
+    """Normalize owned_dirs from any source (JSON string, list, None). Bad input → []."""
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (ValueError, TypeError):
+            return []
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for d in raw:
+        if not isinstance(d, str):
+            continue
+        p = d.strip().strip("/")
+        if p and p not in out:
+            out.append(p)
+    return out
+
+
+def dirs_overlap(a: list[str], b: list[str]) -> list[str]:
+    """Return overlapping dirs (prefix-aware): app/api conflicts with app/api/v1."""
+    hits = []
+    for x in a:
+        for y in b:
+            if x == y or x.startswith(y + "/") or y.startswith(x + "/"):
+                hits.append(x if len(x) >= len(y) else y)
+    return sorted(set(hits))
+
+
+def simulate_conflict(repo_path: str, branch_a: str, branch_b: str) -> dict:
+    """Dry-run merge of two existing branches. {ok:True, conflicts:[...]} = simulation ran.
+    {ok:False, error} = couldn't run (missing branch / unrelated histories)."""
+    repo = _resolve_repo(repo_path, repo_path)
+    for ref in (branch_a, branch_b):
+        v = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if v.returncode != 0:
+            return {"ok": False, "error": f"branch '{ref}' not found"}
+    mb = subprocess.run(
+        ["git", "merge-base", branch_a, branch_b],
+        cwd=str(repo), capture_output=True, text=True,
     )
-    if result.returncode != 0:
-        logger.warning(f"worktree remove failed: {result.stderr}")
+    if mb.returncode != 0:
+        return {"ok": False, "error": "unrelated histories — cannot simulate"}
+    r = subprocess.run(
+        ["git", "merge-tree", "--write-tree", branch_a, branch_b],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if r.returncode == 0:
+        return {"ok": True, "conflicts": []}
+    conflicts = []
+    for line in r.stdout.splitlines():
+        if not line.startswith("CONFLICT"):
+            continue
+        m = re.search(r"Merge conflict in (.+)$", line)
+        if not m:
+            m = re.search(r"CONFLICT \([^)]+\): (\S+) ", line)
+        if m:
+            path = m.group(1).strip()
+            if path not in conflicts:
+                conflicts.append(path)
+    if conflicts:
+        return {"ok": True, "conflicts": conflicts}
+    return {"ok": False, "error": (r.stderr.strip() or r.stdout.strip() or "merge-tree failed")}
+
+
+def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> dict:
+    """Report uncommitted files + unmerged commit subjects for a worktree (relative to base_ref).
+    Returns {"error": ...} if git status or the base_ref comparison fails — never a false 'clean'."""
+    wt = Path(worktree_path).resolve()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+    )
+    if dirty.returncode != 0:
+        return {"error": f"git status failed: {dirty.stderr.strip()}"}
+    uncommitted = [l[3:] for l in dirty.stdout.strip().splitlines()] if dirty.stdout.strip() else []
+    log = subprocess.run(
+        ["git", "log", f"{base_ref}..HEAD", "--format=%s"],
+        cwd=str(wt), capture_output=True, text=True,
+    )
+    if log.returncode != 0:
+        return {"error": f"base_ref '{base_ref}' not found or comparison failed: {log.stderr.strip()}"}
+    unmerged = [l for l in log.stdout.strip().splitlines() if l.strip()]
+    return {"uncommitted": uncommitted, "unmerged_commits": unmerged}

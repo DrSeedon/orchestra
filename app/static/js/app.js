@@ -16,6 +16,8 @@ const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
 const $ = (s) => document.querySelector(s);
 
+marked.setOptions({ breaks: true, gfm: true });
+
 DOMPurify.addHook('uponSanitizeElement', (node) => {
     if (['STYLE', 'HTML', 'HEAD', 'BODY', 'META', 'LINK', 'TITLE', 'SCRIPT'].includes(node.tagName)) node.remove();
 });
@@ -217,7 +219,14 @@ function connectSSE() {
             if (isLocal) {
                 localMessages.delete(l.content);
                 for (const m of localMessages) { if (l.content.endsWith(m)) { localMessages.delete(m); break; } }
-                if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; pendingUserMsgs = []; }
+                if (pendingBubble) {
+                    pendingBubble.remove();
+                    pendingBubble = null;
+                    pendingUserMsgs = [];
+                } else if (_finalizedBubble) {
+                    _finalizedBubble.remove();
+                }
+                _finalizedBubble = null;
                 addChatEntry(l.type, l.content, l.ts);
             } else {
                 addChatEntry(l.type, l.content, l.ts);
@@ -743,7 +752,7 @@ function renderOrchTabs(sorted) {
         tab.draggable = true;
         const dot = document.createElement('span');
         dot.className = 'tab-dot';
-        dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
+        dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : o.any_waiting ? '#f59e0b' : '#eab308';
         const label = document.createElement('span');
         const shortName = o.name.replace(/-orchestrator$/, '');
         label.textContent = shortName;
@@ -854,6 +863,9 @@ function initTabContextMenu() {
             const h = _getHiddenTabs(); h.add(name); _setHiddenTabs(h);
             renderOrchTabs(orchData);
         }));
+        menu.appendChild(mkItem('📁 Сменить папку', '#60a5fa', () => {
+            changeOrchScope(name, scope);
+        }));
         menu.appendChild(mkItem('🗑 Удалить', '#ef4444', () => {
             openDeleteOrchModal(name, scope);
         }));
@@ -897,6 +909,23 @@ function openDeleteOrchModal(name, scope) {
     $('#delete-orch-cancel').onclick = close;
     $('#delete-orch-modal-close').onclick = close;
     modal.onclick = (e) => { if (e.target === modal) close(); };
+}
+
+async function changeOrchScope(name, oldScope) {
+    const newScope = prompt(`Новая папка для "${name}" (контекст сессии сохранится):`, oldScope);
+    if (!newScope || newScope.trim() === oldScope) return;
+    const ns = newScope.trim().replace(/\/+$/, '');
+    try {
+        const res = await api(`/api/orchestrators/${name}/change-scope`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_scope: oldScope, new_scope: ns }),
+        });
+        await loadOrchestrators();
+        selectOrchestrator(name, res.scope || ns);
+    } catch (e) {
+        alert(`Смена папки не удалась: ${e.message}`);
+    }
 }
 
 function _updateHiddenBtn() {
@@ -955,7 +984,7 @@ function updateOrchTabDots() {
         const o = orchData.find(x => x.scope === scope);
         if (!o) return;
         const dot = tab.querySelector('.tab-dot');
-        if (dot) dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : '#eab308';
+        if (dot) dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : o.any_waiting ? '#f59e0b' : '#eab308';
         const existing = tab.querySelector('.tab-unread');
         if (_unreadTabs.has(scope) && !existing) {
             const unread = document.createElement('span');
@@ -993,6 +1022,7 @@ function onOrchestratorChange() {
     localMessages.clear();
     pendingUserMsgs = [];
     pendingBubble = null;
+    _finalizedBubble = null;
     streamBubble = null;
     streamContent = '';
     selectedAgent = opt?.dataset?.name || null;
@@ -1128,7 +1158,7 @@ function updateAgentInfo(session) {
         changeBtn.addEventListener('mouseleave', () => changeBtn.style.color = '#475569');
         modelEl.parentElement.appendChild(changeBtn);
     }
-    const isIdle = session.status === 'idle' || session.status === 'stopped';
+    const isIdle = session.status === 'idle' || session.status === 'stopped' || session.status === 'waiting';
     changeBtn.style.display = isIdle ? 'inline' : 'none';
     changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
     $('#ai-role').textContent = session.role || 'worker';
@@ -1209,24 +1239,59 @@ function renderAgentList(sessions) {
     const list = $('#agent-list');
     list.innerHTML = '';
 
-    const active = sessions;
-    const archive = [];
-
-    for (const s of active) {
+    for (const s of sessions) {
         if (s.color) agentColors[s.name] = s.color;
-        list.appendChild(createAgentItem(s));
     }
 
-    if (archive.length > 0) {
-        const divider = document.createElement('div');
-        divider.className = 'text-xs text-slate-700 uppercase tracking-wider px-3 pt-3 pb-1';
-        divider.textContent = `Archive (${archive.length})`;
-        list.appendChild(divider);
-        for (const s of archive) {
-            list.appendChild(createAgentItem(s));
+    const byName = new Map();
+    for (const s of sessions) byName.set(s.name, s);
+
+    const childrenMap = new Map();
+    const roots = [];
+    for (const s of sessions) {
+        const pn = s.parent_name || '';
+        if (pn && byName.has(pn)) {
+            if (!childrenMap.has(pn)) childrenMap.set(pn, []);
+            childrenMap.get(pn).push(s);
+        } else {
+            roots.push(s);
+        }
+    }
+
+    const seen = new Set();
+    const buildNode = (session, isChild, isLast) => {
+        if (seen.has(session.name)) return null;
+        seen.add(session.name);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tree-node' + (isChild ? ' tree-child' : '') + (isLast ? ' tree-last' : '');
+        wrapper.appendChild(createAgentItem(session));
+        const kids = childrenMap.get(session.name) || [];
+        if (kids.length > 0) {
+            const childContainer = document.createElement('div');
+            childContainer.className = 'tree-children';
+            for (let i = 0; i < kids.length; i++) {
+                const childNode = buildNode(kids[i], true, i === kids.length - 1);
+                if (childNode) childContainer.appendChild(childNode);
+            }
+            wrapper.appendChild(childContainer);
+        }
+        return wrapper;
+    };
+    for (const r of roots) {
+        const node = buildNode(r, false, false);
+        if (node) list.appendChild(node);
+    }
+    for (const s of sessions) {
+        if (!seen.has(s.name)) {
+            seen.add(s.name);
+            const node = buildNode(s, false, false);
+            if (node) list.appendChild(node);
         }
     }
 }
+
+let _roleIcons = {'orchestrator':'👑','worker':'⚙️','full-cycle':'🔄','sub-orchestrator':'🎯','reviewer':'🔍','watcher':'👁️'};
+fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,...d}}).catch(()=>{});
 
 function createAgentItem(s) {
     const isSelected = s.name === selectedAgent;
@@ -1241,7 +1306,8 @@ function createAgentItem(s) {
     if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
 
     const icon = document.createElement('span');
-    icon.textContent = s.is_orchestrator ? '🎯' : isDead ? '🪦' : '⚙️';
+    const roleKey = s.role || (s.is_orchestrator ? 'orchestrator' : 'worker');
+    icon.textContent = isDead ? '🪦' : (_roleIcons[roleKey] || '⚙️');
     icon.className = 'text-sm';
 
     const info = document.createElement('div');
@@ -1252,14 +1318,15 @@ function createAgentItem(s) {
     nameEl.className = 'text-xs font-medium truncate';
     nameEl.textContent = s.name;
     const statusEl = document.createElement('span');
-    const statusColor = s.status === 'running' ? '#22c55e' : s.status === 'idle' ? '#eab308' : '#6b7280';
-    const statusBg = s.status === 'running' ? 'rgba(34,197,94,0.15)' : s.status === 'idle' ? 'rgba(234,179,8,0.12)' : 'rgba(107,114,128,0.1)';
+    const statusColors = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b'};
+    const statusBgs = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)'};
+    const statusIcons = {running: '⚡', idle: '☕️', waiting: '⏳'};
     statusEl.className = 'text-xs font-mono font-bold shrink-0';
-    statusEl.style.color = statusColor;
-    statusEl.style.backgroundColor = statusBg;
+    statusEl.style.color = statusColors[s.status] || '#6b7280';
+    statusEl.style.backgroundColor = statusBgs[s.status] || 'rgba(107,114,128,0.1)';
     statusEl.style.padding = '1px 6px';
     statusEl.style.borderRadius = '4px';
-    statusEl.textContent = `● ${s.status}`;
+    statusEl.textContent = `${statusIcons[s.status] || '●'} ${s.status}`;
     nameRow.append(nameEl, statusEl);
 
     const meta = document.createElement('div');
@@ -1336,7 +1403,7 @@ async function sendChat() {
     } catch (e) {
         if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
         if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
-        pendingBubble = null; pendingUserMsgs = [];
+        pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
         removeWaitingIndicator();
         addChatEntry('error', e.message);
     }
@@ -1358,12 +1425,14 @@ function showPendingBubble() {
     chat.scrollTop = chat.scrollHeight;
 }
 
+let _finalizedBubble = null;
 function finalizePending() {
     if (!pendingBubble) return;
     const ring = pendingBubble.querySelector('.debounce-ring');
     if (ring) ring.remove();
     const combined = pendingUserMsgs.join('\n');
     localMessages.add(combined);
+    _finalizedBubble = pendingBubble;
     pendingBubble = null;
     pendingUserMsgs = [];
     uiDebounceTimer = null;
@@ -2640,6 +2709,27 @@ function addChatEntry(type, content, ts, anchor) {
             }
             addTimestamp(target, ts);
             if (!lastTool) {
+                const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+                _insert(div);
+                if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+            }
+            return;
+        }
+        const toolErrorMatch = content.match(/<tool_use_error>([\s\S]*?)<\/tool_use_error>/);
+        if (toolErrorMatch) {
+            const errMsg = toolErrorMatch[1].trim();
+            const errDiv = document.createElement('div');
+            errDiv.className = 'px-3 py-2 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-900/50';
+            errDiv.textContent = '⚠️ ' + errMsg;
+            if (lastTool) {
+                delete lastTool.dataset.lastTool;
+                const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
+                if (skeleton) skeleton.remove();
+                lastTool.appendChild(errDiv);
+                addTimestamp(lastTool, ts);
+            } else {
+                div.appendChild(errDiv);
+                addTimestamp(div, ts);
                 const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
                 _insert(div);
                 if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
@@ -4193,7 +4283,6 @@ function initFilePanel() {
     if (!chatInput.dataset.fileDropReady) {
         chatInput.dataset.fileDropReady = '1';
         chatInput.addEventListener('dragover', (e) => {
-            if (!e.dataTransfer?.types?.includes('Files')) return;
             e.preventDefault();
         });
         chatInput.addEventListener('drop', async (e) => {

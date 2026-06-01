@@ -111,69 +111,74 @@ class TestStop:
 
 # ── Auto-report gate tests (Task 5) ──
 
-def _mk_session(monkeypatch, idle_sec):
-    monkeypatch.setattr("app.session.AUTO_REPORT_IDLE_SEC", idle_sec)
+# После мержа v2.16 авто-репорт стал немедленным (_fire_auto_report) вместо
+# отложенного (_schedule_auto_report/AUTO_REPORT_IDLE_SEC). Тесты обновлены под
+# живой API: проверяем те же гейты (did_report / orchestrator / pending / turn_ok),
+# но через немедленный fire. on_idle теперь принимает 4 аргумента (+stop_reason).
+
+def _mk_session(monkeypatch=None, idle_sec=None):
     from app.session import AgentSession
     s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp")
+    s._last_turn_ok = True
     return s
 
 
 @pytest.mark.asyncio
 async def test_auto_report_fires_after_idle_timeout(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.05)
+    s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
     s._turn_logs = ["did stuff"]
-    # имитируем завершение хода: планируем отложенный авто-репорт
-    s._schedule_auto_report()
-    await asyncio.sleep(0.15)
-    assert fired == ["w"]  # сработал после таймаута
+    # завершение хода → немедленный авто-репорт родителю
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
+    assert fired == ["w"]
 
 
 @pytest.mark.asyncio
 async def test_auto_report_skipped_if_did_report(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.05)
+    s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = True  # был явный send_message
-    s._schedule_auto_report()
-    await asyncio.sleep(0.15)
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
     assert fired == []  # явный отчёт был → авто-репорт не нужен
 
 
 @pytest.mark.asyncio
 async def test_auto_report_cancelled_by_new_turn(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.1)
+    # Живой гейт "есть незавершённая активность" — pending_messages: если у агента
+    # есть отложенные сообщения (пришёл новый ход), авто-репорт не стреляет.
+    s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
-    s._schedule_auto_report()
-    # новый ход стартовал до истечения окна → бампаем поколение
-    await asyncio.sleep(0.02)
-    s._bump_turn_gen()
-    await asyncio.sleep(0.15)
-    assert fired == []  # пришёл новый ход → отложенный репорт отменён
+    s._pending_messages = ["новый ход пришёл"]
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
+    assert fired == []  # есть pending → отчёт отложен
 
 
 @pytest.mark.asyncio
 async def test_orchestrator_never_auto_reports(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.05)
+    s = _mk_session(monkeypatch)
     s.is_orchestrator = True   # оркестратор отчитывается наверх ТОЛЬКО явным send_message
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
     s._turn_logs = ["ответил пользователю в чат"]
-    s._schedule_auto_report()
-    await asyncio.sleep(0.15)
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
     assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
 
 
@@ -383,3 +388,145 @@ class TestMakeBackendProfileWiring:
         s = self._session(monkeypatch, pipeline="p", profile="ghost")
         b = s._make_backend()
         assert b._config_dir == ""
+# ── Task #39: P0 fixes ──
+
+class TestPersistSingleFlight:
+    @pytest.mark.asyncio
+    async def test_persist_coalesces(self, session, monkeypatch):
+        calls = []
+
+        def slow_save(snapshot):
+            calls.append(dict(snapshot))
+
+        monkeypatch.setattr("app.session.save_session", slow_save)
+        for i in range(5):
+            session.progress_pct = i
+            session._persist()
+        await session._drain_persist()
+        # single-flight: at most current + 1 coalesced write
+        assert len(calls) <= 2
+        # last write reflects the latest state
+        assert calls[-1]["progress_pct"] == 4
+
+    @pytest.mark.asyncio
+    async def test_persist_last_wins(self, session, monkeypatch):
+        from app.session import AgentStatus
+        calls = []
+        monkeypatch.setattr("app.session.save_session", lambda s: calls.append(dict(s)))
+        session.status = AgentStatus.RUNNING
+        session._persist()
+        session.status = AgentStatus.IDLE
+        session._persist()
+        await session._drain_persist()
+        assert calls[-1]["status"] == "idle"
+
+    @pytest.mark.asyncio
+    async def test_persist_survives_db_error(self, session, monkeypatch):
+        calls = []
+
+        def flaky_save(snapshot):
+            calls.append(dict(snapshot))
+            if len(calls) == 1:
+                raise RuntimeError("db locked")
+
+        monkeypatch.setattr("app.session.save_session", flaky_save)
+        session.progress_pct = 1
+        session._persist()
+        await session._drain_persist()
+        # first persist crashed; trigger a second — loop must still work
+        session.progress_pct = 2
+        session._persist()
+        await session._drain_persist()
+        assert len(calls) == 2
+        assert calls[-1]["progress_pct"] == 2
+
+
+class TestCompactGuards:
+    @pytest.mark.asyncio
+    async def test_compact_reentry_guard(self, session):
+        session._compacting = True
+        result = await session.compact()
+        assert result == {"ok": False, "error": "compact already in progress"}
+
+    @pytest.mark.asyncio
+    async def test_compact_ack_bound_to_gen(self, session, monkeypatch):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        session._compact_ack_event = asyncio.Event()
+        session._compact_ack_gen = 5
+
+        # turn_end for a DIFFERENT gen must NOT set the ack event
+        session._turn_gen = 4
+        session.status = AgentStatus.RUNNING
+        session._handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
+        assert not session._compact_ack_event.is_set()
+
+        # turn_end for the matching gen SETS it
+        session._turn_gen = 5
+        session._handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
+        assert session._compact_ack_event.is_set()
+
+
+class TestFlushPendingDefersDuringCompact:
+    @pytest.mark.asyncio
+    async def test_flush_defers_when_compacting(self, session):
+        sent = []
+        backend = AsyncMock()
+        backend.send = AsyncMock(side_effect=lambda m: sent.append(m))
+        session._backend = backend
+        session._compacting = True
+        session._pending_messages = ["queued"]
+        await session._flush_pending()
+        assert sent == []  # deferred — nothing sent during compact
+        assert session._pending_messages == ["queued"]  # still queued
+
+    @pytest.mark.asyncio
+    async def test_flush_requeues_if_compact_grabs_lock(self, session):
+        # Codex diff #P0: flush passed the outer _compacting check, but compact
+        # set the flag + took the lock first. Inside-lock recheck must requeue.
+        sent = []
+        backend = AsyncMock()
+        backend.send = AsyncMock(side_effect=lambda m: sent.append(m))
+        session._backend = backend
+        session._pending_messages = ["m1"]
+        # hold the lifecycle lock as "compact" and flip the flag, then run flush:
+        # flush must observe _compacting inside the lock and requeue without sending
+        await session._lifecycle_lock.acquire()
+        session._compacting = True
+        try:
+            # bypass the outer pre-lock sleep/check by calling the lock body logic:
+            # _flush_pending will block on the lock; release after a tick
+            task = asyncio.create_task(session._flush_pending())
+            await asyncio.sleep(0.4)  # let it pass the 0.3s sleep + hit the lock
+        finally:
+            session._lifecycle_lock.release()
+        await task
+        assert sent == []  # not sent — requeued
+        assert session._pending_messages == ["m1"]
+
+
+class TestEnsureBackendForceFresh:
+    @pytest.mark.asyncio
+    async def test_force_fresh_rebuilds_existing_backend(self, session):
+        # Codex diff #P1: _ensure_backend(force_fresh=True) must rebuild even
+        # when a backend already exists (old one disconnected, fresh one made).
+        old = object()
+        session._backend = old
+        new = AsyncMock()
+        new.connect = AsyncMock()
+        with patch.object(session, "_disconnect_backend", AsyncMock()) as disc, \
+             patch.object(session, "_make_backend", return_value=new) as mk, \
+             patch.object(session, "_claude_event_loop", AsyncMock()), \
+             patch.object(session, "_heartbeat_loop", AsyncMock()):
+            result = await session._ensure_backend(force_fresh=True)
+        disc.assert_awaited_once()
+        mk.assert_called_once_with(force_fresh=True)
+        assert result is new
+
+    @pytest.mark.asyncio
+    async def test_no_force_fresh_reuses_existing(self, session):
+        existing = object()
+        session._backend = existing
+        result = await session._ensure_backend()
+        assert result is existing

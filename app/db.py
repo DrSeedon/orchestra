@@ -391,6 +391,10 @@ def _migrate(c) -> None:
         c.execute("UPDATE sessions SET is_orchestrator = 1 WHERE role IN ('orchestrator', 'sub-orchestrator')")
     if "profile" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN profile TEXT DEFAULT ''")
+    if "owned_dirs" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN owned_dirs TEXT DEFAULT ''")
+    if "tg_topic" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN tg_topic INTEGER DEFAULT 0")
     # Идемпотентный сид профиля 'personal' (config_dir="" → env процесса, как сегодня).
     # INSERT OR IGNORE: повторная миграция не падает и не перетирает существующую строку.
     c.execute("INSERT OR IGNORE INTO profiles (name, config_dir) VALUES ('personal', '')")
@@ -416,6 +420,8 @@ def save_session(s: dict) -> None:
     s.setdefault("pipeline", "")
     s.setdefault("profile", "")
     s.setdefault("mcp_servers_custom", "")
+    s.setdefault("owned_dirs", "")
+    s.setdefault("tg_topic", 0)
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -425,7 +431,7 @@ def save_session(s: dict) -> None:
                 cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
                 template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline,
-                profile)
+                profile, owned_dirs, tg_topic)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
@@ -433,7 +439,7 @@ def save_session(s: dict) -> None:
                 :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
                 :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :pipeline,
-                :profile)
+                :profile, :owned_dirs, :tg_topic)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -463,8 +469,58 @@ def save_session(s: dict) -> None:
                 parent_name=excluded.parent_name,
                 mcp_servers_custom=excluded.mcp_servers_custom,
                 pipeline=excluded.pipeline,
-                profile=excluded.profile
+                profile=excluded.profile,
+                owned_dirs=excluded.owned_dirs,
+                tg_topic=excluded.tg_topic
         """, s)
+
+
+def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) -> dict:
+    """Move an orchestrator's session to a new scope in one transaction.
+
+    Migrates session.scope+cwd, and (best-effort) tm_projects.scope, active
+    bg_jobs.target_scope, and test_lock.scope from old_scope to new_scope.
+    session_id (Claude resume token) is left intact — context survives.
+
+    Rejected if another session with the same name already lives in new_scope
+    (UNIQUE(name, scope)). tm_projects/test_lock migration is skipped on UNIQUE
+    collision (target already taken) but the session move still succeeds.
+    """
+    with _conn() as c:
+        row = c.execute("SELECT name FROM sessions WHERE id=?", (session_id,)).fetchone()
+        if not row:
+            return {"error": f"session not found: {session_id}"}
+        name = row["name"]
+        clash = c.execute(
+            "SELECT 1 FROM sessions WHERE name=? AND scope=? AND id!=? AND status!='archived'",
+            (name, new_scope, session_id),
+        ).fetchone()
+        if clash:
+            return {"error": f"session '{name}' already exists in scope '{new_scope}'"}
+
+        cur = c.execute(
+            "UPDATE sessions SET scope=?, cwd=? WHERE id=? AND scope=?",
+            (new_scope, new_cwd, session_id, old_scope),
+        )
+        if cur.rowcount == 0:
+            return {"error": f"session no longer in scope '{old_scope}' (stale or concurrent move)"}
+
+        tm_migrated = False
+        target_taken = c.execute("SELECT 1 FROM tm_projects WHERE scope=?", (new_scope,)).fetchone()
+        if not target_taken:
+            cur = c.execute("UPDATE tm_projects SET scope=? WHERE scope=?", (new_scope, old_scope))
+            tm_migrated = cur.rowcount > 0
+
+        c.execute(
+            "UPDATE bg_jobs SET target_scope=? WHERE target_scope=? AND status IN ('active','triggering')",
+            (new_scope, old_scope),
+        )
+
+        lock_target_taken = c.execute("SELECT 1 FROM test_lock WHERE scope=?", (new_scope,)).fetchone()
+        if not lock_target_taken:
+            c.execute("UPDATE test_lock SET scope=? WHERE scope=?", (new_scope, old_scope))
+
+        return {"ok": True, "scope": new_scope, "cwd": new_cwd, "tm_project_migrated": tm_migrated}
 
 
 def get_session(session_id: str) -> dict | None:
@@ -561,8 +617,9 @@ def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
         return cur.lastrowid
 
 
-def get_logs(session_id: str, after_id: int = 0, limit: int = 5000) -> list[dict]:
-    with _conn() as c:
+def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -> list[dict]:
+    c = conn or _conn()
+    try:
         if after_id > 0:
             rows = c.execute(
                 "SELECT * FROM logs WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
@@ -575,6 +632,9 @@ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000) -> list[dict
                 (session_id, limit),
             ).fetchall()
             return [dict(r) for r in reversed(rows)]
+    finally:
+        if conn is None:
+            c.close()
 
 
 def get_logs_before(session_id: str, before_id: int, limit: int = 500) -> list[dict]:
@@ -632,40 +692,14 @@ def get_stats(scope: str | None = None) -> dict:
         }
 
 
-def get_orchestrators() -> list[dict]:
+def cleanup_old_logs(days: int = 7) -> int:
     with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM sessions WHERE (is_orchestrator = 1 OR role IN ('orchestrator', 'sub-orchestrator')) "
-            "AND status IN ('starting', 'running', 'idle')"
-        ).fetchall()
-        return [dict(r) for r in rows]
-
-
-def get_resumable_orchestrators() -> list[dict]:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cur = c.execute("DELETE FROM logs WHERE ts < ?", (cutoff,))
+        deleted = cur.rowcount
     with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM sessions WHERE (is_orchestrator = 1 OR role IN ('orchestrator', 'sub-orchestrator')) "
-            "AND session_id IS NOT NULL AND status IN ('running', 'idle')"
-        ).fetchall()
-        return [dict(r) for r in rows]
-
-
-def mark_stale_sessions(exclude_ids: list[str]) -> int:
-    with _conn() as c:
-        if exclude_ids:
-            placeholders = ",".join("?" * len(exclude_ids))
-            cur = c.execute(
-                f"UPDATE sessions SET status = 'error' "
-                f"WHERE status = 'running' AND is_orchestrator = 0 "
-                f"AND id NOT IN ({placeholders})",
-                exclude_ids,
-            )
-        else:
-            cur = c.execute(
-                "UPDATE sessions SET status = 'error' "
-                "WHERE status = 'running' AND is_orchestrator = 0"
-            )
-        return cur.rowcount
+        c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    return deleted
 
 
 def add_inbox(session_id: str, sender: str, message: str) -> int:

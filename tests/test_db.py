@@ -226,89 +226,6 @@ class TestLogs:
         assert types == {"text", "tool", "error", "status", "user_message", "notification"}
 
 
-class TestOrchestrators:
-    def test_returns_only_orchestrators(self, db, sample_session):
-        from app.db import save_session, get_orchestrators
-        save_session(sample_session)
-        orch = {
-            **sample_session,
-            "id": "orch-uuid",
-            "name": "orchestrator",
-            "is_orchestrator": True,
-            "session_id": "sdk-session-123",
-            "status": "idle",
-        }
-        save_session(orch)
-        result = get_orchestrators()
-        assert len(result) == 1
-        assert result[0]["name"] == "orchestrator"
-
-    def test_excludes_stopped(self, db, sample_session):
-        from app.db import save_session, get_orchestrators
-        orch = {
-            **sample_session,
-            "id": "orch-uuid",
-            "name": "orchestrator",
-            "is_orchestrator": True,
-            "session_id": "sdk-session-123",
-            "status": "stopped",
-        }
-        save_session(orch)
-        assert len(get_orchestrators()) == 0
-
-    def test_includes_no_session_id(self, db, sample_session):
-        from app.db import save_session, get_orchestrators
-        orch = {
-            **sample_session,
-            "id": "orch-uuid",
-            "name": "orchestrator",
-            "is_orchestrator": True,
-            "session_id": None,
-            "status": "idle",
-        }
-        save_session(orch)
-        assert len(get_orchestrators()) == 1
-
-    def test_resumable_excludes_no_session_id(self, db, sample_session):
-        from app.db import save_session, get_resumable_orchestrators
-        orch = {
-            **sample_session,
-            "id": "orch-uuid",
-            "name": "orchestrator",
-            "is_orchestrator": True,
-            "session_id": None,
-            "status": "idle",
-        }
-        save_session(orch)
-        assert len(get_resumable_orchestrators()) == 0
-
-
-class TestMarkStaleSessions:
-    def test_marks_running_non_orchestrators(self, db, sample_session):
-        from app.db import save_session, mark_stale_sessions, get_session
-        running = {**sample_session, "status": "running"}
-        save_session(running)
-        count = mark_stale_sessions(exclude_ids=[])
-        assert count == 1
-        got = get_session(sample_session["id"])
-        assert got["status"] == "error"
-
-    def test_excludes_given_ids(self, db, sample_session):
-        from app.db import save_session, mark_stale_sessions, get_session
-        running = {**sample_session, "status": "running"}
-        save_session(running)
-        count = mark_stale_sessions(exclude_ids=[sample_session["id"]])
-        assert count == 0
-        assert get_session(sample_session["id"])["status"] == "running"
-
-    def test_skips_orchestrators(self, db, sample_session):
-        from app.db import save_session, mark_stale_sessions, get_session
-        orch = {**sample_session, "status": "running", "is_orchestrator": True}
-        save_session(orch)
-        count = mark_stale_sessions(exclude_ids=[])
-        assert count == 0
-
-
 class TestStats:
     def test_aggregation(self, db, sample_session):
         from app.db import save_session, get_stats, add_log
@@ -636,3 +553,109 @@ class TestProfilesCRUD:
             delete_profile("personal")
         # сид остаётся на месте
         assert get_profile("personal") is not None
+class TestChangeScope:
+    def _orch(self, scope="/old/proj", name="orch", sid="orch-uuid-1"):
+        return {
+            "id": sid, "name": name, "scope": scope, "cwd": scope,
+            "model": "claude-opus-4-8", "system_prompt": "orch",
+            "status": "idle", "session_id": "sdk-abc", "cost_usd": 0.0,
+            "worktree_path": None, "branch": None, "is_orchestrator": True,
+            "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None, "role": "orchestrator",
+        }
+
+    def test_updates_scope_and_cwd(self, db):
+        from app.db import save_session, get_session, change_scope
+        save_session(self._orch())
+        res = change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+        assert res["ok"] is True
+        got = get_session("orch-uuid-1")
+        assert got["scope"] == "/new/proj"
+        assert got["cwd"] == "/new/proj"
+
+    def test_session_id_preserved(self, db):
+        from app.db import save_session, get_session, change_scope
+        save_session(self._orch())
+        change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+        got = get_session("orch-uuid-1")
+        assert got["session_id"] == "sdk-abc"  # context resume token intact
+
+    def test_name_collision_in_target_scope_rejected(self, db):
+        from app.db import save_session, get_session, change_scope
+        save_session(self._orch(scope="/old/proj", name="orch", sid="A"))
+        # another agent with same name already lives in target scope
+        save_session(self._orch(scope="/new/proj", name="orch", sid="B"))
+        res = change_scope("A", "/old/proj", "/new/proj", "/new/proj")
+        assert res.get("ok") is not True
+        assert "error" in res
+        # original untouched (rolled back)
+        assert get_session("A")["scope"] == "/old/proj"
+
+    def test_migrates_tm_project_scope(self, db):
+        from app.db import save_session, change_scope, _conn
+        from app.tm import ensure_project
+        save_session(self._orch())
+        with _conn() as c:
+            ensure_project(c, "proj1", scope="/old/proj", prefix="OLD")
+            c.commit()
+        change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+        with _conn() as c:
+            row = c.execute("SELECT scope FROM tm_projects WHERE id='proj1'").fetchone()
+        assert row["scope"] == "/new/proj"
+
+    def test_tm_project_collision_keeps_session_change(self, db):
+        from app.db import save_session, change_scope, get_session, _conn
+        from app.tm import ensure_project
+        save_session(self._orch())
+        with _conn() as c:
+            ensure_project(c, "p_old", scope="/old/proj", prefix="OLD")
+            ensure_project(c, "p_new", scope="/new/proj", prefix="NEW")
+            c.commit()
+        # tm_projects.scope is UNIQUE — target taken. Session scope must still change.
+        res = change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+        assert res["ok"] is True
+        assert get_session("orch-uuid-1")["scope"] == "/new/proj"
+        with _conn() as c:
+            old = c.execute("SELECT scope FROM tm_projects WHERE id='p_old'").fetchone()
+        assert old["scope"] == "/old/proj"  # not migrated (collision)
+        assert res.get("tm_project_migrated") is False
+
+    def test_migrates_active_bg_jobs(self, db):
+        from app.db import save_session, change_scope, bg_save_job, _conn
+        save_session(self._orch())
+        now = datetime.now(timezone.utc)
+        common = {
+            "config": "{}", "message": "", "target_session_id": "orch-uuid-1",
+            "target_name": "orch", "target_scope": "/old/proj", "created_by_name": "",
+            "expires_at": (now + timedelta(hours=1)).isoformat(),
+            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+        }
+        bg_save_job({**common, "id": "j-active", "type": "timer", "status": "active"})
+        bg_save_job({**common, "id": "j-done", "type": "timer", "status": "triggered"})
+        change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+        with _conn() as c:
+            a = c.execute("SELECT target_scope FROM bg_jobs WHERE id='j-active'").fetchone()
+            d = c.execute("SELECT target_scope FROM bg_jobs WHERE id='j-done'").fetchone()
+        assert a["target_scope"] == "/new/proj"
+        assert d["target_scope"] == "/old/proj"  # terminal job not migrated
+
+    def test_migrates_test_lock(self, db):
+        from app.db import save_session, change_scope, acquire_test_lock, get_test_lock
+        save_session(self._orch())
+        acquire_test_lock("/old/proj", "orch", "running suite")
+        change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+        assert get_test_lock("/old/proj") is None
+        moved = get_test_lock("/new/proj")
+        assert moved is not None and moved["holder"] == "orch"
+
+    def test_stale_old_scope_rejected(self, db):
+        # session already moved to /new/proj; a retried request with stale
+        # old_scope=/old/proj must NOT partially migrate related tables.
+        from app.db import save_session, change_scope, get_session, acquire_test_lock, get_test_lock
+        save_session(self._orch(scope="/new/proj"))  # already in target
+        acquire_test_lock("/new/proj", "orch", "x")
+        res = change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+        assert res.get("ok") is not True
+        assert "error" in res
+        assert get_session("orch-uuid-1")["scope"] == "/new/proj"  # untouched
+        assert get_test_lock("/new/proj") is not None  # lock not orphaned

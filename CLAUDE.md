@@ -54,6 +54,7 @@ sudo systemctl status orchestra
 - **НЕ рестартить сервер при изменении фронта** (JS/CSS/HTML) — статика подтягивается автоматически. Рестарт только при изменении Python-кода
 - **sudo без пароля** для `systemctl restart/stop/start/status orchestra` и `telegram-bot-api` — можно рестартить сервер самому через `sudo systemctl restart orchestra`
 - **НЕ рестартить сервер самостоятельно** — только по явной команде юзера ("ок", "рестартни", "перезапусти"). Ребут убивает все активные сессии агентов
+- **Рестарт безопасен** — сессии персистентные (SQLite), auto_resume_all поднимает агентов. Контекст НЕ теряется. Активные turns прерываются, но idle воркеры восстанавливаются
 - **НЕ обновлять VPS самостоятельно** — git pull, systemctl restart на VPS делает только юзер вручную. Не пушить и не деплоить на VPS без команды
 - **TG /restart** — команда в TG группе для рестарта Orchestra
 - **Воркеры могут общаться друг с другом** через `send_message(to="worker-name")`. Пример: backend воркер добавил endpoint → пишет frontend-opus чтобы тот добавил кнопку. Оркестратор не нужен как посредник для координации между воркерами
@@ -62,6 +63,41 @@ sudo systemctl status orchestra
 - **Max 20x subscription ($200/мес)** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
 - API цены (для калькуляции): Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 per M tokens
 - Не паниковать от "$172 на оркестратора" — monopoly money. Оптимизировать КАЧЕСТВО, не стоимость
+
+## AI Efficiency (design principle)
+Orchestra automates humans — but the AI agents themselves must be optimized too.
+Every feature should minimize agent overhead: fewer tool calls, less context waste, less repetition.
+
+**Design for AI, not humans:**
+- If an agent does the same 3 tool calls every time → automate into 1 MCP tool or server-side logic
+- If agents waste context reading the same files → pre-inject via system prompt or worktree setup
+- If a pattern causes context rot (agent re-reads, re-explains, loops) → fix the root cause, don't add more instructions
+- Measure cost-per-task, not just "does it work". $2 task done in 3 tool calls > $8 task done in 30 tool calls
+- Prompt engineering = agent optimization. Shorter, clearer prompts = fewer confused retries = less $ burned
+- Every new feature ask: "does this reduce total agent tool calls/tokens across typical workflows?"
+
+**Anti-patterns to avoid:**
+- Agent reads entire file when it needs 5 lines → give it grep/line-range hints
+- Agent asks orchestrator for permission it could decide itself → expand decision tree
+- Agent retries failed command 5 times → fail fast, report, let orchestrator decide
+- Two agents duplicate work because they don't know about each other → worker-to-worker communication
+- Agent spends 20 tool calls on setup that could be pre-configured → inject at spawn time
+
+## Agent Determinism (design principle)
+Агенты должны быть ПРЕДСКАЗУЕМЫМИ. Один путь, один маршрут, минимум свободы.
+
+**Правила проектирования промптов и тулов:**
+- **1 задача = 1 workflow.** Не давать агенту 3 способа сделать одно и то же — он выберет худший. Один оптимальный маршрут, жёстко прописанный
+- **Минимум тулов.** Каждый лишний тул = развилка где агент может свернуть не туда. Давать ТОЛЬКО те тулы которые нужны для конкретной роли
+- **Decision tree > свобода.** Вместо "реши сам" — чёткое дерево решений: если X → делай A, если Y → делай B. Агент не должен "думать" о стратегии
+- **Fail loud, не fail creative.** Если что-то не получилось — СТОП + report_bug + сообщение оркестратору. НЕ пытаться "обойти" проблему креативно, НЕ молча бросать задачу
+- **Баг = запись.** Любая ошибка/неожиданное поведение → `report_bug()`. Не "ой ладно попробую по-другому". Даже если агент обошёл проблему — баг должен быть записан
+- **Нет импровизации в проде.** Агент следует промпту буквально. Если промпт не покрывает ситуацию — спросить оркестратора, а не выдумывать
+
+**При разработке новых ролей/промптов:**
+- Тестировать: "может ли агент пойти не тем путём?" Если да — сузить промпт
+- Каждый edge case в промпте = потенциальная развилка. Лучше 3 конкретных правила чем 1 "умное" обобщение
+- Логировать когда агент отклоняется от ожидаемого пути → добавлять guardrails
 
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool

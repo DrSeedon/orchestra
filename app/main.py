@@ -28,6 +28,7 @@ from app.db import (
 from app.pipeline import list_pipelines
 from app.manager import SessionManager
 from app.models import resolve_model, MODELS
+from app.session import AgentStatus
 
 manager = SessionManager()
 templates = Jinja2Templates(directory="app/templates")
@@ -38,7 +39,7 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     init_db()
-    await manager.auto_resume_orchestrators()
+    await manager.auto_resume_all()
     manager.start_background_tasks()
     from app.bg_jobs import bg_manager
     bg_manager.set_session_manager(manager)
@@ -109,6 +110,8 @@ class CreateSessionRequest(BaseModel):
     mcp_servers: dict = {}
     pipeline: str = ""
     profile: str = ""
+    owned_dirs: list[str] = []
+    tg_topic: bool = False
 
     @field_validator("name")
     @classmethod
@@ -159,6 +162,12 @@ class TestLockRequest(BaseModel):
     scope: str
     holder: str
     reason: str = ""
+
+
+class ChangeScopeRequest(BaseModel):
+    old_scope: str
+    new_scope: str
+    new_cwd: Optional[str] = None
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -273,7 +282,12 @@ def _is_safe_path(path: str) -> bool:
         resolved = str(p)
     except (ValueError, OSError):
         return False
-    if not any(resolved.startswith(root) for root in _get_allowed_roots()):
+    def _within(root: str) -> bool:
+        try:
+            return os.path.commonpath([os.path.realpath(root), resolved]) == os.path.realpath(root)
+        except (ValueError, OSError):
+            return False
+    if not any(_within(root) for root in _get_allowed_roots()):
         return False
     home = str(Path.home())
     for part in p.parts:
@@ -370,6 +384,12 @@ async def list_files(path: str):
     return items
 
 
+@app.get("/api/role-icons")
+async def role_icons():
+    from app.manager import get_role_icons
+    return get_role_icons()
+
+
 @app.get("/api/sessions")
 async def list_sessions(scope: Optional[str] = None):
     return manager.list_sessions(scope)
@@ -398,8 +418,13 @@ async def create_session(req: CreateSessionRequest):
             mcp_servers=req.mcp_servers,
             pipeline=req.pipeline,
             profile=req.profile,
+            owned_dirs=req.owned_dirs,
+            tg_topic=req.tg_topic,
         )
-        return session.to_dict()
+        d = session.to_dict()
+        if session._spawn_warning:
+            d["spawn_warning"] = session._spawn_warning
+        return d
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=409)
     except sqlite3.IntegrityError:
@@ -508,21 +533,28 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     async def event_generator():
+        from app.db import _conn
         last_id = after_id
         initial = True
-        while True:
-            if await request.is_disconnected():
-                return
-            if initial and after_id == 0:
-                logs = get_logs_before(session_id, before_id=2**31 - 1, limit=limit)
-                initial = False
-            else:
-                logs = get_logs(session_id, after_id=last_id)
-                initial = False
-            for log in logs:
-                yield f"data: {json.dumps(log)}\n\n"
-                last_id = log["id"]
-            await asyncio.sleep(0.5)
+        idle_ticks = 0
+        c = _conn()
+        try:
+            while True:
+                if await request.is_disconnected():
+                    return
+                if initial and after_id == 0:
+                    logs = get_logs_before(session_id, before_id=2**31 - 1, limit=limit)
+                    initial = False
+                else:
+                    logs = get_logs(session_id, after_id=last_id, conn=c)
+                    initial = False
+                for log in logs:
+                    yield f"data: {json.dumps(log)}\n\n"
+                    last_id = log["id"]
+                idle_ticks = 0 if logs else idle_ticks + 1
+                await asyncio.sleep(0.5 if idle_ticks < 4 else 3.0)
+        finally:
+            c.close()
     return StreamingResponse(event_generator(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -583,8 +615,8 @@ async def restart_cli(name: str, req: ScopeRequest):
         session = await manager.ensure_loaded_any(name)
     if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
-    await session._disconnect_client()
-    session.status = session.status.__class__("idle")
+    await session._disconnect_backend()
+    session.status = AgentStatus.IDLE
     session._persist()
     return {"ok": True}
 
@@ -624,6 +656,25 @@ async def update_description(name: str, req: dict):
         with _conn() as c:
             c.execute("UPDATE sessions SET description=? WHERE id=?", (desc, sid))
     return {"ok": True}
+
+
+@app.post("/api/sessions/{name}/tg_topic")
+async def update_tg_topic(name: str, req: dict):
+    scope = req.get("scope", "")
+    enabled = bool(req.get("enabled", False))
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sid = found["id"] if isinstance(found, dict) else found.id
+    session = manager.sessions.get(sid)
+    if session:
+        session.tg_topic = enabled
+        session._persist()
+    else:
+        from app.db import _conn
+        with _conn() as c:
+            c.execute("UPDATE sessions SET tg_topic=? WHERE id=?", (int(enabled), sid))
+    return {"ok": True, "tg_topic": enabled}
 
 
 @app.post("/api/sessions/{name}/prompt")
@@ -760,7 +811,7 @@ async def merge_session(name: str, req: dict):
         return JSONResponse({"error": "session has no scope"}, status_code=400)
     async with manager.get_session_lock(session_id):
         try:
-            result = merge_worktree_to_main(worktree_path, scope, target_branch=target)
+            result = await asyncio.to_thread(merge_worktree_to_main, worktree_path, scope, target_branch=target)
             if result.get("ok"):
                 link_results = {}
                 for task_ref, commits in result.pop("merged_commits", {}).items():
@@ -802,7 +853,7 @@ async def switch_branch(name: str, req: dict):
     from_ref = req.get("from_ref", "refs/heads/main")
     async with manager.get_session_lock(session_id):
         try:
-            result = switch_worktree_branch(worktree_path, new_branch, from_ref=from_ref)
+            result = await asyncio.to_thread(switch_worktree_branch, worktree_path, new_branch, from_ref=from_ref)
             if not isinstance(found, dict):
                 if result.get("ok") or result.get("branch"):
                     found.branch = result.get("branch", new_branch)
@@ -815,6 +866,43 @@ async def switch_branch(name: str, req: dict):
             return result
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/sessions/{name}/wip")
+async def session_wip(name: str, scope: str = "", base_ref: str = "refs/heads/main"):
+    from app.workspace import branch_wip_status
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+    if not worktree_path:
+        return JSONResponse({"error": "session has no worktree"}, status_code=400)
+    try:
+        return branch_wip_status(worktree_path, base_ref=base_ref)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/sessions/check-conflict")
+async def check_conflict_endpoint(req: dict):
+    from app.workspace import simulate_conflict
+    scope = req.get("scope", "")
+    name_a = req.get("worker_a", "")
+    name_b = req.get("worker_b", "")
+    a = manager.get_by_name(name_a, scope)
+    b = manager.get_by_name(name_b, scope)
+    if not a or not b:
+        missing = name_a if not a else name_b
+        return JSONResponse({"error": f"worker '{missing}' not found"}, status_code=404)
+    wt_a = a.get("worktree_path") if isinstance(a, dict) else a.worktree_path
+    branch_a = a.get("branch") if isinstance(a, dict) else a.branch
+    branch_b = b.get("branch") if isinstance(b, dict) else b.branch
+    if not wt_a or not branch_a or not branch_b:
+        return JSONResponse({"error": "both workers must have a worktree and branch"}, status_code=400)
+    try:
+        return simulate_conflict(wt_a, branch_a, branch_b)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.post("/api/sessions/{name}/progress")
@@ -1074,8 +1162,10 @@ async def list_orchestrators():
     db_orchs = [s for s in get_all_sessions() if is_orchestrator_role(s.get("role", "worker")) and s["id"] not in active_ids]
     result = active + db_orchs
     running_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "running"}
+    waiting_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "waiting"}
     for o in result:
         o["any_running"] = o.get("scope", "") in running_scopes
+        o["any_waiting"] = o.get("scope", "") in waiting_scopes
     return result
 
 
@@ -1083,6 +1173,19 @@ async def list_orchestrators():
 async def delete_orchestrator(name: str, scope: str, delete_tg_topics: bool = False):
     result = await manager.remove_scope(scope, delete_tg_topics=delete_tg_topics)
     return {"ok": True, **result}
+
+
+@app.post("/api/orchestrators/{name}/change-scope")
+async def change_orchestrator_scope_endpoint(name: str, req: ChangeScopeRequest):
+    new_scope = req.new_scope.rstrip("/")
+    new_cwd = (req.new_cwd or req.new_scope).rstrip("/")
+    if not _is_safe_path(new_scope) or not _is_safe_path(new_cwd):
+        return JSONResponse({"error": "path not in allowed roots"}, status_code=403)
+    result = await manager.change_orchestrator_scope(
+        name, req.old_scope.rstrip("/"), new_scope, new_cwd)
+    if result.get("error"):
+        return JSONResponse(result, status_code=409)
+    return result
 
 
 @app.get("/api/test-lock")

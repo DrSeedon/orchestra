@@ -48,7 +48,10 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
             return None
         if r.status_code >= 400:
             return {"error": r.text}
-        return r.json()
+        try:
+            return r.json()
+        except Exception as e:
+            return {"error": f"invalid JSON response (status={r.status_code}): {r.text[:200]}"}
 
 
 @mcp.tool()
@@ -59,10 +62,14 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        description: str = "",
                        base_branch: str = "",
                        role: str = "worker",
-                       mcp_servers: str = "") -> str:
+                       mcp_servers: str = "",
+                       owned_dirs: str = "",
+                       tg_topic: bool = False) -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
     base_branch — от какой ветки ответвить worktree воркера. Пусто ("") = авто по стратегии пайплайна (parent → от ветки родителя, иначе main); явно указанная ветка переопределяет стратегию.
-    mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт."""
+    mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
+    owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → предупреждение (НЕ блок).
+    tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-8[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
     scope = SCOPE or repo_path
@@ -84,17 +91,32 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                 return "Error: mcp_servers must be a JSON object, e.g. {\"playwright\": {\"command\": \"npx\", \"args\": [...]}}"
         except json.JSONDecodeError as e:
             return f"Error: mcp_servers is not valid JSON: {e}"
+    if owned_dirs:
+        import json
+        try:
+            parsed = json.loads(owned_dirs)
+            if isinstance(parsed, list):
+                body["owned_dirs"] = parsed
+            else:
+                return "Error: owned_dirs must be a JSON array, e.g. [\"app/api/\", \"app/models/\"]"
+        except json.JSONDecodeError as e:
+            return f"Error: owned_dirs is not valid JSON: {e}"
     if task_id:
         body["task_id"] = task_id
     if description:
         body["description"] = description
+    if tg_topic:
+        body["tg_topic"] = True
     result = await _api("POST", "/api/sessions", json=body)
     if isinstance(result, dict) and result.get("error"):
         return f"Spawn failed: {result['error']}"
     await _api("POST", f"/api/sessions/{name}/send", json={
         "message": task, "scope": scope,
     })
-    return f"Worker '{name}' spawned. Model: {model}. Task sent."
+    out = f"Worker '{name}' spawned. Model: {model}. Task sent."
+    if isinstance(result, dict) and result.get("spawn_warning"):
+        out += f"\n⚠️ {result['spawn_warning']}"
+    return out
 
 
 @mcp.tool()
@@ -159,10 +181,11 @@ async def list_agents() -> str:
     if not sessions:
         return "No agents"
     lines = []
-    _ROLE_ICONS = {"orchestrator": "🎯", "sub-orchestrator": "🎯", "reviewer": "🔍", "watcher": "👁️"}
+    icons_data = await _api("GET", "/api/role-icons")
+    _icons = icons_data if isinstance(icons_data, dict) else {}
     for s in sessions:
         r = s.get("role", "worker")
-        role = _ROLE_ICONS.get(r, "⚙️")
+        role = _icons.get(r, "⚙️")
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
@@ -267,13 +290,22 @@ async def list_jobs() -> str:
 @mcp.tool()
 async def send_file(path: str, caption: str = "", as_document: bool = False) -> str:
     """Send a file to the user via Telegram. Path must be absolute. Images are sent as inline photos by default; set as_document=True to force file attachment."""
-    result = await _api("POST", "/api/tg/send_file", json={
-        "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
-        "as_document": as_document,
-    })
-    if isinstance(result, dict) and result.get("error"):
+    try:
+        result = await _api("POST", "/api/tg/send_file", json={
+            "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
+            "as_document": as_document,
+        })
+    except Exception as e:
+        return f"Send failed: network error: {e}"
+    if not isinstance(result, dict):
+        return f"Send failed: unexpected response type={type(result).__name__} value={result!r}"
+    if result.get("error"):
         return f"Send failed: {result['error']}"
-    return f"File sent to TG: {path}"
+    if result.get("ok"):
+        msg_id = result.get("message_id")
+        chat_id = result.get("chat_id")
+        return f"File sent to TG: {path} (msg_id={msg_id} chat_id={chat_id})"
+    return f"Send failed: unexpected response (no ok/error): {result!r}"
 
 
 @mcp.tool()
@@ -300,8 +332,8 @@ async def change_worker_model(name: str, model: str) -> str:
 
 @mcp.tool()
 async def merge_worker(name: str, target: str = "main") -> str:
-    """Merge a worker's branch into target branch (default main). Кодер: воркер этапа -> ветка фичи (target=feature/<...>). Мерж фичи в main — отдельно, по согласованию с PM/пользователем. Returns commit count or conflict file list."""
-    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE, "target": target})
+    """Merge a worker's branch into target branch (default main). Always squash — one clean commit per task. Returns commit count or conflict file list."""
+    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE, "target": target, "squash": True})
     if isinstance(result, dict) and result.get("error"):
         return f"Merge failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):
@@ -336,6 +368,45 @@ async def switch_worker_branch(name: str, task_id: str, from_ref: str = "refs/he
     if isinstance(result, dict) and result.get("conflicts"):
         return f"Merge conflict with main on: {', '.join(result['conflicts'])}"
     return f"Switch result: {result}"
+
+
+@mcp.tool()
+async def check_conflict(worker_a: str, worker_b: str) -> str:
+    """Dry-run: would merging these two workers' branches conflict? Both must have committed work.
+    Use to decide merge order or whether two parallel workers collided. No changes made."""
+    result = await _api("POST", "/api/sessions/check-conflict",
+                        json={"scope": SCOPE, "worker_a": worker_a, "worker_b": worker_b})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Check failed: {result['error']}"
+    if isinstance(result, dict) and result.get("ok"):
+        conflicts = result.get("conflicts", [])
+        if conflicts:
+            return f"⚠️ {worker_a} and {worker_b} would CONFLICT in: {', '.join(conflicts)}"
+        return f"✅ No conflict between {worker_a} and {worker_b} — safe to merge both"
+    return f"Cannot simulate: {result.get('error', 'unknown') if isinstance(result, dict) else result}"
+
+
+@mcp.tool()
+async def worker_wip(name: str, base_ref: str = "refs/heads/main") -> str:
+    """Show a worker's WIP: uncommitted files + unmerged commits. Call before resuming to see what's left.
+    base_ref default refs/heads/main — pass the worker's actual base branch if it was spawned from a feature branch."""
+    result = await _api("GET", f"/api/sessions/{name}/wip",
+                        params={"scope": SCOPE, "base_ref": base_ref})
+    if isinstance(result, dict) and result.get("error"):
+        return f"WIP check failed: {result['error']}"
+    if not isinstance(result, dict):
+        return f"WIP result: {result}"
+    uncommitted = result.get("uncommitted", [])
+    unmerged = result.get("unmerged_commits", [])
+    if not uncommitted and not unmerged:
+        return f"'{name}': clean — no uncommitted changes, no unmerged commits (vs {base_ref})"
+    parts = [f"WIP for '{name}' (vs {base_ref}):"]
+    if uncommitted:
+        parts.append(f"  Uncommitted ({len(uncommitted)}): " + ", ".join(uncommitted[:20]))
+    if unmerged:
+        parts.append(f"  Unmerged commits ({len(unmerged)}):")
+        parts.extend(f"    - {s}" for s in unmerged[:20])
+    return "\n".join(parts)
 
 
 @mcp.tool()
@@ -577,11 +648,9 @@ async def codex_review(
 
     if mode == "review":
         cmd = (
-            f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{review_prompt}\nCODEX_PROMPT_EOF\n"
-            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
+            f"cd {cwd} && HTTPS_PROXY= HTTP_PROXY= UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --ephemeral"
             f" -o {output_abs}"
-            f" - < {prompt_file}"
         )
     elif mode == "exec":
         if not target:
@@ -596,7 +665,7 @@ async def codex_review(
 
         cmd = (
             f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{exec_prompt}\nCODEX_PROMPT_EOF\n"
-            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
+            f"cd {cwd} && HTTPS_PROXY= HTTP_PROXY= UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
             f" -s workspace-write --skip-git-repo-check --full-auto --ephemeral"
             f" -o {output_abs}"
             f" - < {prompt_file}"
@@ -604,19 +673,24 @@ async def codex_review(
     else:
         return f"Error: unknown mode '{mode}'. Use 'review' or 'exec'."
 
+    logger.info(f"codex_review: mode={mode} cwd={cwd} output={output_abs} cmd={cmd[:300]}")
     result = await _api("POST", "/api/bg/jobs", json={
         "type": "run",
         "config": {"command": cmd},
         "message": f"Codex {mode} done. Results in {output}",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
-        "timeout_seconds": 600,
+        "timeout_seconds": 300,
         "created_by": WORKER_NAME,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Error creating bg job: {result['error']}"
     job_id = result.get("id", "?")
-    return f"Codex {mode} started (bg job {job_id}). You'll be notified when done. Results → {output}"
+    return (
+        f"Codex {mode} started (bg job {job_id}, 5-min timeout). "
+        f"You WILL be notified on success, timeout, or failure — do NOT poll, just wait. "
+        f"On success: read {output}. Do not start another codex_review until this one reports back."
+    )
 
 
 if __name__ == "__main__":

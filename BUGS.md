@@ -1,29 +1,35 @@
-# Orchestra Bug Reports (from agents)
+# Orchestra Bug Reports
 
 ## Open
 
-### merge_worker fails with "unrelated histories" for separate repos
-- **Reporter:** Parsing-orchestrator (2026-05-19)
-- Worktree created from parent project's git, but worker pushes to separate repo → fatal
-- **Workaround:** push to master directly, skip merge_worker
-
-### send_message к idle воркерам возвращает 500 после рестарта
+### 🔴 send_message 500 после рестарта
 - **Reporter:** Parsing-orchestrator (2026-05-26)
-- После restart, send_message к существующим idle воркерам = 500. Свежие воркеры работают
-- Фиксы в main.py (global exception handler, ensure_loaded в try/except) не помогли — ошибка до HTTP слоя
+- send_message к idle воркерам = 500 после restart Orchestra. Свежие воркеры работают
 - **Workaround:** respawn воркера
+- **Assignee:** backend
 
-## Fixed (v2.8.0)
+### 🟡 Worker DONE report уходит parent_name вместо task giver
+- **Reporter:** seedon-orchestrator (2026-05-31)
+- Воркер спавнен orchestrator-A, задачу дал orchestrator-B через send_message. DONE уходит к A (parent)
+- **Assignee:** нет
 
-- ~~Worktree .git → несуществующий путь seedon-site~~ — одноразовый баг после rename
-- ~~Codex zombie 7-9 часов~~ — heartbeat + finally в codex_turn_loop (#11)
-- ~~Compact running crash~~ — guard + disabled button (#12)
-- ~~report_bug permission denied~~ — через API endpoint (#13)
-- ~~TG иконка ⚡→☕️ не возвращалась~~ — turn ended лог (#14)
-- ~~cost_usd overcounting x85~~ — CLI cumulative vs delta fix
-- ~~TG сообщения обрезались молча~~ — _split_message chunking
-- ~~TG flood теряет сообщения~~ — retry + priority system
+### 🟡 Ambiguous task linking: один номер таска в двух проектах
+- **Reporter:** dev-lead (2026-05-31)
+- link_commits_to_task не передаёт project-фильтр → ambiguity warning, коммиты не привязаны
+- **Severity:** low
 
-## Fixed (v2.9.0)
+### 🟡 payment_receive amount в тысячах — теряются дробные (500₽)
+- **Reporter:** ParsingMaxim (2026-06-01)
+- 29.5k невозможно передать, округляется до 29k
+- **Severity:** low
 
-- ~~task_update "Balance mismatch" crash~~ — `_sanity_check` now warns instead of crashing. Root cause: mass task deletion left orphaned allocations → computed vs stored divergence
+## Closed (2026-06-01)
+
+- ✅ **codex_review output path** — решено: Codex через bash (cwd=worktree), не через MCP bg job
+- ✅ **codex_review exec never writes output** — root cause: bg job timeout → no notification. Fixed in #41
+- ✅ **Codex Reconnecting через прокси** — root cause: HTTPS_PROXY inherited. Fixed: strip proxy env
+- ✅ **Deepgram SSL BAD_RECORD_MAC** — root cause: aiohttp trust_env=True + VLESS. Fixed: trust_env=False + certifi
+- ✅ **send_file silent false-positive** — Fixed: validate TG response, explicit error
+- ✅ **kill_worker удаляет логи** — Fixed: archive_session instead of delete_session
+- ✅ **Zombie workers after restart** — Fixed: auto_resume_all filters archived
+- ✅ **Merge конфликт после squash** — Fixed: auto-reset worktree after merge (#38)

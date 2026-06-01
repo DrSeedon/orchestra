@@ -1,5 +1,193 @@
 # Changelog
 
+## v2.16.0 — 2026-06-01
+
+### Fixed
+- 🐛 **Zombie workers after restart** — `auto_resume_all` flipped ALL non-idle rows to idle, including archived. Killed workers resurrected every restart. Fix: only flip `running`/`waiting` → `idle`, leave `archived` alone
+- 🐛 **Deepgram SSL BAD_RECORD_MAC** — aiohttp 3.13+ defaults trust_env=True → picks up VLESS proxy → TLS record corruption. Fix: explicit trust_env=False + ssl=certifi
+- 🐛 **Codex through proxy → Reconnecting 5/5** — Codex CLI inherited HTTPS_PROXY (VPS tunnel) → OpenAI API unreachable. Fix: strip proxy env from codex commands
+- 🐛 **User message duplication** — pending bubble not cleaned after SSE delivers real message. Fix: track finalized bubble ref
+- 🐛 **send_file silent false-positive** — returned "File sent to TG" on non-JSON TG response. Fix: validate response, explicit error on failure
+- 🐛 **Tinyproxy MaxClients exhaustion** — old VPS Tunnel (12338) connections filled Tinyproxy pool. Fix: MaxClients 50→200, Timeout 600→120
+
+### Added
+- 🔧 **SSH tunnels in lifespan** — 3 SSH tunnel proxies (Ёжик/Timeweb/Fornex) start/auto-restart from Orchestra lifespan via SSH_TUNNELS env. No separate systemd services needed
+- 📋 **Prompt best practices** — Codex bash-primary (not MCP), orchestrator merge/kill safety (worker_wip before kill, cherry-pick on conflict), codex-review module rewritten
+- 🔧 **Modular prompts** — `_load_modules()` in manager.py, `modules:` frontmatter key in roles → git-workflow, codex-review, report-format auto-injected
+- 📊 **Proxy dashboard** — 4 proxies (Hiddify, Ёжик, Timeweb NL, Fornex NL) configured and benchmarked
+- 🔒 **Security** — passwords removed from git history (BFG), .gitignore for sensitive docs + artifacts
+
+### Fixed (11 P2 bugs from review #35 — task #42)
+- Reconnect backoff cap (5 failures → give up)
+- Hibernate pending messages guard
+- GC task protection (`_spawn_bg` for all create_task calls)
+- Log retention + WAL checkpoint
+- rawMaxTokens from SDK instead of CONTEXT_LIMITS
+- ~95 lines dead code removed (backend.py, 3 DB funcs, _react_processing, aliases)
+
+## v2.15.0 — 2026-06-01
+
+### Fixed (13 P1 bugs from review #35 — task #40)
+- 🐛 **SDK errors silent (worst bug)** — `_convert` hardcoded `"ok": True`; `ResultMessage.is_error`/`errors`/`permission_denials` and `AssistantMessage.error` never read → auth/billing/rate-limit failures ended the turn as a normal idle, fired auto-report as success. Fix (`backend_claude.py`): `ok = not is_error`, surface `errors` in `turn_end` meta + `AssistantMessage.error` as an `error` event; `permission_denials` logged (informational, does NOT flip `ok`). `session.py _handle_turn_end` logs `turn FAILED` and `_fire_auto_report` skips when `_last_turn_ok` is False
+- 🐛 **ThinkingBlock dropped** — extended thinking silently discarded → looked like a hang. Fix: `ThinkingBlock` branch in `_convert` → `"thinking"` event, logged in `_handle_event`
+- 🐛 **dead `usage["iterations"]` branch** — SDK never emits `iterations`; the `if iters:` cost loop was dead, `last = iters[-1] if iters else usage` was noise. Fix: deleted, cost from flat usage dict
+- 🐛 **billing-derived context_pct wrong** — `_convert` computed ctx% from billing tokens (input+cache) against CONTEXT_LIMITS, overwritten ~1s later by `get_context_usage()` → transient wrong %, spurious "context corrected" jumps. Fix: stopped computing it (meta `context_pct=0`); `_handle_turn_end` keeps prev `_last_context` when incoming is 0; auto-compact triggers on `live_pct` from `_last_context`
+- 🐛 **cost under-counts after reconnect/compact** — `total_cost_usd` is cumulative per session_id; on a new session_id it resets smaller → `max(0, new-last)` clamped to 0 → first turn after every compact contributed $0. Fix (`session.py:_handle_turn_end`): reset `_last_cost`/`_last_cost_cached`=0 when `session_id` changes (before the assignment)
+- 🐛 **stale prompt on failed inject** — `_template_hash`/`_prompt_injected`/`system_prompt` set BEFORE `backend.send()` → a failed connect left a false "injected" flag, worker ran rest of life on old instructions. Fix: commit inject flags only AFTER `send()` succeeds
+- 🐛 **auto-report empty stop_reason** — manager re-read live `worker._turn_logs` for `stop_reason=`, which `_turn_logs` never contains (it holds text/tool only) → always empty. Fix: `_fire_auto_report` captures `_last_stop_reason` at fire time, passes it to `on_idle(... , stop_reason)`; manager dropped the dead scan
+- 🐛 **resume drops `waiting` bg-job state** — `auto_resume_all` excluded `waiting` from the resumable filter and flipped it to idle. Fix: capture `was_waiting`, include `waiting` in filter, restore WAITING post-load if `bg_manager.has_active_jobs` (both worker AND orchestrator loops — Codex)
+- 🐛 **`_flush_pending` loses batch on error** — `msgs` extracted + cleared, not requeued on send failure. Fix: `_pending_messages[0:0] = msgs` in except
+- 🐛 **squash stats first-ref-only** — `_parse_merged_commits` used `.search()` → multi-task squash commit attributed stats only to the first `#N`, co-refs got zero. Fix: `.finditer()`, attribute commit to ALL distinct refs
+- 🐛 **`_log`/`_persist` choke the default thread-pool** — shared with git ops (`asyncio.to_thread`) → 10 agents streaming logs starved merge/spawn. Fix: dedicated `_db_executor()` (ThreadPoolExecutor max_workers=4) for DB writes
+- 🐛 **blocking git/merge in the event loop** — `_load_from_db` ran `git rev-parse` sync at resume; `/merge` + `/switch-branch` ran `merge_worktree_to_main`/`switch_worktree_branch` (fcntl.flock + ~10 subprocess) SYNCHRONOUSLY in async endpoints → froze the whole loop. Fix: `asyncio.to_thread` for all three
+- 🐛 **stream_logs DB connection churn** — `get_logs` opened a fresh `_conn()` (fd + 3 PRAGMAs) every 0.5–2s tick per SSE/TG poller. Fix: `get_logs(conn=...)` optional connection; SSE + TG loops reuse one connection (try/finally close) with adaptive backoff (0.5→3s / 2→5s when idle)
+- 🐛 **split-brain DB (tm.py)** — `tm.py` hardcoded its own `DB_PATH`+`_conn()`, ignoring `ORCHESTRA_DB_PATH` → tasks in one file, sessions in another for tests/worktrees. Fix: deleted the dup, `from app.db import _conn` (one path resolution)
+
+**Known tradeoff:** 2 items deferred to separate tasks — #15 (scope-level spawn lock, larger design change) and #17 (persist `_pending_messages` to inbox table, heavy feature for a rare edge).
+
+**Triggered case:** review #35 found 19 P1s; #39 fixed the 7 P0s, this round fixes the P1s. The error-silence bug (#1) was the worst — an autonomous orchestrator can't see a rate-limited/billing-dead worker reporting "done" with empty output.
+
+## v2.14.0 — 2026-06-01
+
+### Fixed (7 P0 bugs from review #35 — task #39)
+- 🐛 **compact() re-entry corruption** — no re-entrancy guard + `_compacting` cleared BEFORE the ack send. `_auto_compact()` (ctx>90%) and a manual `compact_worker` could enter `compact()` concurrently, racing on `session_id`/`_backend`/`_listen_task` → `RuntimeError: not connected`, dangling client, or permanent `session_id=None` (full context loss). Fix (`session.py` `compact()`): guard `if self._compacting: return {...}` set synchronously at entry; `_compacting` held True across the ack turn; ack sent via `backend.send()` directly (bypasses `send()`'s pending-queue gate)
+- 🐛 **compact 60s blind poll → fabricated success** — `compact()` returned `{"ok": True}` after a 60s sleep-poll regardless of whether the ack turn completed. Fix: `_compact_ack_event` (asyncio.Event) bound to `_compact_ack_gen`; `_handle_turn_end` sets it only for the matching turn gen; `await wait_for(event, 60)` → `{"ok": False, "error": "ack turn did not complete"}` on timeout. A stray `_flush_pending`/heartbeat turn can no longer false-positive the ack (Codex finding #2)
+- 🐛 **persist race resurrects stale state** — full-row `save_session(_to_db_dict())` fired from `_handle_turn_end` (438) and `_refresh_context_from_api` (704) on unordered executor threads → a stale `status=running` snapshot could overwrite a fresh `status=idle`. Fix: single-flight persist (`_persist_task` + `_persist_dirty` coalescing in `_persist_loop`). Last snapshot always wins; `get_running_loop()` fails loud off-loop; done-callback logs crashes; in-loop try/except so one DB error doesn't stop future writes
+- 🐛 **merge vs remove worktree race** — `merge_worktree_to_main` held `.git/orchestra-merge.lock` but `remove_worktree` took NO lock → removing a worktree mid-merge could abort the merge / leave repo on wrong branch. Fix: `remove_worktree` now acquires the same `fcntl.flock(LOCK_EX)` on `orchestra-merge.lock`
+- 🐛 **orphaned worktree on spawn crash** — `create_session` except block only called `delete_session`, leaking the worktree if `start()`/`_inject_skills`/`_safe_format_prompt` raised after creation. Plus `create_worktree` itself leaked if `git worktree add` succeeded but the PROJECT_FILES copy then raised (Codex #4). Fix: rollback inside `create_worktree` (post-add copy wrapped, removes worktree on failure) + `remove_worktree` in the manager except block
+- 🐛 **zombie CLI on connect timeout** — `ClaudeBackend.connect()` left `_client` set (subprocess alive) on timeout/exception, never disconnected. `reconnect()` had the identical leak (used by heartbeat/listener recovery), and `except Exception` missed `CancelledError` (Codex #5). Fix: shared `_cleanup_failed_client()`, `except BaseException` → disconnect → re-raise, in both `connect()` and `reconnect()`
+- 🐛 **restart_cli → 500** — `/api/sessions/{name}/restart-cli` called `session._disconnect_client()` which doesn't exist (`AttributeError`). Fix: `_disconnect_backend()` + imported `AgentStatus` for `AgentStatus.IDLE`
+
+### Known tradeoff
+- **P1-1 (session_id NULL window) fixed as a side-effect** — Codex review (#1) showed the ack turn needs a FRESH SDK session (no resume token) so compaction actually drops context, but the *persisted* `session_id` must NOT be nulled. New `force_fresh` param on `_make_backend`/`_ensure_backend`: ack runs on a fresh session while the old token stays in DB until the ack `turn_end` writes the new one → crash mid-compact now resumes old context instead of losing everything
+
+### Fixed (2nd Codex round — diff review)
+- 🐛 **compact COMPACT_PROMPT phase unlocked** — the summary turn (`backend.events()` loop) didn't hold `_lifecycle_lock`, so a `_flush_pending` already past its outer `_compacting` check could interleave a non-ack turn. Fix: wrap the COMPACT_PROMPT phase in `_lifecycle_lock` + recheck `_compacting` INSIDE the flush's lock body (requeues if compact won the race)
+- 🐛 **ack-timeout left turn running** — on the 60s ack timeout `compact()` cleared `_compacting` while the ack turn could still be live. Fix: `_disconnect_backend()` + status IDLE before returning, so no stale turn interleaves with the next send
+- 🐛 **force_fresh ignored if backend exists** — `_ensure_backend(force_fresh=True)` returned the existing backend. Now disconnects + rebuilds fresh (correctness, not just-happens-to-work in compact)
+- 🐛 **spawn cleanup missed CancelledError** — `create_session` except was `except Exception` → cancellation skipped worktree cleanup. Now `except BaseException`
+
+### Reasoning
+Full research → plan → Codex review (×1 plan) → implement → Codex review (×1 diff) → fix → tests. Codex found 5 holes in the PLAN + 4 more in the DIFF (1 P0, 3 P1), all incorporated. 17 new tests (`test_session.py`, `test_backend_claude.py`, `test_workspace.py`), 86 passing (6 pre-existing failures on clean HEAD are unrelated — stale `AUTO_REPORT_IDLE_SEC`/`remove` tests). Docs: `docs/tasks/39/{research,plan,findings,codex-diff-review}.md`
+
+## v2.13.0 — 2026-06-01
+
+### Fixed
+- 🐛 **[1m] suffix stripped — ALL agents on 200K instead of 1M** — `_make_client()` did `model.replace("[1m]", "")` before passing to CLI. CLI REQUIRES `[1m]` suffix to enable 1M context window (`claude-opus-4-6` = 200K, `claude-opus-4-6[1m]` = 1M). Every [1m] agent in Orchestra silently ran on 1/5 of their context. Fix: pass `self.model` as-is, no stripping
+- 🐛 **compact_boundary invisible** — CLI `SystemMessage` with `subtype="compact_boundary"` was not caught by any branch in `_convert()`. Now emits status event "CLI auto-compacted (trigger): pre→post tokens"
+- 🐛 **max_tokens from API** — `_refresh_context_from_api()` now updates `max_tokens` from SDK alongside percentage and total_tokens
+
+### Reasoning
+CLI changelog 2.1.75: "Added 1M for Opus 4.6 by default for Max plans" — but ONLY when model name includes `[1m]` suffix. Our `_make_client` stripped it → CLI saw `claude-opus-4-6` (200K). Betas approach (`context-1m-2025-08-07`) also doesn't work on subscription ("Custom betas are only available for API key users"). The ONLY way to get 1M on subscription is passing the full model name with `[1m]`.
+
+## v2.12.0 — 2026-05-31
+
+### Fixed
+- 🐛 **Phantom context loss** — `context_pct` was reverse-engineered from `ResultMessage.usage` iterations (last iteration tokens / model limit), NOT actual context window size. Replaced with authoritative `get_context_usage()` SDK method. Fixes wildly swinging % after tool-heavy turns
+- 🐛 **CLI silent autocompact invisible** — Claude CLI has its OWN internal autocompact that fires independently. We now log when authoritative % diverges >20% from estimate ("context corrected: X% → Y%")
+- 🐛 **Compact crash window** — `compact()` NULLed `session_id` and persisted before starting fresh session. Server restart in that window → agent not resumed (auto_resume_all filters NULL). Removed premature persist
+- 🐛 **Stale 0% after resume** — `_last_context` not refreshed until first turn_end after reconnect. Now `_refresh_context_from_api()` fires on backend connect
+- 🐛 **`_compacting` double-managed** — both `_auto_compact()` and `compact()` set/cleared flag. Now `compact()` is sole owner
+- 🐛 **Multiproject scope UNIQUE crash** — `ensure_project()` crashed on UNIQUE(scope) when same agent created tasks in 2+ projects. Now skips scope binding if already bound to different project
+
+### Added
+- 🎨 **Role icons from frontmatter** — `icon:` field in role MD files (`app/prompts/roles/*.md`). `/api/role-icons` endpoint serves role→emoji map. Frontend + MCP load dynamically instead of hardcoded maps
+- 📁 **New role templates** — `sub-orchestrator.md` (🎯), `reviewer.md` (🔍), `watcher.md` (👁️) with frontmatter + minimal prompts
+- ✅ **#34 tg_topic** — `tg_topic` bool parameter for per-agent TG topics. Root orchestrators get `tg_topic=True` automatically. API: `POST /api/sessions/{name}/tg_topic`
+
+### Changed
+- `backend_claude.py` — new `context_usage()` method wrapping `ClaudeSDKClient.get_context_usage()`
+- `session.py` — `_refresh_context_from_api()` called on turn_end + backend connect; `_auto_compact` simplified to just delegate to `compact()`
+
+### Reasoning
+Context bug was a CLUSTER of 5 root causes (RC1-RC5), found by Opus research worker + Codex cross-review. Primary: per-iteration token estimate ≠ actual context window, and CLI internal autocompact runs invisibly. Fix A (authoritative API) + Fix C (no NULL persist) + Fix D (refresh on resume) + Fix E (single flag owner) applied. Full research in `docs/research-context-bug.md`.
+
+## v2.11.0 — 2026-05-31
+
+### Added
+- 📁 **Change orchestrator scope/repo_path without losing session** — move an idle orchestrator to a new root folder while preserving its Claude `session_id` (context survives via resume). `POST /api/orchestrators/{name}/change-scope` `{old_scope, new_scope, new_cwd?}` + context-menu item "Сменить папку" in the dashboard. MVP scope: orchestrator-only, idle-only, no live workers in the old scope
+- `db.change_scope()` (`app/db.py`) — single transaction: move `sessions.scope+cwd`, optional `tm_projects.scope` migration (skip on UNIQUE collision), active `bg_jobs.target_scope`, `test_lock.scope`. Gated on `WHERE id=? AND scope=old_scope` → aborts before any migration on a stale/concurrent retry (no partial move)
+- `manager.change_orchestrator_scope()` (`app/manager.py`) — guards (orchestrator-only, `is_dir`, no live workers via `_live_workers_in_scope` scanning memory + DB), all under `session._lifecycle_lock` (idle race). Rebuilds `mcp_servers` via `_make_mcp_config` so the lazy reconnect gets the new `ORCHESTRA_SCOPE`; `session.id` (dict key) unchanged
+
+### Changed
+- **`_is_safe_path` containment** (`app/main.py`) — replaced `startswith(root)` with `os.path.commonpath` containment. Closes sibling-prefix escape (`/tmproot_escape` no longer passes as inside `/tmp`). Affects ALL path-guarded endpoints, not just change-scope
+- **Persist drain fence** (`app/session.py`) — `_persist()` now tracks every `run_in_executor` save future in `_persist_futs` (set, auto-discarded on done); new `_drain_persist()` awaits all pending. change-scope drains in-flight persists after backend disconnect and before the DB transaction, so the transaction is the last writer of `scope+cwd` (prevents a stale `save_session(old_cwd)` clobbering cwd → wrong root after restart)
+
+### Reasoning
+`scope` is the orchestrator's identity key (UNIQUE(name,scope)), woven through 5 DB tables, the MCP subprocess env, CWD, and dashboard tabs. The hard part isn't renaming a path — it's keeping the move consistent under concurrent control-plane ops. Three Codex-flagged cross-layer races were closed: stale/partial DB migration, worker-spawn TOCTOU (in-lock re-check; full scope-level spawn lock deferred), and async-persist cwd-clobber (set-based drain). Session context is preserved because `session_id` is independent of scope.
+
+### Known tradeoff
+- Worker-spawn TOCTOU is mitigated (in-lock re-check) but not fully closed — a true close needs a scope-level lock shared with the spawn path. Acceptable for the "orchestrator with no live workers" MVP; flagged as follow-up
+
+## v2.10.0 — 2026-05-31
+
+### Added
+- 🛡️ **Directory ownership at spawn** — `spawn_worker(..., owned_dirs='["app/api/"]')`. New `owned_dirs TEXT` JSON column in `sessions`. At spawn, overlapping dirs with a live worker (idle/running, same repo) → advisory warning to orchestrator (NOT blocked). Injected into worker prompt as off-limits siblings. `parse_owned_dirs()`/`dirs_overlap()` (prefix-aware) in `workspace.py`
+- 🛡️ **Pre-dispatch conflict simulation** — `check_conflict(worker_a, worker_b)` MCP tool + `POST /api/sessions/check-conflict`. `simulate_conflict()` in `workspace.py` dry-runs `git merge-tree --write-tree`, reports conflicting paths (regex-parsed, handles content + modify/delete). Pick merge order before collisions happen
+- 🛡️ **Worker WIP visibility** — `worker_wip(name, base_ref)` MCP tool + `GET /api/sessions/{name}/wip`. `branch_wip_status()` shows uncommitted files + unmerged commit subjects before resuming a worker. Returns `{error}` on git failure, never a false "clean"
+- 🔒 **Block ScheduleWakeup + Cron\* tools** — removed from all agents via `disallowed_tools`. Orchestra manages scheduling via bg_jobs, agents don't need client-side scheduling
+
+### Changed
+- **Safer auto-commit** — `_auto_commit_if_dirty()` (`manager.py`) no longer silently commits dirty source-repo state before spawn. Loud labelled WIP commit (branch + file list), fail-loud on git `status`/`add`/`commit` returncodes, warning surfaced to orchestrator via `spawn_warning`
+- **Worker WIP commit prompt** — `worker.md` now mandates descriptive WIP commits (`WIP: #49 — done X, Y; TODO: Z`) instead of bare `WIP`
+
+### Reasoning
+Parallel workers in isolated worktrees can silently collide (same files) or bury source-repo work (silent auto-commit). These three advisory tools surface collisions to the orchestrator at decision points (spawn, resume, pre-merge) without blocking — fits the small-team MVP "warn, don't gate" philosophy.
+
+## v2.9.4 — 2026-05-31
+
+### Added
+- **Module `codex-review.md`** — single source for Codex review rules: when to call (`exec` for plans, `review` for diffs), `codex_review(target, output, mode)` syntax, iterate-to-consensus, MCP-only (not bash/skill), PROJECT CONTEXT via `context`. Wired into `worker` + `full-cycle` via `modules:`. `app/prompts/modules/codex-review.md`
+- **Module `report-format.md`** — single source for report shapes: DONE / WIP-STOPPED / pipeline-gate messages via `send_message`. Wired into `worker` + `full-cycle`. `app/prompts/modules/report-format.md`
+
+### Changed
+- **Dedup across roles** — removed inline Codex rules and `<report-format>` block from `worker.md`; replaced inline Codex syntax + DONE format in `full-cycle.md` Phase 2/3 with module references. Roles now carry only role-specific workflow; shared rules live in modules. `app/prompts/roles/worker.md`, `app/prompts/roles/full-cycle.md`
+
+### Reasoning
+Follow-up to prompt audit. Codex review + report format were duplicated/divergent across worker and full-cycle (two different DONE formats) → consolidated so the orchestrator parses one shape and Codex usage is consistent.
+
+## v2.9.3 — 2026-05-31
+
+### Changed
+- **Git-rule dedup** — removed the `<git>` block from `worker.md` body (duplicated `modules/git-workflow.md`, injected via `modules: [git-workflow]`). The one non-dup behavioral rule ("workers do NOT create/switch branches themselves") moved into the module so it reaches all roles. `app/prompts/roles/worker.md`, `app/prompts/modules/git-workflow.md`
+- **AskUserQuestion/Monitor compressed** — two NEVER lines merged into one in `base.md` (both denied via permission hook; kept short in case the model sees the tool). `app/prompts/base.md`
+
+### Added
+- **Worker context-limit rule** — `worker.md`: on CONTEXT CRITICAL → finish current sub-task, commit, report progress, do NOT start new sub-tasks. Closes audit gap 5.1
+- **Full-cycle gate-idle rule** — `full-cycle.md`: explicit "do NOT self-approve and start implementation before orchestrator approves". Closes audit gap 5.2
+
+### Reasoning
+P2 batch from prompt audit (docs/tasks/prompt-audit/). Determinism-focused: dedup keeps git rules single-source (the module), the two new rules close behavioral gaps where Opus might improvise (start new work near context limit / self-approve a plan).
+
+## v2.9.2 — 2026-05-31
+
+### Fixed
+- **Stale Codex instruction in worker.md** — `Skill(skill="codex-review")` → `codex_review()` MCP tool. worker.md lagged behind the v2.9.0 migration to the native tool (full-cycle.md already correct) → generic workers asked for Codex review followed the obsolete path. `app/prompts/roles/worker.md`
+- **report_bug scope conflict** — base.md said "platform bug only", project CLAUDE.md said "any error". Disambiguated in base.md: `report_bug` = Orchestra platform/MCP/SDK/harness failures; task-code bugs → `docs/tasks/<id>/` + orchestrator message. `app/prompts/base.md`
+- **bg_create cron drift** — `<background-jobs>` listed only one-shot types and stated "Jobs are one-shot", but `cron` (recurring, added #26 in v2.9.0) was undocumented for agents. Added `cron` to the list, corrected the blanket one-shot claim. `app/prompts/base.md`
+
+### Changed
+- **orchestrator.md `<tools>` trimmed** — removed bare tool signatures that duplicate MCP tool descriptions; kept only non-obvious constraints (must be idle, do-not-retry, debugging-only) and the routing map. ~14 lines saved per orchestrator turn without losing one-path routing. `app/prompts/roles/orchestrator.md`
+
+### Reasoning
+Result of prompt audit (docs/tasks/prompt-audit/). Codex cross-review corrected 2 v1 errors (run_in_background IS enforced via permission hook; Agent/Task stripped only for orchestrators, load-bearing for workers) → mass NEVER-rule deletion was cancelled. Calibration: for MVP, determinism > token minimalism. P0 manager.py:391 (orchestrator custom prompt replaces role template) tracked separately as #28 (backend, not in this commit).
+
+## v2.9.1 — 2026-05-31
+
+### Fixed
+- 🍒 **merge_worker unrelated histories** — `git merge-base` detects unrelated histories before merge attempt. Falls back to `_cherry_pick_branch()` which replays commits individually via `git cherry-pick --no-commit`. Clean linear history, no fake merge nodes. `workspace.py`
+
+### Changed
+- **merge precheck flow** — `git merge-base` check added before `merge-tree --write-tree`. Unrelated histories skip precheck entirely (it would fail anyway) and go straight to cherry-pick strategy
+- **Prompt restructuring** — all role prompts migrated to XML tags (`<role>`, `<rules priority="critical">`, `<tools>`, etc). Critical rules deduplicated into `base.md`. English-only prompts
+- **Native skills** — skills copied as `worktree/.claude/skills/{name}/SKILL.md` instead of system prompt injection. `_inject_skills_to_worktree()` in `manager.py`
+- **Agent role in dashboard** — info panel shows role (worker/orchestrator/full-cycle) in purple
+- **Cost precision** — `.toFixed(2)` instead of rounded integer
+- **File preview** — Download button + Open in browser button for HTML files
+
+### Added
+- 🧠 **Opus 4.8** model option in all frontend model pickers
+
 ## v2.9.0 — 2026-05-29
 
 ### Added

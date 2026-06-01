@@ -14,7 +14,7 @@ from typing import Optional
 from app.session import AgentSession, AgentStatus, is_orchestrator_role
 
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
-from app.workspace import create_worktree, remove_worktree
+from app.workspace import create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap
 from app.models import resolve_model, backend_for_model
 from app.pipeline import (
     DEFAULT_PIPELINE,
@@ -132,19 +132,39 @@ def _parse_role_frontmatter(text: str) -> tuple[dict, str]:
     return meta, body
 
 
+_MODULES_DIR = _PROMPTS_DIR / "modules"
+
+
+def _load_modules(module_names: list[str]) -> str:
+    parts = []
+    for name in module_names:
+        p = _MODULES_DIR / f"{name}.md"
+        if p.exists():
+            parts.append(p.read_text().strip())
+        else:
+            logger.warning(f"Module '{name}' not found at {p}")
+    return "\n\n".join(parts)
+
+
 def _role_prompt_file(role: str) -> str:
-    """Find the best prompt for a role. Parses frontmatter, returns body only.
+    """Find the best prompt for a role. Parses frontmatter, returns body + modules.
     Falls back to 'worker' role if role file not found."""
     role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
     if role_path.exists():
         meta, body = _parse_role_frontmatter(role_path.read_text())
         if body:
+            modules = meta.get("modules", [])
+            if modules:
+                body = body + "\n\n" + _load_modules(modules)
             return body
     if role != "worker":
         fallback = _PROMPTS_DIR / "roles" / ("orchestrator.md" if is_orchestrator_role(role) else "worker.md")
         if fallback.exists():
-            _, body = _parse_role_frontmatter(fallback.read_text())
+            meta, body = _parse_role_frontmatter(fallback.read_text())
             if body:
+                modules = meta.get("modules", [])
+                if modules:
+                    body = body + "\n\n" + _load_modules(modules)
                 return body
     return ""
 
@@ -185,6 +205,20 @@ def _skills_catalog() -> str:
     if not entries:
         return ""
     return "## Available skills (for roles)\nSkills are auto-injected into worker prompts via `skills:` in role frontmatter.\n" + "\n".join(entries)
+
+
+def get_role_icons() -> dict[str, str]:
+    roles_dir = _PROMPTS_DIR / "roles"
+    icons = {}
+    if roles_dir.is_dir():
+        for f in sorted(roles_dir.glob("*.md")):
+            meta, _ = _parse_role_frontmatter(f.read_text())
+            if meta:
+                name = meta.get("name", f.stem)
+                icon = meta.get("icon", "")
+                if icon:
+                    icons[name] = icon
+    return icons
 
 
 def _roles_catalog() -> str:
@@ -456,6 +490,8 @@ class SessionManager:
     def start_background_tasks(self) -> None:
         if not self._spawn_task or self._spawn_task.done():
             self._spawn_task = asyncio.create_task(self._spawn_worker_loop())
+        if not getattr(self, '_cleanup_task', None) or self._cleanup_task.done():
+            self._cleanup_task = asyncio.create_task(self._periodic_db_cleanup())
 
     async def enqueue_worker_spawn(self, **job) -> None:
         await self._spawn_queue.put(job)
@@ -488,13 +524,45 @@ class SessionManager:
                 self._spawn_queue.task_done()
 
     @staticmethod
-    def _auto_commit_if_dirty(repo_path: str):
-        import subprocess
+    def _auto_commit_if_dirty(repo_path: str) -> str:
+        import subprocess, datetime
         r = subprocess.run(["git", "status", "--porcelain"], cwd=repo_path, capture_output=True, text=True)
-        if r.stdout.strip():
-            subprocess.run(["git", "add", "-A"], cwd=repo_path, capture_output=True)
-            subprocess.run(["git", "commit", "-m", "wip: auto-save before worker spawn"], cwd=repo_path, capture_output=True)
-            logger.info(f"Auto-committed dirty working tree in {repo_path}")
+        if r.returncode != 0:
+            logger.error(f"auto-commit git status failed in {repo_path}: {r.stderr.strip()}")
+            return f"FAILED to check repo status (git status rc={r.returncode}) — spawn proceeds, auto-save NOT run"
+        if not r.stdout.strip():
+            return ""
+        files = [l[3:] for l in r.stdout.strip().splitlines()]
+        cur = subprocess.run(["git", "symbolic-ref", "--short", "HEAD"], cwd=repo_path, capture_output=True, text=True)
+        branch = cur.stdout.strip() or "(detached HEAD)"
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        msg = (f"WIP: auto-saved uncommitted changes before worker spawn ({ts})\n\n"
+               f"Orchestra committed {len(files)} dirty path(s) in the source repo checkout "
+               f"(branch {branch}) to give the new worker a clean base. Review and amend/reset "
+               f"if this buried work-in-progress:\n"
+               + "\n".join(f"- {f}" for f in files))
+        add = subprocess.run(["git", "add", "-A"], cwd=repo_path, capture_output=True, text=True)
+        if add.returncode != 0:
+            logger.error(f"auto-commit git add failed in {repo_path}: {add.stderr.strip()}")
+            return f"FAILED to auto-save dirty source repo (git add rc={add.returncode}) — spawn proceeds on DIRTY base"
+        commit = subprocess.run(["git", "commit", "-m", msg], cwd=repo_path, capture_output=True, text=True)
+        if commit.returncode != 0:
+            logger.error(f"auto-commit failed in {repo_path}: {commit.stderr.strip()}")
+            return (f"FAILED to auto-save dirty source repo (git commit rc={commit.returncode}: "
+                    f"{commit.stderr.strip()[:120]}) — spawn proceeds, changes NOT committed")
+        logger.warning(f"Auto-committed {len(files)} dirty path(s) in {repo_path} (branch {branch}) before spawn")
+        return f"auto-committed {len(files)} dirty file(s) (branch {branch}) before spawn — review the WIP commit"
+
+    @staticmethod
+    def _ownership_prompt(owned_dirs: list[str]) -> str:
+        if not owned_dirs:
+            return ""
+        lines = "\n".join(f"- {d}/" for d in owned_dirs)
+        return ("\n\n## Directory ownership\n"
+                "You OWN these directories — edit ONLY files under them:\n"
+                f"{lines}\n"
+                "Do NOT touch files outside your owned directories. "
+                "If the task requires it — STOP and ask the orchestrator.")
 
     # ── Session CRUD ──
 
@@ -506,7 +574,9 @@ class SessionManager:
                              parent_id: str = "", parent_name: str = "",
                              mcp_servers: dict | None = None,
                              pipeline: str = "", profile: str = "",
-                             docs_feature: str = "") -> AgentSession:
+                             docs_feature: str = "",
+                             owned_dirs: list | None = None,
+                             tg_topic: bool = False) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -537,6 +607,21 @@ class SessionManager:
         # R1: is_orchestrator из манифеста (kind), fallback на frozenset апстрима.
         is_orch = self._role_is_orchestrator(pipeline, role)
 
+        # Ownership (upstream): нормализуем owned_dirs и предупреждаем о пересечении
+        # с другими живыми воркерами в этом scope (warning, НЕ блок).
+        owned_dirs = parse_owned_dirs(owned_dirs)
+        ownership_warning = ""
+        if owned_dirs:
+            conflicts = []
+            for s in self.sessions.values():
+                if s.scope == scope and s.status.value in ("idle", "running") and s.owned_dirs:
+                    ov = dirs_overlap(owned_dirs, s.owned_dirs)
+                    if ov:
+                        conflicts.append((s.name, ov))
+            if conflicts:
+                ownership_warning = "; ".join(f"{n} owns {ov}" for n, ov in conflicts)
+                logger.warning(f"owned_dirs overlap for new worker '{name}': {ownership_warning}")
+
         if not parent_name and not is_orch:
             parent_name = self._find_orchestrator_name(scope) or ""
             if parent_name and not explicit_pipeline:
@@ -550,9 +635,13 @@ class SessionManager:
                 profile = get_active_profile(scope, parent_profile=parent_profile)
 
         if is_orch:
-            prompt = system_prompt or ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+            # v2.16: кастомный system_prompt ДОПИСЫВАЕТСЯ к базе роли, а не заменяет
+            # её (раньше было `system_prompt or ROLE_SYSTEM_PROMPT(...)`).
+            prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope) + ("\n\n" + system_prompt if system_prompt else "")
         else:
             prompt = ROLE_SYSTEM_PROMPT(pipeline, role) + ("\n\n" + system_prompt if system_prompt else "")
+            # Ownership (upstream): для воркера дописываем блок "трогай только это".
+            prompt += self._ownership_prompt(owned_dirs)
 
         if not parent_id and parent_name:
             p_session = self.get_by_name(parent_name, scope)
@@ -579,6 +668,10 @@ class SessionManager:
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
         base_branch = self._resolve_base_branch(base_branch, pipeline, role, parent_name, scope)
 
+        # Root orchestrators (no parent) always get a TG topic
+        if is_orch and not parent_name:
+            tg_topic = True
+
         custom_mcp = _parse_custom_mcp(mcp_servers)
         bt = backend_for_model(model)
         session = AgentSession(
@@ -590,10 +683,13 @@ class SessionManager:
             mcp_servers=_make_mcp_config(name, scope, role, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
             backend_type=bt, task_id=task_id, description=description,
+            owned_dirs=owned_dirs,
+            tg_topic=tg_topic,
         )
         # R1: денормализуем is_orchestrator (kind манифеста / fallback) в хранимое поле.
         session.is_orchestrator = is_orch
         session._template_hash = _prompt_template_hash(role)
+        session._spawn_warning = ownership_warning
         save_session(session._to_db_dict())
 
         if task_id and not is_orch:
@@ -605,7 +701,9 @@ class SessionManager:
 
         try:
             if use_worktree and repo_path:
-                await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
+                wip_note = await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
+                if wip_note:
+                    session._spawn_warning = (session._spawn_warning + "; " + wip_note).strip("; ")
                 wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id, base_branch)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
@@ -643,7 +741,12 @@ class SessionManager:
             await session.start()
             self.sessions[session.id] = session
             return session
-        except Exception:
+        except BaseException:
+            if session.worktree_path and repo_path:
+                try:
+                    await asyncio.to_thread(remove_worktree, repo_path, session.worktree_path)
+                except Exception:
+                    pass
             delete_session(session.id)
             raise
 
@@ -679,7 +782,89 @@ class SessionManager:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
                 except Exception:
                     pass
-        delete_session(session_id)
+        archive_session(session_id)
+
+    async def change_orchestrator_scope(self, name: str, old_scope: str,
+                                         new_scope: str, new_cwd: str) -> dict:
+        """Move an idle, worker-free orchestrator to a new scope/cwd.
+
+        Updates DB (db.change_scope), then rebuilds the runtime: kills the old MCP
+        subprocess via _disconnect_backend(), swaps scope/cwd/mcp_servers, and lets
+        the backend lazily reconnect on the next send() with the new ORCHESTRA_SCOPE.
+        session_id is preserved → context survives.
+        """
+        old_scope = old_scope.rstrip("/")
+        new_scope = new_scope.rstrip("/")
+        new_cwd = new_cwd.rstrip("/")
+        session = self.get_by_name(name, old_scope)
+        if not isinstance(session, AgentSession):
+            return {"error": f"orchestrator '{name}' not loaded in scope '{old_scope}'"}
+        if not session.is_orchestrator:
+            return {"error": f"'{name}' is not an orchestrator — scope change is orchestrator-only"}
+        if not Path(new_cwd).is_dir():
+            return {"error": f"new_cwd does not exist: {new_cwd}"}
+
+        live_workers = self._live_workers_in_scope(old_scope)
+        if live_workers:
+            return {"error": f"cannot change scope: live workers in '{old_scope}' — "
+                             f"merge+kill first: {', '.join(live_workers)}"}
+
+        # Hold the session lifecycle lock so a concurrent send() cannot flip
+        # the session IDLE→RUNNING between the idle check and the disconnect.
+        # (send() only starts a fresh turn inside this same lock.)
+        async with session._lifecycle_lock:
+            if session.status.value == "running":
+                return {"error": "cannot change scope while running — wait for idle"}
+
+            # Re-check under the lock right before the DB write to shrink the
+            # worker-spawn TOCTOU window (a spawn could have landed since the
+            # pre-lock scan). Full closure needs a scope-level spawn lock.
+            live_workers = self._live_workers_in_scope(old_scope)
+            if live_workers:
+                return {"error": f"cannot change scope: live workers appeared in '{old_scope}' — "
+                                 f"merge+kill first: {', '.join(live_workers)}"}
+
+            # Stop the backend (no new persists from this session) and drain any
+            # in-flight _persist() BEFORE the transaction, so change_scope()'s
+            # synchronous scope+cwd write is the last writer. Otherwise a stale
+            # queued persist (snapshot cwd=/old) could land after the transaction
+            # and clobber cwd, leaving scope=/new + cwd=/old on disk.
+            await session._disconnect_backend()
+            await session._drain_persist()
+
+            from app.db import change_scope
+            result = change_scope(session.id, old_scope, new_scope, new_cwd)
+            if not result.get("ok"):
+                return result
+
+            session.scope = new_scope
+            session.cwd = new_cwd
+            session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
+                                                   extra=session.mcp_servers_custom)
+            # No session._persist() here: change_scope() already wrote scope+cwd
+            # synchronously in its transaction (the last writer after the drain).
+        logger.info(f"Orchestrator '{name}' scope changed: {old_scope} → {new_scope}")
+        return result
+
+    def _live_workers_in_scope(self, scope: str) -> list[str]:
+        """Names of active (idle/running/waiting) workers in scope, from both the
+        in-memory registry and the DB (catches unloaded-but-active worker rows).
+        Deduplicated by session id."""
+        active = ("idle", "running", "waiting")
+        seen_ids: set[str] = set()
+        names: set[str] = set()
+        for s in self.sessions.values():
+            if s.scope == scope and not s.is_orchestrator and s.status.value in active:
+                seen_ids.add(s.id)
+                names.add(s.name)
+        for row in get_all_sessions(scope):
+            if row["id"] in seen_ids:
+                continue
+            if is_orchestrator_role(row.get("role", "worker")):
+                continue
+            if (row.get("status") or "") in active:
+                names.add(row["name"])
+        return sorted(names)
 
     async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict:
         orch_names: list[str] = []
@@ -833,7 +1018,8 @@ class SessionManager:
         db_task_id = db_row.get("task_id") or ""
         wt_path = db_row.get("worktree_path")
         if wt_path and Path(wt_path).is_dir():
-            actual = subprocess.run(
+            actual = await asyncio.to_thread(
+                subprocess.run,
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=wt_path, capture_output=True, text=True,
             )
@@ -862,6 +1048,8 @@ class SessionManager:
             mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, task_id=db_task_id,
             description=db_row.get("description", ""),
+            owned_dirs=parse_owned_dirs(db_row.get("owned_dirs")),
+            tg_topic=bool(db_row.get("tg_topic", 0)),
         )
         session.is_orchestrator = is_orch  # R1: восстановить денормализованное поле
         pct = db_row.get("context_pct", 0) or 0
@@ -910,8 +1098,10 @@ class SessionManager:
         return ""
 
     def _make_idle_callback(self, scope: str):
-        async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str]):
-            orch = self._find_orchestrator_name(scope)
+        async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str], stop_reason: str = ""):
+            worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
+            parent = worker_session.parent_name if worker_session else None
+            orch = parent or self._find_orchestrator_name(scope)
             if not orch:
                 return
             orch_session = next((s for s in self.sessions.values() if s.name == orch), None)
@@ -919,13 +1109,7 @@ class SessionManager:
                 return
             summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
             ctx = self._context_warning(worker_name)
-            worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
-            sr = ""
-            if worker_session and worker_session._turn_logs:
-                for log in reversed(worker_session._turn_logs):
-                    if "stop_reason=" in log:
-                        sr = f" ({log.strip()})"
-                        break
+            sr = f" (stop_reason={stop_reason})" if stop_reason else ""
             msg = f"[from:{worker_name}] [auto-report]{sr} Finished without explicit report. Last output:\n{summary}{ctx}"
             logger.info(f"Auto-report: {worker_name} → {orch}")
             await orch_session.send(msg)
@@ -987,11 +1171,14 @@ class SessionManager:
             was_running = {r["id"] for r in c.execute(
                 "SELECT id FROM sessions WHERE status = 'running'"
             ).fetchall()}
+            was_waiting = {r["id"] for r in c.execute(
+                "SELECT id FROM sessions WHERE status = 'waiting'"
+            ).fetchall()}
             resumable = [dict(r) for r in c.execute(
                 "SELECT * FROM sessions WHERE session_id IS NOT NULL "
-                "AND status IN ('running', 'idle')"
+                "AND status IN ('running', 'idle', 'waiting')"
             ).fetchall()]
-            c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
+            c.execute("UPDATE sessions SET status='idle' WHERE status IN ('running', 'waiting')")
 
         # R1: используем денормализованную колонку is_orchestrator (наши PM-роли
         # не входят в frozenset апстрима; колонка проставлена при спавне/миграции).
@@ -1006,7 +1193,12 @@ class SessionManager:
             try:
                 session = await self._load_from_db(row)
                 logger.info(f"Resumed orchestrator: {row['name']}")
-                if row["id"] in was_running:
+                if row["id"] in was_waiting:
+                    from app.bg_jobs import bg_manager
+                    if bg_manager and bg_manager.has_active_jobs(row["id"]):
+                        session.status = AgentStatus.WAITING
+                        session._persist()
+                elif row["id"] in was_running:
                     asyncio.create_task(self._inject_restart_notice(session))
             except Exception as e:
                 logger.error(f"Failed to resume {row['name']}: {e}")
@@ -1019,7 +1211,12 @@ class SessionManager:
             try:
                 session = await self._load_from_db(row)
                 logger.info(f"Resumed worker: {row['name']}")
-                if row["id"] in was_running:
+                if row["id"] in was_waiting:
+                    from app.bg_jobs import bg_manager
+                    if bg_manager and bg_manager.has_active_jobs(row["id"]):
+                        session.status = AgentStatus.WAITING
+                        session._persist()
+                elif row["id"] in was_running:
                     asyncio.create_task(self._inject_restart_notice(session))
             except Exception as e:
                 logger.error(f"Failed to resume worker {row['name']}: {e}")
@@ -1036,10 +1233,23 @@ class SessionManager:
         except Exception as e:
             logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
 
-    async def auto_resume_orchestrators(self) -> None:
-        await self.auto_resume_all()
+    async def _periodic_db_cleanup(self) -> None:
+        CLEANUP_INTERVAL = 6 * 3600
+        while True:
+            try:
+                await asyncio.sleep(CLEANUP_INTERVAL)
+                from app.db import cleanup_old_logs
+                deleted = await asyncio.to_thread(cleanup_old_logs, 7)
+                if deleted:
+                    logger.info(f"DB cleanup: deleted {deleted} old log entries")
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning(f"DB cleanup failed: {e}")
 
     async def shutdown_all(self) -> None:
+        if getattr(self, '_cleanup_task', None) and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
         for session in list(self.sessions.values()):
             try:
                 await session.stop()

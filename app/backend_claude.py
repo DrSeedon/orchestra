@@ -12,12 +12,14 @@ from claude_agent_sdk import (
     AssistantMessage,
     ResultMessage,
     TextBlock,
+    ThinkingBlock,
     ToolUseBlock,
     PermissionResultAllow,
     PermissionResultDeny,
     TaskStartedMessage,
     TaskProgressMessage,
     TaskNotificationMessage,
+    SystemMessage,
 )
 from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
@@ -34,6 +36,7 @@ _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
 # (SDK отдаёт его как TaskStartedMessage), поэтому _ORCH_BLOCKED_TOOLS его не ловит.
 # Имя хеджируем двумя вариантами (Task/Agent) — лишнее имя CLI игнорирует.
 _ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
+_ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList"]
 
 
 def _make_auto_approve(is_orchestrator: bool = False):
@@ -51,8 +54,12 @@ def _make_auto_approve(is_orchestrator: bool = False):
 def _disallowed_tools(is_orchestrator: bool) -> list[str]:
     """Инструменты, полностью убираемые из набора модели (через CLI),
     а не через can_use_tool. Оркестратор делегирует через spawn_worker,
-    поэтому субагентов ему отнимаем; воркерам — оставляем."""
-    return list(_ORCH_DISALLOWED_TOOLS) if is_orchestrator else []
+    поэтому субагентов ему отнимаем; воркерам — оставляем.
+    ScheduleWakeup/Cron* убираем у ВСЕХ — Orchestra управляет scheduling сама."""
+    base = list(_ALWAYS_DISALLOWED)
+    if is_orchestrator:
+        base.extend(_ORCH_DISALLOWED_TOOLS)
+    return base
 
 
 def _extract_tool_result(block) -> str:
@@ -116,9 +123,8 @@ class ClaudeBackend:
         # orchestra (back-compat). expanduser — на случай "~" в config_dir.
         if self._config_dir:
             env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
-        cli_model = self.model.replace("[1m]", "")
         options = ClaudeAgentOptions(
-            model=cli_model, cwd=self.cwd, cli_path=cli,
+            model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             disallowed_tools=_disallowed_tools(self._is_orchestrator),
             include_partial_messages=False, max_turns=200,
@@ -150,12 +156,21 @@ class ClaudeBackend:
         # в manager.create_session при skills=="all".
         return ClaudeSDKClient(options=options)
 
+    async def _cleanup_failed_client(self) -> None:
+        if self._client:
+            try:
+                await self._client.disconnect()
+            except BaseException:
+                pass
+            self._client = None
+
     async def connect(self) -> None:
         self._client = self._make_client()
         try:
             await asyncio.wait_for(self._client.connect(), timeout=60)
-        except Exception as e:
+        except BaseException as e:
             logger.error(f"ClaudeBackend connect failed: {e}")
+            await self._cleanup_failed_client()
             raise
 
     async def send(self, message: str) -> None:
@@ -185,11 +200,35 @@ class ClaudeBackend:
                 pass
             self._client = None
 
+    async def context_usage(self) -> dict | None:
+        if not self._client:
+            return None
+        try:
+            u = await asyncio.wait_for(self._client.get_context_usage(), timeout=5)
+            return {
+                "percentage": int(u.get("percentage", 0)),
+                "total_tokens": u.get("totalTokens", 0),
+                "max_tokens": u.get("maxTokens", 0),
+                "raw_max_tokens": u.get("rawMaxTokens", 0),
+                "auto_compact": u.get("isAutoCompactEnabled", False),
+                "auto_compact_threshold": u.get("autoCompactThreshold", 0),
+            }
+        except asyncio.TimeoutError:
+            return None
+        except Exception as e:
+            logger.debug(f"get_context_usage failed: {e}")
+            return None
+
     async def reconnect(self) -> None:
         await self.disconnect()
         await asyncio.sleep(2)
         self._client = self._make_client()
-        await asyncio.wait_for(self._client.connect(), timeout=60)
+        try:
+            await asyncio.wait_for(self._client.connect(), timeout=60)
+        except BaseException as e:
+            logger.error(f"ClaudeBackend reconnect failed: {e}")
+            await self._cleanup_failed_client()
+            raise
 
     def _convert(self, msg) -> list[AgentEvent]:
         events = []
@@ -197,6 +236,8 @@ class ClaudeBackend:
             for block in msg.content:
                 if isinstance(block, TextBlock) and block.text:
                     events.append(AgentEvent("text", block.text))
+                elif isinstance(block, ThinkingBlock) and block.thinking:
+                    events.append(AgentEvent("thinking", block.thinking))
                 elif isinstance(block, ToolUseBlock):
                     try:
                         inp = _json.dumps(block.input, ensure_ascii=False, indent=2)
@@ -207,6 +248,9 @@ class ClaudeBackend:
                                              metadata={"tool_name": block.name, "short_name": short_name}))
                 elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
                     events.append(AgentEvent("tool_result", _extract_tool_result(block)))
+            err = getattr(msg, "error", None)
+            if err:
+                events.append(AgentEvent("error", f"model error: {err}"))
 
         elif isinstance(msg, UserMessage):
             if hasattr(msg, 'content') and isinstance(msg.content, list):
@@ -239,10 +283,12 @@ class ClaudeBackend:
             if msg.session_id:
                 self._session_id = msg.session_id
 
+            is_err = bool(getattr(msg, "is_error", False))
+            err_list = getattr(msg, "errors", None) or []
+            denials = getattr(msg, "permission_denials", None) or []
+
             cost = getattr(msg, "total_cost_usd", 0) or 0
             usage = getattr(msg, "usage", None)
-            ctx_pct = 0
-            ctx_tokens = 0
             max_tokens = 200000
             cache_hit = 0
             cache_read = 0
@@ -252,44 +298,36 @@ class ClaudeBackend:
             cost_cached = 0.0
 
             if usage and isinstance(usage, dict):
-                iters = usage.get("iterations", [])
-                last = iters[-1] if iters else usage
-                cache_create = last.get("cache_creation_input_tokens", 0) or 0
-                cache_read = last.get("cache_read_input_tokens", 0) or 0
-                input_tokens = last.get("input_tokens", 0) or 0
-                output_tokens = last.get("output_tokens", 0) or 0
-                total = input_tokens + cache_create + cache_read
+                cache_create = usage.get("cache_creation_input_tokens", 0) or 0
+                cache_read = usage.get("cache_read_input_tokens", 0) or 0
+                input_tokens = usage.get("input_tokens", 0) or 0
+                output_tokens = usage.get("output_tokens", 0) or 0
                 cache_total = cache_create + cache_read
 
                 from app.models import CONTEXT_LIMITS, TOKEN_PRICES
                 max_tokens = CONTEXT_LIMITS.get(self.model, 200000)
-                ctx_pct = int(total * 100 / max_tokens) if max_tokens else 0
-                ctx_tokens = total
                 cache_hit = int(cache_read * 100 / cache_total) if cache_total else 0
 
                 prices = TOKEN_PRICES.get(self.model)
                 if prices:
                     p_in = prices["input"]
                     p_out = prices["output"]
-                    if iters:
-                        for it in iters:
-                            i_in = it.get("input_tokens", 0) or 0
-                            i_cr = it.get("cache_read_input_tokens", 0) or 0
-                            i_cc = it.get("cache_creation_input_tokens", 0) or 0
-                            i_out = it.get("output_tokens", 0) or 0
-                            cost_cached += (i_in * p_in + i_cr * p_in * 0.1 + i_cc * p_in * 1.25 + i_out * p_out) / 1_000_000
-                    else:
-                        cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
+                    cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
+
+            if denials:
+                logger.info(f"[{self.model}] {len(denials)} permission denial(s) this turn")
 
             events.append(AgentEvent("turn_end", f"stop_reason={sr}, num_turns={nt}", metadata={
                 "session_id": self._session_id,
-                "ok": True,
+                "ok": not is_err,
+                "is_error": is_err,
+                "errors": err_list,
                 "stop_reason": sr,
                 "num_turns": nt,
                 "cost_usd": cost,
                 "cost_usd_cached": round(cost_cached, 6),
-                "context_pct": ctx_pct,
-                "context_tokens": ctx_tokens,
+                "context_pct": 0,
+                "context_tokens": 0,
                 "max_tokens": max_tokens,
                 "cache_hit": cache_hit,
                 "cache_read": cache_read,
@@ -297,5 +335,16 @@ class ClaudeBackend:
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
             }))
+
+        if (isinstance(msg, SystemMessage)
+                and not isinstance(msg, (TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage))
+                and getattr(msg, "subtype", "") == "compact_boundary"):
+            data = getattr(msg, "data", {}) or {}
+            meta = data.get("compactMetadata", data)
+            pre = meta.get("preTokens", 0)
+            post = meta.get("postTokens", 0)
+            trigger = meta.get("trigger", "unknown")
+            events.append(AgentEvent("status",
+                f"CLI auto-compacted ({trigger}): {pre:,}→{post:,} tokens"))
 
         return events
