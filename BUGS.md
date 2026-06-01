@@ -81,3 +81,8 @@ Severity: medium — приводит к повторяющимся конфли
 - **Reporter:** review-reliability
 - **Scope:** /mnt/data/Projects/Python/orchestra
 Worker review-reliability, task #35. codex_review(target="docs/tasks/35/review-reliability.md", output="docs/tasks/35/codex-reliability.md", mode="exec"). bg job bg-27a4d48175 reported "Codex exec done. Results in docs/tasks/35/codex-reliability." but NO file written anywhere (checked worktree + main repo + find across tree = nothing). Same flaky output-write path noted in BUGS.md. Retrying with absolute output path inside worktree.
+
+## [2026-06-01 05:20 UTC] codex_review(mode=exec) reports started but never writes output
+- **Reporter:** review-sdk
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Task #35. Called codex_review(target="docs/tasks/35/review-sdk.md", output="docs/tasks/35/codex-sdk.md", mode="exec", context=...) TWICE (bg jobs bg-1a3847c59f, bg-abb94ed3bc). Both returned "Codex exec started" but the output file docs/tasks/35/codex-sdk.md was never created. No `codex` process running (pgrep codex empty), .codex file is 0 bytes. Waited 120s + 180s after 2nd retry — nothing. First bg job "expired" per orchestrator. The GPT-5.5 codex backend appears not to complete/write for mode=exec on a markdown target. Worker could not obtain cross-review; finalized the SDK review on direct-source verification instead. Repro: codex_review with mode=exec pointing at a docs/*.md file.

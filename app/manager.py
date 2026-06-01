@@ -560,7 +560,7 @@ class SessionManager:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
                 except Exception:
                     pass
-        delete_session(session_id)
+        archive_session(session_id)
 
     async def change_orchestrator_scope(self, name: str, old_scope: str,
                                          new_scope: str, new_cwd: str) -> dict:
