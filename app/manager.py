@@ -524,7 +524,12 @@ class SessionManager:
             await session.start()
             self.sessions[session.id] = session
             return session
-        except Exception:
+        except BaseException:
+            if session.worktree_path and repo_path:
+                try:
+                    await asyncio.to_thread(remove_worktree, repo_path, session.worktree_path)
+                except Exception:
+                    pass
             delete_session(session.id)
             raise
 

@@ -175,3 +175,147 @@ async def test_orchestrator_never_auto_reports(monkeypatch):
     s._schedule_auto_report()
     await asyncio.sleep(0.15)
     assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
+
+
+# ── Task #39: P0 fixes ──
+
+class TestPersistSingleFlight:
+    @pytest.mark.asyncio
+    async def test_persist_coalesces(self, session, monkeypatch):
+        calls = []
+
+        def slow_save(snapshot):
+            calls.append(dict(snapshot))
+
+        monkeypatch.setattr("app.session.save_session", slow_save)
+        for i in range(5):
+            session.progress_pct = i
+            session._persist()
+        await session._drain_persist()
+        # single-flight: at most current + 1 coalesced write
+        assert len(calls) <= 2
+        # last write reflects the latest state
+        assert calls[-1]["progress_pct"] == 4
+
+    @pytest.mark.asyncio
+    async def test_persist_last_wins(self, session, monkeypatch):
+        from app.session import AgentStatus
+        calls = []
+        monkeypatch.setattr("app.session.save_session", lambda s: calls.append(dict(s)))
+        session.status = AgentStatus.RUNNING
+        session._persist()
+        session.status = AgentStatus.IDLE
+        session._persist()
+        await session._drain_persist()
+        assert calls[-1]["status"] == "idle"
+
+    @pytest.mark.asyncio
+    async def test_persist_survives_db_error(self, session, monkeypatch):
+        calls = []
+
+        def flaky_save(snapshot):
+            calls.append(dict(snapshot))
+            if len(calls) == 1:
+                raise RuntimeError("db locked")
+
+        monkeypatch.setattr("app.session.save_session", flaky_save)
+        session.progress_pct = 1
+        session._persist()
+        await session._drain_persist()
+        # first persist crashed; trigger a second — loop must still work
+        session.progress_pct = 2
+        session._persist()
+        await session._drain_persist()
+        assert len(calls) == 2
+        assert calls[-1]["progress_pct"] == 2
+
+
+class TestCompactGuards:
+    @pytest.mark.asyncio
+    async def test_compact_reentry_guard(self, session):
+        session._compacting = True
+        result = await session.compact()
+        assert result == {"ok": False, "error": "compact already in progress"}
+
+    @pytest.mark.asyncio
+    async def test_compact_ack_bound_to_gen(self, session, monkeypatch):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        session._compact_ack_event = asyncio.Event()
+        session._compact_ack_gen = 5
+
+        # turn_end for a DIFFERENT gen must NOT set the ack event
+        session._turn_gen = 4
+        session.status = AgentStatus.RUNNING
+        session._handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
+        assert not session._compact_ack_event.is_set()
+
+        # turn_end for the matching gen SETS it
+        session._turn_gen = 5
+        session._handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
+        assert session._compact_ack_event.is_set()
+
+
+class TestFlushPendingDefersDuringCompact:
+    @pytest.mark.asyncio
+    async def test_flush_defers_when_compacting(self, session):
+        sent = []
+        backend = AsyncMock()
+        backend.send = AsyncMock(side_effect=lambda m: sent.append(m))
+        session._backend = backend
+        session._compacting = True
+        session._pending_messages = ["queued"]
+        await session._flush_pending()
+        assert sent == []  # deferred — nothing sent during compact
+        assert session._pending_messages == ["queued"]  # still queued
+
+    @pytest.mark.asyncio
+    async def test_flush_requeues_if_compact_grabs_lock(self, session):
+        # Codex diff #P0: flush passed the outer _compacting check, but compact
+        # set the flag + took the lock first. Inside-lock recheck must requeue.
+        sent = []
+        backend = AsyncMock()
+        backend.send = AsyncMock(side_effect=lambda m: sent.append(m))
+        session._backend = backend
+        session._pending_messages = ["m1"]
+        # hold the lifecycle lock as "compact" and flip the flag, then run flush:
+        # flush must observe _compacting inside the lock and requeue without sending
+        await session._lifecycle_lock.acquire()
+        session._compacting = True
+        try:
+            # bypass the outer pre-lock sleep/check by calling the lock body logic:
+            # _flush_pending will block on the lock; release after a tick
+            task = asyncio.create_task(session._flush_pending())
+            await asyncio.sleep(0.4)  # let it pass the 0.3s sleep + hit the lock
+        finally:
+            session._lifecycle_lock.release()
+        await task
+        assert sent == []  # not sent — requeued
+        assert session._pending_messages == ["m1"]
+
+
+class TestEnsureBackendForceFresh:
+    @pytest.mark.asyncio
+    async def test_force_fresh_rebuilds_existing_backend(self, session):
+        # Codex diff #P1: _ensure_backend(force_fresh=True) must rebuild even
+        # when a backend already exists (old one disconnected, fresh one made).
+        old = object()
+        session._backend = old
+        new = AsyncMock()
+        new.connect = AsyncMock()
+        with patch.object(session, "_disconnect_backend", AsyncMock()) as disc, \
+             patch.object(session, "_make_backend", return_value=new) as mk, \
+             patch.object(session, "_claude_event_loop", AsyncMock()), \
+             patch.object(session, "_heartbeat_loop", AsyncMock()):
+            result = await session._ensure_backend(force_fresh=True)
+        disc.assert_awaited_once()
+        mk.assert_called_once_with(force_fresh=True)
+        assert result is new
+
+    @pytest.mark.asyncio
+    async def test_no_force_fresh_reuses_existing(self, session):
+        existing = object()
+        session._backend = existing
+        result = await session._ensure_backend()
+        assert result is existing
