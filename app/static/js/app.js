@@ -16,6 +16,8 @@ const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
 const $ = (s) => document.querySelector(s);
 
+marked.setOptions({ breaks: true, gfm: true });
+
 DOMPurify.addHook('uponSanitizeElement', (node) => {
     if (['STYLE', 'HTML', 'HEAD', 'BODY', 'META', 'LINK', 'TITLE', 'SCRIPT'].includes(node.tagName)) node.remove();
 });
