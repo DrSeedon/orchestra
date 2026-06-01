@@ -702,10 +702,14 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
     fp = P(path)
     if not fp.exists():
         return {"error": f"file not found: {path}"}
-    if fp.stat().st_size > 50 * 1024 * 1024:
+    file_size = fp.stat().st_size
+    if file_size == 0:
+        return {"error": f"file is empty (0 bytes): {path}"}
+    if file_size > 50 * 1024 * 1024:
         return {"error": "file too large (max 50MB)"}
     orch_name = _find_orch_for_scope(scope)
     thread_id = config["topics"].get(orch_name) if orch_name else None
+    logger.info(f"send_file: path={path} size={file_size} scope={scope!r} orch={orch_name!r} group_id={config['group_id']} thread_id={thread_id}")
     if not thread_id:
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
@@ -715,26 +719,30 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         tg_file = FSInputFile(path, filename=fp.name)
         is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
         if is_photo:
-            await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+            msg = await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
         else:
-            await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+            msg = await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
+        logger.info(f"send_file: delivered msg_id={msg.message_id} chat_id={msg.chat.id} thread={getattr(msg, 'message_thread_id', None)}")
         if orch_name:
             mirror_file = FSInputFile(path, filename=fp.name)
             await _mirror_send_file(orch_name, mirror_file, label, is_photo)
-        return {"ok": True}
+        return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}
     except TelegramRetryAfter as e:
         logger.warning(f"send_file flood: retry after {e.retry_after}s")
         await asyncio.sleep(e.retry_after + 0.5)
         try:
             tg_file2 = FSInputFile(path, filename=fp.name)
             if is_photo:
-                await bot.send_photo(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
+                msg2 = await bot.send_photo(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
             else:
-                await bot.send_document(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
-            return {"ok": True}
+                msg2 = await bot.send_document(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
+            logger.info(f"send_file retry: delivered msg_id={msg2.message_id} chat_id={msg2.chat.id}")
+            return {"ok": True, "message_id": msg2.message_id, "chat_id": msg2.chat.id}
         except Exception as e2:
+            logger.error(f"send_file retry failed: {e2}")
             return {"error": f"Send failed after flood retry: {e2}"}
     except Exception as e:
+        logger.error(f"send_file exception: type={type(e).__name__} err={e}")
         return {"error": str(e)}
 
 
