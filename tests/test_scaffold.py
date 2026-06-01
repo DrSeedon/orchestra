@@ -103,6 +103,23 @@ def test_docs_scaffold_false_skips(pipelines_root):
     assert not (cwd / "docs_work" / "_off").exists()
 
 
+def test_feature_traversal_escape_blocked(pipelines_root):
+    """B3: feature с '../' не создаёт ничего вне docs_work (containment-guard)."""
+    _root, cwd = pipelines_root
+    _scaffold_role_docs(PIPELINE, str(cwd), "orch-feat", feature="../../etc")
+    # Ничего за пределами docs_work не появилось.
+    assert not (cwd.parent / "etc").exists()
+    assert not (cwd / "etc").exists()
+    # Целевая папка _feat не создана нигде вне docs_work.
+    base = (cwd / "docs_work").resolve()
+    escaped = [p for p in cwd.parent.rglob("_feat")
+               if base != p.resolve() and base not in p.resolve().parents]
+    assert not escaped
+    # Нормальный feature по-прежнему работает.
+    _scaffold_role_docs(PIPELINE, str(cwd), "orch-feat", feature="login")
+    assert (cwd / "docs_work" / "login" / "_feat" / "dashboard.md").is_file()
+
+
 def test_missing_pipeline_skips(tmp_path, monkeypatch):
     """Манифеста нет (FileNotFoundError) → тихий пропуск, без исключения."""
     monkeypatch.setattr(P, "PIPELINES_DIR", tmp_path / "no_such")

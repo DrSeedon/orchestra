@@ -324,8 +324,10 @@ async function loadProfilesDropdown() {
             opt.textContent = `${p.name} (${p.config_dir || 'env процесса'})`;
             select.appendChild(opt);
         }
-        // дефолт — первый (personal сидится первым в БД)
-        if (profiles.length) select.value = profiles[0].name;
+        // B5: API сортирует по name (ORDER BY name), поэтому первый ≠ personal.
+        // Явно предпочитаем personal, иначе — первый по списку.
+        const def = profiles.find(p => p.name === 'personal') || profiles[0];
+        if (def) select.value = def.name;
     } catch {}
 }
 

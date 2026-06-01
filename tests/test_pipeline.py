@@ -185,6 +185,80 @@ class TestSchemaValidation:
         cfg = P.load_pipeline("demo")
         assert cfg.roles["a"].can_spawn == ["*"]
 
+    # ── B2: hardening путей манифеста (fail-closed на abs/'..') ──────────────
+
+    def test_is_safe_rel_unit(self):
+        """Юнит хелпера: относительные ОК, abs и '..' — нет, {role}/{feature} ОК."""
+        assert P._is_safe_rel("roles/{role}.md")
+        assert P._is_safe_rel("{feature}/_pm")
+        assert P._is_safe_rel("base.md")
+        assert not P._is_safe_rel("/etc/passwd")
+        assert not P._is_safe_rel("../../../app/db.py")
+        assert not P._is_safe_rel("a/../b")
+        assert not P._is_safe_rel("")
+
+    def test_prompt_layers_traversal_rejected(self, pipelines_root):
+        """B2: prompt_layers с '..' → ValidationError на загрузке (fail-closed)."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              prompt_layers:
+                orchestrator: ["../../../app/db.py"]
+                worker: ["base.md"]
+            roles:
+              r: {kind: orchestrator, label: R}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_prompt_layers_absolute_rejected(self, pipelines_root):
+        """B2: абсолютный путь в prompt_layers → отвергнут."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              prompt_layers:
+                orchestrator: ["base.md"]
+                worker: ["/etc/shadow"]
+            roles:
+              r: {kind: worker, label: R}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_docs_dir_absolute_path_rejected(self, pipelines_root):
+        """B2: docs_dir.path абсолютный → отвергнут."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            roles:
+              r: {kind: orchestrator, label: R, docs_dir: {path: "/etc/x"}}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_docs_dir_traversal_template_rejected(self, pipelines_root):
+        """B2: docs_dir.template с '..' → отвергнут."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            roles:
+              r: {kind: orchestrator, label: R, docs_dir: {path: _x, template: "../t.md"}}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_safe_manifest_paths_accepted(self, pipelines_root):
+        """B2: валидные относительные пути (+ {role}/{feature}) грузятся без ошибок."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              prompt_layers:
+                orchestrator: ["base.md", "roles/{role}.md", "_pipeline.md"]
+                worker: ["base.md", "roles/{role}.md"]
+            roles:
+              r: {kind: orchestrator, label: R, docs_dir: {path: "{feature}/_pm", template: pm.md, requires: feature}}
+        """)
+        cfg = P.load_pipeline("demo")
+        assert cfg.roles["r"].docs_dir.path == "{feature}/_pm"
+
     def test_skills_all_and_list_both_valid(self, pipelines_root):
         _write_pipeline(pipelines_root, "demo", """\
             name: demo

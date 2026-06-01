@@ -728,6 +728,28 @@ class TestRoleSystemPromptManifest:
         assert "### `coder`" not in out
         assert "### `worker`" not in out
 
+    def test_unknown_role_falls_back_to_upstream(self, pipeline_dir, tmp_path,
+                                                  monkeypatch, db):
+        """B1: роли нет в манифесте (KeyError) → НЕ падает, fallback на upstream.
+
+        Манифест testpipe есть (FileNotFoundError не сработает), но
+        ``my-custom-worker`` в нём отсутствует → resolve_role бросает KeyError →
+        ROLE_SYSTEM_PROMPT делегирует в _UPSTREAM_ROLE_SYSTEM_PROMPT.
+        """
+        # upstream-каталог промптов (app/prompts): base.md + worker.md (fallback).
+        uprompts = tmp_path / "uprompts"
+        (uprompts / "roles").mkdir(parents=True)
+        (uprompts / "base.md").write_text("UPSTREAM-BASE")
+        (uprompts / "roles" / "worker.md").write_text(
+            "---\nname: worker\n---\n\nUPSTREAM worker body.\n")
+        monkeypatch.setattr("app.manager._PROMPTS_DIR", uprompts)
+        monkeypatch.setattr("app.manager._SKILLS_DIR", uprompts / "skills")
+        from app.manager import ROLE_SYSTEM_PROMPT, _UPSTREAM_ROLE_SYSTEM_PROMPT
+        out = ROLE_SYSTEM_PROMPT("testpipe", "my-custom-worker")
+        assert out  # непустой
+        assert out == _UPSTREAM_ROLE_SYSTEM_PROMPT("my-custom-worker")
+        assert "UPSTREAM-BASE" in out
+
 
 class TestRolesCatalogFromManifest:
     def test_pm_glava_shows_only_pm_fichi_and_secretary(self, pipeline_dir):
@@ -764,6 +786,8 @@ class TestRolesCatalogFromManifest:
         pl.load_pipeline.cache_clear()
         assert "### `a`" in cat
         assert "### `b`" in cat
+        # S1: wildcard НЕ включает саму роль-родителя.
+        assert "### `boss`" not in cat
 
 
 class TestPromptIsolation:

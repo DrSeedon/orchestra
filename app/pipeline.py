@@ -39,6 +39,17 @@ def _model_is_known(model: str) -> bool:
     return model.lower() in ALIASES or model in MODELS
 
 
+def _is_safe_rel(p: str) -> bool:
+    """True если ``p`` — безопасный относительный путь (без абсолютного и '..').
+
+    Защита изоляции: слои промпта/шаблоны не должны выходить за pipelines/<name>/.
+    """
+    from pathlib import PurePosixPath
+    if not p or p.startswith("/"):
+        return False
+    return ".." not in PurePosixPath(p).parts
+
+
 # ── Pydantic-схема манифеста ───────────────────────────────────────────────
 
 class Symlink(BaseModel):
@@ -66,6 +77,15 @@ class DocsDir(BaseModel):
     template: str | None = None
     requires: Literal["feature"] | None = None
 
+    @field_validator("path", "template")
+    @classmethod
+    def _safe_rel(cls, v: str | None) -> str | None:
+        # B2: путь/шаблон не должны выходить за pipelines/<name>/ (abs или '..').
+        # {feature} подставляется в рантайме — containment проверяет B3.
+        if v is not None and not _is_safe_rel(v):
+            raise ValueError(f"unsafe docs_dir path '{v}' (abs или '..')")
+        return v
+
 
 class Tg(BaseModel):
     """Параметры Telegram-топика роли (emoji + шаблон topic)."""
@@ -84,6 +104,16 @@ class PromptLayers(BaseModel):
         default_factory=lambda: ["base.md", "roles/{role}.md", "_pipeline.md"])
     worker: list[str] = Field(
         default_factory=lambda: ["base.md", "roles/{role}.md"])
+
+    @field_validator("orchestrator", "worker")
+    @classmethod
+    def _safe_layers(cls, v: list[str]) -> list[str]:
+        # B2: слои не должны выходить за pipelines/<name>/prompts/. Плейсхолдер
+        # {role} безопасен (_is_safe_rel("roles/{role}.md") True).
+        for layer in v:
+            if not _is_safe_rel(layer):
+                raise ValueError(f"unsafe prompt layer '{layer}' (abs или '..')")
+        return v
 
 
 class Defaults(BaseModel):

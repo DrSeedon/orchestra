@@ -273,7 +273,12 @@ def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
     parent = cfg.roles.get(parent_role)
     if parent is None:
         return ""
-    visible = list(cfg.roles) if "*" in parent.can_spawn else list(parent.can_spawn)
+    if "*" in parent.can_spawn:
+        # S1: wildcard НЕ включает саму роль-родителя (upstream _roles_catalog
+        # пропускал orchestrator из своего же каталога воркеров).
+        visible = [r for r in cfg.roles if r != parent_role]
+    else:
+        visible = list(parent.can_spawn)
     visible = [r for r in visible if r in cfg.roles]
     if not visible:
         return ""
@@ -293,12 +298,16 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     затем для оркестратора — каталог ролей (фильтр ``can_spawn``) + блоки других
     оркестраторов/воркеров из БД.
 
-    Fallback (``FileNotFoundError`` — манифеста нет): делегируем в
-    :func:`_UPSTREAM_ROLE_SYSTEM_PROMPT` (поведение апстрима 1:1, B4).
+    Fallback (``FileNotFoundError`` — манифеста нет, ИЛИ ``KeyError`` — роли нет
+    в манифесте): делегируем в :func:`_UPSTREAM_ROLE_SYSTEM_PROMPT` (поведение
+    апстрима 1:1, B4 — default/fail-open на worker/orchestrator).
     """
     try:
         base = build_system_prompt(pipeline, role, scope)
-    except FileNotFoundError:
+    except (FileNotFoundError, KeyError):
+        # Нет манифеста (FileNotFoundError) ИЛИ роли нет в манифесте (KeyError):
+        # делегируем в upstream-fallback (B4: default/fail-open 1:1 — upstream
+        # допускал произвольную роль воркера с fallback на worker/orchestrator).
         return _UPSTREAM_ROLE_SYSTEM_PROMPT(role, scope)
     rr = get_role(pipeline, role)
     is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
@@ -352,9 +361,17 @@ def _scaffold_role_docs(pipeline: str, cwd: str, role: str, feature: str = "") -
     if dd.requires == "feature" and not feature:
         return
     rel = dd.path.replace("{feature}", feature) if feature else dd.path
-    d = Path(cwd) / "docs_work" / rel
-    d.mkdir(parents=True, exist_ok=True)
-    dashboard = d / "dashboard.md"
+    # B3: feature приходит из рантайм-ввода (API/MCP docs_feature) — может
+    # содержать '../'. Проверяем containment в docs_work ПЕРЕД mkdir/write.
+    base_docs = (Path(cwd) / "docs_work").resolve()
+    target = (base_docs / rel).resolve()
+    try:
+        target.relative_to(base_docs)
+    except ValueError:
+        logger.warning("scaffold: путь '%s' выходит за docs_work — пропуск", rel)
+        return
+    target.mkdir(parents=True, exist_ok=True)
+    dashboard = target / "dashboard.md"
     if dashboard.exists() or not dd.template:
         return
     tpl = template_path(pipeline, dd.template)
