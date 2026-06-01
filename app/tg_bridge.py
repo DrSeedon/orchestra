@@ -150,15 +150,17 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
     with open(path, "rb") as af:
         audio_data = af.read()
     last_err = ""
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY") or None
     for attempt in range(3):
         try:
-            async with aiohttp.ClientSession(trust_env=False) as http:
+            async with aiohttp.ClientSession() as http:
                 async with http.post(
                     "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true",
                     headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg",
                              "Accept-Encoding": "gzip, deflate"},
                     data=audio_data,
                     timeout=aiohttp.ClientTimeout(total=120),
+                    proxy=proxy,
                 ) as resp:
                     out = await resp.read()
             break
