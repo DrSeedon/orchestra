@@ -570,6 +570,7 @@ class SessionManager:
             role=role,
             parent_id=db_row.get("parent_id", ""),
             parent_name=db_row.get("parent_name", ""),
+            pipeline=db_row.get("pipeline", ""),
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,

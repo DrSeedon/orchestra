@@ -511,3 +511,27 @@ class TestBgMigration:
         # Fresh DB already has no type CHECK; init_db again must not error.
         from app.db import init_db
         init_db()
+
+
+# ── Этап 1: pipeline-колонка + round-trip ──
+
+class TestPipelineColumn:
+    def test_migrate_adds_pipeline_column(self, db):
+        from app.db import _conn
+        with _conn() as c:
+            cols = {r[1] for r in c.execute("PRAGMA table_info(sessions)").fetchall()}
+        assert "pipeline" in cols
+
+    def test_save_and_load_pipeline(self, db, sample_session):
+        from app.db import save_session, get_session
+        sample_session["pipeline"] = "sapto-pm"
+        save_session(sample_session)
+        row = get_session(sample_session["id"])
+        assert row["pipeline"] == "sapto-pm"
+
+    def test_save_without_pipeline_defaults_empty(self, db, sample_session):
+        from app.db import save_session, get_session
+        sample_session.pop("pipeline", None)
+        save_session(sample_session)
+        row = get_session(sample_session["id"])
+        assert row["pipeline"] == ""

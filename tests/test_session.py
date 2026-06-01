@@ -175,3 +175,44 @@ async def test_orchestrator_never_auto_reports(monkeypatch):
     s._schedule_auto_report()
     await asyncio.sleep(0.15)
     assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
+
+
+# ── Этап 1: pipeline + is_orchestrator как хранимое поле ──
+
+class TestPipelineField:
+    def test_pipeline_default_empty(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp")
+        assert s.pipeline == ""
+
+    def test_pipeline_can_be_set(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="sapto-pm")
+        assert s.pipeline == "sapto-pm"
+
+    def test_to_db_dict_includes_pipeline(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="sapto-pm")
+        assert s._to_db_dict()["pipeline"] == "sapto-pm"
+
+
+class TestIsOrchestratorStored:
+    def test_setter_overrides_role_fallback(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", role="worker")
+        assert s.is_orchestrator is False        # fallback от role
+        s.is_orchestrator = True                 # сеттер (раньше падал: no setter)
+        assert s.is_orchestrator is True
+
+    def test_fallback_to_role_when_unset(self):
+        from app.session import AgentSession
+        orch = AgentSession(id="i", name="o", scope="/s", cwd="/tmp", role="orchestrator")
+        wrk = AgentSession(id="j", name="w", scope="/s", cwd="/tmp", role="worker")
+        assert orch.is_orchestrator is True       # frozenset fallback
+        assert wrk.is_orchestrator is False
+
+    def test_setter_false_overrides_orchestrator_role(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="o", scope="/s", cwd="/tmp", role="orchestrator")
+        s.is_orchestrator = False                # явный override (манифест может сказать worker)
+        assert s.is_orchestrator is False

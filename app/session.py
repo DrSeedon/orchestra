@@ -75,6 +75,8 @@ class AgentSession:
     role: str = "worker"
     parent_id: str = ""
     parent_name: str = ""
+    pipeline: str = ""
+    _is_orchestrator: bool | None = field(default=None, repr=False)
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
     mcp_servers_custom: dict = field(default_factory=dict, repr=False)
@@ -118,7 +120,13 @@ class AgentSession:
 
     @property
     def is_orchestrator(self) -> bool:
+        if self._is_orchestrator is not None:
+            return self._is_orchestrator
         return is_orchestrator_role(self.role)
+
+    @is_orchestrator.setter
+    def is_orchestrator(self, value: bool) -> None:
+        self._is_orchestrator = value
 
     def _make_backend(self):
         if self.backend_type == "codex":
@@ -784,6 +792,7 @@ class AgentSession:
             "worktree_path": self.worktree_path,
             "branch": self.branch, "is_orchestrator": self.is_orchestrator,
             "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
+            "pipeline": self.pipeline,
             "color": self.color, "created_at": self.created_at.isoformat(),
             "finished_at": None,
             "context_pct": self._last_context.get("percentage", 0),
