@@ -12,3 +12,5 @@ worktrees/
 data/
 .claude/
 _screenshots/
+pipelines/sapto-pm/
+tests/test_sapto_pm_pipeline.py

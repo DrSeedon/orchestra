@@ -23,6 +23,7 @@ from app.pipeline import (
     get_role,
     load_pipeline,
     resolve_role,
+    template_path,
     validate_spawn,
 )
 from app.db import (
@@ -321,6 +322,37 @@ def _prompt_template_hash(role_or_orch) -> str:
     return hashlib.md5(content.encode()).hexdigest()[:8]
 
 
+def _scaffold_role_docs(pipeline: str, cwd: str, role: str, feature: str = "") -> None:
+    """Идемпотентно скаффолдит doc-папку роли в docs_work/ по манифесту.
+
+    Источник пути/шаблона — resolve_role(...).docs_dir (не хардкод). Если у роли
+    нет docs_dir, docs_scaffold выключен, или requires=='feature' без feature —
+    скаффолд пропускается. Манифеста нет (FileNotFoundError) → пропуск.
+    """
+    try:
+        rr = get_role(pipeline, role)
+    except FileNotFoundError:
+        return
+    if rr is None or not rr.docs_scaffold or rr.docs_dir is None:
+        return
+    dd = rr.docs_dir
+    if dd.requires == "feature" and not feature:
+        return
+    rel = dd.path.replace("{feature}", feature) if feature else dd.path
+    d = Path(cwd) / "docs_work" / rel
+    d.mkdir(parents=True, exist_ok=True)
+    dashboard = d / "dashboard.md"
+    if dashboard.exists() or not dd.template:
+        return
+    tpl = template_path(pipeline, dd.template)
+    if not tpl.is_file():
+        return
+    content = tpl.read_text()
+    if feature:
+        content = content.replace("{feature}", feature)
+    dashboard.write_text(content)
+
+
 def _inject_skills_to_worktree(role: str, worktree_path: str) -> None:
     """Copy role skills into worktree/.claude/skills/ as native Claude CLI skills."""
     role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
@@ -443,7 +475,7 @@ class SessionManager:
                              base_branch: str = "main",
                              parent_id: str = "", parent_name: str = "",
                              mcp_servers: dict | None = None,
-                             pipeline: str = "") -> AgentSession:
+                             pipeline: str = "", docs_feature: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -534,6 +566,15 @@ class SessionManager:
                 session.worktree_path = wt.path
                 session.branch = wt.branch
                 await asyncio.to_thread(_inject_skills_to_worktree, role, wt.path)
+
+            # Best-effort скаффолд doc-папки роли по манифесту (фильтрация внутри
+            # функции: docs_scaffold/docs_dir/requires). cwd = итоговый (worktree
+            # если создан, иначе исходный). Не должен валить create_session.
+            try:
+                await asyncio.to_thread(
+                    _scaffold_role_docs, pipeline, session.cwd, role, docs_feature)
+            except Exception as e:  # noqa: BLE001 — best-effort, как другие шаги
+                logger.warning("docs scaffold failed for role '%s': %s", role, e)
 
             if not is_orch:
                 orch_name = parent_name or self._find_orchestrator_name(scope)
