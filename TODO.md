@@ -1,6 +1,8 @@
 # Orchestra TODO
 
 ## Bugs
+- [ ] **Merge конфликт после squash** — system workers накапливают старые коммиты которые уже на main через squash merge (другие хеши). Fix: auto switch_worker_branch на свежую ветку от main после каждого merge
+- [ ] **Task linking "FAILED — unknown"** — link_commits_to_task не парсит таск из коммит-сообщения после merge. manager.py
 - [ ] **kill_worker удаляет логи** — при kill_worker удаляются session + logs из БД. Нужно: archived сессии и их логи хранить минимум 24ч, потом чистить. worktree удалять сразу (тяжёлый), но данные в БД — отложенно
 - [ ] **send_message 500 после рестарта** — idle воркеры не получают сообщения после restart. Workaround: respawn
 - [ ] **codex_review output path** — пишет в main worktree, не в worktree воркера. Task #27
