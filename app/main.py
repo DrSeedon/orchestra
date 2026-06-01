@@ -481,21 +481,28 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     async def event_generator():
+        from app.db import _conn
         last_id = after_id
         initial = True
-        while True:
-            if await request.is_disconnected():
-                return
-            if initial and after_id == 0:
-                logs = get_logs_before(session_id, before_id=2**31 - 1, limit=limit)
-                initial = False
-            else:
-                logs = get_logs(session_id, after_id=last_id)
-                initial = False
-            for log in logs:
-                yield f"data: {json.dumps(log)}\n\n"
-                last_id = log["id"]
-            await asyncio.sleep(0.5)
+        idle_ticks = 0
+        c = _conn()
+        try:
+            while True:
+                if await request.is_disconnected():
+                    return
+                if initial and after_id == 0:
+                    logs = get_logs_before(session_id, before_id=2**31 - 1, limit=limit)
+                    initial = False
+                else:
+                    logs = get_logs(session_id, after_id=last_id, conn=c)
+                    initial = False
+                for log in logs:
+                    yield f"data: {json.dumps(log)}\n\n"
+                    last_id = log["id"]
+                idle_ticks = 0 if logs else idle_ticks + 1
+                await asyncio.sleep(0.5 if idle_ticks < 4 else 3.0)
+        finally:
+            c.close()
     return StreamingResponse(event_generator(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -752,7 +759,7 @@ async def merge_session(name: str, req: dict):
         return JSONResponse({"error": "session has no scope"}, status_code=400)
     async with manager.get_session_lock(session_id):
         try:
-            result = merge_worktree_to_main(worktree_path, scope, target_branch=target)
+            result = await asyncio.to_thread(merge_worktree_to_main, worktree_path, scope, target_branch=target)
             if result.get("ok"):
                 link_results = {}
                 for task_ref, commits in result.pop("merged_commits", {}).items():
@@ -794,7 +801,7 @@ async def switch_branch(name: str, req: dict):
     from_ref = req.get("from_ref", "refs/heads/main")
     async with manager.get_session_lock(session_id):
         try:
-            result = switch_worktree_branch(worktree_path, new_branch, from_ref=from_ref)
+            result = await asyncio.to_thread(switch_worktree_branch, worktree_path, new_branch, from_ref=from_ref)
             if not isinstance(found, dict):
                 if result.get("ok") or result.get("branch"):
                     found.branch = result.get("branch", new_branch)

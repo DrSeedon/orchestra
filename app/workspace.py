@@ -454,13 +454,15 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
         full_hash, message, date = parts
         short_hash = full_hash[:7]
 
-        m = _TASK_REF_RE.search(message)
-        if not m:
+        refs: list[str] = []
+        seen_refs: set[str] = set()
+        for m in _TASK_REF_RE.finditer(message):
+            ref = m.group(3) if m.group(3) else f"{m.group(1)}-{m.group(2)}"
+            if ref not in seen_refs:
+                seen_refs.add(ref)
+                refs.append(ref)
+        if not refs:
             continue
-        if m.group(3):
-            task_ref = m.group(3)
-        else:
-            task_ref = f"{m.group(1)}-{m.group(2)}"
 
         stat = subprocess.run(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],
@@ -487,7 +489,8 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
             "insertions": insertions,
             "deletions": deletions,
         }
-        by_par.setdefault(task_ref, []).append(commit)
+        for ref in refs:
+            by_par.setdefault(ref, []).append(commit)
 
     return by_par
 

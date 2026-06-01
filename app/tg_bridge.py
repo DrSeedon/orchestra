@@ -876,110 +876,118 @@ async def stream_logs(orch_name: str, thread_id: int):
     if not session_id:
         return
 
-    logs = get_logs(session_id, after_id=0)
+    from app.db import _conn
+    _poll_conn = _conn()
+    logs = get_logs(session_id, after_id=0, conn=_poll_conn)
     last_id = logs[-1]["id"] if logs else 0
     _last_tool_msg = None
     _last_tool_text = ""
+    _idle_ticks = 0
 
-    while True:
-        try:
-            logs = get_logs(session_id, after_id=last_id)
-            for log in logs:
-                if log["id"] <= last_id:
-                    continue
-                last_id = log["id"]
-                t, c = log["type"], log["content"]
-                if t in ("text", "tool"):
-                    await _update_topic_status(orch_name, True)
-                if t == "user_message":
-                    c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
-                    img_match = re.search(r'(/\S+\.(?:png|jpg|jpeg|gif|webp))', c, re.IGNORECASE)
-                    if img_match and Path(img_match.group(1)).is_file():
-                        img_path = img_match.group(1)
-                        caption = c.replace(img_path, '').strip()[:1024] or None
-                        try:
-                            from aiogram.types import FSInputFile
-                            tg_file = FSInputFile(img_path)
-                            await bot.send_photo(config["group_id"], tg_file, caption=caption, message_thread_id=thread_id)
-                            mirror = config.get("mirrors", {}).get(orch_name)
-                            if mirror and mirror.get("chat_id"):
-                                mirror_file = FSInputFile(img_path)
-                                await bot.send_photo(mirror["chat_id"], mirror_file, caption=caption, message_thread_id=mirror.get("topic_id"))
-                        except Exception as e:
-                            logger.warning(f"TG send photo failed: {e}")
+    try:
+        while True:
+            try:
+                logs = get_logs(session_id, after_id=last_id, conn=_poll_conn)
+                _idle_ticks = 0 if logs else _idle_ticks + 1
+                for log in logs:
+                    if log["id"] <= last_id:
                         continue
-                    if c.startswith("[from:"):
-                        prefix = c.split("]")[0] + "]"
-                        body = c[len(prefix):].strip()
-                        text = f"📨 {prefix}\n{body}"
+                    last_id = log["id"]
+                    t, c = log["type"], log["content"]
+                    if t in ("text", "tool"):
+                        await _update_topic_status(orch_name, True)
+                    if t == "user_message":
+                        c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
+                        img_match = re.search(r'(/\S+\.(?:png|jpg|jpeg|gif|webp))', c, re.IGNORECASE)
+                        if img_match and Path(img_match.group(1)).is_file():
+                            img_path = img_match.group(1)
+                            caption = c.replace(img_path, '').strip()[:1024] or None
+                            try:
+                                from aiogram.types import FSInputFile
+                                tg_file = FSInputFile(img_path)
+                                await bot.send_photo(config["group_id"], tg_file, caption=caption, message_thread_id=thread_id)
+                                mirror = config.get("mirrors", {}).get(orch_name)
+                                if mirror and mirror.get("chat_id"):
+                                    mirror_file = FSInputFile(img_path)
+                                    await bot.send_photo(mirror["chat_id"], mirror_file, caption=caption, message_thread_id=mirror.get("topic_id"))
+                            except Exception as e:
+                                logger.warning(f"TG send photo failed: {e}")
+                            continue
+                        if c.startswith("[from:"):
+                            prefix = c.split("]")[0] + "]"
+                            body = c[len(prefix):].strip()
+                            text = f"📨 {prefix}\n{body}"
+                        else:
+                            text = f"👤 {c}"
+                    elif t == "text":
+                        # @mention пользователя — только в речи агента (text), чтобы уведы
+                        # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
+                        # Обрезание убрано: длинные сообщения дробит _split_message ниже (upstream c36c51d).
+                        head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
+                        text = f"{head}\n{c}"
+                    elif t == "tool":
+                        tool_name = c.split(":")[0].strip() if ":" in c else "tool"
+                        tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
+                        icon = _tg_tool_icon(tool_name)
+                        short = _tg_tool_short(tool_name)
+                        header = f"{icon} {short}"
+                        _last_tool_text = f"{header}\n{tool_body}"
+                        _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
+                        try:
+                            m_text, m_ents = md_convert(f"{header}\n{tool_body}")
+                            from aiogram.types import MessageEntity as AioEntity
+                            await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
+                        except Exception:
+                            await _mirror_send(orch_name, f"{header}\n{tool_body}")
+                        continue
+                    elif t == "tool_result":
+                        result_preview = c[:80].replace("\n", " ").strip()
+                        result_body = c[:800]
+                        if _last_tool_msg:
+                            await _edit_tool_with_result(
+                                _last_tool_msg, config["group_id"],
+                                _last_tool_text, f"📎 {result_preview}", result_body,
+                            )
+                            _last_tool_msg = None
+                            _last_tool_text = ""
+                        else:
+                            await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
+                        try:
+                            m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
+                            from aiogram.types import MessageEntity as AioEntity
+                            await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
+                        except Exception:
+                            await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
+                        continue
+                    elif t == "error":
+                        text = f"❌ {c}"
+                    elif t == "status":
+                        if "turn ended" in c:
+                            still_running = _any_running_in_scope(scope)
+                            if not still_running:
+                                await _update_topic_status(orch_name, False)
+                        text = f"⚡ {c}"
                     else:
-                        text = f"👤 {c}"
-                elif t == "text":
-                    # @mention пользователя — только в речи агента (text), чтобы уведы
-                    # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
-                    # Обрезание убрано: длинные сообщения дробит _split_message ниже (upstream c36c51d).
-                    head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
-                    text = f"{head}\n{c}"
-                elif t == "tool":
-                    tool_name = c.split(":")[0].strip() if ":" in c else "tool"
-                    tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
-                    icon = _tg_tool_icon(tool_name)
-                    short = _tg_tool_short(tool_name)
-                    header = f"{icon} {short}"
-                    _last_tool_text = f"{header}\n{tool_body}"
-                    _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
-                    try:
-                        m_text, m_ents = md_convert(f"{header}\n{tool_body}")
-                        from aiogram.types import MessageEntity as AioEntity
-                        await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
-                    except Exception:
-                        await _mirror_send(orch_name, f"{header}\n{tool_body}")
-                    continue
-                elif t == "tool_result":
-                    result_preview = c[:80].replace("\n", " ").strip()
-                    result_body = c[:800]
-                    if _last_tool_msg:
-                        await _edit_tool_with_result(
-                            _last_tool_msg, config["group_id"],
-                            _last_tool_text, f"📎 {result_preview}", result_body,
-                        )
-                        _last_tool_msg = None
-                        _last_tool_text = ""
-                    else:
-                        await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
-                    try:
-                        m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
-                        from aiogram.types import MessageEntity as AioEntity
-                        await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
-                    except Exception:
-                        await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
-                    continue
-                elif t == "error":
-                    text = f"❌ {c}"
-                elif t == "status":
-                    if "turn ended" in c:
-                        still_running = _any_running_in_scope(scope)
-                        if not still_running:
-                            await _update_topic_status(orch_name, False)
-                    text = f"⚡ {c}"
-                else:
-                    continue
-                is_important = t in ("text", "error", "user_message")
-                for chunk in _split_message(text):
-                    try:
-                        converted, entities = md_convert(chunk)
-                        from aiogram.types import MessageEntity as AioEntity
-                        aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
-                        await _tg_send_safe(config["group_id"], converted, thread_id,
-                                            entities=aio_ents, important=is_important)
-                        await _mirror_send(orch_name, converted, entities=aio_ents)
-                    except Exception:
-                        await _tg_send_safe(config["group_id"], chunk, thread_id,
-                                            important=is_important)
-                        await _mirror_send(orch_name, chunk)
-        except Exception as e:
-            logger.error(f"Stream error for {orch_name}: {e}")
-        await asyncio.sleep(2)
+                        continue
+                    is_important = t in ("text", "error", "user_message")
+                    for chunk in _split_message(text):
+                        try:
+                            converted, entities = md_convert(chunk)
+                            from aiogram.types import MessageEntity as AioEntity
+                            aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
+                            await _tg_send_safe(config["group_id"], converted, thread_id,
+                                                entities=aio_ents, important=is_important)
+                            await _mirror_send(orch_name, converted, entities=aio_ents)
+                        except Exception:
+                            await _tg_send_safe(config["group_id"], chunk, thread_id,
+                                                important=is_important)
+                            await _mirror_send(orch_name, chunk)
+            except Exception as e:
+                logger.error(f"Stream error for {orch_name}: {e}")
+                _idle_ticks = 0
+            await asyncio.sleep(2 if _idle_ticks < 3 else 5)
+    finally:
+        _poll_conn.close()
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text, lambda msg: msg.text and msg.text.strip() == "/restart")
