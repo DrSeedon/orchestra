@@ -12,3 +12,6 @@ worktrees/
 data/
 .claude/
 _screenshots/
+artifacts/
+docs/proxy-*.md
+docs/vps-*.md
