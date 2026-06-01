@@ -1,0 +1,51 @@
+name: default
+description: Upstream pipeline (orchestrator / worker / full-cycle). Behaviour 1:1 with mccalpink/orchestra main.
+validation: fail-open               # дух апстрима: неизвестные роли пропускаем, проверяем только явный whitelist при известных
+defaults:
+  model: opus                       # его базовая модель; роль worker переопределит на sonnet
+  skills: []                        # в default НЕ форсим skills:all; skills задаёт роль (как у него во frontmatter)
+  mcp_servers: []                   # апстрим не прокидывает user-MCP — пусто
+  inherit_claude_md: true           # его поведение: CLAUDE.md проекта копируется в worktree (PROJECT_FILES)
+  prompt_layers:                    # у апстрима НЕТ _pipeline.md — только base + роль (+ динамич. каталог ролей в manager)
+    orchestrator: [base.md, "roles/{role}.md"]
+    worker:       [base.md, "roles/{role}.md"]
+  worktree:
+    symlinks: []                    # апстрим docs_work НЕ симлинкает
+    copies:   [CLAUDE.md, .mcp.json, .env, .worktreeinclude]   # = его PROJECT_FILES (workspace.py:14)
+  base_branch_strategy: main        # апстрим: все worktree от main (-b branch main)
+  docs_scaffold: false              # апстрим не скаффолдит doc-папки (full-cycle создаёт docs/tasks/<id> сам в промпте)
+roles:
+  orchestrator:
+    kind: orchestrator
+    label: Orchestrator
+    order: 0
+    model: opus
+    skills: [html-artifacts, vps-deploy]   # ровно его frontmatter skills
+    can_spawn: ["*"]                # апстрим не ограничивает оркестратора
+    allow_unrouted_workers: true    # его дефолт role='worker' / пустая роль допустима
+    when: Managing a team of workers, decomposing tasks, approving plans
+    not_for: Direct implementation — delegate to workers
+    description: >
+      Manages worker agents. Decomposes tasks, spawns workers, reviews results.
+      Available worker roles are injected automatically from roles/ directory.
+  worker:
+    kind: worker
+    label: Worker
+    model: sonnet                   # его frontmatter "sonnet/opus" невалиден для реестра — берём sonnet (его эффективный дефолт)
+    can_spawn: []
+    allow_unrouted_workers: false
+    when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
+    not_for: Tasks needing research or unknown scope — use full-cycle
+    description: >
+      General-purpose worker. Implements tasks directly, no pipeline gates.
+  full-cycle:
+    kind: worker                    # full-cycle — воркер (оркестратор спавнит его как воркера-исполнителя)
+    label: Full-Cycle
+    model: opus
+    can_spawn: []
+    allow_unrouted_workers: false
+    when: New feature with unknowns, large refactoring (5+ files), external integration
+    not_for: Bug fixes, config changes, implementation from clear spec
+    description: >
+      Research -> Plan + Codex review -> Implement + Codex review.
+      Strict 3-phase pipeline with 2 orchestrator approval gates. Artifacts in docs/tasks/<id>/.
