@@ -373,8 +373,6 @@ async def _resolve_media(sid: str, idx: int, content: str):
         await _flush_batch(sid, flush_batch)
 
 
-async def _react_processing(msg: types.Message):
-    pass
 
 
 def _utf16_len(s: str) -> int:
@@ -391,23 +389,6 @@ def _md_entities(text: str, base_offset: int = 0):
         return text, []
 
 
-async def _send_expandable_return(chat_id: int, thread_id: int, header: str, body: str):
-    from aiogram.types import MessageEntity
-    from aiogram.enums import MessageEntityType
-    body = body.rstrip()
-    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
-    text = f"{header}\n{conv_body}"
-    offset = _utf16_len(header) + 1
-    length = _utf16_len(conv_body)
-    try:
-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
-        return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
-    except Exception:
-        try:
-            return await bot.send_message(chat_id, text, message_thread_id=thread_id)
-        except Exception as e:
-            logger.warning(f"TG send failed: {e}")
-            return None
 
 
 async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_header: str, result_body: str):
@@ -469,18 +450,20 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
 async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
+    body = body.rstrip()
     conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
     text = f"{header}\n{conv_body}"
     offset = _utf16_len(header) + 1
     length = _utf16_len(conv_body)
     try:
         entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
-        await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
+        return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
     except Exception:
         try:
-            await bot.send_message(chat_id, text, message_thread_id=thread_id)
+            return await bot.send_message(chat_id, text, message_thread_id=thread_id)
         except Exception as e:
             logger.warning(f"TG send failed: {e}")
+            return None
 
 
 TG_MSG_LIMIT = 4096
@@ -935,7 +918,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         short = _tg_tool_short(tool_name)
                         header = f"{icon} {short}"
                         _last_tool_text = f"{header}\n{tool_body}"
-                        _last_tool_msg = await _send_expandable_return(config["group_id"], thread_id, header, tool_body)
+                        _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
                         try:
                             m_text, m_ents = md_convert(f"{header}\n{tool_body}")
                             from aiogram.types import MessageEntity as AioEntity
@@ -954,7 +937,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                             _last_tool_msg = None
                             _last_tool_text = ""
                         else:
-                            await _send_expandable_return(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
+                            await _send_expandable(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
                         try:
                             m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
                             from aiogram.types import MessageEntity as AioEntity
@@ -1006,7 +989,7 @@ async def handle_voice(msg: types.Message):
     if not session:
         return
     t_total = time.monotonic()
-    await _react_processing(msg)
+
     sid, idx = await _register_media(msg, session)
     path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
     tag = _sender_tag(msg)
@@ -1029,7 +1012,7 @@ async def handle_video_note(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
-    await _react_processing(msg)
+
     sid, idx = await _register_media(msg, session)
     tag = _sender_tag(msg)
     path = await _download_file(msg.video_note.file_id, _media_name("videonote", ".mp4", msg), msg.video_note.file_unique_id)
@@ -1058,7 +1041,7 @@ async def handle_photo(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
-    await _react_processing(msg)
+
     path = await _download_file(msg.photo[-1].file_id, _media_name("photo", ".jpg", msg), msg.photo[-1].file_unique_id)
     caption = f"\n{msg.caption}" if msg.caption else ""
     tag = f"[photo: {path}]" if path else "[photo: file too large]"
@@ -1070,7 +1053,7 @@ async def handle_document(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
-    await _react_processing(msg)
+
     doc = msg.document
     ext = os.path.splitext(doc.file_name or "file")[1] or ".bin"
     path = await _download_file(doc.file_id, doc.file_name or _media_name("doc", ext, msg), doc.file_unique_id)
@@ -1084,7 +1067,7 @@ async def handle_video(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
-    await _react_processing(msg)
+
     path = await _download_file(msg.video.file_id, msg.video.file_name or _media_name("video", ".mp4", msg), msg.video.file_unique_id)
     caption = f"\n{msg.caption}" if msg.caption else ""
     tag = f"[video: {path}]" if path else "[video: file too large]"
@@ -1096,7 +1079,7 @@ async def handle_audio(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
-    await _react_processing(msg)
+
     name = msg.audio.file_name or _media_name("audio", ".mp3", msg)
     path = await _download_file(msg.audio.file_id, name, msg.audio.file_unique_id)
     caption = f"\n{msg.caption}" if msg.caption else ""

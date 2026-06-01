@@ -247,7 +247,7 @@ class TestAutoResume:
         })
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            await mgr.auto_resume_orchestrators()
+            await mgr.auto_resume_all()
         assert mgr.get("orch-1") is not None
 
 

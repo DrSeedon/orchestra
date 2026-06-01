@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     init_db()
-    await manager.auto_resume_orchestrators()
+    await manager.auto_resume_all()
     manager.start_background_tasks()
     from app.bg_jobs import bg_manager
     bg_manager.set_session_manager(manager)

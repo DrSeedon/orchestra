@@ -9,4 +9,6 @@ def test_orchestrator_disallows_subagent_tool():
 
 
 def test_worker_keeps_subagent_tool():
-    assert _disallowed_tools(False) == []
+    d = _disallowed_tools(False)
+    assert "Task" not in d and "Agent" not in d
+    assert "ScheduleWakeup" in d

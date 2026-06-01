@@ -340,6 +340,8 @@ class SessionManager:
     def start_background_tasks(self) -> None:
         if not self._spawn_task or self._spawn_task.done():
             self._spawn_task = asyncio.create_task(self._spawn_worker_loop())
+        if not getattr(self, '_cleanup_task', None) or self._cleanup_task.done():
+            self._cleanup_task = asyncio.create_task(self._periodic_db_cleanup())
 
     async def enqueue_worker_spawn(self, **job) -> None:
         await self._spawn_queue.put(job)
@@ -936,10 +938,23 @@ class SessionManager:
         except Exception as e:
             logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
 
-    async def auto_resume_orchestrators(self) -> None:
-        await self.auto_resume_all()
+    async def _periodic_db_cleanup(self) -> None:
+        CLEANUP_INTERVAL = 6 * 3600
+        while True:
+            try:
+                await asyncio.sleep(CLEANUP_INTERVAL)
+                from app.db import cleanup_old_logs
+                deleted = await asyncio.to_thread(cleanup_old_logs, 7)
+                if deleted:
+                    logger.info(f"DB cleanup: deleted {deleted} old log entries")
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning(f"DB cleanup failed: {e}")
 
     async def shutdown_all(self) -> None:
+        if getattr(self, '_cleanup_task', None) and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
         for session in list(self.sessions.values()):
             try:
                 await session.stop()

@@ -636,40 +636,14 @@ def get_stats(scope: str | None = None) -> dict:
         }
 
 
-def get_orchestrators() -> list[dict]:
+def cleanup_old_logs(days: int = 7) -> int:
     with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM sessions WHERE (is_orchestrator = 1 OR role IN ('orchestrator', 'sub-orchestrator')) "
-            "AND status IN ('starting', 'running', 'idle')"
-        ).fetchall()
-        return [dict(r) for r in rows]
-
-
-def get_resumable_orchestrators() -> list[dict]:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cur = c.execute("DELETE FROM logs WHERE ts < ?", (cutoff,))
+        deleted = cur.rowcount
     with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM sessions WHERE (is_orchestrator = 1 OR role IN ('orchestrator', 'sub-orchestrator')) "
-            "AND session_id IS NOT NULL AND status IN ('running', 'idle')"
-        ).fetchall()
-        return [dict(r) for r in rows]
-
-
-def mark_stale_sessions(exclude_ids: list[str]) -> int:
-    with _conn() as c:
-        if exclude_ids:
-            placeholders = ",".join("?" * len(exclude_ids))
-            cur = c.execute(
-                f"UPDATE sessions SET status = 'error' "
-                f"WHERE status = 'running' AND is_orchestrator = 0 "
-                f"AND id NOT IN ({placeholders})",
-                exclude_ids,
-            )
-        else:
-            cur = c.execute(
-                "UPDATE sessions SET status = 'error' "
-                "WHERE status = 'running' AND is_orchestrator = 0"
-            )
-        return cur.rowcount
+        c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    return deleted
 
 
 def add_inbox(session_id: str, sender: str, message: str) -> int:
