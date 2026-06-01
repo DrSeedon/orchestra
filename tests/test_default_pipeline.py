@@ -212,8 +212,10 @@ class TestDefaultBuildSystemPrompt:
     def test_orchestrator_prompt_contains_role_body_markers(self):
         """Характеризация: ключевые XML-секции тела orchestrator.md на месте."""
         out = P.build_system_prompt(PIPELINE, "orchestrator")
+        # v2.16 upstream убрал секцию <parallel-tasks> из тела orchestrator —
+        # её содержимое переехало в "Merge & kill safety"/правила.
         for marker in ("<decision-tree>", "<tools>", "<worker-management>",
-                       "<task-workflow>", "<parallel-tasks>"):
+                       "<task-workflow>"):
             assert marker in out, f"missing orchestrator marker {marker}"
 
     def test_worker_prompt_is_base_plus_role(self):
@@ -309,8 +311,8 @@ class TestUpstreamCharacterization:
         base = P.prompt_path(PIPELINE, "base.md").read_text()
         assert base.startswith("<platform>")
         assert "</rules>" in base
-        # 6 critical-правил апстрима (NEVER ...) — характеризация base.md
-        assert base.count("- NEVER ") >= 6
+        # critical-правила апстрима (NEVER ...) — характеризация base.md (v2.16: 5)
+        assert base.count("- NEVER ") >= 5
 
     def test_role_files_have_frontmatter_stripped(self):
         """У ролей frontmatter срезан — тело начинается с <role>, без YAML '---'/'name:'."""
@@ -335,7 +337,9 @@ class TestUpstreamCharacterization:
         (формула сборки: слои роли, затем modules через '\\n\\n')."""
         base = P.prompt_path(PIPELINE, "base.md").read_text()
         role = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text()
-        git = P.prompt_path(PIPELINE, "modules/git-workflow.md").read_text()
+        # модули инлайнятся обрезанными (.strip()) — точное соответствие upstream
+        # _load_modules; разделитель между слоями/модулями ровно '\n\n'.
+        git = P.prompt_path(PIPELINE, "modules/git-workflow.md").read_text().strip()
         expected = f"{base}\n\n{role}\n\n{git}"
         assert P.build_system_prompt(PIPELINE, "orchestrator") == expected
 

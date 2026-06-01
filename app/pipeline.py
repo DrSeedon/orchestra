@@ -398,7 +398,10 @@ def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
     for m in rr.modules:
         mp = prompt_path(pipeline_name, f"modules/{m}.md")
         if mp.is_file():
-            parts.append(mp.read_text())
+            # ``.strip()`` — точное соответствие upstream ``_load_modules`` (manager.py):
+            # модули инлайнятся обрезанными, разделитель между ними ровно ``\n\n``.
+            # Без strip хвостовые ``\n`` в файле дают ``\n\n\n`` и расхождение с upstream.
+            parts.append(mp.read_text().strip())
         else:
             logger.warning(
                 "pipeline '%s' role '%s': module '%s' not found at %s — skipped",

@@ -49,25 +49,26 @@ roles:
     order: 2
     model: sonnet
     modules: [git-workflow, codex-review, report-format]
-    can_spawn: []
+    can_spawn: ["*"]
     allow_unrouted_workers: false
     when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
     not_for: Tasks needing research or unknown scope — use full-cycle
     description: >
       General-purpose worker. Implements tasks directly, no pipeline gates.
+      For system workers (permanent, module-scoped) and disposable one-shots.
   full-cycle:
     kind: worker
     label: Full-Cycle
     order: 3
     model: opus
     modules: [git-workflow, codex-review, report-format]
-    can_spawn: []
+    can_spawn: ["*"]
     allow_unrouted_workers: false
-    when: New feature with unknowns, large refactoring (5+ files), external integration
+    when: New feature with unknowns, large refactoring (5+ files), external integration, anything where wrong approach = wasted day
     not_for: Bug fixes, config changes, implementation from clear spec
     description: >
-      Research -> Plan + Codex review -> Implement + Codex review.
-      Strict 3-phase pipeline with 2 orchestrator approval gates. Artifacts in docs/tasks/<id>/.
+      Research → Plan + Codex review → Implement + Codex review. Strict 3-phase pipeline
+      with 2 orchestrator approval gates. All artifacts saved to docs/tasks/<id>/.
   reviewer:
     kind: worker
     label: Reviewer
@@ -93,4 +94,4 @@ roles:
     when: Monitoring logs, watching for events, background surveillance
     not_for: Implementation or review — only observes and reports
     description: >
-      Monitors systems and reports anomalies. Lightweight background agent.
+      Monitors systems and reports anomalies. Lightweight agent for background observation tasks.
