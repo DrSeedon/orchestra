@@ -293,6 +293,31 @@ class BgJobManager:
         bg_expire_job(job_id)
         self._procs.pop(job_id, None)
 
+    async def _expire_notify(self, job_id, message, target_name, target_scope,
+                             timeout, output=""):
+        """Timeout for a `run` job: NOTIFY the worker instead of expiring silently.
+        Without this, a hung process leaves the worker waiting forever."""
+        bg_expire_job(job_id)
+        self._procs.pop(job_id, None)
+        dur = f"{round(timeout / 60, 1)} min" if timeout >= 60 else f"{int(timeout)}s"
+        err = (f"{message}\n[TIMEOUT] killed after {dur} — no completion. "
+               f"The process produced no output or hung. Check the target tool "
+               f"(codex auth/proxy/sandbox) and retry.")
+        try:
+            session = await self._session_manager.ensure_loaded(target_name, target_scope)
+            if not session:
+                session = await self._session_manager.ensure_loaded_any(target_name)
+            if not session:
+                logger.warning(f"bg_job {job_id}: timeout, target {target_name} not found")
+                return
+            body = f"[Background job TIMED OUT] {err}"
+            if output:
+                body += f"\n\nPartial output (last 3000 chars):\n{output[-3000:]}"
+            await session.send(body)
+            logger.warning(f"bg_job {job_id}: TIMED OUT after {dur} → notified {target_name}")
+        except Exception as e:
+            logger.error(f"bg_job {job_id}: timeout-notify failed: {e}")
+
     def _fail_if_active(self, job_id: str, error: str) -> None:
         from app.db import bg_fail_job_if_active
         bg_fail_job_if_active(job_id, error)
@@ -441,6 +466,9 @@ class BgJobManager:
                     preexec_fn=os.setsid,
                 )
             self._procs[job_id] = proc
+            where = host or "local"
+            logger.info(f"bg_job {job_id}: run started pid={proc.pid} on={where} "
+                        f"timeout={timeout}s cmd_len={len(command)}")
             last_progress = time.time()
             async with asyncio.timeout(timeout):
                 async for line in proc.stdout:
@@ -454,10 +482,16 @@ class BgJobManager:
                 await proc.wait()
             full_output = "".join(output_buf)
             exit_code = proc.returncode
-            trigger_msg = f"{message}\nExit code: {exit_code}"
+            note = "" if exit_code == 0 else " — process failed, see output"
+            trigger_msg = f"{message}\nExit code: {exit_code}{note}"
+            logger.info(f"bg_job {job_id}: run done pid={proc.pid} exit={exit_code} "
+                        f"lines={len(output_buf)}")
             await self._trigger(job_id, trigger_msg, target_name, target_scope, full_output)
         except asyncio.TimeoutError:
-            self._expire(job_id)
+            if proc:
+                await _kill_proc(proc)
+            await self._expire_notify(job_id, message, target_name, target_scope,
+                                      timeout, "".join(output_buf))
         except asyncio.CancelledError:
             pass
         except Exception as e:
