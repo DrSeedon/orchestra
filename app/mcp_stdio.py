@@ -48,7 +48,10 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
             return None
         if r.status_code >= 400:
             return {"error": r.text}
-        return r.json()
+        try:
+            return r.json()
+        except Exception as e:
+            return {"error": f"invalid JSON response (status={r.status_code}): {r.text[:200]}"}
 
 
 @mcp.tool()
@@ -287,13 +290,22 @@ async def list_jobs() -> str:
 @mcp.tool()
 async def send_file(path: str, caption: str = "", as_document: bool = False) -> str:
     """Send a file to the user via Telegram. Path must be absolute. Images are sent as inline photos by default; set as_document=True to force file attachment."""
-    result = await _api("POST", "/api/tg/send_file", json={
-        "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
-        "as_document": as_document,
-    })
-    if isinstance(result, dict) and result.get("error"):
+    try:
+        result = await _api("POST", "/api/tg/send_file", json={
+            "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
+            "as_document": as_document,
+        })
+    except Exception as e:
+        return f"Send failed: network error: {e}"
+    if not isinstance(result, dict):
+        return f"Send failed: unexpected response type={type(result).__name__} value={result!r}"
+    if result.get("error"):
         return f"Send failed: {result['error']}"
-    return f"File sent to TG: {path}"
+    if result.get("ok"):
+        msg_id = result.get("message_id")
+        chat_id = result.get("chat_id")
+        return f"File sent to TG: {path} (msg_id={msg_id} chat_id={chat_id})"
+    return f"Send failed: unexpected response (no ok/error): {result!r}"
 
 
 @mcp.tool()
