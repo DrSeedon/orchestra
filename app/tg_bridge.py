@@ -155,7 +155,7 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         try:
             async with aiohttp.ClientSession() as http:
                 async with http.post(
-                    "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true",
+                    "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true&profanity_filter=false",
                     headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg",
                              "Accept-Encoding": "gzip, deflate"},
                     data=audio_data,
@@ -1091,7 +1091,11 @@ async def handle_group_message(msg: types.Message):
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
-    content = f"{_forward_meta(msg)}{msg.text}"
+    reply_prefix = ""
+    if msg.reply_to_message and msg.reply_to_message.text:
+        quoted = msg.reply_to_message.text[:200]
+        reply_prefix = f"> {quoted}\n\n"
+    content = f"{reply_prefix}{_forward_meta(msg)}{msg.text}"
     await _send_to_agent(msg, session, content)
 
 
