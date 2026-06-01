@@ -885,7 +885,7 @@ class SessionManager:
                 "SELECT * FROM sessions WHERE session_id IS NOT NULL "
                 "AND status IN ('running', 'idle', 'waiting')"
             ).fetchall()]
-            c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
+            c.execute("UPDATE sessions SET status='idle' WHERE status IN ('running', 'waiting')")
 
         orchs = [r for r in resumable if is_orchestrator_role(r.get("role", "orchestrator" if r.get("is_orchestrator") else "worker"))]
         workers = [r for r in resumable if not is_orchestrator_role(r.get("role", "orchestrator" if r.get("is_orchestrator") else "worker"))]
