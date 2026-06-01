@@ -155,16 +155,19 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         audio_data = af.read()
     last_err = ""
     t0 = time.monotonic()
-    # Deepgram не требует прокси — прямой запрос в 9x быстрее (3.8s vs 34s)
+    # Deepgram не требует прокси — прямой запрос, fresh SSL context
+    import ssl, certifi
+    _dg_ssl = ssl.create_default_context(cafile=certifi.where())
     for attempt in range(3):
         try:
-            async with aiohttp.ClientSession() as http:
+            async with aiohttp.ClientSession(trust_env=False) as http:
                 async with http.post(
                     "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true&profanity_filter=false",
                     headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg",
                              "Accept-Encoding": "gzip, deflate"},
                     data=audio_data,
                     timeout=aiohttp.ClientTimeout(total=120),
+                    ssl=_dg_ssl,
                 ) as resp:
                     out = await resp.read()
             break
