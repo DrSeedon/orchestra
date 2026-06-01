@@ -76,3 +76,8 @@ B) get_worker_info.branch не синхронизируется когда во�
 Обход: воркер делает git rebase main перед DONE; оркестратор НЕ помечает task done до подтверждённого вывода merge_worker.
 
 Severity: medium — приводит к повторяющимся конфликтам и панике оркестратора по ложным данным.
+
+## [2026-06-01 03:28 UTC] codex_review(mode=exec) reported "done" but wrote no output file (#35)
+- **Reporter:** review-reliability
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Worker review-reliability, task #35. codex_review(target="docs/tasks/35/review-reliability.md", output="docs/tasks/35/codex-reliability.md", mode="exec"). bg job bg-27a4d48175 reported "Codex exec done. Results in docs/tasks/35/codex-reliability." but NO file written anywhere (checked worktree + main repo + find across tree = nothing). Same flaky output-write path noted in BUGS.md. Retrying with absolute output path inside worktree.
