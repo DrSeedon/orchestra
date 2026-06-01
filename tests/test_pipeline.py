@@ -328,6 +328,32 @@ class TestSchemaValidation:
         assert cfg.defaults.worktree.symlinks[0].source == "docs_work"
         assert cfg.defaults.worktree.symlinks[0].target == "docs_work"
 
+    def test_copies_traversal_rejected(self, pipelines_root):
+        """copies с '..' → отвергнут на загрузке (симметрично symlinks)."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              worktree:
+                copies: ["../../escape"]
+            roles:
+              r: {kind: worker, label: R}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_copies_absolute_rejected(self, pipelines_root):
+        """copies с абсолютным путём → отвергнут."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              worktree:
+                copies: ["/etc/passwd"]
+            roles:
+              r: {kind: worker, label: R}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
 
 # ── get_worktree_config ─────────────────────────────────────────────────────
 

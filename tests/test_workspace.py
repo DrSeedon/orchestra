@@ -186,6 +186,33 @@ class TestCreateWorktreeManifest:
         assert not (Path(wt.path) / "docs_work").exists()
         assert (Path(wt.path) / "CLAUDE.md").exists()
 
+    def test_symlink_source_escapes_via_real_symlink_skipped(self, tmp_path, wt_root):
+        """source='docs_work' безопасен в спеке, но если repo/docs_work — симлинк
+        НАРУЖУ (за repo и repo.parent) → resolved-containment отбрасывает, симлинк
+        не создаётся (закрыт symlink-побег, который строковый валидатор не ловит)."""
+        import os
+        from app.pipeline import Symlink, Worktree
+        from app.workspace import create_worktree
+        # Репо на уровень глубже: repo.parent = work, evil — вне work.
+        work = tmp_path / "work"
+        work.mkdir()
+        repo = work / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=repo, capture_output=True)
+        (repo / "README.md").write_text("x")
+        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "i"], cwd=repo, capture_output=True, check=True)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=repo, capture_output=True, check=True)
+        evil = tmp_path / "evil"          # вне repo.parent (work)
+        evil.mkdir()
+        (evil / "secret.txt").write_text("leak")
+        os.symlink(str(evil), str(repo / "docs_work"))   # docs_work → наружу
+        cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")], copies=[])
+        wt = create_worktree(str(repo), "w1", "/scope", worktree_cfg=cfg)
+        assert not (Path(wt.path) / "docs_work").exists()  # побег отброшен
+
     def test_rollback_on_symlink_failure(self, git_repo, wt_root, monkeypatch):
         import app.workspace as ws
         from app.pipeline import Symlink, Worktree

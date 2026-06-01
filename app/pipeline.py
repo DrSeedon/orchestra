@@ -74,6 +74,17 @@ class Worktree(BaseModel):
     symlinks: list[Symlink] = Field(default_factory=list)
     copies: list[str] = Field(default_factory=list)
 
+    @field_validator("copies")
+    @classmethod
+    def _safe_copies(cls, v: list[str]) -> list[str]:
+        # B2: copies резолвятся как repo/<name> и пишутся как wt_path/<name>;
+        # abs или '..' позволили бы чтение/запись вне repo/worktree. Та же защита,
+        # что у symlinks (симметрично — иначе copies остаётся дырой).
+        for name in v:
+            if not _is_safe_rel(name):
+                raise ValueError(f"unsafe copy path '{name}' (abs или '..')")
+        return v
+
 
 class DocsDir(BaseModel):
     """Скаффолдинг doc-папки роли в docs_work/.
