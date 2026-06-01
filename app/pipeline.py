@@ -58,6 +58,15 @@ class Symlink(BaseModel):
     source: str
     target: str
 
+    @field_validator("source", "target")
+    @classmethod
+    def _safe_rel(cls, v: str) -> str:
+        # B2: source резолвится от repo, target — внутри worktree; ни один не должен
+        # выходить за свою границу (abs или '..'). Та же защита, что у docs_dir.
+        if not _is_safe_rel(v):
+            raise ValueError(f"unsafe symlink path '{v}' (abs или '..')")
+        return v
+
 
 class Worktree(BaseModel):
     """Настройка worktree роли: симлинки и копируемые файлы (= PROJECT_FILES)."""
@@ -255,6 +264,18 @@ def load_pipeline(name: str) -> PipelineConfig:
     if cfg.name != name:
         raise ValueError(f"pipeline name '{cfg.name}' != dir '{name}'")
     return cfg
+
+
+def get_worktree_config(pipeline_name: str) -> Worktree:
+    """Вернуть worktree-конфиг пайплайна (``defaults.worktree``).
+
+    Это pipeline-level настройка (симлинки + copies), общая для всех ролей —
+    в :class:`ResolvedRole` её нет.
+
+    :raises FileNotFoundError: если манифест отсутствует (пробрасываем, чтобы
+        вызывающий в manager сделал fallback на upstream-поведение).
+    """
+    return load_pipeline(pipeline_name).defaults.worktree
 
 
 def list_pipelines() -> list[dict]:

@@ -136,6 +136,78 @@ class TestCreateWorktree:
         assert base == head
 
 
+class TestCreateWorktreeManifest:
+    """worktree_cfg из манифеста: copies/symlinks вместо хардкода PROJECT_FILES."""
+
+    def test_symlink_from_manifest_created(self, git_repo, wt_root):
+        from app.pipeline import Symlink, Worktree
+        from app.workspace import create_worktree
+        # docs_work живёт в основном репо (gitignored в реальности)
+        (git_repo / "docs_work").mkdir()
+        (git_repo / "docs_work" / "marker.txt").write_text("docs")
+        cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")],
+                       copies=["CLAUDE.md"])
+        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=cfg)
+        link = Path(wt.path) / "docs_work"
+        assert link.is_symlink()
+        assert link.resolve() == (git_repo / "docs_work").resolve()
+        assert (link / "marker.txt").read_text() == "docs"
+
+    def test_copies_from_manifest_only(self, git_repo, wt_root):
+        from app.pipeline import Worktree
+        from app.workspace import create_worktree
+        # Untracked-файлы в основном репо (как .env/.mcp.json в реальном gitignore):
+        # копируются ТОЛЬКО те, что в манифесте. extra.txt не в copies → не копируется.
+        (git_repo / "copied.txt").write_text("yes")   # untracked, в copies
+        (git_repo / "extra.txt").write_text("no")     # untracked, НЕ в copies
+        cfg = Worktree(symlinks=[], copies=["copied.txt"])
+        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=cfg)
+        wt_path = Path(wt.path)
+        assert (wt_path / "copied.txt").read_text() == "yes"
+        assert not (wt_path / "extra.txt").exists()
+
+    def test_none_cfg_falls_back_to_project_files(self, git_repo, wt_root):
+        from app.workspace import create_worktree
+        # worktree_cfg=None → старое поведение: весь PROJECT_FILES, симлинков нет
+        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=None)
+        wt_path = Path(wt.path)
+        assert (wt_path / "CLAUDE.md").exists()
+        assert (wt_path / ".env").exists()
+        assert (wt_path / ".mcp.json").exists()
+        assert not (wt_path / "docs_work").exists()
+
+    def test_missing_symlink_source_skipped(self, git_repo, wt_root):
+        from app.pipeline import Symlink, Worktree
+        from app.workspace import create_worktree
+        # source не существует → не падаем, симлинк не создан
+        cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")],
+                       copies=["CLAUDE.md"])
+        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=cfg)
+        assert not (Path(wt.path) / "docs_work").exists()
+        assert (Path(wt.path) / "CLAUDE.md").exists()
+
+    def test_rollback_on_symlink_failure(self, git_repo, wt_root, monkeypatch):
+        import app.workspace as ws
+        from app.pipeline import Symlink, Worktree
+        from app.workspace import create_worktree
+        (git_repo / "docs_work").mkdir()
+
+        def boom(*a, **k):
+            raise OSError("symlink failed")
+
+        monkeypatch.setattr(ws.os, "symlink", boom)
+        cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")],
+                       copies=["CLAUDE.md"])
+        with pytest.raises(OSError, match="symlink failed"):
+            create_worktree(str(git_repo), "worker-x", "/scope", worktree_cfg=cfg)
+        wt_path = wt_root / "scope" / "worker-x"
+        assert not wt_path.exists()
+        listing = subprocess.run(
+            ["git", "worktree", "list"], cwd=git_repo, capture_output=True, text=True,
+        )
+        assert "worker-x" not in listing.stdout
+
+
 class TestSwitchWorktreeBranch:
     def test_from_ref_used_for_merge_check(self, git_repo, wt_root):
         """switch_worktree_branch использует from_ref, а не hardcode main.

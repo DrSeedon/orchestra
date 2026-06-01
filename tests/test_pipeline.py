@@ -272,6 +272,87 @@ class TestSchemaValidation:
         assert cfg.roles["r"].skills == ["html"]
         assert cfg.roles["r"].mcp_servers == "all"
 
+    # ── B2: hardening путей Symlink (fail-closed на abs/'..') ────────────────
+
+    def test_symlink_source_traversal_rejected(self, pipelines_root):
+        """Symlink.source с '..' → отвергнут на загрузке (fail-closed)."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              worktree:
+                symlinks: [{source: "../../etc", target: docs_work}]
+            roles:
+              r: {kind: orchestrator, label: R}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_symlink_source_absolute_rejected(self, pipelines_root):
+        """Symlink.source абсолютный → отвергнут."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              worktree:
+                symlinks: [{source: "/etc/passwd", target: docs_work}]
+            roles:
+              r: {kind: worker, label: R}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_symlink_target_traversal_rejected(self, pipelines_root):
+        """Symlink.target с '..' (вырывается из worktree) → отвергнут."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              worktree:
+                symlinks: [{source: docs_work, target: "../../escape"}]
+            roles:
+              r: {kind: worker, label: R}
+        """)
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
+
+    def test_symlink_safe_paths_accepted(self, pipelines_root):
+        """Безопасный Symlink(source=docs_work, target=docs_work) грузится без ошибок."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              worktree:
+                symlinks: [{source: docs_work, target: docs_work}]
+                copies: [CLAUDE.md]
+            roles:
+              r: {kind: orchestrator, label: R}
+        """)
+        cfg = P.load_pipeline("demo")
+        assert cfg.defaults.worktree.symlinks[0].source == "docs_work"
+        assert cfg.defaults.worktree.symlinks[0].target == "docs_work"
+
+
+# ── get_worktree_config ─────────────────────────────────────────────────────
+
+class TestGetWorktreeConfig:
+    def test_returns_worktree_with_copies(self, pipelines_root):
+        """get_worktree_config возвращает defaults.worktree с нужными copies/symlinks."""
+        _write_pipeline(pipelines_root, "demo", """\
+            name: demo
+            defaults:
+              worktree:
+                symlinks: [{source: docs_work, target: docs_work}]
+                copies: [CLAUDE.md, .env]
+            roles:
+              r: {kind: orchestrator, label: R}
+        """)
+        wt = P.get_worktree_config("demo")
+        assert isinstance(wt, P.Worktree)
+        assert wt.copies == ["CLAUDE.md", ".env"]
+        assert wt.symlinks[0].source == "docs_work"
+
+    def test_missing_pipeline_raises_filenotfound(self, pipelines_root):
+        """Нет манифеста → FileNotFoundError пробрасывается (не глотается)."""
+        with pytest.raises(FileNotFoundError):
+            P.get_worktree_config("nonexistent")
+
 
 # ── resolve_role: наследование defaults→roles ──────────────────────────────
 

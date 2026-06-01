@@ -21,6 +21,7 @@ from app.pipeline import (
     build_system_prompt,
     get_active_pipeline,
     get_role,
+    get_worktree_config,
     load_pipeline,
     resolve_role,
     template_path,
@@ -704,7 +705,14 @@ class SessionManager:
                 wip_note = await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
                 if wip_note:
                     session._spawn_warning = (session._spawn_warning + "; " + wip_note).strip("; ")
-                wt = await asyncio.to_thread(create_worktree, repo_path, name, scope, task_id, base_branch)
+                # Worktree-конфиг из манифеста (симлинки + copies). Нет манифеста
+                # → None → create_worktree использует upstream-fallback (PROJECT_FILES).
+                try:
+                    worktree_cfg = get_worktree_config(pipeline)
+                except FileNotFoundError:
+                    worktree_cfg = None
+                wt = await asyncio.to_thread(
+                    create_worktree, repo_path, name, scope, task_id, base_branch, worktree_cfg)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
