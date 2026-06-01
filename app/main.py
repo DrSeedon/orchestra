@@ -453,14 +453,28 @@ async def get_profiles():
 
 @app.post("/api/profiles")
 async def create_profile(req: ProfileRequest):
-    """Создать или обновить профиль. Имя валидируется тем же regex, что у сессий."""
+    """Создать или обновить профиль. Имя валидируется тем же regex, что у сессий.
+
+    Валидация ``config_dir`` — **мягкая**: если путь непустой и не указывает на
+    существующую директорию, профиль всё равно сохраняется, но в ответ
+    добавляется ``warning``. Это не блокирует пользователя (папку может создать
+    CLI или она появится позже), но предупреждает об опечатке заранее, а не
+    при первом запуске агента. Формат ответа: ``{profiles, warning}``.
+    """
     if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", req.name):
         return JSONResponse(
             {"error": "name must be alphanumeric with ._- allowed, 1-50 chars"},
             status_code=400,
         )
-    upsert_profile(req.name, req.config_dir)
-    return list_profiles()
+    warning = None
+    config_dir = req.config_dir
+    if config_dir and not Path(os.path.expanduser(config_dir)).is_dir():
+        warning = (
+            f"config_dir '{config_dir}' не существует — будет создан CLI "
+            "или приведёт к ошибке при запуске"
+        )
+    upsert_profile(req.name, config_dir)
+    return {"profiles": list_profiles(), "warning": warning}
 
 
 @app.delete("/api/profiles/{name}")

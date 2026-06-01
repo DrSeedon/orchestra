@@ -5218,10 +5218,15 @@ function initProfilesManager() {
         errEl.classList.add('hidden');
         if (!name) { errEl.textContent = 'name required'; errEl.classList.remove('hidden'); return; }
         try {
-            await api('/api/profiles', { method: 'POST', body: JSON.stringify({ name, config_dir }) });
+            const res = await api('/api/profiles', { method: 'POST', body: JSON.stringify({ name, config_dir }) });
             $('#profile-new-name').value = '';
             $('#profile-new-dir').value = '';
             await loadProfilesList();
+            // Мягкое предупреждение: профиль сохранён, но config_dir не существует.
+            if (res && res.warning) {
+                errEl.textContent = res.warning;
+                errEl.classList.remove('hidden');
+            }
         } catch (err) {
             errEl.textContent = err.message;
             errEl.classList.remove('hidden');

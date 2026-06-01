@@ -306,6 +306,64 @@ class TestProfiles:
         names = [p["name"] for p in client.get("/api/profiles").json()]
         assert "personal" in names
 
+    # ── C1: мягкая валидация config_dir ──
+
+    def test_create_existing_dir_no_warning(self, client, tmp_path):
+        """config_dir указывает на существующую папку → 200, warning отсутствует."""
+        cfg = tmp_path / "claude-cfg"
+        cfg.mkdir()
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": str(cfg)})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["warning"] is None
+        # профиль реально в списке
+        g = client.get("/api/profiles").json()
+        assert any(p["name"] == "work" and p["config_dir"] == str(cfg) for p in g)
+
+    def test_create_missing_dir_warns_but_saves(self, client, tmp_path):
+        """Несуществующий config_dir → 200 (НЕ ошибка), warning есть, профиль СОХРАНЁН."""
+        missing = tmp_path / "does-not-exist"
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": str(missing)})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["warning"] is not None
+        assert str(missing) in body["warning"]
+        # несмотря на warning — профиль сохранён и виден в GET
+        g = client.get("/api/profiles").json()
+        assert any(p["name"] == "work" and p["config_dir"] == str(missing) for p in g)
+        # warning-ответ содержит и сам список профилей
+        assert any(p["name"] == "work" for p in body["profiles"])
+
+    def test_create_empty_config_dir_no_warning(self, client):
+        """Пустой config_dir (как у personal) → warning отсутствует."""
+        r = client.post("/api/profiles", json={"name": "noenv", "config_dir": ""})
+        assert r.status_code == 200
+        assert r.json()["warning"] is None
+
+    def test_create_tilde_expands_existing(self, client, tmp_path, monkeypatch):
+        """C3: путь вида ``~/.claude-work`` нормализуется через expanduser.
+
+        HOME подменяем на tmp_path и создаём реальную ``.claude-work`` —
+        warning не должен появиться, что доказывает раскрытие тильды.
+        """
+        work = tmp_path / ".claude-work"
+        work.mkdir()
+        monkeypatch.setenv("HOME", str(tmp_path))
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": "~/.claude-work"})
+        assert r.status_code == 200
+        assert r.json()["warning"] is None
+
+    def test_create_tilde_missing_warns(self, client, tmp_path, monkeypatch):
+        """C3: ``~/.claude-work`` без реальной папки → warning (но сохранён as-is)."""
+        monkeypatch.setenv("HOME", str(tmp_path))  # пусто, .claude-work не создаём
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": "~/.claude-work"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["warning"] is not None
+        # хранится исходная (нераскрытая) строка — expanduser только для проверки
+        g = client.get("/api/profiles").json()
+        assert any(p["config_dir"] == "~/.claude-work" for p in g)
+
 
 @pytest.mark.asyncio
 async def test_create_session_passes_pipeline_and_profile(monkeypatch):

@@ -388,6 +388,30 @@ class TestMakeBackendProfileWiring:
         s = self._session(monkeypatch, pipeline="p", profile="ghost")
         b = s._make_backend()
         assert b._config_dir == ""
+
+    def test_claude_work_profile_end_to_end_env(self, monkeypatch, tmp_path):
+        """C3: профиль work с config_dir='~/.claude-work' доходит до env агента.
+
+        Полная цепочка: DB-профиль → _make_backend (config_dir) →
+        _make_client → ClaudeAgentOptions.env['CLAUDE_CONFIG_DIR'], раскрытый
+        через expanduser. HOME подменяем на tmp_path, чтобы тильда резолвилась
+        предсказуемо и тест не зависел от реальной FS машины.
+        """
+        rr = MagicMock(inherit_claude_md=True, mcp_servers=[])
+        monkeypatch.setattr("app.pipeline.get_role", lambda p, r: rr)
+        monkeypatch.setattr(
+            "app.db.get_profile",
+            lambda n: {"name": n, "config_dir": "~/.claude-work"},
+        )
+        monkeypatch.setenv("HOME", str(tmp_path))
+        s = self._session(monkeypatch, pipeline="p", profile="work")
+        b = s._make_backend()
+        # config_dir хранится нераскрытым (expanduser — только при сборке env)
+        assert b._config_dir == "~/.claude-work"
+        opts = b._make_client().options
+        assert opts.env["CLAUDE_CONFIG_DIR"] == str(tmp_path / ".claude-work")
+
+
 # ── Task #39: P0 fixes ──
 
 class TestPersistSingleFlight:
