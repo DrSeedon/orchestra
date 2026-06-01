@@ -95,6 +95,25 @@ class TestCreateWorktree:
         assert Path(wt2.path).exists()
         assert wt2.branch == wt1.branch
 
+    def test_rollback_on_copy_failure(self, git_repo, wt_root, monkeypatch):
+        # Task #39 Fix 5a: if PROJECT_FILES copy raises after `git worktree add`,
+        # the just-created worktree must be rolled back (no orphan on disk/in git).
+        import app.workspace as ws
+        from app.workspace import create_worktree
+
+        def boom(*a, **k):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(ws.shutil, "copy2", boom)
+        with pytest.raises(OSError, match="disk full"):
+            create_worktree(str(git_repo), "worker-x", "/scope")
+        wt_path = wt_root / "scope" / "worker-x"
+        assert not wt_path.exists()
+        listing = subprocess.run(
+            ["git", "worktree", "list"], cwd=git_repo, capture_output=True, text=True,
+        )
+        assert "worker-x" not in listing.stdout
+
     def test_different_scopes_no_collision(self, git_repo, wt_root):
         from app.workspace import create_worktree
         wt1 = create_worktree(str(git_repo), "worker-1", "/scope/a")
@@ -237,6 +256,19 @@ class TestRemoveWorktree:
         (Path(wt.path) / ".git").unlink()
         with caplog.at_level(logging.WARNING):
             remove_worktree(str(git_repo), wt.path)
+
+    def test_acquires_merge_lock(self, git_repo, wt_root, monkeypatch):
+        # Task #39 Fix 4: remove_worktree must hold .git/orchestra-merge.lock
+        # (LOCK_EX) so it can't race a concurrent merge_worktree_to_main.
+        import app.workspace as ws
+        from app.workspace import create_worktree, remove_worktree
+
+        wt = create_worktree(str(git_repo), "worker-1", "/scope")
+        flocks = []
+        monkeypatch.setattr(ws.fcntl, "flock", lambda f, op: flocks.append(op))
+        remove_worktree(str(git_repo), wt.path)
+        assert ws.fcntl.LOCK_EX in flocks  # exclusive lock taken
+        assert ws.fcntl.LOCK_UN in flocks  # and released
 
 
 class TestSlugify:

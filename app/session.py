@@ -109,10 +109,13 @@ class AgentSession:
     _hibernate_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _hibernated: bool = field(default=False, repr=False)
     _compacting: bool = field(default=False, repr=False)
+    _compact_ack_event: Optional[asyncio.Event] = field(default=None, repr=False)
+    _compact_ack_gen: int = field(default=-1, repr=False)
     _last_cost: float = field(default=0.0, repr=False)
     _last_cost_cached: float = field(default=0.0, repr=False)
     _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
-    _persist_futs: set = field(default_factory=set, repr=False)
+    _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _persist_dirty: bool = field(default=False, repr=False)
     _turn_gen: int = field(default=0, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _spawn_warning: str = field(default="", repr=False)
@@ -123,13 +126,14 @@ class AgentSession:
     def is_orchestrator(self) -> bool:
         return is_orchestrator_role(self.role)
 
-    def _make_backend(self):
+    def _make_backend(self, force_fresh: bool = False):
+        resume = None if force_fresh else self.session_id
         if self.backend_type == "codex":
             from app.backend_codex import CodexBackend
             return CodexBackend(
                 model=self.model, cwd=self.cwd,
                 system_prompt=self.system_prompt,
-                resume_thread_id=self.session_id,
+                resume_thread_id=resume,
                 mcp_env=self._build_codex_mcp_env(),
                 reasoning_effort=self._codex_reasoning_effort(),
             )
@@ -138,7 +142,7 @@ class AgentSession:
             return ClaudeBackend(
                 model=self.model, cwd=self.cwd,
                 system_prompt=self.system_prompt,
-                resume_session_id=self.session_id,
+                resume_session_id=resume,
                 mcp_servers=self.mcp_servers,
                 is_orchestrator=self.is_orchestrator,
                 scope_mcp_servers=_load_scope_mcp_servers(self.scope),
@@ -233,10 +237,12 @@ class AgentSession:
             if self.backend_type == "codex":
                 self._listen_task = asyncio.create_task(self._codex_turn_loop())
 
-    async def _ensure_backend(self):
+    async def _ensure_backend(self, force_fresh: bool = False):
         if self._backend is not None:
-            return self._backend
-        self._backend = self._make_backend()
+            if not force_fresh:
+                return self._backend
+            await self._disconnect_backend()
+        self._backend = self._make_backend(force_fresh=force_fresh)
         try:
             await self._backend.connect()
         except Exception as e:
@@ -374,7 +380,7 @@ class AgentSession:
         """
         if self.is_orchestrator or not self.on_idle or self._did_report:
             return
-        if self._pending_messages:
+        if self._pending_messages or self._compacting:
             return
         last_texts = self._turn_logs[-5:] if self._turn_logs else []
 
@@ -437,6 +443,9 @@ class AgentSession:
             self.status = AgentStatus.IDLE
         self._persist()
 
+        if self._compact_ack_event is not None and self._turn_gen == self._compact_ack_gen:
+            self._compact_ack_event.set()
+
         asyncio.create_task(self._notify_scope_idle())
 
         if ctx_pct > 90 and not self.is_orchestrator and not self._compacting:
@@ -454,6 +463,8 @@ class AgentSession:
 
     async def _flush_pending(self) -> None:
         await asyncio.sleep(0.3)
+        if self._compacting:
+            return
         if not self._pending_messages:
             return
         msgs = list(self._pending_messages)
@@ -468,6 +479,10 @@ class AgentSession:
         self._log("status", f"delivering {len(msgs)} queued message(s)")
         try:
             async with self._lifecycle_lock:
+                if self._compacting:
+                    # compact grabbed the lock first — requeue, compact's finally re-flushes
+                    self._pending_messages[0:0] = msgs
+                    return
                 self._did_report = False
                 self._bump_turn_gen()
                 self._turn_logs = []
@@ -605,8 +620,10 @@ class AgentSession:
         )
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
 
-        before_pct = self._last_context.get("percentage", 0)
+        if self._compacting:
+            return {"ok": False, "error": "compact already in progress"}
         self._compacting = True
+        before_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact started (context {before_pct}%)")
 
         if self._listen_task and not self._listen_task.done():
@@ -620,16 +637,17 @@ class AgentSession:
         backend = self._backend or self._make_backend()
         need_connect = self._backend is None
         try:
-            if need_connect:
-                await backend.connect()
-            await backend.send(COMPACT_PROMPT)
-            async for event in backend.events():
-                if event.type == "text":
-                    summary_parts.append(event.content)
-                elif event.type == "turn_end":
-                    if event.metadata.get("session_id"):
-                        self.session_id = event.metadata["session_id"]
-                    break
+            async with self._lifecycle_lock:
+                if need_connect:
+                    await backend.connect()
+                await backend.send(COMPACT_PROMPT)
+                async for event in backend.events():
+                    if event.type == "text":
+                        summary_parts.append(event.content)
+                    elif event.type == "turn_end":
+                        if event.metadata.get("session_id"):
+                            self.session_id = event.metadata["session_id"]
+                        break
         except Exception as e:
             self._log("error", f"compact failed: {e}")
             self._compacting = False
@@ -644,17 +662,37 @@ class AgentSession:
             self._compacting = False
             return {"ok": False, "error": "empty summary", "before_pct": before_pct}
 
-        old_session_id = self.session_id
-        self.session_id = None
-        self._compacting = False
-
         preamble = PREAMBLE.format(summary=summary)
-        await self.send(preamble + "Acknowledge briefly.")
+        self._compact_ack_event = asyncio.Event()
+        ack_event = self._compact_ack_event
+        try:
+            async with self._lifecycle_lock:
+                self._did_report = False
+                self._bump_turn_gen()
+                self._compact_ack_gen = self._turn_gen
+                self._turn_logs = []
+                self._turn_start = asyncio.get_event_loop().time()
+                self._last_msg_time = self._turn_start
+                self.status = AgentStatus.RUNNING
+                self._persist()
+                backend = await self._ensure_backend(force_fresh=True)
+                await backend.send(preamble + "Acknowledge briefly.")
 
-        for _ in range(60):
-            await asyncio.sleep(1)
-            if self.status == AgentStatus.IDLE and self._last_context.get("percentage", before_pct) < before_pct:
-                break
+            try:
+                await asyncio.wait_for(ack_event.wait(), timeout=60)
+            except asyncio.TimeoutError:
+                self._log("error", "compact ack turn did not complete (60s)")
+                # stop the still-running ack turn so it can't interleave with the next send
+                await self._disconnect_backend()
+                self.status = AgentStatus.IDLE
+                self._persist()
+                return {"ok": False, "error": "ack turn did not complete", "before_pct": before_pct}
+        finally:
+            self._compact_ack_event = None
+            self._compact_ack_gen = -1
+            self._compacting = False
+            if self._pending_messages:
+                asyncio.create_task(self._flush_pending())
 
         after_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
@@ -763,14 +801,32 @@ class AgentSession:
         self._persist()
 
     def _persist(self) -> None:
-        fut = asyncio.get_event_loop().run_in_executor(None, save_session, self._to_db_dict())
-        self._persist_futs.add(fut)
-        fut.add_done_callback(self._persist_futs.discard)
+        self._persist_dirty = True
+        if self._persist_task and not self._persist_task.done():
+            return
+        self._persist_task = asyncio.get_running_loop().create_task(self._persist_loop())
+        self._persist_task.add_done_callback(self._on_persist_done)
+
+    def _on_persist_done(self, task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"[{self.name}] persist task crashed: {e}")
+
+    async def _persist_loop(self) -> None:
+        while self._persist_dirty:
+            self._persist_dirty = False
+            snapshot = self._to_db_dict()
+            try:
+                await asyncio.get_running_loop().run_in_executor(None, save_session, snapshot)
+            except Exception as e:
+                logger.error(f"[{self.name}] persist failed: {e}")
 
     async def _drain_persist(self) -> None:
-        pending = [f for f in self._persist_futs if not f.done()]
-        if pending:
-            await asyncio.gather(*pending, return_exceptions=True)
+        if self._persist_task and not self._persist_task.done():
+            await asyncio.gather(self._persist_task, return_exceptions=True)
 
     def _log(self, type: str, content: str) -> None:
         asyncio.get_event_loop().run_in_executor(None, add_log, self.id, datetime.now(timezone.utc), type, content)

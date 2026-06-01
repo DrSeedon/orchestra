@@ -615,12 +615,12 @@ class TestChangeOrchestratorScope:
         orch = await self._make_orch(mgr)
         newdir = tmp_path / "newproj"; newdir.mkdir()
         orch._persist(); orch._persist(); orch._persist()  # queue stale snapshots
-        assert len(orch._persist_futs) >= 1
+        assert orch._persist_task is not None
         res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
         assert res["ok"] is True
         assert get_session(orch.id)["cwd"] == str(newdir)
         # all drained before the transaction → nothing left to clobber
-        assert all(f.done() for f in orch._persist_futs)
+        assert orch._persist_task.done() and not orch._persist_dirty
 
 
 class TestChangeScopeUnloadedWorkerGuard:

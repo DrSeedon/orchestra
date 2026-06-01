@@ -24,6 +24,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from app.db import init_db, get_logs, get_logs_before
 from app.manager import SessionManager
 from app.models import resolve_model, MODELS
+from app.session import AgentStatus
 
 manager = SessionManager()
 templates = Jinja2Templates(directory="app/templates")
@@ -555,8 +556,8 @@ async def restart_cli(name: str, req: ScopeRequest):
         session = await manager.ensure_loaded_any(name)
     if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
-    await session._disconnect_client()
-    session.status = session.status.__class__("idle")
+    await session._disconnect_backend()
+    session.status = AgentStatus.IDLE
     session._persist()
     return {"ok": True}
 

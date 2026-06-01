@@ -98,12 +98,19 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
     if result.returncode != 0:
         raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
 
-    for fname in PROJECT_FILES:
-        src = repo / fname
-        if not src.exists():
-            src = repo.parent / fname
-        if src.exists():
-            shutil.copy2(str(src), str(wt_path / fname))
+    try:
+        for fname in PROJECT_FILES:
+            src = repo / fname
+            if not src.exists():
+                src = repo.parent / fname
+            if src.exists():
+                shutil.copy2(str(src), str(wt_path / fname))
+    except Exception:
+        subprocess.run(
+            ["git", "worktree", "remove", str(wt_path), "--force"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        raise
 
     return Worktree(path=str(wt_path), branch=branch)
 
@@ -587,12 +594,18 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
                         break
         except Exception:
             pass
-    result = subprocess.run(
-        ["git", "worktree", "remove", str(wt), "--force"],
-        cwd=cwd, capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        logger.warning(f"worktree remove failed: {result.stderr}")
+    lock_path = _resolve_repo(str(wt), repo_path) / ".git" / "orchestra-merge.lock"
+    with open(lock_path, "w") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            result = subprocess.run(
+                ["git", "worktree", "remove", str(wt), "--force"],
+                cwd=cwd, capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                logger.warning(f"worktree remove failed: {result.stderr}")
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
 def parse_owned_dirs(raw) -> list[str]:

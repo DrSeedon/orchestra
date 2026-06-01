@@ -125,12 +125,21 @@ class ClaudeBackend:
         options.setting_sources = ["user", "project", "local"]
         return ClaudeSDKClient(options=options)
 
+    async def _cleanup_failed_client(self) -> None:
+        if self._client:
+            try:
+                await self._client.disconnect()
+            except BaseException:
+                pass
+            self._client = None
+
     async def connect(self) -> None:
         self._client = self._make_client()
         try:
             await asyncio.wait_for(self._client.connect(), timeout=60)
-        except Exception as e:
+        except BaseException as e:
             logger.error(f"ClaudeBackend connect failed: {e}")
+            await self._cleanup_failed_client()
             raise
 
     async def send(self, message: str) -> None:
@@ -182,7 +191,12 @@ class ClaudeBackend:
         await self.disconnect()
         await asyncio.sleep(2)
         self._client = self._make_client()
-        await asyncio.wait_for(self._client.connect(), timeout=60)
+        try:
+            await asyncio.wait_for(self._client.connect(), timeout=60)
+        except BaseException as e:
+            logger.error(f"ClaudeBackend reconnect failed: {e}")
+            await self._cleanup_failed_client()
+            raise
 
     def _convert(self, msg) -> list[AgentEvent]:
         events = []
