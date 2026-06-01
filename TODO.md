@@ -1,6 +1,7 @@
 # Orchestra TODO
 
 ## Bugs
+- [ ] **kill_worker удаляет логи** — при kill_worker удаляются session + logs из БД. Нужно: archived сессии и их логи хранить минимум 24ч, потом чистить. worktree удалять сразу (тяжёлый), но данные в БД — отложенно
 - [ ] **send_message 500 после рестарта** — idle воркеры не получают сообщения после restart. Workaround: respawn
 - [ ] **codex_review output path** — пишет в main worktree, не в worktree воркера. Task #27
 - [ ] **Worker DONE to wrong parent** — report уходит parent_name вместо того кто дал задачу
