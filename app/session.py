@@ -207,7 +207,7 @@ class AgentSession:
             if self.profile:
                 p = get_profile(self.profile)
                 config_dir = p["config_dir"] if p else ""
-            # F2: user-MCP подмешиваем ТОЛЬКО при mcp_servers=="all" (sapto-pm);
+            # F2: user-MCP подмешиваем ТОЛЬКО при mcp_servers=="all" (tasks-pm);
             # default/список — без user-MCP (1:1 upstream).
             user_mcp: dict = {}
             if rr is not None and rr.mcp_servers == "all":

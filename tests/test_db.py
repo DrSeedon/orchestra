@@ -441,10 +441,10 @@ class TestPipelineColumn:
 
     def test_save_and_load_pipeline(self, db, sample_session):
         from app.db import save_session, get_session
-        sample_session["pipeline"] = "sapto-pm"
+        sample_session["pipeline"] = "tasks-pm"
         save_session(sample_session)
         row = get_session(sample_session["id"])
-        assert row["pipeline"] == "sapto-pm"
+        assert row["pipeline"] == "tasks-pm"
 
     def test_save_without_pipeline_defaults_empty(self, db, sample_session):
         from app.db import save_session, get_session

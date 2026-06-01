@@ -192,13 +192,13 @@ class TestPipelineField:
 
     def test_pipeline_can_be_set(self):
         from app.session import AgentSession
-        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="sapto-pm")
-        assert s.pipeline == "sapto-pm"
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="tasks-pm")
+        assert s.pipeline == "tasks-pm"
 
     def test_to_db_dict_includes_pipeline(self):
         from app.session import AgentSession
-        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="sapto-pm")
-        assert s._to_db_dict()["pipeline"] == "sapto-pm"
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="tasks-pm")
+        assert s._to_db_dict()["pipeline"] == "tasks-pm"
 
 
 class TestIsOrchestratorStored:

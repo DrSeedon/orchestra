@@ -706,7 +706,7 @@ class TestValidateSpawn:
 
 class TestGetActivePipeline:
     def test_inherits_parent_pipeline(self):
-        assert P.get_active_pipeline(parent_pipeline="sapto-pm") == "sapto-pm"
+        assert P.get_active_pipeline(parent_pipeline="tasks-pm") == "tasks-pm"
 
     def test_default_when_no_parent(self):
         assert P.get_active_pipeline() == P.DEFAULT_PIPELINE
@@ -716,11 +716,11 @@ class TestGetActivePipeline:
         assert P.get_active_pipeline(scope="/x", parent_pipeline="custom") == "custom"
 
 
-# ── Канонический sapto-pm: эталонный манифест из спеки грузится и резолвится ─
+# ── Канонический tasks-pm: эталонный манифест из спеки грузится и резолвится ─
 
 # Дословно из DESIGN.md §15 (поля-эталон). Проверяет, что схема поддерживает ВСЁ.
-_SAPTO_PM = """\
-    name: sapto-pm
+_TASKS_PM = """\
+    name: tasks-pm
     description: Многоуровневый PM-пайплайн
     validation: fail-closed
     defaults:
@@ -748,39 +748,39 @@ _SAPTO_PM = """\
 """
 
 
-class TestCanonicalSaptoPm:
+class TestCanonicalTasksPm:
     def test_loads_clean(self, pipelines_root):
-        _write_pipeline(pipelines_root, "sapto-pm", _SAPTO_PM)
-        cfg = P.load_pipeline("sapto-pm")
-        assert cfg.name == "sapto-pm"
+        _write_pipeline(pipelines_root, "tasks-pm", _TASKS_PM)
+        cfg = P.load_pipeline("tasks-pm")
+        assert cfg.name == "tasks-pm"
         assert len(cfg.roles) == 8
         assert cfg.validation == "fail-closed"
         assert cfg.defaults.worktree.symlinks[0].source == "docs_work"
 
     def test_secretary_inherits_opus_not_sonnet(self, pipelines_root):
-        _write_pipeline(pipelines_root, "sapto-pm", _SAPTO_PM)
-        cfg = P.load_pipeline("sapto-pm")
+        _write_pipeline(pipelines_root, "tasks-pm", _TASKS_PM)
+        cfg = P.load_pipeline("tasks-pm")
         rr = P.resolve_role(cfg, "secretary")
         assert rr.model == "opus"  # ключевое решение DESIGN §2.1
         assert rr.skills == "all"
         assert rr.mcp_servers == "all"
 
     def test_pm_glava_branch_strategy_main(self, pipelines_root):
-        _write_pipeline(pipelines_root, "sapto-pm", _SAPTO_PM)
-        cfg = P.load_pipeline("sapto-pm")
+        _write_pipeline(pipelines_root, "tasks-pm", _TASKS_PM)
+        cfg = P.load_pipeline("tasks-pm")
         assert P.resolve_role(cfg, "pm-glava").base_branch_strategy == "main"
         assert P.resolve_role(cfg, "coder").base_branch_strategy == "parent"  # из defaults
 
     def test_orchestrators_get_pipeline_layer(self, pipelines_root):
-        _write_pipeline(pipelines_root, "sapto-pm", _SAPTO_PM)
-        cfg = P.load_pipeline("sapto-pm")
+        _write_pipeline(pipelines_root, "tasks-pm", _TASKS_PM)
+        cfg = P.load_pipeline("tasks-pm")
         # 6 оркестраторов → _pipeline.md; secretary/worker (kind:worker) → нет
         assert "_pipeline.md" in P.resolve_role(cfg, "pm-fichi").prompt_layers
         assert "_pipeline.md" not in P.resolve_role(cfg, "secretary").prompt_layers
 
     def test_spawn_graph_enforced(self, pipelines_root):
-        _write_pipeline(pipelines_root, "sapto-pm", _SAPTO_PM)
+        _write_pipeline(pipelines_root, "tasks-pm", _TASKS_PM)
         # pm-glava → pm-fichi OK; pm-glava → coder запрещён (не в can_spawn)
-        assert P.validate_spawn("sapto-pm", "pm-glava", "pm-fichi") is None
+        assert P.validate_spawn("tasks-pm", "pm-glava", "pm-fichi") is None
         with pytest.raises(ValueError):
-            P.validate_spawn("sapto-pm", "pm-glava", "coder")
+            P.validate_spawn("tasks-pm", "pm-glava", "coder")

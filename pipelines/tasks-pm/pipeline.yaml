@@ -1,0 +1,25 @@
+name: tasks-pm
+description: Многоуровневый PM-пайплайн (Хаб→PM→аналитик/кодер/тестер)
+validation: fail-closed
+defaults:
+  model: opus
+  skills: all
+  mcp_servers: all
+  inherit_claude_md: true
+  prompt_layers:
+    orchestrator: [base.md, "roles/{role}.md", _pipeline.md]
+    worker:       [base.md, "roles/{role}.md"]
+  worktree:
+    symlinks: [{source: docs_work, target: docs_work}]
+    copies:   [CLAUDE.md, .mcp.json, .env, .worktreeinclude]
+  base_branch_strategy: parent
+  docs_scaffold: true
+roles:
+  base-orchestrator: {kind: orchestrator, label: Хаб, order: 0, base_branch_strategy: main, can_spawn: [pm-glava, secretary], allow_unrouted_workers: true, tg: {emoji: "🧭", topic: "{project}"}}
+  pm-glava: {kind: orchestrator, label: ПМ Глава, order: 1, base_branch_strategy: main, can_spawn: [pm-fichi, secretary], allow_unrouted_workers: false, docs_dir: {path: "_sprint", template: sprint.md}, tg: {emoji: "🎯", topic: "{project} · спринт"}}
+  pm-fichi: {kind: orchestrator, label: Фича ПМ, order: 2, can_spawn: [analyst, coder, tester, secretary], allow_unrouted_workers: false, docs_dir: {path: "{feature}/_pm", template: pm.md, requires: feature}, tg: {emoji: "📋", topic: "{feature}"}}
+  analyst: {kind: orchestrator, label: Аналитик, order: 3, can_spawn: [secretary], allow_unrouted_workers: true, docs_dir: {path: "{feature}/_analysis", template: analysis.md, requires: feature}, tg: {emoji: "🔬", topic: "{feature} · анализ"}}
+  coder: {kind: orchestrator, label: Кодер, order: 4, can_spawn: [secretary], allow_unrouted_workers: true, docs_dir: {path: "{feature}/_impl", template: impl.md, requires: feature}, tg: {emoji: "🛠", topic: "{feature} · код"}}
+  tester: {kind: orchestrator, label: Тестировщик, order: 5, can_spawn: [secretary], allow_unrouted_workers: true, docs_dir: {path: "{feature}/_testing", template: testing.md, requires: feature}, tg: {emoji: "🧪", topic: "{feature} · тест"}}
+  secretary: {kind: worker, label: Секретарь, can_spawn: [], allow_unrouted_workers: false}
+  worker: {kind: worker, label: Воркер, can_spawn: [], allow_unrouted_workers: false}

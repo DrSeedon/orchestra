@@ -1,7 +1,7 @@
 """Тесты generic-скаффолда doc-папок (app.manager._scaffold_role_docs).
 
 Изолированный модуль: фикстура строит синтетический pipelines/<uniq>/ на tmp_path
-и патчит app.pipeline.PIPELINES_DIR. На приватный sapto-pm НЕ опираемся — тест
+и патчит app.pipeline.PIPELINES_DIR. На приватный tasks-pm НЕ опираемся — тест
 проходит без приватных файлов.
 """
 from __future__ import annotations

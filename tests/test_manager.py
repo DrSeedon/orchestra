@@ -220,7 +220,7 @@ class TestResolveBaseBranch:
         rr = MagicMock(base_branch_strategy="parent")
         self._put_parent(mgr, "pm", "/s", "feature/x")
         with patch("app.manager.get_role", lambda p, r: rr):
-            out = mgr._resolve_base_branch("", "sapto-pm", "coder", "pm", "/s")
+            out = mgr._resolve_base_branch("", "tasks-pm", "coder", "pm", "/s")
         assert out == "feature/x"
 
     def test_strategy_parent_no_branch_falls_back_to_main(self, mgr, caplog):
@@ -228,7 +228,7 @@ class TestResolveBaseBranch:
         rr = MagicMock(base_branch_strategy="parent")
         self._put_parent(mgr, "pm", "/s", "")  # у родителя нет ветки
         with patch("app.manager.get_role", lambda p, r: rr), caplog.at_level(logging.WARNING):
-            out = mgr._resolve_base_branch("", "sapto-pm", "coder", "pm", "/s")
+            out = mgr._resolve_base_branch("", "tasks-pm", "coder", "pm", "/s")
         assert out == "main"
         assert any("fallback на main" in rec.message for rec in caplog.records)
 
@@ -237,7 +237,7 @@ class TestResolveBaseBranch:
         rr = MagicMock(base_branch_strategy="parent")
         self._put_parent(mgr, "pm", "/s", "feature/x")
         with patch("app.manager.get_role", lambda p, r: rr):
-            out = mgr._resolve_base_branch("dev", "sapto-pm", "coder", "pm", "/s")
+            out = mgr._resolve_base_branch("dev", "tasks-pm", "coder", "pm", "/s")
         assert out == "dev"
 
     def test_no_manifest_returns_main(self, mgr):
@@ -598,7 +598,7 @@ class TestCustomMcp:
 
 # ── Stage 3: loader integration (pipeline manifest) ─────────────────────────
 
-# Мини-манифест, повторяющий ключевые роли sapto-pm для тестов фильтра/изоляции.
+# Мини-манифест, повторяющий ключевые роли tasks-pm для тестов фильтра/изоляции.
 _MINI_MANIFEST = """\
 name: testpipe
 description: Test pipeline

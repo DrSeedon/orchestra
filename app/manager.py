@@ -716,7 +716,7 @@ class SessionManager:
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
-                # F1: при skills=="all" (sapto-pm) скиллы приходят через профиль
+                # F1: при skills=="all" (tasks-pm) скиллы приходят через профиль
                 # (CLAUDE_CONFIG_DIR + setting_sources), native-инъекция не нужна.
                 # default/список/нет манифеста → инъекция как в upstream.
                 try:
