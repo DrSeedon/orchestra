@@ -12,6 +12,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     ResultMessage,
     TextBlock,
+    ThinkingBlock,
     ToolUseBlock,
     PermissionResultAllow,
     PermissionResultDeny,
@@ -204,6 +205,8 @@ class ClaudeBackend:
             for block in msg.content:
                 if isinstance(block, TextBlock) and block.text:
                     events.append(AgentEvent("text", block.text))
+                elif isinstance(block, ThinkingBlock) and block.thinking:
+                    events.append(AgentEvent("thinking", block.thinking))
                 elif isinstance(block, ToolUseBlock):
                     try:
                         inp = _json.dumps(block.input, ensure_ascii=False, indent=2)
@@ -214,6 +217,9 @@ class ClaudeBackend:
                                              metadata={"tool_name": block.name, "short_name": short_name}))
                 elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
                     events.append(AgentEvent("tool_result", _extract_tool_result(block)))
+            err = getattr(msg, "error", None)
+            if err:
+                events.append(AgentEvent("error", f"model error: {err}"))
 
         elif isinstance(msg, UserMessage):
             if hasattr(msg, 'content') and isinstance(msg.content, list):
@@ -246,10 +252,12 @@ class ClaudeBackend:
             if msg.session_id:
                 self._session_id = msg.session_id
 
+            is_err = bool(getattr(msg, "is_error", False))
+            err_list = getattr(msg, "errors", None) or []
+            denials = getattr(msg, "permission_denials", None) or []
+
             cost = getattr(msg, "total_cost_usd", 0) or 0
             usage = getattr(msg, "usage", None)
-            ctx_pct = 0
-            ctx_tokens = 0
             max_tokens = 200000
             cache_hit = 0
             cache_read = 0
@@ -259,44 +267,36 @@ class ClaudeBackend:
             cost_cached = 0.0
 
             if usage and isinstance(usage, dict):
-                iters = usage.get("iterations", [])
-                last = iters[-1] if iters else usage
-                cache_create = last.get("cache_creation_input_tokens", 0) or 0
-                cache_read = last.get("cache_read_input_tokens", 0) or 0
-                input_tokens = last.get("input_tokens", 0) or 0
-                output_tokens = last.get("output_tokens", 0) or 0
-                total = input_tokens + cache_create + cache_read
+                cache_create = usage.get("cache_creation_input_tokens", 0) or 0
+                cache_read = usage.get("cache_read_input_tokens", 0) or 0
+                input_tokens = usage.get("input_tokens", 0) or 0
+                output_tokens = usage.get("output_tokens", 0) or 0
                 cache_total = cache_create + cache_read
 
                 from app.models import CONTEXT_LIMITS, TOKEN_PRICES
                 max_tokens = CONTEXT_LIMITS.get(self.model, 200000)
-                ctx_pct = int(total * 100 / max_tokens) if max_tokens else 0
-                ctx_tokens = total
                 cache_hit = int(cache_read * 100 / cache_total) if cache_total else 0
 
                 prices = TOKEN_PRICES.get(self.model)
                 if prices:
                     p_in = prices["input"]
                     p_out = prices["output"]
-                    if iters:
-                        for it in iters:
-                            i_in = it.get("input_tokens", 0) or 0
-                            i_cr = it.get("cache_read_input_tokens", 0) or 0
-                            i_cc = it.get("cache_creation_input_tokens", 0) or 0
-                            i_out = it.get("output_tokens", 0) or 0
-                            cost_cached += (i_in * p_in + i_cr * p_in * 0.1 + i_cc * p_in * 1.25 + i_out * p_out) / 1_000_000
-                    else:
-                        cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
+                    cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
+
+            if denials:
+                logger.info(f"[{self.model}] {len(denials)} permission denial(s) this turn")
 
             events.append(AgentEvent("turn_end", f"stop_reason={sr}, num_turns={nt}", metadata={
                 "session_id": self._session_id,
-                "ok": True,
+                "ok": not is_err,
+                "is_error": is_err,
+                "errors": err_list,
                 "stop_reason": sr,
                 "num_turns": nt,
                 "cost_usd": cost,
                 "cost_usd_cached": round(cost_cached, 6),
-                "context_pct": ctx_pct,
-                "context_tokens": ctx_tokens,
+                "context_pct": 0,
+                "context_tokens": 0,
                 "max_tokens": max_tokens,
                 "cache_hit": cache_hit,
                 "cache_read": cache_read,

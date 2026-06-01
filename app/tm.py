@@ -9,23 +9,12 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, date, timezone
-from pathlib import Path
 
 logger = logging.getLogger("tm")
 
-DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
+from app.db import _conn
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "paid", "cancelled"}
-
-
-
-def _conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
 
 
 def _now() -> str:

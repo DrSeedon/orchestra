@@ -561,8 +561,9 @@ def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
         return cur.lastrowid
 
 
-def get_logs(session_id: str, after_id: int = 0, limit: int = 5000) -> list[dict]:
-    with _conn() as c:
+def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -> list[dict]:
+    c = conn or _conn()
+    try:
         if after_id > 0:
             rows = c.execute(
                 "SELECT * FROM logs WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
@@ -575,6 +576,9 @@ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000) -> list[dict
                 (session_id, limit),
             ).fetchall()
             return [dict(r) for r in reversed(rows)]
+    finally:
+        if conn is None:
+            c.close()
 
 
 def get_logs_before(session_id: str, before_id: int, limit: int = 500) -> list[dict]:

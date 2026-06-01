@@ -16,6 +16,19 @@ from app.db import save_session, add_log
 
 logger = logging.getLogger(__name__)
 
+import concurrent.futures
+_DB_EXECUTOR: Optional[concurrent.futures.ThreadPoolExecutor] = None
+
+
+def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
+    """Dedicated pool for DB writes so logs/persists don't contend with git ops
+    on the default executor (used by asyncio.to_thread)."""
+    global _DB_EXECUTOR
+    if _DB_EXECUTOR is None:
+        _DB_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="db")
+    return _DB_EXECUTOR
+
+
 IDLE_TIMEOUT_WORKER = 300
 IDLE_TIMEOUT_ORCHESTRATOR = 600
 
@@ -113,6 +126,8 @@ class AgentSession:
     _compact_ack_gen: int = field(default=-1, repr=False)
     _last_cost: float = field(default=0.0, repr=False)
     _last_cost_cached: float = field(default=0.0, repr=False)
+    _last_turn_ok: bool = field(default=True, repr=False)
+    _last_stop_reason: str = field(default="", repr=False)
     _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _persist_dirty: bool = field(default=False, repr=False)
@@ -204,17 +219,17 @@ class AgentSession:
             self.progress_status = ""
             self._log("user_message", message)
 
+            did_inject = False
+            pending_th = ""
+            templates_changed = False
             if self.session_id and self._current_prompt and not self._prompt_injected:
                 from app.manager import _prompt_template_hash
                 current_th = _prompt_template_hash(self.role)
                 old_th = self._template_hash or current_th
                 templates_changed = old_th != current_th
-                if templates_changed:
-                    self._log("status", f"prompt updated: {old_th} → {current_th}")
-                    self._template_hash = current_th
+                pending_th = current_th
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
-                self.system_prompt = self._current_prompt
-                self._prompt_injected = True
+                did_inject = True
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 self._did_report = False
@@ -233,6 +248,13 @@ class AgentSession:
                 raise
 
             await backend.send(message)
+
+            if did_inject:
+                if templates_changed:
+                    self._log("status", f"prompt updated → {pending_th}")
+                self._template_hash = pending_th
+                self._prompt_injected = True
+                self.system_prompt = self._current_prompt
 
             if self.backend_type == "codex":
                 self._listen_task = asyncio.create_task(self._codex_turn_loop())
@@ -336,6 +358,8 @@ class AgentSession:
         if event.type == "text":
             self._log("text", event.content)
             self._turn_logs.append(event.content)
+        elif event.type == "thinking":
+            self._log("thinking", event.content)
         elif event.type == "tool_use":
             self.total_tool_calls += 1
             self._log("tool", event.content)
@@ -382,11 +406,14 @@ class AgentSession:
             return
         if self._pending_messages or self._compacting:
             return
+        if not self._last_turn_ok:
+            return
         last_texts = self._turn_logs[-5:] if self._turn_logs else []
+        stop_reason = self._last_stop_reason
 
         async def _do_report():
             try:
-                await self.on_idle(self.name, self.scope, last_texts)
+                await self.on_idle(self.name, self.scope, last_texts, stop_reason)
             except Exception as e:
                 logger.error(f"Auto-report failed for {self.name}: {e}")
 
@@ -398,8 +425,13 @@ class AgentSession:
         ok = meta.get("ok", True)
         sr = meta.get("stop_reason", "unknown")
         nt = meta.get("num_turns", 0)
+        self._last_turn_ok = ok
+        self._last_stop_reason = sr
 
         sid = meta.get("session_id")
+        if sid and sid != self.session_id:
+            self._last_cost = 0.0
+            self._last_cost_cached = 0.0
         if sid:
             self.session_id = sid
         new_cost = meta.get("cost_usd", 0)
@@ -414,17 +446,20 @@ class AgentSession:
 
         ctx_pct = meta.get("context_pct", 0)
         ctx_tokens = meta.get("context_tokens", 0)
-        max_tokens = meta.get("max_tokens", 200000)
-        self._last_context = {
-            "percentage": ctx_pct,
-            "total_tokens": ctx_tokens,
-            "max_tokens": max_tokens,
-            "cache_hit": meta.get("cache_hit", 0),
-            "cache_read": meta.get("cache_read", 0),
-            "cache_create": meta.get("cache_create", 0),
-        }
+        if ctx_pct:
+            self._last_context["percentage"] = ctx_pct
+            self._last_context["total_tokens"] = ctx_tokens
+        self._last_context["max_tokens"] = meta.get("max_tokens", 200000)
+        self._last_context["cache_hit"] = meta.get("cache_hit", 0)
+        self._last_context["cache_read"] = meta.get("cache_read", 0)
+        self._last_context["cache_create"] = meta.get("cache_create", 0)
 
         asyncio.create_task(self._refresh_context_from_api())
+
+        if not ok:
+            errors = meta.get("errors") or []
+            err_txt = "; ".join(str(e) for e in errors) if errors else sr
+            self._log("error", f"turn FAILED: {err_txt}")
 
         if sr in ("error_max_turns", "max_turns") and ok:
             self._log("status", f"max_turns reached ({nt}), auto-continuing")
@@ -432,7 +467,8 @@ class AgentSession:
             return
 
         cost = meta.get("cost_usd", 0)
-        ctx_s = f"ctx:{ctx_pct}%" if ctx_pct else ""
+        live_pct = self._last_context.get("percentage", 0)
+        ctx_s = f"ctx:{live_pct}%" if live_pct else ""
         self._log("status", f"turn ended ({sr}, {nt} turns, ${cost:.2f} {ctx_s})")
 
         from app.bg_jobs import bg_manager
@@ -448,8 +484,8 @@ class AgentSession:
 
         asyncio.create_task(self._notify_scope_idle())
 
-        if ctx_pct > 90 and not self.is_orchestrator and not self._compacting:
-            self._log("status", f"auto-compact triggered ({ctx_pct}%)")
+        if live_pct > 90 and not self.is_orchestrator and not self._compacting:
+            self._log("status", f"auto-compact triggered ({live_pct}%)")
             asyncio.create_task(self._auto_compact())
 
 
@@ -494,6 +530,7 @@ class AgentSession:
                 await backend.send(combined)
         except Exception as e:
             logger.error(f"[{self.name}] flush pending failed: {e}")
+            self._pending_messages[0:0] = msgs
             self.status = AgentStatus.IDLE
             self._persist()
 
@@ -820,7 +857,7 @@ class AgentSession:
             self._persist_dirty = False
             snapshot = self._to_db_dict()
             try:
-                await asyncio.get_running_loop().run_in_executor(None, save_session, snapshot)
+                await asyncio.get_running_loop().run_in_executor(_db_executor(), save_session, snapshot)
             except Exception as e:
                 logger.error(f"[{self.name}] persist failed: {e}")
 
@@ -829,7 +866,7 @@ class AgentSession:
             await asyncio.gather(self._persist_task, return_exceptions=True)
 
     def _log(self, type: str, content: str) -> None:
-        asyncio.get_event_loop().run_in_executor(None, add_log, self.id, datetime.now(timezone.utc), type, content)
+        asyncio.get_event_loop().run_in_executor(_db_executor(), add_log, self.id, datetime.now(timezone.utc), type, content)
 
     def _to_db_dict(self) -> dict:
         return {

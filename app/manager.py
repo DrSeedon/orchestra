@@ -726,7 +726,8 @@ class SessionManager:
         db_task_id = db_row.get("task_id") or ""
         wt_path = db_row.get("worktree_path")
         if wt_path and Path(wt_path).is_dir():
-            actual = subprocess.run(
+            actual = await asyncio.to_thread(
+                subprocess.run,
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=wt_path, capture_output=True, text=True,
             )
@@ -802,7 +803,7 @@ class SessionManager:
         return ""
 
     def _make_idle_callback(self, scope: str):
-        async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str]):
+        async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str], stop_reason: str = ""):
             worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
             parent = worker_session.parent_name if worker_session else None
             orch = parent or self._find_orchestrator_name(scope)
@@ -813,12 +814,7 @@ class SessionManager:
                 return
             summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
             ctx = self._context_warning(worker_name)
-            sr = ""
-            if worker_session and worker_session._turn_logs:
-                for log in reversed(worker_session._turn_logs):
-                    if "stop_reason=" in log:
-                        sr = f" ({log.strip()})"
-                        break
+            sr = f" (stop_reason={stop_reason})" if stop_reason else ""
             msg = f"[from:{worker_name}] [auto-report]{sr} Finished without explicit report. Last output:\n{summary}{ctx}"
             logger.info(f"Auto-report: {worker_name} → {orch}")
             await orch_session.send(msg)
@@ -880,9 +876,12 @@ class SessionManager:
             was_running = {r["id"] for r in c.execute(
                 "SELECT id FROM sessions WHERE status = 'running'"
             ).fetchall()}
+            was_waiting = {r["id"] for r in c.execute(
+                "SELECT id FROM sessions WHERE status = 'waiting'"
+            ).fetchall()}
             resumable = [dict(r) for r in c.execute(
                 "SELECT * FROM sessions WHERE session_id IS NOT NULL "
-                "AND status IN ('running', 'idle')"
+                "AND status IN ('running', 'idle', 'waiting')"
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
 
@@ -897,7 +896,12 @@ class SessionManager:
             try:
                 session = await self._load_from_db(row)
                 logger.info(f"Resumed orchestrator: {row['name']}")
-                if row["id"] in was_running:
+                if row["id"] in was_waiting:
+                    from app.bg_jobs import bg_manager
+                    if bg_manager and bg_manager.has_active_jobs(row["id"]):
+                        session.status = AgentStatus.WAITING
+                        session._persist()
+                elif row["id"] in was_running:
                     asyncio.create_task(self._inject_restart_notice(session))
             except Exception as e:
                 logger.error(f"Failed to resume {row['name']}: {e}")
@@ -910,7 +914,12 @@ class SessionManager:
             try:
                 session = await self._load_from_db(row)
                 logger.info(f"Resumed worker: {row['name']}")
-                if row["id"] in was_running:
+                if row["id"] in was_waiting:
+                    from app.bg_jobs import bg_manager
+                    if bg_manager and bg_manager.has_active_jobs(row["id"]):
+                        session.status = AgentStatus.WAITING
+                        session._persist()
+                elif row["id"] in was_running:
                     asyncio.create_task(self._inject_restart_notice(session))
             except Exception as e:
                 logger.error(f"Failed to resume worker {row['name']}: {e}")
