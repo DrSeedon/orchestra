@@ -249,6 +249,27 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
     }
 
 
+def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None:
+    wt = Path(worktree_path).resolve()
+    repo = _resolve_repo(worktree_path, repo_path)
+    rev = subprocess.run(
+        ["git", "rev-parse", ref],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if rev.returncode != 0:
+        logger.warning(f"_reset_worktree_to_ref: cannot resolve {ref}: {rev.stderr.strip()}")
+        return
+    target_sha = rev.stdout.strip()
+    reset = subprocess.run(
+        ["git", "reset", "--hard", target_sha],
+        cwd=str(wt), capture_output=True, text=True,
+    )
+    if reset.returncode != 0:
+        logger.warning(f"_reset_worktree_to_ref: reset failed in {wt}: {reset.stderr.strip()}")
+    else:
+        logger.info(f"_reset_worktree_to_ref: {wt} reset to {ref} ({target_sha[:8]})")
+
+
 def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "main") -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
@@ -335,6 +356,8 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                 if unrelated:
                                     logger.info(f"unrelated histories for {branch} — using cherry-pick")
                                     result = _cherry_pick_branch(str(repo), branch, old_head)
+                                    if result and result.get("ok"):
+                                        _reset_worktree_to_ref(str(wt), target_branch, str(repo))
                                 else:
                                     commits_result = subprocess.run(
                                         ["git", "rev-list", "--count", f"{target_branch}..{branch}"],
@@ -374,6 +397,9 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                                 result = {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
                                         else:
                                             result = {"ok": True, "commits_merged": 0, "branch": branch, "merged_commits": {}}
+
+                                        if result and result.get("ok"):
+                                            _reset_worktree_to_ref(str(wt), target_branch, str(repo))
         finally:
             # ПОРЯДОК КРИТИЧЕН: сначала restore исходной ветки, ПОТОМ stash pop.
             restore_ok = True
