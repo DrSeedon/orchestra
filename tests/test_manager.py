@@ -878,3 +878,93 @@ class TestPipelineInheritance:
             )
         assert worker.pipeline == "testpipe"
         assert worker.parent_name == "coderboss2"
+
+
+class TestProfileInheritance:
+    """Профиль Claude протягивается через create_session и наследуется детьми.
+
+    Зеркало TestPipelineInheritance, но дефолт профиля — пусто (env процесса),
+    а не константа.
+    """
+
+    @pytest.mark.asyncio
+    async def test_root_with_profile_persists(self, mgr):
+        """Корневой оркестратор с явным profile → session.profile и персист в БД."""
+        from app.db import get_session_by_name
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="root-orch", scope="/s", cwd="/tmp", model="m",
+                role="orchestrator", is_orchestrator=True, profile="work",
+            )
+        assert session.profile == "work"
+        row = get_session_by_name("root-orch", "/s")
+        assert row is not None
+        assert row["profile"] == "work"
+
+    @pytest.mark.asyncio
+    async def test_child_inherits_parent_profile(self, mgr):
+        """Ребёнок без явного profile наследует профиль родителя."""
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        save_session({
+            "id": "pp-1", "name": "boss", "scope": "/s", "cwd": "/tmp",
+            "model": "opus", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": True, "color": "",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "orchestrator", "pipeline": "", "profile": "work",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="child", scope="/s", cwd="/tmp", model="opus",
+                parent_name="boss",
+            )
+        assert session.profile == "work"
+
+    @pytest.mark.asyncio
+    async def test_explicit_profile_overrides_inheritance(self, mgr):
+        """Явный profile у ребёнка переопределяет наследование от родителя."""
+        from app.db import save_session
+        from tests.conftest import make_backend_mock
+        save_session({
+            "id": "pp-2", "name": "boss2", "scope": "/s", "cwd": "/tmp",
+            "model": "opus", "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": True, "color": "",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "orchestrator", "pipeline": "", "profile": "work",
+        })
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="child2", scope="/s", cwd="/tmp", model="opus",
+                parent_name="boss2", profile="personal",
+            )
+        assert session.profile == "personal"
+
+    @pytest.mark.asyncio
+    async def test_no_profile_anywhere_is_empty(self, mgr):
+        """Профиля нет ни явно, ни у родителя → session.profile == '' (env процесса)."""
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="w-noprof", scope="/s", cwd="/tmp", model="m",
+                role="orchestrator", is_orchestrator=True,
+            )
+        assert session.profile == ""
+
+    @pytest.mark.asyncio
+    async def test_auto_found_parent_profile_inherited(self, mgr):
+        """Воркер без явного parent_name авто-находит оркестратора в scope и
+        наследует ЕГО профиль."""
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            await mgr.create_session(
+                name="orch-prof", scope="/s", cwd="/tmp", model="opus",
+                role="orchestrator", is_orchestrator=True, profile="work",
+            )
+            worker = await mgr.create_session(
+                name="auto-w-prof", scope="/s", cwd="/tmp", model="opus",
+            )
+        assert worker.profile == "work"
+        assert worker.parent_name == "orch-prof"

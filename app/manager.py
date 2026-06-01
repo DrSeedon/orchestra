@@ -56,6 +56,19 @@ def _safe_format_prompt(template: str, **kwargs: str) -> str:
     return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
 
 
+def get_active_profile(scope: str = "", parent_profile: str = "") -> str:
+    """Определить активный профиль Claude для НОВОЙ сессии.
+
+    Дети наследуют профиль родителя; корень / пусто → "" (профиль из env
+    процесса). В отличие от пайплайна, дефолт — НЕ константа, а пустая строка.
+
+    Профиль — DB/manager-концерн (не config), поэтому функция живёт здесь, а не
+    в ``pipeline.py``. Сигнатура с ``scope`` зеркалит ``get_active_pipeline`` и
+    оставлена под будущее чтение колонки ``sessions.profile`` по scope.
+    """
+    return parent_profile or ""
+
+
 def _read_prompt(name: str) -> str:
     p = _PROMPTS_DIR / name
     return p.read_text() if p.exists() else ""
@@ -475,7 +488,8 @@ class SessionManager:
                              base_branch: str = "main",
                              parent_id: str = "", parent_name: str = "",
                              mcp_servers: dict | None = None,
-                             pipeline: str = "", docs_feature: str = "") -> AgentSession:
+                             pipeline: str = "", profile: str = "",
+                             docs_feature: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -497,6 +511,12 @@ class SessionManager:
         parent_pipeline = self._resolve_pipeline(parent_name, scope) if parent_name else ""
         pipeline = pipeline or get_active_pipeline(scope, parent_pipeline=parent_pipeline)
 
+        # Активный профиль Claude: явный аргумент главнее, иначе наследуем от
+        # родителя (пусто для корня → env процесса). Зеркало логики pipeline.
+        explicit_profile = bool(profile)
+        parent_profile = self._resolve_profile(parent_name, scope) if parent_name else ""
+        profile = profile or get_active_profile(scope, parent_profile=parent_profile)
+
         # R1: is_orchestrator из манифеста (kind), fallback на frozenset апстрима.
         is_orch = self._role_is_orchestrator(pipeline, role)
 
@@ -507,6 +527,10 @@ class SessionManager:
                 parent_pipeline = self._resolve_pipeline(parent_name, scope)
                 pipeline = get_active_pipeline(scope, parent_pipeline=parent_pipeline)
                 is_orch = self._role_is_orchestrator(pipeline, role)
+            if parent_name and not explicit_profile:
+                # Тот же авто-найденный родитель — воркер наследует и его профиль.
+                parent_profile = self._resolve_profile(parent_name, scope)
+                profile = get_active_profile(scope, parent_profile=parent_profile)
 
         if is_orch:
             prompt = system_prompt or ROLE_SYSTEM_PROMPT(pipeline, role, scope)
@@ -540,7 +564,7 @@ class SessionManager:
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, role=role,
             parent_id=parent_id, parent_name=parent_name,
-            pipeline=pipeline,
+            pipeline=pipeline, profile=profile,
             color="" if is_orch else self._pick_color(),
             mcp_servers=_make_mcp_config(name, scope, role, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
@@ -675,6 +699,14 @@ class SessionManager:
                 return s.pipeline or ""
         row = get_session_by_name(name, scope)
         return (row.get("pipeline") or "") if row else ""
+
+    def _resolve_profile(self, name: str, scope: str) -> str:
+        """Профиль Claude сессии ``name`` (для наследования детьми). '' если не найдена."""
+        for s in self.sessions.values():
+            if s.name == name and s.scope == scope:
+                return s.profile or ""
+        row = get_session_by_name(name, scope)
+        return (row.get("profile") or "") if row else ""
 
     @staticmethod
     def _role_is_orchestrator(pipeline: str, role: str) -> bool:
