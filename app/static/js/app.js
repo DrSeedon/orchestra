@@ -215,7 +215,14 @@ function connectSSE() {
             if (isLocal) {
                 localMessages.delete(l.content);
                 for (const m of localMessages) { if (l.content.endsWith(m)) { localMessages.delete(m); break; } }
-                if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; pendingUserMsgs = []; }
+                if (pendingBubble) {
+                    pendingBubble.remove();
+                    pendingBubble = null;
+                    pendingUserMsgs = [];
+                } else if (_finalizedBubble) {
+                    _finalizedBubble.remove();
+                }
+                _finalizedBubble = null;
                 addChatEntry(l.type, l.content, l.ts);
             } else {
                 addChatEntry(l.type, l.content, l.ts);
@@ -958,6 +965,7 @@ function onOrchestratorChange() {
     localMessages.clear();
     pendingUserMsgs = [];
     pendingBubble = null;
+    _finalizedBubble = null;
     streamBubble = null;
     streamContent = '';
     selectedAgent = opt?.dataset?.name || null;
@@ -1338,7 +1346,7 @@ async function sendChat() {
     } catch (e) {
         if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
         if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
-        pendingBubble = null; pendingUserMsgs = [];
+        pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
         removeWaitingIndicator();
         addChatEntry('error', e.message);
     }
@@ -1360,12 +1368,14 @@ function showPendingBubble() {
     chat.scrollTop = chat.scrollHeight;
 }
 
+let _finalizedBubble = null;
 function finalizePending() {
     if (!pendingBubble) return;
     const ring = pendingBubble.querySelector('.debounce-ring');
     if (ring) ring.remove();
     const combined = pendingUserMsgs.join('\n');
     localMessages.add(combined);
+    _finalizedBubble = pendingBubble;
     pendingBubble = null;
     pendingUserMsgs = [];
     uiDebounceTimer = null;
