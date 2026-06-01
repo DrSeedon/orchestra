@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.16.0 — 2026-06-01
+
+### Fixed
+- 🐛 **Zombie workers after restart** — `auto_resume_all` flipped ALL non-idle rows to idle, including archived. Killed workers resurrected every restart. Fix: only flip `running`/`waiting` → `idle`, leave `archived` alone
+- 🐛 **Deepgram SSL BAD_RECORD_MAC** — aiohttp 3.13+ defaults trust_env=True → picks up VLESS proxy → TLS record corruption. Fix: explicit trust_env=False + ssl=certifi
+- 🐛 **Codex through proxy → Reconnecting 5/5** — Codex CLI inherited HTTPS_PROXY (VPS tunnel) → OpenAI API unreachable. Fix: strip proxy env from codex commands
+- 🐛 **User message duplication** — pending bubble not cleaned after SSE delivers real message. Fix: track finalized bubble ref
+- 🐛 **send_file silent false-positive** — returned "File sent to TG" on non-JSON TG response. Fix: validate response, explicit error on failure
+- 🐛 **Tinyproxy MaxClients exhaustion** — old VPS Tunnel (12338) connections filled Tinyproxy pool. Fix: MaxClients 50→200, Timeout 600→120
+
+### Added
+- 🔧 **SSH tunnels in lifespan** — 3 SSH tunnel proxies (Ёжик/Timeweb/Fornex) start/auto-restart from Orchestra lifespan via SSH_TUNNELS env. No separate systemd services needed
+- 📋 **Prompt best practices** — Codex bash-primary (not MCP), orchestrator merge/kill safety (worker_wip before kill, cherry-pick on conflict), codex-review module rewritten
+- 🔧 **Modular prompts** — `_load_modules()` in manager.py, `modules:` frontmatter key in roles → git-workflow, codex-review, report-format auto-injected
+- 📊 **Proxy dashboard** — 4 proxies (Hiddify, Ёжик, Timeweb NL, Fornex NL) configured and benchmarked
+- 🔒 **Security** — passwords removed from git history (BFG), .gitignore for sensitive docs + artifacts
+
+### Fixed (11 P2 bugs from review #35 — task #42)
+- Reconnect backoff cap (5 failures → give up)
+- Hibernate pending messages guard
+- GC task protection (`_spawn_bg` for all create_task calls)
+- Log retention + WAL checkpoint
+- rawMaxTokens from SDK instead of CONTEXT_LIMITS
+- ~95 lines dead code removed (backend.py, 3 DB funcs, _react_processing, aliases)
+
 ## v2.15.0 — 2026-06-01
 
 ### Fixed (13 P1 bugs from review #35 — task #40)
