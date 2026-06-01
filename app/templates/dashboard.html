@@ -37,6 +37,21 @@
                     <div id="proxy-list" class="space-y-1.5"></div>
                 </div>
             </div>
+            <div class="relative">
+                <button id="profiles-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Profiles">🗂</button>
+                <div id="profiles-dropdown" class="absolute right-0 top-full mt-1 w-[320px] glass glow rounded-xl p-3 z-50 hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-white">🗂 Claude Profiles</span>
+                    </div>
+                    <div id="profiles-list" class="space-y-1.5 mb-2"></div>
+                    <div class="space-y-1.5 border-t border-slate-700/50 pt-2">
+                        <input id="profile-new-name" type="text" placeholder="name" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
+                        <input id="profile-new-dir" type="text" placeholder="config dir (пусто = ~/.claude)" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
+                        <button id="profile-add-btn" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-medium transition-colors">Add</button>
+                        <div id="profile-error" class="text-[10px] text-red-400 hidden"></div>
+                    </div>
+                </div>
+            </div>
             <button id="compact-toggle-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Toggle compact tool view">📋</button>
             <button id="restart-btn" class="px-2 py-1 bg-slate-800 hover:bg-amber-900/60 border border-slate-700 rounded-lg transition-colors text-amber-400" title="Restart Orchestra server">⟳</button>
             <button id="logout-btn" class="px-2 py-1 bg-slate-800 hover:bg-red-900/60 border border-slate-700 rounded-lg transition-colors text-slate-500 hover:text-red-400" title="Logout" onclick="fetch('/logout',{method:'POST'}).then(()=>location.href='/login')">🚪</button>
@@ -66,6 +81,21 @@
                 <div>
                     <label class="text-xs text-slate-500 block mb-1">Model</label>
                     <select id="orch-model" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 block mb-1">Profile</label>
+                    <select id="orch-profile" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 block mb-1">Pipeline</label>
+                    <select id="orch-pipeline" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 block mb-1">Role</label>
+                    <select id="orch-role" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
                     </select>
                 </div>
                 <div id="orch-error" class="text-xs text-red-400 hidden"></div>

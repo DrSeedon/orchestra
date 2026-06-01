@@ -130,8 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#new-orch-modal').classList.remove('hidden');
         $('#new-orch-modal').classList.add('flex');
         $('#project-picker').classList.add('hidden');
+        loadProfilesDropdown();
+        loadPipelinesDropdown();
         $('#orch-cwd').focus();
     });
+    $('#orch-pipeline').addEventListener('change', populateRoleDropdown);
     $('#modal-close').addEventListener('click', closeModal);
     $('#new-orch-modal').addEventListener('click', (e) => {
         if (e.target === $('#new-orch-modal')) closeModal();
@@ -153,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDropHint();
     $('#restart-btn').addEventListener('click', restartServer);
     initProxy();
+    initProfilesManager();
     $('#orch-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd').addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
     $('#view-prompt-btn').addEventListener('click', openPromptModal);
@@ -304,6 +308,54 @@ async function loadModels() {
             select.appendChild(opt);
         }
     } catch {}
+}
+
+// === Profile / Pipeline / Role dropdowns (модалка создания корня) ===
+let _pipelineRoles = {};  // карта pipeline-name → [roles]
+
+async function loadProfilesDropdown() {
+    try {
+        const profiles = await api('/api/profiles');
+        const select = $('#orch-profile');
+        select.innerHTML = '';
+        for (const p of profiles) {
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = `${p.name} (${p.config_dir || 'env процесса'})`;
+            select.appendChild(opt);
+        }
+        // дефолт — первый (personal сидится первым в БД)
+        if (profiles.length) select.value = profiles[0].name;
+    } catch {}
+}
+
+async function loadPipelinesDropdown() {
+    try {
+        const pipelines = await api('/api/pipelines');
+        const select = $('#orch-pipeline');
+        select.innerHTML = '';
+        _pipelineRoles = {};
+        for (const p of pipelines) {
+            _pipelineRoles[p.name] = p.roles || [];
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = p.name;
+            select.appendChild(opt);
+        }
+        populateRoleDropdown();
+    } catch {}
+}
+
+function populateRoleDropdown() {
+    const select = $('#orch-role');
+    select.innerHTML = '';
+    const roles = _pipelineRoles[$('#orch-pipeline').value] || [];
+    for (const r of roles) {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        select.appendChild(opt);
+    }
 }
 
 // === Modal ===
@@ -564,12 +616,15 @@ async function createOrchestrator() {
     const name = $('#orch-name').value.trim();
     const cwd = $('#orch-cwd').value.trim();
     const model = $('#orch-model').value;
+    const profile = $('#orch-profile').value;
+    const pipeline = $('#orch-pipeline').value;
+    const role = $('#orch-role').value;
     const errEl = $('#orch-error');
     if (!name || !cwd) { errEl.textContent = 'Name and project path required'; errEl.classList.remove('hidden'); return; }
     const btn = $('#create-orch-btn');
     btn.disabled = true; btn.textContent = 'Creating...'; errEl.classList.add('hidden');
     try {
-        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, is_orchestrator: true }) });
+        await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true }) });
         closeModal(); $('#orch-name').value = ''; $('#orch-cwd').value = '';
         currentScope = null;
         await loadOrchestrators();
@@ -5042,4 +5097,85 @@ async function loadProxyList() {
             $('#proxy-ip').textContent = active.ip || '';
         }
     } catch (e) { console.warn('loadProxyList failed:', e); }
+}
+
+// ── Profiles Manager (редактор реестра профилей Claude) ──
+
+let _profilesDropdownOpen = false;
+
+function initProfilesManager() {
+    const btn = $('#profiles-btn');
+    const dropdown = $('#profiles-dropdown');
+    if (!btn || !dropdown) return;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _profilesDropdownOpen = !_profilesDropdownOpen;
+        dropdown.classList.toggle('hidden', !_profilesDropdownOpen);
+        if (_profilesDropdownOpen) loadProfilesList();
+    });
+    document.addEventListener('click', (e) => {
+        if (_profilesDropdownOpen && !dropdown.contains(e.target) && e.target !== btn) {
+            _profilesDropdownOpen = false;
+            dropdown.classList.add('hidden');
+        }
+    });
+    $('#profile-add-btn')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const name = $('#profile-new-name').value.trim();
+        const config_dir = $('#profile-new-dir').value.trim();
+        const errEl = $('#profile-error');
+        errEl.classList.add('hidden');
+        if (!name) { errEl.textContent = 'name required'; errEl.classList.remove('hidden'); return; }
+        try {
+            await api('/api/profiles', { method: 'POST', body: JSON.stringify({ name, config_dir }) });
+            $('#profile-new-name').value = '';
+            $('#profile-new-dir').value = '';
+            await loadProfilesList();
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.classList.remove('hidden');
+        }
+    });
+}
+
+async function loadProfilesList() {
+    try {
+        const profiles = await api('/api/profiles');
+        const list = $('#profiles-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (!profiles.length) {
+            list.innerHTML = '<div class="text-[10px] text-slate-500 text-center py-2">No profiles.</div>';
+            return;
+        }
+        for (const p of profiles) {
+            const el = document.createElement('div');
+            el.className = 'flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50';
+            const isPersonal = p.name === 'personal';
+            el.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-medium text-white truncate">${escHtml(p.name)}</div>
+                    <div class="text-[10px] text-slate-500 truncate">${escHtml(p.config_dir || 'env процесса')}</div>
+                </div>
+                ${isPersonal ? '' : `<button class="profile-del-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-red-900/60 rounded text-slate-400 hover:text-red-400 shrink-0" data-name="${escHtml(p.name)}" title="Delete">✕</button>`}
+            `;
+            list.appendChild(el);
+        }
+        list.querySelectorAll('.profile-del-btn').forEach(b => {
+            b.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const errEl = $('#profile-error');
+                errEl.classList.add('hidden');
+                b.textContent = '⏳';
+                try {
+                    await api(`/api/profiles/${encodeURIComponent(b.dataset.name)}`, { method: 'DELETE' });
+                    await loadProfilesList();
+                } catch (err) {
+                    b.textContent = '✕';
+                    errEl.textContent = err.message;
+                    errEl.classList.remove('hidden');
+                }
+            });
+        });
+    } catch (e) { console.warn('loadProfilesList failed:', e); }
 }

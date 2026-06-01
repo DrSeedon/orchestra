@@ -59,6 +59,13 @@ def _load_user_mcp_servers(config_dir: str) -> dict:
     (env процесса orchestra). Берёт ключ ``mcpServers``, пропуская ``orchestra``
     (серверный MCP подмешивается отдельно и не должен подменяться профилем).
     Зеркалит стиль ``_load_scope_mcp_servers``: ошибки парсинга — warning, не падаем.
+
+    ВНИМАНИЕ: личный профиль CLI хранит ``.claude.json`` в HOME root
+    (``~/.claude.json``), а НЕ внутри ``~/.claude/``. Поэтому для личного профиля
+    держим ``config_dir=""`` (сид-профиль ``personal`` так и сидится). Если задать
+    ``config_dir="~/.claude"`` — функция пойдёт в ``~/.claude/.claude.json``,
+    которого нет, и вернёт пусто. Рабочий профиль (``~/.claude-work``) хранит
+    ``.claude.json`` ВНУТРИ config dir — для него путь верный.
     """
     servers: dict = {}
     base = Path(os.path.expanduser(config_dir)) if config_dir else Path.home()
