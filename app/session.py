@@ -76,6 +76,7 @@ class AgentSession:
     parent_id: str = ""
     parent_name: str = ""
     pipeline: str = ""
+    profile: str = ""
     _is_orchestrator: bool | None = field(default=None, repr=False)
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
@@ -793,6 +794,7 @@ class AgentSession:
             "branch": self.branch, "is_orchestrator": self.is_orchestrator,
             "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
             "pipeline": self.pipeline,
+            "profile": self.profile,
             "color": self.color, "created_at": self.created_at.isoformat(),
             "finished_at": None,
             "context_pct": self._last_context.get("percentage", 0),

@@ -535,3 +535,104 @@ class TestPipelineColumn:
         save_session(sample_session)
         row = get_session(sample_session["id"])
         assert row["pipeline"] == ""
+
+
+# ── Этап 6, чанк 1: профили Claude (таблица profiles + sessions.profile) ──
+
+class TestProfilesMigration:
+    def test_profiles_table_exists(self, db):
+        from app.db import _conn
+        with _conn() as c:
+            tables = {r[0] for r in c.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()}
+        assert "profiles" in tables
+
+    def test_seed_personal_present(self, db):
+        """Миграция авто-сидит профиль 'personal' с пустым config_dir."""
+        from app.db import get_profile
+        p = get_profile("personal")
+        assert p is not None
+        assert p["name"] == "personal"
+        assert p["config_dir"] == ""
+
+    def test_sessions_profile_column_exists(self, db):
+        from app.db import _conn
+        with _conn() as c:
+            cols = {r[1] for r in c.execute("PRAGMA table_info(sessions)").fetchall()}
+        assert "profile" in cols
+
+    def test_migration_idempotent_no_duplicate_personal(self, db):
+        """Повторный init не падает и не плодит дублей 'personal'."""
+        from app.db import init_db, _conn
+        init_db()
+        init_db()
+        with _conn() as c:
+            n = c.execute(
+                "SELECT COUNT(*) FROM profiles WHERE name='personal'"
+            ).fetchone()[0]
+        assert n == 1
+
+
+class TestProfileColumnRoundTrip:
+    def test_save_and_load_profile(self, db, sample_session):
+        from app.db import save_session, get_session
+        sample_session["profile"] = "work"
+        save_session(sample_session)
+        row = get_session(sample_session["id"])
+        assert row["profile"] == "work"
+
+    def test_save_without_profile_defaults_empty(self, db, sample_session):
+        from app.db import save_session, get_session
+        sample_session.pop("profile", None)
+        save_session(sample_session)
+        row = get_session(sample_session["id"])
+        assert row["profile"] == ""
+
+
+class TestProfilesCRUD:
+    def test_upsert_and_list(self, db):
+        from app.db import upsert_profile, list_profiles
+        upsert_profile("work", "/home/user/.claude-work")
+        names = {p["name"] for p in list_profiles()}
+        assert "work" in names
+        assert "personal" in names  # сид
+
+    def test_list_sorted_by_name(self, db):
+        from app.db import upsert_profile, list_profiles
+        upsert_profile("zeta", "/z")
+        upsert_profile("alpha", "/a")
+        names = [p["name"] for p in list_profiles()]
+        assert names == sorted(names)
+
+    def test_get_profile(self, db):
+        from app.db import upsert_profile, get_profile
+        upsert_profile("work", "/home/user/.claude-work")
+        p = get_profile("work")
+        assert p == {"name": "work", "config_dir": "/home/user/.claude-work"}
+
+    def test_get_nonexistent_profile(self, db):
+        from app.db import get_profile
+        assert get_profile("ghost") is None
+
+    def test_upsert_updates_not_duplicates(self, db):
+        from app.db import upsert_profile, get_profile, list_profiles
+        upsert_profile("work", "/old/path")
+        before = len(list_profiles())
+        upsert_profile("work", "/new/path")
+        after = len(list_profiles())
+        assert before == after
+        assert get_profile("work")["config_dir"] == "/new/path"
+
+    def test_delete_profile(self, db):
+        from app.db import upsert_profile, delete_profile, get_profile
+        upsert_profile("work", "/x")
+        delete_profile("work")
+        assert get_profile("work") is None
+
+    def test_delete_personal_raises(self, db):
+        from app.db import delete_profile, get_profile
+        with pytest.raises(ValueError):
+            delete_profile("personal")
+        # сид остаётся на месте
+        assert get_profile("personal") is not None

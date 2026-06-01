@@ -53,9 +53,15 @@ def init_db() -> None:
                 is_orchestrator INTEGER DEFAULT 0,
                 color TEXT DEFAULT '',
                 mcp_servers_custom TEXT DEFAULT '',
+                profile TEXT DEFAULT '',
                 created_at TEXT NOT NULL,
                 finished_at TEXT,
                 UNIQUE(name, scope)
+            );
+            CREATE TABLE IF NOT EXISTS profiles (
+                name TEXT PRIMARY KEY,
+                config_dir TEXT NOT NULL DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -383,6 +389,11 @@ def _migrate(c) -> None:
     if "pipeline" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN pipeline TEXT DEFAULT ''")
         c.execute("UPDATE sessions SET is_orchestrator = 1 WHERE role IN ('orchestrator', 'sub-orchestrator')")
+    if "profile" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN profile TEXT DEFAULT ''")
+    # Идемпотентный сид профиля 'personal' (config_dir="" → env процесса, как сегодня).
+    # INSERT OR IGNORE: повторная миграция не падает и не перетирает существующую строку.
+    c.execute("INSERT OR IGNORE INTO profiles (name, config_dir) VALUES ('personal', '')")
 
 
 def save_session(s: dict) -> None:
@@ -403,6 +414,7 @@ def save_session(s: dict) -> None:
     s.setdefault("parent_id", "")
     s.setdefault("parent_name", "")
     s.setdefault("pipeline", "")
+    s.setdefault("profile", "")
     s.setdefault("mcp_servers_custom", "")
     with _conn() as c:
         c.execute("""
@@ -412,14 +424,16 @@ def save_session(s: dict) -> None:
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
-                template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline)
+                template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline,
+                profile)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
-                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :pipeline)
+                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :pipeline,
+                :profile)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 system_prompt=excluded.system_prompt,
@@ -448,7 +462,8 @@ def save_session(s: dict) -> None:
                 parent_id=excluded.parent_id,
                 parent_name=excluded.parent_name,
                 mcp_servers_custom=excluded.mcp_servers_custom,
-                pipeline=excluded.pipeline
+                pipeline=excluded.pipeline,
+                profile=excluded.profile
         """, s)
 
 
@@ -465,6 +480,44 @@ def get_session_by_name(name: str, scope: str) -> dict | None:
             (name, scope),
         ).fetchone()
         return dict(row) if row else None
+
+
+# ── Профили Claude (CLAUDE_CONFIG_DIR per-session) ──
+
+def list_profiles() -> list[dict]:
+    """Все профили, отсортированы по имени: ``[{"name":..., "config_dir":...}]``."""
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT name, config_dir FROM profiles ORDER BY name"
+        ).fetchall()
+        return [{"name": r["name"], "config_dir": r["config_dir"]} for r in rows]
+
+
+def get_profile(name: str) -> dict | None:
+    """Один профиль по имени или ``None``, если не найден."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT name, config_dir FROM profiles WHERE name = ?", (name,)
+        ).fetchone()
+        return {"name": row["name"], "config_dir": row["config_dir"]} if row else None
+
+
+def upsert_profile(name: str, config_dir: str) -> None:
+    """Создать профиль или обновить его ``config_dir`` (по конфликту имени)."""
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO profiles (name, config_dir) VALUES (?, ?) "
+            "ON CONFLICT(name) DO UPDATE SET config_dir = excluded.config_dir",
+            (name, config_dir),
+        )
+
+
+def delete_profile(name: str) -> None:
+    """Удалить профиль. Сид-профиль ``personal`` удалять запрещено."""
+    if name == "personal":
+        raise ValueError("Профиль 'personal' является сид-профилем и не может быть удалён")
+    with _conn() as c:
+        c.execute("DELETE FROM profiles WHERE name = ?", (name,))
 
 
 def get_all_sessions(scope: str | None = None, include_archived: bool = False) -> list[dict]:
