@@ -52,6 +52,29 @@ def _load_scope_mcp_servers(scope: str) -> dict:
     return servers
 
 
+def _load_user_mcp_servers(config_dir: str) -> dict:
+    """F2: user-MCP из top-level ``.claude.json`` профиля.
+
+    ``config_dir`` непуст → ``<config_dir>/.claude.json``; пуст → ``~/.claude.json``
+    (env процесса orchestra). Берёт ключ ``mcpServers``, пропуская ``orchestra``
+    (серверный MCP подмешивается отдельно и не должен подменяться профилем).
+    Зеркалит стиль ``_load_scope_mcp_servers``: ошибки парсинга — warning, не падаем.
+    """
+    servers: dict = {}
+    base = Path(os.path.expanduser(config_dir)) if config_dir else Path.home()
+    path = base / ".claude.json"
+    if not path.is_file():
+        return servers
+    try:
+        data = json.loads(path.read_text())
+        for k, v in data.get("mcpServers", {}).items():
+            if k != "orchestra":
+                servers[k] = v
+    except Exception as e:
+        logger.warning(f"Failed to parse user MCP servers from {path}: {e}")
+    return servers
+
+
 class AgentStatus(str, Enum):
     IDLE = "idle"
     RUNNING = "running"
@@ -141,6 +164,24 @@ class AgentSession:
             )
         else:
             from app.backend_claude import ClaudeBackend
+            from app.pipeline import get_role
+            from app.db import get_profile
+            # Резолв роли: нет манифеста → чистый upstream-fallback
+            # (inherit=True, config_dir по профилю, user_mcp пуст — как сегодня).
+            try:
+                rr = get_role(self.pipeline, self.role)
+            except FileNotFoundError:
+                rr = None
+            inherit = rr.inherit_claude_md if rr else True
+            config_dir = ""
+            if self.profile:
+                p = get_profile(self.profile)
+                config_dir = p["config_dir"] if p else ""
+            # F2: user-MCP подмешиваем ТОЛЬКО при mcp_servers=="all" (sapto-pm);
+            # default/список — без user-MCP (1:1 upstream).
+            user_mcp: dict = {}
+            if rr is not None and rr.mcp_servers == "all":
+                user_mcp = _load_user_mcp_servers(config_dir)
             return ClaudeBackend(
                 model=self.model, cwd=self.cwd,
                 system_prompt=self.system_prompt,
@@ -148,6 +189,9 @@ class AgentSession:
                 mcp_servers=self.mcp_servers,
                 is_orchestrator=self.is_orchestrator,
                 scope_mcp_servers=_load_scope_mcp_servers(self.scope),
+                config_dir=config_dir,
+                inherit_claude_md=inherit,
+                user_mcp_servers=user_mcp,
             )
 
     def _codex_reasoning_effort(self) -> str:

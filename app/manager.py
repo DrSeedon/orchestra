@@ -589,7 +589,16 @@ class SessionManager:
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
-                await asyncio.to_thread(_inject_skills_to_worktree, role, wt.path)
+                # F1: при skills=="all" (sapto-pm) скиллы приходят через профиль
+                # (CLAUDE_CONFIG_DIR + setting_sources), native-инъекция не нужна.
+                # default/список/нет манифеста → инъекция как в upstream.
+                try:
+                    _rr = get_role(pipeline, role)
+                    _skills = _rr.skills if _rr else None
+                except FileNotFoundError:
+                    _skills = None
+                if _skills != "all":
+                    await asyncio.to_thread(_inject_skills_to_worktree, role, wt.path)
 
             # Best-effort скаффолд doc-папки роли по манифесту (фильтрация внутри
             # функции: docs_scaffold/docs_dir/requires). cwd = итоговый (worktree

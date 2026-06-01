@@ -143,6 +143,57 @@ class TestWorktreeBaseBranch:
         assert base == head
 
 
+def _git_repo(tmp_path):
+    """Минимальный git-репо с веткой main для worktree-тестов."""
+    import subprocess
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "T"], cwd=repo, capture_output=True)
+    (repo / "f.txt").write_text("x")
+    subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "i"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=repo, capture_output=True, check=True)
+    return repo
+
+
+class TestInjectSkillsGating:
+    """F1: при skills=="all" native-инъекция скиллов пропускается."""
+
+    async def _run(self, mgr, tmp_path, role_mock):
+        from tests.conftest import make_backend_mock
+        repo = _git_repo(tmp_path)
+        inject = MagicMock()
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()), \
+             patch("app.manager._inject_skills_to_worktree", inject), \
+             patch("app.manager.get_role", role_mock):
+            await mgr.create_session(
+                name="w1", scope="/s", cwd=str(repo), model="m",
+                use_worktree=True, repo_path=str(repo),
+            )
+        return inject
+
+    @pytest.mark.asyncio
+    async def test_skills_all_skips_injection(self, mgr, tmp_path):
+        rr = MagicMock(skills="all", is_orchestrator=False)
+        inject = await self._run(mgr, tmp_path, lambda p, r: rr)
+        inject.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skills_list_injects(self, mgr, tmp_path):
+        rr = MagicMock(skills=["foo", "bar"], is_orchestrator=False)
+        inject = await self._run(mgr, tmp_path, lambda p, r: rr)
+        inject.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_manifest_injects(self, mgr, tmp_path):
+        def _raise(p, r):
+            raise FileNotFoundError("no manifest")
+        inject = await self._run(mgr, tmp_path, _raise)
+        inject.assert_called_once()
+
+
 class TestSendAndControl:
     @pytest.mark.asyncio
     async def test_send_routes(self, mgr):
