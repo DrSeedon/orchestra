@@ -648,7 +648,7 @@ async def codex_review(
 
     if mode == "review":
         cmd = (
-            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
+            f"cd {cwd} && HTTPS_PROXY= HTTP_PROXY= UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --ephemeral"
             f" -o {output_abs}"
         )
@@ -665,7 +665,7 @@ async def codex_review(
 
         cmd = (
             f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{exec_prompt}\nCODEX_PROMPT_EOF\n"
-            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
+            f"cd {cwd} && HTTPS_PROXY= HTTP_PROXY= UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
             f" -s workspace-write --skip-git-repo-check --full-auto --ephemeral"
             f" -o {output_abs}"
             f" - < {prompt_file}"
