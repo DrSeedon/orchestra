@@ -16,6 +16,15 @@ from app.session import AgentSession, AgentStatus, is_orchestrator_role
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree
 from app.models import resolve_model, backend_for_model
+from app.pipeline import (
+    DEFAULT_PIPELINE,
+    build_system_prompt,
+    get_active_pipeline,
+    get_role,
+    load_pipeline,
+    resolve_role,
+    validate_spawn,
+)
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
     delete_session, archive_session, get_stats,
@@ -54,7 +63,7 @@ def _read_prompt(name: str) -> str:
 def _other_orchestrators_block(exclude_scope: str = "") -> str:
     try:
         orchs = [s for s in get_all_sessions()
-                 if is_orchestrator_role(s.get("role", "worker")) and s.get("scope") != exclude_scope]
+                 if bool(s.get("is_orchestrator")) and s.get("scope") != exclude_scope]
         if not orchs:
             return ""
         lines = ["## Other orchestrators", "You can message other orchestrators via `send_message(to=\"Name\", message=\"...\")`:"]
@@ -75,7 +84,7 @@ def _other_orchestrators_block(exclude_scope: str = "") -> str:
 def _workers_block(scope: str) -> str:
     try:
         workers = [s for s in get_all_sessions()
-                   if not is_orchestrator_role(s.get("role", "worker")) and s.get("scope") == scope]
+                   if not bool(s.get("is_orchestrator")) and s.get("scope") == scope]
         if not workers:
             return ""
         lines = ["## Your current workers",
@@ -195,7 +204,13 @@ def _roles_catalog() -> str:
     return "## Available worker roles\nSpawn with `role=\"<name>\"`. If no role specified, defaults to `worker`.\n\n" + "\n\n".join(entries)
 
 
-def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
+def _UPSTREAM_ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
+    """Поведение апстрима 1:1 (frontmatter+glob из ``app/prompts/``).
+
+    Fallback-ветка: вызывается из :func:`ROLE_SYSTEM_PROMPT`, когда манифест
+    пайплайна отсутствует (``FileNotFoundError``). Сохранена дословно — гарантия,
+    что при отсутствии ``pipelines/`` поведение идентично upstream (DECISIONS B4).
+    """
     base = f"{_read_prompt('base.md')}\n\n{_role_prompt_file(role)}"
     if is_orchestrator_role(role):
         catalog = _roles_catalog()
@@ -213,12 +228,85 @@ def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
     return base
 
 
-def ORCHESTRATOR_SYSTEM_PROMPT(scope: str = "") -> str:
-    return ROLE_SYSTEM_PROMPT("orchestrator", scope)
+def _fmt_role_catalog_entry(rr) -> str:
+    """Форматировать одну запись каталога ролей из :class:`ResolvedRole`.
+
+    Совпадает по форме с ``_roles_catalog`` (заголовок ### `name` (label) — model,
+    описание, when/not_for). Источник полей — манифест (ResolvedRole), не frontmatter.
+    """
+    desc = (rr.description or "").strip().replace("\n", " ")
+    entry = f"### `{rr.name}` ({rr.label}) — model: {rr.model}"
+    if desc:
+        entry += f"\n{desc}"
+    if rr.when:
+        entry += f"\n- ✅ **When**: {rr.when.strip()}"
+    if rr.not_for:
+        entry += f"\n- ❌ **Not for**: {rr.not_for.strip()}"
+    skills = rr.skills
+    if isinstance(skills, list) and skills:
+        entry += f"\n- 🔧 **Skills**: {', '.join(skills)}"
+    return entry
 
 
-def WORKER_SYSTEM_PROMPT() -> str:
-    return ROLE_SYSTEM_PROMPT("worker")
+def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
+    """Каталог ролей оркестратору из манифеста, отфильтрованный по ``can_spawn``.
+
+    B2: показываем ВСЕ роли из ``can_spawn`` родителя (включая под-оркестраторов).
+    ``can_spawn=['*']`` → все роли пайплайна. Сортировка по ``order``. Закрывает
+    дефект плоского ``_roles_catalog`` (показывал бы запретные роли).
+    """
+    cfg = load_pipeline(pipeline)
+    parent = cfg.roles.get(parent_role)
+    if parent is None:
+        return ""
+    visible = list(cfg.roles) if "*" in parent.can_spawn else list(parent.can_spawn)
+    visible = [r for r in visible if r in cfg.roles]
+    if not visible:
+        return ""
+    entries = [
+        _fmt_role_catalog_entry(resolve_role(cfg, r))
+        for r in sorted(visible, key=lambda r: cfg.roles[r].order)
+    ]
+    return ('## Available worker roles\nSpawn with `role="<name>"`. '
+            'If no role specified, defaults to `worker`.\n\n' + "\n\n".join(entries))
+
+
+def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
+    """Системный промпт роли: статика слоёв пайплайна + динамика (каталог/блоки).
+
+    Манифест-путь (есть ``pipelines/<pipeline>/``): статика через
+    :func:`build_system_prompt` (ТОЛЬКО ``pipelines/<name>/prompts/`` — изоляция),
+    затем для оркестратора — каталог ролей (фильтр ``can_spawn``) + блоки других
+    оркестраторов/воркеров из БД.
+
+    Fallback (``FileNotFoundError`` — манифеста нет): делегируем в
+    :func:`_UPSTREAM_ROLE_SYSTEM_PROMPT` (поведение апстрима 1:1, B4).
+    """
+    try:
+        base = build_system_prompt(pipeline, role, scope)
+    except FileNotFoundError:
+        return _UPSTREAM_ROLE_SYSTEM_PROMPT(role, scope)
+    rr = get_role(pipeline, role)
+    is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
+    if is_orch:
+        catalog = _roles_catalog_from_manifest(pipeline, role)
+        if catalog:
+            base += f"\n\n{catalog}"
+        others = _other_orchestrators_block(scope)
+        if others:
+            base += f"\n\n{others}"
+        workers = _workers_block(scope)
+        if workers:
+            base += f"\n\n{workers}"
+    return base
+
+
+def ORCHESTRATOR_SYSTEM_PROMPT(pipeline: str = DEFAULT_PIPELINE, scope: str = "") -> str:
+    return ROLE_SYSTEM_PROMPT(pipeline, "orchestrator", scope)
+
+
+def WORKER_SYSTEM_PROMPT(pipeline: str = DEFAULT_PIPELINE) -> str:
+    return ROLE_SYSTEM_PROMPT(pipeline, "worker")
 
 
 def _prompt_template_hash(role_or_orch) -> str:
@@ -354,7 +442,8 @@ class SessionManager:
                              role: str = "", task_id: str = "", description: str = "",
                              base_branch: str = "main",
                              parent_id: str = "", parent_name: str = "",
-                             mcp_servers: dict | None = None) -> AgentSession:
+                             mcp_servers: dict | None = None,
+                             pipeline: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -363,24 +452,47 @@ class SessionManager:
         if get_session_by_name(name, scope):
             raise ValueError(f"session '{name}' already exists in scope '{scope}'")
 
+        # Явно ли указана роль: генерик-воркер (role не задан) валидируется как
+        # unrouted (child_role="") — им управляет allow_unrouted_workers родителя.
+        explicit_role = bool(role)
         if not role:
             role = "orchestrator" if is_orchestrator else "worker"
-        is_orch = is_orchestrator_role(role)
 
-        if is_orch:
-            prompt = system_prompt or ROLE_SYSTEM_PROMPT(role, scope)
-        else:
-            prompt = ROLE_SYSTEM_PROMPT(role) + ("\n\n" + system_prompt if system_prompt else "")
+        # Активный пайплайн: явный аргумент главнее, иначе наследуем от родителя
+        # (или DEFAULT_PIPELINE для корня). parent_name тут — только явно переданный;
+        # для воркеров без parent_name он доразрешается ниже (auto-find).
+        explicit_pipeline = bool(pipeline)
+        parent_pipeline = self._resolve_pipeline(parent_name, scope) if parent_name else ""
+        pipeline = pipeline or get_active_pipeline(scope, parent_pipeline=parent_pipeline)
+
+        # R1: is_orchestrator из манифеста (kind), fallback на frozenset апстрима.
+        is_orch = self._role_is_orchestrator(pipeline, role)
 
         if not parent_name and not is_orch:
             parent_name = self._find_orchestrator_name(scope) or ""
+            if parent_name and not explicit_pipeline:
+                # Доразрешили родителя авто-поиском — воркер наследует его пайплайн.
+                parent_pipeline = self._resolve_pipeline(parent_name, scope)
+                pipeline = get_active_pipeline(scope, parent_pipeline=parent_pipeline)
+                is_orch = self._role_is_orchestrator(pipeline, role)
+
+        if is_orch:
+            prompt = system_prompt or ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+        else:
+            prompt = ROLE_SYSTEM_PROMPT(pipeline, role) + ("\n\n" + system_prompt if system_prompt else "")
+
         if not parent_id and parent_name:
             p_session = self.get_by_name(parent_name, scope)
             if p_session:
                 parent_id = p_session.id if isinstance(p_session, AgentSession) else p_session.get("id", "")
 
-        if parent_name:
-            parent_role = self._resolve_role(parent_name, scope)
+        # R2: валидация спавна ДО любых side-effects (worktree/start).
+        # Манифест-путь — validate_spawn (fail-closed/fail-open). Нет манифеста
+        # (FileNotFoundError) → fallback на inline _role_can_spawn (поведение апстрима).
+        parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
+        try:
+            validate_spawn(pipeline, parent_role, role if explicit_role else "")
+        except FileNotFoundError:
             if parent_role:
                 whitelist = _role_can_spawn(parent_role)
                 if whitelist is not None and role not in whitelist:
@@ -396,11 +508,14 @@ class SessionManager:
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, role=role,
             parent_id=parent_id, parent_name=parent_name,
+            pipeline=pipeline,
             color="" if is_orch else self._pick_color(),
             mcp_servers=_make_mcp_config(name, scope, role, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
             backend_type=bt, task_id=task_id, description=description,
         )
+        # R1: денормализуем is_orchestrator (kind манифеста / fallback) в хранимое поле.
+        session.is_orchestrator = is_orch
         session._template_hash = _prompt_template_hash(role)
         save_session(session._to_db_dict())
 
@@ -477,7 +592,7 @@ class SessionManager:
             if s.scope == scope and s.is_orchestrator and s.name not in orch_names:
                 orch_names.append(s.name)
         for row in get_all_sessions(scope):
-            if is_orchestrator_role(row.get("role", "worker")) and row["name"] not in orch_names:
+            if bool(row.get("is_orchestrator")) and row["name"] not in orch_names:
                 orch_names.append(row["name"])
 
         to_remove = [s for s in self.sessions.values() if s.scope == scope]
@@ -512,6 +627,28 @@ class SessionManager:
         row = get_session_by_name(name, scope)
         return row.get("role") if row else None
 
+    def _resolve_pipeline(self, name: str, scope: str) -> str:
+        """Пайплайн сессии ``name`` (для наследования детьми). '' если не найдена."""
+        for s in self.sessions.values():
+            if s.name == name and s.scope == scope:
+                return s.pipeline or ""
+        row = get_session_by_name(name, scope)
+        return (row.get("pipeline") or "") if row else ""
+
+    @staticmethod
+    def _role_is_orchestrator(pipeline: str, role: str) -> bool:
+        """R1: is_orchestrator из kind манифеста; fallback на frozenset апстрима.
+
+        Манифеста нет (FileNotFoundError) или роли нет в нём → ``is_orchestrator_role``.
+        """
+        try:
+            rr = get_role(pipeline, role)
+        except FileNotFoundError:
+            rr = None
+        if rr is not None:
+            return rr.is_orchestrator
+        return is_orchestrator_role(role)
+
     async def ensure_loaded(self, name: str, scope: str) -> Optional[AgentSession]:
         scope = scope.rstrip("/")
         for s in self.sessions.values():
@@ -533,9 +670,17 @@ class SessionManager:
 
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         role = db_row.get("role") or ("orchestrator" if db_row.get("is_orchestrator") else "worker")
-        is_orch = is_orchestrator_role(role)
+        pipeline = db_row.get("pipeline", "") or ""
+        # R1: is_orch из манифеста пайплайна (kind) при наличии; иначе хранимая
+        # колонка is_orchestrator (денормализована при спавне); иначе frozenset.
+        is_orch = self._role_is_orchestrator(pipeline, role)
+        try:
+            if get_role(pipeline, role) is None:
+                is_orch = bool(db_row.get("is_orchestrator")) or is_orchestrator_role(role)
+        except FileNotFoundError:
+            is_orch = bool(db_row.get("is_orchestrator")) or is_orchestrator_role(role)
         old_prompt = db_row.get("system_prompt", "")
-        current_prompt = ROLE_SYSTEM_PROMPT(role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(role)
+        current_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
@@ -577,6 +722,7 @@ class SessionManager:
             backend_type=stored_bt, task_id=db_task_id,
             description=db_row.get("description", ""),
         )
+        session.is_orchestrator = is_orch  # R1: восстановить денормализованное поле
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
@@ -592,7 +738,7 @@ class SessionManager:
             )
         if old_prompt and old_prompt != current_prompt:
             formatted_base = _safe_format_prompt(
-                ROLE_SYSTEM_PROMPT(role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(role),
+                ROLE_SYSTEM_PROMPT(pipeline, role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role),
                 worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
                 scope=db_row["scope"], branch=db_row.get("branch") or "main",
             )
@@ -706,8 +852,10 @@ class SessionManager:
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' WHERE status != 'idle'")
 
-        orchs = [r for r in resumable if is_orchestrator_role(r.get("role", "orchestrator" if r.get("is_orchestrator") else "worker"))]
-        workers = [r for r in resumable if not is_orchestrator_role(r.get("role", "orchestrator" if r.get("is_orchestrator") else "worker"))]
+        # R1: используем денормализованную колонку is_orchestrator (наши PM-роли
+        # не входят в frozenset апстрима; колонка проставлена при спавне/миграции).
+        orchs = [r for r in resumable if bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker"))]
+        workers = [r for r in resumable if not (bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker")))]
 
         for row in orchs:
             if row["id"] in self.sessions:
