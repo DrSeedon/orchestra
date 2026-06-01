@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Review #35 — Orchestra CLI/SDK Audit</title>
+<style>
+:root {
+  --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
+  --border: #2a2a32; --ink: #f1f1f4; --ink-soft: #a8a8b3;
+  --accent: #7c3aed; --accent-soft: #7c3aed33;
+  --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+  --sans: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --p0: #ef4444; --p1: #f59e0b; --p2: #3b82f6; --p3: #6b7280;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #fafaf7; --surface: #fff; --surface-2: #f5f5f0; --border: #e7e5df; --ink: #1a1a1f; --ink-soft: #555560; }
+}
+@media print {
+  :root { --bg: #fff; --surface: #f8f8f8; --surface-2: #f0f0f0; --border: #ddd; --ink: #000; --ink-soft: #555; }
+  .no-print, .filters, button { display: none !important; }
+  details { display: block !important; }
+  details[open] summary ~ * { display: block !important; }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html { background: var(--bg); color: var(--ink); }
+body { font: 14px/1.4 var(--sans); margin: 0; padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+
+header { margin-bottom: 2rem; }
+header h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: .5rem; }
+header .tldr { color: var(--ink-soft); font-size: .95rem; line-height: 1.5; max-width: 80ch; }
+.crumb { font-size: .75rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .25rem; }
+
+/* Stats bar */
+.stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: .75rem 1.25rem; min-width: 120px; }
+.stat .num { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.stat .label { font-size: .75rem; color: var(--ink-soft); margin-top: .25rem; }
+.stat.p0 .num { color: var(--p0); }
+.stat.p1 .num { color: var(--p1); }
+.stat.p2 .num { color: var(--p2); }
+.stat.p3 .num { color: var(--p3); }
+
+/* Filters */
+.filters { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: center; }
+.filters label { font-size: .75rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .05em; margin-right: .25rem; }
+.filter-group { display: flex; gap: .25rem; flex-wrap: wrap; margin-right: 1rem; }
+.fbtn { font: 12px/1 var(--sans); padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--ink-soft); cursor: pointer; transition: all .15s; }
+.fbtn:hover { border-color: var(--ink-soft); color: var(--ink); }
+.fbtn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.fbtn.sev-p0.active { border-color: var(--p0); background: #ef444422; }
+.fbtn.sev-p1.active { border-color: var(--p1); background: #f59e0b22; }
+.fbtn.sev-p2.active { border-color: var(--p2); background: #3b82f622; }
+.fbtn.sev-p3.active { border-color: var(--p3); background: #6b728022; }
+
+/* Findings list */
+.finding { border: 1px solid var(--border); border-radius: 6px; margin-bottom: .5rem; background: var(--surface); overflow: hidden; }
+.finding.hidden { display: none; }
+.finding summary { cursor: pointer; padding: .75rem 1rem; display: flex; align-items: center; gap: .75rem; list-style: none; user-select: none; }
+.finding summary::-webkit-details-marker { display: none; }
+.finding summary::before { content: '▸'; color: var(--ink-soft); font-size: .8rem; transition: transform .15s; flex-shrink: 0; }
+.finding[open] summary::before { transform: rotate(90deg); }
+.finding summary:hover { background: var(--surface-2); }
+
+.sev-badge { font: 700 11px/1 var(--mono); padding: 3px 6px; border-radius: 3px; flex-shrink: 0; min-width: 28px; text-align: center; }
+.sev-badge.p0 { background: #ef444430; color: var(--p0); }
+.sev-badge.p1 { background: #f59e0b30; color: var(--p1); }
+.sev-badge.p2 { background: #3b82f630; color: var(--p2); }
+.sev-badge.p3 { background: #6b728030; color: var(--p3); }
+
+.topic-badge { font: 600 10px/1 var(--sans); padding: 3px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
+.topic-badge.correctness { background: #7c3aed20; color: #a78bfa; }
+.topic-badge.sdk { background: #06b6d420; color: #22d3ee; }
+.topic-badge.reliability { background: #f5920b20; color: #fbbf24; }
+.topic-badge.architecture { background: #22c55e20; color: #4ade80; }
+
+.finding-title { flex: 1; font-size: .9rem; }
+.finding-file { font: 12px var(--mono); color: var(--ink-soft); flex-shrink: 0; }
+
+.codex-status { font: 600 10px/1 var(--sans); padding: 2px 6px; border-radius: 3px; flex-shrink: 0; }
+.codex-status.confirmed { background: #22c55e20; color: var(--ok); }
+.codex-status.corrected { background: #f59e0b20; color: var(--warn); }
+.codex-status.failed { background: #ef444420; color: var(--danger); }
+.codex-status.na { background: #6b728020; color: var(--p3); }
+
+.finding-body { padding: 0 1rem 1rem 2.5rem; font-size: .85rem; line-height: 1.6; color: var(--ink-soft); }
+.finding-body p { margin-bottom: .5rem; }
+.finding-body code { font: .85em var(--mono); background: var(--surface-2); padding: 1px 4px; border-radius: 2px; }
+.finding-body .fix { border-left: 3px solid var(--ok); padding-left: .75rem; margin-top: .5rem; }
+.finding-body .fix-label { font-weight: 700; color: var(--ok); font-size: .8rem; margin-bottom: .25rem; }
+
+.section-head { font-size: 1rem; font-weight: 700; margin: 1.5rem 0 .75rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .5rem; }
+.count-badge { font: 600 12px var(--mono); background: var(--surface-2); padding: 2px 8px; border-radius: 10px; color: var(--ink-soft); }
+
+.dup-mark { font: 600 9px/1 var(--sans); padding: 2px 5px; border-radius: 2px; background: #f59e0b18; color: #f59e0b; margin-left: .25rem; }
+
+footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: .75rem; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p class="crumb">Orchestra #35 · Code Audit</p>
+  <h1>Полный ревью CLI/SDK обёртки</h1>
+  <p class="tldr">4 Opus ревьюера (correctness, SDK, reliability, architecture) + Codex cross-review каждого. 55 находок: 7 P0 crash/data-loss, 19 P1 wrong behavior, 18 P2 degradation, 11 P3 nits. ~95 строк мёртвого кода на удаление. Самый критичный баг: SDK errors молча проглатываются — агент "успешно завершает" на auth failure.</p>
+</header>
+
+<div class="stats">
+  <div class="stat p0"><div class="num" id="cnt-p0">7</div><div class="label">P0 crash</div></div>
+  <div class="stat p1"><div class="num" id="cnt-p1">19</div><div class="label">P1 wrong</div></div>
+  <div class="stat p2"><div class="num" id="cnt-p2">18</div><div class="label">P2 degrade</div></div>
+  <div class="stat p3"><div class="num" id="cnt-p3">11</div><div class="label">P3 nit</div></div>
+</div>
+
+<div class="filters no-print">
+  <label>Severity</label>
+  <div class="filter-group" data-group="sev">
+    <button class="fbtn sev-p0 active" data-val="p0">P0</button>
+    <button class="fbtn sev-p1 active" data-val="p1">P1</button>
+    <button class="fbtn sev-p2 active" data-val="p2">P2</button>
+    <button class="fbtn sev-p3 active" data-val="p3">P3</button>
+  </div>
+  <label>Тема</label>
+  <div class="filter-group" data-group="topic">
+    <button class="fbtn active" data-val="correctness">Correctness</button>
+    <button class="fbtn active" data-val="sdk">SDK</button>
+    <button class="fbtn active" data-val="reliability">Reliability</button>
+    <button class="fbtn active" data-val="architecture">Architecture</button>
+  </div>
+  <label>Codex</label>
+  <div class="filter-group" data-group="codex">
+    <button class="fbtn active" data-val="confirmed">Confirmed</button>
+    <button class="fbtn active" data-val="corrected">Corrected</button>
+    <button class="fbtn active" data-val="failed">Failed</button>
+    <button class="fbtn active" data-val="na">N/A</button>
+  </div>
+</div>
+
+<div id="findings">
+
+<!-- ============ P0 ============ -->
+<div class="section-head">P0 — Crash / Data Loss <span class="count-badge" id="sec-p0">7</span></div>
+
+<details class="finding" data-sev="p0" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p0">P0</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">compact() re-entry — _compacting cleared before ack send → recursive compact, session_id=None</span>
+  <span class="finding-file">session.py:649</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>compact()</code> сбрасывает <code>_compacting = False</code> на строке 649 <strong>до</strong> вызова <code>send(preamble)</code> на строке 652. В этот момент <code>_handle_turn_end</code> видит <code>_compacting=False</code> и при высоком context запускает <code>_auto_compact()</code> — рекурсивный compact. Два compact'а гонятся на <code>session_id</code> (один обнуляет, другой читает) → session_id может стать None навсегда = полная потеря контекста.</p>
+  <p>Нет re-entrancy guard'а — оба пути (auto_compact + manual compact_worker) могут вызвать compact() одновременно.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Добавить guard <code>if self._compacting: return</code> в начало. Не сбрасывать <code>_compacting</code> до завершения ack send. Отправлять ack через backend напрямую (bypass <code>send()</code> который сам гейтится на _compacting).</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p0" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p0">P0</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">compact 60s blind poll возвращает fabricated ok:True</span>
+  <span class="finding-file">session.py:654</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p>После <code>send(preamble)</code> compact поллит 60 раз по 1с ожидая status=IDLE. Если ack turn не завершился (SDK hiccup) — цикл выходит по таймауту и возвращает <code>{"ok": True}</code> с <code>after_pct</code> которое может быть ложью. MCP compact_worker рапортует успех на сессию которая ещё mid-turn.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Трекать ack turn через event/future в <code>_handle_turn_end</code>, await с таймаутом, вернуть <code>ok:False</code> при таймауте вместо фейковго успеха.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p0" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p0">P0</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">persist race — full-row save_session из turn_end + refresh_context перезаписывает stale status</span>
+  <span class="finding-file">session.py:421,704</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>_persist()</code> снимает полный снимок <code>_to_db_dict()</code> и пишет через executor. <code>_handle_turn_end</code> (строка 438) и <code>_refresh_context_from_api</code> (строка 704) оба зовут <code>_persist()</code> почти одновременно. Два снимка с разным status/cost пишутся в SQLite в произвольном порядке (executor threads) → stale <code>status="running"</code> может перезаписать свежий <code>status="idle"</code>.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Serialize persists per-session (single-flight pattern), или перейти на field-scoped UPDATE для context_pct/cost вместо full-row.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p0" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p0">P0</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">merge holds .git lock, remove_worktree doesn't → repo corruption on merge+kill</span>
+  <span class="finding-file">workspace.py:252</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>merge_worktree_to_main</code> берёт file lock <code>.git/orchestra-merge.lock</code> — два merge'а сериализуются. Но <code>remove_worktree</code> (через <code>manager.remove()</code>) lock НЕ берёт. Concurrent merge + kill в одном репо: <code>git worktree remove --force</code> может выполниться пока merge в процессе <code>git checkout main</code> / <code>git stash pop</code> → repo на wrong branch или stuck stash.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Брать тот же <code>.git/orchestra-merge.lock</code> в <code>remove_worktree</code> перед работой с worktree.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p0" data-topic="reliability" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p0">P0</span>
+  <span class="topic-badge reliability">REL</span>
+  <span class="finding-title">Orphaned worktree+branch при crash create_session → повторный spawn невозможен навсегда</span>
+  <span class="finding-file">manager.py:503</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p>Если <code>create_session</code> падает после <code>create_worktree</code> но до <code>self.sessions[id] = session</code> — worktree на диске и git-ветка остаются. <code>delete_session(id)</code> чистит только БД. Повторный spawn с тем же именем → <code>worktree already exists</code> → падает навсегда + ест диск.</p>
+  <div class="fix"><div class="fix-label">Fix</div>В <code>except</code> блоке: <code>if session.worktree_path: await asyncio.to_thread(remove_worktree, ...)</code>. ~5 строк.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p0" data-topic="reliability" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p0">P0</span>
+  <span class="topic-badge reliability">REL</span>
+  <span class="finding-title">Zombie CLI процесс при timeout connect/reconnect — process leak</span>
+  <span class="finding-file">backend_claude.py:128</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>connect()</code> делает <code>self._client = self._make_client()</code> затем <code>await client.connect()</code> с таймаутом. При TimeoutError <code>_client</code> уже создан с живым subprocess, но <code>disconnect()</code> не зовётся → CLI zombie висит до смерти сервера. То же в <code>reconnect()</code>.</p>
+  <div class="fix"><div class="fix-label">Fix</div>try/except вокруг connect: <code>except: await self._client.disconnect(); self._client = None; raise</code>. ~6 строк.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p0" data-topic="architecture" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p0">P0</span>
+  <span class="topic-badge architecture">ARCH</span>
+  <span class="finding-title">restart_cli вызывает несуществующий _disconnect_client → 500 на каждый клик</span>
+  <span class="finding-file">main.py:558</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>await session._disconnect_client()</code> — метод переименован в <code>_disconnect_backend</code> при codex-backend рефакторе. Кнопка ♻️ Restart CLI в дашборде 500-ит на каждый клик.</p>
+  <div class="fix"><div class="fix-label">Fix</div><code>await session._disconnect_backend()</code> + <code>session.status = AgentStatus.IDLE</code>. 2 строки.</div>
+</div>
+</details>
+
+<!-- ============ P1 ============ -->
+<div class="section-head">P1 — Wrong Behavior <span class="count-badge" id="sec-p1">19</span></div>
+
+<details class="finding" data-sev="p1" data-topic="sdk" data-codex="failed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge sdk">SDK</span>
+  <span class="finding-title">⭐ SDK errors молча проглатываются — ok:True hardcoded, auth/billing/rate-limit невидимы</span>
+  <span class="finding-file">backend_claude.py:279</span>
+  <span class="codex-status failed">Codex ✗</span>
+</summary>
+<div class="finding-body">
+  <p><strong>Самый критичный баг для автономного оркестратора.</strong> <code>AssistantMessage.error</code>, <code>ResultMessage.is_error</code>, <code>ResultMessage.errors</code> — ни одно не читается. Мы hardcode <code>"ok": True</code> в turn_end. Auth failure / billing error / rate limit → turn заканчивается → auto-report fires "done" с пустым output. Агент "успешно завершил" при полном отказе. Нарушает принцип "fail loud".</p>
+  <div class="fix"><div class="fix-label">Fix</div><code>is_err = bool(getattr(msg, "is_error", False))</code>; emit <code>"ok": not is_err</code> + <code>"errors": getattr(msg, "errors", [])</code>. Также ловить <code>AssistantMessage.error</code> как event type "error".</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="sdk" data-codex="failed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge sdk">SDK</span>
+  <span class="finding-title">ThinkingBlock dropped — extended thinking невидимо, выглядит как hang</span>
+  <span class="finding-file">backend_claude.py:189</span>
+  <span class="codex-status failed">Codex ✗</span>
+</summary>
+<div class="finding-body">
+  <p><code>_convert</code> обрабатывает TextBlock, ToolUseBlock, ToolResultBlock — но не ThinkingBlock. При extended thinking агент "думает" но дашборд показывает пустоту — выглядит как зависание.</p>
+  <div class="fix"><div class="fix-label">Fix</div><code>elif isinstance(block, ThinkingBlock) and block.thinking: events.append(AgentEvent("thinking", block.thinking))</code></div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="sdk" data-codex="failed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge sdk">SDK</span>
+  <span class="finding-title">usage["iterations"] — мёртвая ветка, SDK никогда не эмитит этот ключ</span>
+  <span class="finding-file">backend_claude.py:248</span>
+  <span class="codex-status failed">Codex ✗</span>
+</summary>
+<div class="finding-body">
+  <p><code>iters = usage.get("iterations", [])</code> — всегда пустой список. SDK не содержит ключа "iterations". Весь <code>if iters:</code> блок — мёртвый код. <code>else</code> ветка корректна, но код вводит в заблуждение.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Удалить iterations branch, оставить flat path. Или доверять <code>ResultMessage.total_cost_usd</code> вместо ручного пересчёта.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="sdk" data-codex="failed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge sdk">SDK</span>
+  <span class="finding-title">context_pct из billing — структурно неверен vs реального контекста</span>
+  <span class="finding-file">backend_claude.py:254</span>
+  <span class="codex-status failed">Codex ✗</span>
+</summary>
+<div class="finding-body">
+  <p>Billing tokens (input + cache_create + cache_read) ≠ context window occupancy. Вычисленный ctx_pct показывается ~1с до замены реальным значением из <code>get_context_usage()</code>. "context corrected" скачки в логах — следствие.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Убрать billing-based ctx_pct, доверять <code>get_context_usage().percentage</code> как единственному источнику.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">session_id=None видим во время compact → не resumed после рестарта</span>
+  <span class="finding-file">session.py:648</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>self.session_id = None</code> (648) → между обнулением и получением нового ID из ResultMessage concurrent <code>_persist()</code> пишет <code>session_id=NULL</code> в БД. Рестарт сервера → <code>auto_resume_all</code> фильтрует <code>WHERE session_id IS NOT NULL</code> → сессия пропадает.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Не обнулять <code>session_id</code> в памяти; передавать <code>resume=None</code> в backend через флаг <code>force_fresh</code>.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">cost under-counts первый turn после reconnect/compact</span>
+  <span class="finding-file">session.py:400</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p>SDK <code>total_cost_usd</code> кумулятивный per session_id. После compact (новый session_id) cost сбрасывается → <code>new_cost - _last_cost</code> отрицательный → clamped to 0. Первый turn = $0. Monopoly money, но dashboard cost врёт.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Reset <code>_last_cost = 0</code> при смене session_id.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">Неупорядоченные full-row persist'ы воскрешают stale status/cost</span>
+  <span class="finding-file">session.py:765</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p>Дубль P0-3. <code>_persist()</code> снимает полный row и пишет на executor. Два near-simultaneous persist → порядок записи не гарантирован → stale status может перезаписать свежий.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Single-flight persist: если persist in-flight → mark dirty, re-persist после завершения.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">stale-prompt: _template_hash обновляется до успешного send → inject пропускается при ошибке</span>
+  <span class="finding-file">session.py:208</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>_template_hash</code> и <code>_prompt_injected</code> выставляются ДО <code>backend.send()</code>. Если <code>_ensure_backend()</code> кидает — hash уже обновлён, следующий send видит <code>_prompt_injected=True</code> → пропускает инъекцию обновлённого промпта. Воркер работает на старых инструкциях.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Выставлять <code>_prompt_injected</code>/<code>_template_hash</code> только после успешного <code>backend.send()</code>.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">auto-report перечитывает live _turn_logs → wrong stop_reason</span>
+  <span class="finding-file">manager.py:813</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>_make_idle_callback</code> перечитывает <code>_turn_logs</code> в момент вызова, а не копирует при создании. Если новый send пришёл между turn_end и auto-report → <code>_turn_logs</code> уже от нового turn → wrong/empty stop_reason.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Передавать stop_reason в callback при создании, не перечитывать live.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="correctness" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">auto_resume_all сбрасывает `waiting` bg-job state</span>
+  <span class="finding-file">manager.py:882</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>UPDATE sessions SET status='idle' WHERE status != 'idle'</code> — сбрасывает и <code>running</code> и <code>waiting</code>. Сессии ожидающие bg-job теряют waiting state при рестарте.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Также capture <code>waiting</code> IDs и восстанавливать, или re-derive из <code>bg_manager.has_active_jobs</code>.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="correctness" data-codex="corrected">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge correctness">CORR</span>
+  <span class="finding-title">squash stats идут только первому task ref; co-referenced задачи = 0 (corrected)</span>
+  <span class="finding-file">workspace.py:424</span>
+  <span class="codex-status corrected">Codex ~</span>
+</summary>
+<div class="finding-body">
+  <p><code>_TASK_REF_RE.search(message)</code> — только первый match. Squash commit с refs <code>#10</code> и <code>#11</code> → #10 получает все stats, #11 = ноль. Codex указал что ревьюер ошибся в симптоме (не double-count, а under-attribution) — исправлено.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Использовать <code>.finditer()</code> и атрибутировать каждому referenced task.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="reliability" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge reliability">REL</span>
+  <span class="finding-title">_log/_persist fire-and-forget на дефолтный thread-pool → contention с git ops</span>
+  <span class="finding-file">session.py:765</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p>Каждый <code>add_log</code> открывает новое SQLite-соединение на дефолтном executor (тот же что <code>create_worktree</code>/<code>merge</code>). 10 агентов = сотни _log/сек → thread-pool забивается → spawn/merge встают в очередь за логами.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Выделить отдельный <code>ThreadPoolExecutor(max_workers=4)</code> для DB-записи. Или батчить логи.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="reliability" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge reliability">REL</span>
+  <span class="finding-title">Blocking subprocess + reconnect storm при рестарте</span>
+  <span class="finding-file">manager.py:724,913</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>_load_from_db</code> делает синхронный <code>subprocess.run(git rev-parse)</code> в event loop. При 15 воркерах = 15 blocking git calls подряд. Плюс <code>_inject_restart_notice</code> поднимает все CLI в окне 12с.</p>
+  <div class="fix"><div class="fix-label">Fix</div><code>subprocess.run</code> → <code>await asyncio.to_thread()</code>. Семафор на параллельные reconnect'ы.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="reliability" data-codex="corrected">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge reliability">REL</span>
+  <span class="finding-title">_session_locks написан но не используется, нет scope-lock, TOCTOU спавна</span>
+  <span class="finding-file">manager.py:335</span>
+  <span class="codex-status corrected">Codex ~</span>
+</summary>
+<div class="finding-body">
+  <p>Codex поправил: <code>_session_locks</code> используется в main.py:752/794, не полностью мёртвый. Но scope-level lock отсутствует. HTTP-спавн идёт мимо очереди <code>_spawn_worker_loop</code>. <code>change_scope</code> TOCTOU документирован но не закрыт.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Scope-level lock в <code>create_session</code> и <code>change_scope</code>. Убрать прямой вызов <code>create_session</code> из HTTP, пустить через очередь.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="reliability" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge reliability">REL</span>
+  <span class="finding-title">merge chain держит потоки общего пула</span>
+  <span class="finding-file">workspace.py:252</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>merge_worktree_to_main</code> — синхронная, ~10 subprocess.run + fcntl.flock. На дефолтном executor 5 merge'ей = 5 потоков заняты, логи/спавны встают.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Отдельный bounded executor (1-2 потока) для git-heavy операций.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="reliability" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge reliability">REL</span>
+  <span class="finding-title">_pending_messages потеряны при рестарте + mid-compact context broken</span>
+  <span class="finding-file">session.py:107,591</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>_pending_messages</code> только в памяти. Рестарт → очередь исчезает. Mid-compact: <code>session_id=None</code> пишется в DB → resume фильтрует → агент не восстановится.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Персистить pending messages в DB/inbox. Не обнулять session_id до подтверждения нового.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="architecture" data-codex="confirmed">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge architecture">ARCH</span>
+  <span class="finding-title">Split-brain DB — tm.py игнорирует ORCHESTRA_DB_PATH</span>
+  <span class="finding-file">tm.py:16</span>
+  <span class="codex-status confirmed">Codex ✓</span>
+</summary>
+<div class="finding-body">
+  <p><code>tm.py</code> дублирует <code>DB_PATH</code> + <code>_conn()</code> из db.py, но НЕ читает <code>ORCHESTRA_DB_PATH</code>. Тесты/worktree с env override: sessions в DB-A, tasks в DB-B. Prod не затрагивается (один DB).</p>
+  <div class="fix"><div class="fix-label">Fix</div>Удалить дубликат из tm.py, <code>from app.db import _conn</code>. -12 строк.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="architecture" data-codex="na">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge architecture">ARCH</span>
+  <span class="finding-title">_codex_reasoning_effort — dead branch, обе ветки return "high"</span>
+  <span class="finding-file">session.py:147</span>
+  <span class="codex-status na">N/A</span>
+</summary>
+<div class="finding-body">
+  <p><code>if self.is_orchestrator: return "high"</code> + <code>return "high"</code>. If ничего не делает.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Collapse to <code>return "high"</code> или inline.</div>
+</div>
+</details>
+
+<details class="finding" data-sev="p1" data-topic="architecture" data-codex="na">
+<summary>
+  <span class="sev-badge p1">P1</span>
+  <span class="topic-badge architecture">ARCH</span>
+  <span class="finding-title">stream_logs — N-loop DB polls, biggest steady-state cost</span>
+  <span class="finding-file">tg_bridge.py:848</span>
+  <span class="codex-status na">N/A</span>
+</summary>
+<div class="finding-body">
+  <p>Каждый TG topic + каждый dashboard SSE tab = while True + sleep(0.5-2) + новый sqlite3.connect() каждый тик. K orchs + M tabs = (K/2 + 2M) connects/sec 24/7.</p>
+  <div class="fix"><div class="fix-label">Fix</div>Reuse connection per loop + back off при 0 rows (0.5s→3s idle).</div>
+</div>
+</details>
+
+<!-- ============ P2 ============ -->
+<div class="section-head">P2 — Degradation <span class="count-badge" id="sec-p2">18</span></div>
+
+<details class="finding" data-sev="p2" data-topic="correctness" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge correctness">CORR</span><span class="finding-title">reconnect loop spins without backoff</span><span class="finding-file">session.py:285</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Бесконечный while True с 2с reconnect при стабильно падающем backend. Нет счётчика/backoff.</p><div class="fix"><div class="fix-label">Fix</div>Counter, после N попыток → IDLE, report.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="correctness" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge correctness">CORR</span><span class="finding-title">hibernate ignores pending messages</span><span class="finding-file">session.py:501</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p><code>_idle_hibernate</code> не проверяет <code>_pending_messages</code>. Может disconnect'нуть пока flush ещё не началось.</p><div class="fix"><div class="fix-label">Fix</div><code>if self._pending_messages: return</code></div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="correctness" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge correctness">CORR</span><span class="finding-title">blocking git rev-parse в event loop при resume</span><span class="finding-file">manager.py:724</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Синхронный <code>subprocess.run</code> для каждого worktree воркера. 15 воркеров = 15 blocking calls.</p><div class="fix"><div class="fix-label">Fix</div><code>asyncio.to_thread()</code></div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge sdk">SDK</span><span class="finding-title">blocked-tools names may be stale</span><span class="finding-file">backend_claude.py:31</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p>"ScheduleWakeup"/"CronCreate" — угадано. Если renamed, disallow тихо не работает.</p><div class="fix"><div class="fix-label">Fix</div>Верифицировать через <code>get_server_info()</code> после connect.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge sdk">SDK</span><span class="finding-title">betas не передаётся — 1M зависит только от [1m] суффикса (хрупко)</span><span class="finding-file">backend_claude.py:110</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p>На подписке betas игнорируется ("API key only"). Но как belt-and-suspenders — стоит передавать.</p><div class="fix"><div class="fix-label">Fix</div>Одна строка: <code>options.betas = ["context-1m-2025-08-07"]</code> для [1m] моделей.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge sdk">SDK</span><span class="finding-title">ServerToolResultBlock dict → str(dict) в логах</span><span class="finding-file">backend_claude.py:201</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p>Server-tool results (web_search) имеют dict content, <code>_extract_tool_result</code> рендерит как <code>str(dict)</code> — нечитаемо.</p></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge sdk">SDK</span><span class="finding-title">compact() bypass'ит native SDK compaction, гоняется с CLI autocompact</span><span class="finding-file">session.py:591</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p>Наш manual compact (text summary + drop session) vs CLI native autocompact (preserves history). Два механизма дерутся на >90% порог.</p><div class="fix"><div class="fix-label">Fix</div>Отключить manual >90% trigger, или gate на <code>not isAutoCompactEnabled</code>.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge sdk">SDK</span><span class="finding-title">maxTokens vs rawMaxTokens mismatch</span><span class="finding-file">backend_claude.py:163</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p><code>maxTokens</code> (post-autocompact-buffer) vs <code>rawMaxTokens</code> (true window). Два denominator → percentage расходится.</p><div class="fix"><div class="fix-label">Fix</div>Выбрать один. Рекомендация: <code>rawMaxTokens</code> + SDK <code>percentage</code>.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge sdk">SDK</span><span class="finding-title">Unused SDK options (max_budget_usd, fallback_model, hooks)</span><span class="finding-file">backend_claude.py:110</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p><code>max_budget_usd</code> — hard cost ceiling. <code>fallback_model</code> — auto-failover при rate limit. <code>hooks</code> (PreCompact, Stop) — callbacks. Cheap wins.</p></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="reliability" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge reliability">REL</span><span class="finding-title">infinite reconnect без backoff</span><span class="finding-file">session.py:256</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Дубль correctness P2-1. reconnect success → events() fail → reconnect 2s → loop forever.</p></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="reliability" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge reliability">REL</span><span class="finding-title">_flush_pending теряет batch сообщений при ошибке</span><span class="finding-file">session.py:455</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Messages извлечены из очереди, send фейлит — не возвращаются обратно.</p><div class="fix"><div class="fix-label">Fix</div><code>self._pending_messages[:0] = msgs</code> в except.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="reliability" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge reliability">REL</span><span class="finding-title">Нет retention логов, WAL checkpoint, worktree prune</span><span class="finding-file">db/workspace/tg</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Logs таблица растёт бесконечно. WAL файл пухнет. Осиротевшие worktrees не чистятся.</p><div class="fix"><div class="fix-label">Fix</div>Periodic: <code>DELETE FROM logs WHERE ts < N days</code> + <code>PRAGMA wal_checkpoint(TRUNCATE)</code> + <code>git worktree prune</code>.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="reliability" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge reliability">REL</span><span class="finding-title">turn stall на hibernate-vs-send гонке</span><span class="finding-file">session.py:495</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>hibernate ждёт listener cancel под lifecycle_lock → send залипает на секунды. Не дедлок, но задержка.</p></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="reliability" data-codex="confirmed">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge reliability">REL</span><span class="finding-title">create_task без ссылки → GC убивает фоновые задачи</span><span class="finding-file">session.py:421</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>~6 мест <code>asyncio.create_task()</code> без сохранения ref. GC может собрать pending task.</p><div class="fix"><div class="fix-label">Fix</div>Set живых задач (как <code>_persist_futs</code>) + <code>add_done_callback</code>.</div></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="architecture" data-codex="na">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge architecture">ARCH</span><span class="finding-title">Dead module: backend.py (AgentBackend Protocol)</span><span class="finding-file">backend.py</span><span class="codex-status na">N/A</span></summary>
+<div class="finding-body"><p>Нигде не импортируется. Aspirational documentation. -18 строк.</p></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="architecture" data-codex="na">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge architecture">ARCH</span><span class="finding-title">3 dead DB functions: get_orchestrators, get_resumable_orchestrators, mark_stale_sessions</span><span class="finding-file">db.py:635,644,653</span><span class="codex-status na">N/A</span></summary>
+<div class="finding-body"><p>Нигде не вызываются. -35 строк.</p></div>
+</details>
+
+<details class="finding" data-sev="p2" data-topic="architecture" data-codex="na">
+<summary><span class="sev-badge p2">P2</span><span class="topic-badge architecture">ARCH</span><span class="finding-title">Ещё ~40 строк мёртвого кода</span><span class="finding-file">various</span><span class="codex-status na">N/A</span></summary>
+<div class="finding-body"><p><code>_react_processing</code> no-op (6 calls), <code>_ensure_repo_on_main</code> alias, <code>auto_resume_orchestrators</code> wrapper, expandable sender duplication, <code>_extract_tool_result</code> dead JSON unwrap, <code>is_orchestrator</code> column redundant with role.</p></div>
+</details>
+
+<!-- ============ P3 ============ -->
+<div class="section-head">P3 — Nits / Cleanup <span class="count-badge" id="sec-p3">11</span></div>
+
+<details class="finding" data-sev="p3" data-topic="correctness" data-codex="corrected">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge correctness">CORR</span><span class="finding-title">_session_locks minor leak (not dead — corrected)</span><span class="finding-file">manager.py:333</span><span class="codex-status corrected">Codex ~</span></summary>
+<div class="finding-body"><p>Dict grows without eviction. Negligible for MVP.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="correctness" data-codex="confirmed">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge correctness">CORR</span><span class="finding-title">_codex_reasoning_effort always "high"</span><span class="finding-file">session.py:147</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Dead if. Collapse to <code>return "high"</code>.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="correctness" data-codex="confirmed">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge correctness">CORR</span><span class="finding-title">old_session_id computed but unused</span><span class="finding-file">session.py:647</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Dead assignment. Remove.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="correctness" data-codex="confirmed">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge correctness">CORR</span><span class="finding-title">_on_task_done doesn't clear _turn_start → spurious timeout</span><span class="finding-file">session.py:523</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>Stale <code>_turn_start</code> → next turn's timeout math compares against old start.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge sdk">SDK</span><span class="finding-title">[1m] limits assume beta active</span><span class="finding-file">models.py:14</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p>Hardcoded 1M but if suffix fails → real = 200K, dashboard shows 20%. Mitigated by passing suffix.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="sdk" data-codex="failed">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge sdk">SDK</span><span class="finding-title">compact_boundary detection fragile — depends on parser fallback</span><span class="finding-file">backend_claude.py:294</span><span class="codex-status failed">Codex ✗</span></summary>
+<div class="finding-body"><p>Works because unknown subtypes fall to bare SystemMessage. Add a comment.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="reliability" data-codex="confirmed">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge reliability">REL</span><span class="finding-title">claude zombie detect 30min — doesn't kill even then</span><span class="finding-file">session.py:539</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>30 мин silence + backend alive → только лог "possible long thinking". Не force reconnect/interrupt.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="reliability" data-codex="confirmed">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge reliability">REL</span><span class="finding-title">duplicate stream_logs, leaked loops for dead topics</span><span class="finding-file">tg_bridge.py:848</span><span class="codex-status confirmed">Codex ✓</span></summary>
+<div class="finding-body"><p>No registry of active stream_logs tasks → dups on re-create. Dead orch = eternal loop on dead session_id.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="architecture" data-codex="na">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge architecture">ARCH</span><span class="finding-title">auto_resume_all resets ALL scopes unconditionally</span><span class="finding-file">manager.py:882</span><span class="codex-status na">N/A</span></summary>
+<div class="finding-body"><p>No scope filter. Dead worktree rows become "idle" ghosts in DB.</p></div>
+</details>
+
+<details class="finding" data-sev="p3" data-topic="architecture" data-codex="na">
+<summary><span class="sev-badge p3">P3</span><span class="topic-badge architecture">ARCH</span><span class="finding-title">Inline imports, magic 200000, hardcoded codex path</span><span class="finding-file">various</span><span class="codex-status na">N/A</span></summary>
+<div class="finding-body"><p>Scattered inline imports of stdlib. <code>200000</code> default repeated 5+ places. <code>_CODEX_BIN</code> hardcodes <code>/home/maxim/.npm-global/bin/codex</code>.</p></div>
+</details>
+
+</div>
+
+</main>
+
+<footer>
+  Orchestra #35 · 4 Opus reviewers + 4 Codex cross-reviews · 2026-06-01 · docs/tasks/35/
+</footer>
+
+<script>
+const findings = document.querySelectorAll('.finding');
+const filters = {sev: new Set(['p0','p1','p2','p3']), topic: new Set(['correctness','sdk','reliability','architecture']), codex: new Set(['confirmed','corrected','failed','na'])};
+
+document.querySelectorAll('.fbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const group = btn.closest('[data-group]').dataset.group;
+    const val = btn.dataset.val;
+    btn.classList.toggle('active');
+    if (filters[group].has(val)) filters[group].delete(val); else filters[group].add(val);
+    applyFilters();
+  });
+});
+
+function applyFilters() {
+  let counts = {p0:0, p1:0, p2:0, p3:0};
+  findings.forEach(f => {
+    const show = filters.sev.has(f.dataset.sev) && filters.topic.has(f.dataset.topic) && filters.codex.has(f.dataset.codex);
+    f.classList.toggle('hidden', !show);
+    if (show) counts[f.dataset.sev]++;
+  });
+  document.getElementById('cnt-p0').textContent = counts.p0;
+  document.getElementById('cnt-p1').textContent = counts.p1;
+  document.getElementById('cnt-p2').textContent = counts.p2;
+  document.getElementById('cnt-p3').textContent = counts.p3;
+  document.querySelectorAll('.section-head').forEach(h => {
+    const sev = h.textContent.match(/P(\d)/);
+    if (sev) {
+      const badge = h.querySelector('.count-badge');
+      if (badge) badge.textContent = counts['p'+sev[1]];
+      h.style.display = counts['p'+sev[1]] > 0 ? '' : 'none';
+    }
+  });
+}
+</script>
+</body>
+</html>
