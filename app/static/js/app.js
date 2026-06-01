@@ -4216,7 +4216,6 @@ function initFilePanel() {
     if (!chatInput.dataset.fileDropReady) {
         chatInput.dataset.fileDropReady = '1';
         chatInput.addEventListener('dragover', (e) => {
-            if (!e.dataTransfer?.types?.includes('Files')) return;
             e.preventDefault();
         });
         chatInput.addEventListener('drop', async (e) => {
