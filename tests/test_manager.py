@@ -262,37 +262,37 @@ class TestCanSpawn:
         rdir = prompts / "roles"
         rdir.mkdir(parents=True)
         (prompts / "base.md").write_text("BASE")
-        monkeypatch.setattr("app.manager._PROMPTS_DIR", prompts)
-        monkeypatch.setattr("app.manager._SKILLS_DIR", prompts / "skills")
+        monkeypatch.setattr("app.prompting._PROMPTS_DIR", prompts)
+        monkeypatch.setattr("app.prompting._SKILLS_DIR", prompts / "skills")
         return rdir
 
     def test_role_can_spawn_absent_is_none(self, roles_dir):
-        from app.manager import _role_can_spawn
+        from app.prompting import role_can_spawn as _role_can_spawn
         self._write_role(roles_dir, "boss", "name: boss\nmodel: opus")
         assert _role_can_spawn("boss") is None
 
     def test_role_can_spawn_yaml_null_is_none(self, roles_dir):
-        from app.manager import _role_can_spawn
+        from app.prompting import role_can_spawn as _role_can_spawn
         self._write_role(roles_dir, "boss", "name: boss\ncan_spawn:")
         assert _role_can_spawn("boss") is None
 
     def test_role_can_spawn_non_list_is_none(self, roles_dir):
-        from app.manager import _role_can_spawn
+        from app.prompting import role_can_spawn as _role_can_spawn
         self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: worker")
         assert _role_can_spawn("boss") is None
 
     def test_role_can_spawn_empty_list_is_terminal(self, roles_dir):
-        from app.manager import _role_can_spawn
+        from app.prompting import role_can_spawn as _role_can_spawn
         self._write_role(roles_dir, "leaf", "name: leaf\ncan_spawn: []")
         assert _role_can_spawn("leaf") == []
 
     def test_role_can_spawn_whitelist(self, roles_dir):
-        from app.manager import _role_can_spawn
+        from app.prompting import role_can_spawn as _role_can_spawn
         self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker, reviewer]")
         assert _role_can_spawn("boss") == ["worker", "reviewer"]
 
     def test_role_can_spawn_missing_file_is_none(self, roles_dir):
-        from app.manager import _role_can_spawn
+        from app.prompting import role_can_spawn as _role_can_spawn
         assert _role_can_spawn("ghost") is None
 
     @pytest.mark.asyncio

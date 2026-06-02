@@ -22,11 +22,9 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
 from app.db import init_db, get_logs, get_logs_before
-from app.manager import SessionManager
+from app.deps import manager
 from app.models import resolve_model, MODELS
 from app.session import AgentStatus
-
-manager = SessionManager()
 templates = Jinja2Templates(directory="app/templates")
 
 
@@ -55,6 +53,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Orchestra", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+from app.routes.tm import router as tm_router
+from app.routes.bg import router as bg_router
+from app.routes.proxy import router as proxy_router
+app.include_router(tm_router)
+app.include_router(bg_router)
+app.include_router(proxy_router)
 
 
 from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
@@ -375,7 +380,7 @@ async def list_files(path: str):
 
 @app.get("/api/role-icons")
 async def role_icons():
-    from app.manager import get_role_icons
+    from app.prompting import get_role_icons
     return get_role_icons()
 
 
@@ -434,7 +439,7 @@ async def get_session(name: str, scope: str):
 
 @app.get("/api/sessions/{name}/prompt")
 async def get_session_prompt(name: str, scope: str):
-    from app.manager import _read_prompt
+    from app.prompting import read_prompt as _read_prompt
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -1096,7 +1101,7 @@ async def report_bug_endpoint(req: Request):
 @app.get("/api/orchestrators")
 async def list_orchestrators():
     from app.db import get_all_sessions
-    from app.session import is_orchestrator_role
+    from app.prompting import is_orchestrator_role
     active = [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
     active_ids = {s["id"] for s in active}
     db_orchs = [s for s in get_all_sessions() if is_orchestrator_role(s.get("role", "worker")) and s["id"] not in active_ids]
@@ -1280,220 +1285,9 @@ async def restart_server():
     return {"ok": True}
 
 
-# --- Task Manager API ---
-
 from app import tm as _tm
 
 
-class TmTaskCreate(BaseModel):
-    title: str
-    project: str
-    price: int = 0
-    description: str = ""
-    assignee: str = ""
-    status: str = "new"
-    scope: str = ""
-    priority: int = 2
-
-
-class TmTaskUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
-    price: int | None = None
-    status: str | None = None
-    assignee: str | None = None
-    priority: int | None = None
-
-
-class TmPaymentReceive(BaseModel):
-    amount: int
-    client: str = ""
-    scope: str = ""
-    date: str = ""
-    note: str = ""
-
-
-@app.post("/api/tm/tasks")
-async def tm_create_task(req: TmTaskCreate):
-    try:
-        return _tm.api_create_task(
-            req.project, req.title, req.price, req.description, req.assignee, req.status,
-            scope=req.scope, priority=req.priority,
-        )
-    except (ValueError, RuntimeError) as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-
-
-@app.get("/api/tm/tasks")
-async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
-                        scope: str = ""):
-    proj = project
-    if not proj and scope:
-        with _tm._conn() as conn:
-            p = _tm.get_project_by_scope(conn, scope)
-            if p:
-                proj = p["id"]
-            else:
-                return {"tasks": [], "count": 0, "total_debt": "0"}
-    return _tm.api_list_tasks(proj, status, assignee)
-
-
-@app.get("/api/tm/tasks/{par}")
-async def tm_get_task(par: str, scope: str = ""):
-    try:
-        project = ""
-        if scope:
-            with _tm._conn() as conn:
-                p = _tm.get_project_by_scope(conn, scope)
-                if p:
-                    project = p["id"]
-        return _tm.api_get_task(par, project=project)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=404)
-
-
-@app.put("/api/tm/tasks/{par}")
-async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
-    try:
-        project = ""
-        if scope:
-            with _tm._conn() as conn:
-                p = _tm.get_project_by_scope(conn, scope)
-                if p:
-                    project = p["id"]
-        return _tm.api_update_task(
-            par, req.title, req.description, req.price, req.status, req.assignee,
-            project=project, priority=req.priority,
-        )
-    except (ValueError, RuntimeError) as e:
-        code = 404 if "not found" in str(e).lower() else 400
-        return JSONResponse({"error": str(e)}, status_code=code)
-
-
-def _resolve_client_id(client: str, scope: str) -> str:
-    if client:
-        return client
-    if scope:
-        with _tm._conn() as conn:
-            proj = _tm.get_project_by_scope(conn, scope)
-            if proj:
-                cl = _tm.get_client_for_project(conn, proj["id"])
-                if cl:
-                    return cl["id"]
-    raise ValueError("No client specified and no client found for project scope")
-
-
-@app.post("/api/tm/payments")
-async def tm_receive_payment(req: TmPaymentReceive):
-    try:
-        client_id = _resolve_client_id(req.client, req.scope)
-        return _tm.api_receive_payment(req.amount, client_id, req.date, req.note)
-    except (ValueError, RuntimeError) as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-
-
-@app.get("/api/tm/payments/status")
-async def tm_payment_status(client: str = "", scope: str = ""):
-    try:
-        client_id = _resolve_client_id(client, scope)
-        return _tm.api_payment_status(client_id)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=404)
-
-
-@app.get("/api/tm/payments/history")
-async def tm_payment_history(client: str = "", scope: str = ""):
-    try:
-        client_id = _resolve_client_id(client, scope)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
-    with _tm._conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM tm_payments WHERE client_id = ? ORDER BY id DESC LIMIT 50",
-            (client_id,),
-        ).fetchall()
-    return {
-        "payments": [
-            {"id": r["id"], "amount_rub": r["amount_rub"], "date": r["date"],
-             "note": r["note"], "created_at": r["created_at"]}
-            for r in rows
-        ]
-    }
-
-
-@app.get("/api/tm/sync/log")
-async def tm_sync_log(limit: int = 50):
-    limit = min(limit, 200)
-    with _tm._conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit,)
-        ).fetchall()
-    return {"entries": [dict(r) for r in rows]}
-
-
-@app.post("/api/tm/sync/retry/{sync_id}")
-async def tm_sync_retry(sync_id: int):
-    with _tm._conn() as conn:
-        row = conn.execute("SELECT * FROM tm_sync_log WHERE id = ?", (sync_id,)).fetchone()
-        if not row:
-            return JSONResponse({"error": "sync entry not found"}, status_code=404)
-        entry = dict(row)
-        if entry["status"] not in ("error", "pending"):
-            return {"message": "nothing to retry", "status": entry["status"]}
-        task_id = entry["task_id"]
-
-    if task_id:
-        from app.tm_yougile import yougile_sync_task
-        result = await yougile_sync_task(task_id)
-        return {"retried": True, "task_id": task_id, "result": result}
-    return {"error": "no task_id on sync entry"}
-
-
-# ── Background Jobs API ──
-
-class BgJobCreateRequest(BaseModel):
-    type: str
-    config: dict = {}
-    message: str = ""
-    target_name: str = ""
-    target_scope: str = ""
-    timeout_seconds: int = 3600
-    created_by: str = ""
-
-@app.post("/api/bg/jobs")
-async def bg_job_create(req: BgJobCreateRequest):
-    from app.bg_jobs import bg_manager
-    scope = req.target_scope.rstrip("/")
-    name = req.target_name
-    if not scope or not name:
-        return JSONResponse({"error": "target_name and target_scope required"}, status_code=400)
-    session = manager.get_by_name(name, scope)
-    if not session:
-        return JSONResponse({"error": f"session '{name}' not found in scope"}, status_code=404)
-    session_id = session.id if hasattr(session, "id") else session.get("id")
-    result = await bg_manager.create(
-        job_type=req.type, config=req.config, message=req.message,
-        target_session_id=session_id, target_name=name, target_scope=scope,
-        created_by=req.created_by, timeout_seconds=req.timeout_seconds,
-    )
-    if result.get("error"):
-        return JSONResponse(result, status_code=400)
-    return result
-
-
-@app.get("/api/bg/jobs")
-async def bg_job_list(scope: str = "", session_id: str = ""):
-    from app.db import bg_get_jobs
-    return bg_get_jobs(scope=scope or None, session_id=session_id or None)
-
-
-@app.delete("/api/bg/jobs/{job_id}")
-async def bg_job_cancel(job_id: str):
-    from app.bg_jobs import bg_manager
-    result = await bg_manager.cancel(job_id)
-    if result.get("error"):
-        return JSONResponse(result, status_code=404)
-    return result
 
 
 # ── GitHub Webhook (CI failure routing) ──
@@ -1627,29 +1421,3 @@ async def github_webhook(request: Request):
 
 # ── Proxy Manager ──
 
-from app.proxy_manager import proxy_manager
-
-@app.get("/api/proxy/list")
-async def proxy_list():
-    return await proxy_manager.list_proxies()
-
-@app.post("/api/proxy/check/{proxy_id}")
-async def proxy_check(proxy_id: str):
-    result = await proxy_manager.check_proxy(proxy_id)
-    if result.get("error"):
-        return JSONResponse(result, status_code=400)
-    return result
-
-@app.post("/api/proxy/select/{proxy_id}")
-async def proxy_select(proxy_id: str):
-    result = await proxy_manager.select_proxy(proxy_id)
-    if result.get("error"):
-        return JSONResponse(result, status_code=400)
-    return result
-
-
-from app.ssh_tunnel import tunnel_status
-
-@app.get("/api/tunnel/status")
-async def api_tunnel_status():
-    return tunnel_status()

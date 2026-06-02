@@ -9,6 +9,7 @@
 - [ ] **VPS прокси нестабильны** — SSH tunnel'ы зависают, Tinyproxy/Squid теряют коннекты. Частично пофикшено (#44 auto-restart)
 
 ## Next
+- [ ] **TG топики для воркеров** — создавать TG топики ТОЛЬКО когда воркер реально работает (running). В названии: `<worker-name> | <orchestrator-name>`. Появляется при start running, скрывается/удаляется при idle/kill. Логи воркера стримятся в его топик пока работает. Idle воркеры НЕ должны иметь топик — только активные
 - [ ] **Per-role idle_timeout** — `idle_timeout: 900` в YAML frontmatter роли
 - [ ] **DNS + SSL** — orchestra.zahoron.ru + certbot
 - [ ] **Раздробить app.js (4500+ строк)** — модули: chat.js, tools.js, tasks.js, files.js, agents.js, sse.js

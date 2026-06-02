@@ -9,9 +9,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from app.events import AgentEvent
+from app.prompting import is_orchestrator_role
+
+if TYPE_CHECKING:
+    from app.backend_protocol import BackendLike
 from app.db import save_session, add_log
 
 logger = logging.getLogger(__name__)
@@ -32,11 +36,6 @@ def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
 IDLE_TIMEOUT_WORKER = 300
 IDLE_TIMEOUT_ORCHESTRATOR = 600
 
-_ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
-
-
-def is_orchestrator_role(role: str) -> bool:
-    return role in _ORCHESTRATOR_ROLES
 
 
 def _load_scope_mcp_servers(scope: str) -> dict:
@@ -106,7 +105,7 @@ class AgentSession:
     total_output_tokens: int = 0
     total_tool_calls: int = 0
 
-    _backend: Optional[object] = field(default=None, repr=False)
+    _backend: Optional["BackendLike"] = field(default=None, repr=False)
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _background_tasks: set = field(default_factory=set, repr=False)
@@ -248,8 +247,8 @@ class AgentSession:
             pending_th = ""
             templates_changed = False
             if self.session_id and self._current_prompt and not self._prompt_injected:
-                from app.manager import _prompt_template_hash
-                current_th = _prompt_template_hash(self.role)
+                from app.prompting import prompt_template_hash
+                current_th = prompt_template_hash(self.role)
                 old_th = self._template_hash or current_th
                 templates_changed = old_th != current_th
                 pending_th = current_th
@@ -467,6 +466,30 @@ class AgentSession:
     def _handle_turn_end(self, event: AgentEvent) -> None:
         meta = event.metadata
         self._turn_start = 0
+        ok, sr, nt = self._apply_turn_result(meta)
+        self._update_context_from_turn(meta)
+        self._spawn_bg(self._refresh_context_from_api())
+
+        if not ok:
+            errors = meta.get("errors") or []
+            err_txt = "; ".join(str(e) for e in errors) if errors else sr
+            self._log("error", f"turn FAILED: {err_txt}")
+
+        if sr in ("error_max_turns", "max_turns") and ok:
+            self._log("status", f"max_turns reached ({nt}), auto-continuing")
+            self._spawn_bg(self._auto_continue())
+            return
+
+        cost = meta.get("cost_usd", 0)
+        live_pct = self._last_context.get("percentage", 0)
+        ctx_s = f"ctx:{live_pct}%" if live_pct else ""
+        self._log("status", f"turn ended ({sr}, {nt} turns, ${cost:.2f} {ctx_s})")
+
+        self._finish_turn_status()
+        self._after_turn_idle_actions(live_pct)
+
+    def _apply_turn_result(self, meta: dict) -> tuple[bool, str, int]:
+        """Update session_id, costs, token totals from turn metadata."""
         ok = meta.get("ok", True)
         sr = meta.get("stop_reason", "unknown")
         nt = meta.get("num_turns", 0)
@@ -488,7 +511,10 @@ class AgentSession:
         self.total_turns += nt
         self.total_input_tokens += meta.get("input_tokens", 0)
         self.total_output_tokens += meta.get("output_tokens", 0)
+        return ok, sr, nt
 
+    def _update_context_from_turn(self, meta: dict) -> None:
+        """Update context window stats from turn metadata."""
         ctx_pct = meta.get("context_pct", 0)
         ctx_tokens = meta.get("context_tokens", 0)
         if ctx_pct:
@@ -499,23 +525,8 @@ class AgentSession:
         self._last_context["cache_read"] = meta.get("cache_read", 0)
         self._last_context["cache_create"] = meta.get("cache_create", 0)
 
-        self._spawn_bg(self._refresh_context_from_api())
-
-        if not ok:
-            errors = meta.get("errors") or []
-            err_txt = "; ".join(str(e) for e in errors) if errors else sr
-            self._log("error", f"turn FAILED: {err_txt}")
-
-        if sr in ("error_max_turns", "max_turns") and ok:
-            self._log("status", f"max_turns reached ({nt}), auto-continuing")
-            self._spawn_bg(self._auto_continue())
-            return
-
-        cost = meta.get("cost_usd", 0)
-        live_pct = self._last_context.get("percentage", 0)
-        ctx_s = f"ctx:{live_pct}%" if live_pct else ""
-        self._log("status", f"turn ended ({sr}, {nt} turns, ${cost:.2f} {ctx_s})")
-
+    def _finish_turn_status(self) -> None:
+        """Set IDLE or WAITING based on bg jobs, then persist."""
         from app.bg_jobs import bg_manager
         if bg_manager and bg_manager.has_active_jobs(self.id):
             self.status = AgentStatus.WAITING
@@ -524,6 +535,8 @@ class AgentSession:
             self.status = AgentStatus.IDLE
         self._persist()
 
+    def _after_turn_idle_actions(self, live_pct: int) -> None:
+        """Post-turn actions: compact ack, scope idle, auto-compact, auto-report, flush/hibernate."""
         if self._compact_ack_event is not None and self._turn_gen == self._compact_ack_gen:
             self._compact_ack_event.set()
 
