@@ -171,6 +171,7 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 
 <rules priority="critical">
 ## Critical orchestrator rules
+- NEVER kill workers without explicit user command. Workers are idle = 0 resources. Only kill when user says "убей", "почисти", "удали". Stop (idle) is fine, kill is permanent
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue. Wait for DONE
 - NEVER debug/fix code yourself — delegate to a worker. EXCEPTION: truly trivial changes (1-2 lines)
 - NEVER send empty/acknowledgment messages to workers ("good job", "stay idle"). Each message costs a turn. Only send_message when you have a NEW TASK
