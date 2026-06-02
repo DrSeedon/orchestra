@@ -274,8 +274,6 @@ class BgJobManager:
         try:
             session = await self._session_manager.ensure_loaded(target_name, target_scope)
             if not session:
-                session = await self._session_manager.ensure_loaded_any(target_name)
-            if not session:
                 bg_fail_job(job_id, "target session not found")
                 logger.warning(f"bg_job {job_id}: target {target_name} not found")
                 return
@@ -305,8 +303,6 @@ class BgJobManager:
                f"(codex auth/proxy/sandbox) and retry.")
         try:
             session = await self._session_manager.ensure_loaded(target_name, target_scope)
-            if not session:
-                session = await self._session_manager.ensure_loaded_any(target_name)
             if not session:
                 logger.warning(f"bg_job {job_id}: timeout, target {target_name} not found")
                 return
@@ -354,8 +350,6 @@ class BgJobManager:
             return
         try:
             session = await self._session_manager.ensure_loaded(target_name, target_scope)
-            if not session:
-                session = await self._session_manager.ensure_loaded_any(target_name)
             if not session:
                 logger.warning(f"cron {job_id}: target {target_name} not found, skipping fire")
                 return

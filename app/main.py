@@ -259,7 +259,8 @@ def _get_allowed_roots() -> list[str]:
     return _ALLOWED_ROOTS
 
 
-_DENIED_PARTS = {".env", ".ssh", ".git", ".credentials", ".gnupg", ".aws"}
+_DENIED_PARTS = {".env", ".ssh", ".git", ".credentials", ".gnupg", ".aws",
+                 ".npmrc", ".pypirc", ".netrc", ".docker", ".kube"}
 _DENIED_HOME_PARTS = {".claude", ".config"}
 _DENIED_EXTENSIONS = {".db", ".db-shm", ".db-wal", ".db-journal", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
 
@@ -523,8 +524,6 @@ async def send_message(name: str, req: SendRequest):
     try:
         session = await manager.ensure_loaded(name, req.scope)
         if not session:
-            session = await manager.ensure_loaded_any(name)
-        if not session:
             return JSONResponse({"error": "not found"}, status_code=404)
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
@@ -547,8 +546,6 @@ async def send_message(name: str, req: SendRequest):
 async def compact_session(name: str, req: ScopeRequest):
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
-        session = await manager.ensure_loaded_any(name)
-    if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
     if session.status.value == "running":
         return JSONResponse({"error": "agent is running, wait for idle"}, status_code=400)
@@ -559,8 +556,6 @@ async def compact_session(name: str, req: ScopeRequest):
 @app.post("/api/sessions/{name}/restart-cli")
 async def restart_cli(name: str, req: ScopeRequest):
     session = await manager.ensure_loaded(name, req.scope)
-    if not session:
-        session = await manager.ensure_loaded_any(name)
     if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
     await session._disconnect_backend()
@@ -677,36 +672,33 @@ async def rename_session(name: str, req: dict):
     session = manager.sessions.get(sid)
     old_branch = None
     new_branch = None
-    if session:
-        session.name = new_name
-        if session.system_prompt:
-            session.system_prompt = session.system_prompt.replace(
+    import sqlite3
+    from app.db import _conn
+    with _conn() as c:
+        row = c.execute("SELECT branch, system_prompt FROM sessions WHERE id=?", (sid,)).fetchone()
+        updates = {"name": new_name}
+        if row and row["system_prompt"]:
+            updates["system_prompt"] = row["system_prompt"].replace(
                 f"Worker name: {name}", f"Worker name: {new_name}"
             ).replace(
                 f"Orchestrator: {name}", f"Orchestrator: {new_name}"
             )
-        if session.branch and session.branch.endswith(f"/{name}"):
-            old_branch = session.branch
-            new_branch = session.branch[: -len(name)] + new_name
+        if row and row["branch"] and row["branch"].endswith(f"/{name}"):
+            old_branch = row["branch"]
+            new_branch = row["branch"][: -len(name)] + new_name
+            updates["branch"] = new_branch
+        sets = ", ".join(f"{k}=?" for k in updates)
+        try:
+            c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*updates.values(), sid))
+        except sqlite3.IntegrityError:
+            return JSONResponse({"error": "name already taken"}, status_code=409)
+    if session:
+        session.name = new_name
+        if updates.get("system_prompt"):
+            session.system_prompt = updates["system_prompt"]
+        if new_branch:
             session.branch = new_branch
         session._persist()
-    else:
-        from app.db import _conn
-        with _conn() as c:
-            row = c.execute("SELECT branch, system_prompt FROM sessions WHERE id=?", (sid,)).fetchone()
-            updates = {"name": new_name}
-            if row and row["system_prompt"]:
-                updates["system_prompt"] = row["system_prompt"].replace(
-                    f"Worker name: {name}", f"Worker name: {new_name}"
-                ).replace(
-                    f"Orchestrator: {name}", f"Orchestrator: {new_name}"
-                )
-            if row and row["branch"] and row["branch"].endswith(f"/{name}"):
-                old_branch = row["branch"]
-                new_branch = row["branch"][: -len(name)] + new_name
-                updates["branch"] = new_branch
-            sets = ", ".join(f"{k}=?" for k in updates)
-            c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*updates.values(), sid))
     if old_branch and new_branch:
         wt_path = (session.worktree_path if session else None) or (
             found.get("worktree_path") if isinstance(found, dict) else getattr(found, "worktree_path", None)
@@ -1190,7 +1182,17 @@ async def upload_file(file: UploadFile):
     return {"path": str(path), "url": f"/uploads/{name}"}
 
 
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+@app.get("/uploads/{filename:path}")
+async def serve_upload(filename: str):
+    from starlette.responses import FileResponse
+    path = (UPLOADS_DIR / filename).resolve()
+    try:
+        path.relative_to(UPLOADS_DIR.resolve())
+    except ValueError:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if not path.exists() or not path.is_file():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return FileResponse(path, headers={"Content-Disposition": f'attachment; filename="{path.name}"'})
 
 
 _git_status_cache: dict = {}  # scope -> {ts, data}

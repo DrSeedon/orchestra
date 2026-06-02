@@ -687,10 +687,16 @@ def _fire_sync(task_id: int) -> None:
         async def _do():
             try:
                 await yougile_sync_task(task_id)
-            finally:
                 with _conn() as c:
                     c.execute(
                         "UPDATE tm_sync_log SET status = 'ok', completed_at = ? WHERE id = ? AND status = 'pending'",
+                        (_now(), sync_log_id),
+                    )
+            except Exception as e:
+                logger.error("YouGile sync failed for task %d: %s", task_id, e)
+                with _conn() as c:
+                    c.execute(
+                        "UPDATE tm_sync_log SET status = 'error', completed_at = ? WHERE id = ? AND status = 'pending'",
                         (_now(), sync_log_id),
                     )
 

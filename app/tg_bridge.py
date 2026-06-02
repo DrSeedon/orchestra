@@ -39,13 +39,17 @@ DEEPGRAM_API_KEY = ""
 
 def save_config():
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(config, indent=2))
+    safe = {k: v for k, v in config.items() if k != "token"}
+    CONFIG_PATH.write_text(json.dumps(safe, indent=2))
 
 
 def load_config():
     global config
     if CONFIG_PATH.exists():
         config = json.loads(CONFIG_PATH.read_text())
+    if config.get("token"):
+        config.pop("token", None)
+        save_config()
 
 
 def _load_media_cache() -> dict[str, str]:
@@ -978,6 +982,12 @@ async def stream_logs(orch_name: str, thread_id: int):
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text, lambda msg: msg.text and msg.text.strip() == "/restart")
 async def handle_restart(msg: types.Message):
+    if msg.chat.id != config.get("group_id"):
+        return
+    member = await msg.chat.get_member(msg.from_user.id)
+    if member.status not in ("administrator", "creator"):
+        await msg.reply("⛔ Only admins can restart.")
+        return
     await msg.reply("🔄 Перезапуск Orchestra...")
     import subprocess
     subprocess.Popen(["sudo", "systemctl", "restart", "orchestra"])
@@ -1126,7 +1136,7 @@ async def start_bridge(manager):
     DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 
     load_config()
-    token = os.getenv("TG_BRIDGE_TOKEN", config.get("token", ""))
+    token = os.getenv("TG_BRIDGE_TOKEN", "")
     group = int(os.getenv("TG_BRIDGE_GROUP", config.get("group_id", 0)))
 
     if not token or not group:
@@ -1134,7 +1144,6 @@ async def start_bridge(manager):
         return
 
     _manager = manager
-    config["token"] = token
     config["group_id"] = group
     save_config()
 

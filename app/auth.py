@@ -41,7 +41,7 @@ def validate_session(token: str) -> bool:
 def check_internal_token(auth_header: str) -> bool:
     token = os.environ.get("INTERNAL_TOKEN", "")
     if not token:
-        return True
+        return False
     if not auth_header:
         return False
     return hmac.compare_digest(auth_header.encode(), f"Bearer {token}".encode())
@@ -54,4 +54,6 @@ def requires_auth(path: str, method: str) -> bool:
         return False
     if path.startswith("/api/webhook/"):
         return False
+    if path.startswith("/uploads/"):
+        return True
     return path == "/" or path.startswith("/api/")
