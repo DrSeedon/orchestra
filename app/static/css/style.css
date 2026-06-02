@@ -71,7 +71,7 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .markdown-body a { color: #38bdf8; text-decoration: none; }
 .markdown-body a:hover { text-decoration: underline; }
 .markdown-body hr { border: none; border-top: 1px solid #1e293b; margin: 0.8em 0; }
-.markdown-body blockquote { border-left: 3px solid #334155; padding-left: 0.8em; color: #94a3b8; margin: 0.4em 0; }
+.markdown-body blockquote { border-left: 3px solid #6366f1; padding: 0.4em 0.8em; color: #94a3b8; margin: 0.4em 0; background: rgba(99, 102, 241, 0.06); border-radius: 0 6px 6px 0; font-size: 0.85em; font-style: italic; }
 .markdown-body img { max-width: 100%; border-radius: 6px; margin: 0.4em 0; }
 .waiting-dots span { animation: dot-blink 1.4s infinite; opacity: 0.2; font-size: 18px; line-height: 1; }
 .waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
