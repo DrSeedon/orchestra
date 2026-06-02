@@ -159,23 +159,16 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         audio_data = af.read()
     last_err = ""
     t0 = time.monotonic()
-    # Deepgram: skip SSL verify — VLESS VPN (tun0) corrupts TLS records intermittently
-    import ssl
-    _dg_ssl = ssl.create_default_context()
-    _dg_ssl.check_hostname = False
-    _dg_ssl.verify_mode = ssl.CERT_NONE
+    import httpx
     for attempt in range(3):
         try:
-            async with aiohttp.ClientSession(trust_env=False) as http:
-                async with http.post(
+            async with httpx.AsyncClient(timeout=120, verify=True) as client:
+                resp = await client.post(
                     "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true&profanity_filter=false",
-                    headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg",
-                             "Accept-Encoding": "gzip, deflate"},
-                    data=audio_data,
-                    timeout=aiohttp.ClientTimeout(total=120),
-                    ssl=_dg_ssl,
-                ) as resp:
-                    out = await resp.read()
+                    headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg"},
+                    content=audio_data,
+                )
+                out = resp.content
             break
         except Exception as e:
             last_err = str(e)
