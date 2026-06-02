@@ -159,9 +159,11 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         audio_data = af.read()
     last_err = ""
     t0 = time.monotonic()
-    # Deepgram не требует прокси — прямой запрос, fresh SSL context
-    import ssl, certifi
-    _dg_ssl = ssl.create_default_context(cafile=certifi.where())
+    # Deepgram: skip SSL verify — VLESS VPN (tun0) corrupts TLS records intermittently
+    import ssl
+    _dg_ssl = ssl.create_default_context()
+    _dg_ssl.check_hostname = False
+    _dg_ssl.verify_mode = ssl.CERT_NONE
     for attempt in range(3):
         try:
             async with aiohttp.ClientSession(trust_env=False) as http:
