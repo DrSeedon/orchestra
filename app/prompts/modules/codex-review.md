@@ -18,8 +18,8 @@ timeout 300 codex exec -s workspace-write --full-auto --ephemeral --skip-git-rep
 ```
 
 ### Rules for the Bash call
+- **⚠️ CRITICAL: Pass `timeout: 300000` to the Bash tool itself** — WITHOUT this, Bash cuts off at 120s and your codex run dies silently. This is the #1 cause of "codex hung" — it didn't hang, Bash killed it
 - **Always wrap in `timeout 300`** (5 min hard cap). Codex review is 60-120s, exec 60-300s. If it hangs, `timeout` kills it and you see a non-zero exit
-- **Pass `timeout: 300000` to the Bash tool itself** — the Bash tool defaults to 120s and would cut Codex off otherwise
 - **Check `EXIT:$?`** — non-zero = Codex failed. Do NOT pretend a review happened. If it failed, retry once, then report the failure to your orchestrator (do not silently skip review)
 - **Never claim "Codex is running" / "Codex approved" without seeing its stdout and the output file.** No hallucinated processes — if you didn't see the output, it didn't run
 - `-o <file>` writes Codex's final message; read that file after the Bash call returns
