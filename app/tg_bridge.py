@@ -908,7 +908,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                             body = c[len(prefix):].strip()
                             text = f"📨 {prefix}\n{body}"
                         else:
-                            text = f"👤 {c}"
+                            text = f"👤\n{c}" if c.startswith("> ") else f"👤 {c}"
                     elif t == "text":
                         # @mention пользователя — только в речи агента (text), чтобы уведы
                         # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
