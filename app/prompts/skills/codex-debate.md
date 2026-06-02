@@ -30,6 +30,56 @@ Codex — другая модель с другими bias'ами. Часто п
 - Мелкие вопросы, тривиальные правки — трата токенов
 - Одноразовые вопросы без feature-контекста → используй ephemeral mode
 
+## Два режима
+
+| Режим | Когда | Сессия |
+|---|---|---|
+| **Quick review** | Одноразовый review плана или diff в пайплайне (full-cycle Phase 2/3). Не нужны раунды | Нет (ephemeral) |
+| **Debate** | Спорное решение, multi-round до консенсуса, "переспроси/уточни" | Persistent (resume по UUID) |
+
+Quick review — ниже. Debate — начиная с секции Session Management.
+
+## Quick Review (одноразовый, для пайплайна)
+
+Самый частый случай: full-cycle воркер ревьюит свой план (Phase 2) или свой diff (Phase 3). Без раундов, без persistent-сессии — один прогон, читаешь findings, чинишь blocking, при необходимости перезапускаешь.
+
+**Review diff (реализация):**
+```bash
+HTTPS_PROXY= HTTP_PROXY= timeout 300 codex exec review --uncommitted --full-auto --ephemeral --skip-git-repo-check -o docs/tasks/<id>/codex-review-impl.md 2>&1; echo "EXIT:$?"
+```
+
+**Review плана/файла:**
+```bash
+HTTPS_PROXY= HTTP_PROXY= timeout 300 codex exec -s workspace-write --full-auto --ephemeral --skip-git-repo-check -o docs/tasks/<id>/codex-review-plan.md "Review this file: docs/tasks/<id>/plan.md. PROJECT CONTEXT below. Write findings to the output. Format: ## Summary, ## Findings (blocking/suggestion/nit), ## Verdict.
+
+<paste PROJECT CONTEXT block here>" 2>&1; echo "EXIT:$?"
+```
+
+### Правила Quick Review (ОБЯЗАТЕЛЬНО)
+- **⚠️ CRITICAL: передавай `timeout: 300000` самому Bash-тулу** — БЕЗ этого Bash рубит на 120s и codex-прогон молча умирает. Это причина №1 "codex завис" — он не завис, его убил Bash
+- **Всегда оборачивай в `timeout 300`** (5 мин hard cap). Review 60-120s, exec 60-300s. Зависнет → `timeout` убьёт, увидишь non-zero exit
+- **Проверяй `EXIT:$?`** — non-zero = Codex упал. НЕ делай вид что review прошёл. Упал → retry once, потом доложи оркестратору (не скипай review молча)
+- **Никогда не заявляй "Codex прошёл/одобрил" не увидев stdout и output-файл.** Не галлюцинируй процессы — не видел вывод, значит не запускал
+- `-o <file>` пишет финальное сообщение Codex; читай файл после возврата Bash
+- `HTTPS_PROXY= HTTP_PROXY=` — сбрасывай прокси для Codex (он ходит в OpenAI, не Anthropic)
+
+### Iterate (quick)
+1. Прочитай findings-файл
+2. Проверь каждое замечание по коду — Codex может ошибаться, не применяй слепо
+3. Почини blocking
+4. Перезапусти review (тот же `timeout 300`) пока не останется blocking
+5. Не согласен после проверки — задокументируй ПОЧЕМУ в output-файле, решение за оркестратором
+
+Нужны раунды с памятью / спор по аргументам → переходи в **Debate** (persistent session, ниже).
+
+### Legacy fallback: codex_review() MCP tool
+Только если Bash недоступен (Codex-backend воркер без Bash-тула) или Bash-путь упал дважды:
+```
+codex_review(target="docs/tasks/<id>/plan.md", output="docs/tasks/<id>/codex-review-plan.md", mode="exec")   # план
+codex_review(output="docs/tasks/<id>/codex-review-impl.md", mode="review")                                    # diff
+```
+- Async через bg job. Нет output-файла за ~3 мин → считать **failed**, не ждать вечно. Переключиться на Bash или доложить оркестратору
+
 ## Conventional Comments
 
 Формат каждого замечания: `<prefix>: file:line — проблема → предложение`

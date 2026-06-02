@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.17.0 — 2026-06-01
+
+### Changed
+- **Merged `codex-review` module into `codex-debate` skill** — one skill, two modes: **Quick Review** (one-shot `codex exec review`/`codex exec` for pipeline Phase 2/3, no session) and **Debate** (multi-round persistent sessions, existing). All Bash rules preserved: `timeout: 300000` on the Bash tool, `timeout 300` wrapper, `EXIT:$?` check, `HTTPS_PROXY= HTTP_PROXY=`, anti-hallucination, MCP `codex_review()` as legacy fallback. `app/prompts/skills/codex-debate.md`
+
+### Removed
+- **`app/prompts/modules/codex-review.md`** — folded into the codex-debate skill. Removed `codex-review` from `modules:` in full-cycle, worker, reviewer; full-cycle body refs now point to the codex-debate skill (Quick Review)
+
+### Added
+- **`codex-debate` skill on orchestrator** — `skills: [html-artifacts, vps-deploy, codex-debate]` so the orchestrator can invoke Codex review directly when needed
+
+### Reasoning
+Two overlapping Codex prompts (review module + debate skill, both added via separate tasks #43/#46) caused divergence and double maintenance. Consolidated: review is just debate's one-shot mode. Skill > module here because Codex review is invoked on demand (lazy-loaded native skill), not needed in every turn's system prompt.
+
 ## v2.16.0 — 2026-06-01
 
 ### Fixed

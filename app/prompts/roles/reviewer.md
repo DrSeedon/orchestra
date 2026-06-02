@@ -4,7 +4,6 @@ icon: "🔍"
 label: Reviewer
 model: opus
 skills: [codex-debate]
-modules: [codex-review]
 can_spawn: []
 when: Code review, PR review, architecture review
 not_for: Implementation — only reviews
