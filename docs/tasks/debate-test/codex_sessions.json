@@ -1,0 +1,25 @@
+{
+  "sessions": {
+    "architecture": {
+      "uuid": "019e86ac-93d6-7b11-a9c8-cd9f5c3200ca",
+      "topic": "Orchestra architecture — optimal or needs refactoring?",
+      "started": "2026-06-02T04:54:16Z",
+      "last_used": "2026-06-02T04:58:15Z",
+      "turns": 3
+    },
+    "plan-review": {
+      "uuid": "019e86e1-1723-7cb0-903c-7f2fadaabfb6",
+      "topic": "Plan review for architecture refactoring",
+      "started": "2026-06-02T05:51:36Z",
+      "last_used": "2026-06-02T05:53:19Z",
+      "turns": 2
+    },
+    "step1-diff": {
+      "uuid": "019e86e9-23a1-7563-9877-c1e758c13889",
+      "topic": "Step 1 diff review",
+      "started": "2026-06-02T06:00:17Z",
+      "last_used": "2026-06-02T06:00:17Z",
+      "turns": 1
+    }
+  }
+}
