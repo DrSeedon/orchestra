@@ -4591,12 +4591,14 @@ function _renderSparklines(slot) {
         return { pts, ideal };
     };
 
-    // 7d — split by weeks (detect reset: seven_day_pct drops >30% between adjacent points)
+    // 7d — split by weeks using resets_at (exact reset time from API)
     const weeks = []; let curWeek = [data[0]];
     for (let i = 1; i < data.length; i++) {
-        const prevPct = data[i-1].seven_day_pct || 0;
-        const curPct = data[i].seven_day_pct || 0;
-        if (prevPct - curPct > 30) {
+        const prev = data[i-1], cur = data[i];
+        const prevReset = prev.seven_day_resets_at, curReset = cur.seven_day_resets_at;
+        const isNewPeriod = prevReset && curReset && prevReset !== curReset &&
+            new Date(curReset) - new Date(prevReset) > 3600000;
+        if (isNewPeriod) {
             weeks.push(curWeek);
             curWeek = [];
         }
