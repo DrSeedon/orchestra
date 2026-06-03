@@ -2165,18 +2165,23 @@ function addChatEntry(type, content, ts, anchor) {
                 }
 
                 const PREVIEW = 200;
-                const hasMoreTask = task.length > PREVIEW;
+                let cutAt = PREVIEW;
+                if (task.length > PREVIEW) {
+                    const nl = task.lastIndexOf('\n', PREVIEW);
+                    if (nl > PREVIEW / 2) cutAt = nl;
+                }
+                const hasMoreTask = task.length > cutAt;
                 const expandables = [];
 
                 if (task) {
                     const taskEl = document.createElement('div');
                     taskEl.className = 'text-xs opacity-80 markdown-body';
-                    taskEl.innerHTML = DOMPurify.sanitize(marked.parse(hasMoreTask ? task.slice(0, PREVIEW) : task));
+                    taskEl.innerHTML = DOMPurify.sanitize(marked.parse(hasMoreTask ? task.slice(0, cutAt) : task));
                     div.appendChild(taskEl);
                     if (hasMoreTask) {
                         const restEl = document.createElement('div');
                         restEl.className = 'text-xs opacity-80 markdown-body';
-                        restEl.innerHTML = DOMPurify.sanitize(marked.parse(task.slice(PREVIEW)));
+                        restEl.innerHTML = DOMPurify.sanitize(marked.parse(task.slice(cutAt)));
                         restEl.style.display = 'none';
                         div.appendChild(restEl);
                         expandables.push(restEl);
