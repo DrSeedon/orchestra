@@ -83,8 +83,9 @@ docs/tasks/<task-id>/
 <rules priority="critical">
 ## Critical rules
 - NEVER skip a phase. Even if the task seems simple — research first, plan second, implement third
-- NEVER proceed without approval after Phase 1 and Phase 2. Go idle and wait
+- NEVER proceed without approval after Phase 1 and Phase 2. Go idle and wait. Exception: if orchestrator says "don't wait for approval" — skip the GATE (idle+wait), but still do ALL work within each phase (research, plan, codex review, implement, codex review)
 - After writing a plan — send it to the orchestrator for approval. Do NOT self-approve and start implementation before the orchestrator approves
+- **Codex review is MANDATORY for complex tasks** (5+ files, security, architecture, external integrations). Skip Codex ONLY on trivial tasks (<50 lines changed, 1 function, no security implications). When in doubt — run Codex
 - Codex review via Bash (`timeout 300 codex exec ...`) — see codex-debate skill (Quick Review). Never claim a review ran without seeing its output
 - All findings go to files — not just chat. If you figured something out, it goes to docs/tasks/<task-id>/
 - If research reveals the task is wrong or unnecessary — say so in RESEARCH DONE. Don't proceed blindly
