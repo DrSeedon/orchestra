@@ -532,6 +532,8 @@ async def send_message(name: str, req: SendRequest):
             session = await manager.ensure_loaded_any(name)
         if not session:
             return JSONResponse({"error": "not found"}, status_code=404)
+        if hasattr(session, 'needs_switch') and session.needs_switch:
+            return JSONResponse({"error": "worker was merged — call switch_worker_branch first"}, status_code=400)
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)
@@ -743,6 +745,7 @@ async def merge_session(name: str, req: dict):
     from app.workspace import merge_worktree_to_main
     scope = req.get("scope", "")
     target = req.get("target", "main")
+    next_task_id = req.get("next_task_id", "")
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -770,6 +773,27 @@ async def merge_session(name: str, req: dict):
                         link_results[task_ref] = {"ok": False, "error": str(link_err)}
                 if link_results:
                     result["linked_tasks"] = link_results
+                if not isinstance(found, dict):
+                    found.branch = target
+                    found.task_id = ""
+                    found.needs_switch = True
+                    found._persist()
+                if next_task_id and not isinstance(found, dict):
+                    from app.workspace import switch_worktree_branch, _normalize_task_id
+                    par = _normalize_task_id(next_task_id)
+                    new_branch = f"task-{par}/{name}"
+                    switch_result = await asyncio.to_thread(
+                        switch_worktree_branch, worktree_path, new_branch, f"refs/heads/{target}")
+                    if switch_result.get("ok"):
+                        found.branch = switch_result.get("branch", new_branch)
+                        found.task_id = par
+                        found.needs_switch = False
+                        found._persist()
+                        try:
+                            _tm.api_update_task(par, status="in_progress")
+                        except Exception:
+                            pass
+                    result["switch"] = switch_result
             return result
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
@@ -805,6 +829,7 @@ async def switch_branch(name: str, req: dict):
                 if result.get("ok") or result.get("branch"):
                     found.branch = result.get("branch", new_branch)
                     found.task_id = par
+                    found.needs_switch = False
                     found._persist()
             try:
                 _tm.api_update_task(par, status="in_progress")

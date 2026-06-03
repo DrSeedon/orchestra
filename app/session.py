@@ -97,6 +97,8 @@ class AgentSession:
     owned_dirs: list = field(default_factory=list, repr=False)
     tg_topic: bool = False
 
+    needs_switch: bool = False
+
     progress_pct: int = 0
     progress_status: str = ""
 

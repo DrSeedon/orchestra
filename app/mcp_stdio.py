@@ -331,9 +331,12 @@ async def change_worker_model(name: str, model: str) -> str:
 
 
 @mcp.tool()
-async def merge_worker(name: str, target: str = "main") -> str:
-    """Merge a worker's branch into target branch (default main). Always squash — one clean commit per task. Returns commit count or conflict file list."""
-    result = await _api("POST", f"/api/sessions/{name}/merge", json={"scope": SCOPE, "target": target, "squash": True})
+async def merge_worker(name: str, target: str = "main", next_task_id: str = "") -> str:
+    """Merge a worker's branch into target branch (default main). Always squash — one clean commit per task. Returns commit count or conflict file list. Pass next_task_id to auto-switch to new branch after merge."""
+    body = {"scope": SCOPE, "target": target, "squash": True}
+    if next_task_id:
+        body["next_task_id"] = next_task_id
+    result = await _api("POST", f"/api/sessions/{name}/merge", json=body)
     if isinstance(result, dict) and result.get("error"):
         return f"Merge failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):
@@ -345,6 +348,12 @@ async def merge_worker(name: str, target: str = "main") -> str:
                 parts.append(f"  → {par}: {info.get('added', 0)} commits linked")
             elif isinstance(info, dict):
                 parts.append(f"  ⚠️ {par}: FAILED — {info.get('error', 'unknown')}")
+        switch = result.get("switch")
+        if switch:
+            if switch.get("ok"):
+                parts.append(f"  → switched to branch {switch.get('branch', '?')}")
+            else:
+                parts.append(f"  ⚠️ switch failed: {switch.get('error', 'unknown')}")
         return "\n".join(parts)
     if isinstance(result, dict) and not result.get("ok"):
         conflicts = result.get("conflicts", [])
