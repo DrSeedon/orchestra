@@ -518,18 +518,12 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
     if status.stdout.strip():
         return {"ok": False, "error": "dirty working tree — commit or discard changes first"}
 
-    merged = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", "HEAD", from_ref],
+    reset = subprocess.run(
+        ["git", "reset", "--hard", from_ref],
         cwd=str(wt), capture_output=True, text=True,
     )
-    if merged.returncode != 0:
-        content_diff = subprocess.run(
-            ["git", "diff", "HEAD", from_ref, "--stat"],
-            cwd=str(wt), capture_output=True, text=True,
-        )
-        if content_diff.stdout.strip():
-            return {"ok": False, "error": f"current branch has unmerged commits — merge_worker first (relative to {from_ref})"}
-        logger.info(f"switch_worktree_branch: HEAD not ancestor of {from_ref} but content identical (squash merge)")
+    if reset.returncode != 0:
+        return {"ok": False, "error": f"reset to {from_ref} failed: {reset.stderr.strip()}"}
 
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
