@@ -306,7 +306,9 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                     cwd=str(wt), capture_output=True, text=True,
                 )
                 if status.stdout.strip():
-                    result = {"ok": False, "error": "dirty working tree — commit or discard changes first"}
+                    dirty_lines = status.stdout.strip().splitlines()[:10]
+                    dirty_files = [l[3:] for l in dirty_lines]
+                    result = {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
                 else:
                     # Edge-case: проверяем target_branch перед checkout
                     ref_verify = subprocess.run(
@@ -516,7 +518,9 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
     )
     if status.stdout.strip():
-        return {"ok": False, "error": "dirty working tree — commit or discard changes first"}
+        dirty_lines = status.stdout.strip().splitlines()[:10]
+        dirty_files = [l[3:] for l in dirty_lines]
+        return {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
 
     reset = subprocess.run(
         ["git", "reset", "--hard", from_ref],

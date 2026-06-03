@@ -256,25 +256,41 @@ class SessionManager:
         model = resolve_model(model)
         if not Path(cwd).is_dir():
             raise ValueError(f"cwd does not exist: {cwd}")
-        if get_session_by_name(name, scope):
-            raise ValueError(f"session '{name}' already exists in scope '{scope}'")
+        existing = get_session_by_name(name, scope)
+        if existing:
+            st = existing.get("status", "?")
+            ctx = existing.get("context_pct", 0) or 0
+            raise ValueError(f"worker '{name}' already exists ({st}, ctx:{ctx}%). Use send_message instead")
 
         if not role:
             role = "orchestrator" if is_orchestrator else "worker"
         is_orch = is_orchestrator_role(role)
 
         owned_dirs = parse_owned_dirs(owned_dirs)
-        ownership_warning = ""
         if owned_dirs:
-            conflicts = []
+            seen_ids: set[str] = set()
             for s in self.sessions.values():
-                if s.scope == scope and s.status.value in ("idle", "running") and s.owned_dirs:
+                if s.scope == scope and s.status.value in ("idle", "running", "waiting") and s.owned_dirs:
+                    seen_ids.add(s.id)
                     ov = dirs_overlap(owned_dirs, s.owned_dirs)
                     if ov:
-                        conflicts.append((s.name, ov))
-            if conflicts:
-                ownership_warning = "; ".join(f"{n} owns {ov}" for n, ov in conflicts)
-                logger.warning(f"owned_dirs overlap for new worker '{name}': {ownership_warning}")
+                        raise ValueError(
+                            f"owned_dirs overlap with '{s.name}': {', '.join(ov)}. "
+                            f"Use different dirs or kill '{s.name}' first"
+                        )
+            for row in get_all_sessions(scope):
+                if row["id"] in seen_ids:
+                    continue
+                if (row.get("status") or "") not in ("idle", "running", "waiting"):
+                    continue
+                row_dirs = parse_owned_dirs(row.get("owned_dirs"))
+                if row_dirs:
+                    ov = dirs_overlap(owned_dirs, row_dirs)
+                    if ov:
+                        raise ValueError(
+                            f"owned_dirs overlap with '{row['name']}': {', '.join(ov)}. "
+                            f"Use different dirs or kill '{row['name']}' first"
+                        )
 
         if is_orch:
             prompt = ROLE_SYSTEM_PROMPT(role, scope) + ("\n\n" + system_prompt if system_prompt else "")
@@ -318,7 +334,7 @@ class SessionManager:
             tg_topic=tg_topic,
         )
         session._template_hash = prompt_template_hash(role)
-        session._spawn_warning = ownership_warning
+        session._spawn_warning = ""
         save_session(session._to_db_dict())
 
         if task_id and not is_orch:

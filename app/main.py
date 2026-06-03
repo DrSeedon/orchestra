@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import init_db, get_logs, get_logs_before
+from app.db import init_db, get_logs, get_logs_before, get_all_sessions
 from app.deps import manager
 from app.models import resolve_model, MODELS
 from app.session import AgentStatus
@@ -531,7 +531,13 @@ async def send_message(name: str, req: SendRequest):
         if not session:
             session = await manager.ensure_loaded_any(name)
         if not session:
-            return JSONResponse({"error": "not found"}, status_code=404)
+            all_names = [s.name for s in manager.sessions.values()]
+            for row in get_all_sessions():
+                if row["name"] not in all_names:
+                    all_names.append(row["name"])
+            similar = [n for n in all_names if name.lower() in n.lower() or n.lower() in name.lower()]
+            hint = f" Similar: {', '.join(similar[:5])}" if similar else f" Available: {', '.join(all_names[:10])}"
+            return JSONResponse({"error": f"agent '{name}' not found.{hint}"}, status_code=404)
         if hasattr(session, 'needs_switch') and session.needs_switch:
             return JSONResponse({"error": "worker was merged — call switch_worker_branch first"}, status_code=400)
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
@@ -731,11 +737,46 @@ async def rename_session(name: str, req: dict):
 
 
 @app.delete("/api/sessions/{name}")
-async def delete_session(name: str, scope: str):
+async def delete_session(name: str, scope: str, force: bool = False):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
     sid = found["id"] if isinstance(found, dict) else found.id
+    if not force:
+        if not isinstance(found, dict) and found.status.value == "running":
+            return JSONResponse({"error": "worker is running — stop first (or force=true)"}, status_code=400)
+        wt = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+        if wt and Path(wt).is_dir():
+            status_proc = await asyncio.create_subprocess_exec(
+                "git", "status", "--porcelain", cwd=wt,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(status_proc.communicate(), timeout=5)
+            except asyncio.TimeoutError:
+                status_proc.kill()
+                return JSONResponse({"error": "git status timed out in worktree. Use force=true if certain"}, status_code=400)
+            if status_proc.returncode != 0:
+                return JSONResponse({"error": f"git status failed: {stderr.decode().strip()}. Use force=true if certain"}, status_code=400)
+            dirty = stdout.decode().strip()
+            if dirty:
+                files = [l[3:] for l in dirty.splitlines()[:10]]
+                return JSONResponse({"error": f"worker has uncommitted changes: {', '.join(files)}. Commit or discard first (or force=true)"}, status_code=400)
+            ahead_proc = await asyncio.create_subprocess_exec(
+                "git", "rev-list", "main..HEAD", "--count", cwd=wt,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(ahead_proc.communicate(), timeout=5)
+            except asyncio.TimeoutError:
+                ahead_proc.kill()
+                return JSONResponse({"error": "git rev-list timed out. Use force=true if certain"}, status_code=400)
+            ahead = stdout.decode().strip()
+            if ahead_proc.returncode != 0 or not ahead.isdigit():
+                return JSONResponse({"error": f"git rev-list failed: {stderr.decode().strip()}. Use force=true if certain"}, status_code=400)
+            n = int(ahead)
+            if n > 0:
+                return JSONResponse({"error": f"worker has {n} unmerged commit(s). merge_worker first (or force=true)"}, status_code=400)
     await manager.remove(sid)
     return {"ok": True}
 
@@ -1127,7 +1168,6 @@ async def report_bug_endpoint(req: Request):
 
 @app.get("/api/orchestrators")
 async def list_orchestrators():
-    from app.db import get_all_sessions
     from app.prompting import is_orchestrator_role
     active = [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
     active_ids = {s["id"] for s in active}

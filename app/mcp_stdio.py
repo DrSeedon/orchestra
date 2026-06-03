@@ -68,7 +68,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
     base_branch — от какой ветки ответвить worktree воркера (default main).
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
-    owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → предупреждение (НЕ блок).
+    owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
         return "Error: model is required. Choose: claude-opus-4-8[1m] (think), claude-sonnet-4-6 (type), gpt-5.5 (codex)"
@@ -250,9 +250,9 @@ async def compact_worker(name: str) -> str:
 
 
 @mcp.tool()
-async def kill_worker(name: str) -> str:
-    """Stop and archive a worker."""
-    result = await _api("DELETE", f"/api/sessions/{name}", params={"scope": SCOPE})
+async def kill_worker(name: str, force: bool = False) -> str:
+    """Stop and archive a worker. Blocked if worker has uncommitted changes or unmerged commits — pass force=True to override."""
+    result = await _api("DELETE", f"/api/sessions/{name}", params={"scope": SCOPE, "force": str(force).lower()})
     if isinstance(result, dict) and result.get("error"):
         return f"Kill failed: {result['error']}"
     return f"Worker '{name}' stopped and archived."
