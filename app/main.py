@@ -529,6 +529,8 @@ async def send_message(name: str, req: SendRequest):
     try:
         session = await manager.ensure_loaded(name, req.scope)
         if not session:
+            session = await manager.ensure_loaded_any(name)
+        if not session:
             return JSONResponse({"error": "not found"}, status_code=404)
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:

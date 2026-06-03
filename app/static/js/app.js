@@ -1856,7 +1856,7 @@ function addChatEntry(type, content, ts, anchor) {
                 if (resultSpan && isSendFileCompact) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
-                    const hasErr = clean.includes('error') || clean.includes('Error');
+                    const hasErr = clean.includes('error') || clean.includes('Error') || clean.includes('fail') || clean.includes('Fail');
                     if (rawName === 'mcp__orchestra__update_progress') { resultSpan.textContent = '✓'; resultSpan.style.color = '#818cf8'; }
                     else if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
                     else if (rawName === 'mcp__orchestra__send_message') { const m = clean.match(/sent to '(.+?)'/i); resultSpan.textContent = hasErr ? '❌' : m ? `✅ → ${m[1]}` : '✅'; }
@@ -3021,7 +3021,7 @@ function addChatEntry(type, content, ts, anchor) {
                 'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
                 'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — description updated`, color: '#22c55e' } : { text: '✅ description updated', color: '#22c55e' }; },
                 'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
-                'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('failed') ? null : { text: '✅ Sent', color: '#22c55e' }; },
+                'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('fail') || c.includes('error') || c.includes('Error') ? { text: `❌ ${c.substring(0, 60)}`, color: '#ef4444' } : { text: '✅ Sent', color: '#22c55e' }; },
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__list_agents': null,
                 'mcp__orchestra__list_orchestrators': null,
