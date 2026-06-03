@@ -956,7 +956,7 @@ function selectOrchestrator(name, scope) {
     renderOrchTabs(orchData);
 }
 
-function onOrchestratorChange() {
+async function onOrchestratorChange() {
     saveDraft();
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
@@ -978,7 +978,7 @@ function onOrchestratorChange() {
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
-    refreshSessions(); connectSSE(); initFilePanel();
+    await refreshSessions(); connectSSE(); initFilePanel();
     if (_tasksTabActive) loadTasks();
     if (_jobsTabActive) loadJobs();
 }
