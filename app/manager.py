@@ -166,6 +166,8 @@ class SessionManager:
             self._spawn_task = asyncio.create_task(self._spawn_worker_loop())
         if not getattr(self, '_cleanup_task', None) or self._cleanup_task.done():
             self._cleanup_task = asyncio.create_task(self._periodic_db_cleanup())
+        if not getattr(self, '_wt_cleanup_task', None) or self._wt_cleanup_task.done():
+            self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
 
     async def enqueue_worker_spawn(self, **job) -> None:
         await self._spawn_queue.put(job)
@@ -776,9 +778,32 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"DB cleanup failed: {e}")
 
+    async def _periodic_worktree_cleanup(self) -> None:
+        WT_CLEANUP_INTERVAL = 24 * 3600
+        try:
+            from app.workspace import cleanup_stale_worktrees
+            removed = await asyncio.to_thread(cleanup_stale_worktrees)
+            if removed:
+                logger.info(f"Startup worktree cleanup: removed {len(removed)} stale worktree(s)")
+        except Exception as e:
+            logger.warning(f"Startup worktree cleanup failed: {e}")
+        while True:
+            try:
+                await asyncio.sleep(WT_CLEANUP_INTERVAL)
+                from app.workspace import cleanup_stale_worktrees
+                removed = await asyncio.to_thread(cleanup_stale_worktrees)
+                if removed:
+                    logger.info(f"Periodic worktree cleanup: removed {len(removed)} stale worktree(s)")
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning(f"Periodic worktree cleanup failed: {e}")
+
     async def shutdown_all(self) -> None:
         if getattr(self, '_cleanup_task', None) and not self._cleanup_task.done():
             self._cleanup_task.cancel()
+        if getattr(self, '_wt_cleanup_task', None) and not self._wt_cleanup_task.done():
+            self._wt_cleanup_task.cancel()
         for session in list(self.sessions.values()):
             try:
                 await session.stop()

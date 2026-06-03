@@ -286,3 +286,50 @@ class TestSlugify:
     def test_different_paths_different_slugs(self):
         from app.workspace import _slugify
         assert _slugify("/path/a") != _slugify("/path/b")
+
+
+class TestCleanupStaleWorktrees:
+    def test_removes_stale_keeps_alive(self, git_repo, wt_root, monkeypatch):
+        from app.workspace import create_worktree, cleanup_stale_worktrees
+        wt_alive = create_worktree(str(git_repo), "alive-worker", "/scope")
+        wt_stale = create_worktree(str(git_repo), "stale-worker", "/scope")
+
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [
+            {"worktree_path": wt_alive.path},
+        ])
+
+        removed = cleanup_stale_worktrees()
+        assert len(removed) == 1
+        assert wt_stale.path in removed[0]
+        assert Path(wt_alive.path).exists()
+        assert not Path(wt_stale.path).exists()
+
+    def test_skips_dirty_worktree(self, git_repo, wt_root, monkeypatch):
+        from app.workspace import create_worktree, cleanup_stale_worktrees
+        wt = create_worktree(str(git_repo), "dirty-worker", "/scope")
+        (Path(wt.path) / "uncommitted.txt").write_text("dirty")
+
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+
+        removed = cleanup_stale_worktrees()
+        assert len(removed) == 0
+        assert Path(wt.path).exists()
+
+    def test_skips_non_worktree_dirs(self, wt_root, monkeypatch):
+        from app.workspace import cleanup_stale_worktrees
+        scope_dir = wt_root / "some-scope"
+        scope_dir.mkdir()
+        random_dir = scope_dir / "not-a-worktree"
+        random_dir.mkdir()
+
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+
+        removed = cleanup_stale_worktrees()
+        assert len(removed) == 0
+        assert random_dir.exists()
+
+    def test_empty_worktree_root(self, wt_root, monkeypatch):
+        from app.workspace import cleanup_stale_worktrees
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+        removed = cleanup_stale_worktrees()
+        assert removed == []

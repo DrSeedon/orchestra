@@ -601,6 +601,64 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
+def cleanup_stale_worktrees() -> list[str]:
+    from app.db import get_all_sessions
+    if not WORKTREE_ROOT.is_dir():
+        return []
+
+    alive_paths: set[str] = set()
+    for s in get_all_sessions():
+        wt = s.get("worktree_path")
+        if wt:
+            alive_paths.add(str(Path(wt).resolve()))
+
+    removed: list[str] = []
+    for scope_dir in WORKTREE_ROOT.iterdir():
+        if not scope_dir.is_dir():
+            continue
+        for wt_dir in scope_dir.iterdir():
+            if not wt_dir.is_dir():
+                continue
+            if str(wt_dir.resolve()) in alive_paths:
+                continue
+            git_file = wt_dir / ".git"
+            if not (git_file.exists() and git_file.is_file()):
+                continue
+            dirty = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=str(wt_dir), capture_output=True, text=True,
+            )
+            if dirty.returncode != 0 or dirty.stdout.strip():
+                logger.info(f"stale worktree skipped (dirty): {wt_dir}")
+                continue
+            repo_path = str(wt_dir)
+            try:
+                content = git_file.read_text().strip()
+                if content.startswith("gitdir:"):
+                    git_dir = Path(content.split("gitdir:", 1)[1].strip()).resolve()
+                    for parent in git_dir.parents:
+                        if (parent / ".git").is_dir():
+                            repo_path = str(parent)
+                            break
+            except Exception:
+                pass
+            try:
+                remove_worktree(repo_path, str(wt_dir))
+                removed.append(str(wt_dir))
+                logger.info(f"stale worktree removed: {wt_dir}")
+            except Exception as e:
+                logger.warning(f"stale worktree cleanup failed for {wt_dir}: {e}")
+
+        if scope_dir.is_dir() and not any(scope_dir.iterdir()):
+            try:
+                scope_dir.rmdir()
+                logger.info(f"empty scope dir removed: {scope_dir}")
+            except Exception:
+                pass
+
+    return removed
+
+
 def parse_owned_dirs(raw) -> list[str]:
     """Normalize owned_dirs from any source (JSON string, list, None). Bad input → []."""
     if not raw:
