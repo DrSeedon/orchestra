@@ -1,10 +1,20 @@
 # Changelog
 
-## v2.17.1 — 2026-06-03
+## v2.18.0 — 2026-06-03
+
+### Added
+- 🔧 **`needs_switch` guard** — after `merge_worker`, session is flagged `needs_switch=True`. Sending tasks to a merged worker returns 400 error until `switch_worker_branch` is called. Eliminates LLM-dependent "remember to switch" failure mode. `session.py`, `main.py`
+- 🔧 **`merge_worker(next_task_id=)` atomic merge+switch** — optional parameter auto-switches to new branch after merge. One tool call instead of two. `mcp_stdio.py`, `main.py`
+- 🔧 **Auto-cleanup stale worktrees** — on startup + every 24h, scans `worktrees/` and removes directories without active DB sessions. Checks dirty tree before removal. `workspace.py`, `manager.py`
+- 🔧 **Cross-project `send_message`** — fallback to `ensure_loaded_any(name)` when same-scope lookup fails. Orchestrators can now message agents in other projects. `main.py`
 
 ### Fixed
-- 🐛 **System prompt lost on compact/resume** — `backend_claude.py` had mutually exclusive `if resume_id` / `else` branches: resuming a session skipped `system_prompt` entirely. Every compact/resume silently dropped Orchestra's role, skills, and rules — agent continued as vanilla Claude Code. Fix: always set `system_prompt`, then optionally set `resume`. SDK supports both flags simultaneously (`--resume` + `--append-system-prompt`)
-- 🐛 **Compact summary invisible in dashboard** — `session.py` sent compact preamble via `backend.send()` without `_log()`. Users couldn't see what context the agent received after compact. Fix: added `_log("user_message", ...)` before `backend.send()`
+- 🐛 **System prompt lost on compact/resume** — `backend_claude.py` had mutually exclusive `if resume_id` / `else` branches: resuming a session skipped `system_prompt` entirely. Fix: always set `system_prompt`, then optionally set `resume`
+- 🐛 **Compact summary invisible in dashboard** — `session.py` sent compact preamble via `backend.send()` without `_log()`. Fix: added `_log("user_message", ...)`
+- 🐛 **`switch_worker_branch` blocked after squash merge** — overly strict `merge-base --is-ancestor` check rejected worktrees diverged by squash merge. Fix: `git reset --hard from_ref` before branch switch. `workspace.py`
+- 🐛 **Send errors hidden in dashboard** — `mcp__orchestra__send_message` renderer returned `null` on failure, silently hiding errors. Fix: show red `❌` with error text. `app.js`
+- 🐛 **Spawn bubble text wrapping** — `task.slice(0, 200)` cut markdown mid-line, breaking bullet lists. Fix: cut at newline boundary. `app.js`
+- 🐛 **Merge didn't update session** — `merge_session` reset worktree files but left `session.branch` and `session.task_id` stale. Dashboard showed outdated branch info. Fix: update session fields after merge. `main.py`
 
 ## v2.17.0 — 2026-06-01
 
