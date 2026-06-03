@@ -76,7 +76,8 @@ function autolinkText(html) {
 
 const _origMarkedParse = marked.parse.bind(marked);
 marked.parse = (src, ...args) => {
-    const html = _origMarkedParse(src, ...args);
+    const escaped = src.replace(/(?<!\~)\~(?!\~)/g, '\\~');
+    const html = _origMarkedParse(escaped, ...args);
     return autolinkText(html);
 };
 
