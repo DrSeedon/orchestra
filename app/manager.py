@@ -64,28 +64,49 @@ def _other_orchestrators_block(exclude_scope: str = "") -> str:
         return ""
 
 
-def _workers_block(scope: str) -> str:
+def _workers_block(scope: str, orchestrator_name: str = "") -> str:
     try:
         workers = [s for s in get_all_sessions()
                    if not is_orchestrator_role(s.get("role", "worker")) and s.get("scope") == scope]
         if not workers:
             return ""
-        lines = ["## Your current workers",
-                 "These workers exist in your project. Reuse idle ones instead of spawning new. Kill workers you no longer need (one-shot tasks done, wrong role, duplicate)."]
+
+        mine, others = [], []
         for w in workers:
-            name = w["name"]
+            pn = w.get("parent_name", "")
+            if not orchestrator_name or pn == orchestrator_name or not pn:
+                mine.append(w)
+            else:
+                others.append(w)
+
+        def _fmt(w, show_owner=False):
+            n = w["name"]
             model = w.get("model", "?")
             status = w.get("status", "?")
             ctx = w.get("context_pct", 0) or 0
             desc = w.get("description", "")
             desc_part = f" | \"{desc}\"" if desc else ""
-            lines.append(f"- **{name}** — {model} | {status} | ctx:{ctx}%{desc_part}")
+            owner_part = f" | owner: {w.get('parent_name', '?')}" if show_owner else ""
+            return f"- **{n}** — {model} | {status} | ctx:{ctx}%{desc_part}{owner_part}"
+
+        lines = ["## Your current workers",
+                 "These workers exist in your project. Reuse idle ones instead of spawning new. Kill workers you no longer need (one-shot tasks done, wrong role, duplicate)."]
+        for w in mine:
+            lines.append(_fmt(w))
+
+        if others:
+            lines.append("")
+            lines.append("## Other orchestrators' workers")
+            lines.append("⚠️ These belong to other orchestrators. Do NOT send them tasks — message their orchestrator instead.")
+            for w in others:
+                lines.append(_fmt(w, show_owner=True))
+
         return "\n".join(lines)
     except Exception:
         return ""
 
 
-def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
+def ROLE_SYSTEM_PROMPT(role: str, scope: str = "", name: str = "") -> str:
     base = f"{read_prompt('base.md')}\n\n{role_prompt_file(role)}"
     if is_orchestrator_role(role):
         catalog = roles_catalog()
@@ -97,7 +118,7 @@ def ROLE_SYSTEM_PROMPT(role: str, scope: str = "") -> str:
         others = _other_orchestrators_block(scope)
         if others:
             base += f"\n\n{others}"
-        workers = _workers_block(scope)
+        workers = _workers_block(scope, name)
         if workers:
             base += f"\n\n{workers}"
     return base
@@ -293,7 +314,7 @@ class SessionManager:
                         )
 
         if is_orch:
-            prompt = ROLE_SYSTEM_PROMPT(role, scope) + ("\n\n" + system_prompt if system_prompt else "")
+            prompt = ROLE_SYSTEM_PROMPT(role, scope, name) + ("\n\n" + system_prompt if system_prompt else "")
         else:
             prompt = ROLE_SYSTEM_PROMPT(role) + ("\n\n" + system_prompt if system_prompt else "")
             prompt += self._ownership_prompt(owned_dirs)
@@ -557,7 +578,7 @@ class SessionManager:
         role = db_row.get("role") or ("orchestrator" if db_row.get("is_orchestrator") else "worker")
         is_orch = is_orchestrator_role(role)
         old_prompt = db_row.get("system_prompt", "")
-        current_prompt = ROLE_SYSTEM_PROMPT(role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(role)
+        current_prompt = ROLE_SYSTEM_PROMPT(role, db_row["scope"], db_row["name"]) if is_orch else ROLE_SYSTEM_PROMPT(role)
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
@@ -616,7 +637,7 @@ class SessionManager:
             )
         if old_prompt and old_prompt != current_prompt:
             formatted_base = safe_format_prompt(
-                ROLE_SYSTEM_PROMPT(role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(role),
+                ROLE_SYSTEM_PROMPT(role, db_row["scope"], db_row["name"]) if is_orch else ROLE_SYSTEM_PROMPT(role),
                 worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
                 scope=db_row["scope"], branch=db_row.get("branch") or "main",
             )

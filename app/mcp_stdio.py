@@ -169,7 +169,13 @@ async def send_message(to: str, message: str) -> str:
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Send failed: {result['error']}"
+    parent = result.get("parent_name", "") if isinstance(result, dict) else ""
+    if parent and parent != WORKER_NAME:
+        return f"Message sent to '{to}'\n⚠️ This worker belongs to '{parent}'. Consider messaging '{parent}' instead."
     return f"Message sent to '{to}'"
+
+
+_ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
 
 @mcp.tool()
@@ -180,10 +186,10 @@ async def list_agents() -> str:
         return f"Error: {sessions}"
     if not sessions:
         return "No agents"
-    lines = []
     icons_data = await _api("GET", "/api/role-icons")
     _icons = icons_data if isinstance(icons_data, dict) else {}
-    for s in sessions:
+
+    def _fmt(s, show_owner=False):
         r = s.get("role", "worker")
         role = _icons.get(r, "⚙️")
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
@@ -193,7 +199,32 @@ async def list_agents() -> str:
         task_str = f" | {task}" if task else ""
         desc = s.get('description', '')
         desc_str = f' | "{desc}"' if desc else ""
-        lines.append(f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{task_str}{desc_str}")
+        owner = s.get('parent_name', '')
+        owner_str = f" | owner: {owner}" if show_owner and owner else ""
+        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{task_str}{desc_str}{owner_str}"
+
+    orchestrators, my_workers, other_workers = [], [], []
+    for s in sessions:
+        if s.get("role", "worker") in _ORCH_ROLES:
+            orchestrators.append(s)
+        else:
+            pn = s.get("parent_name", "")
+            if pn == WORKER_NAME or not pn:
+                my_workers.append(s)
+            else:
+                other_workers.append(s)
+
+    lines = []
+    if orchestrators:
+        lines.append("## Orchestrators")
+        lines.extend(_fmt(s) for s in orchestrators)
+    if my_workers:
+        lines.append("## Your workers")
+        lines.extend(_fmt(s) for s in my_workers)
+    if other_workers:
+        lines.append("## Other orchestrators' workers")
+        lines.append("⚠️ These workers belong to other orchestrators. Avoid sending them tasks directly.")
+        lines.extend(_fmt(s, show_owner=True) for s in other_workers)
     return "\n".join(lines)
 
 

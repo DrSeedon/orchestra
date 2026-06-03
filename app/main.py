@@ -549,7 +549,8 @@ async def send_message(name: str, req: SendRequest):
             now = datetime.now(local_tz).strftime("%H:%M")
             msg = f"[{now}] {msg}"
         await manager.send(session.id, msg)
-        return {"ok": True}
+        pn = getattr(session, "parent_name", "") or (session.get("parent_name", "") if isinstance(session, dict) else "")
+        return {"ok": True, "parent_name": pn}
     except (RuntimeError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
