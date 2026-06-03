@@ -4591,26 +4591,18 @@ function _renderSparklines(slot) {
         return { pts, ideal };
     };
 
-    // 7d — split by weeks using resets_at, then clip each period to its 7-day window
-    const rawWeeks = []; let curWeek = [data[0]];
+    // 7d — split by weeks (detect reset: seven_day_pct drops >30% between adjacent points)
+    const weeks = []; let curWeek = [data[0]];
     for (let i = 1; i < data.length; i++) {
-        const prev = data[i-1], cur = data[i];
-        const prevReset = prev.seven_day_resets_at, curReset = cur.seven_day_resets_at;
-        const isNewPeriod = prevReset && curReset && prevReset !== curReset &&
-            new Date(curReset) - new Date(prevReset) > 3600000;
-        if (isNewPeriod) {
-            rawWeeks.push(curWeek);
+        const prevPct = data[i-1].seven_day_pct || 0;
+        const curPct = data[i].seven_day_pct || 0;
+        if (prevPct - curPct > 30) {
+            weeks.push(curWeek);
             curWeek = [];
         }
         curWeek.push(data[i]);
     }
-    if (curWeek.length > 0) rawWeeks.push(curWeek);
-    const weeks = rawWeeks.map(w => {
-        const resetAt = w[w.length - 1]?.seven_day_resets_at;
-        if (!resetAt) return w;
-        const periodStart = new Date(resetAt).getTime() - 7 * 86400000;
-        return w.filter(d => new Date(d.ts).getTime() >= periodStart);
-    }).filter(w => w.length > 0);
+    if (curWeek.length > 0) weeks.push(curWeek);
 
     const wi = Math.max(0, Math.min(_spark7dWeekIdx, weeks.length - 1));
     const weekData = weeks[weeks.length - 1 - wi];
