@@ -116,10 +116,9 @@ class ClaudeBackend:
             max_buffer_size=50 * 1024 * 1024,
             env=env,
         )
+        options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
         if resume_id:
             options.resume = resume_id
-        else:
-            options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
         merged_mcp = {**self._scope_mcp_servers, **self._mcp_servers}
         if merged_mcp:
             options.mcp_servers = merged_mcp

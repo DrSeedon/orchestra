@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.17.1 — 2026-06-03
+
+### Fixed
+- 🐛 **System prompt lost on compact/resume** — `backend_claude.py` had mutually exclusive `if resume_id` / `else` branches: resuming a session skipped `system_prompt` entirely. Every compact/resume silently dropped Orchestra's role, skills, and rules — agent continued as vanilla Claude Code. Fix: always set `system_prompt`, then optionally set `resume`. SDK supports both flags simultaneously (`--resume` + `--append-system-prompt`)
+- 🐛 **Compact summary invisible in dashboard** — `session.py` sent compact preamble via `backend.send()` without `_log()`. Users couldn't see what context the agent received after compact. Fix: added `_log("user_message", ...)` before `backend.send()`
+
 ## v2.17.0 — 2026-06-01
 
 ### Changed

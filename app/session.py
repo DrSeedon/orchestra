@@ -773,6 +773,7 @@ class AgentSession:
                 self.status = AgentStatus.RUNNING
                 self._persist()
                 backend = await self._ensure_backend(force_fresh=True)
+                self._log("user_message", preamble + "Acknowledge briefly.")
                 await backend.send(preamble + "Acknowledge briefly.")
 
             try:
