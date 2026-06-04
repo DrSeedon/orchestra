@@ -650,10 +650,16 @@ _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 def _find_orch_for_scope(scope: str) -> str | None:
     from app.db import get_all_sessions
+    best = None
     for s in get_all_sessions():
-        if s.get("role", "worker") in ("orchestrator", "sub-orchestrator") and s.get("scope", "").rstrip("/") == scope.rstrip("/"):
+        if s.get("scope", "").rstrip("/") != scope.rstrip("/"):
+            continue
+        role = s.get("role", "worker")
+        if role == "orchestrator":
             return s["name"]
-    return None
+        if role == "sub-orchestrator" and best is None:
+            best = s["name"]
+    return best
 
 
 def _find_thread_for_scope(scope: str) -> int | None:
