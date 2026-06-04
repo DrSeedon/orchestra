@@ -5,23 +5,23 @@
 ### 🔴 send_message 500 после рестарта
 - **Reporter:** Parsing-orchestrator (2026-05-26)
 - send_message к idle воркерам = 500 после restart Orchestra. Свежие воркеры работают
-- **Workaround:** respawn воркера
-- **Assignee:** backend
+- **Status:** вероятно починен фиксами auto_resume + ensure_loaded_any (2026-06-03). Проверить после рестарта
+- **Assignee:** проверка после ребута
 
 ### 🟡 Worker DONE report уходит parent_name вместо task giver
 - **Reporter:** seedon-orchestrator (2026-05-31)
 - Воркер спавнен orchestrator-A, задачу дал orchestrator-B через send_message. DONE уходит к A (parent)
-- **Assignee:** нет
+- **Assignee:** backend (в работе 2026-06-04)
 
 ### 🟡 Ambiguous task linking: один номер таска в двух проектах
 - **Reporter:** dev-lead (2026-05-31)
 - link_commits_to_task не передаёт project-фильтр → ambiguity warning, коммиты не привязаны
-- **Severity:** low
+- **Assignee:** backend (в работе 2026-06-04)
 
-### 🟡 payment_receive amount в тысячах — теряются дробные (500₽)
+### 🟡 payment_receive + task prices в тысячах — теряются дробные (500₽)
 - **Reporter:** ParsingMaxim (2026-06-01)
-- 29.5k невозможно передать, округляется до 29k
-- **Severity:** low
+- Цены и платежи хранятся в тысячах, нельзя указать точную сумму
+- **Assignee:** taskmanager (в работе 2026-06-04)
 
 ## Closed (2026-06-01)
 
