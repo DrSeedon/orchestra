@@ -2,7 +2,6 @@
 
 MODELS = {
     "claude-opus-4-8[1m]": "Opus 4.8 (1M)",
-    "claude-opus-4-7[1m]": "Opus 4.7 (1M)",
     "claude-opus-4-6[1m]": "Opus 4.6 (1M)",
     "claude-sonnet-4-6": "Sonnet 4.6",
     "claude-haiku-4-5": "Haiku 4.5",
@@ -13,7 +12,6 @@ MODELS = {
 
 CONTEXT_LIMITS = {
     "claude-opus-4-8[1m]": 1000000,
-    "claude-opus-4-7[1m]": 1000000,
     "claude-opus-4-6[1m]": 1000000,
     "claude-sonnet-4-6": 200000,
     "claude-haiku-4-5": 200000,
@@ -23,13 +21,10 @@ CONTEXT_LIMITS = {
 }
 
 ALIASES = {
-    "opus": "claude-opus-4-8[1m]",
+    "opus": "claude-opus-4-6[1m]",
     "opus4.8": "claude-opus-4-8[1m]",
     "claude-opus-4-8": "claude-opus-4-8[1m]",
     "claude-opus-4-8-1m": "claude-opus-4-8[1m]",
-    "opus4.7": "claude-opus-4-7[1m]",
-    "claude-opus-4-7": "claude-opus-4-7[1m]",
-    "claude-opus-4-7-1m": "claude-opus-4-7[1m]",
     "opus4.6": "claude-opus-4-6[1m]",
     "claude-opus-4-6": "claude-opus-4-6[1m]",
     "claude-opus-4-6-1m": "claude-opus-4-6[1m]",
@@ -45,7 +40,6 @@ ALIASES = {
 
 BACKENDS = {
     "claude-opus-4-8[1m]": "claude",
-    "claude-opus-4-7[1m]": "claude",
     "claude-opus-4-6[1m]": "claude",
     "claude-sonnet-4-6": "claude",
     "claude-haiku-4-5": "claude",
@@ -56,7 +50,6 @@ BACKENDS = {
 
 TOKEN_PRICES = {
     "claude-opus-4-8[1m]": {"input": 15.0, "output": 75.0},
-    "claude-opus-4-7[1m]": {"input": 15.0, "output": 75.0},
     "claude-opus-4-6[1m]": {"input": 15.0, "output": 75.0},
     "claude-sonnet-4-6":   {"input": 3.0,  "output": 15.0},
     "claude-haiku-4-5":    {"input": 0.80, "output": 4.0},
