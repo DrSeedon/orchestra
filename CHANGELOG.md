@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.19.0 — 2026-06-04
+
+### Added
+- 🔧 **Pipeline-as-config (PR #2)** — opt-in YAML manifests for roles/pipelines. Each client gets isolated `pipelines/<name>/` with custom roles, prompts, workflow. Rebased from v2.16.0 onto v2.18+, all conflicts resolved. `app/pipeline.py`, `pipelines/`
+
+### Fixed
+- 🐛 **TG topic icons for sub-orchestrator workers** — running status wasn't propagated to sub-orchestrator's TG topic. Added `notify_scope_running()` + `_find_scope_orch_name()` dedup. `session.py`, `tg_bridge.py`
+- 🐛 **Single tilde rendered as strikethrough** — agents writing `~5 min` got false strikethrough between two tildes. Fix: escape single `~` before marked.parse. `app.js`
+
 ## v2.18.0 — 2026-06-03
 
 ### Added
