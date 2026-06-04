@@ -131,6 +131,7 @@ class AgentSession:
     tg_topic: bool = False
 
     needs_switch: bool = False
+    last_task_sender: str = ""
 
     progress_pct: int = 0
     progress_status: str = ""

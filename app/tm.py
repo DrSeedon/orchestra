@@ -305,13 +305,14 @@ def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
     return str(task["par_number"])
 
 
-def link_commits_to_task(task_ref: str, commits: list[dict]) -> dict | None:
+def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str = "") -> dict | None:
     """Link commits to a task by ref (e.g. '192', '#192', or 'PAR-192' legacy).
-    commits: list of dicts with at least 'hash' key. Deduplicates by hash."""
+    commits: list of dicts with at least 'hash' key. Deduplicates by hash.
+    project_id: narrow search to this project to avoid ambiguous matches across projects."""
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            task = resolve_task_ref(conn, task_ref)
+            task = resolve_task_ref(conn, task_ref, project_id)
             if not task:
                 conn.rollback()
                 return None

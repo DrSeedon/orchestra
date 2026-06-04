@@ -611,6 +611,8 @@ async def send_message(name: str, req: SendRequest):
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)
+            if hasattr(session, 'last_task_sender'):
+                session.last_task_sender = req.sender
         else:
             from datetime import datetime, timezone, timedelta
             local_tz = timezone(timedelta(hours=7))
@@ -853,6 +855,7 @@ async def delete_session(name: str, scope: str, force: bool = False):
 @app.post("/api/sessions/{name}/merge")
 async def merge_session(name: str, req: dict):
     from app.workspace import merge_worktree_to_main
+    from app import tm as _tm
     scope = req.get("scope", "")
     target = req.get("target", "main")
     next_task_id = req.get("next_task_id", "")
@@ -874,9 +877,12 @@ async def merge_session(name: str, req: dict):
             result = await asyncio.to_thread(merge_worktree_to_main, worktree_path, scope, target_branch=target)
             if result.get("ok"):
                 link_results = {}
+                with _tm._conn() as _lc:
+                    _proj = _tm.get_project_by_scope(_lc, scope)
+                _link_project_id = _proj["id"] if _proj else ""
                 for task_ref, commits in result.pop("merged_commits", {}).items():
                     try:
-                        link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits)
+                        link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits, project_id=_link_project_id)
                     except Exception as link_err:
                         import logging
                         logging.getLogger(__name__).error("Failed to link commits to %s: %s", task_ref, link_err)
