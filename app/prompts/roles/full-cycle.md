@@ -1,7 +1,7 @@
 ---
 name: full-cycle
 label: Full-Cycle
-model: opus
+model: opus4.8
 skills: [codex-debate]
 modules: [git-workflow, report-format]
 when: New feature with unknowns, large refactoring (5+ files), external integration, anything where wrong approach = wasted day
