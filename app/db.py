@@ -379,6 +379,13 @@ def _migrate(c) -> None:
     client_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_clients)").fetchall()}
     if client_cols and "journal_yougile_id" not in client_cols:
         c.execute("ALTER TABLE tm_clients ADD COLUMN journal_yougile_id TEXT DEFAULT ''")
+    if task_cols:
+        max_price = c.execute("SELECT MAX(price_rub) FROM tm_tasks").fetchone()[0] or 0
+        if 0 < max_price < 1000:
+            c.execute("UPDATE tm_tasks SET price_rub = price_rub * 1000, paid_rub = paid_rub * 1000")
+            c.execute("UPDATE tm_payment_allocations SET amount_rub = amount_rub * 1000")
+            c.execute("UPDATE tm_payments SET amount_rub = amount_rub * 1000")
+            c.execute("UPDATE tm_clients SET balance_rub = balance_rub * 1000")
     if "role" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN role TEXT DEFAULT 'worker'")
         c.execute("UPDATE sessions SET role = 'orchestrator' WHERE is_orchestrator = 1")
