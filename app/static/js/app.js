@@ -1,4 +1,5 @@
 const MAX_CHAT_NODES = 500;
+const CUR = '₽';
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
@@ -1754,7 +1755,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__task_update') { const _f = Object.keys(parsed).filter(k=>k!=='par').map(k=>`${k}→${parsed[k]}`).join(', '); preview = `✏️ #${taskNum(parsed.par) || '?'}: ${_f}`; }
             else if (rawName === 'mcp__orchestra__task_list') { const _fl = [parsed.status,parsed.project,parsed.assignee].filter(Boolean).join(', '); preview = `📋 Tasks${_fl ? ' ('+_fl+')' : ''}`; }
             else if (rawName === 'mcp__orchestra__task_get') preview = `📋 #${taskNum(parsed.par) || '?'}`;
-            else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'}k ₽`;
+            else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'}k ${CUR}`;
             else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
             else if (rawName === 'mcp__orchestra__bg_create') { const _bi = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
             else if (rawName === 'mcp__orchestra__bg_list') preview = '📊 BG Jobs';
@@ -2427,11 +2428,11 @@ function addChatEntry(type, content, ts, anchor) {
             'mcp__orchestra__list_jobs': () => ({ icon: '📊', label: 'Jobs', color: '#38bdf8' }),
             'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
             'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `Info: ${d.name||'?'}`, color: '#a78bfa' }),
-            'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `New: "${d.title||'?'}"`, color: '#22c55e', sub: d.price ? `${d.price}k ₽` : '' }),
+            'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `New: "${d.title||'?'}"`, color: '#22c55e', sub: d.price ? `${d.price}k ${CUR}` : '' }),
             'mcp__orchestra__task_update': (d) => { const f = Object.keys(d).filter(k=>k!=='par').map(k=>`${k}→${d[k]}`).join(', '); return { icon: '✏️', label: `#${taskNum(d.par)||'?'}: ${f}`, color: '#38bdf8' }; },
             'mcp__orchestra__task_list': (d) => { const f = [d.status,d.project,d.assignee].filter(Boolean).join(', '); return { icon: '📋', label: `Tasks${f ? ' ('+f+')' : ''}`, color: '#a78bfa' }; },
             'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `Task #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
-            'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'}k ₽`, color: '#22c55e', sub: d.note || '' }),
+            'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'}k ${CUR}`, color: '#22c55e', sub: d.note || '' }),
             'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
             'mcp__orchestra__bg_create': (d) => { const i = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
             'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
@@ -2819,7 +2820,7 @@ function addChatEntry(type, content, ts, anchor) {
                     if (parsed.status) info.innerHTML += `<div>Status: <b style="color:${stColor}">${parsed.status}</b></div>`;
                     if (parsed.project) info.innerHTML += `<div>Project: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.project)}</span></div>`;
                     const priceRub = parsed.price_rub ?? 0;
-                    info.innerHTML += `<div>Price: <b style="color:#eab308">${_k(priceRub)} ₽</b></div>`;
+                    info.innerHTML += `<div>Price: <b style="color:#eab308">${_k(priceRub)} ${CUR}</b></div>`;
                     if (priceRub > 0) info.innerHTML += `<div>Paid: ${_k(parsed.paid_rub||0)}/${_k(priceRub)}${parsed.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(parsed.debt_rub)}</span>` : ''}</div>`;
                     if (parsed.assignee) info.innerHTML += `<div>Assignee: ${DOMPurify.sanitize(parsed.assignee)}</div>`;
                     if (parsed.created_at) info.innerHTML += `<div>Created: ${(parsed.created_at||'').slice(0,10)}</div>`;
@@ -2858,7 +2859,7 @@ function addChatEntry(type, content, ts, anchor) {
                     if (parsed.updated) {
                         for (const f of parsed.updated) {
                             if (f === 'status') continue;
-                            if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ₽`);
+                            if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ${CUR}`);
                             else if (f === 'assignee' && parsed.assignee != null) changes.push(`assignee→${parsed.assignee || '—'}`);
                             else if (f === 'title') changes.push('title');
                             else if (f === 'description') changes.push('description');
@@ -2902,7 +2903,7 @@ function addChatEntry(type, content, ts, anchor) {
                     }
                     const detail = document.createElement('div');
                     detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
-                    if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ₽</b></span>`;
+                    if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ${CUR}</b></span>`;
                     if (parsed.paid_rub > 0) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
                     if (parsed.debt_rub > 0) detail.innerHTML += `<span style="color:#ef4444">Debt: ${_kr(parsed.debt_rub)}</span>`;
                     if (detail.innerHTML) lastTool.appendChild(detail);
@@ -2921,7 +2922,7 @@ function addChatEntry(type, content, ts, anchor) {
                             let h = `<div style="font-size:11px;color:#e2e8f0;font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
                             h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;font-size:10px;color:#64748b;margin-top:3px">';
                             h += `<div>Status: <b style="color:#e2e8f0">${t.status}</b></div>`;
-                            if (t.price_rub > 0) h += `<div>Price: <b style="color:#eab308">${_k(t.price_rub)} ₽</b>${t.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(t.debt_rub)}</span>` : ''}</div>`;
+                            if (t.price_rub > 0) h += `<div>Price: <b style="color:#eab308">${_k(t.price_rub)} ${CUR}</b>${t.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(t.debt_rub)}</span>` : ''}</div>`;
                             if (t.project) h += `<div>Project: ${DOMPurify.sanitize(t.project)}</div>`;
                             if (t.assignee) h += `<div>→ ${DOMPurify.sanitize(t.assignee)}</div>`;
                             if (t.created_at) h += `<div>Created: ${t.created_at.slice(0,10)}</div>`;
@@ -2982,24 +2983,24 @@ function addChatEntry(type, content, ts, anchor) {
                 } else if (tn === 'mcp__orchestra__payment_receive') {
                     const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
                     const amt = parsed.amount_rub ? _kr(parsed.amount_rub) : (parsed.amount || '?') + 'k';
-                    if (hdr) { hdr.textContent = `💰 +${amt} ₽ received`; hdr.style.color = '#22c55e'; }
+                    if (hdr) { hdr.textContent = `💰 +${amt} ${CUR} received`; hdr.style.color = '#22c55e'; }
                     const payInfo = document.createElement('div');
                     payInfo.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
                     let payHtml = '';
                     if (parsed.distributions && parsed.distributions.length > 0) {
                         payHtml += parsed.distributions.map(d => {
                             const a = d.allocated ? _kr(d.allocated) : (d.amount || '?') + 'k';
-                            return `<div style="display:flex;gap:6px"><span style="color:#94a3b8;min-width:60px">${d.par}</span><span style="color:#22c55e">+${a} ₽</span>${d.remaining != null ? `<span style="color:#475569">remaining: ${_kr(d.remaining)}</span>` : ''}</div>`;
+                            return `<div style="display:flex;gap:6px"><span style="color:#94a3b8;min-width:60px">${d.par}</span><span style="color:#22c55e">+${a} ${CUR}</span>${d.remaining != null ? `<span style="color:#475569">remaining: ${_kr(d.remaining)}</span>` : ''}</div>`;
                         }).join('');
                     }
-                    if (parsed.balance_rub != null) payHtml += `<div style="margin-top:2px;color:#eab308">Balance: ${_kr(parsed.balance_rub)} ₽</div>`;
+                    if (parsed.balance_rub != null) payHtml += `<div style="margin-top:2px;color:#eab308">Balance: ${_kr(parsed.balance_rub)} ${CUR}</div>`;
                     if (payHtml) { payInfo.innerHTML = payHtml; lastTool.appendChild(payInfo); }
                 } else if (tn === 'mcp__orchestra__payment_status') {
                     const _kr = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
                     const bal = parsed.balance_rub != null ? _kr(parsed.balance_rub) : (parsed.balance_display || '0');
                     const debt = parsed.total_debt_rub != null ? _kr(parsed.total_debt_rub) : (parsed.total_debt_display || '0');
                     if (hdr) {
-                        hdr.textContent = `💰 Balance: ${bal} ₽ | Debt: ${debt} ₽`;
+                        hdr.textContent = `💰 Balance: ${bal} ${CUR} | Debt: ${debt} ${CUR}`;
                         hdr.style.color = '#eab308';
                     }
                     const payments = parsed.recent_payments || parsed.payments || [];
@@ -3015,7 +3016,7 @@ function addChatEntry(type, content, ts, anchor) {
                     if (parsed.tasks_with_debt && parsed.tasks_with_debt.length > 0) {
                         const dEl = document.createElement('div');
                         dEl.style.cssText = 'margin-top:4px;font-size:10px;color:#ef4444';
-                        dEl.innerHTML = '<div style="color:#64748b;margin-bottom:2px">Debt:</div>' + parsed.tasks_with_debt.map(t => `<div>${t.par}: ${_kr(t.debt_rub || t.debt)} ₽</div>`).join('');
+                        dEl.innerHTML = '<div style="color:#64748b;margin-bottom:2px">Debt:</div>' + parsed.tasks_with_debt.map(t => `<div>${t.par}: ${_kr(t.debt_rub || t.debt)} ${CUR}</div>`).join('');
                         lastTool.appendChild(dEl);
                     }
                 } else if (tn === 'mcp__orchestra__bg_list') {
@@ -4908,9 +4909,9 @@ async function showTaskDetail(par) {
         let html = '<div class="space-y-3">';
         html += '<div class="grid grid-cols-2 gap-2 text-xs">';
         html += `<div><span class="text-slate-500">Status:</span> <span class="font-bold">${t.status}</span></div>`;
-        html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k ₽' : '—'}</span></div>`;
+        html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k ${CUR}' : '—'}</span></div>`;
         html += `<div><span class="text-slate-500">Paid:</span> ${(t.paid_rub||0)/1000}/${(t.price_rub||0)/1000}k</div>`;
-        html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k ₽' : '0'}</span></div>`;
+        html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k ${CUR}' : '0'}</span></div>`;
         html += `<div><span class="text-slate-500">Assignee:</span> ${escHtml(t.assignee || '—')}</div>`;
         const _PRI = {0:'🔴 Critical',1:'🟠 High',2:'🟡 Medium',3:'🟢 Low'};
         html += `<div><span class="text-slate-500">Priority:</span> ${_PRI[t.priority] || 'Medium'}</div>`;

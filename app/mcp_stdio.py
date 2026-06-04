@@ -488,7 +488,7 @@ async def task_create(title: str, project: str, price: int = 0,
                       description: str = "", assignee: str = "",
                       status: str = "new", priority: int = 2) -> str:
     """Create a new task. Returns task number and details.
-    price in exact rubles (e.g. 20000 = 20 000₽). 0 is valid (no price).
+    price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
     priority: 0=critical, 1=high, 2=medium (default), 3=low."""
     result = await _api("POST", "/api/tm/tasks", json={
         "title": title, "project": project, "price": price,
@@ -505,7 +505,7 @@ async def task_update(par: str, title: str = "", description: str = "",
                       price: int = -1, status: str = "",
                       assignee: str = "", priority: int = -1) -> str:
     """Update an existing task. Only provided fields are changed.
-    par: '42' or 'PAR-42' (legacy). price in exact rubles (-1 = don't change, 0 = set to zero).
+    par: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).
     Empty string = don't change for text fields. priority: 0-3 or -1=don't change."""
     body: dict = {}
     if title:
@@ -560,7 +560,7 @@ async def task_get(par: str) -> str:
 async def payment_receive(amount: int, client: str = "",
                           date: str = "", note: str = "") -> str:
     """Record incoming payment. Auto-distributes to done tasks (smallest debt first).
-    amount in exact rubles (e.g. 30000 = 30 000₽)."""
+    amount in exact currency units (e.g. 30000 = 30 000)."""
     result = await _api("POST", "/api/tm/payments", json={
         "amount": amount, "client": client, "date": date, "note": note,
         "scope": SCOPE,
