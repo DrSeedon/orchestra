@@ -265,6 +265,7 @@ class AgentSession:
                 self._last_msg_time = self._turn_start
                 self.status = AgentStatus.RUNNING
                 self._persist()
+                asyncio.create_task(self._notify_scope_running())
 
             try:
                 backend = await self._ensure_backend()
@@ -798,21 +799,33 @@ class AgentSession:
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
         return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}
 
+    def _find_scope_orch_name(self, tg_mgr) -> str | None:
+        if self.is_orchestrator:
+            return self.name
+        for s in tg_mgr.sessions.values():
+            if s.is_orchestrator and s.scope == self.scope:
+                return s.name
+        return None
+
     async def _notify_scope_idle(self) -> None:
         try:
             from app.tg_bridge import check_scope_idle, _manager as tg_mgr
             if not tg_mgr:
                 return
-            if self.is_orchestrator:
-                orch_name = self.name
-            else:
-                orch_name = None
-                for s in tg_mgr.sessions.values():
-                    if s.is_orchestrator and s.scope == self.scope:
-                        orch_name = s.name
-                        break
+            orch_name = self._find_scope_orch_name(tg_mgr)
             if orch_name:
                 await check_scope_idle(orch_name, self.scope)
+        except Exception:
+            pass
+
+    async def _notify_scope_running(self) -> None:
+        try:
+            from app.tg_bridge import notify_scope_running, _manager as tg_mgr
+            if not tg_mgr:
+                return
+            orch_name = self._find_scope_orch_name(tg_mgr)
+            if orch_name:
+                await notify_scope_running(orch_name)
         except Exception:
             pass
 

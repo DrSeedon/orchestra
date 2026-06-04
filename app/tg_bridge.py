@@ -748,6 +748,10 @@ async def check_scope_idle(orch_name: str, scope: str):
         await _update_topic_status(orch_name, False)
 
 
+async def notify_scope_running(orch_name: str):
+    await _update_topic_status(orch_name, True)
+
+
 async def _sync_all_topic_statuses():
     if not _manager or not bot:
         return
