@@ -123,6 +123,7 @@ class ClaudeBackend:
         # orchestra (back-compat). expanduser — на случай "~" в config_dir.
         if self._config_dir:
             env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
+        agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
@@ -130,6 +131,7 @@ class ClaudeBackend:
             include_partial_messages=False, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
             env=env,
+            user=agent_uid,
         )
         if resume_id:
             options.resume = resume_id
