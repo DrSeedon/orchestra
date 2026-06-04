@@ -899,7 +899,7 @@ async def merge_session(name: str, req: dict):
                     par = _normalize_task_id(next_task_id)
                     new_branch = f"task-{par}/{name}"
                     switch_result = await asyncio.to_thread(
-                        switch_worktree_branch, worktree_path, new_branch, f"refs/heads/{target}")
+                        switch_worktree_branch, worktree_path, new_branch, f"refs/heads/{target}", force=True)
                     if switch_result.get("ok"):
                         found.branch = switch_result.get("branch", new_branch)
                         found.task_id = par

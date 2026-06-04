@@ -578,7 +578,8 @@ def _is_branch_checked_out_elsewhere(repo: str, branch: str, current_wt: Path) -
 
 
 def switch_worktree_branch(worktree_path: str, new_branch: str,
-                           from_ref: str = "refs/heads/main") -> dict:
+                           from_ref: str = "refs/heads/main",
+                           force: bool = False) -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), str(wt))
     lock_path = repo / ".git" / "orchestra-merge.lock"
@@ -590,6 +591,14 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         dirty_lines = status.stdout.strip().splitlines()[:10]
         dirty_files = [l[3:] for l in dirty_lines]
         return {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
+
+    unmerged = subprocess.run(
+        ["git", "rev-list", f"{from_ref}..HEAD", "--count"],
+        cwd=str(wt), capture_output=True, text=True,
+    )
+    if not force and unmerged.returncode == 0 and int(unmerged.stdout.strip() or "0") > 0:
+        n = unmerged.stdout.strip()
+        return {"ok": False, "error": f"{n} unmerged commit(s) on current branch — merge_worker first or pass force=True"}
 
     reset = subprocess.run(
         ["git", "reset", "--hard", from_ref],
