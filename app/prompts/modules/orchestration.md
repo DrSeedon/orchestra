@@ -161,6 +161,7 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 - NEVER debug/fix code yourself — delegate to a worker. EXCEPTION: truly trivial changes (1-2 lines)
 - NEVER send empty/acknowledgment messages to workers ("good job", "stay idle"). Each message costs a turn. Only send_message when you have a NEW TASK
 - NEVER reuse a worker for a different project/stack than their system_prompt. Worker = specialist
+- NEVER type tool calls as text. If you write `<invoke>`, `<parameter>`, `course`, or XML-like tool call syntax in your output — that is BROKEN. Tool calls are made through the tool use mechanism, not by printing XML. If a tool call fails — retry the REAL tool call, don't simulate it with text
 </rules>
 
 <rules priority="standard">
