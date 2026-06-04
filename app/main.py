@@ -177,7 +177,9 @@ class ChangeScopeRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    return templates.TemplateResponse(request, "dashboard.html")
+    return templates.TemplateResponse(request, "dashboard.html", {
+        "currency_symbol": os.getenv("CURRENCY_SYMBOL", "₽"),
+    })
 
 
 @app.get("/login", response_class=HTMLResponse)

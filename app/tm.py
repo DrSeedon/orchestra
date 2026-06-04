@@ -25,9 +25,7 @@ def _today() -> str:
     return date.today().isoformat()
 
 
-def _fmt_k(rub: int) -> str:
-    if rub >= 1000:
-        return f"{rub // 1000}k"
+def _fmt_amount(rub: int) -> str:
     return str(rub)
 
 
@@ -564,18 +562,18 @@ def get_payment_status(conn: sqlite3.Connection, client_id: str) -> dict:
     return {
         "client": client["name"],
         "balance_rub": client["balance_rub"],
-        "balance_display": _fmt_k(client["balance_rub"]),
+        "balance_display": _fmt_amount(client["balance_rub"]),
         "total_debt_rub": total_debt,
-        "total_debt_display": _fmt_k(total_debt),
+        "total_debt_display": _fmt_amount(total_debt),
         "net_position": client["balance_rub"] - total_debt,
         "tasks_with_debt": [
             {"par": str(t["par_number"]),
              "title": t["title"],
-             "debt": _fmt_k(t["price_rub"] - t["paid_rub"])}
+             "debt": _fmt_amount(t["price_rub"] - t["paid_rub"])}
             for t in tasks_with_debt
         ],
         "recent_payments": [
-            {"id": p["id"], "date": p["date"], "amount": _fmt_k(p["amount_rub"]),
+            {"id": p["id"], "date": p["date"], "amount": _fmt_amount(p["amount_rub"]),
              "note": p["note"]}
             for p in recent_payments
         ],
@@ -841,9 +839,9 @@ def api_list_tasks(project: str = "", status: str = "",
                 "par": str(t["par_number"]),
                 "title": t["title"],
                 "project": t["project_id"],
-                "price": _fmt_k(t["price_rub"]),
-                "paid": _fmt_k(t["paid_rub"]),
-                "debt": _fmt_k(t["price_rub"] - t["paid_rub"]),
+                "price": _fmt_amount(t["price_rub"]),
+                "paid": _fmt_amount(t["paid_rub"]),
+                "debt": _fmt_amount(t["price_rub"] - t["paid_rub"]),
                 "status": t["status"],
                 "assignee": t["assignee"],
                 "priority": t.get("priority", 2),
@@ -851,7 +849,7 @@ def api_list_tasks(project: str = "", status: str = "",
             for t in tasks
         ],
         "count": len(tasks),
-        "total_debt": _fmt_k(total_debt),
+        "total_debt": _fmt_amount(total_debt),
     }
 
 
