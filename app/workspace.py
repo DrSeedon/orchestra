@@ -1,13 +1,23 @@
 """Worktree management — create and remove git worktrees for agent sessions."""
 
+from __future__ import annotations
+
 import fcntl
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Только для аннотаций (строковые аннотации + from __future__ import annotations):
+    # рантайм-импорт не нужен, объекты приходят готовыми от вызывающего. Так избегаем
+    # циклической зависимости (pipeline ← workspace).
+    from app.pipeline import Symlink, Worktree as WorktreeCfg
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +58,59 @@ def _normalize_task_id(task_id: str) -> str:
     raise ValueError(f"Invalid task_id '{task_id}': expected number, #N, or PREFIX-N (legacy)")
 
 
+def _within(child: Path, *roots: Path) -> bool:
+    """True, если резолвнутый ``child`` лежит внутри одного из ``roots`` (или равен).
+
+    Защита от symlink-побега: строковый валидатор (:class:`Symlink`/``copies``) ловит
+    abs/``..`` в спеке, но если сам ``repo/docs_work`` — симлинк наружу, путь после
+    ``resolve()`` уйдёт за границу. Здесь проверяем уже резолвнутый реальный путь.
+    """
+    rc = child.resolve()
+    for root in roots:
+        rr = root.resolve()
+        if rc == rr or rr in rc.parents:
+            return True
+    return False
+
+
+def _resolve_src(repo: Path, rel: str) -> Path | None:
+    """Резолв source: ``repo/rel`` → fallback ``repo.parent/rel``. None если нет/побег.
+
+    Возвращает существующий путь, лежащий внутри ``repo`` или ``repo.parent``.
+    Симлинк, уводящий за обе границы, отбрасывается (containment по resolve()).
+    """
+    for base in (repo, repo.parent):
+        cand = base / rel
+        if cand.exists() and _within(cand, repo, repo.parent):
+            return cand
+    return None
+
+
+def _apply_symlink(repo: Path, wt_path: Path, sl: "Symlink") -> None:
+    """Создать симлинк ``wt_path/sl.target`` → source внутри/рядом с repo.
+
+    source резолвится как ``repo/sl.source`` с fallback ``repo.parent/sl.source``
+    (та же логика, что у copies: docs_work лежит в основном репо, gitignored).
+    Несуществующий source → warning + пропуск (worktree не падает, как у copies).
+    Пути sl.source/sl.target уже провалидированы pydantic (:class:`Symlink`);
+    дополнительно проверяем resolved-containment (symlink-побег).
+    """
+    src = _resolve_src(repo, sl.source)
+    if src is None:
+        logger.warning("symlink source '%s' not found/escapes (repo=%s) — skipped", sl.source, repo)
+        return
+    target = wt_path / sl.target
+    if not _within(target.parent, wt_path):
+        raise ValueError(f"symlink target '{sl.target}' escapes worktree")
+    os.symlink(str(src), str(target))
+
+
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
-                    base_branch: str = "main") -> Worktree:
+                    base_branch: str = "main",
+                    worktree_cfg: "WorktreeCfg | None" = None) -> Worktree:
+    # Защитный дефолт: пустая строка (sentinel из manager) → main, чтобы git не упал.
+    if not base_branch:
+        base_branch = "main"
     repo = Path(repo_path).resolve()
     if not repo.is_dir():
         raise ValueError(f"repo_path does not exist: {repo_path}")
@@ -98,13 +159,21 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
     if result.returncode != 0:
         raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
 
+    # worktree_cfg задан → правила манифеста (copies + symlinks) и ТОЛЬКО они.
+    # None → upstream-fallback: хардкод PROJECT_FILES, симлинков нет.
+    copies = worktree_cfg.copies if worktree_cfg is not None else list(PROJECT_FILES)
     try:
-        for fname in PROJECT_FILES:
-            src = repo / fname
-            if not src.exists():
-                src = repo.parent / fname
-            if src.exists():
-                shutil.copy2(str(src), str(wt_path / fname))
+        for fname in copies:
+            src = _resolve_src(repo, fname)
+            if src is None:
+                continue
+            dst = wt_path / fname
+            if not _within(dst.parent, wt_path):
+                raise ValueError(f"copy target '{fname}' escapes worktree")
+            shutil.copy2(str(src), str(dst))
+        if worktree_cfg is not None:
+            for sl in worktree_cfg.symlinks:
+                _apply_symlink(repo, wt_path, sl)
     except Exception:
         subprocess.run(
             ["git", "worktree", "remove", str(wt_path), "--force"],

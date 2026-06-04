@@ -60,13 +60,13 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        system_prompt: str = "",
                        task_id: str = "",
                        description: str = "",
-                       base_branch: str = "main",
+                       base_branch: str = "",
                        role: str = "worker",
                        mcp_servers: str = "",
                        owned_dirs: str = "",
                        tg_topic: bool = False) -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-4-6 for implementation from spec, gpt-5.5 for Codex.
-    base_branch — от какой ветки ответвить worktree воркера (default main).
+    base_branch — от какой ветки ответвить worktree воркера. Пусто ("") = авто по стратегии пайплайна (parent → от ветки родителя, иначе main); явно указанная ветка переопределяет стратегию.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""

@@ -85,7 +85,10 @@ class ClaudeBackend:
                  resume_session_id: str | None = None,
                  mcp_servers: dict | None = None,
                  is_orchestrator: bool = False,
-                 scope_mcp_servers: dict | None = None):
+                 scope_mcp_servers: dict | None = None,
+                 config_dir: str = "",
+                 inherit_claude_md: bool = True,
+                 user_mcp_servers: dict | None = None):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -93,6 +96,13 @@ class ClaudeBackend:
         self._mcp_servers = mcp_servers or {}
         self._scope_mcp_servers = scope_mcp_servers or {}
         self._is_orchestrator = is_orchestrator
+        # Профиль Claude (F1/F4 резолвятся против него): пустой → env процесса
+        # orchestra (back-compat, 1:1 upstream).
+        self._config_dir = config_dir
+        # F4: наследовать ли user/project CLAUDE.md + настройки профиля.
+        self._inherit_claude_md = inherit_claude_md
+        # F2: user-MCP из профильного .claude.json (базовый слой merge).
+        self._user_mcp_servers = user_mcp_servers or {}
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
 
@@ -108,6 +118,11 @@ class ClaudeBackend:
         for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
             if os.environ.get(_k):
                 env[_k] = os.environ[_k]
+        # Профиль: переопределяем CLAUDE_CONFIG_DIR подпроцесса (SDK строит
+        # env как {**os.environ, **options.env}). Пусто → наследуем env процесса
+        # orchestra (back-compat). expanduser — на случай "~" в config_dir.
+        if self._config_dir:
+            env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
@@ -116,13 +131,27 @@ class ClaudeBackend:
             max_buffer_size=50 * 1024 * 1024,
             env=env,
         )
-        options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
         if resume_id:
             options.resume = resume_id
-        merged_mcp = {**self._scope_mcp_servers, **self._mcp_servers}
+        else:
+            options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
+        merged_mcp = {
+            **self._user_mcp_servers,
+            **self._scope_mcp_servers,
+            **self._mcp_servers,
+        }
         if merged_mcp:
             options.mcp_servers = merged_mcp
-        options.setting_sources = ["user", "project", "local"]
+        # F4: inherit_claude_md=False → только local-слой (нет user/project
+        # CLAUDE.md и настроек); иначе — полный набор, как в upstream.
+        options.setting_sources = (
+            ["user", "project", "local"] if self._inherit_claude_md else ["local"]
+        )
+        # F1: options.skills НЕ задаём НИКОГДА. Ветка "skills-список → options.skills"
+        # сознательно НЕ реализована (B4: default 1:1 upstream — его роли имеют
+        # skills-списки, но скиллы инъектятся через _inject_skills_to_worktree,
+        # не через options.skills). Единственное действие F1 — gating инъекции
+        # в manager.create_session при skills=="all".
         return ClaudeSDKClient(options=options)
 
     async def _cleanup_failed_client(self) -> None:

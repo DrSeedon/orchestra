@@ -1,0 +1,73 @@
+name: default
+description: Upstream pipeline v2.18 (orchestrator / sub-orchestrator / worker / full-cycle). Behaviour 1:1 with mccalpink/orchestra main.
+validation: fail-open
+defaults:
+  model: opus
+  skills: []
+  mcp_servers: []
+  inherit_claude_md: true
+  prompt_layers:
+    orchestrator: [base.md, "roles/{role}.md"]
+    worker:       [base.md, "roles/{role}.md"]
+  worktree:
+    symlinks: []
+    copies:   [CLAUDE.md, .mcp.json, .env, .worktreeinclude]
+  base_branch_strategy: main
+  docs_scaffold: false
+roles:
+  orchestrator:
+    kind: orchestrator
+    label: Orchestrator
+    order: 0
+    model: opus
+    skills: [html-artifacts, vps-deploy, codex-debate]
+    modules: [git-workflow, orchestration]
+    can_spawn: ["*"]
+    allow_unrouted_workers: true
+    when: Managing a team of workers, decomposing tasks, approving plans
+    not_for: Direct implementation — delegate to workers
+    description: >
+      Manages worker agents. Decomposes tasks, spawns workers, reviews results.
+      Available worker roles are injected automatically from roles/ directory.
+  sub-orchestrator:
+    kind: orchestrator
+    label: Sub-Orchestrator
+    order: 1
+    model: opus
+    modules: [git-workflow, orchestration]
+    can_spawn: ["*"]
+    allow_unrouted_workers: true
+    tg: {emoji: "🎯"}
+    when: Managing a sub-team within a larger hierarchy (department lead, tech lead, team lead)
+    not_for: Direct implementation — delegate to workers
+    description: >
+      Manages a subset of workers under a parent orchestrator.
+      Reports up to parent, delegates down to workers.
+  worker:
+    kind: worker
+    label: Worker
+    order: 2
+    model: sonnet
+    skills: [codex-debate]
+    modules: [git-workflow, report-format]
+    can_spawn: ["*"]
+    allow_unrouted_workers: false
+    when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
+    not_for: Tasks needing research or unknown scope — use full-cycle
+    description: >
+      General-purpose worker. Implements tasks directly, no pipeline gates.
+      For system workers (permanent, module-scoped) and disposable one-shots.
+  full-cycle:
+    kind: worker
+    label: Full-Cycle
+    order: 3
+    model: opus
+    skills: [codex-debate]
+    modules: [git-workflow, report-format]
+    can_spawn: ["*"]
+    allow_unrouted_workers: false
+    when: New feature with unknowns, large refactoring (5+ files), external integration, anything where wrong approach = wasted day
+    not_for: Bug fixes, config changes, implementation from clear spec
+    description: >
+      Research → Plan + Codex review → Implement + Codex review. Strict 3-phase pipeline
+      with 2 orchestrator approval gates. All artifacts saved to docs/tasks/<id>/.

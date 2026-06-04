@@ -111,70 +111,305 @@ class TestStop:
 
 # ── Auto-report gate tests (Task 5) ──
 
-def _mk_session(monkeypatch, idle_sec):
-    monkeypatch.setattr("app.session.AUTO_REPORT_IDLE_SEC", idle_sec)
+# После мержа v2.16 авто-репорт стал немедленным (_fire_auto_report) вместо
+# отложенного (_schedule_auto_report/AUTO_REPORT_IDLE_SEC). Тесты обновлены под
+# живой API: проверяем те же гейты (did_report / orchestrator / pending / turn_ok),
+# но через немедленный fire. on_idle теперь принимает 4 аргумента (+stop_reason).
+
+def _mk_session(monkeypatch=None, idle_sec=None):
     from app.session import AgentSession
     s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp")
+    s._last_turn_ok = True
     return s
 
 
 @pytest.mark.asyncio
 async def test_auto_report_fires_after_idle_timeout(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.05)
+    s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
     s._turn_logs = ["did stuff"]
-    # имитируем завершение хода: планируем отложенный авто-репорт
-    s._schedule_auto_report()
-    await asyncio.sleep(0.15)
-    assert fired == ["w"]  # сработал после таймаута
+    # завершение хода → немедленный авто-репорт родителю
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
+    assert fired == ["w"]
 
 
 @pytest.mark.asyncio
 async def test_auto_report_skipped_if_did_report(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.05)
+    s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = True  # был явный send_message
-    s._schedule_auto_report()
-    await asyncio.sleep(0.15)
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
     assert fired == []  # явный отчёт был → авто-репорт не нужен
 
 
 @pytest.mark.asyncio
 async def test_auto_report_cancelled_by_new_turn(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.1)
+    # Живой гейт "есть незавершённая активность" — pending_messages: если у агента
+    # есть отложенные сообщения (пришёл новый ход), авто-репорт не стреляет.
+    s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
-    s._schedule_auto_report()
-    # новый ход стартовал до истечения окна → бампаем поколение
-    await asyncio.sleep(0.02)
-    s._bump_turn_gen()
-    await asyncio.sleep(0.15)
-    assert fired == []  # пришёл новый ход → отложенный репорт отменён
+    s._pending_messages = ["новый ход пришёл"]
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
+    assert fired == []  # есть pending → отчёт отложен
 
 
 @pytest.mark.asyncio
 async def test_orchestrator_never_auto_reports(monkeypatch):
-    s = _mk_session(monkeypatch, idle_sec=0.05)
+    s = _mk_session(monkeypatch)
     s.is_orchestrator = True   # оркестратор отчитывается наверх ТОЛЬКО явным send_message
     fired = []
-    async def on_idle(name, scope, texts):
+    async def on_idle(name, scope, texts, stop_reason=""):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
     s._turn_logs = ["ответил пользователю в чат"]
-    s._schedule_auto_report()
-    await asyncio.sleep(0.15)
+    s._fire_auto_report()
+    await asyncio.sleep(0.05)
     assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
+
+
+# ── Этап 1: pipeline + is_orchestrator как хранимое поле ──
+
+class TestPipelineField:
+    def test_pipeline_default_empty(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp")
+        assert s.pipeline == ""
+
+    def test_pipeline_can_be_set(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="tasks-pm")
+        assert s.pipeline == "tasks-pm"
+
+    def test_to_db_dict_includes_pipeline(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="tasks-pm")
+        assert s._to_db_dict()["pipeline"] == "tasks-pm"
+
+
+class TestIsOrchestratorStored:
+    def test_setter_overrides_role_fallback(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", role="worker")
+        assert s.is_orchestrator is False        # fallback от role
+        s.is_orchestrator = True                 # сеттер (раньше падал: no setter)
+        assert s.is_orchestrator is True
+
+    def test_fallback_to_role_when_unset(self):
+        from app.session import AgentSession
+        orch = AgentSession(id="i", name="o", scope="/s", cwd="/tmp", role="orchestrator")
+        wrk = AgentSession(id="j", name="w", scope="/s", cwd="/tmp", role="worker")
+        assert orch.is_orchestrator is True       # frozenset fallback
+        assert wrk.is_orchestrator is False
+
+    def test_setter_false_overrides_orchestrator_role(self):
+        from app.session import AgentSession
+        s = AgentSession(id="i", name="o", scope="/s", cwd="/tmp", role="orchestrator")
+        s.is_orchestrator = False                # явный override (манифест может сказать worker)
+        assert s.is_orchestrator is False
+
+
+# ── Этап 6, Чанк 3: профиль + F1/F2/F4 в бэкенде ──────────────────────────
+
+class TestClaudeBackendProfile:
+    """ClaudeBackend строит options с учётом профиля / F1-F2-F4 (offline)."""
+
+    def _opts(self, **kw):
+        from app.backend_claude import ClaudeBackend
+        b = ClaudeBackend(model="opus", cwd="/tmp", system_prompt="x", **kw)
+        return b._make_client().options
+
+    def test_config_dir_sets_env(self):
+        opts = self._opts(config_dir="/tmp/x")
+        assert opts.env["CLAUDE_CONFIG_DIR"] == "/tmp/x"
+
+    def test_config_dir_expanduser(self):
+        import os
+        opts = self._opts(config_dir="~/some-profile")
+        assert opts.env["CLAUDE_CONFIG_DIR"] == os.path.expanduser("~/some-profile")
+
+    def test_empty_config_dir_no_env_key(self):
+        opts = self._opts(config_dir="")
+        assert "CLAUDE_CONFIG_DIR" not in opts.env
+
+    def test_f4_inherit_true_has_project(self):
+        opts = self._opts(inherit_claude_md=True)
+        assert "project" in opts.setting_sources
+        assert "user" in opts.setting_sources
+
+    def test_f4_inherit_false_local_only(self):
+        opts = self._opts(inherit_claude_md=False)
+        assert opts.setting_sources == ["local"]
+        assert "user" not in opts.setting_sources
+        assert "project" not in opts.setting_sources
+
+    def test_f1_skills_never_set_default(self):
+        # Дефолт (нет params) — options.skills не выставлен.
+        opts = self._opts()
+        assert getattr(opts, "skills", None) is None
+
+    def test_f1_skills_never_set_with_profile(self):
+        # Даже с профилем и user-MCP — options.skills остаётся None.
+        opts = self._opts(config_dir="/tmp/x", inherit_claude_md=False,
+                          user_mcp_servers={"foo": {"command": "x"}})
+        assert getattr(opts, "skills", None) is None
+
+    def test_f2_user_mcp_merged(self):
+        opts = self._opts(user_mcp_servers={"foo": {"command": "x"}})
+        assert "foo" in opts.mcp_servers
+
+    def test_f2_orchestra_not_overridden_by_user(self):
+        # user-MCP — базовый слой; серверный orchestra (в mcp_servers) выигрывает.
+        opts = self._opts(
+            user_mcp_servers={"orchestra": {"command": "USER"}},
+            mcp_servers={"orchestra": {"command": "SERVER"}},
+        )
+        assert opts.mcp_servers["orchestra"]["command"] == "SERVER"
+
+    def test_f2_user_and_server_coexist(self):
+        opts = self._opts(
+            user_mcp_servers={"foo": {"command": "f"}},
+            mcp_servers={"orchestra": {"command": "o"}},
+        )
+        assert "foo" in opts.mcp_servers
+        assert "orchestra" in opts.mcp_servers
+
+
+class TestLoadUserMcpServers:
+    """_load_user_mcp_servers — ридер top-level .claude.json профиля."""
+
+    def test_reads_config_dir_claude_json(self, tmp_path):
+        from app.session import _load_user_mcp_servers
+        (tmp_path / ".claude.json").write_text(
+            '{"mcpServers": {"foo": {"command": "x"}, "orchestra": {"command": "o"}}}'
+        )
+        got = _load_user_mcp_servers(str(tmp_path))
+        assert got == {"foo": {"command": "x"}}  # orchestra скипнут
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        from app.session import _load_user_mcp_servers
+        got = _load_user_mcp_servers(str(tmp_path))  # нет .claude.json
+        assert got == {}
+
+    def test_no_mcp_servers_key(self, tmp_path):
+        from app.session import _load_user_mcp_servers
+        (tmp_path / ".claude.json").write_text('{"other": 1}')
+        assert _load_user_mcp_servers(str(tmp_path)) == {}
+
+    def test_malformed_json_warns_and_empty(self, tmp_path):
+        from app.session import _load_user_mcp_servers
+        (tmp_path / ".claude.json").write_text("{not json")
+        assert _load_user_mcp_servers(str(tmp_path)) == {}
+
+    def test_empty_config_dir_uses_home(self, tmp_path, monkeypatch):
+        from app.session import _load_user_mcp_servers
+        monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+        (tmp_path / ".claude.json").write_text(
+            '{"mcpServers": {"bar": {"command": "y"}}}'
+        )
+        assert _load_user_mcp_servers("") == {"bar": {"command": "y"}}
+
+
+class TestMakeBackendProfileWiring:
+    """_make_backend резолвит профиль/inherit/user-MCP и прокидывает в ClaudeBackend."""
+
+    def _session(self, monkeypatch, **kw):
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        from app.session import AgentSession
+        defaults = dict(id="i", name="w", scope="/s", cwd="/tmp",
+                        model="claude-opus-4-6", system_prompt="x", role="worker")
+        defaults.update(kw)
+        return AgentSession(**defaults)
+
+    def test_default_pipeline_no_profile(self, monkeypatch):
+        # default worker: mcp!=all → user_mcp пуст; inherit True; config_dir пуст.
+        s = self._session(monkeypatch, pipeline="default", role="worker")
+        b = s._make_backend()
+        assert b._config_dir == ""
+        assert b._inherit_claude_md is True
+        assert b._user_mcp_servers == {}
+
+    def test_profile_resolves_config_dir(self, monkeypatch):
+        from app.backend_claude import ClaudeBackend
+        # Мокаем резолв роли и профиля — не полагаемся на приватные файлы.
+        rr = MagicMock(inherit_claude_md=False, mcp_servers=["x"])
+        monkeypatch.setattr("app.pipeline.get_role", lambda p, r: rr)
+        monkeypatch.setattr("app.db.get_profile",
+                            lambda n: {"name": n, "config_dir": "/tmp/work"})
+        s = self._session(monkeypatch, pipeline="p", profile="work")
+        b = s._make_backend()
+        assert isinstance(b, ClaudeBackend)
+        assert b._config_dir == "/tmp/work"
+        assert b._inherit_claude_md is False
+        assert b._user_mcp_servers == {}  # mcp_servers != "all"
+
+    def test_mcp_all_loads_user_mcp(self, monkeypatch, tmp_path):
+        rr = MagicMock(inherit_claude_md=True, mcp_servers="all")
+        monkeypatch.setattr("app.pipeline.get_role", lambda p, r: rr)
+        monkeypatch.setattr("app.db.get_profile",
+                            lambda n: {"name": n, "config_dir": str(tmp_path)})
+        (tmp_path / ".claude.json").write_text(
+            '{"mcpServers": {"foo": {"command": "x"}}}'
+        )
+        s = self._session(monkeypatch, pipeline="p", profile="work")
+        b = s._make_backend()
+        assert b._user_mcp_servers == {"foo": {"command": "x"}}
+
+    def test_missing_manifest_fallback(self, monkeypatch):
+        # get_role кидает FileNotFoundError → rr None → inherit True, user_mcp пуст.
+        def _raise(p, r):
+            raise FileNotFoundError("no manifest")
+        monkeypatch.setattr("app.pipeline.get_role", _raise)
+        s = self._session(monkeypatch, pipeline="ghost", role="worker")
+        b = s._make_backend()
+        assert b._inherit_claude_md is True
+        assert b._config_dir == ""
+        assert b._user_mcp_servers == {}
+
+    def test_profile_not_found_empty_config_dir(self, monkeypatch):
+        rr = MagicMock(inherit_claude_md=True, mcp_servers=[])
+        monkeypatch.setattr("app.pipeline.get_role", lambda p, r: rr)
+        monkeypatch.setattr("app.db.get_profile", lambda n: None)
+        s = self._session(monkeypatch, pipeline="p", profile="ghost")
+        b = s._make_backend()
+        assert b._config_dir == ""
+
+    def test_claude_work_profile_end_to_end_env(self, monkeypatch, tmp_path):
+        """C3: профиль work с config_dir='~/.claude-work' доходит до env агента.
+
+        Полная цепочка: DB-профиль → _make_backend (config_dir) →
+        _make_client → ClaudeAgentOptions.env['CLAUDE_CONFIG_DIR'], раскрытый
+        через expanduser. HOME подменяем на tmp_path, чтобы тильда резолвилась
+        предсказуемо и тест не зависел от реальной FS машины.
+        """
+        rr = MagicMock(inherit_claude_md=True, mcp_servers=[])
+        monkeypatch.setattr("app.pipeline.get_role", lambda p, r: rr)
+        monkeypatch.setattr(
+            "app.db.get_profile",
+            lambda n: {"name": n, "config_dir": "~/.claude-work"},
+        )
+        monkeypatch.setenv("HOME", str(tmp_path))
+        s = self._session(monkeypatch, pipeline="p", profile="work")
+        b = s._make_backend()
+        # config_dir хранится нераскрытым (expanduser — только при сборке env)
+        assert b._config_dir == "~/.claude-work"
+        opts = b._make_client().options
+        assert opts.env["CLAUDE_CONFIG_DIR"] == str(tmp_path / ".claude-work")
 
 
 # ── Task #39: P0 fixes ──

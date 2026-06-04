@@ -210,10 +210,12 @@ def test_create_request_accepts_base_branch():
     assert req.base_branch == "feature/auth"
 
 
-def test_create_request_base_branch_default_main():
+def test_create_request_base_branch_default_empty():
+    # Sentinel "" = авто-резолв базовой ветки по стратегии пайплайна (DESIGN §10).
+    # Резолв в "main" происходит в manager/workspace, а не в дефолте запроса.
     from app.main import CreateSessionRequest
     req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6")
-    assert req.base_branch == "main"
+    assert req.base_branch == ""
 
 
 @pytest.mark.asyncio
@@ -241,6 +243,151 @@ async def test_merge_endpoint_passes_target(monkeypatch):
     assert captured["target_branch"] == "feature/auth"
 
 
+class TestPipelines:
+    def test_list_valid_only(self, client):
+        r = client.get("/api/pipelines")
+        assert r.status_code == 200
+        data = r.json()
+        names = [p["name"] for p in data]
+        assert "default" in names
+        # все возвращённые — валидны (поле valid не отдаётся, но битых быть не должно)
+        for p in data:
+            assert "name" in p and "description" in p and "roles" in p
+
+    def test_excludes_invalid(self, client, monkeypatch):
+        import app.main as mainmod
+        monkeypatch.setattr(mainmod, "list_pipelines", lambda: [
+            {"name": "good", "description": "d", "roles": ["pm"], "valid": True, "error": None},
+            {"name": "broken", "description": "", "roles": [], "valid": False, "error": "boom"},
+        ])
+        r = client.get("/api/pipelines")
+        names = [p["name"] for p in r.json()]
+        assert "good" in names
+        assert "broken" not in names
+
+
+class TestProfiles:
+    def test_list_contains_personal(self, client):
+        r = client.get("/api/profiles")
+        assert r.status_code == 200
+        names = [p["name"] for p in r.json()]
+        assert "personal" in names
+
+    def test_create_and_update(self, client):
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": "/tmp/x"})
+        assert r.status_code == 200
+        g = client.get("/api/profiles").json()
+        work = [p for p in g if p["name"] == "work"]
+        assert len(work) == 1
+        assert work[0]["config_dir"] == "/tmp/x"
+
+        # повторный POST с другим config_dir — обновляет, не дублирует
+        r2 = client.post("/api/profiles", json={"name": "work", "config_dir": "/tmp/y"})
+        assert r2.status_code == 200
+        g2 = client.get("/api/profiles").json()
+        work2 = [p for p in g2 if p["name"] == "work"]
+        assert len(work2) == 1
+        assert work2[0]["config_dir"] == "/tmp/y"
+
+    def test_create_invalid_name_400(self, client):
+        r = client.post("/api/profiles", json={"name": "a b!", "config_dir": "/tmp/x"})
+        assert r.status_code == 400
+
+    def test_delete_profile(self, client):
+        client.post("/api/profiles", json={"name": "work", "config_dir": "/tmp/x"})
+        r = client.delete("/api/profiles/work")
+        assert r.status_code == 200
+        names = [p["name"] for p in client.get("/api/profiles").json()]
+        assert "work" not in names
+
+    def test_delete_personal_protected(self, client):
+        r = client.delete("/api/profiles/personal")
+        assert r.status_code == 409
+        names = [p["name"] for p in client.get("/api/profiles").json()]
+        assert "personal" in names
+
+    # ── C1: мягкая валидация config_dir ──
+
+    def test_create_existing_dir_no_warning(self, client, tmp_path):
+        """config_dir указывает на существующую папку → 200, warning отсутствует."""
+        cfg = tmp_path / "claude-cfg"
+        cfg.mkdir()
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": str(cfg)})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["warning"] is None
+        # профиль реально в списке
+        g = client.get("/api/profiles").json()
+        assert any(p["name"] == "work" and p["config_dir"] == str(cfg) for p in g)
+
+    def test_create_missing_dir_warns_but_saves(self, client, tmp_path):
+        """Несуществующий config_dir → 200 (НЕ ошибка), warning есть, профиль СОХРАНЁН."""
+        missing = tmp_path / "does-not-exist"
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": str(missing)})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["warning"] is not None
+        assert str(missing) in body["warning"]
+        # несмотря на warning — профиль сохранён и виден в GET
+        g = client.get("/api/profiles").json()
+        assert any(p["name"] == "work" and p["config_dir"] == str(missing) for p in g)
+        # warning-ответ содержит и сам список профилей
+        assert any(p["name"] == "work" for p in body["profiles"])
+
+    def test_create_empty_config_dir_no_warning(self, client):
+        """Пустой config_dir (как у personal) → warning отсутствует."""
+        r = client.post("/api/profiles", json={"name": "noenv", "config_dir": ""})
+        assert r.status_code == 200
+        assert r.json()["warning"] is None
+
+    def test_create_tilde_expands_existing(self, client, tmp_path, monkeypatch):
+        """C3: путь вида ``~/.claude-work`` нормализуется через expanduser.
+
+        HOME подменяем на tmp_path и создаём реальную ``.claude-work`` —
+        warning не должен появиться, что доказывает раскрытие тильды.
+        """
+        work = tmp_path / ".claude-work"
+        work.mkdir()
+        monkeypatch.setenv("HOME", str(tmp_path))
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": "~/.claude-work"})
+        assert r.status_code == 200
+        assert r.json()["warning"] is None
+
+    def test_create_tilde_missing_warns(self, client, tmp_path, monkeypatch):
+        """C3: ``~/.claude-work`` без реальной папки → warning (но сохранён as-is)."""
+        monkeypatch.setenv("HOME", str(tmp_path))  # пусто, .claude-work не создаём
+        r = client.post("/api/profiles", json={"name": "work", "config_dir": "~/.claude-work"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["warning"] is not None
+        # хранится исходная (нераскрытая) строка — expanduser только для проверки
+        g = client.get("/api/profiles").json()
+        assert any(p["config_dir"] == "~/.claude-work" for p in g)
+
+
+@pytest.mark.asyncio
+async def test_create_session_passes_pipeline_and_profile(monkeypatch):
+    import app.main as mainmod
+    captured = {}
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+
+        class _Sess:
+            def to_dict(self):
+                return {"name": kwargs["name"], "id": "sid"}
+        return _Sess()
+
+    monkeypatch.setattr(mainmod.manager, "create_session", fake_create)
+    monkeypatch.setattr(mainmod, "_is_safe_path", lambda p: True)
+
+    req = mainmod.CreateSessionRequest(
+        name="w1", cwd="/tmp", model="claude-sonnet-4-6",
+        pipeline="default", profile="work",
+    )
+    await mainmod.create_session(req)
+    assert captured["pipeline"] == "default"
+    assert captured["profile"] == "work"
 class TestChangeScopeEndpoint:
     def test_success(self, client, tmp_path):
         newdir = tmp_path / "newproj"; newdir.mkdir()

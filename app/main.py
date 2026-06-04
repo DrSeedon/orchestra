@@ -21,7 +21,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import init_db, get_logs, get_logs_before, get_all_sessions
+from app.db import (
+    init_db, get_logs, get_logs_before, get_all_sessions,
+    list_profiles, upsert_profile, delete_profile,
+)
+from app.pipeline import list_pipelines
 from app.deps import manager
 from app.models import resolve_model, MODELS
 from app.session import AgentStatus
@@ -106,9 +110,11 @@ class CreateSessionRequest(BaseModel):
     role: str = ""
     task_id: str = ""
     description: str = ""
-    base_branch: str = "main"
+    base_branch: str = ""
     parent_name: str = ""
     mcp_servers: dict = {}
+    pipeline: str = ""
+    profile: str = ""
     owned_dirs: list[str] = []
     tg_topic: bool = False
 
@@ -139,6 +145,12 @@ class CreateSessionRequest(BaseModel):
         if self.use_worktree and not self.repo_path:
             raise ValueError("repo_path required when use_worktree=True")
         return self
+
+
+class ProfileRequest(BaseModel):
+    """Тело запроса для создания/обновления профиля Claude."""
+    name: str
+    config_dir: str = ""
 
 
 class SendRequest(BaseModel):
@@ -410,6 +422,8 @@ async def create_session(req: CreateSessionRequest):
             base_branch=req.base_branch,
             parent_name=req.parent_name,
             mcp_servers=req.mcp_servers,
+            pipeline=req.pipeline,
+            profile=req.profile,
             owned_dirs=req.owned_dirs,
             tg_topic=req.tg_topic,
         )
@@ -425,6 +439,58 @@ async def create_session(req: CreateSessionRequest):
         import traceback
         logging.getLogger(__name__).error(f"spawn failed: {traceback.format_exc()}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pipelines")
+async def get_pipelines():
+    """Только валидные пайплайны для UI-дропдаунa: ``[{name, description, roles}]``."""
+    return [
+        {"name": p["name"], "description": p["description"], "roles": p["roles"]}
+        for p in list_pipelines()
+        if p["valid"]
+    ]
+
+
+@app.get("/api/profiles")
+async def get_profiles():
+    """Все профили Claude: ``[{name, config_dir}]``."""
+    return list_profiles()
+
+
+@app.post("/api/profiles")
+async def create_profile(req: ProfileRequest):
+    """Создать или обновить профиль. Имя валидируется тем же regex, что у сессий.
+
+    Валидация ``config_dir`` — **мягкая**: если путь непустой и не указывает на
+    существующую директорию, профиль всё равно сохраняется, но в ответ
+    добавляется ``warning``. Это не блокирует пользователя (папку может создать
+    CLI или она появится позже), но предупреждает об опечатке заранее, а не
+    при первом запуске агента. Формат ответа: ``{profiles, warning}``.
+    """
+    if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", req.name):
+        return JSONResponse(
+            {"error": "name must be alphanumeric with ._- allowed, 1-50 chars"},
+            status_code=400,
+        )
+    warning = None
+    config_dir = req.config_dir
+    if config_dir and not Path(os.path.expanduser(config_dir)).is_dir():
+        warning = (
+            f"config_dir '{config_dir}' не существует — будет создан CLI "
+            "или приведёт к ошибке при запуске"
+        )
+    upsert_profile(req.name, config_dir)
+    return {"profiles": list_profiles(), "warning": warning}
+
+
+@app.delete("/api/profiles/{name}")
+async def remove_profile(name: str):
+    """Удалить профиль. Сид-профиль ``personal`` защищён → 409."""
+    try:
+        delete_profile(name)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=409)
+    return list_profiles()
 
 
 @app.get("/api/sessions/{name}")
