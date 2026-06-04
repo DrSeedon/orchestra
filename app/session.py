@@ -160,6 +160,7 @@ class AgentSession:
     _compact_ack_event: Optional[asyncio.Event] = field(default=None, repr=False)
     _compact_ack_gen: int = field(default=-1, repr=False)
     _last_cost: float = field(default=0.0, repr=False)
+    _turn_cost: float = field(default=0.0, repr=False)
     _last_cost_cached: float = field(default=0.0, repr=False)
     _last_turn_ok: bool = field(default=True, repr=False)
     _last_stop_reason: str = field(default="", repr=False)
@@ -543,10 +544,9 @@ class AgentSession:
             self._spawn_bg(self._auto_continue())
             return
 
-        cost = meta.get("cost_usd", 0)
         live_pct = self._last_context.get("percentage", 0)
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
-        self._log("status", f"turn ended ({sr}, {nt} turns, ${cost:.2f} {ctx_s})")
+        self._log("status", f"turn ended ({sr}, {nt} turns, ${self._turn_cost:.2f} this turn, ${self.cost_usd:.2f} total {ctx_s})")
 
         self._finish_turn_status()
         self._after_turn_idle_actions(live_pct)
@@ -566,7 +566,8 @@ class AgentSession:
         if sid:
             self.session_id = sid
         new_cost = meta.get("cost_usd", 0)
-        self.cost_usd += max(0, new_cost - self._last_cost)
+        self._turn_cost = max(0, new_cost - self._last_cost)
+        self.cost_usd += self._turn_cost
         self._last_cost = new_cost
         new_cost_cached = meta.get("cost_usd_cached", 0)
         self.cost_usd_cached += max(0, new_cost_cached - self._last_cost_cached)
