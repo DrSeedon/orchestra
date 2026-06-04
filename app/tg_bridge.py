@@ -1175,6 +1175,8 @@ async def start_bridge(manager):
 
     _tasks.append(asyncio.create_task(_safe_polling()))
     _tasks.append(asyncio.create_task(_deferred_startup()))
+    if local_api:
+        _tasks.append(asyncio.create_task(_bot_api_health_loop(local_api)))
     logger.info(f"TG Bridge started (polling immediate, topics deferred) | group={group}")
 
 
@@ -1188,6 +1190,29 @@ async def _deferred_startup():
         logger.info(f"TG deferred startup done | topics={len(config['topics'])}")
     except Exception as e:
         logger.error(f"TG deferred startup failed: {e}")
+
+
+async def _bot_api_health_loop(local_api: str):
+    import subprocess
+    import aiohttp as _aio
+    fails = 0
+    while True:
+        await asyncio.sleep(120)
+        try:
+            async with _aio.ClientSession() as s:
+                async with s.get(local_api, timeout=_aio.ClientTimeout(total=5)) as r:
+                    if r.status < 500:
+                        fails = 0
+                        continue
+        except Exception:
+            pass
+        fails += 1
+        logger.warning(f"Bot API health check failed ({fails}/3)")
+        if fails >= 3:
+            logger.error("Bot API unresponsive — restarting telegram-bot-api service")
+            subprocess.run(["sudo", "systemctl", "restart", "telegram-bot-api"], capture_output=True)
+            fails = 0
+            await asyncio.sleep(30)
 
 
 async def _safe_polling():
