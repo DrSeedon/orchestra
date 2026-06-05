@@ -385,9 +385,8 @@ class AgentSession:
                     if self._turn_start and (asyncio.get_event_loop().time() - self._turn_start) > self.TURN_TIMEOUT:
                         logger.error(f"[{self.name}] turn timeout")
                         self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
-                        self._turn_start = 0
-                        self.status = AgentStatus.IDLE
-                        self._persist()
+                        self._turn_start = asyncio.get_event_loop().time()
+                        # Keep status=RUNNING — agent is actively being continued
                         await self._backend.send("[system] Turn timed out. Continue where you left off.")
                         continue
                     self._handle_event(event)
