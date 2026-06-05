@@ -215,6 +215,10 @@ class AgentSession:
             user_mcp: dict = {}
             if rr is not None and rr.mcp_servers == "all":
                 user_mcp = _load_user_mcp_servers(config_dir)
+            # #58: lean_tools=True для coding-воркеров (worker роль) — режет префикс с 48K до 20K.
+            # full-cycle, orchestrator, sub-orchestrator — False (нужны WebSearch/MCP/spawn tools).
+            _LEAN_ROLES = frozenset({"worker", "reviewer", "watcher"})
+            lean = not self.is_orchestrator and self.role in _LEAN_ROLES
             return ClaudeBackend(
                 model=self.model, cwd=self.cwd,
                 system_prompt=self.system_prompt,
@@ -225,6 +229,7 @@ class AgentSession:
                 config_dir=config_dir,
                 inherit_claude_md=inherit,
                 user_mcp_servers=user_mcp,
+                lean_tools=lean,
             )
 
     def _codex_reasoning_effort(self) -> str:

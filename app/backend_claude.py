@@ -88,7 +88,8 @@ class ClaudeBackend:
                  scope_mcp_servers: dict | None = None,
                  config_dir: str = "",
                  inherit_claude_md: bool = True,
-                 user_mcp_servers: dict | None = None):
+                 user_mcp_servers: dict | None = None,
+                 lean_tools: bool = False):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -103,6 +104,7 @@ class ClaudeBackend:
         self._inherit_claude_md = inherit_claude_md
         # F2: user-MCP из профильного .claude.json (базовый слой merge).
         self._user_mcp_servers = user_mcp_servers or {}
+        self._lean_tools = lean_tools
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
 
@@ -121,6 +123,8 @@ class ClaudeBackend:
         # #56: kill non-essential background haiku calls (tips/banter/flavor) + telemetry
         env["DISABLE_NON_ESSENTIAL_MODEL_CALLS"] = "1"
         env["DISABLE_TELEMETRY"] = "1"
+        env["DISABLE_ERROR_REPORTING"] = "1"               # #58: Sentry off
+        env["CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY"] = "1"  # #58: survey off
         # Профиль: переопределяем CLAUDE_CONFIG_DIR подпроцесса (SDK строит
         # env как {**os.environ, **options.env}). Пусто → наследуем env процесса
         # orchestra (back-compat). expanduser — на случай "~" в config_dir.
@@ -152,6 +156,10 @@ class ClaudeBackend:
         options.setting_sources = (
             ["user", "project", "local"] if self._inherit_claude_md else ["local"]
         )
+        # #58: per-role tools — lean prefix for coding workers (-57% tokens).
+        # orchestrators и full-cycle нуждаются в полном наборе (WebSearch, spawn_worker и т.д.).
+        if not self._is_orchestrator and self._lean_tools:
+            options.tools = ["Read", "Edit", "Write", "Bash", "Glob", "Grep"]
         # F1: options.skills НЕ задаём НИКОГДА. Ветка "skills-список → options.skills"
         # сознательно НЕ реализована (B4: default 1:1 upstream — его роли имеют
         # skills-списки, но скиллы инъектятся через _inject_skills_to_worktree,
