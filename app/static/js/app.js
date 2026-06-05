@@ -1860,7 +1860,9 @@ function _findLastBefore(parent, selector, anchor) {
     return null;
 }
 
+const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
 function addChatEntry(type, content, ts, anchor) {
+    if (HIDE_THINKING && type === 'thinking') return;
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
     const _insert = (el) => anchor ? chat.insertBefore(el, anchor) : chat.appendChild(el);
