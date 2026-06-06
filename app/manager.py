@@ -186,20 +186,6 @@ def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
             'If no role specified, defaults to `worker`.\n\n' + "\n\n".join(entries))
 
 
-_SAFETY_PREFIX: str | None = None
-
-def _get_safety_prefix() -> str:
-    global _SAFETY_PREFIX
-    if _SAFETY_PREFIX is None:
-        from app.auth import is_auth_enabled
-        if is_auth_enabled():
-            p = Path(__file__).parent / "prompts" / "safety.md"
-            _SAFETY_PREFIX = p.read_text() if p.exists() else ""
-        else:
-            _SAFETY_PREFIX = ""
-    return _SAFETY_PREFIX
-
-
 def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     """Системный промпт роли: статика слоёв пайплайна + динамика (каталог/блоки).
 
@@ -215,9 +201,10 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     try:
         base = build_system_prompt(pipeline, role, scope)
     except (FileNotFoundError, KeyError):
-        result = _UPSTREAM_ROLE_SYSTEM_PROMPT(role, scope)
-        safety = _get_safety_prefix()
-        return f"{safety}\n\n{result}" if safety else result
+        # Нет манифеста (FileNotFoundError) ИЛИ роли нет в манифесте (KeyError):
+        # делегируем в upstream-fallback (B4: default/fail-open 1:1 — upstream
+        # допускал произвольную роль воркера с fallback на worker/orchestrator).
+        return _UPSTREAM_ROLE_SYSTEM_PROMPT(role, scope)
     rr = get_role(pipeline, role)
     is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
     if is_orch:
@@ -230,8 +217,7 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
         workers = _workers_block(scope)
         if workers:
             base += f"\n\n{workers}"
-    safety = _get_safety_prefix()
-    return f"{safety}\n\n{base}" if safety else base
+    return base
 
 
 def ORCHESTRATOR_SYSTEM_PROMPT(pipeline: str = DEFAULT_PIPELINE, scope: str = "") -> str:
