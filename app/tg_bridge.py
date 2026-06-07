@@ -855,6 +855,122 @@ async def ensure_topics():
             logger.warning(f"Mirror topic creation failed for {name}: {e}")
 
 
+def _diff_images_enabled() -> bool:
+    return os.getenv("TG_DIFF_IMAGES", "true").lower() not in ("0", "false", "no")
+
+
+async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) -> None:
+    """Send PNG bytes as a photo to TG. Temp file cleaned up after send."""
+    import uuid, tempfile
+    if not png or not bot:
+        return
+    tmp = os.path.join(tempfile.gettempdir(), f"diff-{uuid.uuid4().hex}.png")
+    with open(tmp, "wb") as f:
+        f.write(png)
+    try:
+        from aiogram.types import FSInputFile
+        await bot.send_photo(chat_id, FSInputFile(tmp), message_thread_id=thread_id)
+    finally:
+        try:
+            os.unlink(tmp)
+        except Exception:
+            pass
+
+
+async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, thread_id: int) -> None:
+    """Parse Edit/Write tool call, render diff PNG, send to TG. Errors silently logged."""
+    if not _diff_images_enabled():
+        return
+    import json
+    try:
+        colon = raw_content.index(":")
+        params = json.loads(raw_content[colon + 1:].strip())
+    except Exception:
+        return
+    try:
+        from app.diff_image import render_edit_diff, render_write_diff
+        if tool_name == "Edit":
+            png = render_edit_diff(params.get("file_path", ""), params.get("old_string", ""), params.get("new_string", ""))
+        else:  # Write
+            png = render_write_diff(params.get("file_path", ""), params.get("content", ""))
+        await _send_png_to_tg(png, chat_id, thread_id, tool_name)
+    except Exception as e:
+        logger.debug(f"diff image send failed ({tool_name}): {e}")
+
+
+async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id: int, thread_id: int) -> None:
+    """Render Read/Grep tool_result as PNG and send to TG."""
+    if not _diff_images_enabled():
+        return
+    try:
+        if tool_name == "Read":
+            import json
+            # tool_raw: "Read: {\"file_path\": ..., \"offset\": ...}"
+            try:
+                colon = tool_raw.index(":")
+                params = json.loads(tool_raw[colon + 1:].strip())
+                file_path = params.get("file_path", "")
+                offset = int(params.get("offset", 0))
+            except Exception:
+                file_path = ""
+                offset = 0
+            from app.diff_image import render_read
+            png = render_read(file_path, result, offset)
+            await _send_png_to_tg(png, chat_id, thread_id, "Read")
+
+        elif tool_name == "Grep":
+            import json, re as _re
+            # Parse pattern from tool_raw
+            try:
+                colon = tool_raw.index(":")
+                params = json.loads(tool_raw[colon + 1:].strip())
+                pattern = params.get("pattern", "")
+            except Exception:
+                pattern = ""
+
+            # result format: "path/file.py:42:matching line text\n..."
+            # or files_with_matches: just paths
+            parsed = []
+            for line in result.splitlines():
+                # expect "file:lineno:text" format
+                m = _re.match(r'^(.+?):(\d+):(.*)$', line)
+                if not m:
+                    continue  # files_with_matches or no match — skip
+                fpath, lineno, text = m.group(1), int(m.group(2)), m.group(3)
+                fpath = _re.sub(r'^.*/worktrees/[^/]+/[^/]+/', '', fpath)
+                # Find match position in text
+                ms, me = 0, len(text)
+                if pattern:
+                    try:
+                        pm = _re.search(pattern, text)
+                        if pm:
+                            ms, me = pm.start(), pm.end()
+                    except Exception:
+                        pass
+                parsed.append((fpath, lineno, text, ms, me))
+
+            if not parsed:
+                return  # files_with_matches mode or empty — no image
+
+            from app.diff_image import render_grep
+            png = render_grep(pattern, parsed)
+            await _send_png_to_tg(png, chat_id, thread_id, "Grep")
+
+        elif tool_name == "Bash":
+            import json
+            try:
+                colon = tool_raw.index(":")
+                params = json.loads(tool_raw[colon + 1:].strip())
+                command = params.get("command", "")
+            except Exception:
+                command = ""
+            from app.diff_image import render_bash
+            png = render_bash(command, result)
+            await _send_png_to_tg(png, chat_id, thread_id, "Bash")
+    except Exception as e:
+        logger.debug(f"result image send failed ({tool_name}): {e}")
+
+
 async def stream_logs(orch_name: str, thread_id: int):
     from app.db import get_logs, get_session_by_name, get_all_sessions
 
@@ -879,6 +995,8 @@ async def stream_logs(orch_name: str, thread_id: int):
     last_id = logs[-1]["id"] if logs else 0
     _last_tool_msg = None
     _last_tool_text = ""
+    _last_tool_name = ""   # track last tool for result image rendering
+    _last_tool_raw = ""    # full raw content of last tool call
     _idle_ticks = 0
 
     try:
@@ -929,13 +1047,45 @@ async def stream_logs(orch_name: str, thread_id: int):
                         short = _tg_tool_short(tool_name)
                         header = f"{icon} {short}"
                         _last_tool_text = f"{header}\n{tool_body}"
-                        _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
+                        _last_tool_name = tool_name
+                        _last_tool_raw = c
+                        # Special formatting for send_message — render as pretty HTML
+                        if "send_message" in tool_name:
+                            try:
+                                import json as _json
+                                colon_idx = c.index(":")
+                                sm_params = _json.loads(c[colon_idx + 1:].strip())
+                                sm_to = sm_params.get("to", "?")
+                                sm_msg = sm_params.get("message", "")
+                                # Convert ```code``` blocks to <pre>, rest HTML-escaped
+                                import re as _re
+                                # Split on code blocks first, then escape non-code parts
+                                parts_sm = _re.split(r'(```[a-z]*\n?.*?```)', sm_msg, flags=_re.DOTALL)
+                                escaped_parts = []
+                                for part in parts_sm:
+                                    if part.startswith('```'):
+                                        inner = _re.sub(r'^```[a-z]*\n?', '', part).rstrip('`').strip()
+                                        escaped_parts.append(f"<pre>{inner}</pre>")
+                                    else:
+                                        escaped_parts.append(part.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+                                sm_html = "".join(escaped_parts)
+                                sm_formatted = f"<b>→ {sm_to}</b>\n\n{sm_html}"
+                                if bot:
+                                    await bot.send_message(config["group_id"], sm_formatted, message_thread_id=thread_id, parse_mode="HTML")
+                            except Exception as _e:
+                                logger.debug(f"send_message pretty format failed: {_e}")
+                                _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
+                        else:
+                            _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
                         try:
                             m_text, m_ents = md_convert(f"{header}\n{tool_body}")
                             from aiogram.types import MessageEntity as AioEntity
                             await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
                         except Exception:
                             await _mirror_send(orch_name, f"{header}\n{tool_body}")
+                        # Diff image for Edit/Write tools
+                        if tool_name in ("Edit", "Write"):
+                            await _send_diff_image(tool_name, c, config["group_id"], thread_id)
                         continue
                     elif t == "tool_result":
                         result_preview = c[:80].replace("\n", " ").strip()
@@ -955,6 +1105,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                             await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
                         except Exception:
                             await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
+                        # Result image for Read/Grep/Bash tools
+                        if _last_tool_name in ("Read", "Grep", "Bash"):
+                            await _send_result_image(_last_tool_name, _last_tool_raw, c, config["group_id"], thread_id)
+                        _last_tool_name = ""
+                        _last_tool_raw = ""
                         continue
                     elif t == "error":
                         text = f"❌ {c}"
