@@ -26,7 +26,15 @@ def _today() -> str:
 
 
 def _fmt_amount(rub: int) -> str:
-    return str(rub)
+    if rub == 0:
+        return "0"
+    s = str(abs(rub))
+    groups = []
+    while s:
+        groups.append(s[-3:])
+        s = s[:-3]
+    formatted = " ".join(reversed(groups))
+    return f"-{formatted}" if rub < 0 else formatted
 
 
 def _parse_task_ref(ref: str) -> tuple[str, int]:
@@ -757,7 +765,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             ensure_project(conn, project_id, scope=eff_scope)
             task = create_task(
                 conn, project_id, title,
-                price_rub=price * 1000,
+                price_rub=price,
                 description=description,
                 assignee=assignee,
                 status=status,
@@ -794,7 +802,7 @@ def api_update_task(par: str, title: str | None = None,
                 raise ValueError(f"{par} not found")
             task_id = task["id"]
 
-            price_rub = price * 1000 if price is not None else None
+            price_rub = price if price is not None else None
             result = update_task(
                 conn, task_id,
                 title=title, description=description,
@@ -898,7 +906,7 @@ def api_get_task(par: str, project: str = "") -> dict:
 
 def api_receive_payment(amount: int, client: str = "aleksandr-kislinskiy",
                         payment_date: str = "", note: str = "") -> dict:
-    amount_rub = amount * 1000
+    amount_rub = amount
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
