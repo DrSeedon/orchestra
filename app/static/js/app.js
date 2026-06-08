@@ -383,9 +383,12 @@ function closePromptModal() {
     $('#prompt-modal').classList.remove('flex');
 }
 
+function _stripXmlTags(text) {
+    return text.replace(/<\/?[a-z][a-z0-9_-]*(?:\s[^>]*)?\s*>/gi, '');
+}
 function _promptSection(title, color, content) {
     if (!content || !content.trim()) return '';
-    const rendered = DOMPurify.sanitize(marked.parse(content));
+    const rendered = DOMPurify.sanitize(marked.parse(_stripXmlTags(content)));
     return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:${color};margin-bottom:6px;padding:3px 8px;border-radius:4px;background:rgba(0,0,0,0.3);display:inline-block">${title}</div><div class="markdown-body" style="padding-left:4px">${rendered}</div></div>`;
 }
 
@@ -451,7 +454,7 @@ async function openPromptModal() {
                 body.innerHTML += '<div style="font-size:10px;color:#475569;font-style:italic;margin-top:8px">No custom system prompt</div>';
             }
         } else {
-            body.innerHTML = DOMPurify.sanitize(marked.parse(data.system_prompt));
+            body.innerHTML = DOMPurify.sanitize(marked.parse(_stripXmlTags(data.system_prompt)));
         }
     } catch (e) {
         const errSpan = document.createElement('span');
