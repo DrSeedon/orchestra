@@ -133,3 +133,6 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .tree-child::before { content: ''; position: absolute; left: -12px; top: 0; height: 20px; width: 12px; border-left: 1px solid rgba(71,85,105,0.6); border-bottom: 1px solid rgba(71,85,105,0.6); border-bottom-left-radius: 4px; pointer-events: none; }
 .tree-child::after { content: ''; position: absolute; left: -12px; top: 0; bottom: 0; border-left: 1px solid rgba(71,85,105,0.6); pointer-events: none; }
 .tree-last::after { display: none; }
+.img-lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; cursor: zoom-out; animation: lightbox-in 0.15s ease; }
+.img-lightbox img { cursor: pointer; }
+@keyframes lightbox-in { from { opacity: 0; } to { opacity: 1; } }

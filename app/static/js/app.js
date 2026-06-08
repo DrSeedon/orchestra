@@ -462,6 +462,20 @@ async function openPromptModal() {
     }
 }
 
+function openImageLightbox(src) {
+    const overlay = document.createElement('div');
+    overlay.className = 'img-lightbox';
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);object-fit:contain';
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target !== img) overlay.remove(); });
+    img.addEventListener('click', (e) => { e.stopPropagation(); window.open(src, '_blank'); });
+    const onKey = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+}
+
 async function openFilePreview(path) {
     const modal = $('#file-preview-modal');
     const pathEl = $('#file-preview-path');
@@ -1548,7 +1562,7 @@ function renderImages(el, content) {
         img.loading = 'lazy';
         img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
         img.onerror = () => img.remove();
-        img.addEventListener('click', () => openFilePreview(path));
+        img.addEventListener('click', () => openImageLightbox(url));
         el.appendChild(img);
     }
 }
@@ -3539,7 +3553,7 @@ function addChatEntry(type, content, ts, anchor) {
                         img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}`;
                         img.loading = 'lazy';
                         img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
-                        img.addEventListener('click', () => openFilePreview(readPath));
+                        img.addEventListener('click', () => openImageLightbox(img.src));
                         readContainer.appendChild(img);
                         addTimestamp(lastTool, ts);
                         return;
