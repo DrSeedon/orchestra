@@ -33,3 +33,13 @@
 - ✅ **kill_worker удаляет логи** — Fixed: archive_session instead of delete_session
 - ✅ **Zombie workers after restart** — Fixed: auto_resume_all filters archived
 - ✅ **Merge конфликт после squash** — Fixed: auto-reset worktree after merge (#38)
+
+## [2026-06-05 06:36 UTC] codex_review output path resolves to main repo, not worker worktree (repeat)
+- **Reporter:** infra
+- **Scope:** /mnt/data/Projects/Python/seedon
+When worker infra (worktree at /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/infra) calls codex_review with relative output path like "docs/tasks/47/codex-review-plan.md", the bg job writes to /mnt/data/Projects/Python/seedon/docs/tasks/47/ (main repo CWD) instead of the worker's worktree. This is the same class of bug as the earlier "codex_review не видит diff суб-репо" report — the codex bg job runs in the context of the main Orchestra project, not the worker's isolated worktree. Workaround: orchestrator runs codex_review instead of worker, or use absolute worktree path in output param. This has happened 3+ times across tasks #34, #42, #47.
+
+## [2026-06-05 11:52 UTC] Codex review (codex exec) unreachable — 403 Cloudflare / websocket refused
+- **Reporter:** research-runtime
+- **Scope:** /mnt/data/Projects/Python/seedon
+codex-debate Quick Review failed for task #55. `codex exec` без прокси → 403 Forbidden от chatgpt.com/backend-api/codex/responses (cf-ray, Cloudflare geo/datacenter block). С Hiddify-прокси 12334 → websocket wss://chatgpt.com/backend-api/codex/responses Connection refused (os error 111). Auth ок (auth_mode chatgpt, id_token есть). Это сетевой блок: proxy 12334 маршрутизирует только Anthropic, а прямой IP geo-блокируется Cloudflare. Workers не могут запускать Codex review без рабочего маршрута до OpenAI. Воспроизводится 2/2.
