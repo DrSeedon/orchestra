@@ -1037,9 +1037,20 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "text":
                         # @mention пользователя — только в речи агента (text), чтобы уведы
                         # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
-                        # Обрезание убрано: длинные сообщения дробит _split_message ниже (upstream c36c51d).
                         head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
-                        text = f"{head}\n{c}"
+                        raw_text = f"{head}\n{c}"
+                        for chunk in _split_message(raw_text):
+                            try:
+                                converted, ents = md_convert(chunk)
+                                from aiogram.types import MessageEntity as AioEntity
+                                aio_ents = [AioEntity(**e.to_dict()) for e in ents] if ents else None
+                                await _tg_send_safe(config["group_id"], converted, thread_id,
+                                                    entities=aio_ents, important=True)
+                                await _mirror_send(orch_name, converted, entities=aio_ents)
+                            except Exception:
+                                await _tg_send_safe(config["group_id"], chunk, thread_id, important=True)
+                                await _mirror_send(orch_name, chunk)
+                        continue
                     elif t == "tool":
                         tool_name = c.split(":")[0].strip() if ":" in c else "tool"
                         tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
