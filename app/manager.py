@@ -57,10 +57,14 @@ def get_active_profile(scope: str = "", parent_profile: str = "") -> str:
     return parent_profile or ""
 
 
-def _other_orchestrators_block(exclude_scope: str = "") -> str:
+def _other_orchestrators_block(exclude_scope: str = "", caller_role: str = "") -> str:
     try:
-        orchs = [s for s in get_all_sessions()
-                 if bool(s.get("is_orchestrator")) and s.get("scope") != exclude_scope]
+        all_orchs = [s for s in get_all_sessions()
+                     if bool(s.get("is_orchestrator")) and s.get("scope") != exclude_scope]
+        if caller_role == "sub-orchestrator":
+            orchs = [s for s in all_orchs if not s.get("parent_name")]
+        else:
+            orchs = all_orchs
         if not orchs:
             return ""
         lines = ["## Other orchestrators", "You can message other orchestrators via `send_message(to=\"Name\", message=\"...\")`:"]
@@ -129,7 +133,7 @@ def _UPSTREAM_ROLE_SYSTEM_PROMPT(role: str, scope: str = "", name: str = "") -> 
         skills_cat = skills_catalog()
         if skills_cat:
             base += f"\n\n{skills_cat}"
-        others = _other_orchestrators_block(scope)
+        others = _other_orchestrators_block(scope, caller_role=role)
         if others:
             base += f"\n\n{others}"
         workers = _workers_block(scope, name)
@@ -211,7 +215,7 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
         catalog = _roles_catalog_from_manifest(pipeline, role)
         if catalog:
             base += f"\n\n{catalog}"
-        others = _other_orchestrators_block(scope)
+        others = _other_orchestrators_block(scope, caller_role=role)
         if others:
             base += f"\n\n{others}"
         workers = _workers_block(scope)
