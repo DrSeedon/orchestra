@@ -25,7 +25,7 @@
 
 **Orchestra is an AI agent orchestration platform where you manage a team of agents the way a CEO manages a company — not the way a programmer writes a pipeline.**
 
-You describe the goal. The orchestrator (Claude Opus) breaks it down, assigns workers (Claude Sonnet), reviews their output through a different model (GPT-5.5), and deploys the result. Each worker runs in an isolated git worktree. They communicate via messages, not function calls. They persist for hours or days, not the length of one API request.
+You describe the goal. The orchestrator (Claude) breaks it down, assigns workers (Claude), reviews their output through a different model (GPT), and deploys the result. Each worker runs in an isolated git worktree. They communicate via messages, not function calls. They persist for hours or days, not the length of one API request.
 
 > **The AI agent market is moving from SDKs to products.**
 > 2024: "here's an SDK, build it yourself." 2025: "here's an agent, give it a task." 2026: "here's a TEAM, give it a goal." Orchestra is the third thing.
@@ -63,7 +63,7 @@ No graph definitions, no YAML workflows, no node configurations. You talk to the
 You (Telegram / Dashboard)
   │
   ▼
-Orchestrator (Claude Opus) ─── thinks like a manager
+Orchestrator (Claude) ─── thinks like a manager
   │   Decomposes task, assigns workers, reviews results
   │
   ├─► Worker A (Sonnet) ── git worktree: feature/auth
@@ -71,7 +71,7 @@ Orchestrator (Claude Opus) ─── thinks like a manager
   ├─► Worker C (Sonnet) ── git worktree: fix/bug-123
   │
   ▼
-Reviewer (GPT-5.5) ── cross-model review
+Reviewer (GPT) ── cross-model review
   │   Different model = different blind spots
   │
   ▼
@@ -116,7 +116,7 @@ Every worker gets its own git worktree — a full copy of the repo on its own br
 Manage your AI team from your phone. Voice messages, photos, documents — the orchestrator transcribes voice (Deepgram Nova-3), understands images, processes files. Real-time status updates in topic threads.
 
 ### 🔀 Cross-Model Review
-Code written by Claude is reviewed by GPT-5.5 (Codex). Different models have different blind spots. Two perspectives catch bugs that one model misses.
+Code written by one model (Claude) is reviewed by another (GPT). Different models have different blind spots. Two perspectives catch bugs that one model misses.
 
 ### 🏰 Hierarchy: Orchestrator → Sub-Orchestrators → Workers
 One orchestrator per project. Sub-orchestrators manage sub-teams. Workers do the work. Cross-project messaging lets orchestrators coordinate across repos.
@@ -125,7 +125,7 @@ One orchestrator per project. Sub-orchestrators manage sub-teams. Workers do the
 Orchestra-orchestrator is the agent that builds Orchestra. 8 workers write the code for the platform they run on. No other framework can say: "our product was built by our product."
 
 ### ⚙️ Per-Role Model Policy
-Orchestrators run on Opus (deep thinking). Workers run on Sonnet (fast execution). Full-cycle research agents run on Opus 4.8. Each role gets the right model for the job, not one-size-fits-all.
+Orchestrators run on stronger models (deep thinking). Workers run on faster models (quick execution). Full-cycle research agents get the most capable model available. Each role gets the right model for the job, not one-size-fits-all.
 
 ### 📋 Task Manager
 Built-in task management with priorities, assignments, and payment tracking. Agents create, update, and close tasks. No external project management tool needed.
