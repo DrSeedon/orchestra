@@ -880,12 +880,14 @@ async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) 
 async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, thread_id: int) -> None:
     """Parse Edit/Write tool call, render diff PNG, send to TG. Errors silently logged."""
     if not _diff_images_enabled():
+        logger.debug("diff images disabled")
         return
     import json
     try:
         colon = raw_content.index(":")
         params = json.loads(raw_content[colon + 1:].strip())
-    except Exception:
+    except Exception as e:
+        logger.debug(f"diff image parse failed for {tool_name}: {e}, raw[:100]={raw_content[:100]}")
         return
     try:
         from app.diff_image import render_edit_diff, render_write_diff
@@ -895,7 +897,7 @@ async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, threa
             png = render_write_diff(params.get("file_path", ""), params.get("content", ""))
         await _send_png_to_tg(png, chat_id, thread_id, tool_name)
     except Exception as e:
-        logger.debug(f"diff image send failed ({tool_name}): {e}")
+        logger.warning(f"diff image send failed ({tool_name}): {e}")
 
 
 async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id: int, thread_id: int) -> None:
