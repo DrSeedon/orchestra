@@ -39,6 +39,61 @@ def session(mock_db):
     )
 
 
+# ── MockBackend для lifecycle тестов ──────────────────────────────────────
+
+class _MockBackend:
+    """Контролируемый backend для lifecycle тестов.
+
+    events() ждёт сигнала через _finish_event, затем выдаёт turn_end.
+    Это имитирует агента который молчит, потом завершает ход.
+    """
+
+    def __init__(self, events_to_yield=None, connect_error=None):
+        from app.events import AgentEvent
+        self._AgentEvent = AgentEvent
+        self.sent: list[str] = []
+        self.connected = False
+        self.disconnected = False
+        self._finish_event = asyncio.Event()
+        self._events = events_to_yield or []
+        self._connect_error = connect_error
+        self.session_id = None
+
+    async def connect(self) -> None:
+        if self._connect_error:
+            raise self._connect_error
+        self.connected = True
+
+    async def send(self, message: str) -> None:
+        self.sent.append(message)
+
+    async def events(self):
+        # Сначала даём все запланированные события
+        for event in self._events:
+            yield event
+        # Потом ждём сигнала финиша
+        await self._finish_event.wait()
+        yield self._AgentEvent(
+            type="turn_end",
+            metadata={"ok": True, "stop_reason": "end_turn",
+                      "num_turns": 1, "cost_usd": 0.05, "session_id": "mock-sid"},
+        )
+
+    async def interrupt(self) -> None:
+        self._finish_event.set()
+
+    async def disconnect(self) -> None:
+        self.disconnected = True
+        self._finish_event.set()  # unblock events() if waiting
+
+    async def reconnect(self) -> None:
+        pass
+
+    def finish(self):
+        """Сигнализируем завершение хода (вызвать из теста)."""
+        self._finish_event.set()
+
+
 class TestStart:
     @pytest.mark.asyncio
     async def test_no_message_idle(self, session):
@@ -46,66 +101,138 @@ class TestStart:
         await session.start()
         assert session.status == AgentStatus.IDLE
 
-    @pytest.mark.skip(reason="outdated: relies on old SDK client API (query/receive_messages/_turn_task). TODO: rewrite for new backend interface (send/events)")
     @pytest.mark.asyncio
-    async def test_with_message(self, session, mock_sdk):
+    async def test_with_message_sets_running_then_idle(self, session):
+        """start("hi") → status=RUNNING, после turn_end → IDLE, cost обновлён."""
         from app.session import AgentStatus
-        with patch("app.session.AgentSession._make_client", return_value=mock_sdk):
-            await session.start("hi")
-            if session._turn_task:
-                await session._turn_task
+        backend = _MockBackend()
+
+        with patch.object(session, "_make_backend", return_value=backend):
+            # Запускаем send в фоне (он стартует event loop)
+            send_task = asyncio.create_task(session.start("hi"))
+            # Ждём пока статус станет RUNNING
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+            assert session.status == AgentStatus.RUNNING
+
+            # Завершаем ход
+            backend.finish()
+            await send_task
+            # Ждём обработки turn_end event loop'ом
+            await asyncio.sleep(0.1)
+
         assert session.status == AgentStatus.IDLE
-        assert session.session_id == "sdk-001"
+        assert session.session_id == "mock-sid"
         assert session.cost_usd == pytest.approx(0.05)
 
 
 class TestSend:
-    @pytest.mark.skip(reason="outdated: relies on old SDK client API (query/_turn_task/debounce_sec). TODO: rewrite for new backend interface (send/events)")
     @pytest.mark.asyncio
-    async def test_send_triggers_turn(self, session, mock_sdk):
-        session.debounce_sec = 0.1
-        with patch("app.session.AgentSession._make_client", return_value=mock_sdk):
-            await session.start()
-            await session.send("task")
-            await asyncio.sleep(0.3)
-            if session._turn_task:
-                await session._turn_task
-        mock_sdk.query.assert_awaited()
+    async def test_send_idle_sets_running(self, session):
+        """send() на IDLE сессии → status становится RUNNING."""
+        from app.session import AgentStatus
+        backend = _MockBackend()
+
+        with patch.object(session, "_make_backend", return_value=backend):
+            send_task = asyncio.create_task(session.send("task"))
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+            assert session.status == AgentStatus.RUNNING
+            backend.finish()
+            await send_task
+            await asyncio.sleep(0.1)
+
+        assert backend.sent  # backend.send() был вызван
+
+    @pytest.mark.asyncio
+    async def test_send_on_running_queues_message(self, session):
+        """send() на RUNNING сессии (non-codex) → inject через backend.send() или в pending."""
+        from app.session import AgentStatus
+        backend = _MockBackend()
+
+        with patch.object(session, "_make_backend", return_value=backend):
+            # Первый send запускает ход
+            send_task = asyncio.create_task(session.send("first"))
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+            assert session.status == AgentStatus.RUNNING
+
+            # Второй send пока RUNNING — inject или pending
+            await session.send("second")
+            # Проверяем что второй send обработан (inject или pending queue)
+            second_injected = "second" in backend.sent
+            second_queued = "second" in session._pending_messages
+            assert second_injected or second_queued, "второй send должен быть либо инжектирован, либо в очереди"
+
+            backend.finish()
+            await send_task
+            await asyncio.sleep(0.1)
 
 
 class TestTurn:
-    @pytest.mark.skip(reason="outdated: relies on old SDK client API (connect/_turn_task). TODO: rewrite for new backend interface (send/events)")
     @pytest.mark.asyncio
-    async def test_error_returns_to_idle(self, session, mock_sdk):
+    async def test_turn_end_returns_to_idle(self, session):
+        """После turn_end event статус возвращается в IDLE."""
         from app.session import AgentStatus
-        mock_sdk.connect = AsyncMock(side_effect=ConnectionError("fail"))
-        with patch("app.session.AgentSession._make_client", return_value=mock_sdk):
-            await session.start("task")
-            if session._turn_task:
-                try:
-                    await session._turn_task
-                except:
-                    pass
+        backend = _MockBackend()
+
+        with patch.object(session, "_make_backend", return_value=backend):
+            send_task = asyncio.create_task(session.send("task"))
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+            assert session.status == AgentStatus.RUNNING
+
+            backend.finish()
+            await send_task
+            await asyncio.sleep(0.1)
+
         assert session.status == AgentStatus.IDLE
 
-    @pytest.mark.skip(reason="outdated: relies on old SDK client API (disconnect/_turn_task). TODO: rewrite for new backend interface (send/events)")
     @pytest.mark.asyncio
-    async def test_disconnect_called(self, session, mock_sdk):
-        with patch("app.session.AgentSession._make_client", return_value=mock_sdk):
-            await session.start("task")
-            if session._turn_task:
-                await session._turn_task
-        mock_sdk.disconnect.assert_awaited()
+    async def test_connect_error_returns_to_idle(self, session):
+        """Ошибка connect() → status остаётся/возвращается в IDLE."""
+        from app.session import AgentStatus
+        backend = _MockBackend(connect_error=ConnectionError("connect failed"))
+
+        with patch.object(session, "_make_backend", return_value=backend):
+            with pytest.raises(ConnectionError):
+                await session.send("task")
+
+        assert session.status == AgentStatus.IDLE
 
 
 class TestStop:
-    @pytest.mark.skip(reason="outdated: relies on old SDK client API (_make_client). TODO: rewrite for new backend interface (send/events)")
     @pytest.mark.asyncio
-    async def test_stop_sets_idle(self, session, mock_sdk):
+    async def test_stop_sets_idle(self, session):
+        """stop() на работающей сессии → status=IDLE, backend disconnect вызван."""
         from app.session import AgentStatus
-        with patch("app.session.AgentSession._make_client", return_value=mock_sdk):
-            await session.start()
+        backend = _MockBackend()
+
+        with patch.object(session, "_make_backend", return_value=backend):
+            send_task = asyncio.create_task(session.send("task"))
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+            assert session.status == AgentStatus.RUNNING
+
             await session.stop()
+            # Отменяем задачу если ещё висит
+            if not send_task.done():
+                send_task.cancel()
+                try:
+                    await send_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+
         assert session.status == AgentStatus.IDLE
 
 
