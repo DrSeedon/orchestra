@@ -31,6 +31,10 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
 
 ## Architecture
 
+<p align="center">
+  <img src="docs/architecture.png" alt="Orchestra Architecture" width="900">
+</p>
+
 ```
 Dashboard (HTMX+SSE) <-> FastAPI :8888 <-> SessionManager
                                             |-- Orchestrators (Opus, per-project)
@@ -43,6 +47,23 @@ TG Bridge (aiogram) <-> Orchestra API
                     <-> Telegram group with topics per orchestrator
                     <-> Bidirectional mirrors to other groups
 ```
+
+## Fleet Looping — Multi-Level Agent Teams
+
+Orchestra implements **fleet looping** — a hierarchical agent architecture where an orchestrator spawns specialized workers, each running in their own loop.
+
+<p align="center">
+  <img src="docs/fleet-looping.png" alt="Fleet Looping" width="500">
+</p>
+
+- **Orchestrator** (Opus 4.6) — decomposes tasks, assigns workers, reviews results
+- **Sub-Orchestrator** — manages a sub-team (e.g. dev-lead owns backend workers)
+- **Full-Cycle Worker** (Opus 4.8) — research → plan → Codex review → implement → verify
+- **System Worker** (Sonnet) — fast execution from clear specs
+- **Cross-agent messaging** — workers can talk directly via `send_message`
+- **Pipeline-as-config** — YAML manifests for custom roles per client
+
+Each level loops: research → plan → execute → verify → iterate until done.
 
 ## Features
 
