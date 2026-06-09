@@ -946,6 +946,8 @@ class AgentSession:
         await self._disconnect_backend()
         self.model = new_model
         self._persist()
+        snapshot = self._to_db_dict()
+        await asyncio.get_running_loop().run_in_executor(_db_executor(), save_session, snapshot)
         return {"ok": True, "model": new_model, "old_model": old_model, "changed": True}
 
     async def _disconnect_backend(self) -> None:
