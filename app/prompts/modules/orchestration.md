@@ -48,15 +48,17 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 
 ### Worker management
 - `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main
-- `merge_worker` / `switch_worker_branch` / `change_worker_model` — worker must be **idle** (+ clean tree for merge)
+- `merge_worker(name, next_task_id="")` — squash merge. Pass `next_task_id` for **atomic merge+switch** (one call instead of two). After merge without next_task_id, worker is blocked (`needs_switch=True`) until `switch_worker_branch`
+- `switch_worker_branch(name, task_id)` — switch to new branch from main. Blocks if worker has unmerged commits (use `merge_worker` first). Resets worktree to current main
+- `change_worker_model` — worker must be idle
 - `compact_worker` — takes 30-60s; do NOT retry on timeout, check `list_agents` instead
-- `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
+- `stop_worker` (interrupt + idle, resumable) vs `kill_worker(name, force=False)` (permanent delete). Kill blocks if dirty/unmerged unless force=True
 - `get_worker_logs` — debugging only, NOT for progress checks (wait for the worker's message)
 - `update_worker_description`, `list_jobs` — as named
 
 ### Task & payment management
-- `task_create`, `task_update`, `task_list`, `task_get` — prices in thousands (20 = 20,000 rub); `par` accepts "42" or legacy "PAR-42"
-- `payment_receive`, `payment_status` — amounts in thousands
+- `task_create`, `task_update`, `task_list`, `task_get` — prices in exact currency units (e.g. 20000 = 20 000); `par` accepts "42" or legacy "PAR-42"
+- `payment_receive`, `payment_status` — amounts in exact currency units
 
 ### Task references
 Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted.
@@ -77,11 +79,19 @@ merge_worker("fix-slash")
 kill_worker("fix-slash")
 ```
 
-### System worker (spawn → work → merge → switch → repeat):
+### System worker — atomic merge+switch (PREFERRED):
 ```
 spawn_worker(name="backend", task="...", repo_path="...", task_id="192")
 # worker works on #192, reports DONE
+merge_worker("backend", next_task_id="234")  # merge + switch in one call
+send_message("backend", "#234: new task description...")
+```
+
+### System worker — separate merge+switch (if no next task yet):
+```
 merge_worker("backend")
+# worker is now blocked (needs_switch=True) — cannot receive tasks
+# ... later, when next task is ready:
 switch_worker_branch("backend", task_id="234")
 send_message("backend", "#234: new task description...")
 ```
@@ -93,13 +103,14 @@ send_message("backend", "URGENT: commit WIP and stop")
 switch_worker_branch("backend", task_id="999")
 send_message("backend", "#999: urgent fix...")
 # worker finishes, reports DONE
-merge_worker("backend")
-switch_worker_branch("backend", task_id="192")
+merge_worker("backend", next_task_id="192")  # merge + switch back
 send_message("backend", "Continue #192")
 ```
 
 ### Merge & kill safety
-- **Before `kill_worker` — always `worker_wip(name)` first.** It shows uncommitted files + unmerged commits. If anything is unmerged, you'd destroy work. Never kill on an unmerged/dirty worker
+- **After `merge_worker`** — session updates: `branch=main`, `task_id=""`, `needs_switch=True`. Worker CANNOT receive tasks until `switch_worker_branch` (or use `next_task_id` to auto-switch)
+- **`kill_worker`** — blocks if worker has uncommitted changes or unmerged commits. Pass `force=True` to override
+- **`switch_worker_branch`** — blocks if worker has unmerged commits. Resets worktree to current main via `git reset --hard`
 - **Use `check_conflict(worker_a, worker_b)`** before merging two parallel workers — dry-run tells you if their branches collide, so you pick merge order
 - **On a merge conflict:** cherry-pick the worker's new commit onto a fresh branch from `main` — do NOT rebase the worker's old branch. Merges are squash, so the worker's branch has a diverged history; rebasing it replays stale commits. Fresh-branch + cherry-pick = clean
 </task-workflow>
