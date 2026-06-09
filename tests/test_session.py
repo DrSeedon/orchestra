@@ -600,6 +600,78 @@ class TestCompactGuards:
         assert result == {"ok": False, "error": "compact already in progress"}
 
     @pytest.mark.asyncio
+    async def test_compact_on_running_fails(self, session):
+        """compact() на RUNNING сессии → ошибка (нельзя компактировать активный ход)."""
+        from app.session import AgentStatus
+        session.status = AgentStatus.RUNNING
+        result = await session.compact()
+        assert result["ok"] is False
+        assert "running" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_compact_logs_preamble_as_user_message(self, session, monkeypatch):
+        """После compact, preamble с summary содержит summary и логируется как user_message."""
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+
+        logged = []
+
+        def fake_log(log_type, content):
+            logged.append((log_type, content))
+
+        session._log = fake_log
+
+        # Мокаем весь compact чтобы проверить только логирование preamble
+        # Патчим внутренности compact после получения summary
+        original_compact = session.compact
+
+        summary_text = "summary of work done"
+
+        # Симулируем compact через патч backend + ack
+        class CompactBackend:
+            session_id = None
+            sent = []
+            async def connect(self): pass
+            async def send(self, msg): self.sent.append(msg)
+            async def events(self):
+                yield AgentEvent(type="text", content=summary_text)
+                yield AgentEvent(type="turn_end", metadata={"ok": True, "stop_reason": "end_turn",
+                                                             "num_turns": 1, "session_id": "cid"})
+            async def interrupt(self): pass
+            async def disconnect(self): pass
+            async def reconnect(self): pass
+
+        backend = CompactBackend()
+        # Мокаем _ensure_backend чтобы не стартовать heartbeat/listen задачи
+        ack_set = False
+        async def fake_ensure_backend(force_fresh=False):
+            nonlocal ack_set
+            session._backend = backend
+            if not ack_set and session._compact_ack_event:
+                # Ставим ack немедленно чтобы compact не ждал 60s
+                async def _set_ack():
+                    await asyncio.sleep(0.05)
+                    if session._compact_ack_event:
+                        session._compact_ack_event.set()
+                asyncio.create_task(_set_ack())
+                ack_set = True
+            return backend
+
+        with patch.object(session, "_make_backend", return_value=backend), \
+             patch.object(session, "_ensure_backend", side_effect=fake_ensure_backend):
+            result = await session.compact()
+
+        assert result["ok"] is True
+        # preamble должен быть отправлен через backend.send с summary внутри
+        preamble_msgs = [m for m in backend.sent if "Acknowledge briefly." in m]
+        assert preamble_msgs, "preamble с 'Acknowledge briefly.' должен быть отправлен"
+        assert summary_text in preamble_msgs[0], "summary должен быть в preamble"
+        # user_message должен быть залогирован
+        user_msgs = [(t, c) for t, c in logged if t == "user_message"]
+        assert any(summary_text in c for _, c in user_msgs), "preamble должен быть залогирован как user_message"
+
+    @pytest.mark.asyncio
     async def test_compact_ack_bound_to_gen(self, session, monkeypatch):
         from app.events import AgentEvent
         from app.session import AgentStatus

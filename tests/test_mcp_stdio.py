@@ -86,3 +86,122 @@ async def test_release_and_status(monkeypatch):
     assert "/api/test-lock/release" in calls
     assert "coder-a" in st  # статус упоминает держателя
     assert "released" in rel.lower() or "освобод" in rel.lower()
+
+@pytest.mark.asyncio
+async def test_merge_worker_with_next_task_id(monkeypatch):
+    """next_task_id передаётся в body запроса к /api/sessions/{name}/merge."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch")
+    captured = {}
+    async def fake_api(method, path, **kw):
+        captured["path"] = path
+        captured["json"] = kw.get("json", {})
+        return {"ok": True, "commits_merged": 1, "branch": "task-42/w", "merged_commits": {}}
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="coder", target="main", next_task_id="task-43")
+    assert captured["path"] == "/api/sessions/coder/merge"
+    assert captured["json"]["next_task_id"] == "task-43"
+    assert captured["json"]["target"] == "main"
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_no_next_task_id(monkeypatch):
+    """Без next_task_id ключ next_task_id не отправляется в body."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch")
+    captured = {}
+    async def fake_api(method, path, **kw):
+        captured["json"] = kw.get("json", {})
+        return {"ok": True, "commits_merged": 1, "branch": "task-42/w", "merged_commits": {}}
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.merge_worker(name="coder")
+    assert "next_task_id" not in captured["json"]
+
+
+@pytest.mark.asyncio
+async def test_kill_worker_force_param(monkeypatch):
+    """force=True передаётся как строчный параметр в DELETE-запрос."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch")
+    captured = {}
+    async def fake_api(method, path, **kw):
+        captured["method"] = method
+        captured["path"] = path
+        captured["params"] = kw.get("params", {})
+        return {"ok": True}
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.kill_worker(name="coder", force=True)
+    assert captured["method"] == "DELETE"
+    assert captured["path"] == "/api/sessions/coder"
+    assert captured["params"]["force"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_kill_worker_force_false_default(monkeypatch):
+    """force=False (default) → params force='false'."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch")
+    captured = {}
+    async def fake_api(method, path, **kw):
+        captured["params"] = kw.get("params", {})
+        return {"ok": True}
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.kill_worker(name="coder")
+    assert captured["params"]["force"] == "false"
+
+
+@pytest.mark.asyncio
+async def test_send_message_cross_scope_warning(monkeypatch):
+    """Если worker принадлежит другому parent → warning в ответе."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch-a")
+    async def fake_api(method, path, **kw):
+        return {"ok": True, "parent_name": "orch-b"}
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.send_message(to="coder", message="hi")
+    assert "⚠️" in out or "warning" in out.lower() or "orch-b" in out
+
+
+@pytest.mark.asyncio
+async def test_send_message_same_parent_no_warning(monkeypatch):
+    """Сообщение воркеру того же родителя → нет предупреждения."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch-a")
+    async def fake_api(method, path, **kw):
+        return {"ok": True, "parent_name": "orch-a"}
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.send_message(to="coder", message="hi")
+    assert "⚠️" not in out
+
+
+@pytest.mark.asyncio
+async def test_list_agents_groups_by_parent(monkeypatch):
+    """list_agents группирует сессии на Orchestrators / Your workers / Other workers."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch-a")
+    sessions = [
+        {"name": "orch-a", "scope": "/s", "role": "orchestrator", "parent_name": "", "status": "idle", "model": "opus"},
+        {"name": "my-coder", "scope": "/s", "role": "worker", "parent_name": "orch-a", "status": "idle", "model": "sonnet"},
+        {"name": "their-coder", "scope": "/s", "role": "worker", "parent_name": "orch-b", "status": "idle", "model": "sonnet"},
+    ]
+    async def fake_api(method, path, **kw):
+        if path == "/api/sessions":
+            return sessions
+        if path == "/api/role-icons":
+            return {}
+        return {}
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.list_agents()
+    assert "## Orchestrators" in out
+    assert "## Your workers" in out
+    assert "## Other orchestrators' workers" in out
+    assert "orch-a" in out
+    assert "my-coder" in out
+    assert "their-coder" in out

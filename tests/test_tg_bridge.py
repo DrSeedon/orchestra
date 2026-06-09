@@ -182,3 +182,176 @@ class TestRemoveTopicsForOrchs:
         assert set(result["deleted"]) == {"orch1", "orch3"}
         assert len(result["failed"]) == 1
         assert result["failed"][0]["name"] == "orch2"
+
+
+# ── _find_orch_for_scope ───────────────────────────────────────────────────
+
+
+class TestFindOrchForScope:
+    def test_prefers_top_level_over_sub_orchestrator(self, tb, monkeypatch):
+        """Возвращает top-level orchestrator (без parent_name), а не sub-orchestrator."""
+        sessions = [
+            {"name": "sub-orch", "scope": "/s", "role": "sub-orchestrator", "parent_name": "orch1", "status": "idle"},
+            {"name": "orch1", "scope": "/s", "role": "orchestrator", "parent_name": "", "status": "idle"},
+        ]
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: sessions)
+        result = tb._find_orch_for_scope("/s")
+        assert result == "orch1"
+
+    def test_falls_back_to_sub_orchestrator_when_no_top_level(self, tb, monkeypatch):
+        """Если top-level не найден — возвращает sub-orchestrator."""
+        sessions = [
+            {"name": "sub-orch", "scope": "/s", "role": "sub-orchestrator", "parent_name": "someone", "status": "idle"},
+        ]
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: sessions)
+        result = tb._find_orch_for_scope("/s")
+        assert result == "sub-orch"
+
+    def test_scope_mismatch_returns_none(self, tb, monkeypatch):
+        """Оркестратор в другом scope не возвращается."""
+        sessions = [
+            {"name": "orch1", "scope": "/other", "role": "orchestrator", "parent_name": "", "status": "idle"},
+        ]
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: sessions)
+        result = tb._find_orch_for_scope("/s")
+        assert result is None
+
+    def test_worker_ignored(self, tb, monkeypatch):
+        """Workers не возвращаются."""
+        sessions = [
+            {"name": "worker1", "scope": "/s", "role": "worker", "parent_name": "", "status": "idle"},
+        ]
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: sessions)
+        result = tb._find_orch_for_scope("/s")
+        assert result is None
+
+
+# ── _diff_images_enabled ───────────────────────────────────────────────────
+
+
+class TestDiffImagesEnabled:
+    def test_default_true_without_env(self, tb, monkeypatch):
+        """`_diff_images_enabled()` без TG_DIFF_IMAGES = True."""
+        monkeypatch.delenv("TG_DIFF_IMAGES", raising=False)
+        assert tb._diff_images_enabled() is True
+
+    def test_false_when_env_false(self, tb, monkeypatch):
+        """TG_DIFF_IMAGES=false → False."""
+        monkeypatch.setenv("TG_DIFF_IMAGES", "false")
+        assert tb._diff_images_enabled() is False
+
+    def test_false_when_env_zero(self, tb, monkeypatch):
+        """TG_DIFF_IMAGES=0 → False."""
+        monkeypatch.setenv("TG_DIFF_IMAGES", "0")
+        assert tb._diff_images_enabled() is False
+
+    def test_false_when_env_no(self, tb, monkeypatch):
+        """TG_DIFF_IMAGES=no → False."""
+        monkeypatch.setenv("TG_DIFF_IMAGES", "no")
+        assert tb._diff_images_enabled() is False
+
+    def test_true_when_env_true(self, tb, monkeypatch):
+        """TG_DIFF_IMAGES=true → True."""
+        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
+        assert tb._diff_images_enabled() is True
+
+
+# ── _send_diff_image ───────────────────────────────────────────────────────
+
+
+class TestSendDiffImage:
+    @pytest.mark.asyncio
+    async def test_parse_edit_calls_render(self, tb, monkeypatch):
+        """_send_diff_image парсит Edit JSON и вызывает render_edit_diff."""
+        import json
+        rendered = []
+
+        def fake_render(file_path, old_str, new_str):
+            rendered.append((file_path, old_str, new_str))
+            return b"\x89PNG..."
+
+        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
+        monkeypatch.setattr("app.diff_image.render_edit_diff", fake_render)
+        # Мокаем _send_png_to_tg чтобы не трогать TG API
+        sent_pngs = []
+        async def fake_send_png(png, chat_id, thread_id, label):
+            sent_pngs.append(png)
+        monkeypatch.setattr(tb, "_send_png_to_tg", fake_send_png)
+
+        params = {"file_path": "app/main.py", "old_string": "old", "new_string": "new"}
+        raw = f"Edit: {json.dumps(params)}"
+        await tb._send_diff_image("Edit", raw, -100, 42)
+
+        assert len(rendered) == 1
+        assert rendered[0] == ("app/main.py", "old", "new")
+        assert sent_pngs == [b"\x89PNG..."]
+
+    @pytest.mark.asyncio
+    async def test_disabled_env_skips_render(self, tb, monkeypatch):
+        """При TG_DIFF_IMAGES=false render не вызывается."""
+        import json
+        rendered = []
+        monkeypatch.setenv("TG_DIFF_IMAGES", "false")
+        monkeypatch.setattr("app.diff_image.render_edit_diff", lambda *a: rendered.append(a) or b"")
+
+        raw = f"Edit: {json.dumps({'file_path': 'f', 'old_string': '', 'new_string': ''})}"
+        await tb._send_diff_image("Edit", raw, -100, 42)
+        assert rendered == []  # не вызван
+
+    @pytest.mark.asyncio
+    async def test_invalid_json_does_not_raise(self, tb, monkeypatch):
+        """Невалидный JSON в raw_content → тихий return без исключения."""
+        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
+        # Не должно бросить исключение
+        await tb._send_diff_image("Edit", "Edit: not_json_at_all", -100, 42)
+
+
+# ── _bot_api_health_loop ───────────────────────────────────────────────────
+
+
+class TestBotApiHealthLoop:
+    @pytest.mark.asyncio
+    async def test_three_consecutive_fails_triggers_restart(self, tb, monkeypatch):
+        """3 fail подряд → subprocess.run с restart telegram-bot-api."""
+        import asyncio as _asyncio
+
+        restarts = []
+
+        def fake_run(cmd, **kw):
+            if "restart" in cmd:
+                restarts.append(cmd)
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        # asyncio.sleep(120) → немедленно, asyncio.sleep(30) → немедленно
+        monkeypatch.setattr(_asyncio, "sleep", AsyncMock())
+
+        # aiohttp.ClientSession().get() всегда бросает исключение (имитация fail)
+        import aiohttp
+        class FakeResponse:
+            status = 500
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): pass
+
+        class FakeSession:
+            def get(self, *a, **kw): return FakeResponse()
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): pass
+
+        monkeypatch.setattr(aiohttp, "ClientSession", lambda: FakeSession())
+
+        # Запускаем loop на 4 итерации (3 fail → restart → ещё 1 → выход)
+        call_count = {"n": 0}
+        original_sleep = _asyncio.sleep
+
+        async def counting_sleep(s):
+            call_count["n"] += 1
+            if call_count["n"] > 4:
+                raise _asyncio.CancelledError()
+
+        monkeypatch.setattr(_asyncio, "sleep", counting_sleep)
+
+        with pytest.raises(_asyncio.CancelledError):
+            await tb._bot_api_health_loop("http://localhost:8081/health")
+
+        assert len(restarts) >= 1
+        assert any("telegram-bot-api" in str(r) for r in restarts)

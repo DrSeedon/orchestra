@@ -783,6 +783,8 @@ class AgentSession:
 
         if self._compacting:
             return {"ok": False, "error": "compact already in progress"}
+        if self.status == AgentStatus.RUNNING:
+            return {"ok": False, "error": "cannot compact while agent is running"}
         self._compacting = True
         before_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact started (context {before_pct}%)")
