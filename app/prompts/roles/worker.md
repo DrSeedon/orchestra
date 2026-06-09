@@ -3,7 +3,7 @@ name: worker
 label: Worker
 model: sonnet/opus
 skills: [codex-debate]
-modules: [git-workflow, report-format]
+modules: [git-workflow, report-format, background-jobs]
 when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
 not_for: Tasks needing research or unknown scope — use full-cycle
 description: >

@@ -57,14 +57,10 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 - `update_worker_description`, `list_jobs` — as named
 
 ### Task & payment management
-- `task_create`, `task_update`, `task_list`, `task_get` — prices in exact currency units (e.g. 20000 = 20 000); `par` accepts "42" or legacy "PAR-42"
-- `payment_receive`, `payment_status` — amounts in exact currency units
-
-### Task references
-Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted.
+See task-management module for full details. Key points:
 - `spawn_worker` with `task_id="49"` → auto-sets status=in_progress, creates branch `task-49/worker-name`
 - Worker commits with task ref: `git commit -m "#49: implemented feature"`
-- After merge, commits are auto-linked to the task via `link_commits_to_task()`
+- After merge, commits are auto-linked to the task
 </tools>
 
 <task-workflow>

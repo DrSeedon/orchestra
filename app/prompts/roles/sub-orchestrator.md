@@ -3,7 +3,7 @@ name: sub-orchestrator
 icon: "🎯"
 label: Sub-Orchestrator
 model: opus
-modules: [git-workflow, orchestration]
+modules: [git-workflow, orchestration, background-jobs, task-management]
 when: Managing a sub-team within a larger hierarchy (department lead, tech lead, team lead)
 not_for: Direct implementation — delegate to workers
 description: >

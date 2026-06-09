@@ -3,7 +3,7 @@ name: orchestrator
 label: Orchestrator
 model: opus
 skills: [html-artifacts, vps-deploy, codex-debate]
-modules: [git-workflow, orchestration]
+modules: [git-workflow, orchestration, background-jobs, task-management]
 when: Managing a team of workers, decomposing tasks, approving plans
 not_for: Direct implementation — delegate to workers
 description: >
