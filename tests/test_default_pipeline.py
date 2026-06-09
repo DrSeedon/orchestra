@@ -113,7 +113,7 @@ class TestDefaultRolesResolve:
     def test_full_cycle_model_opus(self):
         rr = P.get_role(PIPELINE, "full-cycle")
         assert rr is not None
-        assert rr.model == "opus"
+        assert rr.model == "opus4.8"
 
     def test_sub_orchestrator_is_orchestrator_opus(self):
         """sub-orchestrator — kind:orchestrator, opus, can_spawn=['*']."""

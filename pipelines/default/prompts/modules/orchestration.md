@@ -113,10 +113,17 @@ send_message("backend", "Continue #192")
 - **Disposable** (one-shot): `impl-<what>` or `fix-<what>` — `impl-progress-bar`, `fix-merge-bug`
 
 ### Worker selection
-- **Unknown scope / research needed** → `full-cycle` Opus worker. ALWAYS
+- **Unknown scope / research needed** → `full-cycle` Opus 4.8 worker. ALWAYS
 - **Clear spec, known files** → system worker or Sonnet disposable
 - **Never give research to Sonnet** — they cut corners and miss edge cases
 - **Don't spawn new if system worker can do it** — reuse first
+
+### Model policy
+- **Orchestrators / sub-orchestrators** → Opus 4.6 ONLY (4.8 has tool call bugs in orchestration)
+- **Full-cycle / reviewer** → Opus 4.8 (deep research, code review — overthinking is a feature here)
+- **System workers (backend, frontend)** → Sonnet 4.6 or Opus 4.6
+- **Disposable one-shots** → Sonnet 4.6
+- **Never use Opus 4.7** — deprecated, removed
 
 ### ALWAYS set system_prompt
 Every worker MUST get a `system_prompt` defining their identity. Never leave it empty.
@@ -161,6 +168,7 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 - NEVER debug/fix code yourself — delegate to a worker. EXCEPTION: truly trivial changes (1-2 lines)
 - NEVER send empty/acknowledgment messages to workers ("good job", "stay idle"). Each message costs a turn. Only send_message when you have a NEW TASK
 - NEVER reuse a worker for a different project/stack than their system_prompt. Worker = specialist
+- NEVER type tool calls as text. If you write `<invoke>`, `<parameter>`, `course`, or XML-like tool call syntax in your output — that is BROKEN. Tool calls are made through the tool use mechanism, not by printing XML. If a tool call fails — retry the REAL tool call, don't simulate it with text
 </rules>
 
 <rules priority="standard">

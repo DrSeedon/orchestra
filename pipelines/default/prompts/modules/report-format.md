@@ -3,6 +3,8 @@
 
 Report to your orchestrator via `mcp__orchestra__send_message` (NOT the built-in SendMessage).
 
+**Who to report to:** if the task message started with `[from:X]`, report DONE/WIP to X — not `{orchestrator_name}`. X gave you the task; they need the result.
+
 ### DONE — task finished
 ```
 mcp__orchestra__send_message(to="{orchestrator_name}", message="""DONE #<task-id>: <short summary>

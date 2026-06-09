@@ -157,12 +157,12 @@ class TestSchemaValidation:
     def test_full_model_id_accepted(self, pipelines_root):
         _write_pipeline(pipelines_root, "demo", """\
             name: demo
-            defaults: {model: claude-opus-4-7}
+            defaults: {model: claude-opus-4-8}
             roles:
               r: {kind: worker, label: R, model: claude-sonnet-4-6}
         """)
         cfg = P.load_pipeline("demo")
-        assert cfg.defaults.model == "claude-opus-4-7"
+        assert cfg.defaults.model == "claude-opus-4-8"
         assert cfg.roles["r"].model == "claude-sonnet-4-6"
 
     def test_can_spawn_unknown_role_rejected(self, pipelines_root):
