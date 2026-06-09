@@ -2,146 +2,186 @@
   <img src="docs/banner.png" alt="Orchestra" width="100%">
 </p>
 
-# 🎼 Orchestra — AI Agent Orchestrator
-
-[Changelog](CHANGELOG.md)
-
-AI agent orchestrator. Opus orchestrator manages Sonnet/Haiku workers via MCP tools. Each worker in isolated git worktree. Persistent client sessions, real-time dashboard + Telegram bridge.
+<h1 align="center">Orchestra</h1>
+<h3 align="center">AI agent teams that think like managers, not state machines</h3>
 
 <p align="center">
-  <img src="docs/dashboard.png" alt="Dashboard" width="100%">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#how-it-works">How It Works</a> ·
+  <a href="#comparison">Comparison</a> ·
+  <a href="#features">Features</a> ·
+  <a href="https://seedon.ru">Website</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/stars/DrSeedon/orchestra?style=social" alt="Stars">
+  <img src="https://img.shields.io/github/license/DrSeedon/orchestra" alt="License">
+  <img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python">
+  <img src="https://img.shields.io/badge/built_by-itself-brightgreen" alt="Built by itself">
+</p>
+
+---
+
+**Orchestra is an AI agent orchestration platform where you manage a team of agents the way a CEO manages a company — not the way a programmer writes a pipeline.**
+
+You describe the goal. The orchestrator (Claude Opus) breaks it down, assigns workers (Claude Sonnet), reviews their output through a different model (GPT-5.5), and deploys the result. Each worker runs in an isolated git worktree. They communicate via messages, not function calls. They persist for hours or days, not the length of one API request.
+
+> **The AI agent market is moving from SDKs to products.**
+> 2024: "here's an SDK, build it yourself." 2025: "here's an agent, give it a task." 2026: "here's a TEAM, give it a goal." Orchestra is the third thing.
+
+<p align="center">
+  <!-- TODO: Replace with actual GIF of the dashboard showing agents working in parallel -->
+  <img src="docs/dashboard.png" alt="Dashboard showing agents working" width="100%">
+  <br>
+  <em>Real-time dashboard: 6 agents working in parallel on a client project</em>
 </p>
 
 ## Quick Start
 
+**Prerequisites:** Python 3.12+, [uv](https://docs.astral.sh/uv/), Node.js 18+, [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (requires Claude Max subscription)
+
 ```bash
-cp .env.example .env  # edit tokens
+# Clone and install
+git clone https://github.com/DrSeedon/orchestra.git
+cd orchestra
+cp .env.example .env
 uv sync
+
+# Run
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
+
 # Open http://localhost:8888
+# Create an orchestrator, point it at a project, start chatting
 ```
+
+No graph definitions, no YAML workflows, no node configurations. You talk to the orchestrator like you'd talk to a tech lead.
 
 ## How It Works
 
-1. **Create an orchestrator** — pick a project, model. Pill button in header
-2. **Chat with it** — give tasks, it spawns workers automatically
-3. **Workers work** — isolated git worktree, own branch, MCP communication
-4. **See everything** — real-time SSE logs, context %, cache hit rate, usage bar
-5. **Telegram** — optional TG bridge mirrors all activity to group topics
-
-## Architecture
-
-<p align="center">
-  <img src="docs/architecture.png" alt="Orchestra Architecture" width="900">
-</p>
-
 ```
-Dashboard (HTMX+SSE) <-> FastAPI :8888 <-> SessionManager
-                                            |-- Orchestrators (Opus, per-project)
-                                            |     +-- spawn/send/stop/kill workers
-                                            |-- Workers (Sonnet/Haiku, per-task)
-                                            |     +-- send_message back to orchestrator
-                                            +-- Cross-project messaging
-
-TG Bridge (aiogram) <-> Orchestra API
-                    <-> Telegram group with topics per orchestrator
-                    <-> Bidirectional mirrors to other groups
+You (Telegram / Dashboard)
+  │
+  ▼
+Orchestrator (Claude Opus) ─── thinks like a manager
+  │   Decomposes task, assigns workers, reviews results
+  │
+  ├─► Worker A (Sonnet) ── git worktree: feature/auth
+  ├─► Worker B (Sonnet) ── git worktree: feature/api
+  ├─► Worker C (Sonnet) ── git worktree: fix/bug-123
+  │
+  ▼
+Reviewer (GPT-5.5) ── cross-model review
+  │   Different model = different blind spots
+  │
+  ▼
+Merge ── squash to main
 ```
 
-## Fleet Looping — Multi-Level Agent Teams
+Each worker is a full Claude Code session in its own git worktree. They don't share context, don't step on each other's code, and merge through squash PRs. The orchestrator coordinates. Not a graph engine. An actual AI deciding what to do next.
 
-Orchestra implements **fleet looping** — a hierarchical agent architecture where an orchestrator spawns specialized workers, each running in their own loop.
+Workers can talk to each other via `send_message`. The backend worker finishes an API endpoint and messages the frontend worker: "endpoint ready at /api/users, here's the schema." No human relay needed.
 
-<p align="center">
-  <img src="docs/fleet-looping.png" alt="Fleet Looping" width="500">
-</p>
+<a id="comparison"></a>
+## Orchestra vs. the field
 
-- **Orchestrator** (Opus 4.6) — decomposes tasks, assigns workers, reviews results
-- **Sub-Orchestrator** — manages a sub-team (e.g. dev-lead owns backend workers)
-- **Full-Cycle Worker** (Opus 4.8) — research → plan → Codex review → implement → verify
-- **System Worker** (Sonnet) — fast execution from clear specs
-- **Cross-agent messaging** — workers can talk directly via `send_message`
-- **Pipeline-as-config** — YAML manifests for custom roles per client
+| | LangGraph | CrewAI | AutoGen | Claude Code | **Orchestra** |
+|---|---|---|---|---|---|
+| **Mental model** | Wire a graph | Assemble a crew | Chat between agents | Talk to one agent | **Manage a team** |
+| **Who it's for** | Engineers | Developers | Researchers | Developers | **Teams with AI-native devs** |
+| **Agents** | Nodes in a graph | Agents with roles | Conversable agents | One agent | **Persistent fleet** |
+| **Isolation** | Shared state | Shared state | Shared state | Single context | **Git worktree per worker** |
+| **Duration** | One pipeline run | One task run | One conversation | One session | **Hours to days** |
+| **Cross-model review** | Manual | No | No | No | **Built-in (Claude→GPT)** |
+| **Telegram control** | No | No | No | No | **Voice, text, media** |
+| **Task management** | No | No | No | No | **Built-in (priorities, payments)** |
+| **Self-building** | No | No | No | No | **Yes** |
 
-Each level loops: research → plan → execute → verify → iterate until done.
+The analogy:
+- **LangGraph** = build a car from parts (for mechanics)
+- **CrewAI** = LEGO kit (for hobbyists)
+- **AutoGen** = group chat between bots (for researchers)
+- **Claude Code** = hire one contractor (for developers)
+- **Orchestra** = **hire a team (for builders)**
 
 ## Features
 
-- **Persistent client per session** — connect once, `query()` injects mid-turn via SDK stdin. Auto-reconnect on failure
-- **Heartbeat watchdog** — 60s heartbeat detects silent client death, auto-reconnects with inject notice
-- **Auto-resume on restart** — all sessions (orchestrators + workers) restored from DB. Running sessions get restart notice injected
-- **Auto-report** — workers that finish without send_message get force-reported to orchestrator
-- **Prompt hot-reload** — updated prompts injected on first turn after restart
-- **Cross-orchestrator awareness** — each orchestrator knows all others, can send_message across projects
-- **Context tracking** — per-model limits (200k/1M), cache hit %, auto-compact at >90%
-- **Usage bar** — OAuth API usage tracking, 5h/7d utilization, persisted cache
-- **Worker progress tracking** — `update_progress(percent, status)` MCP tool, progress bar in sidebar
-- **Stop vs Kill** — `stop_worker` = interrupt + idle (resumable), `kill_worker` = full delete
-- **Image paste** — Ctrl+V upload with md5 dedup
-- **Bug reports** — agents file bugs to BUGS.md via report_bug MCP tool
-- **30+ custom tool bubbles** — spawn_worker, WebSearch, diff view, Read, Write, send_message, etc.
+### 🏗️ Persistent Agent Fleet
+Agents live for hours or days. They maintain context across tasks, remember past decisions, accumulate project knowledge. Not one-shot functions.
 
-## Telegram Bridge (optional)
+### 🌳 Git Worktree Isolation
+Every worker gets its own git worktree — a full copy of the repo on its own branch. Two workers editing the same project never touch the same files. Merge conflicts are structurally minimized. `owned_dirs` per worker + `check_conflict()` before merge = safe parallel work.
 
-Mirror agent activity to a Telegram group with topic threads. Bidirectional — write in TG, agents receive with `[from TG: Name]` prefix.
+### 📱 Telegram Bridge
+Manage your AI team from your phone. Voice messages, photos, documents — the orchestrator transcribes voice (Deepgram Nova-3), understands images, processes files. Real-time status updates in topic threads.
 
-1. Create a bot via [@BotFather](https://t.me/BotFather)
-2. Create a TG group, enable topics, add your bot as admin
-3. Add to `.env`:
-   ```
-   TG_BRIDGE_TOKEN=your_bot_token
-   TG_BRIDGE_GROUP=your_group_id
-   ```
+### 🔀 Cross-Model Review
+Code written by Claude is reviewed by GPT-5.5 (Codex). Different models have different blind spots. Two perspectives catch bugs that one model misses.
 
-### TG features
-- **Voice/video notes** — Deepgram Nova-3 transcription, auto-injected as text
-- **Media support** — photos, documents, video, audio, stickers, forwards with captions
-- **Topic status** — 🟢/🟡 icons synced with actual agent status (single source of truth)
-- **Mirror formatting** — entities (bold/italic/code) preserved in mirror groups
-- **Images as photos** — `send_file` auto-detects images, sends via `send_photo` for inline preview
-- **Debounce** — state machine batches rapid messages into single turn (5s window)
-- **Polling auto-restart** — crash recovery wrapper with 10s retry
+### 🏰 Hierarchy: Orchestrator → Sub-Orchestrators → Workers
+One orchestrator per project. Sub-orchestrators manage sub-teams. Workers do the work. Cross-project messaging lets orchestrators coordinate across repos.
 
-### Large file support (optional)
+### 🔄 Built by Itself
+Orchestra-orchestrator is the agent that builds Orchestra. 8 workers write the code for the platform they run on. No other framework can say: "our product was built by our product."
+
+### ⚙️ Per-Role Model Policy
+Orchestrators run on Opus (deep thinking). Workers run on Sonnet (fast execution). Full-cycle research agents run on Opus 4.8. Each role gets the right model for the job, not one-size-fits-all.
+
+### 📋 Task Manager
+Built-in task management with priorities, assignments, and payment tracking. Agents create, update, and close tasks. No external project management tool needed.
+
+### 💾 Persistent Sessions
+Agents survive restarts. Sessions are stored in SQLite, auto-resumed on boot. Context is compacted automatically when it fills up. Workers pick up where they left off.
+
+### 📊 Real-Time Dashboard
+HTMX + SSE dashboard shows every agent, their status, context usage, cache hit rate, current task, and live logs. No polling, no refresh.
+
+## Real Projects Built with Orchestra
+
+These aren't demos. They run in production right now, on one server.
+
+| Project | What it does | Scale |
+|---------|-------------|-------|
+| **Parsing** (client, Kamchatka) | Data import, dedup, genealogy search | 166M records in MySQL |
+| **Seedon** (our company) | Registration, accounting, legal, site, marketing, first client | Full business ops |
+| **Kesha** | Personal Telegram bot on Claude Agent SDK | 24/7 on VPS |
+| **VPN Service** | Marzban VLESS+Reality management | Self-hosted |
+| **RimWorld Mods** | 70+ mod translations, C# DLL | 2000+ text keys |
+| **Sensar** (medtech) | Software validation protocol for video laryngoscope | 36 test items, 20 pages |
+| **University** | MSc thesis, lecture notes, ML dashboards | 45 pages, 29 DOI sources |
+| **Orchestra itself** | Self-development: 8 workers build the platform | Recursive self-improvement |
+
+## Architecture
+
+```
+Dashboard (HTMX + SSE) ◄──► FastAPI :8888 ◄──► Session Manager
+                                                  │
+                               ┌──────────────────┼──────────────────┐
+                               ▼                  ▼                  ▼
+                         Orchestrator A     Orchestrator B     Orchestrator C
+                         (Project: site)    (Project: bot)     (Project: data)
+                           │                  │                  │
+                      ┌────┼────┐         ┌───┼───┐          ┌──┼──┐
+                      ▼    ▼    ▼         ▼   ▼   ▼          ▼  ▼  ▼
+                     W1   W2   W3        W4  W5  W6         W7 W8 W9
+                    (fe) (be) (seo)     (tg)(api)(db)      (import)(dedup)(search)
+
+TG Bridge (aiogram) ◄──► Orchestra API ◄──► Telegram group (topics per agent)
+
+SQLite (WAL) ── sessions, logs, tasks, payments, jobs
+Git Worktrees ── one per worker, squash merge to main
+```
+
+## Telegram Bridge
+
+Mirror everything to a Telegram group with topic threads. Write in TG, agents receive. Send voice — transcribed via Deepgram. Send screenshots — agents see them.
+
 ```bash
-sudo bash scripts/setup-tg-bot-api.sh
-# Add to .env:
-TG_LOCAL_API_URL=http://localhost:8081
-```
-
-### Voice transcription (optional)
-```
+# Add to .env
+TG_BRIDGE_TOKEN=your_bot_token
+TG_BRIDGE_GROUP=your_group_id
+# Optional: voice transcription
 DEEPGRAM_API_KEY=your_key
-```
-
-## Task Manager
-
-Built-in task management with priorities, payments, and YouGile sync.
-
-- `task_create/update/list/get` — MCP tools for agents
-- **Priorities** — critical 🔴, high 🟠, medium 🟡, low 🟢
-- **Payments** — `payment_receive` auto-distributes to done tasks (smallest debt first)
-- **YouGile sync** — bidirectional sync with YouGile boards (optional)
-- **Payment journal** — auto-generated task in YouGile with payment history
-
-## Security
-
-- **Dashboard auth** — cookie session with login/password from `.env`
-- **Internal token** — `INTERNAL_TOKEN` for MCP callback auth
-- **Path traversal protection** — deny-list for dotfiles, credentials, databases
-- **Upload restrictions** — executable extensions blocked
-- **Limit caps** — SSE/logs capped to prevent abuse
-
-## Deployment
-
-Works locally and on remote VPS. See `docs/deploy-amsterdam/PLAN.md` for full deployment guide.
-
-```bash
-# .env for production
-DASHBOARD_USER=admin
-DASHBOARD_PASSWORD=your-secure-password
-INTERNAL_TOKEN=your-random-hex-32
-COOKIE_SECURE=1  # enable after SSL
 ```
 
 ## Stack
@@ -149,9 +189,26 @@ COOKIE_SECURE=1  # enable after SSL
 - Python 3.12+, FastAPI, Jinja2, SSE
 - `claude-agent-sdk` — Claude Code SDK (persistent client per session)
 - SQLite (WAL mode), git worktrees
-- Tailwind CSS, highlight.js, marked.js, DOMPurify, diff-match-patch (bundled offline)
-- aiogram 3.x (TG bridge)
+- Tailwind CSS, highlight.js, marked.js (bundled offline)
+- aiogram 3.x (Telegram bridge)
+- Deepgram Nova-3 (voice transcription)
+
+## Contributing
+
+We welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Good first issues are labeled `good-first-issue`.
 
 ## License
 
-[AGPL-3.0](LICENSE) — free for open source. Commercial licensing available from [Seedon](https://seedon.ru) (ООО «Сидон»). Contact: maxim-as@bk.ru
+**AGPL-3.0** for open source use. Commercial license available for businesses that need it.
+
+See [LICENSE](LICENSE) for details. Contact [@DrSeedon](https://t.me/DrSeedon) for commercial licensing.
+
+---
+
+<p align="center">
+  <b>Orchestra</b> — stop building pipelines, start managing teams
+  <br>
+  <a href="https://seedon.ru">seedon.ru</a> · <a href="https://t.me/DrSeedon">Telegram</a> · <a href="https://github.com/DrSeedon/orchestra">GitHub</a>
+</p>
