@@ -1,6 +1,7 @@
 """Available models — single source of truth."""
 
 MODELS = {
+    "claude-fable-5[1m]": "Fable 5 (1M)",
     "claude-opus-4-8[1m]": "Opus 4.8 (1M)",
     "claude-opus-4-6[1m]": "Opus 4.6 (1M)",
     "claude-sonnet-4-6": "Sonnet 4.6",
@@ -11,6 +12,7 @@ MODELS = {
 }
 
 CONTEXT_LIMITS = {
+    "claude-fable-5[1m]": 1000000,
     "claude-opus-4-8[1m]": 1000000,
     "claude-opus-4-6[1m]": 1000000,
     "claude-sonnet-4-6": 200000,
@@ -21,6 +23,11 @@ CONTEXT_LIMITS = {
 }
 
 ALIASES = {
+    "fable": "claude-fable-5[1m]",
+    "fable5": "claude-fable-5[1m]",
+    "claude-fable-5": "claude-fable-5[1m]",
+    "claude-fable-5-1m": "claude-fable-5[1m]",
+    "mythos": "claude-fable-5[1m]",
     "opus": "claude-opus-4-6[1m]",
     "opus4.8": "claude-opus-4-8[1m]",
     "claude-opus-4-8": "claude-opus-4-8[1m]",
@@ -39,6 +46,7 @@ ALIASES = {
 }
 
 BACKENDS = {
+    "claude-fable-5[1m]": "claude",
     "claude-opus-4-8[1m]": "claude",
     "claude-opus-4-6[1m]": "claude",
     "claude-sonnet-4-6": "claude",
@@ -49,6 +57,7 @@ BACKENDS = {
 }
 
 TOKEN_PRICES = {
+    "claude-fable-5[1m]": {"input": 10.0, "output": 50.0},
     "claude-opus-4-8[1m]": {"input": 15.0, "output": 75.0},
     "claude-opus-4-6[1m]": {"input": 15.0, "output": 75.0},
     "claude-sonnet-4-6":   {"input": 3.0,  "output": 15.0},
