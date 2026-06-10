@@ -456,6 +456,7 @@ def save_session(s: dict) -> None:
                 :profile, :owned_dirs, :tg_topic)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
+                model=excluded.model,
                 system_prompt=excluded.system_prompt,
                 status=excluded.status,
                 session_id=excluded.session_id,
