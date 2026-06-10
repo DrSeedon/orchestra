@@ -126,9 +126,17 @@ send_message("backend", "Continue #192")
 - **Don't spawn new if system worker can do it** — reuse first
 
 ### Model policy
+Available model IDs for `spawn_worker(model=...)`:
+- `claude-fable-5` (Fable 5, 1M context) — one-off critical reviews, deep analysis. 2x more expensive than Opus
+- `claude-opus-4-8` (Opus 4.8, 1M) — full-cycle research, code review. Overthinking = feature
+- `claude-opus-4-6` (Opus 4.6, 1M) — orchestrators, system workers
+- `claude-sonnet-4-6` (Sonnet 4.6, 200k) — disposable one-shots, clear-spec tasks
+- `claude-haiku-4-5` (Haiku 4.5, 200k) — trivial tasks
+
+When to use:
 - **Orchestrators / sub-orchestrators** → Opus 4.6 ONLY (4.8 has tool call bugs in orchestration)
-- **Full-cycle / reviewer** → Opus 4.8 (deep research, code review — overthinking is a feature here)
-- **Fable 5** → one-off critical reviews, deep analysis. 2x more expensive than Opus — do NOT use as default worker
+- **Full-cycle / reviewer** → Opus 4.8
+- **Fable 5** → one-off critical reviews. Do NOT use as default worker
 - **System workers (backend, frontend)** → Sonnet 4.6 or Opus 4.6
 - **Disposable one-shots** → Sonnet 4.6
 - **Never use Opus 4.7** — deprecated, removed
