@@ -2,44 +2,41 @@
 
 ## Open
 
-### 🔴 send_message 500 после рестарта
-- **Reporter:** Parsing-orchestrator (2026-05-26)
-- send_message к idle воркерам = 500 после restart Orchestra. Свежие воркеры работают
-- **Status:** вероятно починен фиксами auto_resume + ensure_loaded_any (2026-06-03). Проверить после рестарта
-- **Assignee:** проверка после ребута
+### 🟡 TG diff images not rendering
+- **Reporter:** Orchestra-orchestrator (2026-06-08)
+- Edit/Write/Read/Grep/Bash diff images (`app/diff_image.py`) code exists but images don't appear in TG
+- Debug logging added (`c0d73fe`) but no logs appear — `_send_diff_image` may not be called
+- Need to verify after restart with debug logging enabled
 
-### 🟡 Worker DONE report уходит parent_name вместо task giver
-- **Reporter:** seedon-orchestrator (2026-05-31)
-- Воркер спавнен orchestrator-A, задачу дал orchestrator-B через send_message. DONE уходит к A (parent)
-- **Assignee:** backend (в работе 2026-06-04)
+### 🟡 Codex review unreachable — 403 Cloudflare
+- **Reporter:** research-runtime (2026-06-05)
+- `codex exec` blocked by Cloudflare geo/datacenter. Proxy 12334 routes only Anthropic, not OpenAI
+- Workaround: none currently. Need separate proxy route for OpenAI
 
-### 🟡 Ambiguous task linking: один номер таска в двух проектах
-- **Reporter:** dev-lead (2026-05-31)
-- link_commits_to_task не передаёт project-фильтр → ambiguity warning, коммиты не привязаны
-- **Assignee:** backend (в работе 2026-06-04)
+## Closed (2026-06)
 
-### 🟡 payment_receive + task prices в тысячах — теряются дробные (500₽)
-- **Reporter:** ParsingMaxim (2026-06-01)
-- Цены и платежи хранятся в тысячах, нельзя указать точную сумму
-- **Assignee:** taskmanager (в работе 2026-06-04)
+- ✅ **send_message 500 после рестарта** — Fixed: ensure_loaded_any fallback (2026-06-03)
+- ✅ **DONE report to wrong parent** — Fixed: last_task_sender tracking + report-format prompt (2026-06-04)
+- ✅ **Ambiguous task linking** — Fixed: project_id filter in link_commits_to_task (2026-06-04)
+- ✅ **Prices in thousands** — Fixed: exact currency units, _fmt_amount, removed *1000 (2026-06-04)
+- ✅ **Worker status stuck idle while running** — Fixed: turn timeout no longer resets status (2026-06-05)
+- ✅ **TG files to wrong topic** — Fixed: _find_orch_for_scope by parent_name (2026-06-05)
+- ✅ **change_model not persisted** — Fixed: immediate save_session in change_model (2026-06-09)
+- ✅ **dev-lead malformed tool calls** — Root cause: Opus 4.8 bug. Switched to 4.6 + prompt rule added
+- ✅ **Single tilde strikethrough** — Fixed: escape single ~ before marked.parse
+- ✅ **Spawn bubble text wrapping** — Fixed: cut at newline boundary
+- ✅ **Worker colors after refresh** — Fixed: await refreshSessions before connectSSE
+- ✅ **Send errors hidden in dashboard** — Fixed: show red ❌ instead of null
+- ✅ **System prompt lost on compact** — Fixed: always set system_prompt (2026-06-03)
+- ✅ **switch_worker_branch blocked after squash** — Fixed: reset --hard from_ref (2026-06-03)
+- ✅ **Cross-project send_message** — Fixed: ensure_loaded_any fallback (2026-06-03)
 
-## Closed (2026-06-01)
+## Closed (2026-05)
 
-- ✅ **codex_review output path** — решено: Codex через bash (cwd=worktree), не через MCP bg job
-- ✅ **codex_review exec never writes output** — root cause: bg job timeout → no notification. Fixed in #41
-- ✅ **Codex Reconnecting через прокси** — root cause: HTTPS_PROXY inherited. Fixed: strip proxy env
-- ✅ **Deepgram SSL BAD_RECORD_MAC** — root cause: aiohttp trust_env=True + VLESS. Fixed: trust_env=False + certifi
-- ✅ **send_file silent false-positive** — Fixed: validate TG response, explicit error
-- ✅ **kill_worker удаляет логи** — Fixed: archive_session instead of delete_session
+- ✅ **codex_review output path** — Fixed: Codex через bash (cwd=worktree)
+- ✅ **Codex Reconnecting через прокси** — Fixed: strip proxy env
+- ✅ **Deepgram SSL BAD_RECORD_MAC** — Fixed: trust_env=False + certifi
+- ✅ **send_file silent false-positive** — Fixed: validate TG response
+- ✅ **kill_worker удаляет логи** — Fixed: archive_session
 - ✅ **Zombie workers after restart** — Fixed: auto_resume_all filters archived
-- ✅ **Merge конфликт после squash** — Fixed: auto-reset worktree after merge (#38)
-
-## [2026-06-05 06:36 UTC] codex_review output path resolves to main repo, not worker worktree (repeat)
-- **Reporter:** infra
-- **Scope:** /mnt/data/Projects/Python/seedon
-When worker infra (worktree at /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/infra) calls codex_review with relative output path like "docs/tasks/47/codex-review-plan.md", the bg job writes to /mnt/data/Projects/Python/seedon/docs/tasks/47/ (main repo CWD) instead of the worker's worktree. This is the same class of bug as the earlier "codex_review не видит diff суб-репо" report — the codex bg job runs in the context of the main Orchestra project, not the worker's isolated worktree. Workaround: orchestrator runs codex_review instead of worker, or use absolute worktree path in output param. This has happened 3+ times across tasks #34, #42, #47.
-
-## [2026-06-05 11:52 UTC] Codex review (codex exec) unreachable — 403 Cloudflare / websocket refused
-- **Reporter:** research-runtime
-- **Scope:** /mnt/data/Projects/Python/seedon
-codex-debate Quick Review failed for task #55. `codex exec` без прокси → 403 Forbidden от chatgpt.com/backend-api/codex/responses (cf-ray, Cloudflare geo/datacenter block). С Hiddify-прокси 12334 → websocket wss://chatgpt.com/backend-api/codex/responses Connection refused (os error 111). Auth ок (auth_mode chatgpt, id_token есть). Это сетевой блок: proxy 12334 маршрутизирует только Anthropic, а прямой IP geo-блокируется Cloudflare. Workers не могут запускать Codex review без рабочего маршрута до OpenAI. Воспроизводится 2/2.
+- ✅ **Merge конфликт после squash** — Fixed: auto-reset worktree (#38)

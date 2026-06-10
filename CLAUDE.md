@@ -99,6 +99,51 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Каждый edge case в промпте = потенциальная развилка. Лучше 3 конкретных правила чем 1 "умное" обобщение
 - Логировать когда агент отклоняется от ожидаемого пути → добавлять guardrails
 
+## Session notes (2026-06-03 to 2026-06-09)
+
+### Model policy
+- Opus 4.6 — orchestrators/sub-orchestrators (4.8 has tool call bugs in orchestration)
+- Opus 4.8 — full-cycle/reviewer (overthinking = feature for research)
+- Opus 4.7 — REMOVED, deprecated
+- Fable 5 — added and tested (works!), but 2x more expensive than Opus → burns limits 2x faster. Use only for one-off critical tasks, NOT as default
+- Sonnet 4.6 — system workers, disposable
+
+### Worktree lifecycle (deterministic, no LLM dependency)
+- `merge_worker(next_task_id=)` — atomic merge+switch in one call (PREFERRED)
+- `needs_switch` guard — after merge without next_task_id, worker blocked until switch
+- `switch_worker_branch` — blocks on unmerged commits, resets to main via `git reset --hard`
+- `kill_worker` — blocks on dirty/unmerged, `force=True` to override
+- Auto-cleanup stale worktrees — startup + every 24h
+- `change_model` — immediate DB persist (survives restart)
+
+### TG bridge
+- proxychains4 wraps telegram-bot-api — works without Hiddify VPN (через Ёжик SSH tunnel 12340)
+- Health check loop — 3 consecutive fails → auto-restart telegram-bot-api
+- Diff images (Edit/Write/Read/Grep/Bash) — Pillow render, ~40ms, ~30KB. TG_DIFF_IMAGES env (default true)
+- send_message HTML formatting — `<b>→ to</b>` + `<pre>` for code
+- `_find_orch_for_scope` — uses parent_name="" to find top-level orchestrator (not role)
+
+### Prompt architecture
+- Shared `modules/orchestration.md` — used by both orchestrator and sub-orchestrator
+- `modules/background-jobs.md` — extracted from base.md, "message must explain WHY"
+- `modules/task-management.md` — extracted from orchestration, full CRUD workflow
+- Pre-compact auto-save — orchestrators get instruction to persist CLAUDE.md/TODO/BUGS before summary
+- Sub-orchestrator sees only top-level orchestrators (not other sub-orchestrators)
+- "NEVER type tool calls as text" — critical rule added after dev-lead Opus 4.8 bug
+
+### Open source launch (ready)
+- README with comparison table, fleet looping, infographics
+- .env.example, CONTRIBUTING.md, Dockerfile, docker-compose.yml
+- GitHub Actions CI (pytest on push), 522 tests pass
+- app.js split: 5303→4489 lines, 3 leaf modules extracted (utils, tool-renderers, usage)
+- 9 Playwright smoke tests
+- Currency symbol from .env (CURRENCY_SYMBOL, default ₽)
+- Pipeline-as-config (Вадим PR #2) merged and rebased
+
+### Seedon enterprise fork
+- Safety prompt (SAFETY_PREFIX) — was in main, REVERTED. Lives in private fork orchestra-enterprise
+- Per-role lean tools — was in main, REVERTED. Will return when coding-worker role exists
+
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool
 - Баги пишутся в `BUGS.md` в корне проекта
