@@ -39,6 +39,7 @@ DEEPGRAM_API_KEY = ""
 
 def save_config():
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    # Strip token before persisting — it's in .env, not on disk
     safe = {k: v for k, v in config.items() if k != "token"}
     CONFIG_PATH.write_text(json.dumps(safe, indent=2))
 
@@ -56,6 +57,7 @@ def _load_media_cache() -> dict[str, str]:
     if MEDIA_CACHE_PATH.exists():
         try:
             data = json.loads(MEDIA_CACHE_PATH.read_text())
+            # Drop entries whose files were deleted (cleanup rotation) — avoids dead references
             return {k: v for k, v in data.items() if Path(v).exists()}
         except Exception:
             pass
@@ -92,9 +94,9 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
 
 UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 
-# Юзернейм для @mention в сообщениях агента пользователю (его речь, тип "text" → 💬).
-# Пусто → без тэга. Тэгается ТОЛЬКО речь агента, НЕ внутренняя переписка агентов (📨 [from:]).
-# MVP: статичный ник из env. Динамическое определение «это обращение к юзеру» — в backlog.
+# @mention for agent-to-user speech (type "text" → 💬) so TG notifications fire on the owner.
+# NOT applied to inter-agent messages (📨 [from:]) — only direct user-facing responses.
+# Static username from env (MVP). Dynamic "is this addressed to the user" detection is in backlog.
 TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
 
 
@@ -113,6 +115,7 @@ def _cleanup_uploads():
 
 async def _download_file(file_id: str, filename: str, unique_id: str = "") -> str | None:
     global _media_cache
+    # file_unique_id is stable across bots — cache hit avoids re-downloading the same TG file
     if unique_id and unique_id in _media_cache:
         cached = _media_cache[unique_id]
         if Path(cached).exists():
@@ -131,6 +134,8 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
                 path = UPLOADS_DIR / f"{stem}_{i}{suffix}"
                 i += 1
         local_api = os.getenv("TG_LOCAL_API_URL", "")
+        # Local Bot API server provides absolute paths — copy directly instead of downloading
+        # over the network (~40ms vs ~2s for large files)
         if local_api and f.file_path and Path(f.file_path).is_absolute() and Path(f.file_path).exists():
             import shutil
             shutil.copy2(f.file_path, str(path))
@@ -235,6 +240,8 @@ async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
     return orch_name, session
 
 
+# Messages arriving within DEBOUNCE_SEC of each other are batched into one agent send.
+# MEDIA_WAIT_MAX caps how long we stall for slow downloads before flushing without them.
 DEBOUNCE_SEC = 5
 MEDIA_WAIT_MAX = 30
 
@@ -266,6 +273,8 @@ def _get_buf(sid: str) -> _BufState:
     return _buffers[sid]
 
 
+# Cancel and restart the debounce timer each time a new message arrives —
+# only the final fire actually flushes the batch to the agent
 async def _arm_debounce(sid: str, buf: "_BufState"):
     if buf.debounce_task and not buf.debounce_task.done():
         buf.debounce_task.cancel()
@@ -341,6 +350,8 @@ async def _send_to_agent(msg: types.Message, session, content: str):
         await _arm_debounce(sid, buf)
 
 
+# Reserve a slot in the batch before the download completes —
+# slot index is returned so the download goroutine can fill it in via _resolve_media
 async def _register_media(msg: types.Message, session) -> tuple[str, int]:
     sid = session.id
     buf = _get_buf(sid)
@@ -374,6 +385,7 @@ async def _resolve_media(sid: str, idx: int, content: str):
 
 
 
+# TG Bot API entity offsets are in UTF-16 code units, not Python's character count or byte count
 def _utf16_len(s: str) -> int:
     return len(s.encode("utf-16-le")) // 2
 
@@ -390,6 +402,8 @@ def _md_entities(text: str, base_offset: int = 0):
 
 
 
+# Edit an existing tool message to append the result inline —
+# avoids a separate message and keeps tool+result visually grouped in TG
 async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_header: str, result_body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
@@ -446,6 +460,8 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
                 logger.warning(f"TG edit failed: {e2}")
 
 
+# Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
+# Falls back to plain text if the Bot API version doesn't support EXPANDABLE_BLOCKQUOTE.
 async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
@@ -486,9 +502,12 @@ def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
 
 _flood_until: float = 0
 _last_send: float = 0
+# TG allows ~1 msg/sec per chat — enforce minimum interval to avoid flood errors
 _TG_MIN_INTERVAL = 1.0
 
 
+# Rate-limited send with flood control: waits out flood bans before retrying important messages.
+# Non-important messages are silently dropped after a flood to avoid queue buildup.
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
                          entities=None, important: bool = False):
     global _flood_until, _last_send
@@ -650,6 +669,8 @@ async def rename_orch_topic(old_name: str, new_name: str) -> dict:
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 
 
+# Prefer the top-level orchestrator (no parent) so send_file routes to the scope owner's topic,
+# not a sub-orchestrator. Falls back to any orchestrator if no top-level found.
 def _find_orch_for_scope(scope: str) -> str | None:
     from app.db import get_all_sessions
     top_level = None
@@ -782,10 +803,12 @@ async def _sync_all_topic_statuses():
         await _update_topic_status(name, is_running)
 
 
+# Custom emoji IDs in the target TG group — green dot for running, grey for idle
 _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
 
 
+# Deduplicated topic icon updates — TG rate-limits edit_forum_topic, so skip if state unchanged
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
@@ -1025,6 +1048,7 @@ async def stream_logs(orch_name: str, thread_id: int):
         return
 
     from app.db import _conn
+    # Dedicated connection per stream loop — avoids sharing state with the request threads
     _poll_conn = _conn()
     logs = get_logs(session_id, after_id=0, conn=_poll_conn)
     last_id = logs[-1]["id"] if logs else 0
@@ -1101,6 +1125,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                         if tool_name in ("Edit", "Write"):
                             _diff_sent = await _send_diff_image(tool_name, c, config["group_id"], thread_id)
                         # Special formatting for send_message — render as pretty HTML
+                        # send_message tool: render as readable HTML instead of raw JSON expandable —
+                        # the recipient name and message body are the useful parts
                         if not _diff_sent and "send_message" in tool_name:
                             try:
                                 import json as _json
@@ -1188,6 +1214,7 @@ async def stream_logs(orch_name: str, thread_id: int):
             except Exception as e:
                 logger.error(f"Stream error for {orch_name}: {e}")
                 _idle_ticks = 0
+            # Poll faster when active, slow down when idle to save CPU on long-running idle sessions
             await asyncio.sleep(2 if _idle_ticks < 3 else 5)
     finally:
         _poll_conn.close()
@@ -1400,6 +1427,8 @@ async def _deferred_startup():
         logger.error(f"TG deferred startup failed: {e}")
 
 
+# Health check for the local telegram-bot-api server — restarts it after 3 consecutive failures.
+# The local server sometimes hangs without crashing, so polling is the only detection.
 async def _bot_api_health_loop(local_api: str):
     import subprocess
     import aiohttp as _aio
@@ -1423,6 +1452,7 @@ async def _bot_api_health_loop(local_api: str):
             await asyncio.sleep(30)
 
 
+# Polling loop with auto-restart — network blips or TG downtime shouldn't kill the bridge permanently
 async def _safe_polling():
     while True:
         try:

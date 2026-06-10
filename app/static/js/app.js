@@ -1,12 +1,15 @@
+// Cap DOM nodes to avoid memory growth during long agent sessions
 const MAX_CHAT_NODES = 500;
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
+// localMessages tracks messages sent from this tab so SSE echo doesn't create duplicates
 let localMessages = new Set();
 let pendingUserMsgs = [];
 let pendingBubble = null;
 let uiDebounceTimer = null;
 let refreshController = null;
+// UI debounce: rapid-fire messages from the user are batched into one send before the timer fires
 const UI_DEBOUNCE_MS = 2500;
 let scrollAfterLoad = true;
 let drafts = {};
@@ -138,16 +141,20 @@ function scheduleRefresh() {
     }, 3000);
 }
 
+// SSE reconnects on error — server may restart mid-session, don't lose the log stream
 function connectSSE() {
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (!selectedAgent || !currentScope) return;
     const lastId = chatLogs[selectedAgent]?.lastId || 0;
+    // On first connect (lastId=0), fetch the last 100 messages for initial display
     const limitParam = lastId === 0 ? '&limit=100' : '';
     const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
     eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
         try {
             const l = JSON.parse(event.data);
+            // When the server echoes back a message we sent, replace our optimistic bubble
+            // with the confirmed version so timestamps and content match exactly.
             const isLocal = l.type === 'user_message' && (localMessages.has(l.content) || [...localMessages].some(m => l.content.endsWith(m)));
             if (isLocal) {
                 localMessages.delete(l.content);
@@ -266,8 +273,8 @@ async function loadProfilesDropdown() {
             opt.textContent = `${p.name} (${p.config_dir || 'env процесса'})`;
             select.appendChild(opt);
         }
-        // B5: API сортирует по name (ORDER BY name), поэтому первый ≠ personal.
-        // Явно предпочитаем personal, иначе — первый по списку.
+        // API sorts by name (ORDER BY name), so first entry ≠ 'personal'.
+        // Prefer 'personal' explicitly; fall back to whatever comes first.
         const def = profiles.find(p => p.name === 'personal') || profiles[0];
         if (def) select.value = def.name;
     } catch {}
@@ -951,6 +958,7 @@ function selectOrchestrator(name, scope) {
     const opt = [...picker.options].find(o => o.dataset.name === name);
     if (opt) picker.selectedIndex = opt.index;
 
+    // Keep last 10 recently used orchestrators — used to sort tabs on next load
     const recent = JSON.parse(localStorage.getItem('recentOrchs') || '[]');
     const filtered = recent.filter(n => n !== name);
     filtered.unshift(name);
@@ -1105,10 +1113,12 @@ function updateAgentInfo(session) {
         changeBtn.addEventListener('mouseleave', () => changeBtn.style.color = '#475569');
         modelEl.parentElement.appendChild(changeBtn);
     }
+    // Model can only be changed when the CLI is not actively processing — changing mid-turn would be ignored by the SDK
     const isIdle = session.status === 'idle' || session.status === 'stopped' || session.status === 'waiting';
     changeBtn.style.display = isIdle ? 'inline' : 'none';
     changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
     $('#ai-role').textContent = session.role || 'worker';
+    // Cost is virtual (API-equivalent), not real spend — subscription model
     $('#ai-cost').textContent = `$${(session.cost_usd || 0).toFixed(2)}`;
     $('#ai-cost').title = `$${(session.cost_usd || 0).toFixed(4)} (CLI cost, includes cache)`;
     $('#ai-branch').textContent = session.branch || '-';
@@ -1205,6 +1215,7 @@ function renderAgentList(sessions) {
         }
     }
 
+    // Guard against cycles in the parent/child graph — shouldn't happen but the data comes from DB
     const seen = new Set();
     const buildNode = (session, isChild, isLast) => {
         if (seen.has(session.name)) return null;
@@ -1237,6 +1248,7 @@ function renderAgentList(sessions) {
     }
 }
 
+// Static defaults — server may extend these with custom pipeline roles at startup
 let _roleIcons = {'orchestrator':'👑','worker':'⚙️','full-cycle':'🔄','sub-orchestrator':'🎯','reviewer':'🔍','watcher':'👁️'};
 fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,...d}}).catch(()=>{});
 
@@ -1328,6 +1340,9 @@ function createAgentItem(s) {
 }
 
 // === Chat ===
+// Optimistic UI: show message immediately, debounce actual send so rapid
+// follow-up messages get batched. The server echoes back via SSE which
+// replaces the bubble with the canonical version.
 async function sendChat() {
     const input = $('#chat-input');
     const msg = input.value.trim();
@@ -1806,12 +1821,15 @@ function _findLastBefore(parent, selector, anchor) {
 }
 
 const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
+// Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
+// anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 function addChatEntry(type, content, ts, anchor) {
     if (HIDE_THINKING && type === 'thinking') return;
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
     const _insert = (el) => anchor ? chat.insertBefore(el, anchor) : chat.appendChild(el);
 
+    // Heuristic: detect base64 image payloads from tool results (e.g. screenshot tools)
     const _isBase64Image = content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"') || /['"]?data['"]?\s*[:=]\s*['"][A-Za-z0-9+/=\s]{500,}['"]/.test(content);
 
     if (_isBase64Image && type !== 'tool' && type !== 'tool_result') {
@@ -1913,11 +1931,13 @@ function addChatEntry(type, content, ts, anchor) {
         const line = buildCompactToolLine(type, content, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         _insert(line);
+        // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
         while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
         if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
 
+    // Stream events accumulate into one bubble that gets re-rendered on each chunk
     if (type === 'stream') {
         removeWaitingIndicator();
         streamContent += content;
@@ -1935,6 +1955,7 @@ function addChatEntry(type, content, ts, anchor) {
         return;
     }
 
+    // 'text' event signals that streaming finished — finalize the bubble with timestamp/copy
     if (type === 'text' && streamBubble) {
         addCopyBtn(streamBubble, streamContent);
         addTimestamp(streamBubble, ts);
@@ -1943,6 +1964,7 @@ function addChatEntry(type, content, ts, anchor) {
         return;
     }
 
+    // Any non-text log after a stream (e.g. tool call) also terminates the stream bubble
     if (streamBubble && type !== 'text') {
         addCopyBtn(streamBubble, streamContent);
         addTimestamp(streamBubble, ts);
@@ -2025,6 +2047,8 @@ function addChatEntry(type, content, ts, anchor) {
     }`;
     if (type === 'user_message') {
         content = content.replace(/^\[\d{2}:\d{2}\] /, '');
+        // [from:agent-name] prefix means this was an agent-to-agent message injected by the MCP send_message tool,
+        // not a human message — style it differently (colored border, sender label)
         const fromMatch = content.match(/^\[from:(.+?)\]\s*([\s\S]*)$/);
         if (fromMatch) {
             const sender = fromMatch[1];
@@ -3674,6 +3698,7 @@ function getFileIcon(name, isDir) {
     return FILE_ICONS[ext] || '📄';
 }
 
+// Keyed by scope so each project remembers its own expanded folders independently
 function _getExpandedFolders() {
     try { return new Set(JSON.parse(localStorage.getItem('expandedFolders_' + currentScope) || '[]')); } catch { return new Set(); }
 }
@@ -3846,13 +3871,15 @@ function initFilePanel() {
 }
 
 // === Refresh Loop ===
-let refreshInProgress = false;
+let refreshInProgress = false; // single-flight guard — skips if previous refresh is still in flight
 async function refreshSessions() {
     if (refreshInProgress) return;
     refreshInProgress = true;
+    // Abort previous in-flight refresh so stale responses don't overwrite newer data
     if (refreshController) refreshController.abort();
     refreshController = new AbortController();
     const signal = refreshController.signal;
+    // Capture scope at call time — guard below checks it didn't change while we were fetching
     const capturedScope = currentScope;
 
     try {
@@ -3903,6 +3930,7 @@ async function refreshSessions() {
 }
 
 // === API ===
+// 5s timeout on all API calls — prevents hanging tabs when the server restarts mid-fetch
 async function api(url, opts = {}) {
     const timeout = AbortSignal.timeout(5000);
     const signals = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
@@ -3948,6 +3976,7 @@ async function _pollReconnect() {
     }
 }
 
+// Two consecutive failures before showing overlay — one transient error shouldn't panic the UI
 function _onServerError() {
     _rebootFails++;
     if (_rebootFails >= 2) _showRebootOverlay();
@@ -4005,6 +4034,7 @@ const STATUS_LABELS = {
     in_progress: 'IN PROGRESS', done: 'DONE', new: 'NEW',
     backlog: 'BACKLOG', paid: 'PAID', cancelled: 'CANCELLED',
 };
+// These statuses are collapsed by default — they're historical/archive, not actionable
 const COLLAPSED_DEFAULT = new Set(['backlog', 'paid', 'cancelled']);
 let _taskCollapsed = {};
 

@@ -31,6 +31,8 @@ function toolShortName(name) {
     return name;
 }
 
+// Returns null when lines are too different (< 40% common chars) — fall back to plain del/add
+// rather than showing character-level diff noise on completely replaced lines.
 function _inlineDiff(oldLine, newLine) {
     const dmp = new diff_match_patch();
     const diffs = dmp.diff_main(oldLine, newLine);
@@ -48,6 +50,8 @@ function _inlineDiff(oldLine, newLine) {
     return { delHtml, addHtml };
 }
 
+// LCS-based diff — Uint16Array saves memory vs plain Array for large files.
+// Walks the DP table backwards to reconstruct the edit sequence.
 function buildDiffLines(oldStr, newStr) {
     const a = oldStr.split('\n'), b = newStr.split('\n');
     const n = a.length, m = b.length;
@@ -144,12 +148,15 @@ function renderEditDiff(body) {
     return container;
 }
 
+// Renders a placeholder skeleton while the tool_result (file content) is still in flight.
+// The skeleton gets replaced by actual content when the SSE stream delivers tool_result.
 function renderReadView(body) {
     let data;
     try { data = JSON.parse(body); } catch { return null; }
     if (!data.file_path) return null;
 
     const fp = data.file_path || '';
+    // Strip worktree prefix — full absolute paths are too noisy for the UI
     const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
     const offset = data.offset || 0;
     const limit = data.limit || '';
@@ -281,6 +288,8 @@ function _wsCompactLinks(links) {
     return div.children.length > 0 ? div : null;
 }
 
+// Wraps web search results in a collapsible — search results can be very long,
+// and most of the time the first 5 lines are enough to decide if the result is useful.
 function _wsCollapsible(el) {
     const PREVIEW_LINES = 5;
     const PREVIEW_HEIGHT = PREVIEW_LINES * 18;
@@ -300,6 +309,7 @@ function _wsCollapsible(el) {
 
     const linksEl = wrapper.querySelector('[style*="border-top"]');
 
+    // Hide citation links by default — they clutter the preview; shown only when expanded
     if (linksEl) linksEl.style.display = 'none';
 
     const toggleWs = () => {
@@ -315,6 +325,7 @@ function _wsCollapsible(el) {
     wrapper.style.cssText = 'cursor:pointer;overflow-x:hidden;max-width:100%';
     wrapper.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleWs(); });
 
+    // rAF defers height check until after the element is in the DOM and has a real offsetHeight
     requestAnimationFrame(() => {
         if (body.scrollHeight <= PREVIEW_HEIGHT + 4) {
             hint.style.display = 'none';
@@ -327,6 +338,9 @@ function _wsCollapsible(el) {
     return wrapper;
 }
 
+// Multi-format parser: handles Perplexity sonar JSON, Brave/SerpAPI results arrays,
+// raw text with embedded "Links: [...]" JSON, and Markdown-formatted search responses.
+// Falls back gracefully — each branch returns null and the next tries.
 function renderWebSearchResults(raw) {
     let data;
     try { data = JSON.parse(raw); } catch { data = null; }

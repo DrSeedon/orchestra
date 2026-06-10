@@ -5,19 +5,23 @@ const $ = (s) => document.querySelector(s);
 const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
 function _escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// DOM-based escaping is safer than regex — handles all edge cases without a lookup table
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+// Claude injects XML-style tags (e.g. <thinking>) — strip them before markdown render to avoid display noise
 function _stripXmlTags(text) {
     return text.replace(/<\/?[a-z][a-z0-9_-]*(?:\s[^>]*)?\s*>/gi, '');
 }
 
 marked.setOptions({ breaks: true, gfm: true });
 
+// Remove structural tags DOMPurify would leave as text nodes — they'd break layout if injected via agent output
 DOMPurify.addHook('uponSanitizeElement', (node) => {
     if (['STYLE', 'HTML', 'HEAD', 'BODY', 'META', 'LINK', 'TITLE', 'SCRIPT'].includes(node.tagName)) node.remove();
 });
 
 const _autolinkRe = /(?<!\w)((?:https?:\/\/|ftp:\/\/)[^\s<>\]\)]+|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:\/[^\s<>\]\)]*)?)(?!\w)/g;
+// Walk only text nodes — skipping A/PRE/CODE avoids double-linking already-linked content and mangling code blocks
 function autolinkText(html) {
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
@@ -25,6 +29,7 @@ function autolinkText(html) {
         if (node.nodeType === 3) {
             const t = node.textContent;
             if (!_autolinkRe.test(t)) return;
+            // Reset lastIndex after test() — regex with /g retains state between calls
             _autolinkRe.lastIndex = 0;
             const frag = document.createDocumentFragment();
             let last = 0, m;
@@ -50,12 +55,16 @@ function autolinkText(html) {
 }
 
 const _origMarkedParse = marked.parse.bind(marked);
+// Patch marked.parse to: (1) escape lone ~ so marked doesn't misinterpret as strikethrough,
+// (2) autolink bare URLs that marked leaves as plain text
 marked.parse = (src, ...args) => {
     const escaped = src.replace(/(?<!\~)\~(?!\~)/g, '\\~');
     const html = _origMarkedParse(escaped, ...args);
     return autolinkText(html);
 };
 
+// Global click handler: inline code in markdown acts as a copy button,
+// but if the content looks like a URL it opens in a new tab instead
 document.addEventListener('click', (e) => {
     if (e.target.closest('a')) return;
     const code = e.target.closest('.markdown-body code');

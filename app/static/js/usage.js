@@ -4,6 +4,8 @@ let _usageData = null;
 let _usageError = false;
 let _usageCountdownInterval = null;
 
+// Color encodes pace vs. ideal burn rate: green = under budget, red = over,
+// yellow = on track. When resetPct is known, diff drives color rather than raw %.
 function _usageColor(usagePct, resetPct) {
     if (resetPct == null) {
         if (usagePct >= 80) return '#ef4444';
@@ -13,6 +15,7 @@ function _usageColor(usagePct, resetPct) {
     const diff = usagePct - resetPct;
     if (diff < -10) return '#22c55e';
     if (diff > 10) return '#ef4444';
+    // Smooth hue transition between yellow (60°) and red/green for near-ideal pace
     const hue = Math.max(0, Math.min(120, 60 - diff * 6));
     return `hsl(${hue}, 80%, 50%)`;
 }
@@ -33,6 +36,8 @@ function _resetPctNum(isoStr, windowMs) {
     return Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)));
 }
 
+// Computes how long to wait (or "ok") based on pace vs. ideal linear burn.
+// cooldownMin = how many minutes to wait at 0% usage to get back on pace.
 function _paceIndicator(currentPct, isoStr, windowMs) {
     if (!isoStr) return '';
     const remainMs = Math.max(0, new Date(isoStr) - Date.now());
@@ -174,6 +179,7 @@ function renderUsageBar() {
 }
 
 let _sparkData = null, _sparkDataTs = 0, _spark7dWeekIdx = 0;
+// Cache sparkline data for 5 minutes — tooltip opens frequently, avoid hammering /api/usage/history
 async function _loadSparkline(tipEl) {
     const slot = tipEl.querySelector('#usage-sparkline-slot');
     if (!slot) return;
@@ -252,6 +258,8 @@ function _renderSparklines(slot) {
         return { pts, ideal };
     };
 
+    // Split history into 7-day billing periods by detecting when resets_at changes.
+    // 1h gap threshold avoids false splits from clock skew or API flakiness.
     const rawWeeks = []; let curWeek = [data[0]];
     for (let i = 1; i < data.length; i++) {
         const prev = data[i-1], cur = data[i];
@@ -309,6 +317,7 @@ async function fetchUsage() {
 
 function initUsageBar() {
     fetchUsage();
+    // Full data refresh every 2 minutes; countdown rerender every minute (no API call)
     setInterval(fetchUsage, 120000);
     _usageCountdownInterval = setInterval(() => {
         if (_usageData) renderUsageBar();
