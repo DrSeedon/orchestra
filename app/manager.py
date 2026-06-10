@@ -417,7 +417,7 @@ class SessionManager:
         if not Path(cwd).is_dir():
             raise ValueError(f"cwd does not exist: {cwd}")
         existing = get_session_by_name(name, scope)
-        if existing:
+        if existing and existing.get("status") != "archived":
             st = existing.get("status", "?")
             ctx = existing.get("context_pct", 0) or 0
             raise ValueError(f"worker '{name}' already exists ({st}, ctx:{ctx}%). Use send_message instead")
