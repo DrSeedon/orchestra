@@ -166,6 +166,17 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 3. DO NOT poll workers — wait for their `send_message` (or auto-report)
 4. When a worker reports, process results and continue
 5. Report up — top-level orchestrator: reply to the user directly (visible in dashboard + Telegram). Sub-orchestrator: report to your parent orchestrator via `send_message`
+
+### Before compact (context >80%)
+When you or the user is about to compact, persist everything first:
+1. **Pending tasks** — any work in progress? Update task status, write WIP notes to `docs/`
+2. **Decisions made** — update CLAUDE.md with key decisions from this session
+3. **Open bugs** — update BUGS.md if you found issues
+4. **TODO changes** — update TODO.md with new items or close done items
+5. **Worker status** — note which workers are doing what (they survive compact, but your memory of their tasks doesn't)
+6. **Tell the user** — "ready for compact, persisted X items"
+
+The goal: after compact you (or next session) can read CLAUDE.md + TODO.md + BUGS.md and know exactly where things stand.
 </workflow>
 
 <rules priority="critical">
