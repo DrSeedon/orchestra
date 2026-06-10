@@ -569,6 +569,57 @@ def _tg_tool_short(name: str) -> str:
     return name
 
 
+_MODEL_SHORT = {
+    'claude-opus-4-8[1m]': 'opus-4.8-1M', 'claude-opus-4-7[1m]': 'opus-4.7-1M',
+    'claude-opus-4-6[1m]': 'opus-4.6-1M', 'claude-opus-4-6': 'opus-4.6',
+    'claude-sonnet-4-6': 'sonnet-4.6', 'claude-haiku-4-5': 'haiku-4.5',
+    'claude-haiku-4-6': 'haiku-4.6', 'gpt-5.5': 'gpt-5.5',
+}
+
+
+def _fmt_worker_info(data: dict) -> str | None:
+    """Pretty format get_worker_info result for TG."""
+    name = data.get("name")
+    if not name:
+        return None
+    model = _MODEL_SHORT.get(data.get("model", ""), data.get("model", "?"))
+    status = data.get("status", "?")
+    ctx = data.get("context_pct")
+    ctx_s = f" | ctx:{ctx}%" if ctx else ""
+    lines = [f"🤖 {name} ({model}) | {status}{ctx_s}"]
+    scope = data.get("scope", "")
+    if scope:
+        short_scope = scope.rsplit("/", 1)[-1] if "/" in scope else scope
+        lines.append(f"📁 {short_scope}")
+    branch = data.get("branch", "")
+    if branch:
+        lines.append(f"🌿 {branch}")
+    cost = data.get("cost_usd")
+    cached = data.get("cost_usd_cached")
+    if cost:
+        cost_s = f"💰 ${cost:.2f}"
+        if cached:
+            cost_s += f" (${cached:.2f} cached)"
+        lines.append(cost_s)
+    turns = data.get("total_turns", 0)
+    out_tokens = data.get("total_output_tokens", 0)
+    if turns or out_tokens:
+        parts = []
+        if turns:
+            parts.append(f"{turns} turn{'s' if turns != 1 else ''}")
+        if out_tokens:
+            tok = f"{out_tokens // 1000}k" if out_tokens >= 1000 else str(out_tokens)
+            parts.append(f"{tok} out tokens")
+        lines.append(f"📊 {', '.join(parts)}")
+    task_id = data.get("task_id", "")
+    if task_id:
+        lines.append(f"📋 task #{task_id}")
+    desc = data.get("description", "")
+    if desc:
+        lines.append(f"📝 {desc[:100]}")
+    return "\n".join(lines)
+
+
 def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
@@ -1160,6 +1211,23 @@ async def stream_logs(orch_name: str, thread_id: int):
                             await _mirror_send(orch_name, f"{header}\n{tool_body}")
                         continue
                     elif t == "tool_result":
+                        if "get_worker_info" in _last_tool_name:
+                            try:
+                                import json as _json
+                                _wi = _json.loads(c)
+                                if isinstance(_wi, dict) and _wi.get("result"):
+                                    _wi = _json.loads(_wi["result"]) if isinstance(_wi["result"], str) else _wi["result"]
+                                pretty = _fmt_worker_info(_wi) if isinstance(_wi, dict) else None
+                                if pretty:
+                                    await _tg_send_safe(config["group_id"], pretty, thread_id)
+                                    await _mirror_send(orch_name, pretty)
+                                    _last_tool_msg = None
+                                    _last_tool_text = ""
+                                    _last_tool_name = ""
+                                    _last_tool_raw = ""
+                                    continue
+                            except Exception:
+                                pass
                         result_preview = c[:80].replace("\n", " ").strip()
                         result_body = c[:800]
                         # Result image for Read/Grep/Bash — if sent, skip text
