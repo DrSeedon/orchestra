@@ -23,6 +23,7 @@ def tb(tmp_path, monkeypatch):
     tg_bridge.config = {"group_id": -100123456, "topics": {}, "token": "test"}
     tg_bridge._topic_status = {}
     tg_bridge.bot = None
+    tg_bridge._pil_available = None
     return tg_bridge
 
 
@@ -231,29 +232,89 @@ class TestFindOrchForScope:
 
 class TestDiffImagesEnabled:
     def test_default_true_without_env(self, tb, monkeypatch):
-        """`_diff_images_enabled()` без TG_DIFF_IMAGES = True."""
+        """`_diff_images_enabled()` без TG_DIFF_IMAGES = True (при наличии PIL)."""
+        tb._pil_available = True
         monkeypatch.delenv("TG_DIFF_IMAGES", raising=False)
         assert tb._diff_images_enabled() is True
 
     def test_false_when_env_false(self, tb, monkeypatch):
         """TG_DIFF_IMAGES=false → False."""
+        tb._pil_available = True
         monkeypatch.setenv("TG_DIFF_IMAGES", "false")
         assert tb._diff_images_enabled() is False
 
     def test_false_when_env_zero(self, tb, monkeypatch):
         """TG_DIFF_IMAGES=0 → False."""
+        tb._pil_available = True
         monkeypatch.setenv("TG_DIFF_IMAGES", "0")
         assert tb._diff_images_enabled() is False
 
     def test_false_when_env_no(self, tb, monkeypatch):
         """TG_DIFF_IMAGES=no → False."""
+        tb._pil_available = True
         monkeypatch.setenv("TG_DIFF_IMAGES", "no")
         assert tb._diff_images_enabled() is False
 
     def test_true_when_env_true(self, tb, monkeypatch):
         """TG_DIFF_IMAGES=true → True."""
+        tb._pil_available = True
         monkeypatch.setenv("TG_DIFF_IMAGES", "true")
         assert tb._diff_images_enabled() is True
+
+    def test_false_when_pil_missing(self, tb, monkeypatch):
+        """Без Pillow → False даже при TG_DIFF_IMAGES=true."""
+        tb._pil_available = False
+        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
+        assert tb._diff_images_enabled() is False
+
+
+# ── _result_images_enabled ─────────────────────────────────────────────────
+
+
+class TestResultImagesEnabled:
+    def test_default_false_without_env(self, tb, monkeypatch):
+        """`_result_images_enabled()` без TG_RESULT_IMAGES = False (opt-in)."""
+        tb._pil_available = True
+        monkeypatch.delenv("TG_RESULT_IMAGES", raising=False)
+        assert tb._result_images_enabled() is False
+
+    def test_true_when_env_true(self, tb, monkeypatch):
+        """TG_RESULT_IMAGES=true → True."""
+        tb._pil_available = True
+        monkeypatch.setenv("TG_RESULT_IMAGES", "true")
+        assert tb._result_images_enabled() is True
+
+    def test_false_when_pil_missing(self, tb, monkeypatch):
+        """Без Pillow → False даже при TG_RESULT_IMAGES=true."""
+        tb._pil_available = False
+        monkeypatch.setenv("TG_RESULT_IMAGES", "true")
+        assert tb._result_images_enabled() is False
+
+
+# ── _check_pil ──────────────────────────────────────────────────────────────
+
+
+class TestCheckPil:
+    def test_caches_result(self, tb, monkeypatch):
+        """Повторный вызов не перепроверяет — кеш в _pil_available."""
+        tb._pil_available = None
+        first = tb._check_pil()
+        # принудительно ломаем — если бы перепроверял, упал бы
+        assert tb._check_pil() is first
+
+    def test_returns_false_and_warns_when_missing(self, tb, monkeypatch):
+        """ImportError → False + один warning, без исключения наружу."""
+        import builtins
+        tb._pil_available = None
+        real_import = builtins.__import__
+
+        def fake_import(name, *a, **kw):
+            if name == "PIL":
+                raise ImportError("No module named 'PIL'")
+            return real_import(name, *a, **kw)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        assert tb._check_pil() is False
 
 
 # ── _send_diff_image ───────────────────────────────────────────────────────
@@ -355,3 +416,54 @@ class TestBotApiHealthLoop:
 
         assert len(restarts) >= 1
         assert any("telegram-bot-api" in str(r) for r in restarts)
+
+
+# ── send_file_to_tg — routing по sender ─────────────────────────────────────
+
+
+class TestSendFileRouting:
+    @pytest.fixture
+    def file_tmp(self, tmp_path):
+        f = tmp_path / "report.txt"
+        f.write_text("hello")
+        return str(f)
+
+    @pytest.mark.asyncio
+    async def test_routes_to_caller_own_topic(self, tb, file_tmp, monkeypatch):
+        """sender со своим топиком → файл уходит в config['topics'][sender], НЕ в топик оркестратора."""
+        tb.bot = AsyncMock()
+        tb.bot.send_document.return_value = type("M", (), {"message_id": 1, "chat": type("C", (), {"id": -100123456})(), "message_thread_id": 555})()
+        tb.config["topics"] = {"worker-a": 555, "boss-orchestrator": 100}
+        # _find_orch_for_scope вернул бы оркестратора — но не должен использоваться
+        monkeypatch.setattr(tb, "_find_orch_for_scope", lambda s: "boss-orchestrator")
+
+        result = await tb.send_file_to_tg(file_tmp, "cap", "/s", "worker-a")
+
+        assert result["ok"] is True
+        _, kwargs = tb.bot.send_document.call_args
+        assert kwargs["message_thread_id"] == 555
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_scope_when_sender_has_no_topic(self, tb, file_tmp, monkeypatch):
+        """sender без своего топика → fallback на топик оркестратора скоупа."""
+        tb.bot = AsyncMock()
+        tb.bot.send_document.return_value = type("M", (), {"message_id": 2, "chat": type("C", (), {"id": -100123456})(), "message_thread_id": 100})()
+        tb.config["topics"] = {"boss-orchestrator": 100}
+        monkeypatch.setattr(tb, "_find_orch_for_scope", lambda s: "boss-orchestrator")
+
+        result = await tb.send_file_to_tg(file_tmp, "cap", "/s", "worker-no-topic", as_document=True)
+
+        assert result["ok"] is True
+        _, kwargs = tb.bot.send_document.call_args
+        assert kwargs["message_thread_id"] == 100
+
+    @pytest.mark.asyncio
+    async def test_error_when_no_topic_anywhere(self, tb, file_tmp, monkeypatch):
+        """Ни у sender, ни у скоупа нет топика → error."""
+        tb.bot = AsyncMock()
+        tb.config["topics"] = {}
+        monkeypatch.setattr(tb, "_find_orch_for_scope", lambda s: None)
+
+        result = await tb.send_file_to_tg(file_tmp, "cap", "/s", "ghost")
+
+        assert "error" in result

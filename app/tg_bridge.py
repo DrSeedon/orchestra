@@ -510,10 +510,12 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
         if important:
             await asyncio.sleep(e.retry_after + 0.5)
             try:
-                return await bot.send_message(chat_id, text, message_thread_id=thread_id,
-                                              parse_mode=None, entities=entities)
-            except Exception:
-                pass
+                result = await bot.send_message(chat_id, text, message_thread_id=thread_id,
+                                                parse_mode=None, entities=entities)
+                _last_send = asyncio.get_event_loop().time()
+                return result
+            except Exception as e2:
+                logger.warning(f"TG important message LOST after flood retry: {e2}; text[:80]={text[:80]!r}")
         return None
     except Exception as e:
         logger.warning(f"TG send failed: {e}")
@@ -700,9 +702,15 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"file is empty (0 bytes): {path}"}
     if file_size > 50 * 1024 * 1024:
         return {"error": "file too large (max 50MB)"}
-    orch_name = _find_orch_for_scope(scope)
-    thread_id = config["topics"].get(orch_name) if orch_name else None
-    logger.info(f"send_file: path={path} size={file_size} scope={scope!r} orch={orch_name!r} group_id={config['group_id']} thread_id={thread_id}")
+    topics = config.get("topics", {})
+    sender_thread = topics.get(sender) if sender else None
+    if sender_thread:
+        orch_name = sender
+        thread_id = sender_thread
+    else:
+        orch_name = _find_orch_for_scope(scope)
+        thread_id = topics.get(orch_name) if orch_name else None
+    logger.info(f"send_file: path={path} size={file_size} scope={scope!r} sender={sender!r} orch={orch_name!r} group_id={config['group_id']} thread_id={thread_id}")
     if not thread_id:
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
@@ -855,8 +863,27 @@ async def ensure_topics():
             logger.warning(f"Mirror topic creation failed for {name}: {e}")
 
 
+_pil_available: bool | None = None
+
+
+def _check_pil() -> bool:
+    global _pil_available
+    if _pil_available is None:
+        try:
+            from PIL import Image, ImageDraw, ImageFont  # noqa: F401
+            _pil_available = True
+        except Exception as e:
+            _pil_available = False
+            logger.warning(f"Pillow not installed — TG diff/result images disabled. Run `uv sync`. ({e})")
+    return _pil_available
+
+
 def _diff_images_enabled() -> bool:
-    return os.getenv("TG_DIFF_IMAGES", "true").lower() not in ("0", "false", "no")
+    return os.getenv("TG_DIFF_IMAGES", "true").lower() not in ("0", "false", "no") and _check_pil()
+
+
+def _result_images_enabled() -> bool:
+    return os.getenv("TG_RESULT_IMAGES", "false").lower() in ("1", "true", "yes") and _check_pil()
 
 
 async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) -> None:
@@ -902,7 +929,7 @@ async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, threa
 
 async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id: int, thread_id: int) -> None:
     """Render Read/Grep tool_result as PNG and send to TG."""
-    if not _diff_images_enabled():
+    if not _result_images_enabled():
         return
     try:
         if tool_name == "Read":
@@ -1049,7 +1076,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 await _tg_send_safe(config["group_id"], converted, thread_id,
                                                     entities=aio_ents, important=True)
                                 await _mirror_send(orch_name, converted, entities=aio_ents)
-                            except Exception:
+                            except Exception as e:
+                                logger.warning(f"text md_convert/send failed, fallback to plain: {e}; chunk[:80]={chunk[:80]!r}")
                                 await _tg_send_safe(config["group_id"], chunk, thread_id, important=True)
                                 await _mirror_send(orch_name, chunk)
                         continue
