@@ -128,6 +128,7 @@ send_message("backend", "Continue #192")
 ### Model policy
 - **Orchestrators / sub-orchestrators** → Opus 4.6 ONLY (4.8 has tool call bugs in orchestration)
 - **Full-cycle / reviewer** → Opus 4.8 (deep research, code review — overthinking is a feature here)
+- **Fable 5** → one-off critical reviews, deep analysis. 2x more expensive than Opus — do NOT use as default worker
 - **System workers (backend, frontend)** → Sonnet 4.6 or Opus 4.6
 - **Disposable one-shots** → Sonnet 4.6
 - **Never use Opus 4.7** — deprecated, removed
