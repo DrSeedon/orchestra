@@ -765,9 +765,18 @@ class AgentSession:
         self._persist()
 
     async def compact(self) -> dict:
+        _ORCH_PRESAVE = (
+            "BEFORE writing the summary — persist your knowledge to files so it survives compact:\n"
+            "1. CLAUDE.md — append key decisions, new rules, patterns discovered this session (section '## Session notes')\n"
+            "2. TODO.md — add new items, remove done items\n"
+            "3. BUGS.md — add found bugs, close fixed ones\n"
+            "4. docs/ — save any research or analysis worth keeping\n"
+            "Use Edit/Write tools NOW. Then write the summary below.\n\n"
+        )
         COMPACT_PROMPT = (
             "[SYSTEM: Context compaction requested — handoff summary]\n\n"
-            "Write a detailed handoff summary so your next session can continue seamlessly. "
+            + (_ORCH_PRESAVE if self.is_orchestrator else "")
+            + "Write a detailed handoff summary so your next session can continue seamlessly. "
             "Be as thorough as possible — this is the ONLY context your next session will have. No length limit.\n\n"
             "INTENT: What you are working on and why (2-3 sentences with full context).\n"
             "DECISIONS: All key decisions made during this session (bullet points, include reasoning).\n"
