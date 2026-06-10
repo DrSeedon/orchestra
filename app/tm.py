@@ -239,6 +239,8 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
         params.append(price_rub)
         changed.append("price")
         if task["status"] == "paid" and price_rub > task["paid_rub"]:
+            # Price raised above what was paid — reopen to 'done' so the debt
+            # shows up in the next payment distribution
             updates.append("status = 'done'")
             updates.append("paid_at = NULL")
             changed.append("status")
@@ -428,6 +430,8 @@ def receive_payment(conn: sqlite3.Connection, client_id: str, amount_rub: int,
 
 def _distribute_payment(conn: sqlite3.Connection, payment_id: int,
                         client_id: str, amount_rub: int) -> dict:
+    # Greedy distribution: smallest debt first → closes the most tasks per payment.
+    # Unallocated remainder lands in client balance for future tasks.
     tasks = conn.execute(
         """SELECT * FROM tm_tasks
            WHERE status = 'done' AND price_rub > 0

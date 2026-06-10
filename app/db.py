@@ -29,7 +29,9 @@ def _conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
+    # WAL: readers don't block writers — essential when many agents log concurrently
     conn.execute("PRAGMA journal_mode=WAL")
+    # 5s busy timeout: retry on locked DB instead of raising immediately
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
@@ -240,6 +242,8 @@ def _reconstruct_costs(c) -> None:
 
 
 def _migrate(c) -> None:
+    # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
+    # Never drop columns: old Orchestra versions reading the same DB must still work.
     cols = {row[1] for row in c.execute("PRAGMA table_info(sessions)").fetchall()}
     if "color" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN color TEXT DEFAULT ''")
@@ -375,6 +379,7 @@ def _migrate(c) -> None:
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
     task_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)").fetchall()}
     if task_cols and "priority" not in task_cols:
+        # 0=critical, 1=high, 2=medium (default), 3=low — existing tasks land at medium
         c.execute("ALTER TABLE tm_tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 2")
     client_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_clients)").fetchall()}
     if client_cols and "journal_yougile_id" not in client_cols:
@@ -382,6 +387,8 @@ def _migrate(c) -> None:
     if task_cols:
         max_price = c.execute("SELECT MAX(price_rub) FROM tm_tasks").fetchone()[0] or 0
         if 0 < max_price < 1000:
+            # Schema changed from "thousands" to exact kopeks — multiply all money
+            # columns by 1000 to bring old data in line with the new unit
             c.execute("UPDATE tm_tasks SET price_rub = price_rub * 1000, paid_rub = paid_rub * 1000")
             c.execute("UPDATE tm_payment_allocations SET amount_rub = amount_rub * 1000")
             c.execute("UPDATE tm_payments SET amount_rub = amount_rub * 1000")
@@ -705,6 +712,8 @@ def cleanup_old_logs(days: int = 7) -> int:
         cur = c.execute("DELETE FROM logs WHERE ts < ?", (cutoff,))
         deleted = cur.rowcount
     with _conn() as c:
+        # Checkpoint after bulk delete: reclaims WAL disk space that stays
+        # allocated otherwise until the next checkpoint or DB restart
         c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     return deleted
 
@@ -791,6 +800,8 @@ def bg_cron_should_fire(job_id: str) -> bool:
 
 
 def bg_cron_record_fire(job_id: str) -> None:
+    # IMMEDIATE lock: prevents two scheduler ticks from recording the same fire
+    # (cron jobs can fire again while the previous trigger is still being processed)
     with _conn() as c:
         c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT config, status FROM bg_jobs WHERE id=?", (job_id,)).fetchone()
@@ -812,6 +823,8 @@ def bg_cron_record_fire(job_id: str) -> None:
 
 
 def bg_claim_trigger(job_id: str) -> bool:
+    # Atomic CAS: only one concurrent checker can move job to 'triggering' —
+    # multiple scheduler ticks could race here without this guard
     with _conn() as c:
         cur = c.execute(
             "UPDATE bg_jobs SET status='triggering', triggered_at=? WHERE id=? AND status='active'",
@@ -996,6 +1009,8 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
     t = start
     prev = raw[0]
     while t <= now:
+        # Step-forward interpolation: for each grid point, use the last known
+        # snapshot at or before that time — matches "last-value" chart semantics
         while ri < len(raw) - 1:
             next_ts = datetime.fromisoformat(raw[ri + 1]["ts"]).replace(tzinfo=timezone.utc)
             if next_ts > t:

@@ -18,6 +18,7 @@ from app.prompting import (
     roles_catalog, skills_catalog, prompt_template_hash, inject_skills_to_worktree,
 )
 
+# Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap
 from app.models import resolve_model, backend_for_model
@@ -42,6 +43,8 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = str(Path(__file__).parent.parent)
 _MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
 MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
+# Propagate proxy + auth token to the MCP subprocess so it can reach Anthropic
+# and call back to Orchestra's own API with internal auth
 MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
 for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "INTERNAL_TOKEN"):
     if os.environ.get(_k):
@@ -330,6 +333,8 @@ class SessionManager:
             job_id = job.get("job_id", "?")
             try:
                 update_job(job_id, "executing")
+                # Brief yield: lets the MCP tool that enqueued this job return its
+                # response to the agent before the spawn starts writing to the DB
                 await asyncio.sleep(0.5)
                 session = await self.create_session(
                     name=job["name"], scope=job["repo_path"], cwd=job["repo_path"],
@@ -352,6 +357,8 @@ class SessionManager:
 
     @staticmethod
     def _auto_commit_if_dirty(repo_path: str) -> str:
+        # Worktrees branch from HEAD of the source repo — if it's dirty, the new
+        # worktree inherits unstaged junk. Auto-commit gives the worker a clean base.
         import subprocess, datetime
         r = subprocess.run(["git", "status", "--porcelain"], cwd=repo_path, capture_output=True, text=True)
         if r.returncode != 0:
@@ -478,12 +485,13 @@ class SessionManager:
                 profile = get_active_profile(scope, parent_profile=parent_profile)
 
         if is_orch:
-            # v2.16: кастомный system_prompt ДОПИСЫВАЕТСЯ к базе роли, а не заменяет
-            # её (раньше было `system_prompt or ROLE_SYSTEM_PROMPT(...)`).
+            # v2.16: custom system_prompt appended to role base, not replacing it —
+            # orchestrators need their catalog/worker-blocks to stay intact for navigation
             prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope) + ("\n\n" + system_prompt if system_prompt else "")
         else:
             prompt = ROLE_SYSTEM_PROMPT(pipeline, role) + ("\n\n" + system_prompt if system_prompt else "")
-            # Ownership (upstream): для воркера дописываем блок "трогай только это".
+            # Inject directory ownership constraint into prompt so worker refuses
+            # to touch files outside its slice — prevents parallel-worker conflicts
             prompt += self._ownership_prompt(owned_dirs)
 
         if not parent_id and parent_name:
@@ -511,7 +519,8 @@ class SessionManager:
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
         base_branch = self._resolve_base_branch(base_branch, pipeline, role, parent_name, scope)
 
-        # Root orchestrators (no parent) always get a TG topic
+        # Root orchestrators get a dedicated TG topic so users can message them
+        # directly from Telegram without knowing worker names
         if is_orch and not parent_name:
             tg_topic = True
 
@@ -1021,10 +1030,12 @@ class SessionManager:
                 "SELECT * FROM sessions WHERE session_id IS NOT NULL "
                 "AND status IN ('running', 'idle', 'waiting')"
             ).fetchall()]
+            # Reset to idle before loading: prevents any session from resuming
+            # as 'running' (the backend process died on server restart)
             c.execute("UPDATE sessions SET status='idle' WHERE status IN ('running', 'waiting')")
 
-        # R1: используем денормализованную колонку is_orchestrator (наши PM-роли
-        # не входят в frozenset апстрима; колонка проставлена при спавне/миграции).
+        # R1: load orchestrators first — workers need their parent_name resolved,
+        # and the orchestrator's on_idle callback registered before workers resume
         orchs = [r for r in resumable if bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker"))]
         workers = [r for r in resumable if not (bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker")))]
 
@@ -1066,6 +1077,8 @@ class SessionManager:
 
     async def _inject_restart_notice(self, session: AgentSession) -> None:
         import random
+        # Random stagger: if N agents resume simultaneously they'd all hit the SDK
+        # concurrently and cause a connection storm; spread them over 15s
         await asyncio.sleep(3 + random.uniform(0, 12))
         try:
             await session.send(

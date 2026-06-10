@@ -50,6 +50,8 @@ class CodexBackend:
         return self._thread_id
 
     async def connect(self) -> None:
+        # Codex launches a new subprocess per turn (stateless CLI), so connect is a no-op —
+        # the actual process starts in send() when the first message arrives
         pass
 
     async def send(self, message: str) -> None:
@@ -193,6 +195,8 @@ class CodexBackend:
                 pass
 
         if not self._got_turn_completed:
+            # Process exited without emitting turn.completed — treat as error turn
+            # so session.py can update status and trigger auto-report
             yield AgentEvent("turn_end", f"stop_reason=process_exit_{returncode}", metadata={
                 "session_id": self._thread_id,
                 "ok": False,
@@ -233,6 +237,8 @@ class CodexBackend:
     def _build_env(self) -> dict:
         env = dict(os.environ)
         env.update(self._mcp_env)
+        # Strip proxy for Codex: it talks directly to OpenAI, not Anthropic —
+        # routing through Hiddify would break OpenAI connectivity
         env.pop("HTTPS_PROXY", None)
         env.pop("HTTP_PROXY", None)
         return env

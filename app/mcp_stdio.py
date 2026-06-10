@@ -14,6 +14,7 @@ import sys
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+# Logs go to stderr so they don't pollute the JSON-RPC stdout stream
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("orchestra-mcp")
 
@@ -33,6 +34,7 @@ def _auth_headers() -> dict:
 
 
 async def _api(method: str, path: str, **kwargs) -> dict | list | None:
+    # New client per call: avoids shared state across tool invocations in the same MCP session
     t = kwargs.pop("timeout", 30)
     headers = _auth_headers()
     async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
@@ -649,6 +651,7 @@ async def bg_cancel(job_id: str) -> str:
     return f"Job {job_id} cancelled."
 
 
+# Hardcoded path: Codex CLI installed globally via npm, not in the uv venv
 _CODEX_BIN = "/home/maxim/.npm-global/bin/codex"
 _REVIEW_CONTEXT = (
     "PROJECT CONTEXT (calibrate review severity):\n"
@@ -686,6 +689,7 @@ async def codex_review(
     prompt_file = f"/tmp/codex_review_{WORKER_NAME}.txt"
 
     if mode == "review":
+        # Clear proxy vars: Codex talks to OpenAI, not Anthropic — same as _build_env
         cmd = (
             f"cd {cwd} && HTTPS_PROXY= HTTP_PROXY= UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --ephemeral"

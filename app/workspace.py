@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
+# Files copied into each new worktree so workers get project config without
+# being on the main branch (CLAUDE.md = project rules, .env = secrets, .mcp.json = tools)
 PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
 
 
@@ -241,7 +243,11 @@ def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
 
 
 def _build_squash_message(branch: str, messages: list[str]) -> str:
-    """Build squash commit message with task refs prefix and message list."""
+    """Build squash commit message with task refs prefix and message list.
+
+    Squash merge collapses N worker commits into one clean main-branch commit.
+    The message aggregates all task refs so PM tooling can link the merge to tasks.
+    """
     all_refs: list[str] = []
     seen: set[str] = set()
     for msg in messages:
@@ -270,7 +276,10 @@ def _build_squash_message(branch: str, messages: list[str]) -> str:
 
 def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
     """Cherry-pick all commits from branch onto current HEAD.
-    Fallback for unrelated histories where git merge refuses to work.
+
+    Fallback for unrelated histories: happens when a worker was spawned from a
+    separate repo or rebased its branch, losing the common ancestor with main.
+    git merge refuses unrelated histories; cherry-pick applies diffs anyway.
     """
     rev_list = subprocess.run(
         ["git", "rev-list", "--reverse", branch],
@@ -352,9 +361,11 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
     result = None             # инициализируем ДО try — возврат по умолчанию при любом пути
 
     with open(lock_path, "w") as lock_file:
+        # Exclusive lock prevents two concurrent merges from racing on main — git
+        # squash-merge is not atomic and needs the repo HEAD stable throughout
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
-            # Сохраняем исходную ветку ДО любого checkout
+            # Save original branch BEFORE any checkout — needed to restore it in finally
             original_branch_result = subprocess.run(
                 ["git", "symbolic-ref", "--short", "HEAD"],
                 cwd=str(repo), capture_output=True, text=True,
@@ -475,7 +486,8 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                         if result and result.get("ok"):
                                             _reset_worktree_to_ref(str(wt), target_branch, str(repo))
         finally:
-            # ПОРЯДОК КРИТИЧЕН: сначала restore исходной ветки, ПОТОМ stash pop.
+            # Order is critical: restore HEAD branch first, then stash pop.
+            # Stash pop on the wrong branch would apply changes to the wrong tree.
             restore_ok = True
             if original_branch and original_branch != target_branch:
                 restore = subprocess.run(
@@ -497,6 +509,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                     result = {"ok": False, "state": "stash_pop_failed",
                               "error": f"stash pop failed after merge: {pop.stderr.strip()}"}
             elif did_stash and not restore_ok:
+                # Better to leave stash intact than pop onto whatever branch we're stuck on
                 logger.error("skipping stash pop: HEAD restore failed; stash kept to avoid wrong-branch apply")
             fcntl.flock(lock_file, fcntl.LOCK_UN)
     return result if result is not None else {"ok": False, "error": "merge produced no result"}
@@ -597,6 +610,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         cwd=str(wt), capture_output=True, text=True,
     )
     if not force and unmerged.returncode == 0 and int(unmerged.stdout.strip() or "0") > 0:
+        # Guard: switching with unmerged commits would silently discard the worker's work
         n = unmerged.stdout.strip()
         return {"ok": False, "error": f"{n} unmerged commit(s) on current branch — merge_worker first or pass force=True"}
 

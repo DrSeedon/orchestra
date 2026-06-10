@@ -22,6 +22,8 @@ CONTEXT_LIMITS = {
     "gpt-5.4-mini": 258400,
 }
 
+# Short aliases let agents use "opus", "sonnet" etc. in spawn_worker without
+# knowing the exact versioned model ID — reduces prompt brittleness on model upgrades
 ALIASES = {
     "fable": "claude-fable-5[1m]",
     "fable5": "claude-fable-5[1m]",
@@ -56,6 +58,8 @@ BACKENDS = {
     "gpt-5.4-mini": "codex",
 }
 
+# TOKEN_PRICES is for internal cost tracking only (subscription plan, not real API billing)
+# Codex models intentionally absent — their prices live in backend_codex.py
 TOKEN_PRICES = {
     "claude-fable-5[1m]": {"input": 10.0, "output": 50.0},
     "claude-opus-4-8[1m]": {"input": 15.0, "output": 75.0},

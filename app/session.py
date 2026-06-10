@@ -29,10 +29,13 @@ def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
     on the default executor (used by asyncio.to_thread)."""
     global _DB_EXECUTOR
     if _DB_EXECUTOR is None:
+        # 4 workers: enough for concurrent log/persist bursts without starving the event loop
         _DB_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="db")
     return _DB_EXECUTOR
 
 
+# Orchestrators get 2x idle time: they manage long-running workflows and get TG
+# messages from users, so premature hibernate kills useful context.
 IDLE_TIMEOUT_WORKER = 300
 IDLE_TIMEOUT_ORCHESTRATOR = 600
 
@@ -266,6 +269,7 @@ class AgentSession:
 
         if self.status == AgentStatus.RUNNING:
             if self.backend_type == "codex":
+                # Codex backend is a one-shot subprocess; mid-turn inject isn't supported
                 self._pending_messages.append(message)
                 self._log("user_message", message)
                 self._log("status", f"message queued ({len(self._pending_messages)} pending)")
@@ -273,6 +277,7 @@ class AgentSession:
             self._log("user_message", message)
             try:
                 backend = await self._ensure_backend()
+                # Claude SDK supports inject via stdin during an active turn
                 await backend.send(message)
                 return
             except Exception as e:
@@ -312,6 +317,9 @@ class AgentSession:
             pending_th = ""
             templates_changed = False
             if self.session_id and self._current_prompt and not self._prompt_injected:
+                # Inject updated system prompt once per session — workers list, role
+                # catalog, and template content drift as other agents spawn/die.
+                # Only on first message after resume; subsequent turns use cached prompt.
                 from app.prompting import prompt_template_hash
                 current_th = prompt_template_hash(self.role)
                 old_th = self._template_hash or current_th
@@ -392,7 +400,8 @@ class AgentSession:
                         continue
                     self._handle_event(event)
                     consecutive_failures = 0
-                # events() exhausted normally — treat as failure
+                # events() returns without error when the SDK stream closes unexpectedly
+                # (not via turn_end) — treat as a soft failure to trigger reconnect
                 consecutive_failures += 1
                 logger.warning(f"[{self.name}] events() exhausted normally (attempt {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES})")
                 self._log("error", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
@@ -510,6 +519,9 @@ class AgentSession:
         Orchestrators don't auto-report — they reply to user directly.
         Skipped if worker already sent explicit send_message, has pending messages,
         or was interrupted/stopped by user.
+
+        Without this, silent workers (those that don't call send_message) would
+        leave the orchestrator waiting forever for a signal that never comes.
         """
         if self.is_orchestrator or not self.on_idle or self._did_report:
             return
@@ -541,6 +553,8 @@ class AgentSession:
             self._log("error", f"turn FAILED: {err_txt}")
 
         if sr in ("error_max_turns", "max_turns") and ok:
+            # SDK has a per-turn limit; auto-continue so agents don't silently stop
+            # mid-task when they hit it. The injected message gives them context.
             self._log("status", f"max_turns reached ({nt}), auto-continuing")
             self._spawn_bg(self._auto_continue())
             return
@@ -562,12 +576,15 @@ class AgentSession:
 
         sid = meta.get("session_id")
         if sid and sid != self.session_id:
+            # SDK reports cost_usd cumulative per session_id — reset baseline
+            # when a new session starts (e.g. after compact creates a fresh session)
             self._last_cost = 0.0
             self._last_cost_cached = 0.0
             self._context_cost = 0.0
         if sid:
             self.session_id = sid
         new_cost = meta.get("cost_usd", 0)
+        # Delta from last known cumulative — gives per-turn cost without SDK support
         self._turn_cost = max(0, new_cost - self._last_cost)
         self.cost_usd += self._turn_cost
         self._context_cost += self._turn_cost
@@ -610,6 +627,8 @@ class AgentSession:
         self._spawn_bg(self._notify_scope_idle())
 
         if live_pct > 90 and not self.is_orchestrator and not self._compacting:
+            # Workers auto-compact to stay operational; orchestrators are left for
+            # the user to compact manually since they hold long-running session state
             self._log("status", f"auto-compact triggered ({live_pct}%)")
             self._spawn_bg(self._auto_compact())
 
@@ -622,6 +641,8 @@ class AgentSession:
         self._schedule_hibernate()
 
     async def _flush_pending(self) -> None:
+        # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
+        # before starting the next one — avoids nested lock acquisition from the same coroutine
         await asyncio.sleep(0.3)
         if self._compacting:
             return
@@ -632,6 +653,8 @@ class AgentSession:
         if len(msgs) == 1:
             combined = msgs[0]
         else:
+            # Batch queued messages into one turn to avoid spawning N sequential turns —
+            # each turn has ~3s round-trip overhead and occupies the lifecycle lock
             combined = "\n".join(
                 f"--- message {i+1}/{len(msgs)} ---\n{m}"
                 for i, m in enumerate(msgs)
@@ -992,6 +1015,8 @@ class AgentSession:
         self._persist()
 
     def _persist(self) -> None:
+        # Coalesce rapid successive calls: mark dirty, let one active task drain them all —
+        # prevents N DB writes when status/cost/context all change in the same event loop tick
         self._persist_dirty = True
         if self._persist_task and not self._persist_task.done():
             return
@@ -1020,6 +1045,7 @@ class AgentSession:
             await asyncio.gather(self._persist_task, return_exceptions=True)
 
     def _log(self, type: str, content: str) -> None:
+        # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
         asyncio.get_event_loop().run_in_executor(_db_executor(), add_log, self.id, datetime.now(timezone.utc), type, content)
 
     def _to_db_dict(self) -> dict:

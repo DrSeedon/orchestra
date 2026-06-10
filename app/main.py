@@ -81,6 +81,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         method = request.method
+        # Internal token bypasses cookie auth — allows MCP subprocess and workers
+        # to call the API without a browser session
         if check_internal_token(request.headers.get("authorization", "")):
             return await call_next(request)
         if not is_auth_enabled():
@@ -264,6 +266,8 @@ _ALLOWED_ROOTS: list[str] = []
 
 
 def _get_allowed_roots() -> list[str]:
+    # Lazy init: ALLOWED_ROOTS env lets operators add extra roots without code changes;
+    # standard data directories are always included as a baseline
     if _ALLOWED_ROOTS:
         return _ALLOWED_ROOTS
     extra = os.environ.get("ALLOWED_ROOTS", "")
@@ -279,6 +283,7 @@ def _get_allowed_roots() -> list[str]:
     return _ALLOWED_ROOTS
 
 
+# Block access to secrets and key material even if they live inside an allowed root
 _DENIED_PARTS = {".env", ".ssh", ".git", ".credentials", ".gnupg", ".aws",
                  ".npmrc", ".pypirc", ".netrc", ".docker", ".kube"}
 _DENIED_HOME_PARTS = {".claude", ".config"}
@@ -575,6 +580,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
                     yield f"data: {json.dumps(log)}\n\n"
                     last_id = log["id"]
                 idle_ticks = 0 if logs else idle_ticks + 1
+                # Back off to 3s after 2s of inactivity — reduces DB polling when idle
                 await asyncio.sleep(0.5 if idle_ticks < 4 else 3.0)
         finally:
             c.close()
@@ -1343,6 +1349,7 @@ async def serve_upload(filename: str):
     return FileResponse(path, headers={"Content-Disposition": f'attachment; filename="{path.name}"'})
 
 
+# Short TTL: git status is cheap but 10s prevents dashboard refresh storms
 _git_status_cache: dict = {}  # scope -> {ts, data}
 _GIT_STATUS_TTL = 10
 
@@ -1455,6 +1462,7 @@ REPO_TO_SCOPE = _parse_repo_to_scope()
 
 
 def _verify_github_signature(payload: bytes, signature: str, secret: str) -> bool:
+    # compare_digest prevents timing attacks on the signature check
     expected = "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
 

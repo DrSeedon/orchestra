@@ -18,6 +18,8 @@ def _load_fonts():
             ImageFont.truetype(_FONT_PATH, 11),
         )
     except Exception:
+        # PIL may not be installed or font missing — graceful degradation with
+        # the built-in bitmap font rather than crashing TG diff rendering
         f = ImageFont.load_default()
         return f, f
 
@@ -49,7 +51,8 @@ def _lcs_diff(a: list[str], b: list[str]):
             raw.append(('del', a[i-1])); i -= 1
     raw.reverse()
 
-    # pair del+add for inline diff
+    # Pair consecutive del+add into linked pairs so _inline_diff can highlight
+    # the exact characters that changed (not just the whole line)
     lines = []
     idx = 0
     while idx < len(raw):

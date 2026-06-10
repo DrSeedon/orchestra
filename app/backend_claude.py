@@ -31,11 +31,12 @@ logger = logging.getLogger(__name__)
 
 _BLOCKED_TOOLS = {"AskUserQuestion", "Monitor"}
 _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
-# Имена инструмента запуска субагентов. Режем на уровне CLI (disallowed_tools),
-# а не через can_use_tool: запуск субагента идёт мимо permission-колбэка
-# (SDK отдаёт его как TaskStartedMessage), поэтому _ORCH_BLOCKED_TOOLS его не ловит.
-# Имя хеджируем двумя вариантами (Task/Agent) — лишнее имя CLI игнорирует.
+# Orchestrators must use spawn_worker instead of the built-in Agent/Task tools —
+# those bypass Orchestra's worktree isolation and session tracking.
+# Blocked via disallowed_tools (not can_use_tool) because subagent launches arrive
+# as TaskStartedMessage, which the permission callback never sees.
 _ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
+# ScheduleWakeup/Cron* removed for all agents — Orchestra manages scheduling via bg_jobs
 _ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList"]
 
 
@@ -46,6 +47,8 @@ def _make_auto_approve(is_orchestrator: bool = False):
             msg = f"{tool_name} is not available for orchestrators. Use spawn_worker instead." if tool_name == "Agent" else f"{tool_name} is not available in Orchestra."
             return PermissionResultDeny(message=msg)
         if isinstance(tool_input, dict) and tool_input.get("run_in_background"):
+            # run_in_background spawns a detached process that dies when the CLI turn ends —
+            # use bg_create MCP tool instead for actual background work
             return PermissionResultDeny(message="run_in_background is disabled in Orchestra — background processes are killed when your turn ends. Run synchronously instead.")
         return PermissionResultAllow(updated_input=tool_input)
     return _auto_approve
@@ -140,6 +143,8 @@ class ClaudeBackend:
             options.resume = resume_id
         else:
             options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
+        # MCP merge order: user < scope < instance — more specific wins.
+        # Instance (Orchestra's own server) always overrides to prevent hijacking.
         merged_mcp = {
             **self._user_mcp_servers,
             **self._scope_mcp_servers,
@@ -315,6 +320,7 @@ class ClaudeBackend:
                 if prices:
                     p_in = prices["input"]
                     p_out = prices["output"]
+                    # Anthropic cache pricing: cache_read = 10% of input, cache_create = 125%
                     cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
 
             if denials:

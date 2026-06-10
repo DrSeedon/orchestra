@@ -35,7 +35,11 @@ BranchStrategy = Literal["parent", "main"]
 
 
 def _model_is_known(model: str) -> bool:
-    """Модель валидна, если это alias (lowercase) ИЛИ полный id из app.models."""
+    """Модель валидна, если это alias (lowercase) ИЛИ полный id из app.models.
+
+    Two-tier check: aliases use lowercase comparison so manifest can write
+    'opus' or 'Opus', but full model IDs are case-sensitive (must match MODELS).
+    """
     return model.lower() in ALIASES or model in MODELS
 
 
