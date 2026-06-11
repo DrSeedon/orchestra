@@ -620,6 +620,9 @@ class AgentSession:
             self._log("status", "waiting for bg jobs")
         else:
             self.status = AgentStatus.IDLE
+            # Clear progress bar so it doesn't stick at old % forever
+            self.progress_pct = 0
+            self.progress_status = ""
         self._persist()
 
     def _after_turn_idle_actions(self, live_pct: int) -> None:
