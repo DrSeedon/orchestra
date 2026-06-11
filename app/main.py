@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
     # YouGile sync fired from to_thread workers needs the app loop captured
     from app import tm as _tm_mod
     _tm_mod.set_main_loop(asyncio.get_running_loop())
+    from app import tm_yougile  # noqa: F401 — registers tm sync hooks (on_task_synced, on_payment_changed)
     await manager.auto_resume_all()
     manager.start_background_tasks()
     from app.bg_jobs import bg_manager

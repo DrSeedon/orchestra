@@ -9,10 +9,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from app.events import AgentEvent
-from app.prompting import is_orchestrator_role
+from app.models import backend_for_model
+from app.prompting import is_orchestrator_role, prompt_template_hash
 
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
@@ -328,7 +329,6 @@ class AgentSession:
                 # Inject updated system prompt once per session — workers list, role
                 # catalog, and template content drift as other agents spawn/die.
                 # Only on first message after resume; subsequent turns use cached prompt.
-                from app.prompting import prompt_template_hash
                 current_th = prompt_template_hash(self.role)
                 old_th = self._template_hash or current_th
                 templates_changed = old_th != current_th
@@ -918,33 +918,20 @@ class AgentSession:
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
         return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}
 
-    def _find_scope_orch_name(self, tg_mgr) -> str | None:
-        if self.is_orchestrator:
-            return self.name
-        for s in tg_mgr.sessions.values():
-            if s.is_orchestrator and s.scope == self.scope:
-                return s.name
-        return None
-
     async def _notify_scope_idle(self) -> None:
+        # wired callback (set by tg_bridge.start_bridge) — session does not import tg_bridge
+        if on_scope_idle is None:
+            return
         try:
-            from app.tg_bridge import check_scope_idle, _manager as tg_mgr
-            if not tg_mgr:
-                return
-            orch_name = self._find_scope_orch_name(tg_mgr)
-            if orch_name:
-                await check_scope_idle(orch_name, self.scope)
+            await on_scope_idle(self)
         except Exception as e:
             logger.warning(f"[{self.name}] TG scope-idle notify failed: {e}")
 
     async def _notify_scope_running(self) -> None:
+        if on_scope_running is None:
+            return
         try:
-            from app.tg_bridge import notify_scope_running, _manager as tg_mgr
-            if not tg_mgr:
-                return
-            orch_name = self._find_scope_orch_name(tg_mgr)
-            if orch_name:
-                await notify_scope_running(orch_name)
+            await on_scope_running(self)
         except Exception as e:
             logger.warning(f"[{self.name}] TG scope-running notify failed: {e}")
 
@@ -986,7 +973,6 @@ class AgentSession:
             logger.warning(f"[{self.name}] auto-compact failed: {e}")
 
     async def change_model(self, new_model: str) -> dict:
-        from app.models import backend_for_model
         old_model = self.model
         if old_model == new_model:
             return {"ok": True, "model": new_model, "changed": False}
@@ -1132,3 +1118,11 @@ class AgentSession:
             "total_output_tokens": self.total_output_tokens,
             "total_tool_calls": self.total_tool_calls,
         }
+
+
+# ── Wired callbacks: assigned by tg_bridge.start_bridge, reset by stop_bridge.
+# Session fires events without importing tg_bridge (cycle cut). Declared after
+# the class — module-level annotations evaluate eagerly (PEP 526), a pre-class
+# AgentSession reference would NameError on import.
+on_scope_idle: "Callable[[AgentSession], Awaitable[None]] | None" = None
+on_scope_running: "Callable[[AgentSession], Awaitable[None]] | None" = None

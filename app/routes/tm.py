@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app import tm as _tm
+from app.tm_yougile import yougile_sync_task
 
 router = APIRouter(prefix="/api/tm", tags=["task-manager"])
 
@@ -181,7 +182,6 @@ async def tm_sync_retry(sync_id: int):
     task_id = entry["task_id"]
 
     if task_id:
-        from app.tm_yougile import yougile_sync_task
         result = await yougile_sync_task(task_id)
         return {"retried": True, "task_id": task_id, "result": result}
     return {"error": "no task_id on sync entry"}

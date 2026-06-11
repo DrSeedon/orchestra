@@ -9,7 +9,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from app.session import AgentSession, AgentStatus
 from app.prompting import (
@@ -21,7 +21,7 @@ from app.prompting import (
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap
-from app.models import resolve_model, backend_for_model
+from app.models import resolve_model, backend_for_model, available_models_block, CONTEXT_LIMITS
 from app.pipeline import (
     DEFAULT_PIPELINE,
     build_system_prompt,
@@ -40,15 +40,7 @@ from app.db import (
 
 logger = logging.getLogger(__name__)
 
-_PROJECT_ROOT = str(Path(__file__).parent.parent)
-_MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
-MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
-# Propagate proxy + auth token to the MCP subprocess so it can reach Anthropic
-# and call back to Orchestra's own API with internal auth
-MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
-for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "INTERNAL_TOKEN"):
-    if os.environ.get(_k):
-        MCP_BASE_ENV[_k] = os.environ[_k]
+from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD  # noqa: F401 — re-exported for callers
 
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
@@ -218,7 +210,6 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
         catalog = _roles_catalog_from_manifest(pipeline, role)
         if catalog:
             base += f"\n\n{catalog}"
-        from app.models import available_models_block
         base += f"\n\n{available_models_block()}"
         others = _other_orchestrators_block(scope, caller_role=role)
         if others:
@@ -311,6 +302,8 @@ class SessionManager:
         self._spawn_queue: asyncio.Queue = asyncio.Queue()
         self._spawn_task: asyncio.Task | None = None
         self._session_locks: dict[str, asyncio.Lock] = {}
+        # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
+        self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
 
     def get_session_lock(self, session_id: str) -> asyncio.Lock:
         if session_id not in self._session_locks:
@@ -741,9 +734,8 @@ class SessionManager:
             archive_session(row["id"])
 
         tg_result: dict = {}
-        if delete_tg_topics and orch_names:
-            from app import tg_bridge
-            tg_result = await tg_bridge.remove_topics_for_orchs(orch_names)
+        if delete_tg_topics and orch_names and self.tg_topics_remover:
+            tg_result = await self.tg_topics_remover(orch_names)
         return {"tg": tg_result}
 
     # ── Lookups ──
@@ -983,7 +975,6 @@ class SessionManager:
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
-            from app.models import CONTEXT_LIMITS
             max_t = CONTEXT_LIMITS.get(db_row["model"], 200000)
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
         orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None

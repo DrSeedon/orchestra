@@ -710,72 +710,78 @@ def _schedule(coro) -> None:
     raise RuntimeError("no event loop")
 
 
+# Wired callbacks: registered by tm_yougile at import (cycle cut — tm no longer
+# imports tm_yougile). main.py lifespan imports tm_yougile to guarantee registration.
+on_task_synced = None       # async (task_id: int) -> str
+on_payment_changed = None   # async (payment_result: dict, client_id: str) -> str
+
+
+def _fire_async(coro, what: str) -> None:
+    """Fire-and-forget a sync coroutine; tolerate CLI contexts with no loop."""
+    try:
+        _schedule(coro)
+    except RuntimeError:
+        logger.debug("No event loop for %s, skipping (CLI context)", what)
+    except Exception as e:
+        logger.error("%s fire failed: %s", what, e)
+
+
 def _fire_sync(task_id: int) -> None:
-    if not _is_yougile_enabled(task_id):
+    if on_task_synced is None or not _is_yougile_enabled(task_id):
         return
     with _conn() as conn:
         task = get_task_by_id(conn, task_id)
         rev = task["sync_revision"] if task else 0
         action = "update" if task and task.get("yougile_task_id") else "create"
         sync_log_id = log_sync(conn, task_id, action, rev, "pending")
-    try:
-        from app.tm_yougile import yougile_sync_task
 
-        async def _do():
-            try:
-                await yougile_sync_task(task_id)
-                with _conn() as c:
-                    c.execute(
-                        "UPDATE tm_sync_log SET status = 'ok', completed_at = ? WHERE id = ? AND status = 'pending'",
-                        (_now(), sync_log_id),
-                    )
-            except Exception as e:
-                logger.error("YouGile sync failed for task %d: %s", task_id, e)
-                with _conn() as c:
-                    c.execute(
-                        "UPDATE tm_sync_log SET status = 'error', completed_at = ? WHERE id = ? AND status = 'pending'",
-                        (_now(), sync_log_id),
-                    )
+    async def _do():
+        try:
+            await on_task_synced(task_id)
+            with _conn() as c:
+                c.execute(
+                    "UPDATE tm_sync_log SET status = 'ok', completed_at = ? WHERE id = ? AND status = 'pending'",
+                    (_now(), sync_log_id),
+                )
+        except Exception as e:
+            logger.error("YouGile sync failed for task %d: %s", task_id, e)
+            with _conn() as c:
+                c.execute(
+                    "UPDATE tm_sync_log SET status = 'error', completed_at = ? WHERE id = ? AND status = 'pending'",
+                    (_now(), sync_log_id),
+                )
 
-        _schedule(_do())
-    except RuntimeError:
-        logger.debug("No event loop for sync, skipping (CLI context)")
-    except Exception as e:
-        logger.error("Sync fire failed for task %d: %s", task_id, e)
+    _fire_async(_do(), f"task #{task_id} sync")
 
 
 def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
+    if on_payment_changed is None:
+        return
     task_ids = [d["task_id"] for d in payment_result.get("distributions", []) if d.get("task_id")]
     if task_ids and not _is_yougile_enabled(task_ids[0]):
         return
     with _conn() as conn:
         sync_log_id = log_sync(conn, None, "journal_update", None, "pending",
                                payload=str(payment_result.get("payment_id", "")))
-    try:
-        from app.tm_yougile import update_payment_journal
 
-        async def _do():
-            try:
-                result = await update_payment_journal(payment_result, client_id)
-                status = "ok" if result == "ok" else "error"
-                with _conn() as c:
-                    c.execute(
-                        "UPDATE tm_sync_log SET status = ?, error = ?, completed_at = ? WHERE id = ?",
-                        (status, result if status == "error" else None, _now(), sync_log_id),
-                    )
-            except Exception as e:
-                logger.error("Journal sync failed: %s", e)
-                with _conn() as c:
-                    c.execute(
-                        "UPDATE tm_sync_log SET status = 'error', error = ?, completed_at = ? WHERE id = ?",
-                        (str(e), _now(), sync_log_id),
-                    )
+    async def _do():
+        try:
+            result = await on_payment_changed(payment_result, client_id)
+            status = "ok" if result == "ok" else "error"
+            with _conn() as c:
+                c.execute(
+                    "UPDATE tm_sync_log SET status = ?, error = ?, completed_at = ? WHERE id = ?",
+                    (status, result if status == "error" else None, _now(), sync_log_id),
+                )
+        except Exception as e:
+            logger.error("Journal sync failed: %s", e)
+            with _conn() as c:
+                c.execute(
+                    "UPDATE tm_sync_log SET status = 'error', error = ?, completed_at = ? WHERE id = ?",
+                    (str(e), _now(), sync_log_id),
+                )
 
-        _schedule(_do())
-    except RuntimeError:
-        logger.debug("No event loop for journal sync, skipping")
-    except Exception as e:
-        logger.error("Journal sync fire failed: %s", e)
+    _fire_async(_do(), "journal sync")
 
 
 # --- High-level API for routes/MCP ---

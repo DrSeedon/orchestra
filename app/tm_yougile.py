@@ -355,3 +355,9 @@ async def update_payment_journal(payment_result: dict, client_id: str) -> str:
     if errors:
         return f"partial failure: {'; '.join(errors)}"
     return "ok"
+
+
+# Register sync hooks (cycle cut: tm fires callbacks, never imports tm_yougile).
+# main.py lifespan imports this module to guarantee registration at startup.
+tm.on_task_synced = yougile_sync_task
+tm.on_payment_changed = update_payment_journal

@@ -840,6 +840,35 @@ async def notify_scope_running(orch_name: str):
     await _update_topic_status(orch_name, True)
 
 
+# ── Session hook handlers (wired into app.session by start_bridge) ──
+
+def _find_scope_orch_name(s) -> str | None:
+    if s.is_orchestrator:
+        return s.name
+    if not _manager:
+        return None
+    for x in _manager.sessions.values():
+        if x.is_orchestrator and x.scope == s.scope:
+            return x.name
+    return None
+
+
+async def _on_session_scope_idle(s) -> None:
+    if not _manager:
+        return
+    orch_name = _find_scope_orch_name(s)
+    if orch_name:
+        await check_scope_idle(orch_name, s.scope)
+
+
+async def _on_session_scope_running(s) -> None:
+    if not _manager:
+        return
+    orch_name = _find_scope_orch_name(s)
+    if orch_name:
+        await notify_scope_running(orch_name)
+
+
 async def _sync_all_topic_statuses():
     if not _manager or not bot:
         return
@@ -1443,6 +1472,15 @@ async def start_bridge(manager):
 
     DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 
+    # Wire callbacks regardless of bridge state: handlers no-op while _manager is
+    # None, and remove_topics_for_orchs has its own bridge-inactive guard — this
+    # preserves the legacy always-callable semantics without session/manager
+    # importing tg_bridge.
+    from app import session as _session_mod
+    _session_mod.on_scope_idle = _on_session_scope_idle
+    _session_mod.on_scope_running = _on_session_scope_running
+    manager.tg_topics_remover = remove_topics_for_orchs
+
     load_config()
     token = os.getenv("TG_BRIDGE_TOKEN", "")
     group = int(os.getenv("TG_BRIDGE_GROUP", config.get("group_id", 0)))
@@ -1536,6 +1574,12 @@ async def _safe_polling():
 
 
 async def stop_bridge():
+    # unhook so a restarted bridge (or tests) never fire stale callbacks
+    from app import session as _session_mod
+    _session_mod.on_scope_idle = None
+    _session_mod.on_scope_running = None
+    if _manager:
+        _manager.tg_topics_remover = None
     for t in _tasks:
         t.cancel()
     _tasks.clear()
