@@ -626,7 +626,9 @@ const _unreadTabs = new Set();
 
 async function loadOrchestrators() {
     try {
-        orchData = await api('/api/orchestrators');
+        const allOrchs = await api('/api/orchestrators');
+        // Sub-orchestrators (have parent) get TG topics but don't show in top tab bar
+        orchData = allOrchs.filter(o => !o.parent_name);
         const picker = $('#orch-picker');
         picker.innerHTML = '';
         for (const o of orchData) {
