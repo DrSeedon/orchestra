@@ -218,6 +218,8 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
         catalog = _roles_catalog_from_manifest(pipeline, role)
         if catalog:
             base += f"\n\n{catalog}"
+        from app.models import available_models_block
+        base += f"\n\n{available_models_block()}"
         others = _other_orchestrators_block(scope, caller_role=role)
         if others:
             base += f"\n\n{others}"

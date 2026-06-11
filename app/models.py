@@ -82,3 +82,16 @@ def resolve_model(model: str) -> str:
 
 def backend_for_model(model: str) -> str:
     return BACKENDS.get(model, "claude")
+
+
+def available_models_block() -> str:
+    """Prompt block listing all available models for spawn_worker."""
+    lines = ["## Available models for spawn_worker(model=...)"]
+    for model_id, label in MODELS.items():
+        ctx = CONTEXT_LIMITS.get(model_id, 200000)
+        ctx_k = f"{ctx // 1000}k"
+        backend = BACKENDS.get(model_id, "claude")
+        alias_list = [a for a, m in ALIASES.items() if m == model_id]
+        alias_str = f" (aliases: {', '.join(alias_list[:3])})" if alias_list else ""
+        lines.append(f"- `{model_id}` — {label}, {ctx_k} context, backend: {backend}{alias_str}")
+    return "\n".join(lines)
