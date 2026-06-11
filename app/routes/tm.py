@@ -1,10 +1,13 @@
 """Task Manager API routes."""
 
+import asyncio
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app import tm as _tm
+from app.tm_yougile import yougile_sync_task
 
 router = APIRouter(prefix="/api/tm", tags=["task-manager"])
 
@@ -50,10 +53,17 @@ def _resolve_client_id(client: str, scope: str) -> str:
     raise ValueError("No client specified and no client found for project scope")
 
 
+def _resolve_project_id(scope: str) -> str:
+    with _tm._conn() as conn:
+        p = _tm.get_project_by_scope(conn, scope)
+        return p["id"] if p else ""
+
+
 @router.post("/tasks")
 async def tm_create_task(req: TmTaskCreate):
     try:
-        return _tm.api_create_task(
+        return await asyncio.to_thread(
+            _tm.api_create_task,
             req.project, req.title, req.price, req.description, req.assignee, req.status,
             scope=req.scope, priority=req.priority,
         )
@@ -64,27 +74,23 @@ async def tm_create_task(req: TmTaskCreate):
 @router.get("/tasks")
 async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
                         scope: str = ""):
-    proj = project
-    if not proj and scope:
-        with _tm._conn() as conn:
-            p = _tm.get_project_by_scope(conn, scope)
-            if p:
-                proj = p["id"]
-            else:
+    def _do():
+        proj = project
+        if not proj and scope:
+            proj = _resolve_project_id(scope)
+            if not proj:
                 return {"tasks": [], "count": 0, "total_debt": "0"}
-    return _tm.api_list_tasks(proj, status, assignee)
+        return _tm.api_list_tasks(proj, status, assignee)
+    return await asyncio.to_thread(_do)
 
 
 @router.get("/tasks/{par}")
 async def tm_get_task(par: str, scope: str = ""):
     try:
-        project = ""
-        if scope:
-            with _tm._conn() as conn:
-                p = _tm.get_project_by_scope(conn, scope)
-                if p:
-                    project = p["id"]
-        return _tm.api_get_task(par, project=project)
+        def _do():
+            project = _resolve_project_id(scope) if scope else ""
+            return _tm.api_get_task(par, project=project)
+        return await asyncio.to_thread(_do)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=404)
 
@@ -92,16 +98,13 @@ async def tm_get_task(par: str, scope: str = ""):
 @router.put("/tasks/{par}")
 async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
     try:
-        project = ""
-        if scope:
-            with _tm._conn() as conn:
-                p = _tm.get_project_by_scope(conn, scope)
-                if p:
-                    project = p["id"]
-        return _tm.api_update_task(
-            par, req.title, req.description, req.price, req.status, req.assignee,
-            project=project, priority=req.priority,
-        )
+        def _do():
+            project = _resolve_project_id(scope) if scope else ""
+            return _tm.api_update_task(
+                par, req.title, req.description, req.price, req.status, req.assignee,
+                project=project, priority=req.priority,
+            )
+        return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:
         code = 404 if "not found" in str(e).lower() else 400
         return JSONResponse({"error": str(e)}, status_code=code)
@@ -110,8 +113,10 @@ async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
 @router.post("/payments")
 async def tm_receive_payment(req: TmPaymentReceive):
     try:
-        client_id = _resolve_client_id(req.client, req.scope)
-        return _tm.api_receive_payment(req.amount, client_id, req.date, req.note)
+        def _do():
+            client_id = _resolve_client_id(req.client, req.scope)
+            return _tm.api_receive_payment(req.amount, client_id, req.date, req.note)
+        return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
@@ -119,55 +124,64 @@ async def tm_receive_payment(req: TmPaymentReceive):
 @router.get("/payments/status")
 async def tm_payment_status(client: str = "", scope: str = ""):
     try:
-        client_id = _resolve_client_id(client, scope)
-        return _tm.api_payment_status(client_id)
+        def _do():
+            client_id = _resolve_client_id(client, scope)
+            return _tm.api_payment_status(client_id)
+        return await asyncio.to_thread(_do)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=404)
 
 
 @router.get("/payments/history")
 async def tm_payment_history(client: str = "", scope: str = ""):
-    try:
+    def _do():
         client_id = _resolve_client_id(client, scope)
+        with _tm._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM tm_payments WHERE client_id = ? ORDER BY id DESC LIMIT 50",
+                (client_id,),
+            ).fetchall()
+        return {
+            "payments": [
+                {"id": r["id"], "amount_rub": r["amount_rub"], "date": r["date"],
+                 "note": r["note"], "created_at": r["created_at"]}
+                for r in rows
+            ]
+        }
+    try:
+        return await asyncio.to_thread(_do)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
-    with _tm._conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM tm_payments WHERE client_id = ? ORDER BY id DESC LIMIT 50",
-            (client_id,),
-        ).fetchall()
-    return {
-        "payments": [
-            {"id": r["id"], "amount_rub": r["amount_rub"], "date": r["date"],
-             "note": r["note"], "created_at": r["created_at"]}
-            for r in rows
-        ]
-    }
 
 
 @router.get("/sync/log")
 async def tm_sync_log(limit: int = 50):
-    limit = min(limit, 200)
-    with _tm._conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit,)
-        ).fetchall()
-    return {"entries": [dict(r) for r in rows]}
+    limit_n = min(limit, 200)
+
+    def _do():
+        with _tm._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM tm_sync_log ORDER BY id DESC LIMIT ?", (limit_n,)
+            ).fetchall()
+        return {"entries": [dict(r) for r in rows]}
+    return await asyncio.to_thread(_do)
 
 
 @router.post("/sync/retry/{sync_id}")
 async def tm_sync_retry(sync_id: int):
-    with _tm._conn() as conn:
-        row = conn.execute("SELECT * FROM tm_sync_log WHERE id = ?", (sync_id,)).fetchone()
-        if not row:
-            return JSONResponse({"error": "sync entry not found"}, status_code=404)
-        entry = dict(row)
-        if entry["status"] not in ("error", "pending"):
-            return {"message": "nothing to retry", "status": entry["status"]}
-        task_id = entry["task_id"]
+    def _read_entry():
+        with _tm._conn() as conn:
+            row = conn.execute("SELECT * FROM tm_sync_log WHERE id = ?", (sync_id,)).fetchone()
+            return dict(row) if row else None
+
+    entry = await asyncio.to_thread(_read_entry)
+    if not entry:
+        return JSONResponse({"error": "sync entry not found"}, status_code=404)
+    if entry["status"] not in ("error", "pending"):
+        return {"message": "nothing to retry", "status": entry["status"]}
+    task_id = entry["task_id"]
 
     if task_id:
-        from app.tm_yougile import yougile_sync_task
         result = await yougile_sync_task(task_id)
         return {"retried": True, "task_id": task_id, "result": result}
     return {"error": "no task_id on sync entry"}

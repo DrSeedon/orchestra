@@ -9,7 +9,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from app.session import AgentSession, AgentStatus
 from app.prompting import (
@@ -21,7 +21,7 @@ from app.prompting import (
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap
-from app.models import resolve_model, backend_for_model
+from app.models import resolve_model, backend_for_model, available_models_block, CONTEXT_LIMITS
 from app.pipeline import (
     DEFAULT_PIPELINE,
     build_system_prompt,
@@ -40,15 +40,7 @@ from app.db import (
 
 logger = logging.getLogger(__name__)
 
-_PROJECT_ROOT = str(Path(__file__).parent.parent)
-_MCP_SCRIPT = str(Path(__file__).parent / "mcp_stdio.py")
-MCP_STDIO_CMD = [sys.executable, _MCP_SCRIPT]
-# Propagate proxy + auth token to the MCP subprocess so it can reach Anthropic
-# and call back to Orchestra's own API with internal auth
-MCP_BASE_ENV = {"PYTHONPATH": _PROJECT_ROOT}
-for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "INTERNAL_TOKEN"):
-    if os.environ.get(_k):
-        MCP_BASE_ENV[_k] = os.environ[_k]
+from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD  # noqa: F401 — re-exported for callers
 
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
@@ -218,7 +210,6 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
         catalog = _roles_catalog_from_manifest(pipeline, role)
         if catalog:
             base += f"\n\n{catalog}"
-        from app.models import available_models_block
         base += f"\n\n{available_models_block()}"
         others = _other_orchestrators_block(scope, caller_role=role)
         if others:
@@ -311,6 +302,8 @@ class SessionManager:
         self._spawn_queue: asyncio.Queue = asyncio.Queue()
         self._spawn_task: asyncio.Task | None = None
         self._session_locks: dict[str, asyncio.Lock] = {}
+        # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
+        self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
 
     def get_session_lock(self, session_id: str) -> asyncio.Lock:
         if session_id not in self._session_locks:
@@ -499,7 +492,7 @@ class SessionManager:
         if not parent_id and parent_name:
             p_session = self.get_by_name(parent_name, scope)
             if p_session:
-                parent_id = p_session.id if isinstance(p_session, AgentSession) else p_session.get("id", "")
+                parent_id = p_session.id
 
         # R2: валидация спавна ДО любых side-effects (worktree/start).
         # Манифест-путь — validate_spawn (fail-closed/fail-open). Нет манифеста
@@ -549,8 +542,8 @@ class SessionManager:
             try:
                 from app.tm import api_update_task
                 api_update_task(task_id, status="in_progress")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"task #{task_id} → in_progress failed on spawn: {e}")
 
         try:
             if use_worktree and repo_path:
@@ -599,8 +592,10 @@ class SessionManager:
             if session.worktree_path and repo_path:
                 try:
                     await asyncio.to_thread(remove_worktree, repo_path, session.worktree_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        f"worktree cleanup failed after spawn error ({session.worktree_path}): {e}",
+                        exc_info=True)
             delete_session(session.id)
             raise
 
@@ -634,8 +629,10 @@ class SessionManager:
             if session.worktree_path:
                 try:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        f"worktree cleanup failed on remove ({session.worktree_path}): {e}",
+                        exc_info=True)
         archive_session(session_id)
 
     async def change_orchestrator_scope(self, name: str, old_scope: str,
@@ -651,7 +648,8 @@ class SessionManager:
         new_scope = new_scope.rstrip("/")
         new_cwd = new_cwd.rstrip("/")
         session = self.get_by_name(name, old_scope)
-        if not isinstance(session, AgentSession):
+        # live-only: detached hydrate has no backend/MCP to rebuild
+        if not session or not session.loaded:
             return {"error": f"orchestrator '{name}' not loaded in scope '{old_scope}'"}
         if not session.is_orchestrator:
             return {"error": f"'{name}' is not an orchestrator — scope change is orchestrator-only"}
@@ -736,9 +734,8 @@ class SessionManager:
             archive_session(row["id"])
 
         tg_result: dict = {}
-        if delete_tg_topics and orch_names:
-            from app import tg_bridge
-            tg_result = await tg_bridge.remove_topics_for_orchs(orch_names)
+        if delete_tg_topics and orch_names and self.tg_topics_remover:
+            tg_result = await self.tg_topics_remover(orch_names)
         return {"tg": tg_result}
 
     # ── Lookups ──
@@ -746,13 +743,86 @@ class SessionManager:
     def get(self, session_id: str) -> Optional[AgentSession]:
         return self.sessions.get(session_id)
 
-    def get_by_name(self, name: str, scope: str) -> AgentSession | dict | None:
+    def get_by_name(self, name: str, scope: str) -> AgentSession | None:
+        """Live session from registry, or detached hydrate from DB. Never a dict."""
         scope = scope.rstrip("/")
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
                 return s
         db_row = get_session_by_name(name, scope)
-        return db_row
+        return self._hydrate_row(db_row) if db_row else None
+
+    @staticmethod
+    def _hydrate_row(row: dict) -> AgentSession:
+        """DB row → detached AgentSession (loaded=False). Data only: no start(),
+        no prompt assembly, no git — unlike the heavy resume path (_resume_session)."""
+        try:
+            status = AgentStatus(row.get("status") or "idle")
+        except ValueError:
+            status = AgentStatus.IDLE
+        s = AgentSession(
+            id=row["id"], name=row["name"], scope=row["scope"],
+            cwd=row.get("cwd") or row["scope"],
+            model=row.get("model") or "",
+            system_prompt=row.get("system_prompt") or "",
+            status=status,
+            session_id=row.get("session_id"),
+            cost_usd=row.get("cost_usd") or 0.0,
+            cost_usd_cached=row.get("cost_usd_cached") or 0.0,
+            worktree_path=row.get("worktree_path"),
+            branch=row.get("branch"),
+            created_at=datetime.fromisoformat(row["created_at"]) if row.get("created_at") else datetime.now(timezone.utc),
+            role=row.get("role") or "worker",
+            parent_id=row.get("parent_id") or "",
+            parent_name=row.get("parent_name") or "",
+            pipeline=row.get("pipeline") or "",
+            profile=row.get("profile") or "",
+            backend_type=row.get("backend_type") or "claude",
+            task_id=row.get("task_id") or "",
+            description=row.get("description") or "",
+            owned_dirs=parse_owned_dirs(row.get("owned_dirs")),
+            tg_topic=bool(row.get("tg_topic") or 0),
+            loaded=False,
+            db_row=row,
+        )
+        if row.get("is_orchestrator") is not None:
+            s.is_orchestrator = bool(row.get("is_orchestrator"))
+        s.needs_switch = bool(row.get("needs_switch") or 0)
+        s.progress_pct = row.get("progress_pct") or 0
+        s.progress_status = row.get("progress_status") or ""
+        s.total_turns = row.get("total_turns") or 0
+        s.total_input_tokens = row.get("total_input_tokens") or 0
+        s.total_output_tokens = row.get("total_output_tokens") or 0
+        s.total_tool_calls = row.get("total_tool_calls") or 0
+        s._last_context = {
+            "percentage": row.get("context_pct", 0) or 0,
+            "total_tokens": row.get("context_tokens", 0) or 0,
+            "max_tokens": 0,
+        }
+        return s
+
+    _UPDATABLE_FIELDS = frozenset({"description", "system_prompt", "tg_topic"})
+
+    def update_session_fields(self, name: str, scope: str, **fields) -> AgentSession | None:
+        """Update simple session fields atomically for the caller.
+        Live session → setattr + _persist(); detached → direct DB UPDATE."""
+        unknown = set(fields) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise ValueError(f"non-updatable fields: {sorted(unknown)}")
+        found = self.get_by_name(name, scope)
+        if not found:
+            return None
+        if found.loaded:
+            for k, v in fields.items():
+                setattr(found, k, v)
+            found._persist()
+        else:
+            from app.db import _conn
+            sets = ", ".join(f"{k}=?" for k in fields)
+            vals = [int(v) if isinstance(v, bool) else v for v in fields.values()]
+            with _conn() as c:
+                c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id))
+        return found
 
     def _resolve_role(self, name: str, scope: str) -> str | None:
         for s in self.sessions.values():
@@ -802,11 +872,7 @@ class SessionManager:
         if parent_name:
             ps = self.get_by_name(parent_name, scope)
             if ps is not None:
-                parent_branch = getattr(ps, "branch", "") or (
-                    ps.get("branch", "") if isinstance(ps, dict) else "")
-            if not parent_branch:
-                row = get_session_by_name(parent_name, scope)
-                parent_branch = (row.get("branch") or "") if row else ""
+                parent_branch = ps.branch or ""
         if not parent_branch:
             logger.warning(
                 "base_branch_strategy=parent, но у родителя '%s' нет ветки — fallback на main",
@@ -909,7 +975,6 @@ class SessionManager:
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
-            from app.models import CONTEXT_LIMITS
             max_t = CONTEXT_LIMITS.get(db_row["model"], 200000)
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
         orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None
@@ -1134,6 +1199,6 @@ class SessionManager:
         for session in list(self.sessions.values()):
             try:
                 await session.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"session '{session.name}' stop failed on shutdown: {e}")
         self.sessions.clear()

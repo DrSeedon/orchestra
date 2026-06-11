@@ -59,8 +59,8 @@ def _load_media_cache() -> dict[str, str]:
             data = json.loads(MEDIA_CACHE_PATH.read_text())
             # Drop entries whose files were deleted (cleanup rotation) — avoids dead references
             return {k: v for k, v in data.items() if Path(v).exists()}
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"media cache load failed: {e}")
     return {}
 
 
@@ -75,8 +75,8 @@ def _load_transcription_cache() -> dict[str, str]:
     if TRANSCRIPTION_CACHE_PATH.exists():
         try:
             return json.loads(TRANSCRIPTION_CACHE_PATH.read_text())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"transcription cache load failed: {e}")
     return {}
 
 
@@ -840,6 +840,35 @@ async def notify_scope_running(orch_name: str):
     await _update_topic_status(orch_name, True)
 
 
+# ── Session hook handlers (wired into app.session by start_bridge) ──
+
+def _find_scope_orch_name(s) -> str | None:
+    if s.is_orchestrator:
+        return s.name
+    if not _manager:
+        return None
+    for x in _manager.sessions.values():
+        if x.is_orchestrator and x.scope == s.scope:
+            return x.name
+    return None
+
+
+async def _on_session_scope_idle(s) -> None:
+    if not _manager:
+        return
+    orch_name = _find_scope_orch_name(s)
+    if orch_name:
+        await check_scope_idle(orch_name, s.scope)
+
+
+async def _on_session_scope_running(s) -> None:
+    if not _manager:
+        return
+    orch_name = _find_scope_orch_name(s)
+    if orch_name:
+        await notify_scope_running(orch_name)
+
+
 async def _sync_all_topic_statuses():
     if not _manager or not bot:
         return
@@ -974,8 +1003,8 @@ async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) 
     finally:
         try:
             os.unlink(tmp)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"tmp diff image cleanup failed ({tmp}): {e}")
 
 
 async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, thread_id: int) -> bool:
@@ -1050,8 +1079,8 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                         pm = _re.search(pattern, text)
                         if pm:
                             ms, me = pm.start(), pm.end()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"grep highlight pattern failed: {e}")
                 parsed.append((fpath, lineno, text, ms, me))
 
             if not parsed:
@@ -1226,8 +1255,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                                     _last_tool_name = ""
                                     _last_tool_raw = ""
                                     continue
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug(f"worker_info pretty-print failed, falling back to raw: {e}")
                         result_preview = c[:80].replace("\n", " ").strip()
                         result_body = c[:800]
                         # Result image for Read/Grep/Bash — if sent, skip text
@@ -1443,6 +1472,15 @@ async def start_bridge(manager):
 
     DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 
+    # Wire callbacks regardless of bridge state: handlers no-op while _manager is
+    # None, and remove_topics_for_orchs has its own bridge-inactive guard — this
+    # preserves the legacy always-callable semantics without session/manager
+    # importing tg_bridge.
+    from app import session as _session_mod
+    _session_mod.on_scope_idle = _on_session_scope_idle
+    _session_mod.on_scope_running = _on_session_scope_running
+    manager.tg_topics_remover = remove_topics_for_orchs
+
     load_config()
     token = os.getenv("TG_BRIDGE_TOKEN", "")
     group = int(os.getenv("TG_BRIDGE_GROUP", config.get("group_id", 0)))
@@ -1509,8 +1547,9 @@ async def _bot_api_health_loop(local_api: str):
                     if r.status < 500:
                         fails = 0
                         continue
-        except Exception:
-            pass
+        except Exception as e:
+            # failure detail; the counter warning below is the operational signal
+            logger.debug(f"Bot API health probe error: {e}")
         fails += 1
         logger.warning(f"Bot API health check failed ({fails}/3)")
         if fails >= 3:
@@ -1535,11 +1574,21 @@ async def _safe_polling():
 
 
 async def stop_bridge():
+    global bot, _manager
+    # unhook so a restarted bridge (or tests) never fire stale callbacks
+    from app import session as _session_mod
+    _session_mod.on_scope_idle = None
+    _session_mod.on_scope_running = None
+    if _manager:
+        _manager.tg_topics_remover = None
     for t in _tasks:
         t.cancel()
     _tasks.clear()
     if bot:
         await bot.session.close()
+    # drop stale refs — a handler racing past the unhook must see inactive state
+    bot = None
+    _manager = None
 
 
 if __name__ == "__main__":

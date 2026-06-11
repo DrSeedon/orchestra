@@ -13,8 +13,8 @@ def db(tmp_path, monkeypatch):
     wt_root = tmp_path / "worktrees"
     wt_root.mkdir()
     monkeypatch.setattr("app.workspace.WORKTREE_ROOT", wt_root)
-    import app.main as mainmod
-    monkeypatch.setattr(mainmod, "_ALLOWED_ROOTS", ["/tmp", str(tmp_path)])
+    import app.routes.system as sysmod
+    monkeypatch.setattr(sysmod, "_ALLOWED_ROOTS", ["/tmp", str(tmp_path)])
     from app.db import init_db
     init_db()
 
@@ -203,7 +203,7 @@ class TestOrchestrators:
 
 
 def test_create_request_accepts_base_branch():
-    from app.main import CreateSessionRequest
+    from app.routes.sessions import CreateSessionRequest
     req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6",
                                use_worktree=True, repo_path="/tmp",
                                base_branch="feature/auth")
@@ -213,7 +213,7 @@ def test_create_request_accepts_base_branch():
 def test_create_request_base_branch_default_empty():
     # Sentinel "" = авто-резолв базовой ветки по стратегии пайплайна (DESIGN §10).
     # Резолв в "main" происходит в manager/workspace, а не в дефолте запроса.
-    from app.main import CreateSessionRequest
+    from app.routes.sessions import CreateSessionRequest
     req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-4-6")
     assert req.base_branch == ""
 
@@ -221,6 +221,7 @@ def test_create_request_base_branch_default_empty():
 @pytest.mark.asyncio
 async def test_merge_endpoint_passes_target(monkeypatch):
     import app.main as mainmod
+    import app.routes.sessions as sessmod
     captured = {}
 
     def fake_merge(worktree_path, repo_path, target_branch="main"):
@@ -229,6 +230,7 @@ async def test_merge_endpoint_passes_target(monkeypatch):
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
 
     class FakeSession:
+        loaded = True
         class _S:
             value = "idle"
         status = _S()
@@ -239,7 +241,7 @@ async def test_merge_endpoint_passes_target(monkeypatch):
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: FakeSession())
 
     import asyncio
-    res = await mainmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
+    res = await sessmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
     assert captured["target_branch"] == "feature/auth"
 
 
@@ -255,8 +257,8 @@ class TestPipelines:
             assert "name" in p and "description" in p and "roles" in p
 
     def test_excludes_invalid(self, client, monkeypatch):
-        import app.main as mainmod
-        monkeypatch.setattr(mainmod, "list_pipelines", lambda: [
+        import app.routes.system as sysmod
+        monkeypatch.setattr(sysmod, "list_pipelines", lambda: [
             {"name": "good", "description": "d", "roles": ["pm"], "valid": True, "error": None},
             {"name": "broken", "description": "", "roles": [], "valid": False, "error": "boom"},
         ])
@@ -368,6 +370,8 @@ class TestProfiles:
 @pytest.mark.asyncio
 async def test_create_session_passes_pipeline_and_profile(monkeypatch):
     import app.main as mainmod
+    import app.routes.sessions as sessmod
+    import app.routes.system as sysmod
     captured = {}
 
     async def fake_create(**kwargs):
@@ -379,13 +383,13 @@ async def test_create_session_passes_pipeline_and_profile(monkeypatch):
         return _Sess()
 
     monkeypatch.setattr(mainmod.manager, "create_session", fake_create)
-    monkeypatch.setattr(mainmod, "_is_safe_path", lambda p: True)
+    monkeypatch.setattr(sysmod, "_is_safe_path", lambda p: True)
 
-    req = mainmod.CreateSessionRequest(
+    req = sessmod.CreateSessionRequest(
         name="w1", cwd="/tmp", model="claude-sonnet-4-6",
         pipeline="default", profile="work",
     )
-    await mainmod.create_session(req)
+    await sessmod.create_session(req)
     assert captured["pipeline"] == "default"
     assert captured["profile"] == "work"
 class TestChangeScopeEndpoint:

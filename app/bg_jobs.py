@@ -18,6 +18,7 @@ from app.db import (
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
     bg_reset_stale_triggering, bg_cleanup_old,
     bg_cron_should_fire, bg_cron_record_fire,
+    bg_get_jobs, bg_fail_job_if_active,
 )
 
 logger = logging.getLogger(__name__)
@@ -206,7 +207,6 @@ class BgJobManager:
         return {"ok": True}
 
     async def cancel_by_session(self, session_id: str) -> None:
-        from app.db import bg_get_jobs
         active = bg_get_jobs(session_id=session_id, active_only=True)
         job_ids = [j["id"] for j in active]
         cancelled_count = bg_cancel_by_session(session_id)
@@ -261,7 +261,6 @@ class BgJobManager:
         self._procs.clear()
 
     def has_active_jobs(self, session_id: str) -> bool:
-        from app.db import bg_get_jobs
         return len(bg_get_jobs(session_id=session_id, active_only=True)) > 0
 
     # ── Trigger ──
@@ -315,7 +314,6 @@ class BgJobManager:
             logger.error(f"bg_job {job_id}: timeout-notify failed: {e}")
 
     def _fail_if_active(self, job_id: str, error: str) -> None:
-        from app.db import bg_fail_job_if_active
         bg_fail_job_if_active(job_id, error)
 
     # ── Runners ──

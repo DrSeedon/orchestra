@@ -326,7 +326,7 @@ class TestRemoveScope:
             called["names"] = list(names)
             return {"deleted": list(names), "failed": [], "skipped": []}
 
-        monkeypatch.setattr("app.tg_bridge.remove_topics_for_orchs", fake_remove)
+        mgr.tg_topics_remover = fake_remove  # P3: wired callback, not tg_bridge import
 
         result = await mgr.remove_scope("/scope-x", delete_tg_topics=True)
 
@@ -352,7 +352,7 @@ class TestRemoveScope:
             called["hit"] = True
             return {}
 
-        monkeypatch.setattr("app.tg_bridge.remove_topics_for_orchs", fake_remove)
+        mgr.tg_topics_remover = fake_remove  # P3: wired callback, not tg_bridge import
 
         result = await mgr.remove_scope("/scope-y", delete_tg_topics=False)
 

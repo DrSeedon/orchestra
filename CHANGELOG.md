@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.20.0 — 2026-06-11
+
+### Changed
+- 🏗️ **Full architecture refactor P0–P4** (per `docs/reviews/arch-audit.md`, Codex-reviewed plan + impl, 5 commits `3a7b76a..57949c5`). Public API (HTTP/MCP/DB) byte-identical — guarded by `tests/test_routes_surface.py` snapshot (77 routes). 487 tests green.
+  - **P0 fail-loud + async**: 24 silent `except: pass` → `logger.warning` with context; `tm_yougile.py`/`routes/tm.py` sync SQLite wrapped in `asyncio.to_thread` (connection-per-helper, transaction never crosses await); `tm.set_main_loop()` + `run_coroutine_threadsafe` fallback — YouGile sync fired from worker threads no longer silently no-ops; codex turn loop got `_on_task_done` callback; `_auto_continue` capped at 5 consecutive max_turns
+  - **P1 union-type fix**: `manager.get_by_name()` always returns `AgentSession | None` — detached DB-hydrate via `_hydrate_row()` with `loaded=False` discriminator + `db_row` for legacy response shape; 34 `isinstance(found, dict)` sites killed; `manager.update_session_fields()` replaces handler-level `_persist()` triplets
+  - **P2 main.py drain**: 1574 → 91 lines; 56 handlers → `routes/{sessions,system,tg}.py`; `templates` → `deps.py`; `/api/open-file` now passes `_is_safe_path` (was the one unguarded sibling)
+  - **P3 cycles → wired callbacks**: session→tg_bridge via module hooks `on_scope_idle`/`on_scope_running`; manager→tg_bridge via `tg_topics_remover` slot; tm→tm_yougile via `on_task_synced`/`on_payment_changed` registered at import; `MCP_BASE_ENV` → `runtime_env.py` leaf; `_fire_sync`/`_fire_journal_sync` deduped
+  - **P4 session split**: `session_cost.py` (CostTracker), `session_turns.py` (TurnManager), `session_hibernate.py` (HibernateManager), `session_state.py` (AgentStatus leaf). Systems-over-state: ALL fields stay on `AgentSession` dataclass, systems hold methods. Cost math delta-based AS-IS, locked by `tests/test_p4_cost.py` contract
+- **Reasoning**: audit found 43% of codebase (4 files) carrying all architectural debt; import graph was a DAG only via ~75 lazy imports. Now: downward-only edges, one lookup type, thin transport layer.
+
+### Fixed
+- 🐛 **Test hot-loop starvation** — `_MockBackend.events()` re-yielded `turn_end` infinitely with zero suspension points after `finish()`; tests hung when default DB had `bg_jobs` table. Fix: re-arm `_finish_event` after yield. Triggered case: full-suite run started hanging mid-`test_session.py` after stale WAL cleanup
+- 🐛 **stop_bridge stale globals** (Codex impl review) — `bot`/`_manager` now cleared on stop; a handler racing past the unhook sees inactive state
+
+### Known tradeoff
+- Pending `tm_sync_log` row dangles if sync fired in a CLI context with no event loop — byte-identical legacy behavior, kept for behavior-preservation (in TODO)
+
+
 ## v2.19.0 — 2026-06-04
 
 ### Added

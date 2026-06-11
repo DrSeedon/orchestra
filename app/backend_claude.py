@@ -204,8 +204,8 @@ class ClaudeBackend:
         if self._client:
             try:
                 await self._client.disconnect()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"ClaudeBackend disconnect failed: {e}")
             self._client = None
 
     async def context_usage(self) -> dict | None:

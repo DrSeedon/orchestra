@@ -73,6 +73,9 @@ class _MockBackend:
             yield event
         # Потом ждём сигнала финиша
         await self._finish_event.wait()
+        # one turn_end per finish(): re-arm so the next events() call suspends on
+        # wait() instead of hot-looping turn_ends without a single yield point
+        self._finish_event.clear()
         yield self._AgentEvent(
             type="turn_end",
             metadata={"ok": True, "stop_reason": "end_turn",
@@ -260,7 +263,7 @@ async def test_auto_report_fires_after_idle_timeout(monkeypatch):
     s._did_report = False
     s._turn_logs = ["did stuff"]
     # завершение хода → немедленный авто-репорт родителю
-    s._fire_auto_report()
+    s._turns.fire_auto_report()
     await asyncio.sleep(0.05)
     assert fired == ["w"]
 
@@ -273,7 +276,7 @@ async def test_auto_report_skipped_if_did_report(monkeypatch):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = True  # был явный send_message
-    s._fire_auto_report()
+    s._turns.fire_auto_report()
     await asyncio.sleep(0.05)
     assert fired == []  # явный отчёт был → авто-репорт не нужен
 
@@ -289,7 +292,7 @@ async def test_auto_report_cancelled_by_new_turn(monkeypatch):
     s.on_idle = on_idle
     s._did_report = False
     s._pending_messages = ["новый ход пришёл"]
-    s._fire_auto_report()
+    s._turns.fire_auto_report()
     await asyncio.sleep(0.05)
     assert fired == []  # есть pending → отчёт отложен
 
@@ -304,7 +307,7 @@ async def test_orchestrator_never_auto_reports(monkeypatch):
     s.on_idle = on_idle
     s._did_report = False
     s._turn_logs = ["ответил пользователю в чат"]
-    s._fire_auto_report()
+    s._turns.fire_auto_report()
     await asyncio.sleep(0.05)
     assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
 
@@ -682,12 +685,12 @@ class TestCompactGuards:
         # turn_end for a DIFFERENT gen must NOT set the ack event
         session._turn_gen = 4
         session.status = AgentStatus.RUNNING
-        session._handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
         assert not session._compact_ack_event.is_set()
 
         # turn_end for the matching gen SETS it
         session._turn_gen = 5
-        session._handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", content="", metadata={}))
         assert session._compact_ack_event.is_set()
 
 
@@ -741,7 +744,7 @@ class TestEnsureBackendForceFresh:
         with patch.object(session, "_disconnect_backend", AsyncMock()) as disc, \
              patch.object(session, "_make_backend", return_value=new) as mk, \
              patch.object(session, "_claude_event_loop", AsyncMock()), \
-             patch.object(session, "_heartbeat_loop", AsyncMock()):
+             patch.object(session._hibernate, "heartbeat_loop", AsyncMock()):
             result = await session._ensure_backend(force_fresh=True)
         disc.assert_awaited_once()
         mk.assert_called_once_with(force_fresh=True)

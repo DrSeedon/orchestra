@@ -1,10 +1,13 @@
 """SQLite storage for sessions and logs."""
 
 import json
+import logging
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+logger = logging.getLogger("db")
 
 _DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
@@ -321,8 +324,8 @@ def _migrate(c) -> None:
         c.execute("CREATE INDEX IF NOT EXISTS idx_bg_jobs_scope ON bg_jobs(target_scope, status)")
     try:
         c.execute("DROP TABLE IF EXISTS tm_par_sequence")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"migration: tm_par_sequence drop failed: {e}", exc_info=True)
     for old_name in ("_tm_tasks_old", "tm_tasks_old"):
         old_exists = c.execute(f"SELECT 1 FROM sqlite_master WHERE type='table' AND name='{old_name}'").fetchone()
         if old_exists:
@@ -341,8 +344,8 @@ def _migrate(c) -> None:
             if [r[2] for r in info] == ["par_number"]:
                 needs_recreate = True
                 break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"migration: index_info({idx}) probe failed: {e}", exc_info=True)
     if needs_recreate:
         c.execute("ALTER TABLE tm_tasks RENAME TO _tm_tasks_old")
         c.execute("""CREATE TABLE tm_tasks (
@@ -374,8 +377,8 @@ def _migrate(c) -> None:
                 c.execute(create_sql)
                 c.execute(f"INSERT INTO {tbl} SELECT * FROM {old_name}")
                 c.execute(f"DROP TABLE {old_name}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"migration: {tbl} tm_tasks_old reference fix failed: {e}", exc_info=True)
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
     task_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)").fetchall()}
     if task_cols and "priority" not in task_cols:

@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from app.runtime_env import MCP_BASE_ENV
+
 logger = logging.getLogger(__name__)
 
 COUNTRY_FLAGS = {
@@ -139,7 +141,6 @@ class ProxyManager:
         entry = next((e for e in entries if e.id == proxy_id), None)
         if not entry:
             return {"error": f"proxy '{proxy_id}' not found"}
-        from app.manager import MCP_BASE_ENV
         if entry.url == "direct":
             os.environ.pop("HTTPS_PROXY", None)
             os.environ.pop("HTTP_PROXY", None)
