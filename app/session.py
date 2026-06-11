@@ -307,6 +307,7 @@ class AgentSession:
 
             if self._hibernated:
                 logger.info(f"[{self.name}] waking from hibernate")
+                self._log("status", "☀️ waking from hibernate")
                 self._hibernated = False
 
             self.progress_pct = 0
@@ -710,6 +711,7 @@ class AgentSession:
             if self._backend is None:
                 return
             logger.info(f"[{self.name}] hibernating (idle {int(timeout)}s)")
+            self._log("status", f"💤 hibernated (idle {int(timeout)}s)")
             await self._disconnect_backend()
             self._hibernated = True
 
@@ -722,6 +724,7 @@ class AgentSession:
             import traceback
             tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
             logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
+            self._log("error", f"listen task died: {exc}")
             self._turn_start = 0
             self.status = AgentStatus.IDLE
             self._log("error", f"listen task exception: {exc}")
@@ -1015,6 +1018,7 @@ class AgentSession:
 
     async def stop(self) -> None:
         self._cancel_auto_report()
+        self._log("status", "⏹️ stopped (manual interrupt)")
         await self._disconnect_backend()
         self._hibernated = False
         self.status = AgentStatus.IDLE
