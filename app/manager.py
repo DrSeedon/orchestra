@@ -499,7 +499,7 @@ class SessionManager:
         if not parent_id and parent_name:
             p_session = self.get_by_name(parent_name, scope)
             if p_session:
-                parent_id = p_session.id if isinstance(p_session, AgentSession) else p_session.get("id", "")
+                parent_id = p_session.id
 
         # R2: валидация спавна ДО любых side-effects (worktree/start).
         # Манифест-путь — validate_spawn (fail-closed/fail-open). Нет манифеста
@@ -655,7 +655,8 @@ class SessionManager:
         new_scope = new_scope.rstrip("/")
         new_cwd = new_cwd.rstrip("/")
         session = self.get_by_name(name, old_scope)
-        if not isinstance(session, AgentSession):
+        # live-only: detached hydrate has no backend/MCP to rebuild
+        if not session or not session.loaded:
             return {"error": f"orchestrator '{name}' not loaded in scope '{old_scope}'"}
         if not session.is_orchestrator:
             return {"error": f"'{name}' is not an orchestrator — scope change is orchestrator-only"}
@@ -750,13 +751,86 @@ class SessionManager:
     def get(self, session_id: str) -> Optional[AgentSession]:
         return self.sessions.get(session_id)
 
-    def get_by_name(self, name: str, scope: str) -> AgentSession | dict | None:
+    def get_by_name(self, name: str, scope: str) -> AgentSession | None:
+        """Live session from registry, or detached hydrate from DB. Never a dict."""
         scope = scope.rstrip("/")
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
                 return s
         db_row = get_session_by_name(name, scope)
-        return db_row
+        return self._hydrate_row(db_row) if db_row else None
+
+    @staticmethod
+    def _hydrate_row(row: dict) -> AgentSession:
+        """DB row → detached AgentSession (loaded=False). Data only: no start(),
+        no prompt assembly, no git — unlike the heavy resume path (_resume_session)."""
+        try:
+            status = AgentStatus(row.get("status") or "idle")
+        except ValueError:
+            status = AgentStatus.IDLE
+        s = AgentSession(
+            id=row["id"], name=row["name"], scope=row["scope"],
+            cwd=row.get("cwd") or row["scope"],
+            model=row.get("model") or "",
+            system_prompt=row.get("system_prompt") or "",
+            status=status,
+            session_id=row.get("session_id"),
+            cost_usd=row.get("cost_usd") or 0.0,
+            cost_usd_cached=row.get("cost_usd_cached") or 0.0,
+            worktree_path=row.get("worktree_path"),
+            branch=row.get("branch"),
+            created_at=datetime.fromisoformat(row["created_at"]) if row.get("created_at") else datetime.now(timezone.utc),
+            role=row.get("role") or "worker",
+            parent_id=row.get("parent_id") or "",
+            parent_name=row.get("parent_name") or "",
+            pipeline=row.get("pipeline") or "",
+            profile=row.get("profile") or "",
+            backend_type=row.get("backend_type") or "claude",
+            task_id=row.get("task_id") or "",
+            description=row.get("description") or "",
+            owned_dirs=parse_owned_dirs(row.get("owned_dirs")),
+            tg_topic=bool(row.get("tg_topic") or 0),
+            loaded=False,
+            db_row=row,
+        )
+        if row.get("is_orchestrator") is not None:
+            s.is_orchestrator = bool(row.get("is_orchestrator"))
+        s.needs_switch = bool(row.get("needs_switch") or 0)
+        s.progress_pct = row.get("progress_pct") or 0
+        s.progress_status = row.get("progress_status") or ""
+        s.total_turns = row.get("total_turns") or 0
+        s.total_input_tokens = row.get("total_input_tokens") or 0
+        s.total_output_tokens = row.get("total_output_tokens") or 0
+        s.total_tool_calls = row.get("total_tool_calls") or 0
+        s._last_context = {
+            "percentage": row.get("context_pct", 0) or 0,
+            "total_tokens": row.get("context_tokens", 0) or 0,
+            "max_tokens": 0,
+        }
+        return s
+
+    _UPDATABLE_FIELDS = frozenset({"description", "system_prompt", "tg_topic"})
+
+    def update_session_fields(self, name: str, scope: str, **fields) -> AgentSession | None:
+        """Update simple session fields atomically for the caller.
+        Live session → setattr + _persist(); detached → direct DB UPDATE."""
+        unknown = set(fields) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise ValueError(f"non-updatable fields: {sorted(unknown)}")
+        found = self.get_by_name(name, scope)
+        if not found:
+            return None
+        if found.loaded:
+            for k, v in fields.items():
+                setattr(found, k, v)
+            found._persist()
+        else:
+            from app.db import _conn
+            sets = ", ".join(f"{k}=?" for k in fields)
+            vals = [int(v) if isinstance(v, bool) else v for v in fields.values()]
+            with _conn() as c:
+                c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id))
+        return found
 
     def _resolve_role(self, name: str, scope: str) -> str | None:
         for s in self.sessions.values():
@@ -806,11 +880,7 @@ class SessionManager:
         if parent_name:
             ps = self.get_by_name(parent_name, scope)
             if ps is not None:
-                parent_branch = getattr(ps, "branch", "") or (
-                    ps.get("branch", "") if isinstance(ps, dict) else "")
-            if not parent_branch:
-                row = get_session_by_name(parent_name, scope)
-                parent_branch = (row.get("branch") or "") if row else ""
+                parent_branch = ps.branch or ""
         if not parent_branch:
             logger.warning(
                 "base_branch_strategy=parent, но у родителя '%s' нет ветки — fallback на main",

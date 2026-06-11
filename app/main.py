@@ -509,9 +509,8 @@ async def get_session(name: str, scope: str):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    if isinstance(found, dict):
-        return found
-    return found.to_dict()
+    # detached: raw DB row keeps legacy response shape (richer than to_dict)
+    return found.to_dict() if found.loaded else found.db_row
 
 
 @app.get("/api/sessions/{name}/prompt")
@@ -520,8 +519,8 @@ async def get_session_prompt(name: str, scope: str):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    sp = (found.get("system_prompt", "") if isinstance(found, dict) else found.system_prompt) or ""
-    is_orch = (found.get("is_orchestrator") if isinstance(found, dict) else found.is_orchestrator) or False
+    sp = found.system_prompt or ""
+    is_orch = found.is_orchestrator or False
     base = _read_prompt("base.md")
     base_len = len(base)
     role = ""
@@ -549,10 +548,10 @@ async def get_session_context(name: str, scope: str):
     found = manager.get_by_name(name, scope)
     if not found:
         return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
-    if isinstance(found, dict):
-        pct = found.get("context_pct", 0) or 0
-        tokens = found.get("context_tokens", 0) or 0
-        return {"percentage": pct, "total_tokens": tokens, "max_tokens": 200000}
+    if not found.loaded:
+        return {"percentage": found._last_context.get("percentage", 0),
+                "total_tokens": found._last_context.get("total_tokens", 0),
+                "max_tokens": 200000}
     return await found.get_context()
 
 
@@ -629,7 +628,7 @@ async def send_message(name: str, req: SendRequest):
             now = datetime.now(local_tz).strftime("%H:%M")
             msg = f"[{now}] {msg}"
         await manager.send(session.id, msg)
-        pn = getattr(session, "parent_name", "") or (session.get("parent_name", "") if isinstance(session, dict) else "")
+        pn = session.parent_name or ""
         return {"ok": True, "parent_name": pn}
     except (RuntimeError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
@@ -663,7 +662,7 @@ async def restart_cli(name: str, req: ScopeRequest):
 @app.post("/api/sessions/{name}/interrupt")
 async def interrupt_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
-    if not found or isinstance(found, dict):
+    if not found or not found.loaded:
         return JSONResponse({"error": "agent not running"}, status_code=404)
     await manager.interrupt(found.id)
     return {"ok": True}
@@ -672,7 +671,7 @@ async def interrupt_session(name: str, req: ScopeRequest):
 @app.post("/api/sessions/{name}/stop")
 async def stop_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
-    if not found or isinstance(found, dict):
+    if not found or not found.loaded:
         return JSONResponse({"error": "agent not running"}, status_code=404)
     await manager.stop_worker(found.id)
     return {"ok": True}
@@ -682,18 +681,8 @@ async def stop_session(name: str, req: ScopeRequest):
 async def update_description(name: str, req: dict):
     scope = req.get("scope", "")
     desc = req.get("description", "")
-    found = manager.get_by_name(name, scope)
-    if not found:
+    if not manager.update_session_fields(name, scope, description=desc):
         return JSONResponse({"error": "not found"}, status_code=404)
-    sid = found["id"] if isinstance(found, dict) else found.id
-    session = manager.sessions.get(sid)
-    if session:
-        session.description = desc
-        session._persist()
-    else:
-        from app.db import _conn
-        with _conn() as c:
-            c.execute("UPDATE sessions SET description=? WHERE id=?", (desc, sid))
     return {"ok": True}
 
 
@@ -701,18 +690,8 @@ async def update_description(name: str, req: dict):
 async def update_tg_topic(name: str, req: dict):
     scope = req.get("scope", "")
     enabled = bool(req.get("enabled", False))
-    found = manager.get_by_name(name, scope)
-    if not found:
+    if not manager.update_session_fields(name, scope, tg_topic=enabled):
         return JSONResponse({"error": "not found"}, status_code=404)
-    sid = found["id"] if isinstance(found, dict) else found.id
-    session = manager.sessions.get(sid)
-    if session:
-        session.tg_topic = enabled
-        session._persist()
-    else:
-        from app.db import _conn
-        with _conn() as c:
-            c.execute("UPDATE sessions SET tg_topic=? WHERE id=?", (int(enabled), sid))
     return {"ok": True, "tg_topic": enabled}
 
 
@@ -720,18 +699,8 @@ async def update_tg_topic(name: str, req: dict):
 async def update_prompt(name: str, req: dict):
     scope = req.get("scope", "")
     prompt = req.get("system_prompt", "")
-    found = manager.get_by_name(name, scope)
-    if not found:
+    if not manager.update_session_fields(name, scope, system_prompt=prompt):
         return JSONResponse({"error": "not found"}, status_code=404)
-    sid = found["id"] if isinstance(found, dict) else found.id
-    session = manager.sessions.get(sid)
-    if session:
-        session.system_prompt = prompt
-        session._persist()
-    else:
-        from app.db import _conn
-        with _conn() as c:
-            c.execute("UPDATE sessions SET system_prompt=? WHERE id=?", (prompt, sid))
     return {"ok": True}
 
 
@@ -745,7 +714,7 @@ async def change_model(name: str, req: dict):
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
     found = manager.get_by_name(name, scope)
-    if not found or isinstance(found, dict):
+    if not found or not found.loaded:
         return JSONResponse({"error": "session not loaded"}, status_code=404)
     result = await found.change_model(new_model)
     if not result.get("ok"):
@@ -764,7 +733,7 @@ async def rename_session(name: str, req: dict):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    sid = found["id"] if isinstance(found, dict) else found.id
+    sid = found.id
     session = manager.sessions.get(sid)
     old_branch = None
     new_branch = None
@@ -796,17 +765,14 @@ async def rename_session(name: str, req: dict):
             session.branch = new_branch
         session._persist()
     if old_branch and new_branch:
-        wt_path = (session.worktree_path if session else None) or (
-            found.get("worktree_path") if isinstance(found, dict) else getattr(found, "worktree_path", None)
-        )
+        wt_path = (session.worktree_path if session else None) or found.worktree_path
         if wt_path and Path(wt_path).is_dir():
             import subprocess
             subprocess.run(
                 ["git", "branch", "-m", old_branch, new_branch],
                 cwd=wt_path, capture_output=True,
             )
-    is_orch = (session.is_orchestrator if session else
-               (found.get("is_orchestrator") if isinstance(found, dict) else False))
+    is_orch = session.is_orchestrator if session else found.is_orchestrator
     if is_orch:
         try:
             from app.tg_bridge import rename_orch_topic
@@ -822,11 +788,11 @@ async def delete_session(name: str, scope: str, force: bool = False):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    sid = found["id"] if isinstance(found, dict) else found.id
+    sid = found.id
     if not force:
-        if not isinstance(found, dict) and found.status.value == "running":
+        if found.loaded and found.status.value == "running":
             return JSONResponse({"error": "worker is running — stop first (or force=true)"}, status_code=400)
-        wt = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+        wt = found.worktree_path
         if wt and Path(wt).is_dir():
             status_proc = await asyncio.create_subprocess_exec(
                 "git", "status", "--porcelain", cwd=wt,
@@ -872,12 +838,11 @@ async def merge_session(name: str, req: dict):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    if not isinstance(found, dict):
-        if found.status.value == "running":
-            return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
-    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
-    scope = (found.get("scope") if isinstance(found, dict) else found.scope) or scope
-    session_id = found.get("id") if isinstance(found, dict) else found.id
+    if found.loaded and found.status.value == "running":
+        return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
+    worktree_path = found.worktree_path
+    scope = found.scope or scope
+    session_id = found.id
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     if not scope:
@@ -899,12 +864,12 @@ async def merge_session(name: str, req: dict):
                         link_results[task_ref] = {"ok": False, "error": str(link_err)}
                 if link_results:
                     result["linked_tasks"] = link_results
-                if not isinstance(found, dict):
+                if found.loaded:
                     found.branch = target
                     found.task_id = ""
                     found.needs_switch = True
                     found._persist()
-                if next_task_id and not isinstance(found, dict):
+                if next_task_id and found.loaded:
                     from app.workspace import switch_worktree_branch, _normalize_task_id
                     par = _normalize_task_id(next_task_id)
                     new_branch = f"task-{par}/{name}"
@@ -939,11 +904,10 @@ async def switch_branch(name: str, req: dict):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    if not isinstance(found, dict):
-        if found.status.value == "running":
-            return JSONResponse({"error": "worker is running — wait for idle"}, status_code=400)
-    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
-    session_id = found.get("id") if isinstance(found, dict) else found.id
+    if found.loaded and found.status.value == "running":
+        return JSONResponse({"error": "worker is running — wait for idle"}, status_code=400)
+    worktree_path = found.worktree_path
+    session_id = found.id
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     new_branch = f"task-{par}/{name}"
@@ -951,7 +915,7 @@ async def switch_branch(name: str, req: dict):
     async with manager.get_session_lock(session_id):
         try:
             result = await asyncio.to_thread(switch_worktree_branch, worktree_path, new_branch, from_ref=from_ref)
-            if not isinstance(found, dict):
+            if found.loaded:
                 if result.get("ok") or result.get("branch"):
                     found.branch = result.get("branch", new_branch)
                     found.task_id = par
@@ -972,7 +936,7 @@ async def session_wip(name: str, scope: str = "", base_ref: str = "refs/heads/ma
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    worktree_path = found.get("worktree_path") if isinstance(found, dict) else found.worktree_path
+    worktree_path = found.worktree_path
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     try:
@@ -992,9 +956,9 @@ async def check_conflict_endpoint(req: dict):
     if not a or not b:
         missing = name_a if not a else name_b
         return JSONResponse({"error": f"worker '{missing}' not found"}, status_code=404)
-    wt_a = a.get("worktree_path") if isinstance(a, dict) else a.worktree_path
-    branch_a = a.get("branch") if isinstance(a, dict) else a.branch
-    branch_b = b.get("branch") if isinstance(b, dict) else b.branch
+    wt_a = a.worktree_path
+    branch_a = a.branch
+    branch_b = b.branch
     if not wt_a or not branch_a or not branch_b:
         return JSONResponse({"error": "both workers must have a worktree and branch"}, status_code=400)
     try:
@@ -1009,9 +973,10 @@ async def update_progress(name: str, req: dict):
     pct = max(0, min(100, int(req.get("percent", 0))))
     status_text = str(req.get("status", ""))
     session = manager.get_by_name(name, scope)
-    if not session or isinstance(session, dict):
+    if not session or not session.loaded:
+        # progress is live-only: detached sessions 404 (write would flip legacy 404→200)
         session = next((s for s in manager.sessions.values() if s.name == name), None)
-    if not session or isinstance(session, dict):
+    if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
     session.progress_pct = pct
     session.progress_status = status_text
@@ -1380,11 +1345,12 @@ async def get_git_status(scope: str):
     sessions = manager.list_sessions(scope)
     result = []
     for s in sessions:
-        wt = s.get("worktree_path") if isinstance(s, dict) else getattr(s, "worktree_path", None)
+        # list_sessions() always yields dicts (to_dict for live, raw row for DB)
+        wt = s.get("worktree_path")
         if not wt or not Path(wt).is_dir():
             continue
-        name = s.get("name") if isinstance(s, dict) else s.name
-        branch = s.get("branch") if isinstance(s, dict) else getattr(s, "branch", None)
+        name = s.get("name")
+        branch = s.get("branch")
 
         ahead_str, dirty_str, last_commit = await asyncio.gather(
             _run_git(["git", "rev-list", "main..HEAD", "--count"], wt),

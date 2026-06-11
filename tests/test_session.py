@@ -73,6 +73,9 @@ class _MockBackend:
             yield event
         # Потом ждём сигнала финиша
         await self._finish_event.wait()
+        # one turn_end per finish(): re-arm so the next events() call suspends on
+        # wait() instead of hot-looping turn_ends without a single yield point
+        self._finish_event.clear()
         yield self._AgentEvent(
             type="turn_end",
             metadata={"ok": True, "stop_reason": "end_turn",

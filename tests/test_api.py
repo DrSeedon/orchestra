@@ -229,6 +229,7 @@ async def test_merge_endpoint_passes_target(monkeypatch):
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
 
     class FakeSession:
+        loaded = True
         class _S:
             value = "idle"
         status = _S()

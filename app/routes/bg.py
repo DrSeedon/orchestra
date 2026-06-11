@@ -29,7 +29,7 @@ async def bg_job_create(req: BgJobCreateRequest):
     session = manager.get_by_name(name, scope)
     if not session:
         return JSONResponse({"error": f"session '{name}' not found in scope"}, status_code=404)
-    session_id = session.id if hasattr(session, "id") else session.get("id")
+    session_id = session.id
     result = await bg_manager.create(
         job_type=req.type, config=req.config, message=req.message,
         target_session_id=session_id, target_name=name, target_scope=scope,

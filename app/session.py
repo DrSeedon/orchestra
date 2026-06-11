@@ -136,6 +136,12 @@ class AgentSession:
     needs_switch: bool = False
     last_task_sender: str = ""
 
+    # False → detached DB-hydrate (manager._hydrate_row): data only, no backend/tasks.
+    # NEVER call start()/send()/_persist() on a detached session.
+    loaded: bool = True
+    # raw DB row of a detached session — preserves legacy response shape (richer than to_dict)
+    db_row: Optional[dict] = field(default=None, repr=False)
+
     progress_pct: int = 0
     progress_status: str = ""
 
@@ -358,7 +364,6 @@ class AgentSession:
 
             if self.backend_type == "codex":
                 self._listen_task = asyncio.create_task(self._codex_turn_loop())
-                self._listen_task.add_done_callback(self._on_task_done)
                 self._listen_task.add_done_callback(self._on_task_done)
 
     async def _ensure_backend(self, force_fresh: bool = False):
