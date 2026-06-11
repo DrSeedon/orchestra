@@ -681,8 +681,8 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
                     if (parent / ".git").is_dir():
                         cwd = str(parent)
                         break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"gitdir resolve failed for {wt}, using repo_path: {e}")
     lock_path = _resolve_repo(str(wt), repo_path) / ".git" / "orchestra-merge.lock"
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
@@ -736,8 +736,8 @@ def cleanup_stale_worktrees() -> list[str]:
                         if (parent / ".git").is_dir():
                             repo_path = str(parent)
                             break
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"gitdir resolve failed for stale worktree {wt_dir}: {e}")
             try:
                 remove_worktree(repo_path, str(wt_dir))
                 removed.append(str(wt_dir))
@@ -749,8 +749,8 @@ def cleanup_stale_worktrees() -> list[str]:
             try:
                 scope_dir.rmdir()
                 logger.info(f"empty scope dir removed: {scope_dir}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"empty scope dir cleanup failed ({scope_dir}): {e}")
 
     return removed
 

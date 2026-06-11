@@ -37,6 +37,9 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     init_db()
+    # YouGile sync fired from to_thread workers needs the app loop captured
+    from app import tm as _tm_mod
+    _tm_mod.set_main_loop(asyncio.get_running_loop())
     await manager.auto_resume_all()
     manager.start_background_tasks()
     from app.bg_jobs import bg_manager
@@ -393,8 +396,8 @@ async def list_files(path: str):
                 "is_dir": entry.is_dir(),
                 "size": entry.stat().st_size if entry.is_file() else None,
             })
-    except PermissionError:
-        pass
+    except PermissionError as e:
+        logger.debug(f"file listing partial (permission denied): {e}")
     return items
 
 
@@ -914,8 +917,8 @@ async def merge_session(name: str, req: dict):
                         found._persist()
                         try:
                             _tm.api_update_task(par, status="in_progress")
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"task #{par} → in_progress failed after merge-switch: {e}")
                     result["switch"] = switch_result
             return result
         except Exception as e:
@@ -956,8 +959,8 @@ async def switch_branch(name: str, req: dict):
                     found._persist()
             try:
                 _tm.api_update_task(par, status="in_progress")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"task #{par} → in_progress failed after switch-branch: {e}")
             return result
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
@@ -1046,8 +1049,8 @@ def _load_usage_cache():
             cached = json.loads(_USAGE_CACHE_FILE.read_text())
             _usage_cache["data"] = cached.get("data")
             _usage_cache["ts"] = cached.get("ts", 0.0)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"usage cache load failed: {e}")
 
 
 def _save_usage_cache():
@@ -1055,8 +1058,8 @@ def _save_usage_cache():
         import json
         _USAGE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         _USAGE_CACHE_FILE.write_text(json.dumps({"data": _usage_cache["data"], "ts": _usage_cache["ts"]}))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"usage cache save failed: {e}")
 
 
 _load_usage_cache()
@@ -1104,8 +1107,8 @@ async def _refresh_oauth_token(refresh_token: str) -> str | None:
             )
             if resp.status_code == 200:
                 return resp.json().get("access_token")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"OAuth token refresh failed: {e}")
     return None
 
 
@@ -1426,7 +1429,8 @@ async def tg_send_file(req: dict):
 @app.post("/api/restart")
 async def restart_server():
     import subprocess
-    result = subprocess.run(
+    result = await asyncio.to_thread(
+        subprocess.run,
         ["sudo", "-n", "systemctl", "restart", "orchestra"],
         capture_output=True, text=True, timeout=10,
     )

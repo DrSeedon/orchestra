@@ -3,6 +3,7 @@
 Orchestra is source of truth. YouGile is a read-only mirror for the client.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -101,82 +102,106 @@ async def yougile_find_by_par(par_label: str) -> dict | None:
     return None
 
 
-async def yougile_sync_task(task_id: int) -> str:
+# SQLite never touches the event loop: each helper below opens its own connection,
+# runs one whole transaction, and closes — called via asyncio.to_thread.
+
+def _db_get_task(task_id: int) -> dict | None:
     conn = tm._conn()
     try:
-        task = tm.get_task_by_id(conn, task_id)
-        if not task:
-            return "task not found"
-
-        if not task["yougile_task_id"]:
-            existing = await yougile_find_by_par(str(task['par_number'])) or await yougile_find_by_par(f"PAR-{task['par_number']}")
-            if existing:
-                conn.execute("BEGIN IMMEDIATE")
-                try:
-                    conn.execute(
-                        "UPDATE tm_tasks SET yougile_task_id = ? WHERE id = ?",
-                        (existing["id"], task_id),
-                    )
-                    tm.log_sync(conn, task_id, "create", task["sync_revision"], "ok")
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
-                task = tm.get_task_by_id(conn, task_id)
-                await _yougile_push_update(task)
-                if task["status"] == "done":
-                    await _update_done_column_title(task.get("project_id", ""))
-                return "backfilled + updated"
-
-            result = await _yougile_push_create(task)
-            if result and not result.get("error") and result.get("id"):
-                conn.execute("BEGIN IMMEDIATE")
-                try:
-                    conn.execute(
-                        "UPDATE tm_tasks SET yougile_task_id = ? WHERE id = ?",
-                        (result["id"], task_id),
-                    )
-                    tm.log_sync(conn, task_id, "create", task["sync_revision"], "ok")
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
-                return "created"
-            else:
-                error = str(result) if result else "no response"
-                conn.execute("BEGIN IMMEDIATE")
-                try:
-                    tm.log_sync(conn, task_id, "create", task["sync_revision"], "error", error=error)
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-                    raise
-                return f"create failed: {error}"
-        else:
-            fresh = tm.get_task_by_id(conn, task_id)
-            if fresh and fresh["sync_revision"] > task["sync_revision"]:
-                task = fresh
-
-            result = await _yougile_push_update(task)
-            status = "ok" if result and not result.get("error") else "error"
-            error = str(result) if status == "error" else ""
-            conn.execute("BEGIN IMMEDIATE")
-            try:
-                tm.log_sync(conn, task_id, "update", task["sync_revision"], status, error=error)
-                conn.execute(
-                    "UPDATE tm_sync_log SET status = 'skipped' "
-                    "WHERE task_id = ? AND status = 'pending' AND sync_revision < ?",
-                    (task_id, task["sync_revision"]),
-                )
-                conn.commit()
-            except Exception:
-                conn.rollback()
-                raise
-            if status == "ok" and task["status"] == "done":
-                await _update_done_column_title(task.get("project_id", ""))
-            return status
+        return tm.get_task_by_id(conn, task_id)
     finally:
         conn.close()
+
+
+def _db_set_yougile_id_and_log(task_id: int, yougile_id: str, revision: int) -> None:
+    conn = tm._conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute(
+                "UPDATE tm_tasks SET yougile_task_id = ? WHERE id = ?",
+                (yougile_id, task_id),
+            )
+            tm.log_sync(conn, task_id, "create", revision, "ok")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    finally:
+        conn.close()
+
+
+def _db_log_sync(task_id: int, op: str, revision: int, status: str, error: str = "") -> None:
+    conn = tm._conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            tm.log_sync(conn, task_id, op, revision, status, error=error)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    finally:
+        conn.close()
+
+
+def _db_log_update_and_skip_stale(task_id: int, revision: int, status: str, error: str) -> None:
+    conn = tm._conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            tm.log_sync(conn, task_id, "update", revision, status, error=error)
+            conn.execute(
+                "UPDATE tm_sync_log SET status = 'skipped' "
+                "WHERE task_id = ? AND status = 'pending' AND sync_revision < ?",
+                (task_id, revision),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    finally:
+        conn.close()
+
+
+async def yougile_sync_task(task_id: int) -> str:
+    task = await asyncio.to_thread(_db_get_task, task_id)
+    if not task:
+        return "task not found"
+
+    if not task["yougile_task_id"]:
+        existing = await yougile_find_by_par(str(task['par_number'])) or await yougile_find_by_par(f"PAR-{task['par_number']}")
+        if existing:
+            await asyncio.to_thread(
+                _db_set_yougile_id_and_log, task_id, existing["id"], task["sync_revision"])
+            task = await asyncio.to_thread(_db_get_task, task_id)
+            await _yougile_push_update(task)
+            if task["status"] == "done":
+                await _update_done_column_title(task.get("project_id", ""))
+            return "backfilled + updated"
+
+        result = await _yougile_push_create(task)
+        if result and not result.get("error") and result.get("id"):
+            await asyncio.to_thread(
+                _db_set_yougile_id_and_log, task_id, result["id"], task["sync_revision"])
+            return "created"
+        error = str(result) if result else "no response"
+        await asyncio.to_thread(
+            _db_log_sync, task_id, "create", task["sync_revision"], "error", error)
+        return f"create failed: {error}"
+
+    fresh = await asyncio.to_thread(_db_get_task, task_id)
+    if fresh and fresh["sync_revision"] > task["sync_revision"]:
+        task = fresh
+
+    result = await _yougile_push_update(task)
+    status = "ok" if result and not result.get("error") else "error"
+    error = str(result) if status == "error" else ""
+    await asyncio.to_thread(
+        _db_log_update_and_skip_stale, task_id, task["sync_revision"], status, error)
+    if status == "ok" and task["status"] == "done":
+        await _update_done_column_title(task.get("project_id", ""))
+    return status
 
 
 async def _yougile_push_create(task: dict) -> dict | None:
@@ -201,23 +226,26 @@ async def _yougile_push_update(task: dict) -> dict | None:
     return await _yougile_request("PUT", f"/tasks/{task['yougile_task_id']}", body)
 
 
-async def _update_done_column_title(project_id: str = "") -> None:
-    """Recalculate and update the 'Сделано' column title with total debt from DB."""
+def _db_total_debt(project_id: str = "") -> int:
     conn = tm._conn()
     try:
         if project_id:
-            total_debt = conn.execute(
+            return conn.execute(
                 "SELECT COALESCE(SUM(price_rub - paid_rub), 0) FROM tm_tasks "
                 "WHERE status = 'done' AND price_rub > 0 AND paid_rub < price_rub "
                 "AND project_id = ?", (project_id,)
             ).fetchone()[0]
-        else:
-            total_debt = conn.execute(
-                "SELECT COALESCE(SUM(price_rub - paid_rub), 0) FROM tm_tasks "
-                "WHERE status = 'done' AND price_rub > 0 AND paid_rub < price_rub"
-            ).fetchone()[0]
+        return conn.execute(
+            "SELECT COALESCE(SUM(price_rub - paid_rub), 0) FROM tm_tasks "
+            "WHERE status = 'done' AND price_rub > 0 AND paid_rub < price_rub"
+        ).fetchone()[0]
     finally:
         conn.close()
+
+
+async def _update_done_column_title(project_id: str = "") -> None:
+    """Recalculate and update the 'Сделано' column title with total debt from DB."""
+    total_debt = await asyncio.to_thread(_db_total_debt, project_id)
     total_debt_k = total_debt // 1000
     await _yougile_request("PUT", f"/columns/{DONE_COLUMN_ID}", {
         "title": f"Сделано → {total_debt_k}k ₽",
@@ -230,32 +258,44 @@ def _fmt_k(rub: int) -> str:
     return str(rub)
 
 
-async def _ensure_journal_task(client_id: str) -> str | None:
+def _db_get_client(client_id: str) -> dict | None:
     conn = tm._conn()
     try:
-        client = tm.get_client(conn, client_id)
-        if not client:
-            return None
-        yid = client.get("journal_yougile_id") or ""
-        if yid:
-            check = await _yougile_request("GET", f"/tasks/{yid}")
-            if check and not check.get("error"):
-                return yid
-        result = await _yougile_request("POST", "/tasks", {
-            "title": f"Журнал оплат — {client['name']}",
-            "description": "",
-            "columnId": STATUS_TO_COLUMN["new"],
-        })
-        if not result or result.get("error") or not result.get("id"):
-            logger.error("Failed to create journal task: %s", result)
-            return None
-        yid = result["id"]
-        conn.execute("UPDATE tm_clients SET journal_yougile_id=? WHERE id=?", (yid, client_id))
-        conn.commit()
-        logger.info("Created journal task %s for client %s", yid, client_id)
-        return yid
+        return tm.get_client(conn, client_id)
     finally:
         conn.close()
+
+
+def _db_set_journal_id(client_id: str, yid: str) -> None:
+    conn = tm._conn()
+    try:
+        conn.execute("UPDATE tm_clients SET journal_yougile_id=? WHERE id=?", (yid, client_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+async def _ensure_journal_task(client_id: str) -> str | None:
+    client = await asyncio.to_thread(_db_get_client, client_id)
+    if not client:
+        return None
+    yid = client.get("journal_yougile_id") or ""
+    if yid:
+        check = await _yougile_request("GET", f"/tasks/{yid}")
+        if check and not check.get("error"):
+            return yid
+    result = await _yougile_request("POST", "/tasks", {
+        "title": f"Журнал оплат — {client['name']}",
+        "description": "",
+        "columnId": STATUS_TO_COLUMN["new"],
+    })
+    if not result or result.get("error") or not result.get("id"):
+        logger.error("Failed to create journal task: %s", result)
+        return None
+    yid = result["id"]
+    await asyncio.to_thread(_db_set_journal_id, client_id, yid)
+    logger.info("Created journal task %s for client %s", yid, client_id)
+    return yid
 
 
 async def update_payment_journal(payment_result: dict, client_id: str) -> str:

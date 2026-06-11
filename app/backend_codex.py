@@ -191,8 +191,10 @@ class CodexBackend:
         if self._stderr_task:
             try:
                 await asyncio.wait_for(self._stderr_task, timeout=5)
-            except (asyncio.TimeoutError, Exception):
+            except asyncio.TimeoutError:
                 pass
+            except Exception as e:
+                logger.warning(f"codex stderr drain failed: {e}")
 
         if not self._got_turn_completed:
             # Process exited without emitting turn.completed — treat as error turn

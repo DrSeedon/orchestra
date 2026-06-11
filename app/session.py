@@ -175,8 +175,10 @@ class AgentSession:
     _turn_gen: int = field(default=0, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _spawn_warning: str = field(default="", repr=False)
+    _auto_continue_count: int = field(default=0, repr=False)
 
     TURN_TIMEOUT = 600
+    AUTO_CONTINUE_MAX = 5
 
     @property
     def is_orchestrator(self) -> bool:
@@ -356,6 +358,8 @@ class AgentSession:
 
             if self.backend_type == "codex":
                 self._listen_task = asyncio.create_task(self._codex_turn_loop())
+                self._listen_task.add_done_callback(self._on_task_done)
+                self._listen_task.add_done_callback(self._on_task_done)
 
     async def _ensure_backend(self, force_fresh: bool = False):
         if self._backend is not None:
@@ -555,9 +559,19 @@ class AgentSession:
         if sr in ("error_max_turns", "max_turns") and ok:
             # SDK has a per-turn limit; auto-continue so agents don't silently stop
             # mid-task when they hit it. The injected message gives them context.
-            self._log("status", f"max_turns reached ({nt}), auto-continuing")
-            self._spawn_bg(self._auto_continue())
-            return
+            # Depth cap: without it an agent stuck at max_turns recurses unbounded.
+            if self._auto_continue_count >= self.AUTO_CONTINUE_MAX:
+                logger.warning(f"[{self.name}] auto-continue cap ({self.AUTO_CONTINUE_MAX}) reached — staying idle")
+                self._log("error", f"auto-continue cap reached ({self.AUTO_CONTINUE_MAX}) — agent stuck at max_turns")
+            else:
+                self._auto_continue_count += 1
+                self._log("status", f"max_turns reached ({nt}), auto-continuing "
+                                    f"({self._auto_continue_count}/{self.AUTO_CONTINUE_MAX})")
+                self._spawn_bg(self._auto_continue())
+                return
+        else:
+            # consecutive counter: any non-max_turns turn end resets the cap
+            self._auto_continue_count = 0
 
         live_pct = self._last_context.get("percentage", 0)
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
@@ -828,8 +842,10 @@ class AgentSession:
             self._listen_task.cancel()
             try:
                 await self._listen_task
-            except (asyncio.CancelledError, Exception):
+            except asyncio.CancelledError:
                 pass
+            except Exception as e:
+                logger.warning(f"[{self.name}] listen task failed during compact: {e}")
 
         summary_parts = []
         backend = self._backend or self._make_backend()
@@ -913,8 +929,8 @@ class AgentSession:
             orch_name = self._find_scope_orch_name(tg_mgr)
             if orch_name:
                 await check_scope_idle(orch_name, self.scope)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[{self.name}] TG scope-idle notify failed: {e}")
 
     async def _notify_scope_running(self) -> None:
         try:
@@ -924,8 +940,8 @@ class AgentSession:
             orch_name = self._find_scope_orch_name(tg_mgr)
             if orch_name:
                 await notify_scope_running(orch_name)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[{self.name}] TG scope-running notify failed: {e}")
 
     async def _auto_continue(self) -> None:
         await asyncio.sleep(1)
@@ -993,8 +1009,10 @@ class AgentSession:
             self._heartbeat_task.cancel()
             try:
                 await self._heartbeat_task
-            except (asyncio.CancelledError, Exception):
+            except asyncio.CancelledError:
                 pass
+            except Exception as e:
+                logger.warning(f"[{self.name}] heartbeat task failed on disconnect: {e}")
             self._heartbeat_task = None
         backend = self._backend
         self._backend = None
@@ -1002,8 +1020,10 @@ class AgentSession:
             self._listen_task.cancel()
             try:
                 await self._listen_task
-            except (asyncio.CancelledError, Exception):
+            except asyncio.CancelledError:
                 pass
+            except Exception as e:
+                logger.warning(f"[{self.name}] listen task failed on disconnect: {e}")
         if backend:
             await backend.disconnect()
 

@@ -549,8 +549,8 @@ class SessionManager:
             try:
                 from app.tm import api_update_task
                 api_update_task(task_id, status="in_progress")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"task #{task_id} → in_progress failed on spawn: {e}")
 
         try:
             if use_worktree and repo_path:
@@ -599,8 +599,10 @@ class SessionManager:
             if session.worktree_path and repo_path:
                 try:
                     await asyncio.to_thread(remove_worktree, repo_path, session.worktree_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        f"worktree cleanup failed after spawn error ({session.worktree_path}): {e}",
+                        exc_info=True)
             delete_session(session.id)
             raise
 
@@ -634,8 +636,10 @@ class SessionManager:
             if session.worktree_path:
                 try:
                     await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        f"worktree cleanup failed on remove ({session.worktree_path}): {e}",
+                        exc_info=True)
         archive_session(session_id)
 
     async def change_orchestrator_scope(self, name: str, old_scope: str,
@@ -1134,6 +1138,6 @@ class SessionManager:
         for session in list(self.sessions.values()):
             try:
                 await session.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"session '{session.name}' stop failed on shutdown: {e}")
         self.sessions.clear()

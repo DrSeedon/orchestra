@@ -684,6 +684,32 @@ def _is_yougile_enabled(task_id: int) -> bool:
         return bool(row and row[0])
 
 
+# Captured app loop: fire-helpers are called from asyncio.to_thread workers (routes/tm),
+# where get_running_loop() raises and sync would silently no-op without this.
+_MAIN_LOOP: asyncio.AbstractEventLoop | None = None
+
+
+def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Capture the app event loop (called from main.py lifespan) so YouGile sync
+    fired from worker threads still lands on the loop."""
+    global _MAIN_LOOP
+    _MAIN_LOOP = loop
+
+
+def _schedule(coro) -> None:
+    """Schedule coro on the current running loop, or threadsafe on the captured main loop."""
+    try:
+        asyncio.get_running_loop().create_task(coro)
+        return
+    except RuntimeError:
+        pass
+    if _MAIN_LOOP is not None and not _MAIN_LOOP.is_closed():
+        asyncio.run_coroutine_threadsafe(coro, _MAIN_LOOP)
+        return
+    coro.close()  # suppress "never awaited" warning in CLI context
+    raise RuntimeError("no event loop")
+
+
 def _fire_sync(task_id: int) -> None:
     if not _is_yougile_enabled(task_id):
         return
@@ -711,7 +737,7 @@ def _fire_sync(task_id: int) -> None:
                         (_now(), sync_log_id),
                     )
 
-        asyncio.get_event_loop().create_task(_do())
+        _schedule(_do())
     except RuntimeError:
         logger.debug("No event loop for sync, skipping (CLI context)")
     except Exception as e:
@@ -745,7 +771,7 @@ def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
                         (str(e), _now(), sync_log_id),
                     )
 
-        asyncio.get_event_loop().create_task(_do())
+        _schedule(_do())
     except RuntimeError:
         logger.debug("No event loop for journal sync, skipping")
     except Exception as e:
