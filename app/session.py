@@ -7,13 +7,18 @@ import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from app.events import AgentEvent
 from app.models import backend_for_model
 from app.prompting import is_orchestrator_role, prompt_template_hash
+from app.session_cost import CostTracker
+from app.session_hibernate import HibernateManager
+from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
+    AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
+)
+from app.session_turns import TurnManager
 
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
@@ -33,13 +38,6 @@ def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
         # 4 workers: enough for concurrent log/persist bursts without starving the event loop
         _DB_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="db")
     return _DB_EXECUTOR
-
-
-# Orchestrators get 2x idle time: they manage long-running workflows and get TG
-# messages from users, so premature hibernate kills useful context.
-IDLE_TIMEOUT_WORKER = 300
-IDLE_TIMEOUT_ORCHESTRATOR = 600
-
 
 
 def _load_scope_mcp_servers(scope: str) -> dict:
@@ -95,12 +93,6 @@ def _load_user_mcp_servers(config_dir: str) -> dict:
     except Exception as e:
         logger.warning(f"Failed to parse user MCP servers from {path}: {e}")
     return servers
-
-
-class AgentStatus(str, Enum):
-    IDLE = "idle"
-    RUNNING = "running"
-    WAITING = "waiting"
 
 
 @dataclass
@@ -186,6 +178,13 @@ class AgentSession:
 
     TURN_TIMEOUT = 600
     AUTO_CONTINUE_MAX = 5
+
+    def __post_init__(self) -> None:
+        # Systems over state (ECS): cost/turn/hibernate methods live in systems,
+        # all fields stay on the session (persistence reads them directly)
+        self._cost = CostTracker(self)
+        self._turns = TurnManager(self)
+        self._hibernate = HibernateManager(self)
 
     @property
     def is_orchestrator(self) -> bool:
@@ -338,7 +337,7 @@ class AgentSession:
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 self._did_report = False
-                self._bump_turn_gen()
+                self._turns.bump_turn_gen()
                 self._turn_logs = []
                 self._turn_start = asyncio.get_event_loop().time()
                 self._last_msg_time = self._turn_start
@@ -383,7 +382,7 @@ class AgentSession:
             self._listen_task = asyncio.create_task(self._claude_event_loop())
             self._listen_task.add_done_callback(self._on_task_done)
         if self._heartbeat_task is None or self._heartbeat_task.done():
-            self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+            self._heartbeat_task = asyncio.create_task(self._hibernate.heartbeat_loop())
         return self._backend
 
     # ── Event loops ──
@@ -477,7 +476,7 @@ class AgentSession:
                 if self._pending_messages:
                     self._spawn_bg(self._flush_pending())
                 else:
-                    self._schedule_hibernate()
+                    self._hibernate.schedule()
 
     # ── Unified event handler ──
 
@@ -501,7 +500,7 @@ class AgentSession:
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")
         elif event.type == "turn_end":
-            self._handle_turn_end(event)
+            self._turns.handle_turn_end(event)
         elif event.type == "error":
             self._log("error", event.content)
         elif event.type == "subagent_start":
@@ -512,152 +511,6 @@ class AgentSession:
             self._log("subagent_end", event.content)
         elif event.type == "status":
             self._log("status", event.content)
-
-    def _cancel_auto_report(self) -> None:
-        if self._auto_report_task and not self._auto_report_task.done():
-            self._auto_report_task.cancel()
-        self._auto_report_task = None
-
-    def _bump_turn_gen(self) -> None:
-        """Новый ход начался — инвалидируем отложенный авто-репорт прошлого хода."""
-        self._turn_gen += 1
-        self._cancel_auto_report()
-
-    def _fire_auto_report(self) -> None:
-        """Send auto-report to parent immediately when worker goes idle.
-        Orchestrators don't auto-report — they reply to user directly.
-        Skipped if worker already sent explicit send_message, has pending messages,
-        or was interrupted/stopped by user.
-
-        Without this, silent workers (those that don't call send_message) would
-        leave the orchestrator waiting forever for a signal that never comes.
-        """
-        if self.is_orchestrator or not self.on_idle or self._did_report:
-            return
-        if self._pending_messages or self._compacting:
-            return
-        if not self._last_turn_ok:
-            return
-        last_texts = self._turn_logs[-5:] if self._turn_logs else []
-        stop_reason = self._last_stop_reason
-
-        async def _do_report():
-            try:
-                await self.on_idle(self.name, self.scope, last_texts, stop_reason)
-            except Exception as e:
-                logger.error(f"Auto-report failed for {self.name}: {e}")
-
-        self._auto_report_task = asyncio.create_task(_do_report())
-
-    def _handle_turn_end(self, event: AgentEvent) -> None:
-        meta = event.metadata
-        self._turn_start = 0
-        ok, sr, nt = self._apply_turn_result(meta)
-        self._update_context_from_turn(meta)
-        self._spawn_bg(self._refresh_context_from_api())
-
-        if not ok:
-            errors = meta.get("errors") or []
-            err_txt = "; ".join(str(e) for e in errors) if errors else sr
-            self._log("error", f"turn FAILED: {err_txt}")
-
-        if sr in ("error_max_turns", "max_turns") and ok:
-            # SDK has a per-turn limit; auto-continue so agents don't silently stop
-            # mid-task when they hit it. The injected message gives them context.
-            # Depth cap: without it an agent stuck at max_turns recurses unbounded.
-            if self._auto_continue_count >= self.AUTO_CONTINUE_MAX:
-                logger.warning(f"[{self.name}] auto-continue cap ({self.AUTO_CONTINUE_MAX}) reached — staying idle")
-                self._log("error", f"auto-continue cap reached ({self.AUTO_CONTINUE_MAX}) — agent stuck at max_turns")
-            else:
-                self._auto_continue_count += 1
-                self._log("status", f"max_turns reached ({nt}), auto-continuing "
-                                    f"({self._auto_continue_count}/{self.AUTO_CONTINUE_MAX})")
-                self._spawn_bg(self._auto_continue())
-                return
-        else:
-            # consecutive counter: any non-max_turns turn end resets the cap
-            self._auto_continue_count = 0
-
-        live_pct = self._last_context.get("percentage", 0)
-        ctx_s = f"ctx:{live_pct}%" if live_pct else ""
-        self._log("status", f"turn ended ({sr}, {nt} turns, ${self._turn_cost:.2f} turn, ${self._context_cost:.2f} ctx, ${self.cost_usd:.2f} total {ctx_s})")
-
-        self._finish_turn_status()
-        self._after_turn_idle_actions(live_pct)
-
-    def _apply_turn_result(self, meta: dict) -> tuple[bool, str, int]:
-        """Update session_id, costs, token totals from turn metadata."""
-        ok = meta.get("ok", True)
-        sr = meta.get("stop_reason", "unknown")
-        nt = meta.get("num_turns", 0)
-        self._last_turn_ok = ok
-        self._last_stop_reason = sr
-
-        sid = meta.get("session_id")
-        if sid and sid != self.session_id:
-            # SDK reports cost_usd cumulative per session_id — reset baseline
-            # when a new session starts (e.g. after compact creates a fresh session)
-            self._last_cost = 0.0
-            self._last_cost_cached = 0.0
-            self._context_cost = 0.0
-        if sid:
-            self.session_id = sid
-        new_cost = meta.get("cost_usd", 0)
-        # Delta from last known cumulative — gives per-turn cost without SDK support
-        self._turn_cost = max(0, new_cost - self._last_cost)
-        self.cost_usd += self._turn_cost
-        self._context_cost += self._turn_cost
-        self._last_cost = new_cost
-        new_cost_cached = meta.get("cost_usd_cached", 0)
-        self.cost_usd_cached += max(0, new_cost_cached - self._last_cost_cached)
-        self._last_cost_cached = new_cost_cached
-        self.total_turns += nt
-        self.total_input_tokens += meta.get("input_tokens", 0)
-        self.total_output_tokens += meta.get("output_tokens", 0)
-        return ok, sr, nt
-
-    def _update_context_from_turn(self, meta: dict) -> None:
-        """Update context window stats from turn metadata."""
-        ctx_pct = meta.get("context_pct", 0)
-        ctx_tokens = meta.get("context_tokens", 0)
-        if ctx_pct:
-            self._last_context["percentage"] = ctx_pct
-            self._last_context["total_tokens"] = ctx_tokens
-        self._last_context["max_tokens"] = meta.get("max_tokens", 200000)
-        self._last_context["cache_hit"] = meta.get("cache_hit", 0)
-        self._last_context["cache_read"] = meta.get("cache_read", 0)
-        self._last_context["cache_create"] = meta.get("cache_create", 0)
-
-    def _finish_turn_status(self) -> None:
-        """Set IDLE or WAITING based on bg jobs, then persist."""
-        from app.bg_jobs import bg_manager
-        if bg_manager and bg_manager.has_active_jobs(self.id):
-            self.status = AgentStatus.WAITING
-            self._log("status", "waiting for bg jobs")
-        else:
-            self.status = AgentStatus.IDLE
-        self._persist()
-
-    def _after_turn_idle_actions(self, live_pct: int) -> None:
-        """Post-turn actions: compact ack, scope idle, auto-compact, auto-report, flush/hibernate."""
-        if self._compact_ack_event is not None and self._turn_gen == self._compact_ack_gen:
-            self._compact_ack_event.set()
-
-        self._spawn_bg(self._notify_scope_idle())
-
-        if live_pct > 90 and not self.is_orchestrator and not self._compacting:
-            # Workers auto-compact to stay operational; orchestrators are left for
-            # the user to compact manually since they hold long-running session state
-            self._log("status", f"auto-compact triggered ({live_pct}%)")
-            self._spawn_bg(self._auto_compact())
-
-        self._fire_auto_report()
-
-        if self._pending_messages:
-            self._spawn_bg(self._flush_pending())
-            return
-
-        self._schedule_hibernate()
 
     async def _flush_pending(self) -> None:
         # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
@@ -686,7 +539,7 @@ class AgentSession:
                     self._pending_messages[0:0] = msgs
                     return
                 self._did_report = False
-                self._bump_turn_gen()
+                self._turns.bump_turn_gen()
                 self._turn_logs = []
                 self._turn_start = asyncio.get_event_loop().time()
                 self._last_msg_time = self._turn_start
@@ -699,32 +552,6 @@ class AgentSession:
             self._pending_messages[0:0] = msgs
             self.status = AgentStatus.IDLE
             self._persist()
-
-    # ── Hibernate (idle resource optimization) ──
-
-    def _schedule_hibernate(self) -> None:
-        if self._hibernate_task and not self._hibernate_task.done():
-            self._hibernate_task.cancel()
-        if self.backend_type != "claude":
-            return
-        timeout = IDLE_TIMEOUT_ORCHESTRATOR if self.is_orchestrator else IDLE_TIMEOUT_WORKER
-        self._hibernate_task = asyncio.create_task(self._idle_hibernate(timeout))
-
-    async def _idle_hibernate(self, timeout: float) -> None:
-        try:
-            await asyncio.sleep(timeout)
-        except asyncio.CancelledError:
-            return
-        async with self._lifecycle_lock:
-            if self.status != AgentStatus.IDLE:
-                return
-            if self._pending_messages:
-                return
-            if self._backend is None:
-                return
-            logger.info(f"[{self.name}] hibernating (idle {int(timeout)}s)")
-            await self._disconnect_backend()
-            self._hibernated = True
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
@@ -747,64 +574,12 @@ class AgentSession:
                 self.status = AgentStatus.IDLE
                 self._persist()
 
-    ZOMBIE_TIMEOUT_CODEX = 600
-    ZOMBIE_TIMEOUT_CLAUDE = 1800
-
-    async def _heartbeat_loop(self) -> None:
-        HEARTBEAT_INTERVAL = 60
-        logger.info(f"[{self.name}] heartbeat started")
-        while True:
-            try:
-                await asyncio.sleep(HEARTBEAT_INTERVAL)
-
-                if self.status == AgentStatus.RUNNING and self._last_msg_time > 0:
-                    silence = asyncio.get_event_loop().time() - self._last_msg_time
-                    zombie_timeout = self.ZOMBIE_TIMEOUT_CODEX if self.backend_type == "codex" else self.ZOMBIE_TIMEOUT_CLAUDE
-                    if silence > zombie_timeout:
-                        if self.backend_type == "codex" or self._backend is None:
-                            logger.error(f"[{self.name}] heartbeat: zombie detected ({silence:.0f}s silence, backend={'alive' if self._backend else 'dead'})")
-                            self._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
-                            if self._backend:
-                                await self._disconnect_backend()
-                            self.status = AgentStatus.IDLE
-                            self._persist()
-                            if self._pending_messages:
-                                self._spawn_bg(self._flush_pending())
-                        else:
-                            logger.warning(f"[{self.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
-                            self._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
-
-                if self._backend is None:
-                    continue
-
-                task_dead = self._listen_task is None or self._listen_task.done()
-                if task_dead and self.status == AgentStatus.RUNNING and self.backend_type != "codex":
-                    logger.warning(f"[{self.name}] heartbeat: listener dead but status=RUNNING — reconnecting")
-                    self._log("error", "heartbeat detected dead listener, reconnecting")
-                    try:
-                        await self._backend.reconnect()
-                        self._listen_task = asyncio.create_task(self._claude_event_loop())
-                        self._listen_task.add_done_callback(self._on_task_done)
-                        await self._backend.send("[system] Connection was restored after interruption. Continue your work.")
-                        logger.info(f"[{self.name}] heartbeat reconnect OK")
-                    except Exception as e:
-                        logger.error(f"[{self.name}] heartbeat reconnect failed: {e}")
-                        self._log("error", f"heartbeat reconnect failed: {e}")
-                        self._backend = None
-                        self.status = AgentStatus.IDLE
-                        self._persist()
-            except asyncio.CancelledError:
-                logger.info(f"[{self.name}] heartbeat cancelled")
-                return
-            except Exception as e:
-                logger.error(f"[{self.name}] heartbeat error: {e}")
-
     # ── Session operations ──
 
     async def interrupt(self) -> None:
         if self._backend and self.status == AgentStatus.RUNNING:
             await self._backend.interrupt()
-        self._cancel_auto_report()
+        self._turns.cancel_auto_report()
         self.status = AgentStatus.IDLE
         self._log("status", "interrupted")
         self._persist()
@@ -887,7 +662,7 @@ class AgentSession:
         try:
             async with self._lifecycle_lock:
                 self._did_report = False
-                self._bump_turn_gen()
+                self._turns.bump_turn_gen()
                 self._compact_ack_gen = self._turn_gen
                 self._turn_logs = []
                 self._turn_start = asyncio.get_event_loop().time()
@@ -1019,7 +794,7 @@ class AgentSession:
             await backend.disconnect()
 
     async def stop(self) -> None:
-        self._cancel_auto_report()
+        self._turns.cancel_auto_report()
         await self._disconnect_backend()
         self._hibernated = False
         self.status = AgentStatus.IDLE
