@@ -1574,6 +1574,7 @@ async def _safe_polling():
 
 
 async def stop_bridge():
+    global bot, _manager
     # unhook so a restarted bridge (or tests) never fire stale callbacks
     from app import session as _session_mod
     _session_mod.on_scope_idle = None
@@ -1585,6 +1586,9 @@ async def stop_bridge():
     _tasks.clear()
     if bot:
         await bot.session.close()
+    # drop stale refs — a handler racing past the unhook must see inactive state
+    bot = None
+    _manager = None
 
 
 if __name__ == "__main__":

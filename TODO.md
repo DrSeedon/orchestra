@@ -1,6 +1,9 @@
 # Orchestra TODO
 
 ## Bugs
+- [ ] **Тест-изоляция: test_default_equals_upstream загрязняет 106 тестов** — `load_pipeline.cache_clear()` + monkeypatch `PIPELINES_DIR` травят все файлы после себя по алфавиту. Pre-existing (есть на main). Гейт сейчас гоняет файл отдельно
+- [ ] **test_upstream_markers_present_in_ours[orchestrator] падает на main** — тег `<task-management>` потерян при выносе промпт-модулей (+5 смежных в том же файле)
+- [ ] **Pending tm_sync_log без fire в CLI-контексте** — `_fire_sync` пишет pending до schedule; нет loop → запись висит. Codex suggestion: возвращать bool из `_fire_async`, писать pending после успешного schedule
 - [ ] **Одинаковые цвета воркеров** — _pick_color() даёт дубли при auto_resume_all
 - [ ] **Clipboard на HTTP** — navigator.clipboard требует HTTPS. Fallback на execCommand('copy')
 - [ ] **VPS прокси нестабильны** — SSH tunnel'ы зависают. Частично пофикшено (#44 auto-restart)
