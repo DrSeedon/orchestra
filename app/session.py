@@ -548,9 +548,12 @@ class AgentSession:
         self._spawn_bg(self._refresh_context_from_api())
 
         if not ok:
-            errors = meta.get("errors") or []
-            err_txt = "; ".join(str(e) for e in errors) if errors else sr
-            self._log("error", f"turn FAILED: {err_txt}")
+            # CLI injects [ede_diagnostic] telemetry strings on interrupt — cosmetic noise, not real errors
+            errors = [e for e in (meta.get("errors") or []) if not str(e).startswith("[ede_diagnostic]")]
+            if errors:
+                self._log("error", f"turn FAILED: {'; '.join(str(e) for e in errors)}")
+            else:
+                self._log("status", f"turn interrupted ({sr})")
 
         if sr in ("error_max_turns", "max_turns") and ok:
             # SDK has a per-turn limit; auto-continue so agents don't silently stop
