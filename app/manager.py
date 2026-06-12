@@ -691,10 +691,11 @@ class SessionManager:
 
             session.scope = new_scope
             session.cwd = new_cwd
+            # CLI session is bound to old cwd — must start fresh in new scope
+            session.session_id = None
             session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
                                                    extra=session.mcp_servers_custom)
-            # No session._persist() here: change_scope() already wrote scope+cwd
-            # synchronously in its transaction (the last writer after the drain).
+            session._persist()
         logger.info(f"Orchestrator '{name}' scope changed: {old_scope} → {new_scope}")
         return result
 
