@@ -2612,6 +2612,9 @@ function addChatEntry(type, content, ts, anchor) {
         }
         const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
         const isReadTool = rawName === 'Read';
+        if (isReadTool) {
+            try { const d = JSON.parse(body); if (d.file_path) div.dataset.filePath = d.file_path; } catch {}
+        }
         const diffEl = isEditTool ? renderEditDiff(body) : null;
         const readEl = isReadTool ? renderReadView(body) : null;
 
@@ -2703,9 +2706,13 @@ function addChatEntry(type, content, ts, anchor) {
             const target = lastTool || div;
             if (b64Match) {
                 const img = document.createElement('img');
-                img.src = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
+                // Use original file via API if Read tool has file_path — SDK compresses base64
+                const origPath = lastTool && lastTool.dataset.filePath;
+                const thumbSrc = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
+                img.src = origPath ? `/api/files/raw?path=${encodeURIComponent(origPath)}` : thumbSrc;
+                img.onerror = () => { img.src = thumbSrc; };
                 img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
-                img.addEventListener('click', () => _showImageOverlay(img.src));
+                img.addEventListener('click', () => _showImageOverlay(origPath ? img.src : thumbSrc));
                 target.appendChild(img);
             } else {
                 const placeholder = document.createElement('div');

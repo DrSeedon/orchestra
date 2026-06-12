@@ -1257,6 +1257,25 @@ async def stream_logs(orch_name: str, thread_id: int):
                                     continue
                             except Exception as e:
                                 logger.debug(f"worker_info pretty-print failed, falling back to raw: {e}")
+                        # Read tool returned an image — send original file instead of base64 spam
+                        if _last_tool_name == "Read" and ("'type': 'image'" in c or '"type": "image"' in c or "'type':'image'" in c):
+                            try:
+                                import json as _json
+                                _colon = _last_tool_raw.index(":")
+                                _read_params = _json.loads(_last_tool_raw[_colon + 1:].strip())
+                                _img_path = _read_params.get("file_path", "")
+                                if _img_path and Path(_img_path).is_file():
+                                    from aiogram.types import FSInputFile
+                                    await bot.send_photo(config["group_id"], FSInputFile(_img_path),
+                                                         message_thread_id=thread_id, caption=f"📷 {Path(_img_path).name}")
+                                    if _last_tool_msg:
+                                        _last_tool_msg = None
+                                        _last_tool_text = ""
+                                    _last_tool_name = ""
+                                    _last_tool_raw = ""
+                                    continue
+                            except Exception as _e:
+                                logger.debug(f"Read image send failed, falling back: {_e}")
                         result_preview = c[:80].replace("\n", " ").strip()
                         result_body = c[:800]
                         # Result image for Read/Grep/Bash — if sent, skip text
