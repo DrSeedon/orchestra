@@ -166,6 +166,93 @@ async def get_session_prompt(name: str, scope: str):
     return {"system_prompt": sp, "base": base, "role": role, "custom": custom}
 
 
+_BLOCK_TAG_MAP = {
+    "platform": ("static", "Platform", "base.md"),
+    "mcp-tools": ("static", "MCP Tools", "base.md"),
+    "background-jobs": ("static", "Background Jobs", "module"),
+    "rules": ("static", "Rules", "module"),
+    "role": ("static", "Role", "role"),
+    "git-workflow": ("static", "Git Workflow", "module"),
+    "orchestration": ("static", "Orchestration", "module"),
+    "decision-tree": ("static", "Decision Tree", "orchestration"),
+    "tools": ("static", "Tools", "orchestration"),
+    "task-workflow": ("static", "Task Workflow", "orchestration"),
+    "worker-management": ("static", "Worker Management", "orchestration"),
+    "workflow": ("static", "Workflow", "orchestration"),
+    "pricing": ("dynamic", "Pricing", "manager.py"),
+    "memory": ("static", "Memory", "module"),
+    "task-management": ("static", "Task Management", "module"),
+    "report-format": ("static", "Report Format", "module"),
+    "codex-review": ("static", "Codex Review", "module"),
+    "before-work": ("static", "Before Work", "module"),
+    "before-done": ("static", "Before Done", "module"),
+    "identity": ("dynamic", "Identity", "manager.py"),
+}
+
+
+def _parse_prompt_blocks(text: str) -> list[dict]:
+    """Split system prompt into blocks by top-level XML tags."""
+    import re
+    blocks = []
+    tag_re = re.compile(
+        r'<([a-z][a-z0-9_-]*)(\s[^>]*)?>(.+?)</\1>',
+        re.DOTALL,
+    )
+    pos = 0
+    for m in tag_re.finditer(text):
+        if m.start() > pos:
+            gap = text[pos:m.start()].strip()
+            if gap:
+                block_type = "dynamic" if any(k in gap.lower() for k in
+                    ["## available models", "## other orchestrators", "## your current workers"])  else "static"
+                title = gap.split('\n')[0][:60].strip('#').strip() or "Text block"
+                blocks.append({"type": block_type, "tag": "text", "title": title,
+                               "source": "manager.py" if block_type == "dynamic" else "",
+                               "size": len(gap), "content": gap})
+        tag = m.group(1)
+        attrs = (m.group(2) or "").strip()
+        content = m.group(3).strip()
+        info = _BLOCK_TAG_MAP.get(tag, ("static", tag.replace("-", " ").title(), ""))
+        title = info[1]
+        if attrs:
+            title += f" ({attrs.strip('\"')})"
+        blocks.append({
+            "type": info[0], "tag": tag, "title": title,
+            "source": info[2], "size": len(content), "content": content,
+        })
+        pos = m.end()
+    if pos < len(text):
+        tail = text[pos:].strip()
+        if tail:
+            sections = re.split(r'(?=^## )', tail, flags=re.MULTILINE)
+            for sec in sections:
+                sec = sec.strip()
+                if not sec:
+                    continue
+                title = sec.split('\n')[0].strip('#').strip()[:60] or "Text"
+                is_dyn = any(k in sec.lower() for k in
+                    ["available models", "other orchestrators", "current workers",
+                     "roles catalog", "identity"])
+                blocks.append({
+                    "type": "dynamic" if is_dyn else "static",
+                    "tag": "section", "title": title,
+                    "source": "manager.py" if is_dyn else "",
+                    "size": len(sec), "content": sec,
+                })
+    return blocks
+
+
+@router.get("/api/sessions/{name}/prompt-blocks")
+async def get_prompt_blocks(name: str, scope: str):
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    sp = found.system_prompt or ""
+    if not sp.strip():
+        return []
+    return _parse_prompt_blocks(sp)
+
+
 @router.get("/api/sessions/{name}/context")
 async def get_session_context(name: str, scope: str):
     found = manager.get_by_name(name, scope)

@@ -321,12 +321,6 @@ function closePromptModal() {
     $('#prompt-modal').classList.remove('flex');
 }
 
-function _promptSection(title, color, content) {
-    if (!content || !content.trim()) return '';
-    const rendered = DOMPurify.sanitize(marked.parse(_stripXmlTags(content)));
-    return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:${color};margin-bottom:6px;padding:3px 8px;border-radius:4px;background:rgba(0,0,0,0.3);display:inline-block">${title}</div><div class="markdown-body" style="padding-left:4px">${rendered}</div></div>`;
-}
-
 async function compactAgent() {
     if (!selectedAgent || !currentScope) return;
     const btn = $('#compact-btn');
@@ -377,27 +371,60 @@ async function openPromptModal() {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     try {
-        const data = await api(`/api/sessions/${selectedAgent}/prompt?scope=${encodeURIComponent(currentScope)}`);
-        if (!data.system_prompt || !data.system_prompt.trim()) {
+        const blocks = await api(`/api/sessions/${selectedAgent}/prompt-blocks?scope=${encodeURIComponent(currentScope)}`);
+        if (!Array.isArray(blocks) || blocks.length === 0) {
             body.innerHTML = '<span class="text-slate-500 italic text-xs">No system prompt</span>';
-        } else if (data.base || data.role) {
-            body.innerHTML =
-                _promptSection('📦 Platform (base.md)', '#64748b', data.base) +
-                _promptSection('🎭 Role', '#818cf8', data.role) +
-                _promptSection('✨ Custom', '#22c55e', data.custom);
-            if (!data.custom) {
-                body.innerHTML += '<div style="font-size:10px;color:#475569;font-style:italic;margin-top:8px">No custom system prompt</div>';
-            }
-        } else {
-            body.innerHTML = DOMPurify.sanitize(marked.parse(_stripXmlTags(data.system_prompt)));
+            return;
         }
+        _renderPromptBlocks(body, blocks);
     } catch (e) {
-        const errSpan = document.createElement('span');
-        errSpan.className = 'text-red-400 text-xs';
-        errSpan.textContent = e.message;
-        body.innerHTML = '';
-        body.appendChild(errSpan);
+        body.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
     }
+}
+
+function _renderPromptBlocks(container, blocks) {
+    const TYPE_COLORS = { static: '#3b82f6', dynamic: '#f59e0b', skill: '#22c55e' };
+    const TYPE_LABELS = { static: 'file', dynamic: 'dynamic', skill: 'skill' };
+    const staticN = blocks.filter(b => b.type === 'static').length;
+    const dynN = blocks.filter(b => b.type === 'dynamic').length;
+    const totalChars = blocks.reduce((s, b) => s + (b.size || 0), 0);
+    const totalTokens = Math.round(totalChars / 4);
+
+    let html = `<div class="pb-summary">
+        <span class="pb-stat"><b>${blocks.length}</b> blocks</span>
+        <span class="pb-stat" style="color:#3b82f6"><b>${staticN}</b> static</span>
+        <span class="pb-stat" style="color:#f59e0b"><b>${dynN}</b> dynamic</span>
+        <span class="pb-stat"><b>~${totalTokens >= 1000 ? (totalTokens/1000).toFixed(1)+'k' : totalTokens}</b> tokens</span>
+    </div>`;
+
+    blocks.forEach((b, i) => {
+        const color = TYPE_COLORS[b.type] || '#64748b';
+        const label = TYPE_LABELS[b.type] || b.type;
+        const tokens = Math.round((b.size || 0) / 4);
+        const tokStr = tokens >= 1000 ? (tokens/1000).toFixed(1)+'k' : tokens;
+        html += `<div class="pb-block" style="border-left-color:${color}" data-pb-idx="${i}">
+            <div class="pb-header" onclick="this.parentElement.classList.toggle('pb-open')">
+                <span class="pb-chevron">▸</span>
+                <span class="pb-tag" style="background:${color}22;color:${color}">${label}</span>
+                <span class="pb-title">${escHtml(b.title)}</span>
+                <span class="pb-meta">${tokStr} tok</span>
+                ${b.source ? `<span class="pb-source">${escHtml(b.source)}</span>` : ''}
+            </div>
+            <div class="pb-body"></div>
+        </div>`;
+    });
+    container.innerHTML = html;
+
+    container.querySelectorAll('.pb-block').forEach((el, i) => {
+        const b = blocks[i];
+        el.querySelector('.pb-header').addEventListener('click', () => {
+            const bodyEl = el.querySelector('.pb-body');
+            if (!bodyEl.dataset.loaded && b.content) {
+                bodyEl.innerHTML = `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(_stripXmlTags(b.content)))}</div>`;
+                bodyEl.dataset.loaded = '1';
+            }
+        });
+    });
 }
 
 function openImageLightbox(src) {
