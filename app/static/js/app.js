@@ -125,6 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     loadModels();
+    if (document.body.dataset.authEnabled === 'true') {
+        document.getElementById('new-orch-btn')?.remove();
+        document.getElementById('new-orch-modal')?.remove();
+    }
     loadOrchestrators();
     scheduleRefresh();
     initFilePreviewModal();
@@ -1124,15 +1128,20 @@ function updateInputState() {
 let contextCache = {};
 let agentColors = {};
 
-const _MODELS = [
-    { id: 'claude-opus-4-8[1m]', label: 'Opus 4.8 (1M)' },
-    { id: 'claude-opus-4-7[1m]', label: 'Opus 4.7 (1M)' },
-    { id: 'claude-opus-4-6[1m]', label: 'Opus 4.6 (1M)' },
-    { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-];
-function _showModelPicker(agentName, currentModel, anchor) {
+let _MODELS = [];
+let _modelsLoaded = false;
+async function _ensureModels() {
+    if (_modelsLoaded) return;
+    try {
+        const models = await api('/api/models');
+        _MODELS = models.map(m => ({ id: m.id, label: m.name }));
+        _modelsLoaded = true;
+    } catch {}
+}
+async function _showModelPicker(agentName, currentModel, anchor) {
     const existing = document.getElementById('model-picker-dd');
     if (existing) { existing.remove(); return; }
+    await _ensureModels();
     const dd = document.createElement('div');
     dd.id = 'model-picker-dd';
     const rect = anchor.getBoundingClientRect();

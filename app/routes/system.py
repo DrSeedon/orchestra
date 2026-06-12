@@ -52,6 +52,7 @@ async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", {
         "currency_symbol": os.getenv("CURRENCY_SYMBOL", "₽"),
         "hide_thinking": is_auth_enabled(),
+        "is_auth_enabled": is_auth_enabled(),
     })
 
 

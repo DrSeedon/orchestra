@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/static/css/vendor/highlight-github-dark.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="h-screen flex flex-col" data-currency="{{ currency_symbol }}" data-hide-thinking="{{ 'true' if hide_thinking else 'false' }}">
+<body class="h-screen flex flex-col" data-currency="{{ currency_symbol }}" data-hide-thinking="{{ 'true' if hide_thinking else 'false' }}" data-auth-enabled="{{ 'true' if is_auth_enabled else 'false' }}">
     <div id="usage-bar"></div>
     <header class="flex items-center justify-between px-5 py-2 border-b border-slate-800/50">
         <div class="flex items-center gap-2 flex-1 min-w-0">
