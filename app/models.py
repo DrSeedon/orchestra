@@ -1,4 +1,16 @@
-"""Available models — single source of truth."""
+"""Available models — single source of truth.
+
+Hardcoded dicts are the fallback. On startup, fetch_models_from_proxy()
+merges dynamic models from the upstream proxy's /v1/models endpoint.
+"""
+
+import logging
+import os
+import re
+
+import httpx
+
+logger = logging.getLogger(__name__)
 
 MODELS = {
     "claude-fable-5[1m]": "Fable 5 (1M)",
@@ -84,6 +96,106 @@ TOKEN_PRICES = {
 }
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
+
+# Version-like suffixes to strip when generating short aliases
+_VERSION_RE = re.compile(r"[-.]v?\d[\d.]*$")
+
+
+def _generate_aliases(model_id: str) -> list[str]:
+    """Auto-generate short alias candidates for a model ID."""
+    aliases = []
+    # "deepseek/deepseek-v4-flash" → "deepseek-v4-flash"
+    if "/" in model_id:
+        tail = model_id.rsplit("/", 1)[1]
+        aliases.append(tail)
+        # strip version suffix: "deepseek-v4-flash" → "deepseek-flash" (only if different)
+        stripped = _VERSION_RE.sub("", tail)
+        if stripped and stripped != tail:
+            aliases.append(stripped)
+    return aliases
+
+
+def _infer_backend(model_id: str) -> str:
+    if model_id.startswith("gpt-"):
+        return "codex"
+    return "claude"
+
+
+async def fetch_models_from_proxy() -> bool:
+    """Fetch model list from upstream proxy and merge into module-level dicts.
+
+    Returns True on success, False on failure (hardcoded fallback stays).
+    """
+    base_url = os.environ.get("UPSTREAM_API", "https://api.anthropic.com")
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    url = f"{base_url.rstrip('/')}/v1/models"
+
+    proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+
+    try:
+        async with httpx.AsyncClient(timeout=10, proxy=proxy_url) as client:
+            resp = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        logger.warning(f"fetch_models_from_proxy failed: {e}")
+        return False
+
+    models_list = data.get("data", [])
+    if not models_list:
+        logger.warning("fetch_models_from_proxy: empty model list")
+        return False
+
+    added = 0
+    for m in models_list:
+        mid = m.get("id", "")
+        if not mid:
+            continue
+
+        # Display name: capitalize last segment
+        if "/" in mid:
+            label = mid.rsplit("/", 1)[1].replace("-", " ").title()
+        else:
+            label = mid.replace("-", " ").title()
+
+        ctx = m.get("context_length") or 200000
+
+        pricing = m.get("pricing", {})
+        prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
+        completion_price = float(pricing.get("completion", "0")) * 1_000_000
+
+        backend = _infer_backend(mid)
+
+        # Merge — don't overwrite existing hardcoded entries
+        if mid not in MODELS:
+            MODELS[mid] = label
+            added += 1
+        if mid not in CONTEXT_LIMITS:
+            CONTEXT_LIMITS[mid] = ctx
+        if mid not in TOKEN_PRICES and (prompt_price or completion_price):
+            TOKEN_PRICES[mid] = {"input": round(prompt_price, 4), "output": round(completion_price, 4)}
+        if mid not in BACKENDS:
+            BACKENDS[mid] = backend
+
+        # Auto-generate aliases for new models
+        for alias in _generate_aliases(mid):
+            if alias not in ALIASES and alias != mid:
+                ALIASES[alias] = mid
+
+    logger.info(f"Loaded {len(models_list)} models from proxy ({added} new)")
+    return True
+
+
+async def refresh_models() -> None:
+    """Startup helper — fetch models, log result."""
+    ok = await fetch_models_from_proxy()
+    if ok:
+        logger.info(f"Models ready: {len(MODELS)} total")
+    else:
+        logger.warning(f"Proxy unreachable, using {len(MODELS)} hardcoded models")
 
 
 def resolve_model(model: str) -> str:
