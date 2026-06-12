@@ -2744,7 +2744,9 @@ function addChatEntry(type, content, ts, anchor) {
             return;
         }
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-        const escaped = clean.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        // Strip raw JSON link arrays from WebSearch results (shown as ugly JSON at top)
+        const stripped = clean.replace(/^(Links:\s*\[.*?\}\]\s*\n?)+/gms, '');
+        const escaped = stripped.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         // Render markdown links [text](url) first, then bare URLs
         const mdLinked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
         const linked = mdLinked.replace(/((?<!href="|">)https?:\/\/[^\s\])"&<]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
