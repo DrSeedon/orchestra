@@ -951,7 +951,6 @@ function changeOrchScope(name, oldScope) {
         } catch { picker.innerHTML = '<div class="p-2 text-xs text-red-400">Failed to load</div>'; }
     };
 
-    const onKey = (e) => { if (e.key === 'Escape') { close(); cleanup(); } else if (e.key === 'Enter') { doMove(); cleanup(); } };
     const cleanup = () => {
         document.removeEventListener('keydown', onKey);
         $('#change-scope-close').removeEventListener('click', closeHandler);
@@ -960,7 +959,9 @@ function changeOrchScope(name, oldScope) {
         browseBtn.removeEventListener('click', onBrowse);
     };
     const closeHandler = () => { close(); cleanup(); };
-    const confirmHandler = () => { doMove(); cleanup(); };
+    // doMove is async — cleanup only after successful close, not on error
+    const confirmHandler = async () => { await doMove(); if (modal.classList.contains('hidden')) cleanup(); };
+    const onKey = (e) => { if (e.key === 'Escape') { closeHandler(); } else if (e.key === 'Enter') { confirmHandler(); } };
 
     document.addEventListener('keydown', onKey);
     $('#change-scope-close').addEventListener('click', closeHandler);
