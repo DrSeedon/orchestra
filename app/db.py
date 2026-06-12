@@ -516,9 +516,8 @@ def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) 
         if clash:
             return {"error": f"session '{name}' already exists in scope '{new_scope}'"}
 
-        # Reset session_id — CLI session is bound to old cwd, must start fresh
         cur = c.execute(
-            "UPDATE sessions SET scope=?, cwd=?, session_id=NULL WHERE id=? AND scope=?",
+            "UPDATE sessions SET scope=?, cwd=? WHERE id=? AND scope=?",
             (new_scope, new_cwd, session_id, old_scope),
         )
         if cur.rowcount == 0:

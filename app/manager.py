@@ -691,13 +691,28 @@ class SessionManager:
 
             session.scope = new_scope
             session.cwd = new_cwd
-            # CLI session is bound to old cwd — must start fresh in new scope
-            session.session_id = None
+            # Migrate CLI session file so resume works in new cwd
+            if session.session_id:
+                self._migrate_cli_session(session.session_id, old_scope, new_scope)
             session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
                                                    extra=session.mcp_servers_custom)
             session._persist()
         logger.info(f"Orchestrator '{name}' scope changed: {old_scope} → {new_scope}")
         return result
+
+    @staticmethod
+    def _migrate_cli_session(session_id: str, old_scope: str, new_scope: str) -> None:
+        """Copy CLI session files from old project dir to new so resume works after scope change."""
+        cli_base = Path.home() / ".claude" / "projects"
+        old_dir = cli_base / old_scope.replace("/", "-").lstrip("-")
+        new_dir = cli_base / new_scope.replace("/", "-").lstrip("-")
+        if not old_dir.is_dir():
+            return
+        import shutil
+        new_dir.mkdir(parents=True, exist_ok=True)
+        for f in old_dir.glob(f"{session_id}*"):
+            shutil.copy2(f, new_dir / f.name)
+            logger.info(f"migrated CLI session file: {f.name} → {new_dir}")
 
     def _live_workers_in_scope(self, scope: str) -> list[str]:
         """Names of active (idle/running/waiting) workers in scope, from both the
