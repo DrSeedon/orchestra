@@ -1429,8 +1429,50 @@ function createAgentItem(s) {
     }
     item.append(icon, info);
 
+    item.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        _showAgentContextMenu(e, s);
+    });
+
     if (isSelected) updateAgentInfo(s);
     return item;
+}
+
+let _agentCtxMenu = null;
+function _showAgentContextMenu(e, s) {
+    if (_agentCtxMenu) _agentCtxMenu.remove();
+    const menu = document.createElement('div');
+    _agentCtxMenu = menu;
+    menu.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
+    const close = () => { if (_agentCtxMenu) { _agentCtxMenu.remove(); _agentCtxMenu = null; } };
+    document.addEventListener('click', close, { once: true });
+
+    const mkItem = (label, color, fn) => {
+        const item = document.createElement('div');
+        item.style.cssText = `padding:6px 14px;font-size:12px;color:${color};cursor:pointer;white-space:nowrap`;
+        item.textContent = label;
+        item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+        item.addEventListener('mouseleave', () => item.style.background = '');
+        item.addEventListener('click', (ev) => { ev.stopPropagation(); close(); fn(); });
+        return item;
+    };
+
+    const tgEnabled = s.tg_topic;
+    menu.appendChild(mkItem(
+        tgEnabled ? '📌 TG Topic: ON → OFF' : '📌 TG Topic: OFF → ON',
+        tgEnabled ? '#f59e0b' : '#94a3b8',
+        async () => {
+            try {
+                await api(`/api/sessions/${s.name}/tg-topic?scope=${encodeURIComponent(currentScope)}&enabled=${!tgEnabled}`, { method: 'PATCH' });
+                await refreshSessions();
+            } catch (e) { console.error('TG topic toggle failed:', e); }
+        }
+    ));
+
+    document.body.appendChild(menu);
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
 }
 
 // === Chat ===

@@ -696,6 +696,17 @@ async def update_progress(name: str, req: dict):
     return {"ok": True}
 
 
+@router.patch("/api/sessions/{name}/tg-topic")
+async def toggle_tg_topic(name: str, scope: str, enabled: bool):
+    from app.db import save_session
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    found.tg_topic = enabled
+    save_session(found.to_dict())
+    return {"ok": True, "name": name, "tg_topic": enabled}
+
+
 @router.get("/api/sessions/{name}/inbox")
 async def get_session_inbox(name: str, scope: str):
     from app.db import get_inbox, ack_inbox
