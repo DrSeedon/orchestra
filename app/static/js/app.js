@@ -608,9 +608,9 @@ async function createOrchestrator() {
     const name = $('#orch-name').value.trim();
     const cwd = $('#orch-cwd').value.trim();
     const model = $('#orch-model').value;
-    const profile = $('#orch-profile').value;
-    const pipeline = $('#orch-pipeline').value;
-    const role = $('#orch-role').value;
+    const profile = $('#orch-profile').value || 'personal';
+    const pipeline = $('#orch-pipeline').value || 'default';
+    const role = $('#orch-role').value || 'orchestrator';
     const errEl = $('#orch-error');
     if (!name || !cwd) { errEl.textContent = 'Name and project path required'; errEl.classList.remove('hidden'); return; }
     const btn = $('#create-orch-btn');

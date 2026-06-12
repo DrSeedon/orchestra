@@ -83,21 +83,10 @@
                     <select id="orch-model" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
                     </select>
                 </div>
-                <div>
-                    <label class="text-xs text-slate-500 block mb-1">Profile</label>
-                    <select id="orch-profile" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-slate-500 block mb-1">Pipeline</label>
-                    <select id="orch-pipeline" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-slate-500 block mb-1">Role</label>
-                    <select id="orch-role" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-                    </select>
-                </div>
+                <!-- Profile/Pipeline/Role hidden — sane defaults for new orchestrators -->
+                <select id="orch-profile" class="hidden"></select>
+                <select id="orch-pipeline" class="hidden"></select>
+                <select id="orch-role" class="hidden"></select>
                 <div id="orch-error" class="text-xs text-red-400 hidden"></div>
                 <button id="create-orch-btn" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Create Orchestrator</button>
             </div>
