@@ -894,21 +894,76 @@ function openDeleteOrchModal(name, scope) {
     modal.onclick = (e) => { if (e.target === modal) close(); };
 }
 
-async function changeOrchScope(name, oldScope) {
-    const newScope = prompt(`Новая папка для "${name}" (контекст сессии сохранится):`, oldScope);
-    if (!newScope || newScope.trim() === oldScope) return;
-    const ns = newScope.trim().replace(/\/+$/, '');
-    try {
-        const res = await api(`/api/orchestrators/${name}/change-scope`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ old_scope: oldScope, new_scope: ns }),
-        });
-        await loadOrchestrators();
-        selectOrchestrator(name, res.scope || ns);
-    } catch (e) {
-        alert(`Смена папки не удалась: ${e.message}`);
-    }
+function changeOrchScope(name, oldScope) {
+    const modal = $('#change-scope-modal');
+    if (!modal) return;
+    const pathInput = $('#change-scope-path');
+    const errorEl = $('#change-scope-error');
+    const picker = $('#change-scope-picker');
+    $('#change-scope-name').textContent = name;
+    pathInput.value = oldScope;
+    errorEl.classList.add('hidden');
+    picker.classList.add('hidden');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    pathInput.focus();
+    pathInput.select();
+
+    const close = () => { modal.classList.remove('flex'); modal.classList.add('hidden'); };
+
+    const doMove = async () => {
+        const ns = pathInput.value.trim().replace(/\/+$/, '');
+        if (!ns || ns === oldScope) { close(); return; }
+        errorEl.classList.add('hidden');
+        try {
+            const res = await api(`/api/orchestrators/${name}/change-scope`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_scope: oldScope, new_scope: ns }),
+            });
+            close();
+            await loadOrchestrators();
+            selectOrchestrator(name, res.scope || ns);
+        } catch (e) {
+            errorEl.textContent = e.message;
+            errorEl.classList.remove('hidden');
+        }
+    };
+
+    const browseBtn = $('#change-scope-browse');
+    const onBrowse = async () => {
+        picker.innerHTML = '<div class="p-2 text-xs text-slate-500">Loading...</div>';
+        picker.classList.remove('hidden');
+        try {
+            const projects = await api('/api/projects');
+            picker.innerHTML = '';
+            for (const p of projects) {
+                const item = document.createElement('div');
+                item.className = 'px-3 py-2 text-sm cursor-pointer hover:bg-slate-800 border-b border-slate-800/50';
+                item.innerHTML = `<span class="text-white font-medium">${escHtml(p.name)}</span> <span class="text-slate-500 text-xs">${escHtml(p.path)}</span>`;
+                item.addEventListener('click', () => { pathInput.value = p.path; picker.classList.add('hidden'); });
+                picker.appendChild(item);
+            }
+        } catch { picker.innerHTML = '<div class="p-2 text-xs text-red-400">Failed to load</div>'; }
+    };
+
+    const onKey = (e) => { if (e.key === 'Escape') { close(); cleanup(); } else if (e.key === 'Enter') { doMove(); cleanup(); } };
+    const cleanup = () => {
+        document.removeEventListener('keydown', onKey);
+        $('#change-scope-close').removeEventListener('click', closeHandler);
+        $('#change-scope-cancel').removeEventListener('click', closeHandler);
+        $('#change-scope-confirm').removeEventListener('click', confirmHandler);
+        browseBtn.removeEventListener('click', onBrowse);
+    };
+    const closeHandler = () => { close(); cleanup(); };
+    const confirmHandler = () => { doMove(); cleanup(); };
+
+    document.addEventListener('keydown', onKey);
+    $('#change-scope-close').addEventListener('click', closeHandler);
+    $('#change-scope-cancel').addEventListener('click', closeHandler);
+    $('#change-scope-confirm').addEventListener('click', confirmHandler);
+    browseBtn.addEventListener('click', onBrowse);
+    modal.addEventListener('click', (e) => { if (e.target === modal) { close(); cleanup(); } }, { once: true });
 }
 
 function _updateHiddenBtn() {
