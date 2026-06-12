@@ -640,6 +640,10 @@ class AgentSession:
                 async for event in backend.events():
                     if event.type == "text":
                         summary_parts.append(event.content)
+                    elif event.type == "tool":
+                        self._log("tool", event.content)
+                    elif event.type == "tool_result":
+                        self._log("tool_result", event.content[:500])
                     elif event.type == "turn_end":
                         if event.metadata.get("session_id"):
                             self.session_id = event.metadata["session_id"]
