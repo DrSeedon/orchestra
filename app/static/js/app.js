@@ -386,7 +386,7 @@ async function openPromptModal() {
     }
 }
 
-function _renderPromptBlocks(container, blocks, expandAll = false) {
+function _renderPromptBlocks(container, blocks) {
     const TYPE_COLORS = { static: '#3b82f6', dynamic: '#f59e0b', skill: '#22c55e' };
     const TYPE_LABELS = { static: 'file', dynamic: 'dynamic', skill: 'skill' };
     const staticN = blocks.filter(b => b.type === 'static').length;
@@ -406,8 +406,7 @@ function _renderPromptBlocks(container, blocks, expandAll = false) {
         const label = TYPE_LABELS[b.type] || b.type;
         const tokens = Math.round((b.size || 0) / 4);
         const tokStr = tokens >= 1000 ? (tokens/1000).toFixed(1)+'k' : tokens;
-        const openClass = expandAll ? ' pb-open' : '';
-        html += `<div class="pb-block${openClass}" style="border-left-color:${color}" data-pb-idx="${i}">
+        html += `<div class="pb-block" style="border-left-color:${color}" data-pb-idx="${i}">
             <div class="pb-header" onclick="this.parentElement.classList.toggle('pb-open')">
                 <span class="pb-chevron">▸</span>
                 <span class="pb-tag" style="background:${color}22;color:${color}">${label}</span>
@@ -422,12 +421,8 @@ function _renderPromptBlocks(container, blocks, expandAll = false) {
 
     container.querySelectorAll('.pb-block').forEach((el, i) => {
         const b = blocks[i];
-        const bodyEl = el.querySelector('.pb-body');
-        if (expandAll && b.content) {
-            bodyEl.innerHTML = `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(_stripXmlTags(b.content)))}</div>`;
-            bodyEl.dataset.loaded = '1';
-        }
         el.querySelector('.pb-header').addEventListener('click', () => {
+            const bodyEl = el.querySelector('.pb-body');
             if (!bodyEl.dataset.loaded && b.content) {
                 bodyEl.innerHTML = `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(_stripXmlTags(b.content)))}</div>`;
                 bodyEl.dataset.loaded = '1';
@@ -1188,8 +1183,6 @@ function updateAgentInfo(session) {
         $('#view-prompt-btn').classList.add('hidden');
         $('#compact-btn').classList.add('hidden');
         $('#restart-cli-btn').classList.add('hidden');
-        const pp = $('#agent-prompt-preview');
-        if (pp) { pp.classList.add('hidden'); _lastPromptAgent = ''; }
         return;
     }
     $('#view-prompt-btn').classList.remove('hidden');
@@ -1253,28 +1246,6 @@ function updateAgentInfo(session) {
         setContextDisplay('...');
     }
     fetchAgentContext(session.name);
-    _loadInlinePrompt(session.name);
-}
-
-let _lastPromptAgent = '';
-async function _loadInlinePrompt(agentName) {
-    const preview = $('#agent-prompt-preview');
-    const content = $('#agent-prompt-content');
-    if (!preview || !content) return;
-    if (_lastPromptAgent === agentName && content.children.length > 1) return;
-    _lastPromptAgent = agentName;
-    content.innerHTML = '<span class="text-slate-500 text-xs">Loading prompt...</span>';
-    preview.classList.remove('hidden');
-    try {
-        const blocks = await api(`/api/sessions/${agentName}/prompt-blocks?scope=${encodeURIComponent(currentScope)}`);
-        if (!Array.isArray(blocks) || blocks.length === 0) {
-            content.innerHTML = '<span class="text-slate-500 italic text-xs">No system prompt</span>';
-            return;
-        }
-        _renderPromptBlocks(content, blocks, true);
-    } catch (e) {
-        content.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
-    }
 }
 
 function setContextDisplay(text) {
