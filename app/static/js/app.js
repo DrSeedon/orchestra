@@ -383,8 +383,23 @@ async function openPromptModal() {
 }
 
 function _renderPromptBlocks(container, blocks) {
-    const TYPE_COLORS = { static: '#3b82f6', dynamic: '#f59e0b', skill: '#22c55e' };
-    const TYPE_LABELS = { static: 'file', dynamic: 'dynamic', skill: 'skill' };
+    // Tag-specific colors for better visual distinction
+    const TAG_COLORS = {
+        platform: '#64748b', role: '#22c55e', rules: '#ef4444',
+        'git-workflow': '#38bdf8', orchestration: '#7c3aed', 'task-workflow': '#7c3aed',
+        'decision-tree': '#7c3aed', tools: '#7c3aed', 'worker-management': '#7c3aed',
+        workflow: '#7c3aed', 'background-jobs': '#f97316', 'task-management': '#f97316',
+        'mcp-tools': '#64748b', pricing: '#fbbf24', memory: '#64748b',
+        'report-format': '#38bdf8', section: '#f59e0b', text: '#f59e0b',
+    };
+    const TAG_LABELS = {
+        platform: 'platform', role: 'role', rules: 'rules',
+        'git-workflow': 'module', orchestration: 'module', 'background-jobs': 'module',
+        'task-management': 'module', 'mcp-tools': 'platform', 'report-format': 'module',
+        'decision-tree': 'orchestration', tools: 'orchestration', 'task-workflow': 'orchestration',
+        'worker-management': 'orchestration', workflow: 'orchestration',
+        pricing: 'dynamic', memory: 'rules', section: 'dynamic', text: 'dynamic',
+    };
     const staticN = blocks.filter(b => b.type === 'static').length;
     const dynN = blocks.filter(b => b.type === 'dynamic').length;
     const totalChars = blocks.reduce((s, b) => s + (b.size || 0), 0);
@@ -398,11 +413,12 @@ function _renderPromptBlocks(container, blocks) {
     </div>`;
 
     blocks.forEach((b, i) => {
-        const color = TYPE_COLORS[b.type] || '#64748b';
-        const label = TYPE_LABELS[b.type] || b.type;
+        const color = TAG_COLORS[b.tag] || (b.type === 'dynamic' ? '#f59e0b' : '#3b82f6');
+        const label = TAG_LABELS[b.tag] || b.type;
         const tokens = Math.round((b.size || 0) / 4);
         const tokStr = tokens >= 1000 ? (tokens/1000).toFixed(1)+'k' : tokens;
-        html += `<div class="pb-block" style="border-left-color:${color}" data-pb-idx="${i}">
+        // All blocks open by default
+        html += `<div class="pb-block pb-open" style="border-left-color:${color}" data-pb-idx="${i}">
             <div class="pb-header" onclick="this.parentElement.classList.toggle('pb-open')">
                 <span class="pb-chevron">▸</span>
                 <span class="pb-tag" style="background:${color}22;color:${color}">${label}</span>
@@ -415,10 +431,15 @@ function _renderPromptBlocks(container, blocks) {
     });
     container.innerHTML = html;
 
+    // Load all content immediately since blocks are open by default
     container.querySelectorAll('.pb-block').forEach((el, i) => {
         const b = blocks[i];
+        const bodyEl = el.querySelector('.pb-body');
+        if (b.content) {
+            bodyEl.innerHTML = `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(_stripXmlTags(b.content)))}</div>`;
+            bodyEl.dataset.loaded = '1';
+        }
         el.querySelector('.pb-header').addEventListener('click', () => {
-            const bodyEl = el.querySelector('.pb-body');
             if (!bodyEl.dataset.loaded && b.content) {
                 bodyEl.innerHTML = `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(_stripXmlTags(b.content)))}</div>`;
                 bodyEl.dataset.loaded = '1';
