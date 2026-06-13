@@ -462,6 +462,8 @@ def _get_agents_cost() -> dict:
 
 @router.get("/api/usage")
 async def get_usage():
+    if is_auth_enabled():
+        return {"usage": None}
     now = time.time()
 
     if _usage_cache["data"] and (now - _usage_cache["ts"]) < _USAGE_CACHE_TTL:
@@ -554,6 +556,8 @@ async def _usage_snapshot_loop():
 
 @router.get("/api/usage/history")
 async def usage_history(hours: int = 24):
+    if is_auth_enabled():
+        return []
     from app.db import usage_get_history
     return usage_get_history(hours)
 

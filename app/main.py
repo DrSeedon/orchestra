@@ -23,10 +23,10 @@ async def lifespan(app: FastAPI):
     init_db()
     from app.models import refresh_models
     await refresh_models()
-    # YouGile sync fired from to_thread workers needs the app loop captured
     from app import tm as _tm_mod
     _tm_mod.set_main_loop(asyncio.get_running_loop())
-    from app import tm_yougile  # noqa: F401 — registers tm sync hooks (on_task_synced, on_payment_changed)
+    if not is_auth_enabled():
+        from app import tm_yougile  # noqa: F401 — registers tm sync hooks
     await manager.auto_resume_all()
     from app.bootstrap import ensure_bootstrap
     await ensure_bootstrap()
@@ -36,13 +36,17 @@ async def lifespan(app: FastAPI):
     await bg_manager.restore_from_db()
     from app.tg_bridge import start_bridge, stop_bridge
     await start_bridge(manager)
-    from app.ssh_tunnel import start_tunnel, stop_tunnel
-    await start_tunnel()
+    _tunnel_started = False
+    if not is_auth_enabled():
+        from app.ssh_tunnel import start_tunnel, stop_tunnel
+        await start_tunnel()
+        _tunnel_started = True
     from app.routes.system import _usage_snapshot_loop
     snapshot_task = asyncio.create_task(_usage_snapshot_loop())
     yield
     snapshot_task.cancel()
-    await stop_tunnel()
+    if _tunnel_started:
+        await stop_tunnel()
     await stop_bridge()
     await bg_manager.shutdown()
     await manager.shutdown_all()
