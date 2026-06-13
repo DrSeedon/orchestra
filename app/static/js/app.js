@@ -254,7 +254,9 @@ async function loadModels() {
         const models = await api('/api/models');
         const select = $('#orch-model');
         select.innerHTML = '';
-        for (const m of models) {
+        // Only show Claude and GPT models — proxy may inject third-party models
+        const filtered = models.filter(m => m.id.startsWith('claude-') || m.id.startsWith('gpt-'));
+        for (const m of filtered) {
             const opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = `${m.name} (${m.id})`;
