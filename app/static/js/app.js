@@ -1190,6 +1190,7 @@ async function _showModelPicker(agentName, currentModel, anchor) {
     const existing = document.getElementById('model-picker-dd');
     if (existing) { existing.remove(); return; }
     await _ensureModels();
+    if (!_MODELS.length) { console.warn('No models available for picker'); return; }
     const dd = document.createElement('div');
     dd.id = 'model-picker-dd';
     const rect = anchor.getBoundingClientRect();
@@ -1202,11 +1203,15 @@ async function _showModelPicker(agentName, currentModel, anchor) {
         if (!isCurrent) {
             item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
             item.addEventListener('mouseleave', () => item.style.background = '');
-            item.addEventListener('click', async () => {
+            item.addEventListener('click', async (e) => {
+                e.stopPropagation();
                 dd.remove();
                 try {
-                    await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
-                    $('#ai-model').textContent = m.id;
+                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
+                    if (resp && !resp.error) {
+                        $('#ai-model').textContent = m.id;
+                        loadSessions();
+                    }
                 } catch (e) { console.warn('Change model failed:', e); }
             });
         }
@@ -1214,7 +1219,7 @@ async function _showModelPicker(agentName, currentModel, anchor) {
     }
     document.body.appendChild(dd);
     const close = (e) => { if (!dd.contains(e.target) && e.target !== anchor) { dd.remove(); document.removeEventListener('click', close); } };
-    setTimeout(() => document.addEventListener('click', close), 0);
+    setTimeout(() => document.addEventListener('click', close), 10);
 }
 
 function updateAgentInfo(session) {
