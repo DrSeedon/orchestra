@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
@@ -296,19 +296,16 @@ async def get_pipelines():
 @router.get("/api/profiles")
 async def get_profiles():
     """Все профили Claude: ``[{name, config_dir}]``."""
+    if is_auth_enabled():
+        raise HTTPException(403, "Not available")
     return list_profiles()
 
 
 @router.post("/api/profiles")
 async def create_profile(req: ProfileRequest):
-    """Создать или обновить профиль. Имя валидируется тем же regex, что у сессий.
-
-    Валидация ``config_dir`` — **мягкая**: если путь непустой и не указывает на
-    существующую директорию, профиль всё равно сохраняется, но в ответ
-    добавляется ``warning``. Это не блокирует пользователя (папку может создать
-    CLI или она появится позже), но предупреждает об опечатке заранее, а не
-    при первом запуске агента. Формат ответа: ``{profiles, warning}``.
-    """
+    """Создать или обновить профиль."""
+    if is_auth_enabled():
+        raise HTTPException(403, "Not available")
     if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", req.name):
         return JSONResponse(
             {"error": "name must be alphanumeric with ._- allowed, 1-50 chars"},
@@ -327,7 +324,9 @@ async def create_profile(req: ProfileRequest):
 
 @router.delete("/api/profiles/{name}")
 async def remove_profile(name: str):
-    """Удалить профиль. Сид-профиль ``personal`` защищён → 409."""
+    """Удалить профиль."""
+    if is_auth_enabled():
+        raise HTTPException(403, "Not available")
     try:
         delete_profile(name)
     except ValueError as e:
