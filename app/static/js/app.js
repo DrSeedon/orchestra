@@ -380,7 +380,7 @@ async function openPromptModal() {
             body.innerHTML = '<span class="text-slate-500 italic text-xs">No system prompt</span>';
             return;
         }
-        _renderPromptBlocks(body, blocks);
+        _renderPromptBlocks(body, blocks, true);
     } catch (e) {
         body.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
     }
