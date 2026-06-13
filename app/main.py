@@ -21,8 +21,17 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     init_db()
-    from app.models import refresh_models
+    from app.models import refresh_models, is_proxy_connected
     await refresh_models()
+    if is_auth_enabled() and not is_proxy_connected():
+        async def _proxy_retry_loop():
+            while not is_proxy_connected():
+                await asyncio.sleep(60)
+                await refresh_models()
+                if is_proxy_connected():
+                    logger.info("Proxy reconnected, models loaded")
+                    break
+        asyncio.create_task(_proxy_retry_loop())
     from app import tm as _tm_mod
     _tm_mod.set_main_loop(asyncio.get_running_loop())
     if not is_auth_enabled():

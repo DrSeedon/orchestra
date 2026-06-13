@@ -4247,14 +4247,16 @@ async function _renderClientModal() {
         const models = data.models || [];
         const connected = data.proxy_connected;
         const currency = document.body.dataset.currency || '$';
-        let html = `<div class="flex items-center justify-between mb-3">
-            <span class="text-xs ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? '🟢 Proxy connected' : '🔴 Proxy offline'}</span>
-            <button onclick="_retryProxy()" class="text-[10px] px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors">Retry</button>
+        let html = `<div class="flex items-center justify-between p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-medium ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? '🟢 Connected' : '🔴 Offline'}</span>
+            </div>
+            <button id="client-refresh-btn" onclick="_refreshModels(this)" class="text-[10px] px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600/60 rounded-lg text-indigo-300 transition-colors">🔄 Refresh</button>
         </div>`;
         if (!models.length) {
-            html += `<div class="text-slate-500 italic py-4 text-center">No models available.<br>Models will appear after proxy connects.</div>`;
+            html += `<div class="text-slate-500 italic py-6 text-center">No models available.<br>Models will appear after proxy connects.<br><span class="text-[10px] text-slate-600 mt-1 block">Auto-retry every 60s</span></div>`;
         } else {
-            html += `<div class="text-xs text-slate-500 mb-2">${models.length} models</div>`;
+            html += `<div class="text-[10px] text-slate-500 mb-2 uppercase tracking-wider font-bold">Models (${models.length})</div>`;
             for (const m of models) {
                 const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k` : '';
                 const priceIn = m.price_input != null ? `${currency}${m.price_input}/M` : '';
@@ -4269,20 +4271,28 @@ async function _renderClientModal() {
                 </div>`;
             }
         }
+        html += `<div class="mt-3 p-2.5 bg-slate-800/40 rounded-xl border border-slate-700/30">
+            <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Usage & Limits</div>
+            <div class="text-[10px] text-slate-500 italic">Available in proxy admin panel</div>
+        </div>`;
         body.innerHTML = html;
     } catch (e) {
         body.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
     }
 }
-async function _retryProxy() {
-    const body = document.getElementById('client-modal-body');
-    if (body) body.innerHTML = '<span class="text-slate-500">Reconnecting...</span>';
+async function _refreshModels(btn) {
+    const origText = btn.textContent;
+    btn.textContent = '⏳ Loading...';
+    btn.disabled = true;
     try {
-        await api('/api/models/refresh', { method: 'POST' });
-    } catch {}
-    _modelsLoaded = false;
-    await _renderClientModal();
-    await loadModels();
+        const result = await api('/api/models/refresh', { method: 'POST' });
+        _modelsLoaded = false;
+        await _renderClientModal();
+        await loadModels();
+    } catch {
+        btn.textContent = '❌ Failed';
+        setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
+    }
 }
 
 const STATUS_ORDER = ['in_progress', 'done', 'new', 'backlog', 'paid', 'cancelled'];
