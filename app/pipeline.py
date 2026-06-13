@@ -35,12 +35,16 @@ BranchStrategy = Literal["parent", "main"]
 
 
 def _model_is_known(model: str) -> bool:
-    """Модель валидна, если это alias (lowercase) ИЛИ полный id из app.models.
+    """Модель валидна, если резолвится в любую доступную модель.
 
-    Two-tier check: aliases use lowercase comparison so manifest can write
-    'opus' or 'Opus', but full model IDs are case-sensitive (must match MODELS).
+    In enterprise mode with limited models, resolve_model falls back to
+    first available — so any alias is valid as long as MODELS is non-empty.
     """
-    return model.lower() in ALIASES or model in MODELS
+    if model.lower() in ALIASES or model in MODELS:
+        return True
+    from app.models import resolve_model
+    resolved = resolve_model(model)
+    return resolved in MODELS
 
 
 def _is_safe_rel(p: str) -> bool:
