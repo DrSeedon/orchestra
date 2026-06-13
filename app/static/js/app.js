@@ -247,15 +247,19 @@ async function loadMoreLogs() {
 // === Models ===
 async function loadModels() {
     try {
-        const models = await api('/api/models');
+        const data = await api('/api/models');
+        const models = data.models || [];
         const select = $('#orch-model');
-        select.innerHTML = '';
-        for (const m of models) {
-            const opt = document.createElement('option');
-            opt.value = m.id;
-            opt.textContent = `${m.name} (${m.id})`;
-            select.appendChild(opt);
+        if (select) {
+            select.innerHTML = '';
+            for (const m of models) {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = `${m.name} (${m.id})`;
+                select.appendChild(opt);
+            }
         }
+        _updateProxyStatus(data.proxy_connected);
     } catch {}
 }
 
@@ -1151,10 +1155,22 @@ let _modelsLoaded = false;
 async function _ensureModels() {
     if (_modelsLoaded) return;
     try {
-        const models = await api('/api/models');
+        const data = await api('/api/models');
+        const models = data.models || [];
         _MODELS = models.map(m => ({ id: m.id, label: m.name }));
         _modelsLoaded = true;
     } catch {}
+}
+function _updateProxyStatus(connected) {
+    const el = document.getElementById('proxy-status');
+    if (!el) return;
+    if (connected) {
+        el.textContent = '🟢';
+        el.title = 'Proxy connected';
+    } else {
+        el.textContent = '🔴';
+        el.title = 'Proxy offline — no models available';
+    }
 }
 async function _showModelPicker(agentName, currentModel, anchor) {
     const existing = document.getElementById('model-picker-dd');
@@ -4178,15 +4194,55 @@ function switchLeftTab(tab) {
         btn.classList.toggle('text-slate-500', !isActive);
         btn.classList.toggle('border-transparent', !isActive);
     });
+    const clientPanel = document.getElementById('client-panel');
     if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
     if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
+    if (clientPanel) clientPanel.classList.toggle('hidden', tab !== 'client');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
     if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 5000); }
     else { if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; } }
     if (_jobsTabActive) { loadJobs(); if (!_jobsInterval) _jobsInterval = setInterval(loadJobs, 10000); }
     else { if (_jobsInterval) { clearInterval(_jobsInterval); _jobsInterval = null; } }
+    if (tab === 'client') loadClientInfo();
+}
+
+async function loadClientInfo() {
+    const panel = document.getElementById('client-panel');
+    if (!panel) return;
+    panel.innerHTML = '<span class="text-slate-500">Loading...</span>';
+    try {
+        const data = await api('/api/models');
+        const models = data.models || [];
+        const connected = data.proxy_connected;
+        const currency = document.body.dataset.currency || '$';
+        let html = `<div class="space-y-3">`;
+        html += `<div class="flex items-center gap-2 mb-2">
+            <span class="text-sm font-bold text-white">Client Info</span>
+            <span class="text-xs ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? '🟢 Proxy connected' : '🔴 Proxy offline'}</span>
+        </div>`;
+        if (!models.length) {
+            html += `<div class="text-slate-500 italic">No models available</div>`;
+        } else {
+            html += `<div class="text-xs text-slate-500 mb-1">${models.length} models available</div>`;
+            for (const m of models) {
+                const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k ctx` : '';
+                const price = (m.price_input != null && m.price_output != null)
+                    ? `${currency}${m.price_input}/M in · ${currency}${m.price_output}/M out`
+                    : '';
+                html += `<div class="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                    <div class="font-medium text-slate-200 text-xs">${escHtml(m.name)}</div>
+                    <div class="text-[10px] text-slate-500 font-mono">${escHtml(m.id)}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">${[ctx, price].filter(Boolean).join(' · ')}</div>
+                </div>`;
+            }
+        }
+        html += `</div>`;
+        panel.innerHTML = html;
+    } catch (e) {
+        panel.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
+    }
 }
 
 const STATUS_ORDER = ['in_progress', 'done', 'new', 'backlog', 'paid', 'cancelled'];
