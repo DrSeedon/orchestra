@@ -193,10 +193,41 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
             if alias not in ALIASES and alias != mid:
                 ALIASES[alias] = mid
 
+    _generate_semantic_aliases()
     _proxy_connected = True
     mode_label = "enterprise (proxy-only)" if enterprise_mode else "dev (merged)"
     logger.info(f"Loaded {len(models_list)} models from proxy ({added} new, {mode_label})")
     return True
+
+
+# Semantic alias patterns: short name → match first model containing substring
+_SEMANTIC_PATTERNS = [
+    ("opus", "opus"),
+    ("opus4.8", "opus-4-8"),
+    ("opus4.6", "opus-4-6"),
+    ("sonnet", "sonnet"),
+    ("haiku", "haiku"),
+    ("fable", "fable"),
+    ("deepseek", "deepseek"),
+    ("deepseek-flash", "deepseek-v4-flash"),
+    ("deepseek-pro", "deepseek-v4-pro"),
+    ("gemini", "gemini"),
+    ("gemini-flash", "gemini-2.5-flash"),
+    ("llama", "llama"),
+    ("mistral", "mistral"),
+    ("gpt-mini", "gpt-4o-mini"),
+]
+
+
+def _generate_semantic_aliases():
+    """Generate standard short aliases (opus, sonnet, etc.) from loaded models."""
+    for alias, pattern in _SEMANTIC_PATTERNS:
+        if alias in ALIASES:
+            continue
+        for mid in MODELS:
+            if pattern in mid:
+                ALIASES[alias] = mid
+                break
 
 
 async def refresh_models() -> None:
@@ -219,6 +250,8 @@ def resolve_model(model: str) -> str:
         return ALIASES[m]
     if m in MODELS:
         return m
+    if MODELS:
+        logger.warning(f"resolve_model: '{model}' not found in {len(MODELS)} loaded models, returning as-is")
     return model
 
 
