@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#restart-cli-btn').addEventListener('click', restartCli);
     $('#prompt-modal-close').addEventListener('click', closePromptModal);
     $('#prompt-modal').addEventListener('click', (e) => { if (e.target === $('#prompt-modal')) closePromptModal(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); closeClientModal(); } });
     const compactBtn = $('#compact-toggle-btn');
     if (compactBtn) {
         compactBtn.textContent = window.compactMode ? '📄' : '📋';
@@ -125,6 +125,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     loadModels();
+    if (document.body.dataset.authEnabled === 'true') {
+        document.getElementById('new-orch-btn')?.remove();
+        document.getElementById('new-orch-modal')?.remove();
+        document.querySelector('#proxy-btn')?.parentElement?.remove();
+        document.getElementById('profiles-btn')?.parentElement?.remove();
+        const clientBtn = document.getElementById('client-btn');
+        if (clientBtn) clientBtn.addEventListener('click', openClientModal);
+        const clientClose = document.getElementById('client-modal-close');
+        if (clientClose) clientClose.addEventListener('click', closeClientModal);
+        const clientModal = document.getElementById('client-modal');
+        if (clientModal) clientModal.addEventListener('click', (e) => { if (e.target === clientModal) closeClientModal(); });
+    }
     loadOrchestrators();
     scheduleRefresh();
     initFilePreviewModal();
@@ -4194,55 +4206,75 @@ function switchLeftTab(tab) {
         btn.classList.toggle('text-slate-500', !isActive);
         btn.classList.toggle('border-transparent', !isActive);
     });
-    const clientPanel = document.getElementById('client-panel');
     if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
     if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
-    if (clientPanel) clientPanel.classList.toggle('hidden', tab !== 'client');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
     if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 5000); }
     else { if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; } }
     if (_jobsTabActive) { loadJobs(); if (!_jobsInterval) _jobsInterval = setInterval(loadJobs, 10000); }
     else { if (_jobsInterval) { clearInterval(_jobsInterval); _jobsInterval = null; } }
-    if (tab === 'client') loadClientInfo();
 }
 
-async function loadClientInfo() {
-    const panel = document.getElementById('client-panel');
-    if (!panel) return;
-    panel.innerHTML = '<span class="text-slate-500">Loading...</span>';
+function openClientModal() {
+    const modal = document.getElementById('client-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    _renderClientModal();
+}
+function closeClientModal() {
+    const modal = document.getElementById('client-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+async function _renderClientModal() {
+    const body = document.getElementById('client-modal-body');
+    if (!body) return;
+    body.innerHTML = '<span class="text-slate-500">Loading...</span>';
     try {
         const data = await api('/api/models');
         const models = data.models || [];
         const connected = data.proxy_connected;
         const currency = document.body.dataset.currency || '$';
-        let html = `<div class="space-y-3">`;
-        html += `<div class="flex items-center gap-2 mb-2">
-            <span class="text-sm font-bold text-white">Client Info</span>
+        let html = `<div class="flex items-center justify-between mb-3">
             <span class="text-xs ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? '🟢 Proxy connected' : '🔴 Proxy offline'}</span>
+            <button onclick="_retryProxy()" class="text-[10px] px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors">Retry</button>
         </div>`;
         if (!models.length) {
-            html += `<div class="text-slate-500 italic">No models available</div>`;
+            html += `<div class="text-slate-500 italic py-4 text-center">No models available.<br>Models will appear after proxy connects.</div>`;
         } else {
-            html += `<div class="text-xs text-slate-500 mb-1">${models.length} models available</div>`;
+            html += `<div class="text-xs text-slate-500 mb-2">${models.length} models</div>`;
             for (const m of models) {
-                const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k ctx` : '';
-                const price = (m.price_input != null && m.price_output != null)
-                    ? `${currency}${m.price_input}/M in · ${currency}${m.price_output}/M out`
-                    : '';
-                html += `<div class="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                    <div class="font-medium text-slate-200 text-xs">${escHtml(m.name)}</div>
-                    <div class="text-[10px] text-slate-500 font-mono">${escHtml(m.id)}</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">${[ctx, price].filter(Boolean).join(' · ')}</div>
+                const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k` : '';
+                const priceIn = m.price_input != null ? `${currency}${m.price_input}/M` : '';
+                const priceOut = m.price_output != null ? `${currency}${m.price_output}/M` : '';
+                html += `<div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 mb-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-medium text-slate-200 text-xs">${escHtml(m.name)}</span>
+                        ${ctx ? `<span class="text-[10px] text-indigo-400 font-mono">${ctx}</span>` : ''}
+                    </div>
+                    <div class="text-[10px] text-slate-500 font-mono mt-0.5">${escHtml(m.id)}</div>
+                    ${priceIn || priceOut ? `<div class="text-[10px] text-slate-400 mt-1">↓ ${priceIn} &nbsp; ↑ ${priceOut}</div>` : ''}
                 </div>`;
             }
         }
-        html += `</div>`;
-        panel.innerHTML = html;
+        body.innerHTML = html;
     } catch (e) {
-        panel.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
+        body.innerHTML = `<span class="text-red-400 text-xs">${escHtml(e.message)}</span>`;
     }
+}
+async function _retryProxy() {
+    const body = document.getElementById('client-modal-body');
+    if (body) body.innerHTML = '<span class="text-slate-500">Reconnecting...</span>';
+    try {
+        await api('/api/models/refresh', { method: 'POST' });
+    } catch {}
+    _modelsLoaded = false;
+    await _renderClientModal();
+    await loadModels();
 }
 
 const STATUS_ORDER = ['in_progress', 'done', 'new', 'backlog', 'paid', 'cancelled'];

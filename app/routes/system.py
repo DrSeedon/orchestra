@@ -53,6 +53,7 @@ async def dashboard(request: Request):
         "currency_symbol": os.getenv("CURRENCY_SYMBOL", "₽"),
         "hide_thinking": is_auth_enabled(),
         "is_auth_enabled": is_auth_enabled(),
+        "client_name": os.getenv("CLIENT_NAME", "Client"),
     })
 
 
@@ -348,6 +349,13 @@ async def list_models():
             entry["price_output"] = prices["output"]
         models.append(entry)
     return {"models": models, "proxy_connected": is_proxy_connected()}
+
+
+@router.post("/api/models/refresh")
+async def refresh_models_endpoint():
+    from app.models import refresh_models
+    await refresh_models()
+    return {"ok": True, "proxy_connected": is_proxy_connected(), "model_count": len(MODELS)}
 
 
 @router.get("/api/stats")
