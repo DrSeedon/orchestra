@@ -21,8 +21,6 @@ MODELS = {
     "gpt-5.5": "GPT-5.5",
     "gpt-5.4": "GPT-5.4",
     "gpt-5.4-mini": "GPT-5.4 Mini",
-    "deepseek/deepseek-v4-pro": "DeepSeek V4 Pro (1M)",
-    "deepseek/deepseek-v4-flash": "DeepSeek V4 Flash (1M)",
 }
 
 CONTEXT_LIMITS = {
@@ -34,8 +32,6 @@ CONTEXT_LIMITS = {
     "gpt-5.5": 258400,
     "gpt-5.4": 258400,
     "gpt-5.4-mini": 258400,
-    "deepseek/deepseek-v4-pro": 1000000,
-    "deepseek/deepseek-v4-flash": 1000000,
 }
 
 # Short aliases let agents use "opus", "sonnet" etc. in spawn_worker without
@@ -61,13 +57,6 @@ ALIASES = {
     "gpt5.4": "gpt-5.4",
     "gpt5.4mini": "gpt-5.4-mini",
     "gpt-5.4mini": "gpt-5.4-mini",
-    "deepseek": "deepseek/deepseek-v4-pro",
-    "deepseek-pro": "deepseek/deepseek-v4-pro",
-    "v4-pro": "deepseek/deepseek-v4-pro",
-    "deepseek-v4-pro": "deepseek/deepseek-v4-pro",
-    "deepseek-flash": "deepseek/deepseek-v4-flash",
-    "v4-flash": "deepseek/deepseek-v4-flash",
-    "deepseek-v4-flash": "deepseek/deepseek-v4-flash",
 }
 
 BACKENDS = {
@@ -79,8 +68,6 @@ BACKENDS = {
     "gpt-5.5": "codex",
     "gpt-5.4": "codex",
     "gpt-5.4-mini": "codex",
-    "deepseek/deepseek-v4-pro": "claude",
-    "deepseek/deepseek-v4-flash": "claude",
 }
 
 # TOKEN_PRICES is for internal cost tracking only (subscription plan, not real API billing)
@@ -91,8 +78,6 @@ TOKEN_PRICES = {
     "claude-opus-4-6[1m]": {"input": 15.0, "output": 75.0},
     "claude-sonnet-4-6":   {"input": 3.0,  "output": 15.0},
     "claude-haiku-4-5":    {"input": 0.80, "output": 4.0},
-    "deepseek/deepseek-v4-pro":   {"input": 0.435, "output": 0.87},
-    "deepseek/deepseek-v4-flash": {"input": 0.098, "output": 0.197},
 }
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
