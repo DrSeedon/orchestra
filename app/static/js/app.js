@@ -261,6 +261,8 @@ async function loadModels() {
     try {
         const data = await api('/api/models');
         const models = data.models || [];
+        _MODELS = models.map(m => ({ id: m.id, label: m.name }));
+        _modelsLoaded = true;
         const select = $('#orch-model');
         if (select) {
             select.innerHTML = '';

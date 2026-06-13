@@ -251,7 +251,9 @@ def resolve_model(model: str) -> str:
     if m in MODELS:
         return m
     if MODELS:
-        logger.warning(f"resolve_model: '{model}' not found in {len(MODELS)} loaded models, returning as-is")
+        first = next(iter(MODELS))
+        logger.warning(f"resolve_model: '{model}' not found in {len(MODELS)} models, fallback → '{first}'")
+        return first
     return model
 
 
