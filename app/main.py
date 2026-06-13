@@ -21,8 +21,6 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     init_db()
-    from app.models import refresh_models
-    await refresh_models()
     # YouGile sync fired from to_thread workers needs the app loop captured
     from app import tm as _tm_mod
     _tm_mod.set_main_loop(asyncio.get_running_loop())

@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from app.auth import is_auth_enabled
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
 from app.deps import manager, templates
-from app.models import MODELS, CONTEXT_LIMITS, TOKEN_PRICES, is_proxy_connected
+from app.models import MODELS
 from app.pipeline import list_pipelines
 
 logger = logging.getLogger("orchestra.system")
@@ -336,18 +336,7 @@ async def remove_profile(name: str):
 
 @router.get("/api/models")
 async def list_models():
-    models = []
-    for mid, name in MODELS.items():
-        entry = {"id": mid, "name": name}
-        ctx = CONTEXT_LIMITS.get(mid)
-        if ctx:
-            entry["context_length"] = ctx
-        prices = TOKEN_PRICES.get(mid)
-        if prices:
-            entry["price_input"] = prices["input"]
-            entry["price_output"] = prices["output"]
-        models.append(entry)
-    return {"models": models, "proxy_connected": is_proxy_connected()}
+    return [{"id": k, "name": v} for k, v in MODELS.items()]
 
 
 @router.get("/api/stats")

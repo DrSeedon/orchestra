@@ -24,7 +24,6 @@
         </div>
         <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
             <span id="stats-line"></span>
-            {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status">⏳</span>{% endif %}
             <div class="relative">
                 <button id="proxy-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400 flex items-center gap-1" title="Proxy settings">
                     <span id="proxy-flag">🌐</span>
@@ -158,13 +157,11 @@
                 <button data-left-tab="files" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-white border-b-2 border-indigo-500 transition-colors" onclick="switchLeftTab('files')">FILES</button>
                 <button data-left-tab="tasks" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('tasks')">TASKS</button>
                 <button data-left-tab="jobs" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('jobs')">JOBS</button>
-                {% if is_auth_enabled %}<button data-left-tab="client" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('client')">CLIENT</button>{% endif %}
                 <button id="open-folder-btn" title="Open in file manager" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;transition:opacity 0.15s" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='0.5'">📂</button>
             </div>
             <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1"></div>
             <div id="tasks-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
             <div id="jobs-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
-            {% if is_auth_enabled %}<div id="client-panel" class="flex-1 overflow-y-auto text-xs p-2 hidden"></div>{% endif %}
         </div>
 
         <!-- Chat -->
