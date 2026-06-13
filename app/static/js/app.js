@@ -125,10 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     loadModels();
-    if (document.body.dataset.authEnabled === 'true') {
-        document.getElementById('new-orch-btn')?.remove();
-        document.getElementById('new-orch-modal')?.remove();
-    }
     loadOrchestrators();
     scheduleRefresh();
     initFilePreviewModal();

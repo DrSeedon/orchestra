@@ -91,9 +91,6 @@ async def create_session(req: CreateSessionRequest):
     from app.routes.system import _is_safe_path
     if not _is_safe_path(req.cwd):
         return JSONResponse({"error": f"cwd not in allowed paths: {req.cwd}"}, status_code=403)
-    from app.auth import is_auth_enabled
-    if is_auth_enabled() and req.is_orchestrator:
-        return JSONResponse({"error": "Orchestrator creation is disabled"}, status_code=403)
     scope = req.scope or req.cwd
     try:
         session = await manager.create_session(
