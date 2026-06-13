@@ -116,7 +116,7 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
     enterprise_mode=False: MERGE with existing hardcoded models (dev fallback).
     """
     global _proxy_connected
-    base_url = os.environ.get("UPSTREAM_API", "https://api.anthropic.com")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", os.environ.get("UPSTREAM_API", "https://api.anthropic.com"))
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     url = f"{base_url.rstrip('/')}/v1/models"
 
