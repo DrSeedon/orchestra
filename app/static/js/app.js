@@ -1,5 +1,6 @@
 // Cap DOM nodes to avoid memory growth during long agent sessions
 const MAX_CHAT_NODES = 500;
+function fmtCost(v) { v = Number(v) || 0; if (v === 0) return '$0.00'; if (v < 0.01) return '$' + v.toFixed(4); return '$' + v.toFixed(2); }
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
@@ -1266,7 +1267,7 @@ function updateAgentInfo(session) {
     changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
     $('#ai-role').textContent = session.role || 'worker';
     // Cost is virtual (API-equivalent), not real spend — subscription model
-    $('#ai-cost').textContent = `$${(session.cost_usd || 0).toFixed(2)}`;
+    $('#ai-cost').textContent = fmtCost(session.cost_usd);
     $('#ai-cost').title = `$${(session.cost_usd || 0).toFixed(4)} (CLI cost, includes cache)`;
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
@@ -1443,8 +1444,8 @@ function createAgentItem(s) {
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
         costSpan.className = 'text-green-400';
-        costSpan.textContent = `$${s.cost_usd.toFixed(2)}`;
-        costSpan.title = `$${s.cost_usd.toFixed(2)}`;
+        costSpan.textContent = fmtCost(s.cost_usd);
+        costSpan.title = fmtCost(s.cost_usd);
         meta.appendChild(costSpan);
     }
 
