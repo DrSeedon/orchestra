@@ -320,6 +320,10 @@ class ClaudeBackend:
                 if prices:
                     p_in = prices["input"]
                     p_out = prices["output"]
+                    # Recalculate cost from real TOKEN_PRICES (SDK uses hardcoded Claude prices)
+                    real_cost = (input_tokens * p_in + output_tokens * p_out) / 1_000_000
+                    if not self.model.startswith("claude-"):
+                        cost = real_cost
                     # Anthropic cache pricing: cache_read = 10% of input, cache_create = 125%
                     cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
 
