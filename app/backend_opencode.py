@@ -143,6 +143,9 @@ class OpenCodeBackend:
         extra_kwargs: dict = {}
         if agent_uid:
             extra_kwargs["preexec_fn"] = _make_preexec(agent_uid)
+            env["HOME"] = "/workspace"
+            env["XDG_DATA_HOME"] = "/workspace/.local/share"
+            env["XDG_CONFIG_HOME"] = "/workspace/.config"
         last_err = None
         for attempt in range(PORT_RETRIES):
             self._port = _free_port()
