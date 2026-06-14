@@ -107,6 +107,17 @@ def _apply_symlink(repo: Path, wt_path: Path, sl: "Symlink") -> None:
     os.symlink(str(src), str(target))
 
 
+def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
+    """Run git command as agent user if ORCHESTRA_AGENT_UID is set (cap_drop=ALL workaround)."""
+    agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+    if agent_uid:
+        import shutil
+        gosu = shutil.which("gosu")
+        if gosu:
+            args = [gosu, agent_uid] + args
+    return subprocess.run(args, **kwargs)
+
+
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
                     base_branch: str = "main",
                     worktree_cfg: "WorktreeCfg | None" = None) -> Worktree:
@@ -131,12 +142,12 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
     if wt_path.exists():
         raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
 
-    ref_check = subprocess.run(
+    ref_check = _git_cmd(
         ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
         cwd=str(repo), capture_output=True, text=True,
     )
 
-    fmt_check = subprocess.run(
+    fmt_check = _git_cmd(
         ["git", "check-ref-format", "--branch", branch],
         cwd=str(repo), capture_output=True, text=True,
     )
@@ -144,17 +155,14 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
         raise ValueError(f"Invalid branch name '{branch}': {fmt_check.stderr.strip()}")
 
     if ref_check.returncode == 0:
-        # ветка уже существует — допустимо только если не занята другим worktree
         if _is_branch_checked_out_elsewhere(str(repo), branch, wt_path):
             raise ValueError(f"Branch '{branch}' is checked out in another worktree.")
-        # reuse: git worktree add <path> <branch> (без -b)
-        result = subprocess.run(
+        result = _git_cmd(
             ["git", "worktree", "add", str(wt_path), branch],
             cwd=str(repo), capture_output=True, text=True,
         )
     else:
-        # ветка новая — создаём через -b
-        result = subprocess.run(
+        result = _git_cmd(
             ["git", "worktree", "add", str(wt_path), "-b", branch, base_branch],
             cwd=str(repo), capture_output=True, text=True,
         )
