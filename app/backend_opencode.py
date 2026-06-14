@@ -167,13 +167,11 @@ class OpenCodeBackend:
         env = dict(os.environ)
         raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         uid = _resolve_uid(raw_uid) if raw_uid else None
-        extra_kwargs: dict = {}
+        # Use gosu for proper uid switch — preexec_fn setuid doesn't fully work
+        # with Bun's posix_spawn (child inherits parent's saved-set-uid permissions)
+        cmd_prefix: list[str] = []
         if uid is not None:
-            def _make_preexec(u: int):
-                def _setuid():
-                    os.setuid(u)
-                return _setuid
-            extra_kwargs["preexec_fn"] = _make_preexec(uid)
+            cmd_prefix = ["gosu", str(uid)]
             env["HOME"] = "/workspace"
             env["XDG_DATA_HOME"] = "/workspace/.local/share"
             env["XDG_CONFIG_HOME"] = "/workspace/.config"
@@ -181,12 +179,11 @@ class OpenCodeBackend:
         for attempt in range(PORT_RETRIES):
             self._port = _free_port()
             self._proc = await asyncio.create_subprocess_exec(
-                OPENCODE_BIN, "serve", "--port", str(self._port),
+                *cmd_prefix, OPENCODE_BIN, "serve", "--port", str(self._port),
                 "--hostname", "127.0.0.1", "--log-level", "ERROR",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
                 env=env, cwd=self.cwd,
-                **extra_kwargs,
             )
             if await self._wait_ready():
                 return
