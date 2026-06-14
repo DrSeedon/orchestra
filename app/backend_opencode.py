@@ -312,7 +312,15 @@ class OpenCodeBackend:
                     if evt is None:
                         continue
                     props = evt.get("properties") or {}
-                    if props.get("sessionID") != self._session_id:
+                    evt_sid = props.get("sessionID")
+                    if evt_sid and evt_sid != self._session_id:
+                        continue
+                    if not evt_sid:
+                        # Global event (heartbeat) — check inactivity
+                        if chat_task.done() and (asyncio.get_event_loop().time() - last_meaningful) > INACTIVITY_TIMEOUT:
+                            logger.info(f"SSE inactivity timeout ({INACTIVITY_TIMEOUT}s) — chat done, forcing turn_end")
+                            normal_end = True
+                            break
                         continue
                     t = evt.get("type", "")
                     if t == "message.part.updated":
@@ -331,11 +339,7 @@ class OpenCodeBackend:
                     elif t == "session.idle":
                         normal_end = True
                         break
-                    # else: heartbeat/status/diff → check inactivity
-                    elif chat_task.done() and (asyncio.get_event_loop().time() - last_meaningful) > INACTIVITY_TIMEOUT:
-                        logger.info(f"SSE inactivity timeout ({INACTIVITY_TIMEOUT}s) — chat done, forcing turn_end")
-                        normal_end = True
-                        break
+                    # else: status/diff/plugin → ignore
                 else:
                     # chat task finished before SSE idle — wait up to 10s for SSE to catch up
                     if chat_task.cancelled():
