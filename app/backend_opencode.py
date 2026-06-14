@@ -110,8 +110,11 @@ class OpenCodeBackend:
     # ── lifecycle ──
 
     async def connect(self) -> None:
+        import sys
+        print(f"[OC-DEBUG] connect() called", file=sys.stderr, flush=True)
         self._write_opencode_json()
         await self._start_daemon()
+        print(f"[OC-DEBUG] daemon started on port {self._port}", file=sys.stderr, flush=True)
         self._http = httpx.AsyncClient(base_url=self._base, timeout=httpx.Timeout(TURN_TIMEOUT))
         if not self._session_id:
             resp = await self._http.post("/session", json={})
@@ -208,16 +211,17 @@ class OpenCodeBackend:
     # ── messaging ──
 
     async def send(self, message: str) -> None:
+        import sys
+        print(f"[OC-DEBUG] send() called: http={self._http is not None} sid={self._session_id}", file=sys.stderr, flush=True)
         if not self._http or not self._session_id:
             raise RuntimeError("OpenCodeBackend not connected")
         if self._chat_task and not self._chat_task.done():
             raise RuntimeError("OpenCodeBackend turn already in progress")
-        # Open SSE stream BEFORE firing chat POST — SSE only delivers live events,
-        # if we connect after the turn completes we miss everything.
         self._sse_response = await self._http.send(
             self._http.build_request("GET", "/event"),
             stream=True,
         )
+        print(f"[OC-DEBUG] SSE opened: status={self._sse_response.status_code}", file=sys.stderr, flush=True)
         body = {
             "providerID": self.provider_id,
             "modelID": self.model,
