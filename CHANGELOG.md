@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.21.0 — 2026-06-14
+
+### Added
+- 🔌 **OpenCodeBackend (`app/backend_opencode.py`)** — third `BackendLike` backend wrapping the `opencode serve` daemon (HTTP + global SSE bus), alongside Claude/Codex. Wired into `session.py:_make_backend` (`backend_type == "opencode"`) + `events.py` type-comment. Task #96, Codex-reviewed plan + impl (4 rounds → APPROVED). 39 unit tests, all green.
+- 🧭 **Backend routing → opencode (`app/models.py`, Phase 2)** — `_infer_backend()` now: `gpt-*`→codex, `claude-*`→claude, **everything else** (deepseek, gemini, llama, mistral, …) → `opencode`. `backend_for_model()` infers from the ID prefix for UNregistered models instead of defaulting to claude — a never-seen `deepseek/deepseek-v4-flash` from the proxy routes correctly. No model IDs hardcoded; dynamic `fetch_models_from_proxy` populates `BACKENDS` via `_infer_backend`. Provider/model split (`OpenCodeBackend.__init__`) parses proxy `provider/model` IDs (`deepseek/deepseek-v4-flash` → provider `deepseek`, model `deepseek-v4-flash`; first slash only). `tests/test_backend_routing.py` (9 tests).
+  - **Shape**: Codex-like managed subprocess (one turn per `send`, native `cost` from the chat response — NO `TOKEN_PRICES` table needed) but with Claude-like streaming richness (`text`/`thinking`/`tool_use`/`tool_result`) delivered over a SEPARATE global SSE stream (`GET /event`), not inline.
+  - **Dual-source turn coordination**: `events()` does `asyncio.wait({next_sse_line, chat_task}, FIRST_COMPLETED, timeout=TURN_TIMEOUT)`. `session.idle` = turn boundary; the awaited chat POST (`{info:{cost,tokens}}`) supplies authoritative `turn_end` metadata. Exactly ONE `turn_end` on every exit path (idle / sse_failed / timeout / chat_failed / chat_cancelled / early-close).
+  - **Transport**: plain `httpx` (not the `opencode-ai` SDK) — the SDK's pydantic event types silently drop `reasoning`/`message.part.delta`/unknown events; raw-dict parsing keeps full fidelity. No new dependency (httpx already present).
+  - **MCP**: Orchestra stdio `{command,args,env}` → OpenCode `McpLocalConfig {type:"local",command:[...],environment,enabled}`, written into a per-worker `opencode.json` in the worktree (merged if one exists). `permission: {edit,bash,webfetch:"allow"}`.
+  - **Daemon lifecycle**: one daemon per backend instance, free-port alloc with 3× retry, readiness via `GET /app` 200 poll, stdio → DEVNULL (no pipe back-pressure), teardown = abort → terminate → wait → kill → **reap** (verified: no zombies).
+- **Reasoning**: re-derived the whole seam from a LIVE probe (opencode v1.17.6 + SDK 0.1.0a36) because the referenced `docs/research/RESEARCH-OPENCODE.md` never existed in the worktree. Captured real event shapes from a daemon turn — that's how the `reasoning` part (→ `thinking`) and cumulative-text streaming (suffix-only emit) were found.
+
+### Fixed (caught during Codex review, in the new backend)
+- 🐛 **SSE `aclose()` on a running generator** — `next_line.cancel()` must be `await`ed BEFORE `sse.aclose()`, else `RuntimeError: asynchronous generator is already running` silently swallows the close → HTTP-stream leak. Now: cancel → await → aclose.
+- 🐛 **`CancelledError` leak on normal-end await** — `await wait_for(chat_task)` caught only `Exception`; an externally-cancelled task raises `CancelledError` (BaseException). Now a `chat_task.cancelled()` pre-check + explicit `except asyncio.CancelledError` → `turn_end(chat_cancelled)`.
+- 🐛 **Concurrent `disconnect()` race** — snapshot `chat_task = self._chat_task` at the top of `events()`; a parallel `disconnect()` nulling the field no longer causes `AttributeError` mid-iteration.
+
 ## v2.20.0 — 2026-06-11
 
 ### Changed

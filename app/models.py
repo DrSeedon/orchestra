@@ -100,9 +100,15 @@ def _generate_aliases(model_id: str) -> list[str]:
 
 
 def _infer_backend(model_id: str) -> str:
+    # gpt-* → Codex CLI, claude-* → Claude SDK, everything else (deepseek, gemini,
+    # llama, mistral, …) → the OpenCode daemon. The proxy serves these via
+    # provider/model IDs (e.g. "deepseek/deepseek-v4-flash") which start with the
+    # provider name, never "gpt-"/"claude-".
     if model_id.startswith("gpt-"):
         return "codex"
-    return "claude"
+    if model_id.startswith("claude-"):
+        return "claude"
+    return "opencode"
 
 
 def is_proxy_connected() -> bool:
@@ -258,7 +264,11 @@ def resolve_model(model: str) -> str:
 
 
 def backend_for_model(model: str) -> str:
-    return BACKENDS.get(model, "claude")
+    # Registered models win; unregistered ones infer from the ID prefix so a
+    # never-seen deepseek/gemini/… routes to opencode instead of defaulting to claude.
+    if model in BACKENDS:
+        return BACKENDS[model]
+    return _infer_backend(model)
 
 
 def available_models_block() -> str:
