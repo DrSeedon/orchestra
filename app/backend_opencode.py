@@ -28,6 +28,20 @@ logger = logging.getLogger(__name__)
 
 OPENCODE_BIN = shutil.which("opencode") or os.environ.get("OPENCODE_BIN", "opencode")
 
+
+def _resolve_uid(val: str) -> int | None:
+    """Resolve ORCHESTRA_AGENT_UID (name or numeric) to int uid."""
+    try:
+        return int(val)
+    except ValueError:
+        pass
+    import pwd
+    try:
+        return pwd.getpwnam(val).pw_uid
+    except KeyError:
+        logger.warning(f"Cannot resolve uid for '{val}'")
+        return None
+
 # Native cost comes from the daemon, so no TOKEN_PRICES table — only a context map.
 OPENCODE_CONTEXT_LIMITS = {
     "claude-sonnet-4-6": 200000,
@@ -131,10 +145,11 @@ class OpenCodeBackend:
         full_model = f"{self.provider_id}/{self.model}" if self.provider_id != "anthropic" else self.model
         config["model"] = f"openrouter/{full_model}"
         content = json.dumps(config, indent=2)
-        agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
-        if agent_uid:
+        raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+        uid = _resolve_uid(raw_uid) if raw_uid else None
+        if uid is not None:
             import subprocess as sp
-            script = f"import os,sys; os.setuid({int(agent_uid)}); open(sys.argv[1],'w').write(sys.stdin.read())"
+            script = f"import os,sys; os.setuid({uid}); open(sys.argv[1],'w').write(sys.stdin.read())"
             sp.run(["python3", "-c", script, path], input=content, check=True, capture_output=True, text=True)
         else:
             with open(path, "w") as f:
@@ -142,15 +157,15 @@ class OpenCodeBackend:
 
     async def _start_daemon(self) -> None:
         env = dict(os.environ)
-        agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
-        def _make_preexec(uid_str: str):
-            uid = int(uid_str)
-            def _setuid():
-                os.setuid(uid)
-            return _setuid
+        raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+        uid = _resolve_uid(raw_uid) if raw_uid else None
         extra_kwargs: dict = {}
-        if agent_uid:
-            extra_kwargs["preexec_fn"] = _make_preexec(agent_uid)
+        if uid is not None:
+            def _make_preexec(u: int):
+                def _setuid():
+                    os.setuid(u)
+                return _setuid
+            extra_kwargs["preexec_fn"] = _make_preexec(uid)
             env["HOME"] = "/workspace"
             env["XDG_DATA_HOME"] = "/workspace/.local/share"
             env["XDG_CONFIG_HOME"] = "/workspace/.config"
