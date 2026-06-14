@@ -125,8 +125,12 @@ class OpenCodeBackend:
     # ── lifecycle ──
 
     async def connect(self) -> None:
-        import sys
-        print(f"[OC-DEBUG] connect() called", file=sys.stderr, flush=True)
+        # Ensure cwd is owned by agent — worktree dirs created by root need chown
+        raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+        uid = _resolve_uid(raw_uid) if raw_uid else None
+        if uid is not None and os.path.isdir(self.cwd):
+            import subprocess as sp
+            sp.run(["chown", "-R", f"{uid}:{uid}", self.cwd], capture_output=True)
         self._write_opencode_json()
         await self._start_daemon()
         print(f"[OC-DEBUG] daemon started on port {self._port}", file=sys.stderr, flush=True)
@@ -169,13 +173,20 @@ class OpenCodeBackend:
         content = json.dumps(config, indent=2)
         raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         uid = _resolve_uid(raw_uid) if raw_uid else None
-        if uid is not None:
-            import subprocess as sp
-            script = f"import os,sys; os.setuid({uid}); open(sys.argv[1],'w').write(sys.stdin.read())"
-            sp.run(["python3", "-c", script, path], input=content, check=True, capture_output=True, text=True)
-        else:
+        # Try writing directly (works when cwd owned by root — worktree dirs).
+        # Fall back to subprocess setuid (workspace dirs owned by agent).
+        try:
             with open(path, "w") as f:
                 f.write(content)
+            if uid is not None:
+                os.chown(path, uid, uid)
+        except PermissionError:
+            if uid is not None:
+                import subprocess as sp
+                script = f"import os,sys; os.setuid({uid}); open(sys.argv[1],'w').write(sys.stdin.read())"
+                sp.run(["python3", "-c", script, path], input=content, check=True, capture_output=True, text=True)
+            else:
+                raise
         self._config_path = path
 
     async def _start_daemon(self) -> None:
