@@ -130,7 +130,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
 
     scope_slug = _slugify(scope)
     wt_dir = WORKTREE_ROOT / scope_slug
-    wt_dir.mkdir(parents=True, exist_ok=True)
+    _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
     wt_path = wt_dir / name
 
     if task_id:
