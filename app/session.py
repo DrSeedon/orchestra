@@ -207,6 +207,15 @@ class AgentSession:
                 mcp_env=self._build_codex_mcp_env(),
                 reasoning_effort=self._codex_reasoning_effort(),
             )
+        elif self.backend_type == "opencode":
+            from app.backend_opencode import OpenCodeBackend
+            return OpenCodeBackend(
+                model=self.model, cwd=self.cwd,
+                system_prompt=self.system_prompt,
+                resume_session_id=resume,
+                mcp_servers=self.mcp_servers,
+                is_orchestrator=self.is_orchestrator,
+            )
         else:
             from app.backend_claude import ClaudeBackend
             from app.pipeline import get_role

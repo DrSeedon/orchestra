@@ -11,6 +11,7 @@ class AgentEvent:
 
 # type values:
 # "text"              — agent text output
+# "thinking"          — agent reasoning/thinking output
 # "tool_use"          — tool invocation (content = "tool_name: input_summary")
 # "tool_result"       — tool output
 # "file_change"       — file edit (content = "add /path" or "update /path")
