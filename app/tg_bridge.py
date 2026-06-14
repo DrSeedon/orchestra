@@ -888,35 +888,34 @@ _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
 
 
-# Deduplicated + throttled topic icon updates — TG rate-limits edit_forum_topic hard
-_topic_last_update: dict[str, float] = {}
-_TOPIC_UPDATE_COOLDOWN = 10.0  # seconds between icon updates per topic
-
+# Deduplicated topic icon updates with flood-control retry (like _tg_send_safe)
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
-    now = time.monotonic()
-    last = _topic_last_update.get(orch_name, 0)
-    if now - last < _TOPIC_UPDATE_COOLDOWN:
-        return
     _topic_status[orch_name] = is_running
-    _topic_last_update[orch_name] = now
     short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
+
+    async def _do_edit(chat_id, thread_id):
+        for attempt in range(3):
+            try:
+                await bot.edit_forum_topic(chat_id=chat_id, message_thread_id=thread_id,
+                                           name=short, icon_custom_emoji_id=icon_id)
+                return
+            except TelegramRetryAfter as e:
+                await asyncio.sleep(e.retry_after + 0.5)
+            except Exception as e:
+                if "TOPIC_NOT_MODIFIED" in str(e):
+                    return
+                logger.debug(f"Topic icon update failed: {e}")
+                return
+
     thread_id = config["topics"].get(orch_name)
     if thread_id and bot:
-        try:
-            await bot.edit_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id,
-                                       name=short, icon_custom_emoji_id=icon_id)
-        except Exception as e:
-            logger.debug(f"Topic status update failed: {e}")
+        await _do_edit(config["group_id"], thread_id)
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
-        try:
-            await bot.edit_forum_topic(chat_id=mirror["chat_id"], message_thread_id=mirror["topic_id"],
-                                       name=short, icon_custom_emoji_id=icon_id)
-        except Exception as e:
-            logger.debug(f"Mirror topic status update failed: {e}")
+        await _do_edit(mirror["chat_id"], mirror["topic_id"])
 
 
 async def _mirror_send(orch_name: str, text: str, entities=None):
