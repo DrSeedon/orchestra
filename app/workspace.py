@@ -108,11 +108,11 @@ def _apply_symlink(repo: Path, wt_path: Path, sl: "Symlink") -> None:
 
 
 def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
-    """Run git command as agent user if ORCHESTRA_AGENT_UID is set (cap_drop=ALL workaround)."""
+    """Run command as agent user if ORCHESTRA_AGENT_UID is set (cap_drop=ALL workaround)."""
     agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
     if agent_uid:
-        import shutil
-        gosu = shutil.which("gosu")
+        import shutil as _sh
+        gosu = _sh.which("gosu")
         if gosu:
             args = [gosu, agent_uid] + args
     return subprocess.run(args, **kwargs)
@@ -196,7 +196,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
 
 def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
     wt = Path(worktree_path).resolve()
-    git_common = subprocess.run(
+    git_common = _git_cmd(
         ["git", "rev-parse", "--git-common-dir"],
         cwd=str(wt), capture_output=True, text=True,
     )
@@ -215,22 +215,22 @@ def _ensure_repo_on_branch(repo: str, target_branch: str = "main") -> tuple[str 
     НЕ делает stash pop — это обязанность вызывающего кода в блоке finally.
     """
     did_stash = False
-    repo_status = subprocess.run(
+    repo_status = _git_cmd(
         ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True,
     )
     if repo_status.stdout.strip():
-        stash = subprocess.run(
+        stash = _git_cmd(
             ["git", "stash", "--include-untracked"], cwd=repo, capture_output=True, text=True,
         )
         if stash.returncode != 0:
             return f"main repo dirty and stash failed: {stash.stderr.strip()}", False
         did_stash = True
         logger.info(f"Auto-stashed dirty repo: {repo}")
-    head = subprocess.run(
+    head = _git_cmd(
         ["git", "symbolic-ref", "--short", "HEAD"], cwd=repo, capture_output=True, text=True,
     )
     if head.returncode != 0 or head.stdout.strip() != target_branch:
-        checkout = subprocess.run(
+        checkout = _git_cmd(
             ["git", "checkout", target_branch], cwd=repo, capture_output=True, text=True,
         )
         if checkout.returncode != 0:
@@ -241,7 +241,7 @@ def _ensure_repo_on_branch(repo: str, target_branch: str = "main") -> tuple[str 
 
 def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
     """Return subject lines of commits in branch not in base."""
-    log = subprocess.run(
+    log = _git_cmd(
         ["git", "log", f"{base}..{branch}", "--format=%s", "--reverse"],
         cwd=repo, capture_output=True, text=True,
     )
@@ -289,7 +289,7 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
     separate repo or rebased its branch, losing the common ancestor with main.
     git merge refuses unrelated histories; cherry-pick applies diffs anyway.
     """
-    rev_list = subprocess.run(
+    rev_list = _git_cmd(
         ["git", "rev-list", "--reverse", branch],
         cwd=repo, capture_output=True, text=True,
     )
@@ -302,28 +302,28 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
     messages = _get_commit_messages(repo, branch, "")
 
     for i, sha in enumerate(commits):
-        cp = subprocess.run(
+        cp = _git_cmd(
             ["git", "cherry-pick", "--no-commit", sha],
             cwd=repo, capture_output=True, text=True,
         )
         if cp.returncode != 0:
             cp_err = cp.stderr.strip() or cp.stdout.strip()
             if "nothing to commit" in cp_err or "empty" in cp_err.lower():
-                subprocess.run(["git", "reset"], cwd=repo, capture_output=True, text=True)
+                _git_cmd(["git", "reset"], cwd=repo, capture_output=True, text=True)
                 continue
-            subprocess.run(
+            _git_cmd(
                 ["git", "cherry-pick", "--abort"],
                 cwd=repo, capture_output=True, text=True,
             )
             return {"ok": False, "error": f"cherry-pick failed on commit {sha[:7]} ({i+1}/{len(commits)}): {cp_err}"}
 
-    status = subprocess.run(
+    status = _git_cmd(
         ["git", "diff", "--cached", "--quiet"],
         cwd=repo, capture_output=True, text=True,
     )
     if status.returncode != 0:
         commit_msg = _build_squash_message(branch, messages)
-        subprocess.run(
+        _git_cmd(
             ["git", "commit", "-m", commit_msg],
             cwd=repo, capture_output=True, text=True,
         )
@@ -341,7 +341,7 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
 def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(worktree_path, repo_path)
-    rev = subprocess.run(
+    rev = _git_cmd(
         ["git", "rev-parse", ref],
         cwd=str(repo), capture_output=True, text=True,
     )
@@ -349,7 +349,7 @@ def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None
         logger.warning(f"_reset_worktree_to_ref: cannot resolve {ref}: {rev.stderr.strip()}")
         return
     target_sha = rev.stdout.strip()
-    reset = subprocess.run(
+    reset = _git_cmd(
         ["git", "reset", "--hard", target_sha],
         cwd=str(wt), capture_output=True, text=True,
     )
@@ -362,7 +362,7 @@ def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None
 def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "main") -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
-    lock_path = repo / ".git" / "orchestra-merge.lock"
+    lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(repo))}.lock"
 
     original_branch = None   # инициализируем ДО try/with — finally видит всегда
     did_stash = False         # инициализируем ДО try — иначе UnboundLocalError в finally
@@ -374,13 +374,13 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
             # Save original branch BEFORE any checkout — needed to restore it in finally
-            original_branch_result = subprocess.run(
+            original_branch_result = _git_cmd(
                 ["git", "symbolic-ref", "--short", "HEAD"],
                 cwd=str(repo), capture_output=True, text=True,
             )
             original_branch = original_branch_result.stdout.strip() if original_branch_result.returncode == 0 else None
 
-            branch_result = subprocess.run(
+            branch_result = _git_cmd(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=str(wt), capture_output=True, text=True,
             )
@@ -389,7 +389,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
             else:
                 branch = branch_result.stdout.strip()
 
-                status = subprocess.run(
+                status = _git_cmd(
                     ["git", "status", "--porcelain"],
                     cwd=str(wt), capture_output=True, text=True,
                 )
@@ -399,7 +399,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                     result = {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
                 else:
                     # Edge-case: проверяем target_branch перед checkout
-                    ref_verify = subprocess.run(
+                    ref_verify = _git_cmd(
                         ["git", "show-ref", "--verify", f"refs/heads/{target_branch}"],
                         cwd=str(repo), capture_output=True, text=True,
                     )
@@ -412,7 +412,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                         if main_err:
                             result = {"ok": False, "error": main_err}
                         else:
-                            merge_base = subprocess.run(
+                            merge_base = _git_cmd(
                                 ["git", "merge-base", target_branch, branch],
                                 cwd=str(repo), capture_output=True, text=True,
                             )
@@ -420,7 +420,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
 
                             precheck_ok = True
                             if not unrelated:
-                                precheck = subprocess.run(
+                                precheck = _git_cmd(
                                     ["git", "merge-tree", "--write-tree", target_branch, branch],
                                     cwd=str(repo), capture_output=True, text=True,
                                 )
@@ -440,7 +440,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                     precheck_ok = False
 
                             if precheck_ok:
-                                old_head_result = subprocess.run(
+                                old_head_result = _git_cmd(
                                     ["git", "rev-parse", "HEAD"],
                                     cwd=str(repo), capture_output=True, text=True,
                                 )
@@ -452,19 +452,19 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                     if result and result.get("ok"):
                                         _reset_worktree_to_ref(str(wt), target_branch, str(repo))
                                 else:
-                                    commits_result = subprocess.run(
+                                    commits_result = _git_cmd(
                                         ["git", "rev-list", "--count", f"{target_branch}..{branch}"],
                                         cwd=str(repo), capture_output=True, text=True,
                                     )
                                     commits_merged = int(commits_result.stdout.strip() or "0")
 
                                     messages = _get_commit_messages(str(repo), branch, target_branch)
-                                    merge = subprocess.run(
+                                    merge = _git_cmd(
                                         ["git", "merge", "--squash", branch],
                                         cwd=str(repo), capture_output=True, text=True,
                                     )
                                     if merge.returncode != 0:
-                                        subprocess.run(
+                                        _git_cmd(
                                             ["git", "reset", "--merge"],
                                             cwd=str(repo), capture_output=True, text=True,
                                         )
@@ -472,13 +472,13 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                         logger.error(f"merge_worktree squash failed: repo={repo} branch={branch} err={err}")
                                         result = {"ok": False, "error": err}
                                     else:
-                                        staged = subprocess.run(
+                                        staged = _git_cmd(
                                             ["git", "diff", "--cached", "--quiet"],
                                             cwd=str(repo), capture_output=True, text=True,
                                         )
                                         if staged.returncode != 0:
                                             commit_msg = _build_squash_message(branch, messages)
-                                            commit = subprocess.run(
+                                            commit = _git_cmd(
                                                 ["git", "commit", "-m", commit_msg],
                                                 cwd=str(repo), capture_output=True, text=True,
                                             )
@@ -498,7 +498,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
             # Stash pop on the wrong branch would apply changes to the wrong tree.
             restore_ok = True
             if original_branch and original_branch != target_branch:
-                restore = subprocess.run(
+                restore = _git_cmd(
                     ["git", "checkout", original_branch],
                     cwd=str(repo), capture_output=True, text=True,
                 )
@@ -509,7 +509,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                               "error": f"cannot restore branch '{original_branch}': {restore.stderr.strip()}"}
             # ЕДИНСТВЕННЫЙ stash pop — и ТОЛЬКО после успешного restore
             if did_stash and restore_ok:
-                pop = subprocess.run(
+                pop = _git_cmd(
                     ["git", "stash", "pop"], cwd=str(repo), capture_output=True, text=True,
                 )
                 if pop.returncode != 0:
@@ -527,7 +527,7 @@ _TASK_REF_RE = re.compile(r"(?:\b([A-Z]{2,5})-(\d+)\b|#(\d+)\b)")
 
 
 def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
-    log = subprocess.run(
+    log = _git_cmd(
         ["git", "log", f"{old_head}..HEAD", "--format=%H%x00%s%x00%ad", "--date=short"],
         cwd=repo, capture_output=True, text=True,
     )
@@ -552,7 +552,7 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
         if not refs:
             continue
 
-        stat = subprocess.run(
+        stat = _git_cmd(
             ["git", "diff-tree", "--numstat", "--root", "-m", "--first-parent", full_hash],
             cwd=repo, capture_output=True, text=True,
         )
@@ -584,7 +584,7 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
 
 
 def _is_branch_checked_out_elsewhere(repo: str, branch: str, current_wt: Path) -> bool:
-    wt_list = subprocess.run(
+    wt_list = _git_cmd(
         ["git", "worktree", "list", "--porcelain"],
         cwd=repo, capture_output=True, text=True,
     )
@@ -603,9 +603,9 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                            force: bool = False) -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), str(wt))
-    lock_path = repo / ".git" / "orchestra-merge.lock"
+    lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(repo))}.lock"
 
-    status = subprocess.run(
+    status = _git_cmd(
         ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
     )
     if status.stdout.strip():
@@ -613,7 +613,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         dirty_files = [l[3:] for l in dirty_lines]
         return {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
 
-    unmerged = subprocess.run(
+    unmerged = _git_cmd(
         ["git", "rev-list", f"{from_ref}..HEAD", "--count"],
         cwd=str(wt), capture_output=True, text=True,
     )
@@ -622,7 +622,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         n = unmerged.stdout.strip()
         return {"ok": False, "error": f"{n} unmerged commit(s) on current branch — merge_worker first or pass force=True"}
 
-    reset = subprocess.run(
+    reset = _git_cmd(
         ["git", "reset", "--hard", from_ref],
         cwd=str(wt), capture_output=True, text=True,
     )
@@ -632,7 +632,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
-            ref_check = subprocess.run(
+            ref_check = _git_cmd(
                 ["git", "show-ref", "--verify", f"refs/heads/{new_branch}"],
                 cwd=str(repo), capture_output=True, text=True,
             )
@@ -640,19 +640,19 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                 if _is_branch_checked_out_elsewhere(str(repo), new_branch, wt):
                     return {"ok": False, "error": f"branch '{new_branch}' is checked out in another worktree"}
 
-                checkout = subprocess.run(
+                checkout = _git_cmd(
                     ["git", "checkout", new_branch], cwd=str(wt), capture_output=True, text=True,
                 )
                 if checkout.returncode != 0:
                     return {"ok": False, "error": f"checkout failed: {checkout.stderr.strip()}"}
 
-                merge_main = subprocess.run(
+                merge_main = _git_cmd(
                     ["git", "merge", from_ref, "--no-edit"],
                     cwd=str(wt), capture_output=True, text=True,
                 )
                 if merge_main.returncode != 0:
                     conflict_files = []
-                    status_out = subprocess.run(
+                    status_out = _git_cmd(
                         ["git", "diff", "--name-only", "--diff-filter=U"],
                         cwd=str(wt), capture_output=True, text=True,
                     )
@@ -662,7 +662,7 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                             "state": "conflict",
                             "error": f"merge conflict with {from_ref} — resolve or abort"}
             else:
-                checkout = subprocess.run(
+                checkout = _git_cmd(
                     ["git", "checkout", "-b", new_branch, from_ref],
                     cwd=str(wt), capture_output=True, text=True,
                 )
@@ -691,11 +691,11 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
                         break
         except Exception as e:
             logger.warning(f"gitdir resolve failed for {wt}, using repo_path: {e}")
-    lock_path = _resolve_repo(str(wt), repo_path) / ".git" / "orchestra-merge.lock"
+    lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(_resolve_repo(str(wt), repo_path)))}.lock"
     with open(lock_path, "w") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
-            result = subprocess.run(
+            result = _git_cmd(
                 ["git", "worktree", "remove", str(wt), "--force"],
                 cwd=cwd, capture_output=True, text=True,
             )
@@ -728,7 +728,7 @@ def cleanup_stale_worktrees() -> list[str]:
             git_file = wt_dir / ".git"
             if not (git_file.exists() and git_file.is_file()):
                 continue
-            dirty = subprocess.run(
+            dirty = _git_cmd(
                 ["git", "status", "--porcelain"],
                 cwd=str(wt_dir), capture_output=True, text=True,
             )
@@ -799,19 +799,19 @@ def simulate_conflict(repo_path: str, branch_a: str, branch_b: str) -> dict:
     {ok:False, error} = couldn't run (missing branch / unrelated histories)."""
     repo = _resolve_repo(repo_path, repo_path)
     for ref in (branch_a, branch_b):
-        v = subprocess.run(
+        v = _git_cmd(
             ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
             cwd=str(repo), capture_output=True, text=True,
         )
         if v.returncode != 0:
             return {"ok": False, "error": f"branch '{ref}' not found"}
-    mb = subprocess.run(
+    mb = _git_cmd(
         ["git", "merge-base", branch_a, branch_b],
         cwd=str(repo), capture_output=True, text=True,
     )
     if mb.returncode != 0:
         return {"ok": False, "error": "unrelated histories — cannot simulate"}
-    r = subprocess.run(
+    r = _git_cmd(
         ["git", "merge-tree", "--write-tree", branch_a, branch_b],
         cwd=str(repo), capture_output=True, text=True,
     )
@@ -837,13 +837,13 @@ def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> 
     """Report uncommitted files + unmerged commit subjects for a worktree (relative to base_ref).
     Returns {"error": ...} if git status or the base_ref comparison fails — never a false 'clean'."""
     wt = Path(worktree_path).resolve()
-    dirty = subprocess.run(
+    dirty = _git_cmd(
         ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
     )
     if dirty.returncode != 0:
         return {"error": f"git status failed: {dirty.stderr.strip()}"}
     uncommitted = [l[3:] for l in dirty.stdout.strip().splitlines()] if dirty.stdout.strip() else []
-    log = subprocess.run(
+    log = _git_cmd(
         ["git", "log", f"{base_ref}..HEAD", "--format=%s"],
         cwd=str(wt), capture_output=True, text=True,
     )
