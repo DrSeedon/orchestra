@@ -2239,6 +2239,8 @@ function addChatEntry(type, content, ts, anchor) {
     }`;
     if (type === 'user_message') {
         content = content.replace(/^\[\d{2}:\d{2}\] /, '');
+        // Hide prompt injection (system prompt prepended to first message after resume)
+        if (content.startsWith('[Orchestra platform note:') || content.startsWith('[Orchestra platform')) return;
         // [from:agent-name] prefix means this was an agent-to-agent message injected by the MCP send_message tool,
         // not a human message — style it differently (colored border, sender label)
         const fromMatch = content.match(/^\[from:(.+?)\]\s*([\s\S]*)$/);
