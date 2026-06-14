@@ -133,7 +133,6 @@ class OpenCodeBackend:
             sp.run(["chown", "-R", f"{uid}:{uid}", self.cwd], capture_output=True)
         self._write_opencode_json()
         await self._start_daemon()
-        print(f"[OC-DEBUG] daemon started on port {self._port}", file=sys.stderr, flush=True)
         self._http = httpx.AsyncClient(base_url=self._base, timeout=httpx.Timeout(TURN_TIMEOUT))
         if not self._session_id:
             resp = await self._http.post("/session", json={})
@@ -251,8 +250,6 @@ class OpenCodeBackend:
     # ── messaging ──
 
     async def send(self, message: str) -> None:
-        import sys
-        print(f"[OC-DEBUG] send() called: http={self._http is not None} sid={self._session_id}", file=sys.stderr, flush=True)
         if not self._http or not self._session_id:
             raise RuntimeError("OpenCodeBackend not connected")
         if self._chat_task and not self._chat_task.done():
@@ -261,7 +258,6 @@ class OpenCodeBackend:
             self._http.build_request("GET", "/event"),
             stream=True,
         )
-        print(f"[OC-DEBUG] SSE opened: status={self._sse_response.status_code}", file=sys.stderr, flush=True)
         body = {
             "providerID": self.provider_id,
             "modelID": self.model,
@@ -279,9 +275,7 @@ class OpenCodeBackend:
         return resp.json()
 
     async def events(self) -> AsyncIterator[AgentEvent]:
-        import sys
         if not self._http:
-            print("[OC-DEBUG] events(): no http client", file=sys.stderr, flush=True)
             return
         # Wait for send() which opens SSE + fires chat task
         for i in range(300):
@@ -289,9 +283,7 @@ class OpenCodeBackend:
                 break
             await asyncio.sleep(0.1)
         if not self._chat_task or not self._sse_response:
-            print(f"[OC-DEBUG] events(): wait expired after {i} iters — chat={self._chat_task is not None} sse={self._sse_response is not None}", file=sys.stderr, flush=True)
             return
-        print(f"[OC-DEBUG] events(): GO — chat_done={self._chat_task.done()} sse_consumed={self._sse_response.is_stream_consumed}", file=sys.stderr, flush=True)
         # Snapshot the task: a concurrent disconnect() may null self._chat_task while
         # this iterator runs — work with the local so we never hit AttributeError.
         chat_task = self._chat_task
@@ -315,9 +307,7 @@ class OpenCodeBackend:
                 if next_line in done:
                     try:
                         raw = next_line.result()
-                        print(f"[OC-DEBUG] SSE line: {raw[:100]}", file=sys.stderr, flush=True)
                     except StopAsyncIteration:
-                        print("[OC-DEBUG] SSE StopAsyncIteration — stream closed", file=sys.stderr, flush=True)
                         normal_end = True
                         break
                     except Exception as e:     # httpx.ReadError / RemoteProtocolError / etc.
@@ -349,17 +339,14 @@ class OpenCodeBackend:
                 else:
                     # chat task finished before SSE line
                     if chat_task.cancelled():
-                        print("[OC-DEBUG] chat_task cancelled", file=sys.stderr, flush=True)
                         error_out = "chat_cancelled"
                         break
                     exc = chat_task.exception()
                     if exc:
-                        print(f"[OC-DEBUG] chat_task FAILED: {exc}", file=sys.stderr, flush=True)
                         yield AgentEvent("error", str(exc))
                         error_out = f"chat_failed: {exc}"
                     else:
                         result = chat_task.result()
-                        print(f"[OC-DEBUG] chat_task completed BEFORE SSE idle. Result keys: {list(result.keys()) if isinstance(result, dict) else type(result)}", file=sys.stderr, flush=True)
                         normal_end = True
                     break
         finally:
