@@ -158,7 +158,7 @@ def _get_allowed_roots() -> list[str]:
 
 # Block access to secrets and key material even if they live inside an allowed root
 _DENIED_PARTS = {".env", ".ssh", ".git", ".credentials", ".gnupg", ".aws",
-                 ".npmrc", ".pypirc", ".netrc", ".docker", ".kube"}
+                 ".npmrc", ".pypirc", ".netrc", ".docker", ".kube", "opencode.json"}
 _DENIED_HOME_PARTS = {".claude", ".config"}
 _DENIED_EXTENSIONS = {".db", ".db-shm", ".db-wal", ".db-journal", ".sqlite", ".sqlite3", ".key", ".pem", ".p12", ".pfx"}
 

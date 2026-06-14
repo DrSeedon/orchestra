@@ -63,10 +63,14 @@ def _ensure_workspace() -> None:
         return
 
     subprocess.run(["git", "init"], cwd=str(ws), capture_output=True, **run_kwargs)
+    subprocess.run(["git", "config", "user.email", "orchestra@seedon.ru"], cwd=str(ws), capture_output=True, **run_kwargs)
+    subprocess.run(["git", "config", "user.name", "Orchestra"], cwd=str(ws), capture_output=True, **run_kwargs)
     subprocess.run(["bash", "-c", f"cat > {ws}/CLAUDE.md << 'EOF'\n{_DEFAULT_CLAUDE_MD}\nEOF"],
                    capture_output=True, **run_kwargs)
+    subprocess.run(["bash", "-c", f"echo 'opencode.json' > {ws}/.gitignore"],
+                   capture_output=True, **run_kwargs)
     subprocess.run(
-        ["git", "add", "CLAUDE.md"],
+        ["git", "add", "CLAUDE.md", ".gitignore"],
         cwd=str(ws), capture_output=True, **run_kwargs,
     )
     subprocess.run(
