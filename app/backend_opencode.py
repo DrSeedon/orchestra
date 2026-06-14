@@ -240,7 +240,6 @@ class OpenCodeBackend:
 
     async def events(self) -> AsyncIterator[AgentEvent]:
         import sys
-        print(f"[OC-DEBUG] events() called: http={self._http is not None} chat={self._chat_task is not None} sse={self._sse_response is not None}", file=sys.stderr, flush=True)
         if not self._http:
             print("[OC-DEBUG] events(): no http client", file=sys.stderr, flush=True)
             return
@@ -443,6 +442,7 @@ class OpenCodeBackend:
             "session_id": self._session_id,
             "ok": err is None,
             "stop_reason": stop_reason,
+            "num_turns": 1,
             "cost_usd": cost,
             "cost_usd_cached": cost,
             "context_pct": min(100, int(input_t * 100 / max_tokens)) if max_tokens else 0,
