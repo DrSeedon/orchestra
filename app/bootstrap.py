@@ -31,26 +31,47 @@ async def ensure_bootstrap() -> None:
     _ensure_orchestrator()
 
 
+def _resolve_uid(val: str) -> int | None:
+    try:
+        return int(val)
+    except ValueError:
+        pass
+    import pwd
+    try:
+        return pwd.getpwnam(val).pw_uid
+    except KeyError:
+        return None
+
+
 def _ensure_workspace() -> None:
     ws = Path(WORKSPACE_DIR)
     if ws.is_dir():
         return
 
+    raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+    uid = _resolve_uid(raw_uid) if raw_uid else None
+    run_kwargs: dict = {}
+    if uid is not None:
+        def _preexec():
+            os.setuid(uid)
+        run_kwargs["preexec_fn"] = _preexec
+
     try:
-        ws.mkdir(parents=True, exist_ok=True)
-    except OSError as e:
+        subprocess.run(["mkdir", "-p", str(ws)], check=True, capture_output=True, **run_kwargs)
+    except (OSError, subprocess.CalledProcessError) as e:
         logger.warning("Bootstrap: cannot create workspace %s: %s", WORKSPACE_DIR, e)
         return
 
-    subprocess.run(["git", "init"], cwd=str(ws), capture_output=True)
-    (ws / "CLAUDE.md").write_text(_DEFAULT_CLAUDE_MD)
+    subprocess.run(["git", "init"], cwd=str(ws), capture_output=True, **run_kwargs)
+    subprocess.run(["bash", "-c", f"cat > {ws}/CLAUDE.md << 'EOF'\n{_DEFAULT_CLAUDE_MD}\nEOF"],
+                   capture_output=True, **run_kwargs)
     subprocess.run(
         ["git", "add", "CLAUDE.md"],
-        cwd=str(ws), capture_output=True,
+        cwd=str(ws), capture_output=True, **run_kwargs,
     )
     subprocess.run(
         ["git", "commit", "-m", "bootstrap: init workspace"],
-        cwd=str(ws), capture_output=True,
+        cwd=str(ws), capture_output=True, **run_kwargs,
     )
     logger.info("Bootstrap: created workspace %s", WORKSPACE_DIR)
 
