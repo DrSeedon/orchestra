@@ -63,6 +63,21 @@ def _free_port() -> int:
     return port
 
 
+import re as _re
+
+_XML_TAG_RE = _re.compile(r"</?(?:path|type|entries|content|output|error|result|stdout|stderr|status|exit_code)[^>]*>")
+
+
+def _clean_tool_output(text: str) -> str:
+    """Strip XML-like tags from OpenCode built-in tool output (read, bash, glob).
+
+    OpenCode wraps results in <path>, <type>, <entries>, <content>, etc.
+    Dashboard expects plain text.
+    """
+    cleaned = _XML_TAG_RE.sub("", text).strip()
+    return cleaned if cleaned else text
+
+
 def _to_opencode_mcp(servers: dict) -> dict:
     """Translate Orchestra MCP dict ({command, args, env}) → OpenCode McpLocalConfig."""
     out = {}
@@ -435,7 +450,8 @@ class OpenCodeBackend:
             if status in ("completed", "error") and cid and cid not in seen_result:
                 seen_result.add(cid)
                 out = state.get("output", "") if status == "completed" else state.get("error", "")
-                events.append(AgentEvent("tool_result", str(out)))
+                out = _clean_tool_output(str(out))
+                events.append(AgentEvent("tool_result", out))
         # step-start / step-finish / file / snapshot / patch → no AgentEvent
         return events
 
