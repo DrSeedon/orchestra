@@ -127,11 +127,14 @@ class OpenCodeBackend:
     async def _start_daemon(self) -> None:
         env = dict(os.environ)
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
-        preexec = None
-        if agent_uid:
-            uid = int(agent_uid)
-            def preexec():
+        def _make_preexec(uid_str: str):
+            uid = int(uid_str)
+            def _setuid():
                 os.setuid(uid)
+            return _setuid
+        extra_kwargs: dict = {}
+        if agent_uid:
+            extra_kwargs["preexec_fn"] = _make_preexec(agent_uid)
         last_err = None
         for attempt in range(PORT_RETRIES):
             self._port = _free_port()
@@ -141,7 +144,7 @@ class OpenCodeBackend:
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
                 env=env, cwd=self.cwd,
-                **({"preexec_fn": preexec} if preexec else {}),
+                **extra_kwargs,
             )
             if await self._wait_ready():
                 return
