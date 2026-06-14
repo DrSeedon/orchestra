@@ -27,8 +27,20 @@ _DEFAULT_SYSTEM_PROMPT = (
 
 async def ensure_bootstrap() -> None:
     """Idempotent bootstrap: workspace dir + default orchestrator DB record."""
+    _fix_runtime_permissions()
     _ensure_workspace()
     _ensure_orchestrator()
+
+
+def _fix_runtime_permissions() -> None:
+    """Make volume-mounted dirs writable by agent — Docker creates them as root.
+
+    Can't chown (CAP_CHOWN dropped). Use chmod a+rwx instead (no CAP_FOWNER needed
+    for dirs owned by current user = root).
+    """
+    for d in ["/opt/orchestra/worktrees", "/opt/orchestra/data"]:
+        if os.path.isdir(d):
+            subprocess.run(["chmod", "-R", "a+rwX", d], capture_output=True)
 
 
 def _resolve_uid(val: str) -> int | None:
