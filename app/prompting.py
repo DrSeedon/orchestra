@@ -2,8 +2,10 @@
 
 import hashlib
 import logging
+import os
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -165,6 +167,16 @@ def prompt_template_hash(role_or_orch) -> str:
     return hashlib.md5(content.encode()).hexdigest()[:8]
 
 
+def _run_as_agent(args: list[str], **kwargs) -> subprocess.CompletedProcess:
+    """Run command as agent user if ORCHESTRA_AGENT_UID set (cap_drop=ALL workaround)."""
+    agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+    if agent_uid:
+        gosu = shutil.which("gosu")
+        if gosu:
+            args = [gosu, agent_uid] + args
+    return subprocess.run(args, **kwargs)
+
+
 def inject_skills_to_worktree(role: str, worktree_path: str) -> None:
     """Copy role skills into worktree/.claude/skills/ as native Claude CLI skills."""
     role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
@@ -181,6 +193,6 @@ def inject_skills_to_worktree(role: str, worktree_path: str) -> None:
             logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
             continue
         skill_dir = wt / ".claude" / "skills" / sname
-        skill_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(skill_src, skill_dir / "SKILL.md")
+        _run_as_agent(["mkdir", "-p", str(skill_dir)], capture_output=True)
+        _run_as_agent(["cp", "-p", str(skill_src), str(skill_dir / "SKILL.md")], capture_output=True)
     logger.info(f"Injected {len(skill_names)} skills into {worktree_path}/.claude/skills/")
