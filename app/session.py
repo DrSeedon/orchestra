@@ -371,8 +371,11 @@ class AgentSession:
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
 
-            if self.backend_type == "codex":
-                self._listen_task = asyncio.create_task(self._codex_turn_loop())
+            if self.backend_type in ("codex", "opencode"):
+                self._listen_task = asyncio.create_task(
+                    self._codex_turn_loop() if self.backend_type == "codex"
+                    else self._claude_event_loop()
+                )
                 self._listen_task.add_done_callback(self._on_task_done)
 
     async def _ensure_backend(self, force_fresh: bool = False):
@@ -388,7 +391,7 @@ class AgentSession:
             self._log("error", f"connect failed: {e}")
             self._backend = None
             raise
-        if self.backend_type != "codex":
+        if self.backend_type not in ("codex", "opencode"):
             self._listen_task = asyncio.create_task(self._claude_event_loop())
             self._listen_task.add_done_callback(self._on_task_done)
         if self._heartbeat_task is None or self._heartbeat_task.done():
