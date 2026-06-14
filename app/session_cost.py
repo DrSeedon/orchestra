@@ -39,6 +39,7 @@ class CostTracker:
         s._turn_cost = max(0, new_cost - s._last_cost)
         s.cost_usd += s._turn_cost
         s._context_cost += s._turn_cost
+        s._session_cost += s._turn_cost
         s._last_cost = new_cost
         new_cost_cached = meta.get("cost_usd_cached", 0)
         s.cost_usd_cached += max(0, new_cost_cached - s._last_cost_cached)

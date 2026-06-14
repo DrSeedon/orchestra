@@ -165,6 +165,7 @@ class AgentSession:
     _last_cost: float = field(default=0.0, repr=False)
     _turn_cost: float = field(default=0.0, repr=False)
     _context_cost: float = field(default=0.0, repr=False)
+    _session_cost: float = field(default=0.0, repr=False)
     _last_cost_cached: float = field(default=0.0, repr=False)
     _last_turn_ok: bool = field(default=True, repr=False)
     _last_stop_reason: str = field(default="", repr=False)
@@ -847,6 +848,7 @@ class AgentSession:
             "model": self.model, "system_prompt": self.system_prompt,
             "status": self.status.value, "session_id": self.session_id,
             "cost_usd": self.cost_usd, "cost_usd_cached": self.cost_usd_cached,
+            "context_cost": self._context_cost,
             "worktree_path": self.worktree_path,
             "branch": self.branch, "is_orchestrator": self.is_orchestrator,
             "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,

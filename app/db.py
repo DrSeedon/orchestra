@@ -266,6 +266,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN description TEXT DEFAULT ''")
     if "cost_usd_cached" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN cost_usd_cached REAL DEFAULT 0.0")
+    if "context_cost" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN context_cost REAL DEFAULT 0.0")
     if "cost_reset_v1" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN cost_reset_v1 INTEGER DEFAULT 0")
         _reconstruct_costs(c)
@@ -426,6 +428,7 @@ def save_session(s: dict) -> None:
     s.setdefault("task_id", "")
     s.setdefault("description", "")
     s.setdefault("cost_usd_cached", 0.0)
+    s.setdefault("context_cost", 0.0)
     s.setdefault("total_turns", 0)
     s.setdefault("total_input_tokens", 0)
     s.setdefault("total_output_tokens", 0)
@@ -445,7 +448,7 @@ def save_session(s: dict) -> None:
                 status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
                 progress_pct, progress_status, backend_type, task_id, description,
-                cost_usd_cached,
+                cost_usd_cached, context_cost,
                 total_turns, total_input_tokens, total_output_tokens, total_tool_calls,
                 template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline,
                 profile, owned_dirs, tg_topic)
@@ -453,7 +456,7 @@ def save_session(s: dict) -> None:
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
-                :cost_usd_cached,
+                :cost_usd_cached, :context_cost,
                 :total_turns, :total_input_tokens, :total_output_tokens, :total_tool_calls,
                 :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :pipeline,
                 :profile, :owned_dirs, :tg_topic)
@@ -465,6 +468,7 @@ def save_session(s: dict) -> None:
                 session_id=excluded.session_id,
                 cost_usd=excluded.cost_usd,
                 cost_usd_cached=excluded.cost_usd_cached,
+                context_cost=excluded.context_cost,
                 worktree_path=excluded.worktree_path,
                 branch=excluded.branch,
                 cwd=excluded.cwd,

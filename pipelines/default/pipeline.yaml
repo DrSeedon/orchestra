@@ -71,3 +71,18 @@ roles:
     description: >
       Research → Plan + Codex review → Implement + Codex review. Strict 3-phase pipeline
       with 2 orchestrator approval gates. All artifacts saved to docs/tasks/<id>/.
+  experimenter:
+    kind: worker
+    label: Experimenter
+    order: 4
+    model: opus4.8
+    skills: [codex-debate]
+    modules: [git-workflow, report-format]
+    can_spawn: ["*"]
+    allow_unrouted_workers: false
+    when: Hypothesis needs empirical verification, performance measurement, A/B comparison, reproducing bugs, testing claims about models/SDK/tools
+    not_for: Implementation tasks, code changes that ship to production
+    description: >
+      Hypothesis → Experiment → Measure → Conclude. Empirical researcher that RUNS code,
+      measures results, and proves/disproves claims. No plans, no Codex — pure experimentation.
+      All artifacts saved to docs/experiments/<id>/.

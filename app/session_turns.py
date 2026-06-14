@@ -94,7 +94,7 @@ class TurnManager:
 
         live_pct = s._last_context.get("percentage", 0)
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
-        s._log("status", f"turn ended ({sr}, {nt} turns, ${s._turn_cost:.2f} turn, ${s._context_cost:.2f} ctx, ${s.cost_usd:.2f} total {ctx_s})")
+        s._log("status", f"turn ended ({sr}, {nt} turns, ${s._turn_cost:.2f} turn, ${s._context_cost:.2f} ctx, ${s._session_cost:.2f} session, ${s.cost_usd:.2f} total {ctx_s})")
 
         self.finish_turn_status()
         self.after_turn_idle_actions(live_pct)
