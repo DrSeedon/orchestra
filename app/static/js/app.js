@@ -169,13 +169,18 @@ function connectSSE() {
             const l = JSON.parse(event.data);
             // When the server echoes back a message we sent, replace our optimistic bubble
             // with the confirmed version so timestamps and content match exactly.
-            // Dedup user messages: if we have a pending/finalized bubble for this message, skip SSE echo
+            // Dedup user messages: skip SSE echo if we sent it (optimistic bubble already visible)
             if (l.type === 'user_message' && localMessages.size > 0) {
-                const isLocal = localMessages.has(l.content) || [...localMessages].some(m => l.content.endsWith(m));
+                const isLocal = localMessages.has(l.content) ||
+                    [...localMessages].some(m => l.content.endsWith(m)) ||
+                    [...localMessages].some(m => l.content.includes(m));
                 if (isLocal) {
-                    localMessages.delete(l.content);
-                    for (const m of localMessages) { if (l.content.endsWith(m)) { localMessages.delete(m); break; } }
-                    // Don't add — optimistic bubble already visible
+                    for (const m of localMessages) {
+                        if (l.content === m || l.content.endsWith(m) || l.content.includes(m)) {
+                            localMessages.delete(m);
+                            break;
+                        }
+                    }
                 } else {
                     addChatEntry(l.type, l.content, l.ts);
                 }
