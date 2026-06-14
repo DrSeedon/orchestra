@@ -986,7 +986,7 @@ def _diff_images_enabled() -> bool:
 
 
 def _result_images_enabled() -> bool:
-    return os.getenv("TG_RESULT_IMAGES", "false").lower() in ("1", "true", "yes") and _check_pil()
+    return os.getenv("TG_RESULT_IMAGES", "true").lower() in ("1", "true", "yes") and _check_pil()
 
 
 async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) -> None:
@@ -1136,6 +1136,7 @@ async def stream_logs(orch_name: str, thread_id: int):
     _last_tool_text = ""
     _last_tool_name = ""   # track last tool for result image rendering
     _last_tool_raw = ""    # full raw content of last tool call
+    _last_diff_sent = False  # diff image was sent for Edit/Write — skip text tool_result
     _idle_ticks = 0
 
     try:
@@ -1204,6 +1205,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         _diff_sent = False
                         if tool_name in ("Edit", "Write"):
                             _diff_sent = await _send_diff_image(tool_name, c, config["group_id"], thread_id)
+                            _last_diff_sent = _diff_sent
                         # Special formatting for send_message — render as pretty HTML
                         # send_message tool: render as readable HTML instead of raw JSON expandable —
                         # the recipient name and message body are the useful parts
@@ -1257,6 +1259,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                                     continue
                             except Exception as e:
                                 logger.debug(f"worker_info pretty-print failed, falling back to raw: {e}")
+                        # Edit/Write diff image already sent — skip redundant "file updated" text
+                        if _last_diff_sent:
+                            _last_diff_sent = False
+                            _last_tool_msg = None
+                            _last_tool_text = ""
+                            _last_tool_name = ""
+                            _last_tool_raw = ""
+                            continue
                         # Read tool returned an image — send original file instead of base64 spam
                         if _last_tool_name == "Read" and ("'type': 'image'" in c or '"type": "image"' in c or "'type':'image'" in c):
                             try:
