@@ -287,16 +287,17 @@ class OpenCodeBackend:
         error_out: str | None = None       # non-None → yield error_turn_end(error_out) after cleanup
         normal_end = False                  # True → yield turn_end from chat result
         last_meaningful = asyncio.get_event_loop().time()
-        INACTIVITY_TIMEOUT = 30  # force turn_end if only heartbeats for 30s
+        INACTIVITY_TIMEOUT = 15  # force turn_end if no meaningful events
         try:
             while True:
                 next_line = asyncio.ensure_future(sse.__anext__())
-                wait_timeout = min(60, TURN_TIMEOUT)  # check inactivity every 60s
+                wait_timeout = min(30, TURN_TIMEOUT)  # check inactivity frequently
                 done, _ = await asyncio.wait(
                     {next_line, chat_task},
                     timeout=wait_timeout, return_when=asyncio.FIRST_COMPLETED)
                 if not done:
-                    # No SSE line AND no chat completion in 60s — check inactivity
+                    # No SSE line AND no chat completion — check inactivity
+                    logger.warning(f"SSE wait timeout ({wait_timeout}s) — checking inactivity")
                     next_line.cancel()
                     with contextlib.suppress(BaseException):
                         await next_line
