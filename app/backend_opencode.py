@@ -138,6 +138,8 @@ class OpenCodeBackend:
                                 "external_directory": "allow", "doom_loop": "allow"}
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+        if base_url and not base_url.endswith("/v1"):
+            base_url = base_url.rstrip("/") + "/v1"
         config["provider"] = config.get("provider", {})
         config["provider"]["openrouter"] = {
             "options": {"apiKey": api_key, **({"baseURL": base_url} if base_url else {})},
