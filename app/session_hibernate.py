@@ -81,7 +81,7 @@ class HibernateManager:
                     continue
 
                 task_dead = s._listen_task is None or s._listen_task.done()
-                if task_dead and s.status == AgentStatus.RUNNING and s.backend_type != "codex":
+                if task_dead and s.status == AgentStatus.RUNNING and s.backend_type not in ("codex", "opencode"):
                     logger.warning(f"[{s.name}] heartbeat: listener dead but status=RUNNING — reconnecting")
                     s._log("error", "heartbeat detected dead listener, reconnecting")
                     try:
