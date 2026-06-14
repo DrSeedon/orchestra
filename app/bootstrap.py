@@ -65,6 +65,10 @@ def _ensure_workspace() -> None:
     subprocess.run(["git", "init"], cwd=str(ws), capture_output=True, **run_kwargs)
     subprocess.run(["git", "config", "user.email", "orchestra@seedon.ru"], cwd=str(ws), capture_output=True, **run_kwargs)
     subprocess.run(["git", "config", "user.name", "Orchestra"], cwd=str(ws), capture_output=True, **run_kwargs)
+    # safe.directory for root (Orchestra main process) — workspace owned by agent
+    subprocess.run(["git", "config", "--global", "safe.directory", "*"], capture_output=True)
+    # safe.directory for agent user (opencode daemon)
+    subprocess.run(["git", "config", "--global", "safe.directory", "*"], capture_output=True, **run_kwargs)
     subprocess.run(["bash", "-c", f"cat > {ws}/CLAUDE.md << 'EOF'\n{_DEFAULT_CLAUDE_MD}\nEOF"],
                    capture_output=True, **run_kwargs)
     subprocess.run(["bash", "-c", f"echo 'opencode.json' > {ws}/.gitignore"],
