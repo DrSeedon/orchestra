@@ -230,7 +230,14 @@ class OpenCodeBackend:
         return resp.json()
 
     async def events(self) -> AsyncIterator[AgentEvent]:
-        if not self._http or not self._chat_task:
+        if not self._http:
+            return
+        # Wait for send() to set _chat_task (event loop starts before send in session.py)
+        for _ in range(300):
+            if self._chat_task:
+                break
+            await asyncio.sleep(0.1)
+        if not self._chat_task:
             return
         # Snapshot the task: a concurrent disconnect() may null self._chat_task while
         # this iterator runs — work with the local so we never hit AttributeError.
