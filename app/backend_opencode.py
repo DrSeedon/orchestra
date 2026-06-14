@@ -291,7 +291,7 @@ class OpenCodeBackend:
         try:
             while True:
                 next_line = asyncio.ensure_future(sse.__anext__())
-                wait_timeout = min(30, TURN_TIMEOUT)  # check inactivity frequently
+                wait_timeout = 10  # check inactivity frequently — must be < heartbeat interval (30s)
                 done, _ = await asyncio.wait(
                     {next_line, chat_task},
                     timeout=wait_timeout, return_when=asyncio.FIRST_COMPLETED)
