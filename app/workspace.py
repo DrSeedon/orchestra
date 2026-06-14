@@ -180,12 +180,12 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
             dst = wt_path / fname
             if not _within(dst.parent, wt_path):
                 raise ValueError(f"copy target '{fname}' escapes worktree")
-            shutil.copy2(str(src), str(dst))
+            _git_cmd(["cp", "-p", str(src), str(dst)], capture_output=True)
         if worktree_cfg is not None:
             for sl in worktree_cfg.symlinks:
                 _apply_symlink(repo, wt_path, sl)
     except Exception:
-        subprocess.run(
+        _git_cmd(
             ["git", "worktree", "remove", str(wt_path), "--force"],
             cwd=str(repo), capture_output=True, text=True,
         )
