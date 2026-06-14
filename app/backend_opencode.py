@@ -286,6 +286,8 @@ class OpenCodeBackend:
         next_line: Optional[asyncio.Future] = None
         error_out: str | None = None       # non-None → yield error_turn_end(error_out) after cleanup
         normal_end = False                  # True → yield turn_end from chat result
+        last_meaningful = asyncio.get_event_loop().time()
+        INACTIVITY_TIMEOUT = 30  # force turn_end if only heartbeats for 30s
         try:
             while True:
                 next_line = asyncio.ensure_future(sse.__anext__())
@@ -302,7 +304,7 @@ class OpenCodeBackend:
                     except StopAsyncIteration:
                         normal_end = True
                         break
-                    except Exception as e:     # httpx.ReadError / RemoteProtocolError / etc.
+                    except Exception as e:
                         yield AgentEvent("error", f"sse read failed: {e}")
                         error_out = f"sse_failed: {e}"
                         break
@@ -314,10 +316,12 @@ class OpenCodeBackend:
                         continue
                     t = evt.get("type", "")
                     if t == "message.part.updated":
+                        last_meaningful = asyncio.get_event_loop().time()
                         for e in self._map_part(props.get("part") or {},
                                                 seen_use, seen_result, emitted_len):
                             yield e
                     elif t == "file.edited":
+                        last_meaningful = asyncio.get_event_loop().time()
                         yield AgentEvent("file_change", f"update {props.get('file', '')}")
                     elif t == "session.error":
                         err = props.get("error")
@@ -327,7 +331,11 @@ class OpenCodeBackend:
                     elif t == "session.idle":
                         normal_end = True
                         break
-                    # else: status/heartbeat/plugin/diff/etc. → ignore
+                    # else: heartbeat/status/diff → check inactivity
+                    elif chat_task.done() and (asyncio.get_event_loop().time() - last_meaningful) > INACTIVITY_TIMEOUT:
+                        logger.info(f"SSE inactivity timeout ({INACTIVITY_TIMEOUT}s) — chat done, forcing turn_end")
+                        normal_end = True
+                        break
                 else:
                     # chat task finished before SSE idle — wait up to 10s for SSE to catch up
                     if chat_task.cancelled():
