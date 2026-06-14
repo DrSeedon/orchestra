@@ -276,8 +276,10 @@ class OpenCodeBackend:
                 if next_line in done:
                     try:
                         raw = next_line.result()
+                        print(f"[OC-DEBUG] SSE line: {raw[:100]}", file=sys.stderr, flush=True)
                     except StopAsyncIteration:
-                        normal_end = True      # SSE closed → fall through to chat result
+                        print("[OC-DEBUG] SSE StopAsyncIteration — stream closed", file=sys.stderr, flush=True)
+                        normal_end = True
                         break
                     except Exception as e:     # httpx.ReadError / RemoteProtocolError / etc.
                         yield AgentEvent("error", f"sse read failed: {e}")
@@ -306,16 +308,20 @@ class OpenCodeBackend:
                         break
                     # else: status/heartbeat/plugin/diff/etc. → ignore
                 else:
-                    # chat task finished before idle — HTTP error, or external cancel.
+                    # chat task finished before SSE line
                     if chat_task.cancelled():
+                        print("[OC-DEBUG] chat_task cancelled", file=sys.stderr, flush=True)
                         error_out = "chat_cancelled"
                         break
-                    exc = chat_task.exception()   # safe: not cancelled
+                    exc = chat_task.exception()
                     if exc:
+                        print(f"[OC-DEBUG] chat_task FAILED: {exc}", file=sys.stderr, flush=True)
                         yield AgentEvent("error", str(exc))
                         error_out = f"chat_failed: {exc}"
                     else:
-                        normal_end = True   # rare clean return before idle
+                        result = chat_task.result()
+                        print(f"[OC-DEBUG] chat_task completed BEFORE SSE idle. Result keys: {list(result.keys()) if isinstance(result, dict) else type(result)}", file=sys.stderr, flush=True)
+                        normal_end = True
                     break
         finally:
             # Close the SSE generator. A pending __anext__ must be awaited-after-cancel
