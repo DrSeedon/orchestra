@@ -97,6 +97,7 @@ class OpenCodeBackend:
         self._port: int | None = None
         self._http: Optional[httpx.AsyncClient] = None
         self._chat_task: Optional[asyncio.Task] = None
+        self._sse_response: Optional[httpx.Response] = None
 
     @property
     def session_id(self) -> Optional[str]:
@@ -209,10 +210,14 @@ class OpenCodeBackend:
     async def send(self, message: str) -> None:
         if not self._http or not self._session_id:
             raise RuntimeError("OpenCodeBackend not connected")
-        # Don't start a new turn while a previous chat task is still in flight — that
-        # would orphan it (unhandled exception / "Task was destroyed"). One turn at a time.
         if self._chat_task and not self._chat_task.done():
             raise RuntimeError("OpenCodeBackend turn already in progress")
+        # Open SSE stream BEFORE firing chat POST — SSE only delivers live events,
+        # if we connect after the turn completes we miss everything.
+        self._sse_response = await self._http.send(
+            self._http.build_request("GET", "/event"),
+            stream=True,
+        )
         body = {
             "providerID": self.provider_id,
             "modelID": self.model,
@@ -221,8 +226,6 @@ class OpenCodeBackend:
         if self.system_prompt:
             body["system"] = self.system_prompt
         url = f"/session/{self._session_id}/message"
-        # chat() blocks until turn end and returns the assistant message — fire it as a
-        # task; events() awaits it at the turn boundary for authoritative cost/tokens.
         self._chat_task = asyncio.ensure_future(self._post_chat(url, body))
 
     async def _post_chat(self, url: str, body: dict) -> dict:
@@ -234,12 +237,12 @@ class OpenCodeBackend:
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self._http:
             return
-        # Wait for send() to set _chat_task (event loop starts before send in session.py)
+        # Wait for send() which opens SSE + fires chat task
         for _ in range(300):
-            if self._chat_task:
+            if self._chat_task and self._sse_response:
                 break
             await asyncio.sleep(0.1)
-        if not self._chat_task:
+        if not self._chat_task or not self._sse_response:
             return
         # Snapshot the task: a concurrent disconnect() may null self._chat_task while
         # this iterator runs — work with the local so we never hit AttributeError.
@@ -344,11 +347,15 @@ class OpenCodeBackend:
             yield self._turn_end(msg)
 
     async def _sse_lines(self) -> AsyncIterator[str]:
-        assert self._http is not None
-        async with self._http.stream("GET", "/event") as resp:
-            async for line in resp.aiter_lines():
+        if not self._sse_response:
+            return
+        try:
+            async for line in self._sse_response.aiter_lines():
                 if line:
                     yield line
+        finally:
+            await self._sse_response.aclose()
+            self._sse_response = None
 
     @staticmethod
     def _parse_sse(line: str) -> dict | None:
@@ -482,6 +489,10 @@ class OpenCodeBackend:
             with contextlib.suppress(BaseException):
                 self._chat_task.exception()   # retrieve to silence unhandled-exception warning
         self._chat_task = None
+        if self._sse_response:
+            with contextlib.suppress(Exception):
+                await self._sse_response.aclose()
+            self._sse_response = None
         if self._http:
             try:
                 await asyncio.wait_for(self._http.aclose(), timeout=3)
