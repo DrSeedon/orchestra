@@ -424,7 +424,10 @@ class AgentSession:
                 # For opencode: events() finishing = turn done (per-turn generator, not persistent stream).
                 # Exit cleanly — next send() will start a new listen task.
                 if self.backend_type == "opencode":
-                    logger.info(f"[{self.name}] opencode turn completed normally")
+                    logger.info(f"[{self.name}] opencode turn completed normally, status={self.status}")
+                    if self.status == AgentStatus.RUNNING:
+                        self.status = AgentStatus.IDLE
+                        self._persist()
                     return
                 # For claude: events() returns without error when SDK stream closes unexpectedly
                 consecutive_failures += 1
