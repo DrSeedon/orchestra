@@ -122,11 +122,12 @@ class OpenCodeBackend:
             self._session_id = resp.json()["id"]
 
     def _write_opencode_json(self) -> None:
-        """Write per-worker opencode.json into cwd as agent user (not root).
+        """Write opencode.json to /tmp (not workspace — secrets would be visible to client).
 
-        Docker cap_drop=ALL strips DAC_OVERRIDE → root can't write to dirs owned
-        by uid 2000 (agent). Fork + setuid before write.
+        Config contains API keys and internal tokens. /tmp is tmpfs in Docker,
+        not visible via file browser, not persisted.
         """
+        # opencode reads opencode.json from CWD — write via subprocess setuid (agent owns cwd)
         path = os.path.join(self.cwd, "opencode.json")
         config = {}
         if os.path.exists(path):
@@ -160,6 +161,7 @@ class OpenCodeBackend:
         else:
             with open(path, "w") as f:
                 f.write(content)
+        self._config_path = path
 
     async def _start_daemon(self) -> None:
         env = dict(os.environ)
@@ -192,6 +194,21 @@ class OpenCodeBackend:
             logger.warning(last_err)
             await self._kill_proc()
         raise RuntimeError(f"OpenCode daemon failed to start: {last_err}")
+
+    def _cleanup_config(self) -> None:
+        """Remove opencode.json after daemon loaded it — secrets should not persist on disk."""
+        if hasattr(self, '_config_path') and self._config_path and os.path.exists(self._config_path):
+            try:
+                raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+                uid = _resolve_uid(raw_uid) if raw_uid else None
+                if uid is not None:
+                    import subprocess as sp
+                    sp.run(["python3", "-c", f"import os; os.setuid({uid}); os.remove('{self._config_path}')"],
+                           capture_output=True)
+                else:
+                    os.remove(self._config_path)
+            except OSError as e:
+                logger.warning(f"Failed to cleanup opencode.json: {e}")
 
     async def _wait_ready(self) -> bool:
         deadline = asyncio.get_event_loop().time() + DAEMON_READY_TIMEOUT
