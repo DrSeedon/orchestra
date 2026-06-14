@@ -329,7 +329,7 @@ class OpenCodeBackend:
                         break
                     # else: status/heartbeat/plugin/diff/etc. → ignore
                 else:
-                    # chat task finished before SSE line
+                    # chat task finished before SSE idle — wait up to 10s for SSE to catch up
                     if chat_task.cancelled():
                         error_out = "chat_cancelled"
                         break
@@ -337,9 +337,37 @@ class OpenCodeBackend:
                     if exc:
                         yield AgentEvent("error", str(exc))
                         error_out = f"chat_failed: {exc}"
-                    else:
-                        result = chat_task.result()
-                        normal_end = True
+                        break
+                    # Drain remaining SSE events for up to 10s before falling through to turn_end
+                    deadline = asyncio.get_event_loop().time() + 10
+                    while asyncio.get_event_loop().time() < deadline:
+                        try:
+                            line_fut = asyncio.ensure_future(sse.__anext__())
+                            done2, _ = await asyncio.wait({line_fut}, timeout=max(0, deadline - asyncio.get_event_loop().time()))
+                            if not done2:
+                                line_fut.cancel()
+                                with contextlib.suppress(BaseException):
+                                    await line_fut
+                                break
+                            try:
+                                raw2 = line_fut.result()
+                            except StopAsyncIteration:
+                                break
+                            except Exception:
+                                break
+                            evt2 = self._parse_sse(raw2)
+                            if evt2:
+                                props2 = evt2.get("properties") or {}
+                                if props2.get("sessionID") == self._session_id:
+                                    t2 = evt2.get("type", "")
+                                    if t2 == "message.part.updated":
+                                        for ev in self._map_part(props2.get("part") or {}, seen_use, seen_result, emitted_len):
+                                            yield ev
+                                    elif t2 == "session.idle":
+                                        break
+                        except Exception:
+                            break
+                    normal_end = True
                     break
         finally:
             # Close the SSE generator. A pending __anext__ must be awaited-after-cancel
