@@ -457,7 +457,10 @@ class AgentSession:
                 if self._backend is None:
                     return
                 if self.backend_type == "opencode":
-                    logger.info(f"[{self.name}] opencode listener ended, no reconnect needed")
+                    logger.info(f"[{self.name}] opencode listener ended, status={self.status}")
+                    if self.status == AgentStatus.RUNNING:
+                        self.status = AgentStatus.IDLE
+                        self._persist()
                     return
                 await self._backend.reconnect()
                 logger.info(f"[{self.name}] listener reconnected after error")
