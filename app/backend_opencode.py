@@ -288,29 +288,27 @@ class OpenCodeBackend:
         normal_end = False                  # True → yield turn_end from chat result
         last_meaningful = asyncio.get_event_loop().time()
         INACTIVITY_TIMEOUT = 15  # force turn_end if no meaningful events
+        next_line = None
         try:
             while True:
-                next_line = asyncio.ensure_future(sse.__anext__())
+                if next_line is None or next_line.done():
+                    next_line = asyncio.ensure_future(sse.__anext__())
                 wait_timeout = 10  # check inactivity frequently — must be < heartbeat interval (30s)
                 done, _ = await asyncio.wait(
                     {next_line, chat_task},
                     timeout=wait_timeout, return_when=asyncio.FIRST_COMPLETED)
                 if not done:
-                    # No SSE line AND no chat completion — check inactivity
-                    logger.warning(f"SSE wait timeout ({wait_timeout}s) — checking inactivity")
-                    next_line.cancel()
-                    with contextlib.suppress(BaseException):
-                        await next_line
+                    # No SSE line AND no chat completion in 10s
                     elapsed = asyncio.get_event_loop().time() - last_meaningful
                     if elapsed > INACTIVITY_TIMEOUT:
-                        try:
-                            sr = await self._http.get(f"/session/{self._session_id}")
-                            logger.info(f"SSE+chat dead {elapsed:.0f}s — daemon poll status={sr.status_code}")
-                        except Exception:
-                            pass
+                        logger.warning(f"SSE inactivity {elapsed:.0f}s — forcing turn_end")
+                        next_line.cancel()
+                        with contextlib.suppress(BaseException):
+                            await next_line
                         normal_end = True
                         break
-                    # Not inactive yet — continue waiting (re-open SSE line)
+                    # Still within activity window — don't cancel next_line, let it continue
+                    # next iteration will reuse the same future
                     continue
                 if next_line in done:
                     try:
