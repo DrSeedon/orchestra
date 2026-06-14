@@ -49,7 +49,6 @@ class HibernateManager:
             if s._backend is None:
                 return
             logger.info(f"[{s.name}] hibernating (idle {int(timeout)}s)")
-            s._log("status", f"💤 hibernated (idle {int(timeout)}s)")
             await s._disconnect_backend()
             s._hibernated = True
 

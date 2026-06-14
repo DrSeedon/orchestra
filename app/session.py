@@ -316,7 +316,6 @@ class AgentSession:
 
             if self._hibernated:
                 logger.info(f"[{self.name}] waking from hibernate")
-                self._log("status", "☀️ waking from hibernate")
                 self._hibernated = False
 
             self.progress_pct = 0

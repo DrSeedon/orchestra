@@ -888,11 +888,19 @@ _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
 
 
-# Deduplicated topic icon updates — TG rate-limits edit_forum_topic, so skip if state unchanged
+# Deduplicated + throttled topic icon updates — TG rate-limits edit_forum_topic hard
+_topic_last_update: dict[str, float] = {}
+_TOPIC_UPDATE_COOLDOWN = 10.0  # seconds between icon updates per topic
+
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
+    now = time.monotonic()
+    last = _topic_last_update.get(orch_name, 0)
+    if now - last < _TOPIC_UPDATE_COOLDOWN:
+        return
     _topic_status[orch_name] = is_running
+    _topic_last_update[orch_name] = now
     short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
     thread_id = config["topics"].get(orch_name)
