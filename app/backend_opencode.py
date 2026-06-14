@@ -69,13 +69,12 @@ _XML_TAG_RE = _re.compile(r"</?(?:path|type|entries|content|output|error|result|
 
 
 def _clean_tool_output(text: str) -> str:
-    """Strip XML-like tags from OpenCode built-in tool output (read, bash, glob).
-
-    OpenCode wraps results in <path>, <type>, <entries>, <content>, etc.
-    Dashboard expects plain text.
-    """
+    """Strip XML-like tags from OpenCode built-in tool output and truncate."""
     cleaned = _XML_TAG_RE.sub("", text).strip()
-    return cleaned if cleaned else text
+    cleaned = cleaned if cleaned else text
+    if len(cleaned) > 2000:
+        cleaned = cleaned[:2000] + "\n... (truncated)"
+    return cleaned
 
 
 def _to_opencode_mcp(servers: dict) -> dict:

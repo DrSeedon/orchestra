@@ -453,6 +453,9 @@ class AgentSession:
             try:
                 if self._backend is None:
                     return
+                if self.backend_type == "opencode":
+                    logger.info(f"[{self.name}] opencode listener ended, no reconnect needed")
+                    return
                 await self._backend.reconnect()
                 logger.info(f"[{self.name}] listener reconnected after error")
                 self._log("status", "listener reconnected")
