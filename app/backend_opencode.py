@@ -316,11 +316,21 @@ class OpenCodeBackend:
                     if evt_sid and evt_sid != self._session_id:
                         continue
                     if not evt_sid:
-                        # Global event (heartbeat) — check inactivity
-                        if chat_task.done() and (asyncio.get_event_loop().time() - last_meaningful) > INACTIVITY_TIMEOUT:
-                            logger.info(f"SSE inactivity timeout ({INACTIVITY_TIMEOUT}s) — chat done, forcing turn_end")
-                            normal_end = True
-                            break
+                        # Global event (heartbeat) — check inactivity regardless of chat_task
+                        elapsed = asyncio.get_event_loop().time() - last_meaningful
+                        if elapsed > INACTIVITY_TIMEOUT:
+                            # Poll daemon to confirm session is idle
+                            try:
+                                sr = await self._http.get(f"/session/{self._session_id}")
+                                if sr.status_code == 200:
+                                    sdata = sr.json()
+                                    # OpenCode session has no "idle" field — check if latest message is complete
+                                    logger.info(f"SSE inactivity {elapsed:.0f}s — polling daemon, cost={sdata.get('cost',0)}")
+                                normal_end = True
+                                break
+                            except Exception:
+                                normal_end = True
+                                break
                         continue
                     t = evt.get("type", "")
                     if t == "message.part.updated":
