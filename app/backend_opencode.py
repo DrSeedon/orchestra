@@ -389,6 +389,8 @@ class OpenCodeBackend:
                     await chat_task
 
         if error_out is not None:
+            self._chat_task = None
+            self._sse_response = None
             yield self._error_turn_end(error_out)
             return
         if normal_end:
@@ -406,6 +408,9 @@ class OpenCodeBackend:
                 yield self._error_turn_end(f"chat_await_failed: {e}")
                 return
             yield self._turn_end(msg)
+        # Reset per-turn state so next events() call waits for new send()
+        self._chat_task = None
+        self._sse_response = None
 
     async def _sse_lines(self) -> AsyncIterator[str]:
         if not self._sse_response:
