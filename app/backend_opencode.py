@@ -104,7 +104,11 @@ class OpenCodeBackend:
             self._session_id = resp.json()["id"]
 
     def _write_opencode_json(self) -> None:
-        """Write per-worker opencode.json into cwd (MCP + permissions). Merge if exists."""
+        """Write per-worker opencode.json into cwd as agent user (not root).
+
+        Docker cap_drop=ALL strips DAC_OVERRIDE → root can't write to dirs owned
+        by uid 2000 (agent). Fork + setuid before write.
+        """
         path = os.path.join(self.cwd, "opencode.json")
         config = {}
         if os.path.exists(path):
@@ -118,11 +122,15 @@ class OpenCodeBackend:
             config["mcp"] = {**config.get("mcp", {}), **_to_opencode_mcp(self._mcp_servers)}
         config["permission"] = {"edit": "allow", "bash": "allow", "webfetch": "allow",
                                 "external_directory": "allow", "doom_loop": "allow"}
-        with open(path, "w") as f:
-            json.dump(config, f, indent=2)
+        content = json.dumps(config, indent=2)
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         if agent_uid:
-            os.chown(path, int(agent_uid), int(agent_uid))
+            import subprocess as sp
+            script = f"import os,sys; os.setuid({int(agent_uid)}); open(sys.argv[1],'w').write(sys.stdin.read())"
+            sp.run(["python3", "-c", script, path], input=content, check=True, capture_output=True, text=True)
+        else:
+            with open(path, "w") as f:
+                f.write(content)
 
     async def _start_daemon(self) -> None:
         env = dict(os.environ)
