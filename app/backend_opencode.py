@@ -236,6 +236,7 @@ class OpenCodeBackend:
 
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self._http:
+            logger.warning("events(): no http client")
             return
         # Wait for send() which opens SSE + fires chat task
         for _ in range(300):
@@ -243,7 +244,9 @@ class OpenCodeBackend:
                 break
             await asyncio.sleep(0.1)
         if not self._chat_task or not self._sse_response:
+            logger.warning(f"events(): wait expired — chat_task={self._chat_task is not None} sse={self._sse_response is not None}")
             return
+        logger.info(f"events(): starting — chat_done={self._chat_task.done()} sse_consumed={self._sse_response.is_stream_consumed}")
         # Snapshot the task: a concurrent disconnect() may null self._chat_task while
         # this iterator runs — work with the local so we never hit AttributeError.
         chat_task = self._chat_task
