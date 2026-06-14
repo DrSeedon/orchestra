@@ -116,22 +116,35 @@ class OpenCodeBackend:
                 config = {}
         if self._mcp_servers:
             config["mcp"] = {**config.get("mcp", {}), **_to_opencode_mcp(self._mcp_servers)}
-        config["permission"] = {"edit": "allow", "bash": "allow", "webfetch": "allow"}
+        config["permission"] = {"edit": "allow", "bash": "allow", "webfetch": "allow",
+                                "external_directory": "allow", "doom_loop": "allow"}
         with open(path, "w") as f:
             json.dump(config, f, indent=2)
+        agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+        if agent_uid:
+            os.chown(path, int(agent_uid), int(agent_uid))
 
     async def _start_daemon(self) -> None:
         env = dict(os.environ)
-        # OpenCode talks to Anthropic → keep the proxy (unlike Codex→OpenAI).
+        agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+        def _make_preexec(uid_str: str):
+            uid = int(uid_str)
+            def _setuid():
+                os.setuid(uid)
+            return _setuid
+        extra_kwargs: dict = {}
+        if agent_uid:
+            extra_kwargs["preexec_fn"] = _make_preexec(agent_uid)
         last_err = None
         for attempt in range(PORT_RETRIES):
             self._port = _free_port()
             self._proc = await asyncio.create_subprocess_exec(
                 OPENCODE_BIN, "serve", "--port", str(self._port),
                 "--hostname", "127.0.0.1", "--log-level", "ERROR",
-                stdout=asyncio.subprocess.DEVNULL,   # don't keep an undrained PIPE
+                stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
                 env=env, cwd=self.cwd,
+                **extra_kwargs,
             )
             if await self._wait_ready():
                 return
