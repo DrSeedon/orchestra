@@ -177,11 +177,13 @@ function connectSSE() {
                     pendingBubble.remove();
                     pendingBubble = null;
                     pendingUserMsgs = [];
+                    addChatEntry(l.type, l.content, l.ts);
                 } else if (_finalizedBubble) {
                     _finalizedBubble.remove();
+                    addChatEntry(l.type, l.content, l.ts);
                 }
                 _finalizedBubble = null;
-                addChatEntry(l.type, l.content, l.ts);
+                // If both null — bubble already finalized and gone, skip to avoid duplicate
             } else {
                 addChatEntry(l.type, l.content, l.ts);
             }
