@@ -172,20 +172,19 @@ class OpenCodeBackend:
         content = json.dumps(config, indent=2)
         raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         uid = _resolve_uid(raw_uid) if raw_uid else None
-        # Try writing directly (works when cwd owned by root — worktree dirs).
-        # Fall back to subprocess setuid (workspace dirs owned by agent).
-        try:
+        # Write as agent via gosu (root can't write to agent-owned dirs with cap_drop=ALL)
+        raw_uid = os.environ.get("ORCHESTRA_AGENT_UID", "")
+        if raw_uid:
+            import subprocess as sp
+            gosu = shutil.which("gosu")
+            if gosu:
+                sp.run([gosu, raw_uid, "tee", path], input=content.encode(), capture_output=True, check=True)
+            else:
+                with open(path, "w") as f:
+                    f.write(content)
+        else:
             with open(path, "w") as f:
                 f.write(content)
-            if uid is not None:
-                os.chown(path, uid, uid)
-        except PermissionError:
-            if uid is not None:
-                import subprocess as sp
-                script = f"import os,sys; os.setuid({uid}); open(sys.argv[1],'w').write(sys.stdin.read())"
-                sp.run(["python3", "-c", script, path], input=content, check=True, capture_output=True, text=True)
-            else:
-                raise
         self._config_path = path
 
     async def _start_daemon(self) -> None:
