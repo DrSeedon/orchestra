@@ -62,9 +62,11 @@ def _ensure_workspace() -> None:
         logger.warning("Bootstrap: cannot create workspace %s: %s", WORKSPACE_DIR, e)
         return
 
-    subprocess.run(["git", "init"], cwd=str(ws), capture_output=True, **run_kwargs)
+    subprocess.run(["git", "init", "-b", "main"], cwd=str(ws), capture_output=True, **run_kwargs)
     subprocess.run(["git", "config", "user.email", "orchestra@seedon.ru"], cwd=str(ws), capture_output=True, **run_kwargs)
     subprocess.run(["git", "config", "user.name", "Orchestra"], cwd=str(ws), capture_output=True, **run_kwargs)
+    # Make workspace writable by root (for git worktree operations) — chmod 777 on .git
+    subprocess.run(["chmod", "-R", "a+rwX", str(ws)], capture_output=True)
     # safe.directory for root (Orchestra main process) — workspace owned by agent
     subprocess.run(["git", "config", "--global", "safe.directory", "*"], capture_output=True)
     # safe.directory for agent user (opencode daemon)
