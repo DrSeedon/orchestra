@@ -33,14 +33,13 @@ async def ensure_bootstrap() -> None:
 
 
 def _fix_runtime_permissions() -> None:
-    """Make volume-mounted dirs writable by agent — Docker creates them as root.
+    """Ensure volume-mounted dirs are usable by agent.
 
-    Can't chown (CAP_CHOWN dropped). Use chmod a+rwx instead (no CAP_FOWNER needed
-    for dirs owned by current user = root).
+    Docker named volumes inherit ownership from the image layer on first create.
+    /opt/orchestra/worktrees is chown'd to agent in Dockerfile — volume preserves this.
+    Nothing to do here for now; kept as hook for future needs.
     """
-    for d in ["/opt/orchestra/worktrees", "/opt/orchestra/data"]:
-        if os.path.isdir(d):
-            subprocess.run(["chmod", "-R", "a+rwX", d], capture_output=True)
+    pass
 
 
 def _resolve_uid(val: str) -> int | None:
