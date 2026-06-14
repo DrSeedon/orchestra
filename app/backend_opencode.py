@@ -122,6 +122,14 @@ class OpenCodeBackend:
             config["mcp"] = {**config.get("mcp", {}), **_to_opencode_mcp(self._mcp_servers)}
         config["permission"] = {"edit": "allow", "bash": "allow", "webfetch": "allow",
                                 "external_directory": "allow", "doom_loop": "allow"}
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+        config["provider"] = config.get("provider", {})
+        config["provider"]["openrouter"] = {
+            "options": {"apiKey": api_key, **({"baseURL": base_url} if base_url else {})},
+        }
+        full_model = f"{self.provider_id}/{self.model}" if self.provider_id != "anthropic" else self.model
+        config["model"] = f"openrouter/{full_model}"
         content = json.dumps(config, indent=2)
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         if agent_uid:
@@ -429,6 +437,11 @@ class OpenCodeBackend:
                     self._http.post(f"/session/{self._session_id}/abort"), timeout=3)
             except Exception as e:
                 logger.warning(f"OpenCode abort failed: {e}")
+
+    async def reconnect(self) -> None:
+        await self.disconnect()
+        await asyncio.sleep(1)
+        await self.connect()
 
     async def disconnect(self) -> None:
         try:
