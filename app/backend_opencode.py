@@ -51,7 +51,7 @@ OPENCODE_CONTEXT_LIMITS = {
 DEFAULT_CONTEXT = 200000
 
 TURN_TIMEOUT = 1800        # hard ceiling on a single turn (s)
-DAEMON_READY_TIMEOUT = 15  # wait for GET /app to return 200
+DAEMON_READY_TIMEOUT = 30  # wait for GET /app to return 200 (gosu startup slower)
 PORT_RETRIES = 3
 
 
@@ -124,12 +124,6 @@ class OpenCodeBackend:
     # ── lifecycle ──
 
     async def connect(self) -> None:
-        # Ensure cwd is owned by agent — worktree dirs created by root need chown
-        raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
-        uid = _resolve_uid(raw_uid) if raw_uid else None
-        if uid is not None and os.path.isdir(self.cwd):
-            import subprocess as sp
-            sp.run(["chown", "-R", f"{uid}:{uid}", self.cwd], capture_output=True)
         self._write_opencode_json()
         await self._start_daemon()
         self._http = httpx.AsyncClient(base_url=self._base, timeout=httpx.Timeout(TURN_TIMEOUT))
