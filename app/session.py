@@ -421,8 +421,12 @@ class AgentSession:
                         continue
                     self._handle_event(event)
                     consecutive_failures = 0
-                # events() returns without error when the SDK stream closes unexpectedly
-                # (not via turn_end) — treat as a soft failure to trigger reconnect
+                # For opencode: events() finishing = turn done (per-turn generator, not persistent stream).
+                # Exit cleanly — next send() will start a new listen task.
+                if self.backend_type == "opencode":
+                    logger.info(f"[{self.name}] opencode turn completed normally")
+                    return
+                # For claude: events() returns without error when SDK stream closes unexpectedly
                 consecutive_failures += 1
                 logger.warning(f"[{self.name}] events() exhausted normally (attempt {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES})")
                 self._log("error", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
