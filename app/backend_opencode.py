@@ -291,13 +291,26 @@ class OpenCodeBackend:
         try:
             while True:
                 next_line = asyncio.ensure_future(sse.__anext__())
+                wait_timeout = min(60, TURN_TIMEOUT)  # check inactivity every 60s
                 done, _ = await asyncio.wait(
                     {next_line, chat_task},
-                    timeout=TURN_TIMEOUT, return_when=asyncio.FIRST_COMPLETED)
+                    timeout=wait_timeout, return_when=asyncio.FIRST_COMPLETED)
                 if not done:
-                    await self.interrupt()
-                    error_out = "turn_timeout"
-                    break
+                    # No SSE line AND no chat completion in 60s — check inactivity
+                    next_line.cancel()
+                    with contextlib.suppress(BaseException):
+                        await next_line
+                    elapsed = asyncio.get_event_loop().time() - last_meaningful
+                    if elapsed > INACTIVITY_TIMEOUT:
+                        try:
+                            sr = await self._http.get(f"/session/{self._session_id}")
+                            logger.info(f"SSE+chat dead {elapsed:.0f}s — daemon poll status={sr.status_code}")
+                        except Exception:
+                            pass
+                        normal_end = True
+                        break
+                    # Not inactive yet — continue waiting (re-open SSE line)
+                    continue
                 if next_line in done:
                     try:
                         raw = next_line.result()
