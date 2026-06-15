@@ -1113,13 +1113,15 @@ function selectAgent(name) {
     streamBubble = null;
     streamContent = '';
     $('#chat').innerHTML = '';
-    if (chatLogs[name]) chatLogs[name].lastId = 0;
+    chatLogs[name] = { lastId: 0, firstId: null };
     scrollAfterLoad = true;
     updateInputState();
     restoreDraft();
     renderAgentList();
     fetchAgentContext(name);
-    refreshSessions(); connectSSE();
+    refreshSessions();
+    // Brief delay before SSE connect — gives time for any in-flight send() to persist
+    setTimeout(() => { if (selectedAgent === name) connectSSE(); }, 300);
 }
 
 function updateInputState() {
