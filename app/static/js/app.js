@@ -1441,7 +1441,8 @@ function createAgentItem(s) {
     const meta = document.createElement('div');
     meta.className = 'text-xs text-slate-600 mt-0.5 flex justify-between';
     const modelSpan = document.createElement('span');
-    modelSpan.textContent = s.model || '';
+    const roleLabel = s.role && s.role !== 'worker' ? ` · ${s.role}` : '';
+    modelSpan.textContent = (s.model || '') + roleLabel;
     meta.appendChild(modelSpan);
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
