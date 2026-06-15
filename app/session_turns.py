@@ -75,21 +75,19 @@ class TurnManager:
             else:
                 s._log("status", f"turn interrupted ({sr})")
 
-        if sr in ("error_max_turns", "max_turns") and ok:
-            # SDK has a per-turn limit; auto-continue so agents don't silently stop
-            # mid-task when they hit it. The injected message gives them context.
-            # Depth cap: without it an agent stuck at max_turns recurses unbounded.
+        # tool_use stop = agent wanted another tool call but SDK ended the turn.
+        # Auto-continue so the agent doesn't silently go idle mid-task.
+        if sr in ("error_max_turns", "max_turns", "tool_use") and ok:
             if s._auto_continue_count >= s.AUTO_CONTINUE_MAX:
                 logger.warning(f"[{s.name}] auto-continue cap ({s.AUTO_CONTINUE_MAX}) reached — staying idle")
-                s._log("error", f"auto-continue cap reached ({s.AUTO_CONTINUE_MAX}) — agent stuck at max_turns")
+                s._log("error", f"auto-continue cap reached ({s.AUTO_CONTINUE_MAX}) — agent stuck at {sr}")
             else:
                 s._auto_continue_count += 1
-                s._log("status", f"max_turns reached ({nt}), auto-continuing "
+                s._log("status", f"{sr} ({nt} turns), auto-continuing "
                                  f"({s._auto_continue_count}/{s.AUTO_CONTINUE_MAX})")
                 s._spawn_bg(s._auto_continue())
                 return
         else:
-            # consecutive counter: any non-max_turns turn end resets the cap
             s._auto_continue_count = 0
 
         live_pct = s._last_context.get("percentage", 0)
