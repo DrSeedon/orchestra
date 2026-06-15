@@ -6,11 +6,13 @@ __pycache__/
 *.db-shm
 *.db-wal
 *.db.bak
-workers/*/
-!workers/.gitkeep
+workers/
 worktrees/
 data/
 .claude/
+.serena/
+.codex
+..bfg-report/
 _screenshots/
 artifacts/
 docs/proxy-*.md
