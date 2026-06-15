@@ -2387,6 +2387,13 @@ function addChatEntry(type, content, ts, anchor) {
                     badge.style.cssText = `font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:${MODEL_COLOR[model] || '#94a3b8'};border-color:${MODEL_COLOR[model] || '#94a3b8'};opacity:0.8;vertical-align:middle;margin-left:6px`;
                     header.appendChild(badge);
                 }
+                const role = d.role || '';
+                if (role && role !== 'worker') {
+                    const roleBadge = document.createElement('span');
+                    roleBadge.textContent = role;
+                    roleBadge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:#fbbf24;border-color:#fbbf24;opacity:0.8;vertical-align:middle;margin-left:4px';
+                    header.appendChild(roleBadge);
+                }
 
                 const PREVIEW = 200;
                 let cutAt = PREVIEW;

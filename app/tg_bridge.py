@@ -1204,7 +1204,20 @@ async def stream_logs(orch_name: str, thread_id: int):
                         tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
                         icon = _tg_tool_icon(tool_name)
                         short = _tg_tool_short(tool_name)
-                        header = f"{icon} {short}"
+                        # spawn_worker: show name + model + role in header
+                        if "spawn_worker" in tool_name:
+                            try:
+                                import json as _json
+                                _sp = _json.loads(tool_body.strip())
+                                _sp_name = _sp.get("name", "?")
+                                _sp_model = _MODEL_SHORT.get(_sp.get("model", ""), _sp.get("model", ""))
+                                _sp_role = _sp.get("role", "")
+                                _role_part = f" · {_sp_role}" if _sp_role and _sp_role != "worker" else ""
+                                header = f"🚀 Spawning {_sp_name} ({_sp_model}{_role_part})"
+                            except Exception:
+                                header = f"{icon} {short}"
+                        else:
+                            header = f"{icon} {short}"
                         _last_tool_text = f"{header}\n{tool_body}"
                         _last_tool_name = tool_name
                         _last_tool_raw = c
