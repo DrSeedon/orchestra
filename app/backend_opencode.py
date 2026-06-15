@@ -1,10 +1,15 @@
 """OpenCodeBackend — wraps an `opencode serve` daemon (HTTP + SSE) as a BackendLike.
 
-Shape: Codex-like managed subprocess (one turn per send, native cost in the chat
-response) but with Claude-like streaming richness delivered over a SEPARATE global
-SSE bus (`GET /event`) rather than inline. The hard part is coordinating two sources:
-the SSE stream (incremental parts) and the awaited chat POST (authoritative final
-cost/tokens). `session.idle` is the turn boundary.
+Shape: Codex-like managed subprocess (one turn per send) with Claude-like streaming
+richness over a SEPARATE global SSE bus (`GET /event`).
+
+Turn boundary = polling `GET /session/status` (authoritative daemon state), NOT the SSE
+`session.idle` event. Rationale (task #97): the SSE bus is global with 30s heartbeats and
+frequently MISSES `session.idle`; combined with a chat POST that could hang forever, the
+turn never ended → orchestrator stuck `running` for 11h in prod. A direct status query
+cannot be "missed" the way a fire-once event can. We submit via `prompt_async` (returns
+204 immediately) so a lost HTTP response can no longer strand a turn. SSE is kept ONLY for
+live streaming of text/tool/reasoning parts.
 
 We talk to the daemon with plain httpx (not the opencode-ai SDK): the SDK's pydantic
 event types silently drop `reasoning`/`message.part.delta`/unknown events, and we need
@@ -28,6 +33,11 @@ logger = logging.getLogger(__name__)
 
 OPENCODE_BIN = shutil.which("opencode") or os.environ.get("OPENCODE_BIN", "opencode")
 
+# Boundary-hint sentinels yielded by _handle_sse — the caller verifies completion via
+# GET /session/status rather than trusting these SSE events (which can be missed/lie).
+_SESSION_IDLE = object()
+_SESSION_ERR = object()
+
 
 def _resolve_uid(val: str) -> int | None:
     """Resolve ORCHESTRA_AGENT_UID (name or numeric) to int uid."""
@@ -50,9 +60,12 @@ OPENCODE_CONTEXT_LIMITS = {
 }
 DEFAULT_CONTEXT = 200000
 
-TURN_TIMEOUT = 1800        # hard ceiling on a single turn (s)
-DAEMON_READY_TIMEOUT = 30  # wait for GET /app to return 200 (gosu startup slower)
+TURN_TIMEOUT = 1800         # hard ceiling on a single turn (s) — enforced INSIDE events()
+DAEMON_READY_TIMEOUT = 30   # wait for GET /app to return 200 (gosu startup slower)
 PORT_RETRIES = 3
+STATUS_POLL_INTERVAL = 3    # seconds between GET /session/status polls (boundary detection)
+SUBMIT_GRACE = 20           # max wait for first busy/activity before trusting "idle" as done
+STATUS_FAIL_THRESHOLD = 3   # consecutive status-poll failures before declaring the turn dead
 
 
 def _free_port() -> int:
@@ -110,7 +123,7 @@ class OpenCodeBackend:
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._port: int | None = None
         self._http: Optional[httpx.AsyncClient] = None
-        self._chat_task: Optional[asyncio.Task] = None
+        self._turn_active: bool = False
         self._sse_response: Optional[httpx.Response] = None
 
     @property
@@ -244,207 +257,221 @@ class OpenCodeBackend:
     async def send(self, message: str) -> None:
         if not self._http or not self._session_id:
             raise RuntimeError("OpenCodeBackend not connected")
-        if self._chat_task and not self._chat_task.done():
+        if self._turn_active:
             raise RuntimeError("OpenCodeBackend turn already in progress")
+        # SSE only for live streaming of parts; turn boundary comes from status polling.
         self._sse_response = await self._http.send(
             self._http.build_request("GET", "/event"),
             stream=True,
         )
+        # prompt_async returns 204 immediately — the daemon processes the turn in the
+        # background, so a lost HTTP response can no longer strand us. Note: `model` is
+        # NESTED here (unlike the old /message which had providerID/modelID top-level).
         body = {
-            "providerID": self.provider_id,
-            "modelID": self.model,
+            "model": {"providerID": self.provider_id, "modelID": self.model},
             "parts": [{"type": "text", "text": message}],
         }
         if self.system_prompt:
             body["system"] = self.system_prompt
-        url = f"/session/{self._session_id}/message"
-        self._chat_task = asyncio.ensure_future(self._post_chat(url, body))
-
-    async def _post_chat(self, url: str, body: dict) -> dict:
-        assert self._http is not None
-        resp = await self._http.post(url, json=body)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await self._http.post(f"/session/{self._session_id}/prompt_async", json=body)
+            resp.raise_for_status()
+        except Exception:
+            # never leave turn_active / a half-open SSE stream set on a failed submit
+            if self._sse_response is not None:
+                with contextlib.suppress(Exception):
+                    await self._sse_response.aclose()
+                self._sse_response = None
+            raise
+        self._turn_active = True
 
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self._http:
             return
-        # Wait for send() which opens SSE + fires chat task
-        for i in range(300):
-            if self._chat_task and self._sse_response:
+        # Wait for send() to open SSE + mark the turn active.
+        for _ in range(300):
+            if self._turn_active and self._sse_response:
                 break
             await asyncio.sleep(0.1)
-        if not self._chat_task or not self._sse_response:
+        if not self._turn_active or not self._sse_response:
             return
-        # Snapshot the task: a concurrent disconnect() may null self._chat_task while
-        # this iterator runs — work with the local so we never hit AttributeError.
-        chat_task = self._chat_task
+
         seen_use: set[str] = set()
         seen_result: set[str] = set()
         emitted_len: dict[str, int] = {}   # per-part-id text already emitted (suffix-only)
         sse = self._sse_lines()
-        next_line: Optional[asyncio.Future] = None
-        error_out: str | None = None       # non-None → yield error_turn_end(error_out) after cleanup
-        normal_end = False                  # True → yield turn_end from chat result
-        last_meaningful = asyncio.get_event_loop().time()
-        INACTIVITY_TIMEOUT = 15  # force turn_end if no meaningful events
-        next_line = None
+        next_line: Optional[asyncio.Task[str]] = None
+        poll: Optional[asyncio.Task[None]] = None
+        sse_live = True                     # False once the SSE stream ends/errors
+        error_out: str | None = None        # non-None → yield error_turn_end(error_out)
+        normal_end = False                  # True → build turn_end from message API
+
+        saw_activity = False                # first busy/retry OR any SSE event for our sid
+        status_fails = 0
+        loop = asyncio.get_event_loop()
+        start = loop.time()
+        deadline = start + TURN_TIMEOUT     # HARD ceiling — enforced HERE, not in session.py
+        poll_now = False                    # SSE idle hint → poll status immediately
         try:
             while True:
-                if next_line is None or next_line.done():
+                if loop.time() > deadline:
+                    logger.error(f"opencode turn exceeded {TURN_TIMEOUT}s — forcing end")
+                    error_out = "turn_timeout"
+                    break
+
+                if sse_live and (next_line is None or next_line.done()):
                     next_line = asyncio.ensure_future(sse.__anext__())
-                wait_timeout = 10  # check inactivity frequently — must be < heartbeat interval (30s)
-                done, _ = await asyncio.wait(
-                    {next_line, chat_task},
-                    timeout=wait_timeout, return_when=asyncio.FIRST_COMPLETED)
-                if not done:
-                    # No SSE line AND no chat completion in 10s
-                    elapsed = asyncio.get_event_loop().time() - last_meaningful
-                    if elapsed > INACTIVITY_TIMEOUT:
-                        logger.warning(f"SSE inactivity {elapsed:.0f}s — forcing turn_end")
-                        next_line.cancel()
-                        with contextlib.suppress(BaseException):
-                            await next_line
-                        normal_end = True
-                        break
-                    # Still within activity window — don't cancel next_line, let it continue
-                    # next iteration will reuse the same future
-                    continue
-                if next_line in done:
+                if poll is None or poll.done():
+                    poll = asyncio.ensure_future(asyncio.sleep(STATUS_POLL_INTERVAL))
+
+                if poll_now:
+                    pass                    # skip the wait — poll status immediately
+                else:
+                    waitset: set[asyncio.Task] = {poll}
+                    if sse_live and next_line is not None:
+                        waitset.add(next_line)
+                    await asyncio.wait(waitset, return_when=asyncio.FIRST_COMPLETED)
+
+                # ── SSE line (live streaming) ──
+                if sse_live and next_line is not None and next_line.done():
                     try:
                         raw = next_line.result()
                     except StopAsyncIteration:
-                        normal_end = True
-                        break
+                        sse_live = False    # stream closed — status polling confirms completion
+                        poll_now = True
                     except Exception as e:
                         yield AgentEvent("error", f"sse read failed: {e}")
                         error_out = f"sse_failed: {e}"
                         break
-                    evt = self._parse_sse(raw)
-                    if evt is None:
-                        continue
-                    props = evt.get("properties") or {}
-                    evt_sid = props.get("sessionID")
-                    if evt_sid and evt_sid != self._session_id:
-                        continue
-                    if not evt_sid:
-                        # Global event (heartbeat) — check inactivity regardless of chat_task
-                        elapsed = asyncio.get_event_loop().time() - last_meaningful
-                        if elapsed > INACTIVITY_TIMEOUT:
-                            # Poll daemon to confirm session is idle
-                            try:
-                                sr = await self._http.get(f"/session/{self._session_id}")
-                                if sr.status_code == 200:
-                                    sdata = sr.json()
-                                    # OpenCode session has no "idle" field — check if latest message is complete
-                                    logger.info(f"SSE inactivity {elapsed:.0f}s — polling daemon, cost={sdata.get('cost',0)}")
-                                normal_end = True
-                                break
-                            except Exception:
-                                normal_end = True
-                                break
-                        continue
-                    t = evt.get("type", "")
-                    if t == "message.part.updated":
-                        last_meaningful = asyncio.get_event_loop().time()
-                        for e in self._map_part(props.get("part") or {},
-                                                seen_use, seen_result, emitted_len):
-                            yield e
-                    elif t == "file.edited":
-                        last_meaningful = asyncio.get_event_loop().time()
-                        yield AgentEvent("file_change", f"update {props.get('file', '')}")
-                    elif t == "session.error":
-                        err = props.get("error")
-                        yield AgentEvent("error", json.dumps(err) if err else "session error")
-                        normal_end = True
-                        break
-                    elif t == "session.idle":
-                        normal_end = True
-                        break
-                    # else: status/diff/plugin → ignore
-                else:
-                    # chat task finished before SSE idle — wait up to 10s for SSE to catch up
-                    if chat_task.cancelled():
-                        error_out = "chat_cancelled"
-                        break
-                    exc = chat_task.exception()
-                    if exc:
-                        yield AgentEvent("error", str(exc))
-                        error_out = f"chat_failed: {exc}"
-                        break
-                    # Drain remaining SSE events for up to 10s before falling through to turn_end
-                    deadline = asyncio.get_event_loop().time() + 10
-                    while asyncio.get_event_loop().time() < deadline:
-                        try:
-                            line_fut = asyncio.ensure_future(sse.__anext__())
-                            done2, _ = await asyncio.wait({line_fut}, timeout=max(0, deadline - asyncio.get_event_loop().time()))
-                            if not done2:
-                                line_fut.cancel()
-                                with contextlib.suppress(BaseException):
-                                    await line_fut
-                                break
-                            try:
-                                raw2 = line_fut.result()
-                            except StopAsyncIteration:
-                                break
-                            except Exception:
-                                break
-                            evt2 = self._parse_sse(raw2)
-                            if evt2:
-                                props2 = evt2.get("properties") or {}
-                                if props2.get("sessionID") == self._session_id:
-                                    t2 = evt2.get("type", "")
-                                    if t2 == "message.part.updated":
-                                        for ev in self._map_part(props2.get("part") or {}, seen_use, seen_result, emitted_len):
-                                            yield ev
-                                    elif t2 == "session.idle":
-                                        break
-                        except Exception:
+                    else:
+                        for ev in self._handle_sse(raw, seen_use, seen_result, emitted_len):
+                            if ev is _SESSION_IDLE:
+                                poll_now = True   # verify via status, don't trust SSE alone
+                            elif ev is _SESSION_ERR:
+                                error_out = "session_error"
+                            else:
+                                saw_activity = True
+                                yield ev
+                        if error_out:
                             break
-                    normal_end = True
-                    break
+
+                # ── status poll (authoritative boundary) ──
+                if poll_now or poll.done():
+                    poll_now = False
+                    st = await self._session_status()
+                    if st is None:
+                        status_fails += 1
+                        if status_fails >= STATUS_FAIL_THRESHOLD or self._proc_dead():
+                            error_out = "status_poll_failed"
+                            break
+                    else:
+                        status_fails = 0
+                        if st in ("busy", "retry"):
+                            saw_activity = True
+                        elif st == "idle" and (saw_activity or loop.time() - start > SUBMIT_GRACE):
+                            if not saw_activity:
+                                logger.info("opencode: idle from submit with no activity — ending after grace")
+                            normal_end = True
+                            break
         finally:
-            # Close the SSE generator. A pending __anext__ must be awaited-after-cancel
-            # FIRST, else gen.aclose() raises "asynchronous generator is already running".
-            if next_line is not None:
-                next_line.cancel()
-                with contextlib.suppress(BaseException):
-                    await next_line
+            # Cancel pending futures, close SSE, and ALWAYS clear per-turn state — a
+            # cancel/close mid-events() must not leave _turn_active stuck (else the next
+            # send() raises "turn already in progress"). A pending __anext__ must be
+            # awaited-after-cancel before aclose(), or it raises "already running".
+            for fut in (next_line, poll):
+                if fut is not None and not fut.done():
+                    fut.cancel()
+                    with contextlib.suppress(BaseException):
+                        await fut
             aclose = getattr(sse, "aclose", None)
             if aclose is not None:
                 with contextlib.suppress(BaseException):
                     await aclose()
-            # Reap the chat task UNLESS the normal path will await it below. Covers
-            # consumer-closed-generator, SSE failure, timeout, cancel, error_out — so
-            # the task never leaks / logs "Task was destroyed".
-            if not normal_end and not chat_task.done():
-                chat_task.cancel()
-                with contextlib.suppress(BaseException):
-                    await chat_task
-
-        if error_out is not None:
-            self._chat_task = None
+            self._turn_active = False
             self._sse_response = None
+
+        # ── terminal turn_end (exactly one, on every path) ──
+        if error_out is not None:
             yield self._error_turn_end(error_out)
             return
         if normal_end:
-            # BaseException catch: a concurrent cancel makes wait_for raise
-            # CancelledError (BaseException) — must still yield exactly one turn_end.
-            if chat_task.cancelled():
-                yield self._error_turn_end("chat_cancelled")
-                return
             try:
-                msg = await asyncio.wait_for(chat_task, timeout=10)
-            except asyncio.CancelledError:
-                yield self._error_turn_end("chat_cancelled")
-                return
+                msg = await self._fetch_last_message()
             except Exception as e:
-                yield self._error_turn_end(f"chat_await_failed: {e}")
+                yield self._error_turn_end(f"message_fetch_failed: {e}")
+                return
+            if not msg:
+                yield self._error_turn_end("no_assistant_message")
                 return
             yield self._turn_end(msg)
-        # Reset per-turn state so next events() call waits for new send()
-        self._chat_task = None
-        self._sse_response = None
+
+    def _handle_sse(self, raw: str, seen_use: set, seen_result: set,
+                    emitted_len: dict) -> "list":
+        """Parse one SSE line → list of AgentEvent for our session, plus the sentinels
+        _SESSION_IDLE / _SESSION_ERR (boundary hints — the caller verifies via status)."""
+        evt = self._parse_sse(raw)
+        if evt is None:
+            return []
+        props = evt.get("properties") or {}
+        evt_sid = props.get("sessionID")
+        if not evt_sid:
+            return []                       # global heartbeat — irrelevant to the boundary
+        if evt_sid != self._session_id:
+            return []                       # another session's event
+        t = evt.get("type", "")
+        if t == "message.part.updated":
+            return self._map_part(props.get("part") or {}, seen_use, seen_result, emitted_len)
+        if t == "file.edited":
+            return [AgentEvent("file_change", f"update {props.get('file', '')}")]
+        if t == "session.error":
+            err = props.get("error")
+            return [AgentEvent("error", json.dumps(err) if err else "session error"),
+                    _SESSION_ERR]
+        if t == "session.idle":
+            return [_SESSION_IDLE]
+        return []                           # status/diff/plugin/step → ignore
+
+    async def _session_status(self) -> str | None:
+        """GET /session/status → 'idle' | 'busy' | 'retry'; None on httpx failure.
+
+        The endpoint lists ONLY busy/retry sessions, so our session being ABSENT means
+        idle. None (connection error) is NOT idle — the caller tolerates transient fails.
+        """
+        if not self._http or not self._session_id:
+            return None
+        try:
+            r = await self._http.get("/session/status", timeout=5)
+            if r.status_code != 200:
+                return None
+            data = r.json()
+        except Exception:
+            return None
+        entry = data.get(self._session_id) if isinstance(data, dict) else None
+        if not entry:
+            return "idle"
+        return entry.get("type", "idle")
+
+    async def _fetch_last_message(self) -> dict | None:
+        """GET /session/{id}/message → the last assistant message (for turn_end cost/tokens).
+
+        Normalizes both shapes the endpoint may return: a flat AssistantMessage, or
+        {info, parts}. Returns None if no assistant message exists.
+        """
+        if not self._http or not self._session_id:
+            return None
+        r = await self._http.get(f"/session/{self._session_id}/message", timeout=10)
+        r.raise_for_status()
+        msgs = r.json()
+        if not isinstance(msgs, list):
+            return None
+        for m in reversed(msgs):
+            info = m.get("info") if isinstance(m.get("info"), dict) else m
+            if info.get("role") == "assistant":
+                return m
+        return None
+
+    def _proc_dead(self) -> bool:
+        return self._proc is not None and self._proc.returncode is not None
 
     async def _sse_lines(self) -> AsyncIterator[str]:
         if not self._sse_response:
@@ -513,7 +540,9 @@ class OpenCodeBackend:
         return events
 
     def _turn_end(self, msg: dict) -> AgentEvent:
-        info = msg.get("info", {})
+        # message endpoint returns {info, parts} OR a flat AssistantMessage — normalize.
+        nested = msg.get("info")
+        info: dict = nested if isinstance(nested, dict) else msg
         tok = info.get("tokens", {}) or {}
         cache = tok.get("cache", {}) or {}
         input_t = int(tok.get("input", 0) or 0)
@@ -581,16 +610,9 @@ class OpenCodeBackend:
             await asyncio.wait_for(self.interrupt(), timeout=3)
         except Exception:
             pass
-        # Reap an in-flight chat task so it doesn't leak / log "Task was destroyed".
-        # suppress BaseException — cancel() makes the await raise CancelledError.
-        if self._chat_task and not self._chat_task.done():
-            self._chat_task.cancel()
-            with contextlib.suppress(BaseException):
-                await self._chat_task
-        elif self._chat_task and self._chat_task.done():
-            with contextlib.suppress(BaseException):
-                self._chat_task.exception()   # retrieve to silence unhandled-exception warning
-        self._chat_task = None
+        # No chat task to reap — prompt_async is fire-and-forget (awaited in send()), and
+        # the events() loop owns SSE cleanup + _turn_active reset via its finally block.
+        self._turn_active = False
         if self._sse_response:
             with contextlib.suppress(Exception):
                 await self._sse_response.aclose()

@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.21.1 — 2026-06-15
+
+### Fixed
+- 🐛 **OpenCode turn never ends → orchestrator stuck `running` (task #97, 11h in prod)** — the turn boundary relied on the fire-once SSE `session.idle` event (global bus, 30s heartbeats, frequently MISSED) plus a chat `POST /message` that could hang forever. When both failed, `events()` never yielded `turn_end`, the listen task never exited, status stayed `RUNNING` indefinitely.
+  - **Technical core**: rewrote `OpenCodeBackend.events()` (`app/backend_opencode.py`) to detect completion by POLLING `GET /session/status` every `STATUS_POLL_INTERVAL=3s` — an authoritative daemon query that cannot be "missed" like an event. Idle ⟺ session absent from the status dict OR `type=="idle"`; `busy`/`retry` ⟶ keep waiting. SSE is kept ONLY for live streaming of `text`/`thinking`/`tool` parts (`_handle_sse` helper + `_SESSION_IDLE`/`_SESSION_ERR` sentinels — SSE idle just triggers an immediate status poll, never ends the turn on its own).
+  - **Send path**: `send()` now submits via `POST /session/{id}/prompt_async` (returns `204` immediately) instead of a chat-POST task that could hang. Dropped `_chat_task`/`_post_chat`; per-turn state is a single `_turn_active` flag. Body uses NESTED `model:{providerID,modelID}` (the `prompt_async` schema differs from the old `/message`).
+  - **turn_end** built from `GET /session/{id}/message` (last assistant message) via new `_fetch_last_message()` — cost/tokens independent of the submit. `_turn_end` normalizes both `{info,...}` and flat-`AssistantMessage` shapes (`info = msg.get("info") or msg`).
+  - **No-stuck guarantees (all Codex-flagged)**: HARD deadline enforced INSIDE `events()` (`TURN_TIMEOUT`) — the `session.py` timeout only runs when `events()` yields, so a perma-`busy` daemon would've still hung; `_turn_active`/`_sse_response` reset in the `finally` (cancel-safe); status-poll tolerates transient failures (`STATUS_FAIL_THRESHOLD=3` consecutive OR `_proc_dead()` before declaring dead); message-fetch is total → exactly one `turn_end` on every exit path.
+  - **`app/session.py:365`** — wrapped `await backend.send(message)` in try/except: a `send()` failure after `status=RUNNING` and before the listen task is created was a SECOND stuck-running path (any backend). Now resets to `IDLE` on failure.
+  - **Removed**: all the prior debug-patch cruft — `INACTIVITY_TIMEOUT`, `wait_timeout`, the SSE-drain loop, the useless heartbeat daemon-poll.
+  - **Tests**: `tests/test_backend_opencode.py` event-loop suite rewritten for the poll model (fake SSE + scripted `/session/status`). New cases: SSE-never-sends-idle (THE bug), perma-busy hits hard deadline, single vs repeated status failures, retry-not-premature, message-fetch empty/raises, flat-message shape, cancel resets `_turn_active`, submit-grace. 44 tests green.
+  - **Triggered case**: orchestrator on opencode backend sat at `running` for 11h after a turn the daemon had actually finished — the `session.idle` SSE event was dropped and the chat POST response was lost.
+
 ## v2.21.0 — 2026-06-14
 
 ### Added

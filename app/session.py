@@ -362,7 +362,16 @@ class AgentSession:
                 self._persist()
                 raise
 
-            await backend.send(message)
+            # send() can raise (e.g. opencode prompt_async 404/5xx) AFTER status=RUNNING and
+            # BEFORE the listen task is created — without this, a failed submit strands the
+            # agent in RUNNING forever (task #97). Reset to IDLE on failure.
+            try:
+                await backend.send(message)
+            except Exception:
+                if self.status == AgentStatus.RUNNING:
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                raise
 
             if did_inject:
                 if templates_changed:

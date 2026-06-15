@@ -1,8 +1,10 @@
-"""Task #96 — OpenCodeBackend: event mapping, turn_end parity, MCP translation.
+"""Task #96/#97 — OpenCodeBackend: event mapping, turn_end parity, MCP translation,
+and the poll-based turn-completion loop (#97).
 
 Pure-logic unit tests over fixtures captured from a live opencode v1.17.6 daemon.
-No daemon needed — the dual-source coordination + lifecycle are covered by the
-gated integration test at the bottom (skipped if the binary is absent).
+No daemon needed — the events() loop is exercised with a fake SSE stream + a fake
+status sequence; the lifecycle is covered by the gated integration test at the bottom
+(skipped if the binary is absent).
 """
 
 import contextlib
@@ -248,7 +250,8 @@ def test_write_opencode_json_fresh(tmp_path):
     import json
     cfg = json.loads((tmp_path / "opencode.json").read_text())
     assert cfg["mcp"]["orchestra"]["type"] == "local"
-    assert cfg["permission"] == {"edit": "allow", "bash": "allow", "webfetch": "allow"}
+    assert cfg["permission"] == {"edit": "allow", "bash": "allow", "webfetch": "allow",
+                                 "external_directory": "allow", "doom_loop": "allow"}
 
 
 def test_write_opencode_json_merges_existing(tmp_path):
@@ -258,36 +261,81 @@ def test_write_opencode_json_merges_existing(tmp_path):
                         mcp_servers={"orchestra": {"command": "py", "env": {}}})
     b._write_opencode_json()
     cfg = json.loads((tmp_path / "opencode.json").read_text())
-    assert cfg["model"] == "x"              # preserved
+    assert cfg["model"] == "openrouter/m"   # model is (re)written from the backend's model
     assert "keep" in cfg["mcp"]             # existing mcp preserved
     assert "orchestra" in cfg["mcp"]        # ours merged in
 
 
-# ── dual-source events() loop (fake SSE + fake chat task, no daemon) ──
+# ── poll-based events() loop (#97 — fake SSE + scripted status, no daemon) ──
 
 import asyncio
 import json as _json
 
 
-def _sse_backend(lines, chat_result=None, chat_exc=None, session_id="ses_x"):
-    """Wire a backend with a fake SSE stream and a fake chat task."""
+class _FakeResp:
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+class _FakeHTTP:
+    """Minimal stand-in for httpx.AsyncClient: answers GET /session/status from a
+    scripted sequence and GET /session/{id}/message with a fixed assistant message.
+
+    status_seq items, consumed one per /session/status call (last value repeats):
+      "idle"|"busy"|"retry"  → {sid: {"type": v}} (or {} for idle),
+      None                    → raise (connection error),
+      dict                    → returned verbatim as the json body.
+    """
+    def __init__(self, status_seq, sid="ses_x", message=None, message_exc=None):
+        self._status_seq = list(status_seq)
+        self._i = 0
+        self._sid = sid
+        self._message = message if message is not None else [
+            {"info": {"role": "assistant", "cost": 0.5, "finish": "stop", "error": None,
+                      "tokens": {"input": 10, "output": 2}}}]
+        self._message_exc = message_exc
+        self.status_calls = 0
+
+    async def get(self, url, **kw):
+        if url == "/session/status":
+            self.status_calls += 1
+            v = self._status_seq[min(self._i, len(self._status_seq) - 1)]
+            self._i += 1
+            if v is None:
+                raise RuntimeError("status connect error")
+            if isinstance(v, dict):
+                return _FakeResp(200, v)
+            body = {} if v == "idle" else {self._sid: {"type": v}}
+            return _FakeResp(200, body)
+        if url.endswith("/message"):
+            if self._message_exc:
+                raise self._message_exc
+            return _FakeResp(200, self._message)
+        raise AssertionError(f"unexpected GET {url}")
+
+
+def _poll_backend(sse_lines, status_seq, message=None, message_exc=None, session_id="ses_x"):
+    """Wire a backend with a fake SSE stream and a scripted /session/status sequence.
+    Marks the turn active so events() proceeds past its send()-wait."""
     b = OpenCodeBackend(model="m", cwd="/tmp")
     b._session_id = session_id
-    b._http = object()  # truthy guard; _sse_lines is patched so it's never used
+    b._http = _FakeHTTP(status_seq, sid=session_id, message=message, message_exc=message_exc)  # type: ignore
+    b._turn_active = True
+    b._sse_response = object()  # truthy guard; _sse_lines is patched so it's never read
 
     async def fake_sse():
-        for ln in lines:
+        for ln in sse_lines:
             yield _json.dumps(ln) if isinstance(ln, dict) else ln
 
     b._sse_lines = fake_sse  # type: ignore
-
-    async def chat():
-        if chat_exc:
-            raise chat_exc
-        await asyncio.sleep(0)
-        return chat_result or {"info": {"cost": 0, "finish": "stop", "error": None, "tokens": {}}}
-
-    b._chat_task = asyncio.ensure_future(chat())
     return b
 
 
@@ -295,55 +343,107 @@ async def _drain(b):
     return [e async for e in b.events()]
 
 
+@pytest.fixture(autouse=True)
+def _fast_poll(monkeypatch):
+    """Shrink the 3s status-poll interval so multi-poll tests don't wall-clock out."""
+    import app.backend_opencode as bo
+    monkeypatch.setattr(bo, "STATUS_POLL_INTERVAL", 0.01)
+
+
 @pytest.mark.asyncio
-async def test_events_idle_yields_exactly_one_turn_end():
-    b = _sse_backend([
-        {"type": "message.part.updated", "properties": {"sessionID": "ses_x",
-            "part": {"type": "text", "text": "hi", "id": "p"}}},
-        {"type": "session.idle", "properties": {"sessionID": "ses_x"}},
-    ], chat_result={"info": {"cost": 0.5, "finish": "stop", "error": None,
-                             "tokens": {"input": 10, "output": 2}}})
-    out = await _drain(b)
-    types = [e.type for e in out]
-    assert types == ["text", "turn_end"]
+async def test_events_status_idle_yields_one_turn_end():
+    """Happy path: SSE part streams, status flips busy→idle → exactly one turn_end."""
+    b = _poll_backend(
+        [{"type": "message.part.updated", "properties": {"sessionID": "ses_x",
+            "part": {"type": "text", "text": "hi", "id": "p"}}}],
+        status_seq=["busy", "idle"],
+        message=[{"info": {"role": "assistant", "cost": 0.5, "finish": "stop",
+                           "error": None, "tokens": {"input": 10, "output": 2}}}])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
+    assert [e.type for e in out] == ["text", "turn_end"]
     assert out[-1].metadata["cost_usd"] == 0.5
     assert out[-1].metadata["ok"] is True
 
 
 @pytest.mark.asyncio
+async def test_events_ends_when_sse_never_sends_idle():
+    """THE BUG: SSE only sends a heartbeat (no sessionID, no session.idle), but status
+    polling reports idle → turn still ends. Previously stranded RUNNING forever."""
+    b = _poll_backend(
+        [{"type": "server.heartbeat", "properties": {}}],  # global, no sessionID
+        status_seq=["busy", "idle"])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
+    assert out[-1].type == "turn_end"
+    assert out[-1].metadata["ok"] is True
+
+
+@pytest.mark.asyncio
 async def test_events_filters_other_sessions():
-    b = _sse_backend([
-        {"type": "message.part.updated", "properties": {"sessionID": "OTHER",
-            "part": {"type": "text", "text": "leak", "id": "p"}}},
-        {"type": "session.idle", "properties": {"sessionID": "ses_x"}},
-    ])
-    out = await _drain(b)
+    b = _poll_backend(
+        [{"type": "message.part.updated", "properties": {"sessionID": "OTHER",
+            "part": {"type": "text", "text": "leak", "id": "p"}}}],
+        status_seq=["busy", "idle"])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
     assert [e.type for e in out] == ["turn_end"]  # foreign event dropped
 
 
 @pytest.mark.asyncio
-async def test_events_chat_exception_before_idle():
-    """chat() fails (HTTP) and SSE never sends idle → must still yield error + turn_end, no hang."""
-    b = OpenCodeBackend(model="m", cwd="/tmp")
-    b._session_id = "ses_x"
-    b._http = object()  # type: ignore
+async def test_events_idle_from_submit_waits_for_grace():
+    """status idle from the very first poll with NO activity → must NOT end immediately;
+    ends only after SUBMIT_GRACE (patched small)."""
+    import app.backend_opencode as bo
+    b = _poll_backend([], status_seq=["idle", "idle", "idle"])
+    orig = bo.SUBMIT_GRACE
+    bo.SUBMIT_GRACE = 0.01  # tiny grace so the test is fast
+    try:
+        out = await asyncio.wait_for(_drain(b), timeout=5)
+    finally:
+        bo.SUBMIT_GRACE = orig
+    assert out[-1].type == "turn_end"
+    assert out[-1].metadata["ok"] is True
 
-    async def hang_sse():
-        await asyncio.sleep(30)  # SSE alive but silent → chat_task must win the race
-        yield  # pragma: no cover
-    b._sse_lines = hang_sse  # type: ignore
 
-    async def chat():
-        await asyncio.sleep(0)
-        raise RuntimeError("500 boom")
-    b._chat_task = asyncio.ensure_future(chat())
+@pytest.mark.asyncio
+async def test_events_retry_state_not_premature_end():
+    """type=='retry' means daemon is auto-retrying → treat as busy, never end."""
+    b = _poll_backend([], status_seq=["retry", "retry", "idle"])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
+    assert out[-1].type == "turn_end"
+    assert out[-1].metadata["ok"] is True
+    assert b._http.status_calls >= 3  # polled through both retries before ending
 
+
+@pytest.mark.asyncio
+async def test_events_single_status_failure_does_not_end():
+    """One transient status-poll failure must NOT end the turn (codex #5)."""
+    b = _poll_backend([], status_seq=[None, "busy", "idle"])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
+    assert out[-1].type == "turn_end"
+    assert out[-1].metadata["ok"] is True  # recovered after the single failure
+
+
+@pytest.mark.asyncio
+async def test_events_repeated_status_failures_error_end():
+    """STATUS_FAIL_THRESHOLD consecutive failures → error turn_end, no hang."""
+    b = _poll_backend([], status_seq=[None, None, None, None])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
+    assert out[-1].type == "turn_end"
+    assert out[-1].metadata["ok"] is False
+    assert out[-1].metadata["stop_reason"] == "status_poll_failed"
+
+
+@pytest.mark.asyncio
+async def test_events_session_error_ends_turn():
+    b = _poll_backend(
+        [{"type": "session.error", "properties": {"sessionID": "ses_x",
+            "error": {"name": "X"}}}],
+        status_seq=["busy", "busy"])
     out = await asyncio.wait_for(_drain(b), timeout=5)
     types = [e.type for e in out]
-    assert "error" in types
+    assert types[0] == "error"
     assert types[-1] == "turn_end"
     assert out[-1].metadata["ok"] is False
-    assert "chat_failed" in out[-1].metadata["stop_reason"]
+    assert out[-1].metadata["stop_reason"] == "session_error"
 
 
 @pytest.mark.asyncio
@@ -351,18 +451,14 @@ async def test_events_sse_read_exception():
     """SSE raises a non-StopAsyncIteration error → error + turn_end, no crash escaping."""
     b = OpenCodeBackend(model="m", cwd="/tmp")
     b._session_id = "ses_x"
-    b._http = object()  # type: ignore
+    b._http = _FakeHTTP(["busy"])  # type: ignore
+    b._turn_active = True
+    b._sse_response = object()  # type: ignore
 
     async def boom_sse():
         raise RuntimeError("ReadError")
         yield  # pragma: no cover
-
     b._sse_lines = boom_sse  # type: ignore
-
-    async def chat():
-        await asyncio.sleep(0)
-        return {"info": {"cost": 0, "finish": "stop", "error": None, "tokens": {}}}
-    b._chat_task = asyncio.ensure_future(chat())
 
     out = await asyncio.wait_for(_drain(b), timeout=5)
     assert out[-1].type == "turn_end"
@@ -371,26 +467,69 @@ async def test_events_sse_read_exception():
 
 
 @pytest.mark.asyncio
-async def test_events_session_error_ends_turn():
-    b = _sse_backend([
-        {"type": "session.error", "properties": {"sessionID": "ses_x",
-            "error": {"name": "X"}}},
-    ])
-    out = await _drain(b)
-    types = [e.type for e in out]
-    assert types[0] == "error"
-    assert types[-1] == "turn_end"
+async def test_events_malformed_event_no_keyerror():
+    """Event without properties/type must not raise KeyError."""
+    b = _poll_backend(
+        [{"weird": "no type or properties"}],
+        status_seq=["busy", "idle"])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
+    assert out[-1].type == "turn_end"
 
 
 @pytest.mark.asyncio
-async def test_events_malformed_event_no_keyerror():
-    """Event without properties/type must not raise KeyError."""
-    b = _sse_backend([
-        {"weird": "no type or properties"},
-        {"type": "session.idle", "properties": {"sessionID": "ses_x"}},
-    ])
+async def test_events_message_fetch_empty_error_end():
+    """status idle but message API returns [] → exactly one error turn_end (codex #3)."""
+    import app.backend_opencode as bo
+    b = _poll_backend([], status_seq=["busy", "idle"], message=[])
+    orig = bo.SUBMIT_GRACE
+    bo.SUBMIT_GRACE = 0.01
+    try:
+        out = await asyncio.wait_for(_drain(b), timeout=5)
+    finally:
+        bo.SUBMIT_GRACE = orig
+    assert len(out) == 1
+    assert out[-1].type == "turn_end"
+    assert out[-1].metadata["stop_reason"] == "no_assistant_message"
+
+
+@pytest.mark.asyncio
+async def test_events_message_fetch_raises_error_end():
+    """message API raises → exactly one error turn_end, no escape (codex #3)."""
+    b = _poll_backend([], status_seq=["busy", "idle"],
+                      message_exc=RuntimeError("500 boom"))
     out = await asyncio.wait_for(_drain(b), timeout=5)
     assert out[-1].type == "turn_end"
+    assert out[-1].metadata["ok"] is False
+    assert "message_fetch_failed" in out[-1].metadata["stop_reason"]
+
+
+@pytest.mark.asyncio
+async def test_events_flat_assistant_message_shape():
+    """message endpoint may return a FLAT AssistantMessage (no 'info' wrapper) →
+    turn_end must still extract non-zero cost/tokens (codex #7)."""
+    b = _poll_backend([], status_seq=["busy", "idle"],
+                      message=[{"role": "assistant", "cost": 0.9, "finish": "stop",
+                                "error": None, "tokens": {"input": 5, "output": 1}}])
+    out = await asyncio.wait_for(_drain(b), timeout=5)
+    assert out[-1].metadata["cost_usd"] == 0.9
+    assert out[-1].metadata["input_tokens"] == 5
+
+
+@pytest.mark.asyncio
+async def test_events_perma_busy_hits_hard_deadline():
+    """status busy forever, no idle ever → events() ends at TURN_TIMEOUT with
+    turn_timeout error (codex #1 — the in-events deadline). Would hang without it."""
+    import app.backend_opencode as bo
+    b = _poll_backend([], status_seq=["busy"])  # always busy
+    orig = bo.TURN_TIMEOUT
+    bo.TURN_TIMEOUT = 0.05  # tiny deadline
+    try:
+        out = await asyncio.wait_for(_drain(b), timeout=5)
+    finally:
+        bo.TURN_TIMEOUT = orig
+    assert out[-1].type == "turn_end"
+    assert out[-1].metadata["ok"] is False
+    assert out[-1].metadata["stop_reason"] == "turn_timeout"
 
 
 @pytest.mark.asyncio
@@ -398,137 +537,96 @@ async def test_send_rejects_overlapping_turn():
     b = OpenCodeBackend(model="m", cwd="/tmp")
     b._session_id = "ses_x"
     b._http = object()  # type: ignore
-
-    async def never():
-        await asyncio.sleep(10)
-    b._chat_task = asyncio.ensure_future(never())
-    try:
-        with pytest.raises(RuntimeError, match="already in progress"):
-            await b.send("x")
-    finally:
-        b._chat_task.cancel()
+    b._turn_active = True
+    with pytest.raises(RuntimeError, match="already in progress"):
+        await b.send("x")
 
 
 @pytest.mark.asyncio
-async def test_events_early_exit_reaps_chat_task():
-    """Consumer closes events() before turn_end → chat task must be reaped, not leaked."""
+async def test_events_cancel_resets_turn_active():
+    """Generator cancelled mid-events() → _turn_active reset so the next send() works
+    (codex #4)."""
     b = OpenCodeBackend(model="m", cwd="/tmp")
     b._session_id = "ses_x"
-    b._http = object()  # type: ignore
+    b._http = _FakeHTTP(["busy", "busy", "busy"])  # type: ignore
+    b._turn_active = True
+    b._sse_response = object()  # type: ignore
 
-    async def slow_sse():
-        yield _json.dumps({"type": "message.part.updated", "properties": {
-            "sessionID": "ses_x", "part": {"type": "text", "text": "hi", "id": "p"}}})
-        await asyncio.sleep(30)  # never reaches idle
-        yield  # pragma: no cover
-    b._sse_lines = slow_sse  # type: ignore
-
-    async def chat():
+    async def hang_sse():
         await asyncio.sleep(30)
-        return {"info": {}}
-    b._chat_task = asyncio.ensure_future(chat())
+        yield  # pragma: no cover
+    b._sse_lines = hang_sse  # type: ignore
 
     agen = b.events()
-    first = await agen.__anext__()      # consume the text event
-    assert first.type == "text"
-    await agen.aclose()                  # consumer bails early
-    assert b._chat_task.cancelled() or b._chat_task.done()  # reaped, no leak
-
-
-@pytest.mark.asyncio
-async def test_events_external_cancel_yields_turn_end():
-    """If _chat_task is cancelled externally, events() still yields one turn_end (no BaseException leak)."""
-    b = OpenCodeBackend(model="m", cwd="/tmp")
-    b._session_id = "ses_x"
-    b._http = object()  # type: ignore
-
-    task_holder = {}
-
-    async def hang_sse():
-        await asyncio.sleep(30)
-        yield  # pragma: no cover
-    b._sse_lines = hang_sse  # type: ignore
-
-    async def chat():
-        await asyncio.sleep(30)
-    b._chat_task = asyncio.ensure_future(chat())
-    task_holder["t"] = b._chat_task
-
-    async def drain():
-        return [e async for e in b.events()]
-    drain_task = asyncio.ensure_future(drain())
+    task = asyncio.ensure_future(agen.__anext__())
     await asyncio.sleep(0.05)
-    task_holder["t"].cancel()            # external cancel mid-turn
-    out = await asyncio.wait_for(drain_task, timeout=5)
-    assert out[-1].type == "turn_end"
-    assert out[-1].metadata["ok"] is False
-    assert out[-1].metadata["stop_reason"] == "chat_cancelled"
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+    await agen.aclose()
+    assert b._turn_active is False   # finally block cleared it
+    assert b._sse_response is None
 
 
 @pytest.mark.asyncio
-async def test_events_idle_then_chat_cancelled_yields_turn_end():
-    """session.idle fires, but chat task gets cancelled before the normal-end await.
-    Must yield exactly one turn_end (chat_cancelled), not leak CancelledError."""
+async def test_disconnect_clears_turn_active():
     b = OpenCodeBackend(model="m", cwd="/tmp")
     b._session_id = "ses_x"
-    b._http = object()  # type: ignore
-
-    async def idle_then_hang():
-        yield _json.dumps({"type": "session.idle", "properties": {"sessionID": "ses_x"}})
-        await asyncio.sleep(30)
-        yield  # pragma: no cover
-    b._sse_lines = idle_then_hang  # type: ignore
-
-    async def chat():
-        await asyncio.sleep(30)
-    b._chat_task = asyncio.ensure_future(chat())
-    b._chat_task.cancel()  # cancelled before events() reaches the normal-end await
-
-    out = await asyncio.wait_for(_drain(b), timeout=5)
-    assert out[-1].type == "turn_end"
-    assert out[-1].metadata["stop_reason"] == "chat_cancelled"
-    assert out[-1].metadata["ok"] is False
-
-
-@pytest.mark.asyncio
-async def test_events_survives_concurrent_disconnect_nulling_task():
-    """disconnect() nulls self._chat_task mid-iteration → events() uses its snapshot,
-    no AttributeError."""
-    b = OpenCodeBackend(model="m", cwd="/tmp")
-    b._session_id = "ses_x"
-    b._http = object()  # type: ignore
-
-    async def hang_sse():
-        await asyncio.sleep(30)
-        yield  # pragma: no cover
-    b._sse_lines = hang_sse  # type: ignore
-
-    async def chat():
-        await asyncio.sleep(30)
-    b._chat_task = asyncio.ensure_future(chat())
-
-    async def drain():
-        return [e async for e in b.events()]
-    drain_task = asyncio.ensure_future(drain())
-    await asyncio.sleep(0.05)
-    b._chat_task = None      # simulate disconnect() nulling the field mid-turn
-    drain_task.cancel()      # tear down the iterator
-    with contextlib.suppress(asyncio.CancelledError, Exception):
-        await drain_task     # must not raise AttributeError
-
-
-@pytest.mark.asyncio
-async def test_disconnect_reaps_inflight_chat_task():
-    b = OpenCodeBackend(model="m", cwd="/tmp")
-    b._session_id = "ses_x"
-
-    async def never():
-        await asyncio.sleep(10)
-    task = asyncio.ensure_future(never())
-    b._chat_task = task
+    b._turn_active = True
     await b.disconnect()
-    assert task.cancelled() or task.done()
-    assert b._chat_task is None
+    assert b._turn_active is False
+
+
+@pytest.mark.asyncio
+async def test_send_posts_prompt_async_with_nested_model():
+    """send() must POST /prompt_async with NESTED model:{providerID,modelID} (the schema
+    differs from the old /message). Guards against silent daemon-API drift."""
+    captured = {}
+
+    class _CapHTTP:
+        def build_request(self, method, url):
+            return ("req", method, url)
+
+        async def send(self, req, stream=False):
+            return object()  # fake SSE response
+
+        async def post(self, url, json=None):
+            captured["url"] = url
+            captured["body"] = json
+            return _FakeResp(204, None)
+
+    b = OpenCodeBackend(model="anthropic/claude-sonnet-4-6", cwd="/tmp")
+    b._session_id = "ses_x"
+    b._http = _CapHTTP()  # type: ignore
+    b.system_prompt = "sys"
+    await b.send("hello")
+    assert captured["url"] == "/session/ses_x/prompt_async"
+    assert captured["body"]["model"] == {"providerID": "anthropic", "modelID": "claude-sonnet-4-6"}
+    assert captured["body"]["parts"] == [{"type": "text", "text": "hello"}]
+    assert captured["body"]["system"] == "sys"
+    assert b._turn_active is True
+
+
+@pytest.mark.asyncio
+async def test_send_failure_clears_turn_active():
+    """A failed prompt_async must not leave _turn_active / SSE half-open set."""
+    class _BoomHTTP:
+        def build_request(self, method, url):
+            return ("req", method, url)
+
+        async def send(self, req, stream=False):
+            return object()
+
+        async def post(self, url, json=None):
+            return _FakeResp(500, None)  # raise_for_status → RuntimeError
+
+    b = OpenCodeBackend(model="m", cwd="/tmp")
+    b._session_id = "ses_x"
+    b._http = _BoomHTTP()  # type: ignore
+    with pytest.raises(RuntimeError):
+        await b.send("x")
+    assert b._turn_active is False
+    assert b._sse_response is None
 
 
 # ── gated integration (real daemon) ──
