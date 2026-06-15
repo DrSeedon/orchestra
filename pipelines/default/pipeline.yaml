@@ -21,7 +21,7 @@ roles:
     order: 0
     model: opus
     skills: [html-artifacts, vps-deploy, codex-debate]
-    modules: [git-workflow, orchestration]
+    modules: [git-workflow, orchestration, background-jobs, task-management]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     when: Managing a team of workers, decomposing tasks, approving plans
@@ -34,7 +34,7 @@ roles:
     label: Sub-Orchestrator
     order: 1
     model: opus
-    modules: [git-workflow, orchestration]
+    modules: [git-workflow, orchestration, background-jobs, task-management]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     tg: {emoji: "🎯"}

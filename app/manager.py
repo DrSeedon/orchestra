@@ -1089,7 +1089,11 @@ class SessionManager:
         return None
 
     def _pick_color(self) -> str:
-        used = [s.color for s in self.sessions.values()]
+        # Check both in-memory sessions AND DB to avoid duplicates on concurrent spawn / resume
+        used = {s.color for s in self.sessions.values() if s.color}
+        for row in get_all_sessions():
+            if row.get("color"):
+                used.add(row["color"])
         for c in COLOR_PALETTE:
             if c not in used:
                 return c

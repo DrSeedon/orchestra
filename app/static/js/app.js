@@ -1742,7 +1742,16 @@ function addCopyBtn(el, text) {
     btn.textContent = '📋';
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        navigator.clipboard.writeText(text);
+        // navigator.clipboard requires HTTPS — fallback for HTTP
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
         btn.textContent = '✅';
         setTimeout(() => btn.textContent = '📋', 1500);
     });
