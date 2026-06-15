@@ -75,9 +75,9 @@ class TurnManager:
             else:
                 s._log("status", f"turn interrupted ({sr})")
 
-        # tool_use stop = agent wanted another tool call but SDK ended the turn.
-        # Auto-continue so the agent doesn't silently go idle mid-task.
-        if sr in ("error_max_turns", "max_turns", "tool_use") and ok:
+        # max_turns: SDK hit per-turn ceiling — auto-continue so agent doesn't stop mid-task.
+        # tool_use is NOT included: it means external interrupt (stop/kill/permission), not agent wanting more.
+        if sr in ("error_max_turns", "max_turns") and ok:
             if s._auto_continue_count >= s.AUTO_CONTINUE_MAX:
                 logger.warning(f"[{s.name}] auto-continue cap ({s.AUTO_CONTINUE_MAX}) reached — staying idle")
                 s._log("error", f"auto-continue cap reached ({s.AUTO_CONTINUE_MAX}) — agent stuck at {sr}")
