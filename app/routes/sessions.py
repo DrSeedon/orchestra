@@ -169,79 +169,83 @@ async def get_session_prompt(name: str, scope: str):
     return {"system_prompt": sp, "base": base, "role": role, "custom": custom}
 
 
-_BLOCK_TAG_MAP = {
-    "platform": ("static", "Platform", "base.md"),
-    "mcp-tools": ("static", "MCP Tools", "base.md"),
-    "background-jobs": ("static", "Background Jobs", "module"),
-    "rules": ("static", "Rules", "module"),
-    "role": ("static", "Role", "role"),
-    "git-workflow": ("static", "Git Workflow", "module"),
-    "orchestration": ("static", "Orchestration", "module"),
-    "decision-tree": ("static", "Decision Tree", "orchestration"),
-    "tools": ("static", "Tools", "orchestration"),
-    "task-workflow": ("static", "Task Workflow", "orchestration"),
-    "worker-management": ("static", "Worker Management", "orchestration"),
-    "workflow": ("static", "Workflow", "orchestration"),
-    "pricing": ("dynamic", "Pricing", "manager.py"),
-    "memory": ("static", "Memory", "module"),
-    "task-management": ("static", "Task Management", "module"),
-    "report-format": ("static", "Report Format", "module"),
-    "codex-review": ("static", "Codex Review", "module"),
-    "before-work": ("static", "Before Work", "module"),
-    "before-done": ("static", "Before Done", "module"),
-    "identity": ("dynamic", "Identity", "manager.py"),
-}
+_SOURCE_BLOCKS = [
+    ("file",   "base",   "Platform Base",       "prompts/base.md",              "<platform>",       "</rules>",          2),
+    ("file",   "role",   "Role",                "prompts/roles/*.md",           "<role>",           "</role>",           1),
+    ("module", "module", "Git Workflow",         "prompts/modules/git-workflow.md",  "<git-workflow>",   "</git-workflow>",   1),
+    ("module", "module", "Orchestration",        "prompts/modules/orchestration.md", "<orchestration>",  "</orchestration>",  1),
+    ("module", "module", "Background Jobs",      "prompts/modules/background-jobs.md","<background-jobs>","</background-jobs>",2),
+    ("module", "module", "Task Management",      "prompts/modules/task-management.md","<task-management>","</task-management>",1),
+    ("module", "module", "Report Format",        "prompts/modules/report-format.md", "<report-format>",  "</report-format>",  1),
+    ("module", "module", "Codex Review",         "prompts/modules/codex-review.md",  "<codex-review>",   "</codex-review>",   1),
+    ("module", "module", "Before Work",          "prompts/modules/before-work.md",   "<before-work>",    "</before-work>",    1),
+    ("module", "module", "Before Done",          "prompts/modules/before-done.md",   "<before-done>",    "</before-done>",    1),
+    ("dynamic","dynamic","Identity",             "manager.py",                   "<identity>",       "</identity>",       1),
+]
 
 
 def _parse_prompt_blocks(text: str) -> list[dict]:
-    """Split system prompt into blocks by top-level XML tags."""
+    """Split system prompt into blocks by SOURCE (files/modules/dynamic), not XML tags."""
     import re
     blocks = []
-    tag_re = re.compile(
-        r'<([a-z][a-z0-9_-]*)(\s[^>]*)?>(.+?)</\1>',
-        re.DOTALL,
-    )
-    pos = 0
-    for m in tag_re.finditer(text):
-        if m.start() > pos:
-            gap = text[pos:m.start()].strip()
-            if gap:
-                block_type = "dynamic" if any(k in gap.lower() for k in
-                    ["## available models", "## other orchestrators", "## your current workers"])  else "static"
-                title = gap.split('\n')[0][:60].strip('#').strip() or "Text block"
-                blocks.append({"type": block_type, "tag": "text", "title": title,
-                               "source": "manager.py" if block_type == "dynamic" else "",
-                               "size": len(gap), "content": gap})
-        tag = m.group(1)
-        attrs = (m.group(2) or "").strip()
-        content = m.group(3).strip()
-        info = _BLOCK_TAG_MAP.get(tag, ("static", tag.replace("-", " ").title(), ""))
-        title = info[1]
-        if attrs:
-            title += f" ({attrs.strip('\"')})"
+    consumed = set()
+
+    for btype, tag, title, source, open_tag, close_tag, nth in _SOURCE_BLOCKS:
+        start = -1
+        pos = 0
+        for _ in range(nth):
+            idx = text.find(open_tag, pos)
+            if idx == -1:
+                break
+            start = idx
+            pos = idx + len(open_tag)
+        if start == -1:
+            continue
+        end = text.find(close_tag, start + len(open_tag))
+        if end == -1:
+            continue
+        end += len(close_tag)
+        content = text[start:end].strip()
+        if title == "Role":
+            role_match = re.search(r'## Role:\s*(.+)', content)
+            if role_match:
+                title = f"Role: {role_match.group(1).strip()}"
         blocks.append({
-            "type": info[0], "tag": tag, "title": title,
-            "source": info[2], "size": len(content), "content": content,
+            "type": btype, "tag": tag, "title": title,
+            "source": source, "size": len(content), "content": content,
+            "_start": start, "_end": end,
         })
-        pos = m.end()
-    if pos < len(text):
-        tail = text[pos:].strip()
-        if tail:
-            sections = re.split(r'(?=^## )', tail, flags=re.MULTILINE)
-            for sec in sections:
-                sec = sec.strip()
-                if not sec:
-                    continue
-                title = sec.split('\n')[0].strip('#').strip()[:60] or "Text"
-                is_dyn = any(k in sec.lower() for k in
-                    ["available models", "other orchestrators", "current workers",
-                     "roles catalog", "identity"])
-                blocks.append({
-                    "type": "dynamic" if is_dyn else "static",
-                    "tag": "section", "title": title,
-                    "source": "manager.py" if is_dyn else "",
-                    "size": len(sec), "content": sec,
-                })
+        consumed.update(range(start, end))
+
+    tail = []
+    pos = 0
+    for b in sorted(blocks, key=lambda x: x["_start"]):
+        gap = text[pos:b["_start"]].strip()
+        if gap:
+            tail.append(gap)
+        pos = b["_end"]
+    remaining = text[pos:].strip()
+    if remaining:
+        tail.append(remaining)
+    tail_text = "\n\n".join(tail)
+
+    if tail_text:
+        sections = re.split(r'(?=^## )', tail_text, flags=re.MULTILINE)
+        for sec in sections:
+            sec = sec.strip()
+            if not sec:
+                continue
+            heading = sec.split('\n')[0].strip('#').strip()[:80] or "Text"
+            blocks.append({
+                "type": "dynamic", "tag": "dynamic", "title": heading,
+                "source": "manager.py", "size": len(sec), "content": sec,
+                "_start": 999999,
+            })
+
+    blocks.sort(key=lambda x: x.get("_start", 999999))
+    for b in blocks:
+        b.pop("_start", None)
+        b.pop("_end", None)
     return blocks
 
 
