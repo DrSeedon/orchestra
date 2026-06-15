@@ -1,5 +1,44 @@
 # Changelog
 
+## v2.22.0 — 2026-06-15
+
+### Added
+- 🧪 **Experimenter role** (`pipelines/default/roles/experimenter.md`) — hypothesis → experiment → measure → conclude. For empirical research, not implementation. Opus 4.8, codex-debate skill
+- 💰 **4-level cost tracking** — `turn / ctx / session / total`. `ctx` = since last compact (persisted in DB, survives reboot). `session` = since last reboot (not persisted). Replaces old 2-level `turn / total`
+- 📊 **Dynamic model list in prompts** — `available_models_block()` auto-generates from `models.py` MODELS dict. No more hardcoded model IDs in orchestration.md
+- 🎨 **Prompt visualization in dashboard** (#77, #80) — interactive view of system prompt by SOURCE (files/modules/dynamic/skills), not XML tags. Color-coded: 🔵file 🟣module 🟡dynamic 🟢skill. All blocks open by default
+- 📌 **TG topic toggle** — right-click agent → toggle TG topic on/off via `PATCH /api/sessions/{name}/tg-topic`
+- 🏷️ **Role badge in spawn tool** — dashboard + TG show role next to model: `🚀 Spawning refactor (opus-4.8-1M · full-cycle)`
+- 📋 **Change-scope modal** (#78) — glass-style modal replaces browser `prompt()`. Browse button, error display, stays closeable after errors
+- 🔍 **WHY-only comments** — 220 comments added across all Python + JS files (backend + frontend workers)
+
+### Fixed
+- 🐛 **TG text lost (flood control)** — `_tg_send_safe` now logs warnings instead of silent `except:pass`. Flood retry preserves important messages
+- 🐛 **TG diff images** — PIL guard with graceful degradation. Result images (Read/Grep/Bash) ON by default
+- 🐛 **TG duplicate text** — skip expandable when diff/result image already sent
+- 🐛 **TG wrong topic** — `send_file_to_tg` routes to sender's own topic, fallback to scope
+- 🐛 **TG raw base64 on Read image** — sends original file via `send_photo` instead of base64 text
+- 🐛 **TG raw JSON Links** — WebSearch results stripped of `Links: [{...}]` blocks
+- 🐛 **Topic icon flood** — dedup + retry with `retry_after` (3 attempts), TOPIC_NOT_MODIFIED silenced
+- 🐛 **Model not persisted** — `model=excluded.model` was missing from DB upsert (P1 from Fable review)
+- 🐛 **Spawn after kill** — archived sessions no longer block `spawn_worker`
+- 🐛 **ede_diagnostic noise** — CLI telemetry strings filtered from turn errors
+- 🐛 **Change-scope session loss** — CLI session files migrated to new project path (preserves context)
+- 🐛 **Compact tool calls invisible** — now logged to DB/dashboard/TG
+- 🐛 **Progress bar stuck** — reset to 0% when agent goes idle
+
+### Changed
+- 🧹 **Enterprise code removed from open source** — proxy model fetching, auto-bootstrap, block-creation, DeepSeek models, auth-gated UI. All live in private enterprise fork only
+- 🧹 **Sub-orchestrators hidden from top tab bar** — filtered by `parent_name`, TG topics unaffected
+- 🧹 **New Orchestrator simplified** — only Name + Path + Model. Profile/Pipeline/Role hidden with sane defaults
+- 📝 **Hibernate/wake hidden from chat/TG** — only in server logs for debugging
+
+### Research
+- 📄 **ede_diagnostic root cause** (`docs/research/ede-diagnostic.md`) — CLI telemetry, not real errors
+- 📄 **tool_use stop_reason** (`docs/research/tool-use-stop.md`) — always external interrupt (31 interrupt + 4 permission + 2 inject), never "agent wants more"
+- 📄 **Full arch audit** (`docs/reviews/arch-audit.md`) — Fable 5 review, 4 P1 + 8 P2 findings
+- 📄 **Self-Harness paper** (arxiv.org/abs/2606.09498) — methodology added to task #76
+
 ## v2.21.0 — 2026-06-14
 
 ### Added
