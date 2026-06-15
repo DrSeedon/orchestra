@@ -1,43 +1,17 @@
 # Changelog
 
-## v2.22.0 — 2026-06-15
-
-### Added
-- 🧪 **Experimenter role** (`pipelines/default/roles/experimenter.md`) — hypothesis → experiment → measure → conclude. For empirical research, not implementation. Opus 4.8, codex-debate skill
-- 💰 **4-level cost tracking** — `turn / ctx / session / total`. `ctx` = since last compact (persisted in DB, survives reboot). `session` = since last reboot (not persisted). Replaces old 2-level `turn / total`
-- 📊 **Dynamic model list in prompts** — `available_models_block()` auto-generates from `models.py` MODELS dict. No more hardcoded model IDs in orchestration.md
-- 🎨 **Prompt visualization in dashboard** (#77, #80) — interactive view of system prompt by SOURCE (files/modules/dynamic/skills), not XML tags. Color-coded: 🔵file 🟣module 🟡dynamic 🟢skill. All blocks open by default
-- 📌 **TG topic toggle** — right-click agent → toggle TG topic on/off via `PATCH /api/sessions/{name}/tg-topic`
-- 🏷️ **Role badge in spawn tool** — dashboard + TG show role next to model: `🚀 Spawning refactor (opus-4.8-1M · full-cycle)`
-- 📋 **Change-scope modal** (#78) — glass-style modal replaces browser `prompt()`. Browse button, error display, stays closeable after errors
-- 🔍 **WHY-only comments** — 220 comments added across all Python + JS files (backend + frontend workers)
+## v2.21.1 — 2026-06-15
 
 ### Fixed
-- 🐛 **TG text lost (flood control)** — `_tg_send_safe` now logs warnings instead of silent `except:pass`. Flood retry preserves important messages
-- 🐛 **TG diff images** — PIL guard with graceful degradation. Result images (Read/Grep/Bash) ON by default
-- 🐛 **TG duplicate text** — skip expandable when diff/result image already sent
-- 🐛 **TG wrong topic** — `send_file_to_tg` routes to sender's own topic, fallback to scope
-- 🐛 **TG raw base64 on Read image** — sends original file via `send_photo` instead of base64 text
-- 🐛 **TG raw JSON Links** — WebSearch results stripped of `Links: [{...}]` blocks
-- 🐛 **Topic icon flood** — dedup + retry with `retry_after` (3 attempts), TOPIC_NOT_MODIFIED silenced
-- 🐛 **Model not persisted** — `model=excluded.model` was missing from DB upsert (P1 from Fable review)
-- 🐛 **Spawn after kill** — archived sessions no longer block `spawn_worker`
-- 🐛 **ede_diagnostic noise** — CLI telemetry strings filtered from turn errors
-- 🐛 **Change-scope session loss** — CLI session files migrated to new project path (preserves context)
-- 🐛 **Compact tool calls invisible** — now logged to DB/dashboard/TG
-- 🐛 **Progress bar stuck** — reset to 0% when agent goes idle
-
-### Changed
-- 🧹 **Enterprise code removed from open source** — proxy model fetching, auto-bootstrap, block-creation, DeepSeek models, auth-gated UI. All live in private enterprise fork only
-- 🧹 **Sub-orchestrators hidden from top tab bar** — filtered by `parent_name`, TG topics unaffected
-- 🧹 **New Orchestrator simplified** — only Name + Path + Model. Profile/Pipeline/Role hidden with sane defaults
-- 📝 **Hibernate/wake hidden from chat/TG** — only in server logs for debugging
-
-### Research
-- 📄 **ede_diagnostic root cause** (`docs/research/ede-diagnostic.md`) — CLI telemetry, not real errors
-- 📄 **tool_use stop_reason** (`docs/research/tool-use-stop.md`) — always external interrupt (31 interrupt + 4 permission + 2 inject), never "agent wants more"
-- 📄 **Full arch audit** (`docs/reviews/arch-audit.md`) — Fable 5 review, 4 P1 + 8 P2 findings
-- 📄 **Self-Harness paper** (arxiv.org/abs/2606.09498) — methodology added to task #76
+- 🐛 **OpenCode turn never ends → orchestrator stuck `running` (task #97, 11h in prod)** — the turn boundary relied on the fire-once SSE `session.idle` event (global bus, 30s heartbeats, frequently MISSED) plus a chat `POST /message` that could hang forever. When both failed, `events()` never yielded `turn_end`, the listen task never exited, status stayed `RUNNING` indefinitely.
+  - **Technical core**: rewrote `OpenCodeBackend.events()` (`app/backend_opencode.py`) to detect completion by POLLING `GET /session/status` every `STATUS_POLL_INTERVAL=3s` — an authoritative daemon query that cannot be "missed" like an event. Idle ⟺ session absent from the status dict OR `type=="idle"`; `busy`/`retry` ⟶ keep waiting. SSE is kept ONLY for live streaming of `text`/`thinking`/`tool` parts (`_handle_sse` helper + `_SESSION_IDLE`/`_SESSION_ERR` sentinels — SSE idle just triggers an immediate status poll, never ends the turn on its own).
+  - **Send path**: `send()` now submits via `POST /session/{id}/prompt_async` (returns `204` immediately) instead of a chat-POST task that could hang. Dropped `_chat_task`/`_post_chat`; per-turn state is a single `_turn_active` flag. Body uses NESTED `model:{providerID,modelID}` (the `prompt_async` schema differs from the old `/message`).
+  - **turn_end** built from `GET /session/{id}/message` (last assistant message) via new `_fetch_last_message()` — cost/tokens independent of the submit. `_turn_end` normalizes both `{info,...}` and flat-`AssistantMessage` shapes (`info = msg.get("info") or msg`).
+  - **No-stuck guarantees (all Codex-flagged)**: HARD deadline enforced INSIDE `events()` (`TURN_TIMEOUT`) — the `session.py` timeout only runs when `events()` yields, so a perma-`busy` daemon would've still hung; `_turn_active`/`_sse_response` reset in the `finally` (cancel-safe); status-poll tolerates transient failures (`STATUS_FAIL_THRESHOLD=3` consecutive OR `_proc_dead()` before declaring dead); message-fetch is total → exactly one `turn_end` on every exit path.
+  - **`app/session.py:365`** — wrapped `await backend.send(message)` in try/except: a `send()` failure after `status=RUNNING` and before the listen task is created was a SECOND stuck-running path (any backend). Now resets to `IDLE` on failure.
+  - **Removed**: all the prior debug-patch cruft — `INACTIVITY_TIMEOUT`, `wait_timeout`, the SSE-drain loop, the useless heartbeat daemon-poll.
+  - **Tests**: `tests/test_backend_opencode.py` event-loop suite rewritten for the poll model (fake SSE + scripted `/session/status`). New cases: SSE-never-sends-idle (THE bug), perma-busy hits hard deadline, single vs repeated status failures, retry-not-premature, message-fetch empty/raises, flat-message shape, cancel resets `_turn_active`, submit-grace. 44 tests green.
+  - **Triggered case**: orchestrator on opencode backend sat at `running` for 11h after a turn the daemon had actually finished — the `session.idle` SSE event was dropped and the chat POST response was lost.
 
 ## v2.21.0 — 2026-06-14
 
