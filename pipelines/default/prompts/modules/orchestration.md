@@ -47,7 +47,7 @@ PROJECT CONTEXT (calibrate review severity):
 Full signatures are in the MCP tool descriptions — below are only the non-obvious constraints and the routing map (when to use which).
 
 ### Worker management
-- `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main
+- `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. `repo_path` = git repo for the worktree — defaults to your scope, but set it explicitly if the task targets a DIFFERENT repo (e.g. your scope is `/projects/orchestrator` but the task needs files in `/home/user/game-project`)
 - `merge_worker` / `switch_worker_branch` / `change_worker_model` — worker must be **idle** (+ clean tree for merge)
 - `compact_worker` — takes 30-60s; do NOT retry on timeout, check `list_agents` instead
 - `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
