@@ -653,7 +653,11 @@ async def session_wip(name: str, scope: str = "", base_ref: str = "refs/heads/ma
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     try:
-        return branch_wip_status(worktree_path, base_ref=base_ref)
+        result = branch_wip_status(worktree_path, base_ref=base_ref)
+        d = found.to_dict()
+        result["context_pct"] = d.get("context_pct", 0)
+        result["status"] = d.get("status", "unknown")
+        return result
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

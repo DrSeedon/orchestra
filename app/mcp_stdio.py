@@ -440,9 +440,12 @@ async def worker_wip(name: str, base_ref: str = "refs/heads/main") -> str:
         return f"WIP result: {result}"
     uncommitted = result.get("uncommitted", [])
     unmerged = result.get("unmerged_commits", [])
+    ctx = result.get("context_pct", 0)
+    status = result.get("status", "?")
+    ctx_str = f" | ctx:{ctx}% | {status}" if ctx else f" | {status}"
     if not uncommitted and not unmerged:
-        return f"'{name}': clean — no uncommitted changes, no unmerged commits (vs {base_ref})"
-    parts = [f"WIP for '{name}' (vs {base_ref}):"]
+        return f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {base_ref})"
+    parts = [f"WIP for '{name}'{ctx_str} (vs {base_ref}):"]
     if uncommitted:
         parts.append(f"  Uncommitted ({len(uncommitted)}): " + ", ".join(uncommitted[:20]))
     if unmerged:
