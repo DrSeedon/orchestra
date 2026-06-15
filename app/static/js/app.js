@@ -516,6 +516,8 @@ async function openFilePreview(path) {
                 return `<img src="${src}"${a ? ` alt="${a}"` : ''}${t ? ` title="${t}"` : ''} loading="lazy" style="max-width:100%;border-radius:6px;margin:4px 0;cursor:pointer" onclick="openFilePreview('${h}')">`;
             };
             contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content, { renderer }), { ADD_ATTR: ['loading'] });
+        } else if (/\.svg$/i.test(path)) {
+            contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
         } else {
             const ext = (path.match(/\.(\w+)$/)?.[1] || '').toLowerCase();
             const LANG_MAP = {
