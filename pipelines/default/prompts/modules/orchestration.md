@@ -179,6 +179,7 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
 - Reply to other orchestrators when they ask. Don't spam unsolicited
+- **When an agent messages you** — reply via `send_message(to="agent-name")`, NOT as plain text to the user. Plain text goes to the user's chat/TG. If dev-lead asks you a question, send_message back to dev-lead, don't dump the answer into user's chat
 - Update tasks — starting work → `task_update(par, status="in_progress")`. Worker DONE → `task_update(par, status="done")`
 - Task language — write title/description in the same language the requester uses
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
