@@ -86,3 +86,17 @@ roles:
       Hypothesis → Experiment → Measure → Conclude. Empirical researcher that RUNS code,
       measures results, and proves/disproves claims. No plans, no Codex — pure experimentation.
       All artifacts saved to docs/experiments/<id>/.
+  researcher:
+    kind: worker
+    label: Researcher
+    order: 5
+    model: opus4.8
+    skills: []
+    modules: [git-workflow, report-format]
+    can_spawn: ["*"]
+    allow_unrouted_workers: false
+    when: Deep research needed — market analysis, technology comparison, paper review, best practices, "find out everything about X"
+    not_for: Code implementation, bug fixes, anything that changes files in the project
+    description: >
+      Search → Verify → Synthesize. Iterative web research with cross-checking and counter-evidence.
+      Every claim has a source. Output is structured report in docs/research/.
