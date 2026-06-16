@@ -1253,7 +1253,9 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 logger.debug(f"send_message pretty format failed: {_e}")
                                 _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
                         elif not _diff_sent:
-                            _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
+                            _skip_expandable = (tool_name in ("Read", "Grep", "Bash") and _result_images_enabled())
+                            if not _skip_expandable:
+                                _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
                         try:
                             m_text, m_ents = md_convert(f"{header}\n{tool_body}")
                             from aiogram.types import MessageEntity as AioEntity
