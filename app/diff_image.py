@@ -11,17 +11,30 @@ MAX_LINES_EDIT = 50
 MAX_LINES_WRITE = 30
 
 
+WRAP_COLS = 90
+
+
 def _load_fonts():
     try:
         return (
+            ImageFont.truetype(_FONT_PATH, 16),
             ImageFont.truetype(_FONT_PATH, 13),
-            ImageFont.truetype(_FONT_PATH, 11),
         )
     except Exception:
-        # PIL may not be installed or font missing — graceful degradation with
-        # the built-in bitmap font rather than crashing TG diff rendering
         f = ImageFont.load_default()
         return f, f
+
+
+def _wrap_line(text: str, cols: int = WRAP_COLS) -> list[str]:
+    if len(text) <= cols:
+        return [text]
+    parts = []
+    while len(text) > cols:
+        parts.append(text[:cols])
+        text = text[cols:]
+    if text:
+        parts.append(text)
+    return parts
 
 
 def _short_path(file_path: str) -> str:
@@ -94,18 +107,14 @@ _CLR_G = {'del': (248, 113, 113), 'add': (74, 222, 128), 'ctx': (71, 85, 105)}
 _HL = {'del': (120, 40, 40), 'add': (15, 70, 40)}
 _SIGN = {'del': '−', 'add': '+', 'ctx': ' '}
 
-LINE_H = 22
-GUTTER_W = 24
-PAD_X = 10
-HEADER_H = 26
+LINE_H = 26
+GUTTER_W = 28
+PAD_X = 12
+HEADER_H = 30
 
 
-def _measure_max_w(font, lines_text: list[str]) -> int:
-    max_w = 700
-    for text in lines_text:
-        tw = font.getlength(text) + GUTTER_W + PAD_X * 2 + 20
-        max_w = max(max_w, int(tw))
-    return min(max_w, 1200)
+def _measure_max_w(_font, _lines_text: list[str]) -> int:
+    return 800
 
 
 def _draw_header(draw, max_w: int, label: str, font_small):
@@ -145,22 +154,25 @@ def render_edit_diff(file_path: str, old_string: str, new_string: str) -> bytes 
 
     y = HEADER_H + 2
     for typ, text, other in display:
+        text = text[:WRAP_COLS]
+        if other is not None:
+            other = other[:WRAP_COLS]
         if typ in ('del', 'add'):
             draw.rectangle([0, y, max_w, y + LINE_H], fill=_BG[typ])
             draw.rectangle([0, y, GUTTER_W, y + LINE_H], fill=_BG_G[typ])
-            draw.text((8, y + 3), _SIGN[typ], fill=_CLR_G[typ], font=font)
+            draw.text((10, y + 4), _SIGN[typ], fill=_CLR_G[typ], font=font)
             parts = _inline_diff(text, other)
             x = GUTTER_W + PAD_X
             for part_text, is_hl in parts:
                 if is_hl:
                     tw = font.getlength(part_text)
                     draw.rectangle([x - 1, y + 2, x + tw + 1, y + LINE_H - 2], fill=_HL[typ])
-                draw.text((x, y + 3), part_text, fill=_CLR[typ], font=font)
+                draw.text((x, y + 4), part_text, fill=_CLR[typ], font=font)
                 x += font.getlength(part_text)
         else:
             draw.rectangle([0, y, GUTTER_W, y + LINE_H], fill=(15, 23, 42))
-            draw.text((8, y + 3), ' ', fill=_CLR_G['ctx'], font=font)
-            draw.text((GUTTER_W + PAD_X, y + 3), text, fill=_CLR['ctx'], font=font)
+            draw.text((10, y + 4), ' ', fill=_CLR_G['ctx'], font=font)
+            draw.text((GUTTER_W + PAD_X, y + 4), text, fill=_CLR['ctx'], font=font)
         y += LINE_H
 
     if truncated:
@@ -189,10 +201,11 @@ def render_write_diff(file_path: str, content: str) -> bytes:
 
     y = HEADER_H + 2
     for text in display:
+        text = text[:WRAP_COLS]
         draw.rectangle([0, y, max_w, y + LINE_H], fill=(15, 40, 25))
         draw.rectangle([0, y, GUTTER_W, y + LINE_H], fill=(20, 55, 30))
-        draw.text((8, y + 3), '+', fill=(74, 222, 128), font=font)
-        draw.text((GUTTER_W + PAD_X, y + 3), text, fill=(187, 247, 208), font=font)
+        draw.text((10, y + 4), '+', fill=(74, 222, 128), font=font)
+        draw.text((GUTTER_W + PAD_X, y + 4), text, fill=(187, 247, 208), font=font)
         y += LINE_H
 
     if truncated:
@@ -210,30 +223,39 @@ _GUTTER_W_READ = 40  # wider for line numbers
 
 def render_read(file_path: str, content: str, offset: int = 0) -> bytes:
     """Render Read tool result as PNG with line numbers."""
-    lines_text = content.split('\n')[:MAX_LINES_READ]
+    raw_lines = content.split('\n')
     font, font_small = _load_fonts()
 
-    max_w = 700
-    for text in lines_text:
-        tw = font.getlength(text) + _GUTTER_W_READ + PAD_X * 2 + 20
-        max_w = max(max_w, int(tw))
-    max_w = min(max_w, 1200)
+    display = []  # (line_no_str, text)
+    for i, ln in enumerate(raw_lines):
+        parts = _wrap_line(ln)
+        for j, p in enumerate(parts):
+            display.append((str(offset + i + 1) if j == 0 else "", p))
+        if len(display) >= MAX_LINES_READ:
+            break
+    display = display[:MAX_LINES_READ]
+    truncated = len(raw_lines) > MAX_LINES_READ
+    extra = 1 if truncated else 0
 
-    img_h = HEADER_H + LINE_H * len(lines_text) + 4
+    max_w = 800
+    img_h = HEADER_H + LINE_H * (len(display) + extra) + 4
     img = Image.new('RGB', (max_w, img_h), (15, 23, 42))
     draw = ImageDraw.Draw(img)
 
     draw.line([0, HEADER_H, max_w, HEADER_H], fill=(30, 41, 59))
-    draw.text((PAD_X, 5), f"📖 {_short_path(file_path)} :{offset + 1}", fill=(100, 116, 139), font=font_small)
+    draw.text((PAD_X, 7), f"📖 {_short_path(file_path)} :{offset + 1}", fill=(100, 116, 139), font=font_small)
 
     y = HEADER_H + 2
-    for i, text in enumerate(lines_text):
-        line_no = str(offset + i + 1)
+    for line_no, text in display:
         draw.rectangle([0, y, _GUTTER_W_READ, y + LINE_H], fill=(15, 23, 42))
-        nw = font_small.getlength(line_no)
-        draw.text((_GUTTER_W_READ - nw - 4, y + 4), line_no, fill=(71, 85, 105), font=font_small)
-        draw.text((_GUTTER_W_READ + PAD_X, y + 3), text, fill=(226, 232, 240), font=font)
+        if line_no:
+            nw = font_small.getlength(line_no)
+            draw.text((_GUTTER_W_READ - nw - 4, y + 5), line_no, fill=(71, 85, 105), font=font_small)
+        draw.text((_GUTTER_W_READ + PAD_X, y + 4), text, fill=(226, 232, 240), font=font)
         y += LINE_H
+
+    if truncated:
+        _draw_truncated(draw, y, len(raw_lines) - MAX_LINES_READ, font_small)
 
     buf = io.BytesIO()
     img.save(buf, format='PNG', optimize=True)
@@ -248,34 +270,34 @@ def render_grep(pattern: str, results: list) -> bytes:
     font, font_small = _load_fonts()
     display = results[:MAX_LINES_GREP]
 
-    max_w = 700
-    for f, ln, text, ms, me in display:
-        tw = font.getlength(f"{f}:{ln}: {text}") + PAD_X * 2 + 20
-        max_w = max(max_w, int(tw))
-    max_w = min(max_w, 1200)
-
+    max_w = 800
     img_h = HEADER_H + LINE_H * len(display) + 4
     img = Image.new('RGB', (max_w, img_h), (15, 23, 42))
     draw = ImageDraw.Draw(img)
 
     draw.line([0, HEADER_H, max_w, HEADER_H], fill=(30, 41, 59))
-    draw.text((PAD_X, 5), f"🔍 grep: {pattern} ({len(results)} matches)", fill=(100, 116, 139), font=font_small)
+    draw.text((PAD_X, 7), f"🔍 grep: {pattern[:40]} ({len(results)} matches)", fill=(100, 116, 139), font=font_small)
 
     y = HEADER_H + 2
     for f, ln, text, ms, me in display:
-        prefix = f"{f}:{ln}: "
-        draw.text((PAD_X, y + 3), prefix, fill=(100, 116, 139), font=font)
+        prefix = f"{_short_path(f)}:{ln}: "
+        full_line = prefix + text
+        if len(full_line) > WRAP_COLS:
+            text = text[:WRAP_COLS - len(prefix)]
+            if me > len(text):
+                me = len(text)
+        draw.text((PAD_X, y + 4), prefix, fill=(100, 116, 139), font=font)
         x = PAD_X + font.getlength(prefix)
         before = text[:ms]
         match = text[ms:me]
         after = text[me:]
-        draw.text((x, y + 3), before, fill=(226, 232, 240), font=font)
+        draw.text((x, y + 4), before, fill=(226, 232, 240), font=font)
         x += font.getlength(before)
         tw = font.getlength(match)
         draw.rectangle([x - 1, y + 2, x + tw + 1, y + LINE_H - 2], fill=(120, 80, 0))
-        draw.text((x, y + 3), match, fill=(253, 224, 71), font=font)
+        draw.text((x, y + 4), match, fill=(253, 224, 71), font=font)
         x += tw
-        draw.text((x, y + 3), after, fill=(226, 232, 240), font=font)
+        draw.text((x, y + 4), after, fill=(226, 232, 240), font=font)
         y += LINE_H
 
     buf = io.BytesIO()
@@ -288,42 +310,46 @@ MAX_LINES_BASH = 30
 
 def render_bash(command: str, output: str) -> bytes:
     """Render Bash tool — macOS-style terminal with command and output."""
-    LINE_H, PAD_X, HEADER_H = 22, 12, 28
+    _LH, _PX, _HH = 26, 12, 32
     font, font_small = _load_fonts()
 
-    out_lines_all = output.split('\n')
-    lines = out_lines_all[:MAX_LINES_BASH]
-    truncated = len(out_lines_all) > MAX_LINES_BASH
+    raw_lines = output.split('\n')
+    wrapped = []
+    for ln in raw_lines:
+        wrapped.extend(_wrap_line(ln))
+        if len(wrapped) >= MAX_LINES_BASH:
+            break
+    display = wrapped[:MAX_LINES_BASH]
+    truncated = len(raw_lines) > MAX_LINES_BASH or len(wrapped) > MAX_LINES_BASH
+    cmd_wrapped = _wrap_line(command)
 
-    max_w = 650
-    for text in [command] + lines:
-        tw = font.getlength(text) + PAD_X * 2 + 30
-        max_w = max(max_w, int(tw))
-    max_w = min(max_w, 1200)
-
+    max_w = 800
     extra = 1 if truncated else 0
-    img_h = HEADER_H + LINE_H * (len(lines) + 1 + extra) + 6
+    total_lines = len(cmd_wrapped) + len(display) + extra
+    img_h = _HH + _LH * total_lines + 8
     img = Image.new('RGB', (max_w, img_h), (13, 17, 23))
     draw = ImageDraw.Draw(img)
 
-    # macOS-style header with traffic lights
-    draw.rectangle([0, 0, max_w, HEADER_H], fill=(30, 30, 30))
-    draw.ellipse([10, 8, 22, 20], fill=(255, 95, 86))
-    draw.ellipse([28, 8, 40, 20], fill=(255, 189, 46))
-    draw.ellipse([46, 8, 58, 20], fill=(39, 201, 63))
-    draw.text((70, 7), "bash", fill=(150, 150, 150), font=font_small)
+    draw.rectangle([0, 0, max_w, _HH], fill=(30, 30, 30))
+    draw.ellipse([12, 10, 24, 22], fill=(255, 95, 86))
+    draw.ellipse([30, 10, 42, 22], fill=(255, 189, 46))
+    draw.ellipse([48, 10, 60, 22], fill=(39, 201, 63))
+    draw.text((72, 8), "bash", fill=(150, 150, 150), font=font_small)
 
-    y = HEADER_H + 4
-    draw.text((PAD_X, y + 3), "$ ", fill=(74, 222, 128), font=font)
-    draw.text((PAD_X + font.getlength("$ "), y + 3), command, fill=(226, 232, 240), font=font)
-    y += LINE_H
+    y = _HH + 4
+    for i, part in enumerate(cmd_wrapped):
+        prefix = "$ " if i == 0 else "  "
+        draw.text((_PX, y + 3), prefix, fill=(74, 222, 128), font=font)
+        draw.text((_PX + font.getlength(prefix), y + 3), part, fill=(226, 232, 240), font=font)
+        y += _LH
 
-    for text in lines:
-        draw.text((PAD_X, y + 3), text, fill=(180, 190, 200), font=font)
-        y += LINE_H
+    for text in display:
+        draw.text((_PX, y + 3), text, fill=(180, 190, 200), font=font)
+        y += _LH
 
     if truncated:
-        draw.text((PAD_X, y + 3), f"... +{len(out_lines_all) - MAX_LINES_BASH} more lines", fill=(100, 116, 139), font=font_small)
+        remaining = len(raw_lines) - MAX_LINES_BASH
+        draw.text((_PX, y + 3), f"... +{max(remaining, 0)} more lines", fill=(100, 116, 139), font=font_small)
 
     buf = io.BytesIO()
     img.save(buf, format='PNG', optimize=True)
