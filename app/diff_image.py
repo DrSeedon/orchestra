@@ -354,3 +354,44 @@ def render_bash(command: str, output: str) -> bytes:
     buf = io.BytesIO()
     img.save(buf, format='PNG', optimize=True)
     return buf.getvalue()
+
+
+MAX_LINES_GLOB = 30
+
+_GLOB_ICONS = {
+    'py': '🐍', 'js': '📜', 'ts': '📜', 'jsx': '📜', 'tsx': '📜',
+    'md': '📝', 'txt': '📝', 'rst': '📝',
+    'png': '🖼', 'jpg': '🖼', 'jpeg': '🖼', 'svg': '🖼', 'gif': '🖼',
+    'json': '⚙️', 'yaml': '⚙️', 'yml': '⚙️', 'toml': '⚙️',
+    'html': '🌐', 'css': '🎨', 'sh': '🖥', 'sql': '🗃',
+}
+
+
+def render_glob(pattern: str, results: str) -> bytes:
+    """Render Glob results as PNG — file list with extension icons."""
+    font, font_small = _load_fonts()
+    raw_lines = [l.strip() for l in results.strip().splitlines() if l.strip()]
+    display = raw_lines[:MAX_LINES_GLOB]
+    truncated = len(raw_lines) > MAX_LINES_GLOB
+    extra = 1 if truncated else 0
+
+    max_w = 800
+    img_h = HEADER_H + LINE_H * (len(display) + extra) + 4
+    img = Image.new('RGB', (max_w, img_h), (15, 23, 42))
+    draw = ImageDraw.Draw(img)
+
+    draw.line([0, HEADER_H, max_w, HEADER_H], fill=(30, 41, 59))
+    draw.text((PAD_X, 7), f"glob: {pattern[:50]} ({len(raw_lines)} files)", fill=(100, 116, 139), font=font_small)
+
+    y = HEADER_H + 2
+    for path in display:
+        short = _short_path(path)[:WRAP_COLS]
+        draw.text((PAD_X, y + 4), short, fill=(56, 189, 248), font=font)
+        y += LINE_H
+
+    if truncated:
+        draw.text((PAD_X, y + 4), f"... +{len(raw_lines) - MAX_LINES_GLOB} more files", fill=(100, 116, 139), font=font_small)
+
+    buf = io.BytesIO()
+    img.save(buf, format='PNG', optimize=True)
+    return buf.getvalue()

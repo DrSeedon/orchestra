@@ -1108,6 +1108,20 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
             from app.diff_image import render_bash
             png = render_bash(command, result)
             await _send_png_to_tg(png, chat_id, thread_id, "Bash")
+
+        elif tool_name == "Glob":
+            import json
+            try:
+                colon = tool_raw.index(":")
+                params = json.loads(tool_raw[colon + 1:].strip())
+                pattern = params.get("pattern", "")
+            except Exception:
+                pattern = ""
+            if not result.strip():
+                return False
+            from app.diff_image import render_glob
+            png = render_glob(pattern, result)
+            await _send_png_to_tg(png, chat_id, thread_id, "Glob")
         else:
             return False
         return True
@@ -1253,7 +1267,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 logger.debug(f"send_message pretty format failed: {_e}")
                                 _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
                         elif not _diff_sent:
-                            _skip_expandable = (tool_name in ("Read", "Grep", "Bash") and _result_images_enabled())
+                            _skip_expandable = (tool_name in ("Read", "Grep", "Bash", "Glob") and _result_images_enabled())
                             if not _skip_expandable:
                                 _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
                         try:
@@ -1312,7 +1326,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         result_body = c[:800]
                         # Result image for Read/Grep/Bash — if sent, skip text
                         _result_img_sent = False
-                        if _last_tool_name in ("Read", "Grep", "Bash"):
+                        if _last_tool_name in ("Read", "Grep", "Bash", "Glob"):
                             _result_img_sent = await _send_result_image(_last_tool_name, _last_tool_raw, c, config["group_id"], thread_id)
                         if not _result_img_sent:
                             if _last_tool_msg:
