@@ -1260,9 +1260,10 @@ async def stream_logs(orch_name: str, thread_id: int):
                                     else:
                                         escaped_parts.append(part.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
                                 sm_html = "".join(escaped_parts)
-                                sm_formatted = f"<b>→ {sm_to}</b>\n\n{sm_html}"
+                                sm_formatted = f"✉️ <b>→ {sm_to}</b>\n\n{sm_html}"
                                 if bot:
                                     await bot.send_message(config["group_id"], sm_formatted, message_thread_id=thread_id, parse_mode="HTML")
+                                    _last_diff_sent = True
                             except Exception as _e:
                                 logger.debug(f"send_message pretty format failed: {_e}")
                                 _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
