@@ -26,6 +26,7 @@ def _load_fonts():
 
 
 def _wrap_line(text: str, cols: int = WRAP_COLS) -> list[str]:
+    text = text.replace('\t', '    ')
     if len(text) <= cols:
         return [text]
     parts = []
@@ -154,9 +155,9 @@ def render_edit_diff(file_path: str, old_string: str, new_string: str) -> bytes 
 
     y = HEADER_H + 2
     for typ, text, other in display:
-        text = text[:WRAP_COLS]
+        text = text.replace('\t', '    ')[:WRAP_COLS]
         if other is not None:
-            other = other[:WRAP_COLS]
+            other = other.replace('\t', '    ')[:WRAP_COLS]
         if typ in ('del', 'add'):
             draw.rectangle([0, y, max_w, y + LINE_H], fill=_BG[typ])
             draw.rectangle([0, y, GUTTER_W, y + LINE_H], fill=_BG_G[typ])
@@ -201,7 +202,7 @@ def render_write_diff(file_path: str, content: str) -> bytes:
 
     y = HEADER_H + 2
     for text in display:
-        text = text[:WRAP_COLS]
+        text = text.replace('\t', '    ')[:WRAP_COLS]
         draw.rectangle([0, y, max_w, y + LINE_H], fill=(15, 40, 25))
         draw.rectangle([0, y, GUTTER_W, y + LINE_H], fill=(20, 55, 30))
         draw.text((10, y + 4), '+', fill=(74, 222, 128), font=font)
@@ -280,6 +281,7 @@ def render_grep(pattern: str, results: list) -> bytes:
 
     y = HEADER_H + 2
     for f, ln, text, ms, me in display:
+        text = text.replace('\t', '    ')
         prefix = f"{_short_path(f)}:{ln}: "
         full_line = prefix + text
         if len(full_line) > WRAP_COLS:
