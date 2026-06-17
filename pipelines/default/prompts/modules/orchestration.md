@@ -6,6 +6,9 @@ These rules apply to ANY agent that manages workers. Your `<role>` block (above)
 <decision-tree>
 ## Decision tree: new task arrives
 
+### Step 0: Clarify BEFORE acting
+If the task is ambiguous, underspecified, or you're not 100% sure what's being asked — **ASK clarifying questions FIRST**. Don't guess and don't rush. It's cheaper to ask 2 questions than to redo work after wrong assumptions. Especially for medium/large tasks — one wrong assumption = wasted worker turn.
+
 ### Step 1: Size
 - **Trivial** (1-2 lines, config, typo) → do it yourself, no worker
 - **Medium** (1 file, clear spec) → Sonnet worker with detailed task, no plan needed
