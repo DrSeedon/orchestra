@@ -159,17 +159,15 @@ function scheduleRefresh() {
 function connectSSE() {
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (!selectedAgent || !currentScope) return;
+    const targetAgent = selectedAgent;
     const lastId = chatLogs[selectedAgent]?.lastId || 0;
-    // On first connect (lastId=0), fetch the last 100 messages for initial display
     const limitParam = lastId === 0 ? '&limit=100' : '';
     const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
     eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
+        if (selectedAgent !== targetAgent) return;
         try {
             const l = JSON.parse(event.data);
-            // When the server echoes back a message we sent, replace our optimistic bubble
-            // with the confirmed version so timestamps and content match exactly.
-            // Dedup user messages: skip SSE echo if we sent it (optimistic bubble already visible)
             if (l.type === 'user_message' && localMessages.size > 0) {
                 const isLocal = localMessages.has(l.content) ||
                     [...localMessages].some(m => l.content.endsWith(m)) ||
@@ -204,7 +202,7 @@ function connectSSE() {
         eventSource.close();
         eventSource = null;
         _onServerError();
-        setTimeout(connectSSE, 2000);
+        setTimeout(() => { if (selectedAgent === targetAgent) connectSSE(); }, 2000);
     };
 }
 
@@ -1083,6 +1081,7 @@ function selectOrchestrator(name, scope) {
 
 async function onOrchestratorChange() {
     saveDraft();
+    if (eventSource) { eventSource.close(); eventSource = null; }
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
     currentScope = picker.value || null;
@@ -1109,8 +1108,9 @@ async function onOrchestratorChange() {
 }
 
 // === Agent Selection ===
-function selectAgent(name) {
+async function selectAgent(name) {
     saveDraft();
+    if (eventSource) { eventSource.close(); eventSource = null; }
     selectedAgent = name;
     streamBubble = null;
     streamContent = '';
@@ -1121,9 +1121,8 @@ function selectAgent(name) {
     restoreDraft();
     renderAgentList();
     fetchAgentContext(name);
-    refreshSessions();
-    // Brief delay before SSE connect — gives time for any in-flight send() to persist
-    setTimeout(() => { if (selectedAgent === name) connectSSE(); }, 300);
+    await refreshSessions();
+    connectSSE();
 }
 
 function updateInputState() {
