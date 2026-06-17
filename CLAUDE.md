@@ -144,6 +144,50 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Safety prompt (SAFETY_PREFIX) — was in main, REVERTED. Lives in private fork orchestra-enterprise
 - Per-role lean tools — was in main, REVERTED. Will return when coding-worker role exists
 
+## Session notes (2026-06-11 to 2026-06-16)
+
+### Major refactoring
+- **P0-P4 full codebase refactor** (Fable 5 full-cycle, $33): session.py split → CostTracker/TurnManager/HibernateManager; main.py 1574→91 lines; 3 circular deps cut; 34 isinstance killed; 487 tests green
+- **tg_bridge split** — refactor-tg worker (Opus 4.8) in progress, research+plan done, awaiting impl
+
+### New roles
+- `experimenter` — hypothesis → experiment → measure → conclude. Opus 4.8
+- `researcher` — search → verify → synthesize. Web research with counter-evidence. Opus 4.8
+- Both in `pipelines/default/pipeline.yaml` + `prompts/roles/`
+
+### Key features
+- **4-level cost**: turn/ctx/session/total. ctx persisted in DB (survives reboot), session = in-memory only
+- **Worker persistent memory** (#81): `docs/workers/{name}.md` auto-injects into prompt on spawn/resume
+- **Dynamic model list**: `available_models_block()` from models.py → orchestrator prompts
+- **Prompt visualization** (#77, #80): dashboard shows prompt blocks by source (file/module/dynamic/skill)
+- **TG topic toggle**: right-click agent → toggle TG topic
+- **Change-scope modal** (#78): CLI session files migrated to preserve context
+- **Codex proxy wrapper**: `~/.local/bin/codex` → HTTPS_PROXY=12340 (Ёжик), works without Hiddify
+
+### Enterprise separation
+- `/mnt/data/Projects/Python/orchestra` = PUBLIC (origin=DrSeedon/orchestra.git). My territory
+- `/mnt/data/Projects/Python/orchestra-enterprise` = PRIVATE (dev-lead's territory)
+- Enterprise remote REMOVED from public repo. dev-lead has no-push to upstream
+- Reverted enterprise code from main: DeepSeek models, proxy fetching, auto-bootstrap, block-creation, auth-gated UI
+
+### Research findings
+- `stop_reason=tool_use` = ALWAYS external interrupt (31 interrupt + 4 permission + 2 inject). Never "agent wants more"
+- `ede_diagnostic` = CLI telemetry noise, not real errors. Filtered
+- Fable 5 banned in USA — model dead as of 2026-06-15. Use Opus 4.8 instead
+
+### Process rules
+- **Step 0: Clarify before acting** — added to orchestration.md decision tree
+- **Reply to agents via send_message** — not plain text to user chat
+- **repo_path in spawn_worker** — set explicitly when task targets different repo than scope
+- **Hardcoded role=orchestrator** for New Orchestrator modal — hidden dropdown was picking random role
+
+### VPS клиента (147.45.101.84)
+- orchestra.zahoron.ru — Parsing client
+- SSH: `root@147.45.101.84`
+- DB: `/opt/orchestra/data/orchestra.db`
+- Auth: Bearer `d3f73e4c1d459201661e4419ef6917337a8a8920adf13fa2204cf2169cdc82bd`
+- Parsing-orchestrator = $2230 (85% of total). Deep research sub-agents caused $118+$112 turns → 7d 100%
+
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool
 - Баги пишутся в `BUGS.md` в корне проекта
