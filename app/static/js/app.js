@@ -3462,27 +3462,34 @@ function addChatEntry(type, content, ts, anchor) {
                 return;
             }
             if (lastTool.dataset.toolRawName === 'Glob') {
-                const files = clean.split('\n').filter(l => l.trim());
-                const resultEl = document.createElement('div');
-                resultEl.className = 'text-xs';
-                resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;color:#94a3b8';
-                resultEl.textContent = files.length ? files.join('\n') : '(no matches)';
-                lastTool.appendChild(resultEl);
-                if (files.length > 5) {
-                    const hint = document.createElement('div');
-                    hint.className = 'text-xs mt-1';
-                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                    hint.textContent = `▼ ${files.length - 5} more files`;
-                    lastTool.appendChild(hint);
-                    let _globExp = false;
+                let _globPattern = '';
+                try { const _gp = JSON.parse(lastTool.dataset.toolContent.slice(lastTool.dataset.toolContent.indexOf(':') + 1)); _globPattern = _gp.pattern || ''; } catch {}
+                const globEl = renderGlobView(_globPattern, clean);
+                if (globEl) {
+                    lastTool.appendChild(globEl);
+                    const hdr = lastTool.querySelector('.flex.items-center');
+                    if (hdr) {
+                        const count = clean.split('\n').filter(l => l.trim()).length;
+                        hdr.textContent = `📂 Glob: ${_globPattern || '?'} (${count})`;
+                    }
                     lastTool.style.cursor = 'pointer';
                     lastTool.addEventListener('click', (e) => {
                         if (e.target.tagName === 'A') return;
-                        _globExp = !_globExp;
-                        resultEl.style.maxHeight = _globExp ? 'none' : '90px';
-                        resultEl.style.overflowY = _globExp ? 'visible' : 'hidden';
-                        hint.textContent = _globExp ? '▲ collapse' : `▼ ${files.length - 5} more files`;
+                        const rest = globEl.querySelector('[data-role="read-rest"]');
+                        const more = globEl.querySelector('[data-role="read-more"]');
+                        if (rest && more) {
+                            const exp = rest.style.display !== 'none';
+                            rest.style.display = exp ? 'none' : 'block';
+                            const cnt = more.dataset.count;
+                            more.textContent = exp ? `▼ ${cnt} more files` : '▲ collapse';
+                        }
                     });
+                } else {
+                    const noMatch = document.createElement('div');
+                    noMatch.className = 'text-xs';
+                    noMatch.style.cssText = 'margin-top:4px;color:#64748b;font-style:italic';
+                    noMatch.textContent = 'No files found';
+                    lastTool.appendChild(noMatch);
                 }
                 addTimestamp(lastTool, ts);
                 return;

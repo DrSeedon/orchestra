@@ -184,6 +184,71 @@ function renderReadView(body) {
     return container;
 }
 
+const _GLOB_FILE_ICONS = {
+    py:'🐍', js:'📜', ts:'📜', jsx:'📜', tsx:'📜',
+    md:'📝', txt:'📝', rst:'📝',
+    png:'🖼', jpg:'🖼', jpeg:'🖼', svg:'🖼', gif:'🖼', webp:'🖼',
+    json:'⚙️', yaml:'⚙️', yml:'⚙️', toml:'⚙️', ini:'⚙️',
+    html:'🌐', css:'🎨', sh:'🖥', sql:'🗃',
+};
+
+function renderGlobView(pattern, resultText) {
+    const files = resultText.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!files.length) return null;
+
+    const PREVIEW = 8;
+    const container = document.createElement('div');
+    container.className = 'grep-results';
+    container.style.marginTop = '6px';
+
+    const headerEl = document.createElement('div');
+    headerEl.className = 'grep-result-row';
+    headerEl.style.cssText = 'color:#38bdf8;font-size:11px;font-weight:600;padding:4px 8px;border-bottom:1px solid #1e293b';
+    headerEl.textContent = `📂 ${files.length} files`;
+    container.appendChild(headerEl);
+
+    function buildRow(path) {
+        const short = path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '');
+        const ext = path.includes('.') ? path.split('.').pop().toLowerCase() : '';
+        const icon = _GLOB_FILE_ICONS[ext] || '📄';
+        const row = document.createElement('div');
+        row.className = 'grep-result-row';
+        const meta = document.createElement('span');
+        meta.className = 'grep-meta';
+        meta.style.minWidth = '20px';
+        meta.style.maxWidth = '20px';
+        meta.textContent = icon;
+        const code = document.createElement('span');
+        code.className = 'grep-code';
+        code.style.color = '#94a3b8';
+        code.textContent = short;
+        row.append(meta, code);
+        return row;
+    }
+
+    const previewFiles = files.slice(0, PREVIEW);
+    const restFiles = files.slice(PREVIEW);
+
+    for (const f of previewFiles) container.appendChild(buildRow(f));
+
+    if (restFiles.length > 0) {
+        const restEl = document.createElement('div');
+        restEl.dataset.role = 'read-rest';
+        restEl.style.display = 'none';
+        for (const f of restFiles) restEl.appendChild(buildRow(f));
+        container.appendChild(restEl);
+
+        const moreEl = document.createElement('div');
+        moreEl.dataset.role = 'read-more';
+        moreEl.dataset.count = restFiles.length;
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px;padding:4px 0';
+        moreEl.textContent = `▼ ${restFiles.length} more files`;
+        container.appendChild(moreEl);
+    }
+
+    return container;
+}
+
 function renderGrepResults(raw, pattern) {
     const lines = raw.split('\n').filter(l => l.trim());
     if (!lines.length) return null;
