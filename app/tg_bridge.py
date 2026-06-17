@@ -1250,20 +1250,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 sm_params = _json.loads(c[colon_idx + 1:].strip())
                                 sm_to = sm_params.get("to", "?")
                                 sm_msg = sm_params.get("message", "")
-                                import re as _re
-                                parts_sm = _re.split(r'(```[a-z]*\n?.*?```)', sm_msg, flags=_re.DOTALL)
-                                escaped_parts = []
-                                for part in parts_sm:
-                                    if part.startswith('```'):
-                                        inner = _re.sub(r'^```[a-z]*\n?', '', part).rstrip('`').strip()
-                                        escaped_parts.append(f"<pre>{inner}</pre>")
-                                    else:
-                                        escaped_parts.append(part.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
-                                sm_html = "".join(escaped_parts)
-                                sm_formatted = f"✉️ <b>→ {sm_to}</b>\n\n{sm_html}"
-                                if bot:
-                                    await bot.send_message(config["group_id"], sm_formatted, message_thread_id=thread_id, parse_mode="HTML")
-                                    _last_diff_sent = True
+                                sm_md = f"✉️ **→ {sm_to}**\n\n{sm_msg}"
+                                converted, entities = md_convert(sm_md)
+                                from aiogram.types import MessageEntity as AioEntity
+                                aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
+                                for chunk in _split_message(converted):
+                                    await _tg_send_safe(config["group_id"], chunk, thread_id, entities=aio_ents, important=True)
+                                    aio_ents = None
+                                _last_diff_sent = True
                             except Exception as _e:
                                 logger.debug(f"send_message pretty format failed: {_e}")
                                 _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
