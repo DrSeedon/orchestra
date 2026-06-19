@@ -278,13 +278,15 @@ def _parse_custom_mcp(raw) -> dict:
     return {k: v for k, v in raw.items() if k != "orchestra"}
 
 
-def _make_mcp_config(name: str, scope: str, role: str = "worker", extra: dict | None = None) -> dict:
+def _make_mcp_config(name: str, scope: str, role: str = "worker",
+                     parent_name: str = "", extra: dict | None = None) -> dict:
     env = {
         **MCP_BASE_ENV,
         "ORCHESTRA_URL": "http://127.0.0.1:8888",
         "ORCHESTRA_SCOPE": scope,
         "ORCHESTRA_ROLE": role,
         "WORKER_NAME": name,
+        "PARENT_NAME": parent_name,
     }
     cfg = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": env, "alwaysLoad": True}}
     if extra:
@@ -529,7 +531,7 @@ class SessionManager:
             parent_id=parent_id, parent_name=parent_name,
             pipeline=pipeline, profile=profile,
             color="" if is_orch else self._pick_color(),
-            mcp_servers=_make_mcp_config(name, scope, role, extra=custom_mcp),
+            mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
             backend_type=bt, task_id=task_id, description=description,
             owned_dirs=owned_dirs,
@@ -697,6 +699,7 @@ class SessionManager:
             if session.session_id:
                 self._migrate_cli_session(session.session_id, old_scope, new_scope)
             session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
+                                                   parent_name=session.parent_name,
                                                    extra=session.mcp_servers_custom)
             session._persist()
         logger.info(f"Orchestrator '{name}' scope changed: {old_scope} → {new_scope}")
@@ -987,7 +990,8 @@ class SessionManager:
             pipeline=db_row.get("pipeline", ""),
             profile=db_row.get("profile", ""),
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
-            mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role, extra=custom_mcp),
+            mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role,
+                                         parent_name=db_row.get("parent_name", ""), extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, task_id=db_task_id,
             description=db_row.get("description", ""),

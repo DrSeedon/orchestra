@@ -22,6 +22,7 @@ ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
+PARENT_NAME = os.environ.get("PARENT_NAME", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 
 mcp = FastMCP("orchestra")
@@ -205,9 +206,12 @@ async def list_agents() -> str:
         owner_str = f" | owner: {owner}" if show_owner and owner else ""
         return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{task_str}{desc_str}{owner_str}"
 
+    is_worker = ROLE not in _ORCH_ROLES
     orchestrators, my_workers, other_workers = [], [], []
     for s in sessions:
         if s.get("role", "worker") in _ORCH_ROLES:
+            if is_worker and PARENT_NAME and s["name"] != PARENT_NAME:
+                continue
             orchestrators.append(s)
         else:
             pn = s.get("parent_name", "")
