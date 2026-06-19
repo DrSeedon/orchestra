@@ -46,8 +46,6 @@ class TurnManager:
             return
         if s._pending_messages or s._compacting:
             return
-        if not s._last_turn_ok:
-            return
         last_texts = s._turn_logs[-5:] if s._turn_logs else []
         stop_reason = s._last_stop_reason
 
