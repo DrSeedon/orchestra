@@ -1544,8 +1544,10 @@ async function sendChat() {
         await api(`/api/sessions/${selectedAgent}/send`, {
             method: 'POST',
             body: JSON.stringify({ message: msg, scope: currentScope }),
+            signal: AbortSignal.timeout(15000),
         });
     } catch (e) {
+        if (e.name === 'TimeoutError') return;
         if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
         if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
         pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
@@ -4151,9 +4153,8 @@ async function refreshSessions() {
 // === API ===
 // 5s timeout on all API calls — prevents hanging tabs when the server restarts mid-fetch
 async function api(url, opts = {}) {
-    const timeout = AbortSignal.timeout(5000);
-    const signals = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
-    const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal: signals });
+    const signal = opts.signal || AbortSignal.timeout(5000);
+    const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal });
     if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
     return resp.json();
 }
