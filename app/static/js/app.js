@@ -1111,6 +1111,11 @@ async function onOrchestratorChange() {
 async function selectAgent(name) {
     saveDraft();
     if (eventSource) { eventSource.close(); eventSource = null; }
+    if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+    localMessages.clear();
+    pendingUserMsgs = [];
+    pendingBubble = null;
+    _finalizedBubble = null;
     selectedAgent = name;
     streamBubble = null;
     streamContent = '';
