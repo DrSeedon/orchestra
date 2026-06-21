@@ -1093,8 +1093,10 @@ async function onOrchestratorChange() {
     pendingUserMsgs = [];
     pendingBubble = null;
     _finalizedBubble = null;
+    if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
     streamBubble = null;
     streamContent = '';
+    streamPending = '';
     selectedAgent = opt?.dataset?.name || null;
     if (currentScope && selectedAgent) {
         localStorage.setItem('lastOrchScope', currentScope);
@@ -1120,8 +1122,10 @@ async function selectAgent(name) {
     pendingBubble = null;
     _finalizedBubble = null;
     selectedAgent = name;
+    if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
     streamBubble = null;
     streamContent = '';
+    streamPending = '';
     $('#chat').innerHTML = '';
     chatLogs[name] = { lastId: 0, firstId: null };
     scrollAfterLoad = true;
@@ -1773,6 +1777,47 @@ function addCopyBtn(el, text) {
 
 let streamBubble = null;
 let streamContent = '';
+let streamPending = '';
+let _streamRafId = null;
+let _streamLastParse = 0;
+const _STREAM_BASE_CPS = 12;  // chars per frame at 60fps (~720 chars/sec)
+const _STREAM_PARSE_INTERVAL = 50;  // ms between marked.parse calls
+
+function _streamRenderTick() {
+    _streamRafId = null;
+    if (!streamBubble || !streamPending) return;
+    // Adaptive speed: if buffer is growing, accelerate to not fall behind
+    const chunkSize = Math.max(_STREAM_BASE_CPS, Math.floor(streamPending.length / 8));
+    const chunk = streamPending.slice(0, chunkSize);
+    streamPending = streamPending.slice(chunkSize);
+    streamContent += chunk;
+    const now = performance.now();
+    const sinceLastParse = now - _streamLastParse;
+    if (sinceLastParse >= _STREAM_PARSE_INTERVAL || !streamPending) {
+        _streamLastParse = now;
+        streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
+    }
+    // Typing cursor — remove stale one before adding
+    const oldCur = streamBubble.querySelector('.typing-cursor');
+    if (oldCur) oldCur.remove();
+    const lastEl = streamBubble.querySelector(':scope > :last-child') || streamBubble;
+    const cur = document.createElement('span');
+    cur.className = 'typing-cursor';
+    cur.textContent = '▍';
+    lastEl.appendChild(cur);
+    const chat = $('#chat');
+    const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+    if (wasAtBottom) chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+    if (streamPending) _streamRafId = requestAnimationFrame(_streamRenderTick);
+}
+
+function _streamFlush() {
+    if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
+    if (streamPending) {
+        streamContent += streamPending;
+        streamPending = '';
+    }
+}
 
 function _renderJsonGrid(obj, container, maxDepth) {
     if (maxDepth === undefined) maxDepth = 2;
@@ -2134,10 +2179,9 @@ function addChatEntry(type, content, ts, anchor) {
         return;
     }
 
-    // Stream events accumulate into one bubble that gets re-rendered on each chunk
+    // Stream events feed the typewriter buffer — RAF loop renders incrementally
     if (type === 'stream') {
         removeWaitingIndicator();
-        streamContent += content;
         if (!streamBubble) {
             streamBubble = document.createElement('div');
             streamBubble.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body streaming';
@@ -2145,23 +2189,17 @@ function addChatEntry(type, content, ts, anchor) {
             const agentColor = agentColors[selectedAgent];
             if (agentColor) streamBubble.style.borderLeft = `3px solid ${agentColor}`;
             _insert(streamBubble);
+            _streamLastParse = 0;
         }
-        streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
-        // Append typing cursor inside the last text node's parent
-        const lastEl = streamBubble.querySelector(':scope > :last-child') || streamBubble;
-        const cur = document.createElement('span');
-        cur.className = 'typing-cursor';
-        cur.textContent = '▍';
-        lastEl.appendChild(cur);
-        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
-        if (wasAtBottom) chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+        streamPending += content;
+        if (!_streamRafId) _streamRafId = requestAnimationFrame(_streamRenderTick);
         return;
     }
 
-    // 'text' event signals streaming finished — the DB-persisted content is
-    // authoritative (partials may have been dropped/truncated), so replace the
-    // bubble body with it, then finalize with copy/timestamp.
+    // 'text' event signals streaming finished — flush typewriter buffer,
+    // replace with authoritative DB content, finalize with copy/timestamp.
     if (type === 'text' && streamBubble) {
+        _streamFlush();
         streamBubble.classList.remove('streaming');
         const finalText = content || streamContent;
         streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(finalText));
@@ -2169,16 +2207,20 @@ function addChatEntry(type, content, ts, anchor) {
         addTimestamp(streamBubble, ts);
         streamBubble = null;
         streamContent = '';
+        streamPending = '';
         return;
     }
 
     // Any non-text log after a stream (e.g. tool call) also terminates the stream bubble
     if (streamBubble && type !== 'text') {
+        _streamFlush();
         streamBubble.classList.remove('streaming');
+        streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
         addCopyBtn(streamBubble, streamContent);
         addTimestamp(streamBubble, ts);
         streamBubble = null;
         streamContent = '';
+        streamPending = '';
     }
 
     if (type === 'status') {
