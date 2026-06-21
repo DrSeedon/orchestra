@@ -658,8 +658,8 @@ async def bg_cancel(job_id: str) -> str:
     return f"Job {job_id} cancelled."
 
 
-# Hardcoded path: Codex CLI installed globally via npm, not in the uv venv
-_CODEX_BIN = "/home/maxim/.npm-global/bin/codex"
+# Wrapper at ~/.local/bin/codex sets HTTPS_PROXY for Ёжик tunnel
+_CODEX_BIN = "/home/maxim/.local/bin/codex"
 _REVIEW_CONTEXT = (
     "PROJECT CONTEXT (calibrate review severity):\n"
     "- Scale: small team, MVP stage\n"
@@ -696,9 +696,8 @@ async def codex_review(
     prompt_file = f"/tmp/codex_review_{WORKER_NAME}.txt"
 
     if mode == "review":
-        # Clear proxy vars: Codex talks to OpenAI, not Anthropic — same as _build_env
         cmd = (
-            f"cd {cwd} && HTTPS_PROXY= HTTP_PROXY= UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
+            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --ephemeral"
             f" -o {output_abs}"
         )
@@ -715,7 +714,7 @@ async def codex_review(
 
         cmd = (
             f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{exec_prompt}\nCODEX_PROMPT_EOF\n"
-            f"cd {cwd} && HTTPS_PROXY= HTTP_PROXY= UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
+            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
             f" -s workspace-write --skip-git-repo-check --full-auto --ephemeral"
             f" -o {output_abs}"
             f" - < {prompt_file}"
