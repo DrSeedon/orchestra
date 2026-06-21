@@ -341,7 +341,24 @@ async def send_message(name: str, req: SendRequest):
             hint = f" Similar: {', '.join(similar[:5])}" if similar else f" Available: {', '.join(all_names[:10])}"
             return JSONResponse({"error": f"agent '{name}' not found.{hint}"}, status_code=404)
         if hasattr(session, 'needs_switch') and session.needs_switch:
-            return JSONResponse({"error": "worker was merged — call switch_worker_branch first"}, status_code=400)
+            try:
+                from app.workspace import switch_worktree_branch
+                import time
+                adhoc_id = str(int(time.time()))[-6:]
+                new_branch = f"adhoc-{adhoc_id}/{name}"
+                wt = session.worktree_path or session.cwd
+                res = await asyncio.to_thread(
+                    switch_worktree_branch, wt, new_branch, "refs/heads/main", force=True)
+                if res.get("ok"):
+                    session.branch = res.get("branch", new_branch)
+                    session.task_id = ""
+                    session.needs_switch = False
+                    session._persist()
+                    logger.info(f"auto-switch {name} to {new_branch} on send_message")
+                else:
+                    return JSONResponse({"error": f"auto-switch failed: {res}"}, status_code=400)
+            except Exception as e:
+                return JSONResponse({"error": f"auto-switch failed: {e}"}, status_code=400)
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)
