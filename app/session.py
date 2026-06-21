@@ -516,6 +516,12 @@ class AgentSession:
     # ── Unified event handler ──
 
     def _handle_event(self, event: AgentEvent) -> None:
+        if event.type == "stream":
+            # Live partials: push to in-memory broker for SSE fan-out, NEVER persist.
+            # The final "text" event (below) is the DB source of truth.
+            from app.live_broker import broker
+            broker.publish(self.id, {"type": "stream", "content": event.content})
+            return
         if event.type == "text":
             self._log("text", event.content)
             self._turn_logs.append(event.content)

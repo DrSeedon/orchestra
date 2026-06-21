@@ -20,6 +20,7 @@ from claude_agent_sdk import (
     TaskProgressMessage,
     TaskNotificationMessage,
     SystemMessage,
+    StreamEvent,
 )
 from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
@@ -134,7 +135,7 @@ class ClaudeBackend:
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             disallowed_tools=_disallowed_tools(self._is_orchestrator),
-            include_partial_messages=False, max_turns=200,
+            include_partial_messages=True, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
             env=env,
             user=agent_uid,
@@ -240,6 +241,23 @@ class ClaudeBackend:
 
     def _convert(self, msg) -> list[AgentEvent]:
         events = []
+        if isinstance(msg, StreamEvent):
+            # v1 streaming scope: ONLY main-agent text. Skip subagent partials
+            # (parent_tool_use_id set) and non-text deltas (thinking/tool-arg/sig).
+            # The final AssistantMessage still carries everything and is persisted.
+            ev = msg.event or {}
+            if msg.parent_tool_use_id is not None:
+                return events
+            if ev.get("type") != "content_block_delta":
+                return events
+            delta = ev.get("delta") or {}
+            if delta.get("type") != "text_delta":
+                return events
+            text = delta.get("text") or ""
+            if text:
+                events.append(AgentEvent("stream", text))
+            return events
+
         if isinstance(msg, AssistantMessage):
             for block in msg.content:
                 if isinstance(block, TextBlock) and block.text:

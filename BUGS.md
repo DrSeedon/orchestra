@@ -2,6 +2,13 @@
 
 ## Open
 
+### 🟡 Full test suite: ~14 failures from event-loop pollution (pre-existing)
+- **Reporter:** Streaming worker / task #83 (2026-06-21)
+- Running the FULL suite produces ~132 failures (incl. Playwright OOM), but each failing test **PASSES in isolation**. Without Playwright: 14 failed / 594 passed, deterministic.
+- **Root cause:** `app/manager.py:304` `self._spawn_queue: asyncio.Queue = asyncio.Queue()` is created on the singleton manager at construction, bound to whichever event loop existed then. A later test with a fresh loop hits `RuntimeError: <Queue> is bound to a different event loop`. Cross-test contamination, NOT a product bug.
+- **Impact:** can't trust the raw full-suite count; run modules in isolation or compare deltas. Task #83 verified +14 passing / 0 new failures this way.
+- **Fix idea:** lazy-init `_spawn_queue` inside the consumer coroutine (per-loop), or recreate it on spawn-worker startup. Needs its own task.
+
 ### 🟡 TG diff images not rendering
 - **Reporter:** Orchestra-orchestrator (2026-06-08)
 - Edit/Write/Read/Grep/Bash diff images (`app/diff_image.py`) code exists but images don't appear in TG

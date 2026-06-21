@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.22.0 — 2026-06-21
+
+### Added
+- 📡 **Real-time token streaming in dashboard (task #83)** — agent text now types out live in the chat bubble as the model generates it, instead of appearing all at once when the turn's text block completes. Latency drops from "whole block after completion" to ~5 chunks/sec (~80-100 chars/chunk — the Claude CLI batches deltas; not per-token).
+  - **Backend**: `include_partial_messages=True` in `ClaudeAgentOptions` (`app/backend_claude.py:138`). `_convert` gained a `StreamEvent` branch (`backend_claude.py:242`) that emits `AgentEvent("stream", text)` — STRICTLY scoped to main-agent `text_delta`: `parent_tool_use_id is not None` (subagents), non-`content_block_delta` events, and `thinking_delta`/`input_json_delta`/`signature_delta` are all filtered out. The final `AssistantMessage` still emits `text`/`thinking`/`tool_use` and is persisted exactly as before.
+  - **Pub/sub**: new `app/live_broker.py` — in-memory per-session broker (`broker.subscribe/publish/unsubscribe`). Bounded `asyncio.Queue(maxsize=256)` per viewer, drop-oldest on overflow (partials are ephemeral, never block the agent loop). Single-process/single-loop only (like the session manager). Sync `publish` — never awaits.
+  - **Routing**: `session._handle_event` (`session.py:519`) routes `stream` events to `broker.publish(self.id, ...)` — NO DB write. Key is `self.id` (== `manager.get_session_id` == `logs.session_id`), NOT the Claude `session_id` (often `None` on first turn).
+  - **SSE**: `stream_session_logs` generator (`app/routes/sessions.py:279`) now subscribes to the broker, drains live partials BEFORE polling the DB each tick (ordering: partials always precede their final `text` row → no orphan bubble), 0.1s poll while active / 0.5s idle, `unsubscribe` in `finally`.
+  - **Frontend**: the `type:"stream"` bubble renderer existed since 2026-05-01 (`c82e725`) but was DEAD CODE — no backend ever emitted it. Now wired up. Fixes: final `text` replaces the bubble body with the DB-authoritative content (`app.js:2155`, handles dropped/truncated partials); `firstId`/`lastId` bookkeeping guarded with `Number.isFinite(l.id)` (`app.js:189` — partials carry no id).
+  - **NOT touched**: DB schema, cost/usage accounting, TG bridge (stays final-only — partial spam would be insane), codex/opencode backends (emit no `StreamEvent`).
+  - **Tests**: `tests/test_live_broker.py` (7 — fan-out, drop-oldest, unsubscribe cleanup, session isolation), `tests/test_backend_stream.py` (7 — scope filter: text_delta passes; thinking/input_json/signature/subagent/non-delta dropped). All 14 green.
+  - **Codex review**: APPROVED, 0 blocking — verified no subscription leak, no broker race, no orphan bubble, correct scope filter.
+  - **Research artifacts**: `docs/tasks/83/` (research.md, plan.md, capture_partial.py, partial_dump.jsonl).
+
 ## v2.21.1 — 2026-06-15
 
 ### Fixed

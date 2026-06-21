@@ -186,10 +186,13 @@ function connectSSE() {
                 addChatEntry(l.type, l.content, l.ts);
             }
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
-            if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
-            if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
-                chatLogs[selectedAgent].firstId = l.id;
-                updateLoadMoreBtn();
+            // Live stream partials carry no id — skip id bookkeeping for them
+            if (Number.isFinite(l.id)) {
+                if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
+                if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
+                    chatLogs[selectedAgent].firstId = l.id;
+                    updateLoadMoreBtn();
+                }
             }
             if (scrollAfterLoad) {
                 $('#chat').scrollTop = $('#chat').scrollHeight;
@@ -2149,9 +2152,13 @@ function addChatEntry(type, content, ts, anchor) {
         return;
     }
 
-    // 'text' event signals that streaming finished — finalize the bubble with timestamp/copy
+    // 'text' event signals streaming finished — the DB-persisted content is
+    // authoritative (partials may have been dropped/truncated), so replace the
+    // bubble body with it, then finalize with copy/timestamp.
     if (type === 'text' && streamBubble) {
-        addCopyBtn(streamBubble, streamContent);
+        const finalText = content || streamContent;
+        streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(finalText));
+        addCopyBtn(streamBubble, finalText);
         addTimestamp(streamBubble, ts);
         streamBubble = null;
         streamContent = '';

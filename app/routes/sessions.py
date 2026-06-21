@@ -278,27 +278,38 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     async def event_generator():
         from app.db import _conn
+        from app.live_broker import broker
         last_id = after_id
-        initial = True
-        idle_ticks = 0
         c = _conn()
+        q = broker.subscribe(session_id)  # session_id == manager.get_session_id == session.id
         try:
+            # initial history first (one-shot) — preserves load-more behavior
+            if after_id == 0:
+                for log in get_logs_before(session_id, before_id=2**31 - 1, limit=limit):
+                    yield f"data: {json.dumps(log)}\n\n"
+                    last_id = log["id"]
             while True:
                 if await request.is_disconnected():
                     return
-                if initial and after_id == 0:
-                    logs = get_logs_before(session_id, before_id=2**31 - 1, limit=limit)
-                    initial = False
-                else:
-                    logs = get_logs(session_id, after_id=last_id, conn=c)
-                    initial = False
+                # 1) drain live partials FIRST (ephemeral, no id) — they always
+                #    precede their final 'text' row, so emit before polling DB.
+                drained = 0
+                while drained < 500:  # cap per tick — don't starve disconnect check
+                    try:
+                        payload = q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                    yield f"data: {json.dumps(payload)}\n\n"
+                    drained += 1
+                # 2) DB-persisted logs (finals + all other log types)
+                logs = get_logs(session_id, after_id=last_id, conn=c)
                 for log in logs:
                     yield f"data: {json.dumps(log)}\n\n"
                     last_id = log["id"]
-                idle_ticks = 0 if logs else idle_ticks + 1
-                # Back off to 3s after 2s of inactivity — reduces DB polling when idle
-                await asyncio.sleep(0.5 if idle_ticks < 4 else 3.0)
+                # 3) short poll while active (partials follow quickly), back off when idle
+                await asyncio.sleep(0.1 if (logs or drained) else 0.5)
         finally:
+            broker.unsubscribe(session_id, q)
             c.close()
     return StreamingResponse(event_generator(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
