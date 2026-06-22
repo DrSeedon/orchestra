@@ -38,7 +38,7 @@ _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
 # as TaskStartedMessage, which the permission callback never sees.
 _ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
 # ScheduleWakeup/Cron* removed for all agents — Orchestra manages scheduling via bg_jobs
-_ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList"]
+_ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList", "Workflow"]
 
 
 def _make_auto_approve(is_orchestrator: bool = False):
