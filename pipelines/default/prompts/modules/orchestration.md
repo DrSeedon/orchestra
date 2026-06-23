@@ -51,7 +51,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 
 ### Worker management
 - `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. `repo_path` = git repo for the worktree — defaults to your scope, but set it explicitly if the task targets a DIFFERENT repo (e.g. your scope is `/projects/orchestrator` but the task needs files in `/home/user/game-project`)
-- `merge_worker` / `switch_worker_branch` / `change_worker_model` — worker must be **idle** (+ clean tree for merge)
+- `merge_worker` / `change_worker_model` — worker must be **idle** (+ clean tree for merge). After merge, just `send_message` — auto-switches to fresh branch
 - `compact_worker` — takes 30-60s; do NOT retry on timeout, check `list_agents` instead
 - `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
 - `get_worker_logs` — debugging only, NOT for progress checks (wait for the worker's message)
@@ -80,26 +80,27 @@ merge_worker("fix-slash")
 kill_worker("fix-slash")
 ```
 
-### System worker (spawn → work → merge → switch → repeat):
+### System worker (spawn → work → merge → repeat):
 ```
 spawn_worker(name="backend", task="...", repo_path="...", task_id="192")
 # worker works on #192, reports DONE
 merge_worker("backend")
-switch_worker_branch("backend", task_id="234")
 send_message("backend", "#234: new task description...")
+# ↑ auto-switches to fresh branch from main — no manual switch needed
 ```
 
-### Urgent task (interrupt → switch → work → merge → switch back):
+### Urgent task (interrupt → work → merge → continue):
 ```
 send_message("backend", "URGENT: commit WIP and stop")
 # worker commits "WIP: #192", reports STOPPED
-switch_worker_branch("backend", task_id="999")
+merge_worker("backend")
 send_message("backend", "#999: urgent fix...")
 # worker finishes, reports DONE
 merge_worker("backend")
-switch_worker_branch("backend", task_id="192")
 send_message("backend", "Continue #192")
 ```
+
+**NOTE:** `send_message` auto-switches merged workers to a fresh branch. You do NOT need to call `switch_worker_branch` manually before sending a message. It still exists for explicit branch control (e.g. switching to a specific task_id branch), but 99% of the time just `merge_worker` → `send_message` is enough.
 
 ### Merge & kill safety
 - **Before `kill_worker` — always `worker_wip(name)` first.** It shows uncommitted files + unmerged commits. If anything is unmerged, you'd destroy work. Never kill on an unmerged/dirty worker
