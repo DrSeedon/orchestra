@@ -2069,7 +2069,15 @@ function addChatEntry(type, content, ts, anchor) {
     if (HIDE_THINKING && type === 'thinking') return;
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
-    const _insert = (el) => anchor ? chat.insertBefore(el, anchor) : chat.appendChild(el);
+    let _insertedBeforeStream = false;
+    const _insert = (el) => {
+        if (anchor) return chat.insertBefore(el, anchor);
+        if (streamBubble && streamBubble.parentNode === chat) {
+            _insertedBeforeStream = true;
+            return chat.insertBefore(el, streamBubble);
+        }
+        chat.appendChild(el);
+    };
 
     // Heuristic: detect base64 image payloads from tool results (e.g. screenshot tools)
     const _isBase64Image = content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"') || /['"]?data['"]?\s*[:=]\s*['"][A-Za-z0-9+/=\s]{500,}['"]/.test(content);
@@ -2091,7 +2099,7 @@ function addChatEntry(type, content, ts, anchor) {
         addTimestamp(div, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         _insert(div);
-        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
 
@@ -2166,16 +2174,12 @@ function addChatEntry(type, content, ts, anchor) {
                 return;
             }
         }
-        if (streamBubble) {
-            streamBubble = null;
-            streamContent = '';
-        }
         const line = buildCompactToolLine(type, content, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         _insert(line);
         // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
         while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
-        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
 
@@ -2211,18 +2215,6 @@ function addChatEntry(type, content, ts, anchor) {
         return;
     }
 
-    // Any non-text log after a stream (e.g. tool call) also terminates the stream bubble
-    if (streamBubble && type !== 'text') {
-        _streamFlush();
-        streamBubble.classList.remove('streaming');
-        streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
-        addCopyBtn(streamBubble, streamContent);
-        addTimestamp(streamBubble, ts);
-        streamBubble = null;
-        streamContent = '';
-        streamPending = '';
-    }
-
     if (type === 'status') {
         const badge = document.createElement('div');
         badge.className = 'text-center text-xs py-1 text-slate-500 italic';
@@ -2230,7 +2222,7 @@ function addChatEntry(type, content, ts, anchor) {
         addTimestamp(badge, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         _insert(badge);
-        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
 
@@ -2284,7 +2276,7 @@ function addChatEntry(type, content, ts, anchor) {
         addTimestamp(el, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         _insert(el);
-        if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
 
@@ -2956,7 +2948,7 @@ function addChatEntry(type, content, ts, anchor) {
             if (!lastTool) {
                 const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
                 _insert(div);
-                if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+                if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
             }
             return;
         }
@@ -2977,7 +2969,7 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(div, ts);
                 const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
                 _insert(div);
-                if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+                if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
             }
             return;
         }
@@ -3902,7 +3894,7 @@ function addChatEntry(type, content, ts, anchor) {
             addTimestamp(div, ts);
             const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
             _insert(div);
-            if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+            if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
             return;
         }
 
@@ -3923,7 +3915,7 @@ function addChatEntry(type, content, ts, anchor) {
                 addTimestamp(div, ts);
                 const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
                 _insert(div);
-                if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+                if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
                 return;
             }
         }
@@ -3960,7 +3952,7 @@ function addChatEntry(type, content, ts, anchor) {
     const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
     _insert(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
-    if (!anchor && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }
 
 
