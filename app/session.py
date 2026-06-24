@@ -176,9 +176,12 @@ class AgentSession:
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _spawn_warning: str = field(default="", repr=False)
     _auto_continue_count: int = field(default=0, repr=False)
+    _rate_limit_retries: int = field(default=0, repr=False)
 
     TURN_TIMEOUT = 600
     AUTO_CONTINUE_MAX = 5
+    RATE_LIMIT_MAX_RETRIES = 3
+    RATE_LIMIT_DELAY = 30
 
     def __post_init__(self) -> None:
         # Systems over state (ECS): cost/turn/hibernate methods live in systems,
@@ -544,6 +547,14 @@ class AgentSession:
             self._turns.handle_turn_end(event)
         elif event.type == "error":
             self._log("error", event.content)
+            if "rate_limit" in event.content:
+                if self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
+                    self._rate_limit_retries += 1
+                    delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
+                    self._log("status", f"rate limited — retry {self._rate_limit_retries}/{self.RATE_LIMIT_MAX_RETRIES} in {delay}s")
+                    self._spawn_bg(self._rate_limit_retry(delay))
+                else:
+                    self._log("error", f"rate limit — gave up after {self.RATE_LIMIT_MAX_RETRIES} retries")
         elif event.type == "subagent_start":
             self._log("subagent_start", event.content)
         elif event.type == "subagent_progress":
@@ -755,6 +766,16 @@ class AgentSession:
             await on_scope_running(self)
         except Exception as e:
             logger.warning(f"[{self.name}] TG scope-running notify failed: {e}")
+
+    async def _rate_limit_retry(self, delay: int) -> None:
+        await asyncio.sleep(delay)
+        try:
+            await self.send("[system] Retrying after rate limit. Continue where you left off.")
+            logger.info(f"[{self.name}] rate-limit retry after {delay}s")
+        except Exception as e:
+            logger.warning(f"[{self.name}] rate-limit retry failed: {e}")
+            self.status = AgentStatus.IDLE
+            self._persist()
 
     async def _auto_continue(self) -> None:
         await asyncio.sleep(1)
