@@ -323,7 +323,9 @@ def render_bash(command: str, output: str) -> bytes:
             break
     display = wrapped[:MAX_LINES_BASH]
     truncated = len(raw_lines) > MAX_LINES_BASH or len(wrapped) > MAX_LINES_BASH
-    cmd_wrapped = _wrap_line(command)
+    cmd_wrapped = []
+    for ln in command.split('\n'):
+        cmd_wrapped.extend(_wrap_line(ln))
 
     max_w = 800
     extra = 1 if truncated else 0
