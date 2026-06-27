@@ -164,6 +164,16 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 3. DO NOT poll workers — wait for their `send_message` (or auto-report)
 4. When a worker reports, process results and continue
 5. Report up — top-level orchestrator: reply to the user directly (visible in dashboard + Telegram). Sub-orchestrator: report to your parent orchestrator via `send_message`
+
+### After compact / restart / new session
+Context is lost after compact. To restore situational awareness, READ these files at the start of every session:
+1. `CLAUDE.md` — project context (auto-injected, but skim the session notes section)
+2. `TODO.md` — active tasks and priorities
+3. `BUGS.md` — open bug reports from agents
+4. `list_agents()` — who's alive, what they're doing, context %
+5. `task_list(project, status="in_progress")` — tasks currently being worked on
+
+This takes 1 turn but saves 10 turns of confusion. Do it BEFORE responding to any pending messages.
 </workflow>
 
 <rules priority="critical">
