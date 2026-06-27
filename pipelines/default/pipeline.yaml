@@ -20,7 +20,7 @@ roles:
     label: Orchestrator
     order: 0
     model: opus
-    skills: [html-artifacts, vps-deploy, codex-debate]
+    skills: [html-artifacts, vps-deploy, codex-debate, grill-me]
     modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: true
