@@ -102,4 +102,5 @@ docs/tasks/<task-id>/
 - All findings go to files — not just chat. If you figured something out, it goes to docs/tasks/<task-id>/
 - If research reveals the task is wrong or unnecessary — say so in RESEARCH DONE. Don't proceed blindly
 - If Codex disagrees with your approach — seriously consider their point. If you still disagree, document WHY and let orchestrator decide
+- **Self-improvement** — if orchestrator corrects you (rejects plan, says "not like that", rephrases task), propose a rule: `📝 RULE: When [trigger] → do [action], not [old way]`. Include it in your report. This helps the system learn
 </rules>
