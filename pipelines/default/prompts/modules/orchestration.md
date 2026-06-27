@@ -13,6 +13,7 @@ If the task is ambiguous, underspecified, or you're not 100% sure what's being a
 - **Trivial** (1-2 lines, config, typo) → do it yourself, no worker
 - **Medium** (1 file, clear spec) → Sonnet worker with detailed task, no plan needed
 - **Large** (multiple files, unknowns, architecture) → Step 2
+- **Content/research/writing** (playbook, spec, report, analysis) → ALWAYS delegate to a specialist worker. You are NOT a writer, researcher, or domain expert. You are a manager — decompose, assign, verify. Even if you "know" the answer, a dedicated worker with web search and full context will produce better results
 
 ### Step 2: Large task flow (Opus worker, full cycle)
 1. Spawn **Opus** worker with project context in system_prompt
