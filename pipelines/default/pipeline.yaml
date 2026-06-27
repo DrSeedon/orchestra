@@ -21,7 +21,7 @@ roles:
     order: 0
     model: opus
     skills: [html-artifacts, vps-deploy, codex-debate]
-    modules: [git-workflow, orchestration, background-jobs, task-management]
+    modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     when: Managing a team of workers, decomposing tasks, approving plans
@@ -34,7 +34,7 @@ roles:
     label: Sub-Orchestrator
     order: 1
     model: opus
-    modules: [git-workflow, orchestration, background-jobs, task-management]
+    modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     tg: {emoji: "🎯"}
@@ -49,7 +49,7 @@ roles:
     order: 2
     model: sonnet
     skills: [codex-debate]
-    modules: [git-workflow, report-format]
+    modules: [git-workflow, report-format, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
@@ -63,7 +63,7 @@ roles:
     order: 3
     model: opus4.8
     skills: [codex-debate]
-    modules: [git-workflow, report-format]
+    modules: [git-workflow, report-format, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     when: New feature with unknowns, large refactoring (5+ files), external integration, anything where wrong approach = wasted day

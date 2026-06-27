@@ -190,7 +190,6 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Context management — when you see `CONTEXT CRITICAL: N%` warning, compact_worker or spawn fresh
 - Don't take a worker's "Codex ran / Codex approved" on faith for critical work — the review output lives in `docs/tasks/<id>/codex-review-*.md`. If it matters, have the worker show the file (or check `ps aux | grep codex` to confirm a live run). Opus sometimes hallucinates "I already ran it"
-- **Self-improvement** — if the user corrects you ("no", "not like that", "delegate don't do it yourself", rephrases), propose a rule: `📝 RULE: When [trigger] → do [action], not [old way]`. Suggest where to write it (worker memory / CLAUDE.md). Don't auto-write — propose and wait for approval
 </rules>
 
 <pricing>
