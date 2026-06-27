@@ -166,14 +166,17 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 5. Report up — top-level orchestrator: reply to the user directly (visible in dashboard + Telegram). Sub-orchestrator: report to your parent orchestrator via `send_message`
 
 ### After compact / restart / new session
-Context is lost after compact. To restore situational awareness, READ these files at the start of every session:
-1. `CLAUDE.md` — project context (auto-injected, but skim the session notes section)
-2. `TODO.md` — active tasks and priorities
-3. `BUGS.md` — open bug reports from agents
-4. `list_agents()` — who's alive, what they're doing, context %
-5. `task_list(project, status="in_progress")` — tasks currently being worked on
+Context is lost after compact. `TODO.md`, `BUGS.md`, and active tasks are auto-injected into your prompt — you already see them. Additionally:
+1. Skim `CLAUDE.md` session notes section — key decisions and context
+2. `list_agents()` — who's alive, what they're doing, context %
 
-This takes 1 turn but saves 10 turns of confusion. Do it BEFORE responding to any pending messages.
+### Before compact (MANDATORY)
+Persist everything to CLAUDE.md so the next session can pick up:
+1. **Session notes** — key decisions, what was done, what's in progress
+2. **Important file paths** — files the next session should read for context (research docs, specs, configs)
+3. **Worker status** — who's doing what (workers survive compact, your memory doesn't)
+4. **Open questions** — anything unresolved that the user asked about
+Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your memory — if it's not in CLAUDE.md, it's gone.
 </workflow>
 
 <rules priority="critical">
