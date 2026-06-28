@@ -712,6 +712,7 @@ class AgentSession:
             self._log("error", "compact returned empty summary")
             self._compacting = False
             return {"ok": False, "error": "empty summary", "before_pct": before_pct}
+        self._log("text", f"📋 **Compact summary:**\n\n{summary[:3000]}")
 
         preamble = PREAMBLE.format(summary=summary)
         self._compact_ack_event = asyncio.Event()
