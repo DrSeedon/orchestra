@@ -526,6 +526,8 @@ class AgentSession:
             broker.publish(self.id, {"type": "stream", "content": event.content})
             return
         if event.type == "text":
+            from app.live_broker import broker
+            broker.clear_accum(self.id)
             self._log("text", event.content)
             self._turn_logs.append(event.content)
         elif event.type == "thinking":

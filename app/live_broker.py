@@ -15,9 +15,17 @@ _MAXSIZE = 256  # per-subscriber backlog; drop-oldest beyond this
 class LiveBroker:
     def __init__(self) -> None:
         self._subs: dict[str, set[asyncio.Queue]] = defaultdict(set)
+        self._accum: dict[str, str] = {}
 
     def subscribe(self, session_id: str) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(maxsize=_MAXSIZE)
+        # Replay accumulated stream text so reconnecting clients see what they missed
+        current = self._accum.get(session_id, "")
+        if current:
+            try:
+                q.put_nowait({"type": "stream", "content": current})
+            except asyncio.QueueFull:
+                pass
         self._subs[session_id].add(q)
         return q
 
@@ -29,6 +37,8 @@ class LiveBroker:
                 self._subs.pop(session_id, None)
 
     def publish(self, session_id: str, payload: dict) -> None:
+        if payload.get("type") == "stream":
+            self._accum[session_id] = self._accum.get(session_id, "") + payload.get("content", "")
         for q in tuple(self._subs.get(session_id, ())):  # snapshot — safe if set mutates
             if q.full():
                 try:
@@ -39,6 +49,10 @@ class LiveBroker:
                 q.put_nowait(payload)
             except asyncio.QueueFull:
                 pass
+
+    def clear_accum(self, session_id: str) -> None:
+        """Clear accumulated stream text — call when final 'text' event arrives."""
+        self._accum.pop(session_id, None)
 
 
 broker = LiveBroker()
