@@ -562,6 +562,46 @@ async def usage_history(hours: int = 24):
     return usage_get_history(hours)
 
 
+@router.get("/api/usage/daily")
+async def usage_daily(days: int = 30):
+    """Daily cost breakdown from turn-end logs."""
+    from app.db import _conn
+    c = _conn()
+    rows = c.execute("""
+        SELECT date(l.ts) as day,
+          COUNT(*) as turns,
+          ROUND(SUM(CAST(SUBSTR(l.content, INSTR(l.content, '$') + 1,
+            INSTR(SUBSTR(l.content, INSTR(l.content, '$') + 1), ' ') - 1) AS REAL)), 4) as cost_usd
+        FROM logs l
+        WHERE l.type='status' AND l.content LIKE '%turn ended%'
+          AND date(l.ts) >= date('now', ?)
+        GROUP BY date(l.ts)
+        ORDER BY day
+    """, (f"-{days} days",)).fetchall()
+    c.close()
+    return [{"day": r[0], "turns": r[1], "cost_usd": r[2]} for r in rows]
+
+
+@router.get("/api/usage/daily/agents")
+async def usage_daily_agents(days: int = 7):
+    """Per-agent daily cost breakdown from turn-end logs."""
+    from app.db import _conn
+    c = _conn()
+    rows = c.execute("""
+        SELECT date(l.ts) as day, s.name, s.model,
+          COUNT(*) as turns,
+          ROUND(SUM(CAST(SUBSTR(l.content, INSTR(l.content, '$') + 1,
+            INSTR(SUBSTR(l.content, INSTR(l.content, '$') + 1), ' ') - 1) AS REAL)), 4) as cost_usd
+        FROM logs l JOIN sessions s ON l.session_id = s.id
+        WHERE l.type='status' AND l.content LIKE '%turn ended%'
+          AND date(l.ts) >= date('now', ?)
+        GROUP BY date(l.ts), s.name
+        ORDER BY day DESC, cost_usd DESC
+    """, (f"-{days} days",)).fetchall()
+    c.close()
+    return [{"day": r[0], "agent": r[1], "model": r[2], "turns": r[3], "cost_usd": r[4]} for r in rows]
+
+
 # ── Misc ──
 
 @router.post("/api/report_bug")
