@@ -8,6 +8,7 @@
     <script src="/static/css/vendor/marked.min.js"></script>
     <script src="/static/css/vendor/purify.min.js"></script>
     <script src="/static/css/vendor/diff_match_patch.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script src="/static/css/vendor/highlight.min.js"></script>
     <link rel="stylesheet" href="/static/css/vendor/highlight-github-dark.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
@@ -53,6 +54,7 @@
                     </div>
                 </div>
             </div>
+            <button id="analytics-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Usage analytics" onclick="openAnalyticsModal()">📊</button>
             <button id="compact-toggle-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Toggle compact tool view">📋</button>
             <button id="restart-btn" class="px-2 py-1 bg-slate-800 hover:bg-amber-900/60 border border-slate-700 rounded-lg transition-colors text-amber-400" title="Restart Orchestra server">⟳</button>
             {% if is_auth_enabled %}<button id="client-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Client info">👤</button>{% endif %}
@@ -148,6 +150,18 @@
           <button id="prompt-modal-close" class="text-slate-400 hover:text-white text-lg">✕</button>
         </div>
         <div id="prompt-modal-body" class="flex-1 overflow-auto text-xs text-slate-300 markdown-body bg-[#0f172a] rounded-lg p-4 border border-slate-800"></div>
+      </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analytics-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" onclick="if(event.target===this)closeAnalyticsModal()">
+      <div class="glass glow rounded-xl p-6 w-[90vw] max-w-3xl max-h-[85vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-sm font-bold text-white">📊 Usage Analytics</h2>
+          <button class="text-slate-400 hover:text-white text-lg" onclick="closeAnalyticsModal()">✕</button>
+        </div>
+        <div id="analytics-tabs" class="flex gap-1 mb-4"></div>
+        <div id="analytics-body" class="flex-1 overflow-auto text-xs text-slate-300"></div>
       </div>
     </div>
 

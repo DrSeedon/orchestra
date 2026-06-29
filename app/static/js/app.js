@@ -4394,6 +4394,207 @@ async function loadTasks() {
     }
 }
 
+// === Analytics Modal ===
+let _analyticsChart = null;
+let _analyticsPeriod = 'week';
+
+function openAnalyticsModal() {
+    const modal = document.getElementById('analytics-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    _renderAnalyticsTabs();
+    _loadAnalytics();
+    document.addEventListener('keydown', _analyticsEscHandler);
+}
+function closeAnalyticsModal() {
+    const modal = document.getElementById('analytics-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    if (_analyticsChart) { _analyticsChart.destroy(); _analyticsChart = null; }
+    document.removeEventListener('keydown', _analyticsEscHandler);
+}
+function _analyticsEscHandler(e) { if (e.key === 'Escape') closeAnalyticsModal(); }
+
+function _renderAnalyticsTabs() {
+    const tabs = document.getElementById('analytics-tabs');
+    if (!tabs) return;
+    const periods = [['today', 'Today'], ['week', 'Week'], ['month', 'Month'], ['all', 'All time']];
+    tabs.innerHTML = periods.map(([k, label]) =>
+        `<button class="px-3 py-1.5 rounded-lg text-xs transition-colors ${k === _analyticsPeriod ? 'bg-indigo-600 text-white font-medium' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}" onclick="_analyticsPeriod='${k}';_renderAnalyticsTabs();_loadAnalytics()">${label}</button>`
+    ).join('');
+}
+
+async function _loadAnalytics() {
+    const body = document.getElementById('analytics-body');
+    if (!body) return;
+    body.innerHTML = '<div class="text-center text-slate-500 py-8">Loading...</div>';
+    try {
+        const scope = currentScope;
+        const hoursMap = { today: 24, week: 168, month: 720, all: 8760 };
+        const [stats, sessions, usage, history] = await Promise.all([
+            api(`/api/stats${scope ? '?scope=' + encodeURIComponent(scope) : ''}`),
+            api(`/api/sessions${scope ? '?scope=' + encodeURIComponent(scope) : ''}`),
+            api('/api/usage').catch(() => null),
+            api(`/api/usage/history?hours=${hoursMap[_analyticsPeriod]}`).catch(() => []),
+        ]);
+        _renderAnalyticsBody(body, stats, sessions, usage, history);
+    } catch (e) {
+        body.innerHTML = `<div class="text-center text-red-400 py-8">Failed to load: ${_escHtml(e.message)}</div>`;
+    }
+}
+
+function _renderAnalyticsBody(body, stats, sessions, usage, history) {
+    const allSessions = Array.isArray(sessions) ? sessions : [];
+    const now = Date.now();
+    const periodMs = { today: 86400000, week: 7 * 86400000, month: 30 * 86400000, all: Infinity };
+    const cutoff = _analyticsPeriod === 'all' ? 0 : now - periodMs[_analyticsPeriod];
+
+    // Per-agent costs (all time from sessions)
+    const agentCosts = allSessions
+        .filter(s => s.status !== 'archived' || s.cost_usd > 0)
+        .map(s => ({ name: s.name, model: s.model || '?', cost: s.cost_usd || 0, status: s.status }))
+        .sort((a, b) => b.cost - a.cost);
+
+    // Period cost from history
+    const periodHistory = Array.isArray(history) ? history.filter(h => new Date(h.ts).getTime() >= cutoff) : [];
+
+    // Aggregate by day for chart
+    const dailyMap = {};
+    for (let i = 1; i < periodHistory.length; i++) {
+        const day = periodHistory[i].ts.slice(0, 10);
+        const costDiff = (periodHistory[i].cost_usd || 0) - (periodHistory[i - 1].cost_usd || 0);
+        if (costDiff > 0) dailyMap[day] = (dailyMap[day] || 0) + costDiff;
+        if (!dailyMap[day]) dailyMap[day] = dailyMap[day] || 0;
+    }
+    const dailyLabels = Object.keys(dailyMap).sort();
+    const dailyCosts = dailyLabels.map(d => Math.round(dailyMap[d] * 100) / 100);
+
+    // Utilization by day (average)
+    const utilMap = {};
+    const utilCount = {};
+    for (const h of periodHistory) {
+        const day = h.ts.slice(0, 10);
+        utilMap[day] = (utilMap[day] || 0) + (h.seven_day_pct || h.seven_day_util || 0);
+        utilCount[day] = (utilCount[day] || 0) + 1;
+    }
+    const dailyUtil = dailyLabels.map(d => utilMap[d] ? Math.round(utilMap[d] / utilCount[d]) : 0);
+
+    // Period total cost
+    const periodCost = dailyCosts.reduce((a, b) => a + b, 0);
+
+    let html = '';
+
+    // Overview cards
+    html += '<div class="grid grid-cols-4 gap-3 mb-4">';
+    html += _analyticsCard('💰 Total', `$${(stats.total_cost_usd || 0).toFixed(0)}`, '#22c55e');
+    html += _analyticsCard('📅 Period', `$${periodCost.toFixed(0)}`, '#38bdf8');
+    html += _analyticsCard('🤖 Active', `${stats.active || 0}`, '#a78bfa');
+    html += _analyticsCard('📊 Sessions', `${stats.total_sessions || 0}`, '#f59e0b');
+    html += '</div>';
+
+    // Rate limits
+    if (usage && usage.anthropic) {
+        html += '<div class="grid grid-cols-2 gap-3 mb-4">';
+        const a = usage.anthropic;
+        if (a.five_hour) html += _analyticsRateBar('5h Window', a.five_hour, 5 * 3600000);
+        if (a.seven_day) html += _analyticsRateBar('7d Window', a.seven_day, 7 * 86400000);
+        html += '</div>';
+    }
+
+    // Chart
+    html += '<div class="bg-slate-900/50 rounded-xl border border-slate-800 p-4 mb-4"><canvas id="analytics-chart" height="200"></canvas></div>';
+
+    // Agent costs table
+    html += '<div class="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden">';
+    html += '<div class="px-3 py-2 border-b border-slate-800 text-xs font-bold text-slate-400">Cost by Agent</div>';
+    html += '<div class="max-h-[200px] overflow-y-auto">';
+    html += '<table class="w-full text-xs"><thead><tr class="text-slate-500 border-b border-slate-800/50"><th class="text-left px-3 py-1.5">Agent</th><th class="text-left px-3 py-1.5">Model</th><th class="text-left px-3 py-1.5">Status</th><th class="text-right px-3 py-1.5">Cost</th></tr></thead><tbody>';
+    for (const a of agentCosts.slice(0, 50)) {
+        const statusColor = a.status === 'running' ? '#22c55e' : a.status === 'idle' ? '#eab308' : '#64748b';
+        html += `<tr class="border-b border-slate-800/30 hover:bg-slate-800/30"><td class="px-3 py-1.5 font-medium text-slate-200">${_escHtml(a.name)}</td><td class="px-3 py-1.5 text-slate-500">${_escHtml(a.model)}</td><td class="px-3 py-1.5"><span style="color:${statusColor}">${a.status}</span></td><td class="px-3 py-1.5 text-right text-emerald-400">$${a.cost.toFixed(2)}</td></tr>`;
+    }
+    html += '</tbody></table></div></div>';
+
+    body.innerHTML = html;
+
+    // Render chart
+    if (dailyLabels.length > 0 && typeof Chart !== 'undefined') {
+        const ctx = document.getElementById('analytics-chart');
+        if (ctx) {
+            if (_analyticsChart) _analyticsChart.destroy();
+            _analyticsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dailyLabels.map(d => d.slice(5)),
+                    datasets: [
+                        {
+                            label: 'Cost ($)',
+                            data: dailyCosts,
+                            backgroundColor: 'rgba(99,102,241,0.6)',
+                            borderColor: '#6366f1',
+                            borderWidth: 1,
+                            yAxisID: 'y',
+                            order: 2,
+                        },
+                        {
+                            label: 'Utilization (%)',
+                            data: dailyUtil,
+                            type: 'line',
+                            borderColor: '#f97316',
+                            backgroundColor: 'rgba(249,115,22,0.1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y1',
+                            order: 1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 10 } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#94a3b8',
+                        },
+                    },
+                    scales: {
+                        x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                        y: { position: 'left', title: { display: true, text: 'Cost ($)', color: '#94a3b8', font: { size: 10 } }, ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                        y1: { position: 'right', min: 0, max: 100, title: { display: true, text: 'Utilization %', color: '#f97316', font: { size: 10 } }, ticks: { color: '#f97316', font: { size: 9 } }, grid: { drawOnChartArea: false } },
+                    },
+                },
+            });
+        }
+    }
+}
+
+function _analyticsCard(label, value, color) {
+    return `<div class="bg-slate-900/50 rounded-xl border border-slate-800 p-3 text-center"><div class="text-[10px] text-slate-500 mb-1">${label}</div><div class="text-lg font-bold" style="color:${color}">${value}</div></div>`;
+}
+
+function _analyticsRateBar(label, data, windowMs) {
+    const pct = data.utilization || 0;
+    const cd = _resetCountdown(data.resets_at);
+    const rpNum = _resetPctNum(data.resets_at, windowMs);
+    const pace = _paceIndicator(pct, data.resets_at, windowMs);
+    const barColor = pct >= 80 ? '#ef4444' : pct >= 50 ? '#eab308' : '#22c55e';
+    return `<div class="bg-slate-900/50 rounded-xl border border-slate-800 p-3">
+        <div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold text-slate-300">${label}</span><span class="text-xs font-bold" style="color:${barColor}">${pct}%</span></div>
+        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2"><div class="h-full rounded-full transition-all" style="width:${Math.min(pct, 100)}%;background:${barColor}"></div></div>
+        <div class="flex justify-between text-[10px] text-slate-500"><span>Reset: ${cd || '—'}</span>${rpNum != null ? `<span>Window: ${rpNum}%</span>` : ''}${pace ? `<span>${pace}</span>` : ''}</div>
+    </div>`;
+}
+
 function renderTasksPanel(panel, data, payData) {
     const tasks = data.tasks || [];
     const grouped = {};
