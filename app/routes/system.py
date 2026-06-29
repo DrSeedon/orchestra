@@ -513,7 +513,7 @@ SNAPSHOT_INTERVAL = 300
 
 
 async def _usage_snapshot_loop():
-    from app.db import usage_save_snapshot, usage_cleanup_old
+    from app.db import usage_save_snapshot
     await asyncio.sleep(10)
     while True:
         try:
@@ -546,7 +546,7 @@ async def _usage_snapshot_loop():
                     _usage_cache["data"] = data
                     _usage_cache["ts"] = time.time()
                     _save_usage_cache()
-            usage_cleanup_old(30)
+            # usage_cleanup_old removed — keep all history
         except asyncio.CancelledError:
             return
         except Exception as e:
