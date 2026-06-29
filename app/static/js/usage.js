@@ -54,6 +54,24 @@ function _paceIndicator(currentPct, isoStr, windowMs) {
     return `<span style="color:${color}">⏸${label}</span>`;
 }
 
+function _etaToLimit(currentPct, isoStr, windowMs) {
+    if (!isoStr || currentPct <= 0) return '';
+    const remainMs = Math.max(0, new Date(isoStr) - Date.now());
+    const elapsedMs = windowMs - remainMs;
+    if (elapsedMs <= 0) return '';
+    const rate = currentPct / elapsedMs;
+    const pctLeft = 100 - currentPct;
+    if (pctLeft <= 0) return '<span style="color:#ef4444">⚡ лимит!</span>';
+    const etaMs = pctLeft / rate;
+    const etaMin = Math.round(etaMs / 60000);
+    const color = etaMin < 30 ? '#ef4444' : etaMin < 120 ? '#eab308' : '#22c55e';
+    let label;
+    if (etaMin < 60) label = `${etaMin}m`;
+    else if (etaMin < 1440) label = `${Math.floor(etaMin/60)}h ${etaMin%60}m`;
+    else label = `${Math.floor(etaMin/1440)}d ${Math.floor((etaMin%1440)/60)}h`;
+    return `<span style="color:${color}">⏳${label}</span>`;
+}
+
 function _miniBar(pct, color) {
     return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
 }
@@ -133,23 +151,27 @@ function renderUsageBar() {
                 if (fh) {
                     const cd = _resetCountdown(fh.resets_at);
                     const pace = _paceIndicator(fh.utilization, fh.resets_at, 5 * 3600000);
+                    const eta = _etaToLimit(fh.utilization, fh.resets_at, 5 * 3600000);
                     const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
                     h += `<div style="margin-bottom:8px"><div style="color:#38bdf8;font-weight:600;margin-bottom:2px">5h окно</div>`;
                     h += _row('Использовано', `${fh.utilization}%`, fh.utilization >= 80 ? '#ef4444' : fh.utilization >= 50 ? '#eab308' : '#22c55e');
                     if (cd) h += _row('Сброс через', cd, '#64748b');
                     if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
                     h += _row('Темп', pace, null);
+                    if (eta) h += _row('Лимит через', eta, null);
                     h += '</div>';
                 }
                 if (sd) {
                     const cd = _resetCountdown(sd.resets_at);
                     const pace = _paceIndicator(sd.utilization, sd.resets_at, 7 * 86400000);
+                    const eta = _etaToLimit(sd.utilization, sd.resets_at, 7 * 86400000);
                     const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
                     h += `<div style="margin-bottom:8px"><div style="color:#38bdf8;font-weight:600;margin-bottom:2px">7d окно</div>`;
                     h += _row('Использовано', `${sd.utilization}%`, sd.utilization >= 80 ? '#ef4444' : sd.utilization >= 50 ? '#eab308' : '#22c55e');
                     if (cd) h += _row('Сброс через', cd, '#64748b');
                     if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
                     h += _row('Темп', pace, null);
+                    if (eta) h += _row('Лимит через', eta, null);
                     h += '</div>';
                 }
                 h += '<div id="usage-sparkline-slot" style="margin:8px 0"></div>';
