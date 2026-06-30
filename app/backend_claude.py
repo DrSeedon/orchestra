@@ -122,6 +122,7 @@ class ClaudeBackend:
         for _k in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"):
             if os.environ.get(_k):
                 env[_k] = os.environ[_k]
+                env[_k.lower()] = os.environ[_k]
         # #56: kill non-essential background haiku calls (tips/banter/flavor) + telemetry
         env["DISABLE_NON_ESSENTIAL_MODEL_CALLS"] = "1"
         env["DISABLE_TELEMETRY"] = "1"

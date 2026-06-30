@@ -215,7 +215,24 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_usage_ts ON usage_snapshots(ts);
         """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS kv (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
         _migrate(c)
+
+
+def kv_get(key: str, default: str = "") -> str:
+    with _conn() as c:
+        row = c.execute("SELECT value FROM kv WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else default
+
+
+def kv_set(key: str, value: str) -> None:
+    with _conn() as c:
+        c.execute("INSERT OR REPLACE INTO kv(key, value) VALUES(?, ?)", (key, value))
 
 
 def _reconstruct_costs(c) -> None:

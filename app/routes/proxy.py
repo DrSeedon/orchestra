@@ -36,6 +36,17 @@ async def proxy_select(proxy_id: str):
     result = await proxy_manager.select_proxy(proxy_id)
     if result.get("error"):
         return JSONResponse(result, status_code=400)
+    from app.deps import manager
+    reconnected = 0
+    for s in list(manager.sessions.values()):
+        if s.status.value == "running" and s._backend:
+            try:
+                await s._backend.interrupt()
+                reconnected += 1
+            except Exception:
+                pass
+    if reconnected:
+        result["interrupted"] = reconnected
     return result
 
 

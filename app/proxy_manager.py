@@ -66,6 +66,28 @@ class ProxyManager:
     def _get_entries(self) -> list[ProxyEntry]:
         return _parse_proxy_list()
 
+    def load_saved_proxy(self) -> None:
+        """Load saved proxy from DB and apply to os.environ. Call at startup before auto_resume."""
+        try:
+            from app.db import kv_get
+            saved_id = kv_get("active_proxy")
+            if not saved_id:
+                return
+            entries = self._get_entries()
+            entry = next((e for e in entries if e.id == saved_id), None)
+            if not entry:
+                return
+            if entry.url == "direct":
+                for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
+                    os.environ.pop(k, None)
+            else:
+                for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
+                    os.environ[k] = entry.url
+            self._active_id = saved_id
+            logger.info(f"Restored proxy from DB: '{entry.name}' ({entry.url})")
+        except Exception as e:
+            logger.warning(f"Failed to load saved proxy: {e}")
+
     def _get_active_id(self) -> str:
         if self._active_id:
             return self._active_id
@@ -142,16 +164,20 @@ class ProxyManager:
         if not entry:
             return {"error": f"proxy '{proxy_id}' not found"}
         if entry.url == "direct":
-            os.environ.pop("HTTPS_PROXY", None)
-            os.environ.pop("HTTP_PROXY", None)
-            MCP_BASE_ENV.pop("HTTPS_PROXY", None)
-            MCP_BASE_ENV.pop("HTTP_PROXY", None)
+            for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
+                os.environ.pop(k, None)
+                MCP_BASE_ENV.pop(k, None)
         else:
-            os.environ["HTTPS_PROXY"] = entry.url
-            os.environ["HTTP_PROXY"] = entry.url
-            MCP_BASE_ENV["HTTPS_PROXY"] = entry.url
-            MCP_BASE_ENV["HTTP_PROXY"] = entry.url
+            for k, v in [("HTTPS_PROXY", entry.url), ("HTTP_PROXY", entry.url),
+                         ("https_proxy", entry.url), ("http_proxy", entry.url)]:
+                os.environ[k] = v
+                MCP_BASE_ENV[k] = v
         self._active_id = proxy_id
+        try:
+            from app.db import kv_set
+            kv_set("active_proxy", proxy_id)
+        except Exception as e:
+            logger.warning(f"Failed to persist proxy choice: {e}")
         logger.info(f"Proxy switched to '{entry.name}' ({entry.url})")
         return {"ok": True, "active": proxy_id, "url": entry.url}
 

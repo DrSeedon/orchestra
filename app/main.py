@@ -21,6 +21,8 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     init_db()
+    from app.proxy_manager import proxy_manager
+    proxy_manager.load_saved_proxy()
     from app.models import refresh_models, is_proxy_connected
     await refresh_models()
     if is_auth_enabled() and not is_proxy_connected():
