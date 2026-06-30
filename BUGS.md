@@ -15,10 +15,9 @@
 - Debug logging added (`c0d73fe`) but no logs appear — `_send_diff_image` may not be called
 - Need to verify after restart with debug logging enabled
 
-### 🟡 Codex review unreachable — 403 Cloudflare
+### 🟢 Codex review unreachable — FIXED
 - **Reporter:** research-runtime (2026-06-05)
-- `codex exec` blocked by Cloudflare geo/datacenter. Proxy 12334 routes only Anthropic, not OpenAI
-- Workaround: none currently. Need separate proxy route for OpenAI
+- **Fix:** `_CODEX_BIN` now points to `~/.local/bin/codex` wrapper with `HTTPS_PROXY=http://127.0.0.1:12340` (Ёжик tunnel)
 
 ## Closed (2026-06)
 

@@ -188,6 +188,51 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Auth: Bearer `d3f73e4c1d459201661e4419ef6917337a8a8920adf13fa2204cf2169cdc82bd`
 - Parsing-orchestrator = $2230 (85% of total). Deep research sub-agents caused $118+$112 turns → 7d 100%
 
+## Session notes (2026-06-17 to 2026-06-30)
+
+### Major features shipped
+- **Real-time streaming (#83)** — `include_partial_messages=True` in SDK, `live_broker.py` pub/sub, typewriter animation on frontend. Stream replay on SSE reconnect via broker accumulator
+- **Usage analytics modal (#86)** — `/api/usage/daily` + `/api/usage/daily/agents` endpoints parse turn costs from logs. Chart.js bar+line chart, agent cost table, rate limit bars. Period tabs (day/week/month/all)
+- **ETA to rate limit** — `_etaToLimit()` in usage.js predicts when you'll hit 100% at current burn rate
+- **Self-improvement module** — `pipelines/default/prompts/modules/self-improvement.md`, agents propose `📝 RULE` when corrected. Experiment #85 proved Haiku extraction works (14/14) but regex gate needs 2-stage approach
+- **grill-me skill** — `~/.claude/skills/grill-me/SKILL.md`, research-based (Pre-Mortem, Socratic, Assumption Mapping, 5 Whys, Red Team)
+- **Code quality block** — added to worker.md and full-cycle.md (simplicity, adversarial self-review, surgical changes, pit of success)
+
+### Key fixes
+- **SSE race condition (#82)** — immediate eventSource.close on agent switch, targetAgent guard, await refreshSessions
+- **Agent switch state cleanup** — clear localMessages/pendingBubble/debounce on selectAgent
+- **Stream bubble ordering** — non-stream messages insert BEFORE streamBubble, not finalize it
+- **send_message TG formatting** — md_convert instead of raw HTML for markdown rendering
+- **send_message dedup** — skip "📎 Message sent" tool_result when pretty format already sent
+- **Auto-report on failed turns** — removed `_last_turn_ok` guard, now fires on max_turns/errors too
+- **Rate limit auto-retry** — 3 retries with 30/60/90s backoff on rate_limit errors
+- **Auto-switch on send_message** — merged workers auto-switch to adhoc branch, no manual switch_worker_branch needed
+- **Workers see only parent orchestrator** — PARENT_NAME env + list_agents filter
+- **Bash diff_image heredoc fix** — split multiline commands by \n before wrap
+- **Tab chars in diff_image** — replace \t with 4 spaces in all renderers
+- **Compact summary visible** — logged as text to chat/TG, no length limit
+- **Codex proxy fix** — _CODEX_BIN points to wrapper with HTTPS_PROXY
+- **Workflow tool blocked** — added to _ALWAYS_DISALLOWED
+- **Send timeout 15s** — up from 5s, timeout errors silently ignored
+- **Usage snapshots not cleaned** — removed usage_cleanup_old
+
+### Prompt improvements
+- **Orchestrator delegation rule** — "content/research/writing → ALWAYS delegate to specialist worker"
+- **Boot sequence** — orchestrators read TODO/BUGS/list_agents after compact
+- **Before-compact persist** — MANDATORY session notes + important file paths to CLAUDE.md
+- **self-improvement module** — standalone module in pipeline.yaml for all 4 roles
+- **Simplified workflow** — send_message auto-switches, no manual switch_worker_branch in examples
+
+### Research completed
+- **Self-learning (#84)** — research + plan done by feat-self-learning (idle ctx:15%). Approach: regex gate + Haiku extract + human gate. Plan ready but NOT approved for implementation
+- **Haiku extraction experiment (#85)** — exp-haiku-test proved 14/14 useful on real corrections, but regex gate precision only 0.42. Recommendation: 2-stage gate (tighter regex + Haiku classifier before extraction)
+- **Self-learning approach comparison** — A (prompt-only) vs B (MCP tool). Prior art: Anthropic auto-memory, claude-reflect, Windsurf, Cursor, Devin, OpenClaw. Recommendation: start with A, graduate to B
+
+### Process rules
+- **Don't auto-approve implementation** — user asked about self-learning, I approved impl without permission. Rule: ASK before approving large implementations
+- **Orchestrators delegate content** — sales playbook, user guides = specialist workers, not orchestrator
+- **Dynamic Workflows blocked** — Claude Code's built-in Workflow tool blocked for all agents (wastes tokens, MCP tools don't propagate)
+
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool
 - Баги пишутся в `BUGS.md` в корне проекта
