@@ -53,7 +53,7 @@ class TestCreateSession:
                 name="worker-1",
                 scope="/test/scope",
                 cwd="/tmp",
-                model="claude-sonnet-4-6",
+                model="claude-sonnet-5[1m]",
             )
         assert session.name == "worker-1"
         assert session.id is not None
@@ -312,7 +312,7 @@ class TestRemoveScope:
         from app.db import save_session
         save_session({
             "id": "orch-x", "name": "orch-x-orchestrator", "scope": "/scope-x",
-            "cwd": "/tmp", "model": "claude-opus-4-6", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-4-8[1m]", "system_prompt": "",
             "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "#818cf8",
@@ -338,7 +338,7 @@ class TestRemoveScope:
         from app.db import save_session
         save_session({
             "id": "orch-y", "name": "orch-y-orchestrator", "scope": "/scope-y",
-            "cwd": "/tmp", "model": "claude-opus-4-6", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-4-8[1m]", "system_prompt": "",
             "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "#818cf8",
@@ -366,7 +366,7 @@ class TestAutoResume:
         from app.db import save_session
         save_session({
             "id": "orch-1", "name": "orchestrator", "scope": "/tmp",
-            "cwd": "/tmp", "model": "claude-opus-4-6", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-4-8[1m]", "system_prompt": "",
             "status": "idle", "session_id": "sdk-123",
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1151,7 +1151,7 @@ class TestChangeOrchestratorScope:
     async def _make_worker(self, mgr, name="w1", scope="/old/proj"):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            s = await mgr.create_session(name=name, scope=scope, cwd="/tmp", model="claude-sonnet-4-6")
+            s = await mgr.create_session(name=name, scope=scope, cwd="/tmp", model="claude-sonnet-5[1m]")
         from app.session import AgentStatus
         s.status = AgentStatus.IDLE
         return s
@@ -1276,7 +1276,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         # Worker row exists in DB only (not loaded into manager.sessions)
         save_session({
             "id": "ghost-worker-id", "name": "ghostw", "scope": "/old/proj",
-            "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": "x", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1302,7 +1302,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         orch.status = AgentStatus.IDLE
         save_session({
             "id": "dead-worker-id", "name": "deadw", "scope": "/old/proj",
-            "cwd": "/tmp", "model": "claude-sonnet-4-6", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
             "status": "archived", "session_id": "x", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),

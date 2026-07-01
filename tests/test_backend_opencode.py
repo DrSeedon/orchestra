@@ -17,16 +17,16 @@ from app.backend_opencode import (
 )
 
 
-def _b(model="claude-sonnet-4-6"):
+def _b(model="claude-sonnet-5[1m]"):
     return OpenCodeBackend(model=model, cwd="/tmp")
 
 
 # ── provider/model split ──
 
 def test_model_split_from_prefixed():
-    b = OpenCodeBackend(model="anthropic/claude-sonnet-4-6", cwd="/tmp")
+    b = OpenCodeBackend(model="anthropic/claude-sonnet-5[1m]", cwd="/tmp")
     assert b.provider_id == "anthropic"
-    assert b.model == "claude-sonnet-4-6"
+    assert b.model == "claude-sonnet-5[1m]"
 
 
 def test_model_bare_keeps_default_provider():
@@ -149,7 +149,7 @@ def test_map_step_parts_ignored():
 # ── turn_end metadata parity ──
 
 def test_turn_end_native_cost_and_tokens():
-    b = _b("claude-sonnet-4-6")
+    b = _b("claude-sonnet-5[1m]")
     msg = {"info": {
         "cost": 0.0123, "finish": "stop", "error": None,
         "tokens": {"input": 1000, "output": 50, "reasoning": 10,
@@ -244,7 +244,7 @@ def test_free_port_returns_usable_int():
 # ── opencode.json writing ──
 
 def test_write_opencode_json_fresh(tmp_path):
-    b = OpenCodeBackend(model="claude-sonnet-4-6", cwd=str(tmp_path),
+    b = OpenCodeBackend(model="claude-sonnet-5[1m]", cwd=str(tmp_path),
                         mcp_servers={"orchestra": {"command": "py", "args": ["s.py"], "env": {}}})
     b._write_opencode_json()
     import json
@@ -595,13 +595,13 @@ async def test_send_posts_prompt_async_with_nested_model():
             captured["body"] = json
             return _FakeResp(204, None)
 
-    b = OpenCodeBackend(model="anthropic/claude-sonnet-4-6", cwd="/tmp")
+    b = OpenCodeBackend(model="anthropic/claude-sonnet-5[1m]", cwd="/tmp")
     b._session_id = "ses_x"
     b._http = _CapHTTP()  # type: ignore
     b.system_prompt = "sys"
     await b.send("hello")
     assert captured["url"] == "/session/ses_x/prompt_async"
-    assert captured["body"]["model"] == {"providerID": "anthropic", "modelID": "claude-sonnet-4-6"}
+    assert captured["body"]["model"] == {"providerID": "anthropic", "modelID": "claude-sonnet-5[1m]"}
     assert captured["body"]["parts"] == [{"type": "text", "text": "hello"}]
     assert captured["body"]["system"] == "sys"
     assert b._turn_active is True

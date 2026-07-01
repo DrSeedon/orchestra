@@ -34,7 +34,7 @@ def session(mock_db):
     from app.session import AgentSession
     return AgentSession(
         id="test-001", name="w1", scope="/test", cwd="/tmp",
-        model="claude-sonnet-4-6", system_prompt="test",
+        model="claude-sonnet-5[1m]", system_prompt="test",
         created_at=datetime.now(timezone.utc),
     )
 
@@ -462,7 +462,7 @@ class TestMakeBackendProfileWiring:
         monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
         from app.session import AgentSession
         defaults = dict(id="i", name="w", scope="/s", cwd="/tmp",
-                        model="claude-opus-4-6", system_prompt="x", role="worker")
+                        model="claude-opus-4-8[1m]", system_prompt="x", role="worker")
         defaults.update(kw)
         return AgentSession(**defaults)
 

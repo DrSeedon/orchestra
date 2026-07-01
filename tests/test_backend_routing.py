@@ -12,7 +12,7 @@ def test_infer_gpt_to_codex():
 
 
 def test_infer_claude_to_claude():
-    assert _infer_backend("claude-sonnet-4-6") == "claude"
+    assert _infer_backend("claude-sonnet-5[1m]") == "claude"
     assert _infer_backend("claude-opus-4-8[1m]") == "claude"
 
 
@@ -27,9 +27,9 @@ def test_infer_others_to_opencode():
 # ── backend_for_model: registered wins, unregistered infers ──
 
 def test_backend_for_model_registered_wins():
-    # claude-sonnet-4-6 is in the hardcoded BACKENDS dict
-    assert "claude-sonnet-4-6" in BACKENDS
-    assert backend_for_model("claude-sonnet-4-6") == "claude"
+    # claude-sonnet-5[1m] is in the hardcoded BACKENDS dict
+    assert "claude-sonnet-5[1m]" in BACKENDS
+    assert backend_for_model("claude-sonnet-5[1m]") == "claude"
 
 
 def test_backend_for_model_unregistered_infers_opencode():

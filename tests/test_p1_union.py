@@ -33,7 +33,7 @@ def mgr(db, tmp_path, monkeypatch):
 async def _spawn(mgr, name="worker-1", scope="/test/scope"):
     with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
         return await mgr.create_session(name=name, scope=scope, cwd="/tmp",
-                                        model="claude-sonnet-4-6")
+                                        model="claude-sonnet-5[1m]")
 
 
 class TestGetByNameUnion:

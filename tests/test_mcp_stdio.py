@@ -14,7 +14,7 @@ async def test_spawn_passes_base_branch(monkeypatch):
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
         await m.spawn_worker(name="w-step1", task="do it", repo_path="/s",
-                             model="claude-sonnet-4-6", base_branch="feature/auth")
+                             model="claude-sonnet-5[1m]", base_branch="feature/auth")
     assert captured["base_branch"] == "feature/auth"
     assert captured["use_worktree"] is True
 
@@ -32,7 +32,7 @@ async def test_spawn_base_branch_default_empty(monkeypatch):
             captured.update(kw.get("json", {}))
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
-        await m.spawn_worker(name="w", task="t", repo_path="/s", model="claude-sonnet-4-6")
+        await m.spawn_worker(name="w", task="t", repo_path="/s", model="claude-sonnet-5[1m]")
     assert captured["base_branch"] == ""
 
 

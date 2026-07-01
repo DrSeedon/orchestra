@@ -23,7 +23,7 @@ def sample_session():
         "name": "worker-1",
         "scope": "/mnt/data/Projects/Python/Parsing",
         "cwd": "/mnt/data/Projects/Python/orchestra/worktrees/parsing/worker-1",
-        "model": "claude-sonnet-4-6",
+        "model": "claude-sonnet-5[1m]",
         "system_prompt": "You are a worker.",
                 "status": "starting",
         "session_id": None,

@@ -9,7 +9,7 @@ from app.backend_claude import ClaudeBackend
 
 
 def _backend():
-    return ClaudeBackend(model="claude-sonnet-4-6", cwd="/tmp")
+    return ClaudeBackend(model="claude-sonnet-5[1m]", cwd="/tmp")
 
 
 @pytest.mark.asyncio

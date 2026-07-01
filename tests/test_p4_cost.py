@@ -16,7 +16,7 @@ def session(monkeypatch):
     from app.session import AgentSession
     return AgentSession(
         id="cost-001", name="w1", scope="/test", cwd="/tmp",
-        model="claude-sonnet-4-6", created_at=datetime.now(timezone.utc),
+        model="claude-sonnet-5[1m]", created_at=datetime.now(timezone.utc),
     )
 
 
