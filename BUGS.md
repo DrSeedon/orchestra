@@ -56,3 +56,20 @@
 - **Reporter:** Orchestra-orchestrator
 - **Scope:** /mnt/data/Projects/Python/orchestra
 When switching between agents in dashboard sidebar, the last sent message can disappear from chat. User has to reload the page to see it. Likely cause: SSE stream reconnects on agent switch and the message sent right before switch gets lost in the gap between old stream closing and new stream opening. Reproducible when sending a message and immediately clicking another agent.
+
+## [2026-07-01 06:09 UTC] codex_review output пишется в main repo cwd вместо worktree агента
+- **Reporter:** research-proxy
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Симптом: MCP tool `codex_review` (mode=exec и mode=review) стабильно запускает `codex` с cwd = MAIN repo (/mnt/data/Projects/Python/orchestra), а НЕ в worktree воркера, который его вызвал (/mnt/data/Projects/Python/orchestra/worktrees/.../research-proxy).
+
+Последствия:
+1. Codex ревьюит git diff MAIN repo (чужие изменения других агентов), а НЕ файлы воркера в его worktree. Воркер получает ревью не своего кода.
+2. Output-файл (параметр output=CODEX_REVIEW_final.md / docs/tasks/.../codex-review-impl.md) пишется относительно main repo cwd → воркер не находит его в своём worktree.
+
+Воспроизведение: воркер в worktree вызывает codex_review(target="app/proxy_manager.py", mode="exec", output="docs/tasks/X/review.md"). Файл появляется в /mnt/data/Projects/Python/orchestra/docs/tasks/X/, а не в worktree. Codex exec-команды (git show HEAD:app/models.py и т.п.) выполняются в main repo — видно по логам "in /mnt/data/Projects/Python/orchestra".
+
+За сессию воспроизвелось 4+ раз подряд (bg-ab450f48f1, bg-a2c0f584b5, bg-6c96231fb1) — на разных target/mode. Первый прогон ещё и падал по websocket (Codex-враппер без HTTP_PROXY, отдельно починено).
+
+Ожидаемо: codex_review должен запускать codex с cwd = worktree вызвавшего воркера (или принимать cwd явно), чтобы ревьюить его diff и писать output в его дерево.
+
+Фикс-гипотеза: в реализации codex_review взять cwd из session.cwd/worktree_path воркера, передать в subprocess cwd=. Сейчас, видимо, наследуется cwd оркестратора/main.
