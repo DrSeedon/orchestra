@@ -629,7 +629,7 @@ class TestCompactGuards:
         # Патчим внутренности compact после получения summary
         original_compact = session.compact
 
-        summary_text = "summary of work done"
+        summary_text = "INTENT: Working on feature X.\nDECISIONS: Chose approach A over B.\nFILES: app/main.py — refactored handler.\nPENDING: Need to update tests.\nRECENT: User asked for refactor, implemented it.\nIMPORTANT: Use proxy for all requests. " + "x" * 50
 
         # Симулируем compact через патч backend + ack
         class CompactBackend:

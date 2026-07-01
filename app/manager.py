@@ -1,6 +1,7 @@
 """SessionManager — registry, lifecycle, persistence for all agent sessions."""
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -809,6 +810,11 @@ class SessionManager:
         )
         if row.get("is_orchestrator") is not None:
             s.is_orchestrator = bool(row.get("is_orchestrator"))
+        raw_hist = row.get("session_id_history") or "[]"
+        try:
+            s.session_id_history = json.loads(raw_hist) if isinstance(raw_hist, str) else raw_hist
+        except (json.JSONDecodeError, TypeError):
+            s.session_id_history = []
         s.needs_switch = bool(row.get("needs_switch") or 0)
         s.progress_pct = row.get("progress_pct") or 0
         s.progress_status = row.get("progress_status") or ""
@@ -999,6 +1005,11 @@ class SessionManager:
             tg_topic=bool(db_row.get("tg_topic", 0)),
         )
         session.is_orchestrator = is_orch  # R1: восстановить денормализованное поле
+        raw_hist = db_row.get("session_id_history") or "[]"
+        try:
+            session.session_id_history = json.loads(raw_hist) if isinstance(raw_hist, str) else raw_hist
+        except (json.JSONDecodeError, TypeError):
+            session.session_id_history = []
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:

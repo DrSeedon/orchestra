@@ -105,6 +105,7 @@ class AgentSession:
     system_prompt: str = ""
     status: AgentStatus = AgentStatus.IDLE
     session_id: str | None = None
+    session_id_history: list = field(default_factory=list, repr=False)
     cost_usd: float = 0.0
     cost_usd_cached: float = 0.0
     worktree_path: str | None = None
@@ -664,6 +665,10 @@ class AgentSession:
             "Output ONLY the summary. No commentary. Be specific — names, paths, numbers, not vague descriptions."
         )
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
+        COMPACT_MAX_RETRIES = 3
+        COMPACT_RETRY_DELAY = 30
+        COMPACT_MIN_SUMMARY_LEN = 200
+        _GARBAGE_PATTERNS = ["rate limit", "rate_limit", "api error", "overloaded", "temporarily limiting", "server error"]
 
         if self._compacting:
             return {"ok": False, "error": "compact already in progress"}
@@ -671,7 +676,8 @@ class AgentSession:
             return {"ok": False, "error": "cannot compact while agent is running"}
         self._compacting = True
         before_pct = self._last_context.get("percentage", 0)
-        self._log("status", f"compact started (context {before_pct}%)")
+        pre_compact_session_id = self.session_id
+        self._log("status", f"compact started (context {before_pct}%, pre_session={pre_compact_session_id})")
 
         if self._listen_task and not self._listen_task.done():
             self._listen_task.cancel()
@@ -682,41 +688,79 @@ class AgentSession:
             except Exception as e:
                 logger.warning(f"[{self.name}] listen task failed during compact: {e}")
 
-        summary_parts = []
-        backend = self._backend or self._make_backend()
-        need_connect = self._backend is None
-        try:
-            async with self._lifecycle_lock:
-                if need_connect:
-                    await backend.connect()
-                await backend.send(COMPACT_PROMPT)
-                async for event in backend.events():
-                    if event.type == "text":
-                        summary_parts.append(event.content)
-                    elif event.type == "tool":
-                        self._log("tool", event.content)
-                    elif event.type == "tool_result":
-                        self._log("tool_result", event.content[:500])
-                    elif event.type == "turn_end":
-                        if event.metadata.get("session_id"):
-                            self.session_id = event.metadata["session_id"]
-                        break
-        except Exception as e:
-            self._log("error", f"compact failed: {e}")
-            self._compacting = False
-            return {"ok": False, "error": str(e), "before_pct": before_pct}
-        finally:
-            await backend.disconnect()
-            self._backend = None
+        summary = ""
+        last_error = ""
+        for attempt in range(1, COMPACT_MAX_RETRIES + 1):
+            summary_parts = []
+            backend = self._backend or self._make_backend()
+            need_connect = self._backend is None
+            try:
+                async with self._lifecycle_lock:
+                    if need_connect:
+                        await backend.connect()
+                    await backend.send(COMPACT_PROMPT)
+                    async for event in backend.events():
+                        if event.type == "text":
+                            summary_parts.append(event.content)
+                        elif event.type == "tool":
+                            self._log("tool", event.content)
+                        elif event.type == "tool_result":
+                            self._log("tool_result", event.content[:500])
+                        elif event.type == "turn_end":
+                            if event.metadata.get("session_id"):
+                                self.session_id = event.metadata["session_id"]
+                            break
+            except Exception as e:
+                last_error = str(e)
+                self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES} failed: {e}")
+                try:
+                    await backend.disconnect()
+                except Exception:
+                    pass
+                self._backend = None
+                if attempt < COMPACT_MAX_RETRIES:
+                    self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
+                    await asyncio.sleep(COMPACT_RETRY_DELAY * attempt)
+                    continue
+                self._compacting = False
+                return {"ok": False, "error": last_error, "before_pct": before_pct}
+            finally:
+                try:
+                    await backend.disconnect()
+                except Exception:
+                    pass
+                self._backend = None
 
-        summary = "".join(summary_parts).strip()
-        if not summary:
-            self._log("error", "compact returned empty summary")
-            self._compacting = False
-            return {"ok": False, "error": "empty summary", "before_pct": before_pct}
+            summary = "".join(summary_parts).strip()
+            summary_lower = summary.lower()
+            is_garbage = any(p in summary_lower for p in _GARBAGE_PATTERNS)
+            is_too_short = len(summary) < COMPACT_MIN_SUMMARY_LEN
+
+            if not summary or is_garbage or is_too_short:
+                reason = "empty" if not summary else f"garbage ({summary[:100]}...)" if is_garbage else f"too short ({len(summary)} chars)"
+                last_error = f"invalid summary: {reason}"
+                self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES}: {last_error}")
+                if attempt < COMPACT_MAX_RETRIES:
+                    self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
+                    await asyncio.sleep(COMPACT_RETRY_DELAY * attempt)
+                    continue
+                self._compacting = False
+                return {"ok": False, "error": last_error, "before_pct": before_pct}
+
+            if attempt > 1:
+                self._log("status", f"compact succeeded on attempt {attempt}")
+            break
         self._log("text", f"📋 **Compact summary:**\n\n{summary}")
 
         preamble = PREAMBLE.format(summary=summary)
+        if pre_compact_session_id:
+            self.session_id_history.append({
+                "session_id": pre_compact_session_id,
+                "compacted_at": datetime.now(timezone.utc).isoformat(),
+                "context_pct": before_pct,
+            })
+            MAX_HISTORY = 10
+            self.session_id_history = self.session_id_history[-MAX_HISTORY:]
         self._compact_ack_event = asyncio.Event()
         ack_event = self._compact_ack_event
         try:
@@ -934,6 +978,7 @@ class AgentSession:
             "mcp_servers_custom": json.dumps(self.mcp_servers_custom) if self.mcp_servers_custom else "",
             "owned_dirs": json.dumps(self.owned_dirs) if self.owned_dirs else "",
             "tg_topic": int(self.tg_topic),
+            "session_id_history": json.dumps(self.session_id_history) if self.session_id_history else "[]",
         }
 
     async def get_context(self) -> dict:

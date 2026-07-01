@@ -390,6 +390,42 @@ async def compact_session(name: str, req: ScopeRequest):
     return result
 
 
+@router.get("/api/sessions/{name}/session-history")
+async def session_history(name: str, scope: str = ""):
+    session = await manager.ensure_loaded(name, scope)
+    if not session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return {
+        "current_session_id": session.session_id,
+        "history": session.session_id_history,
+    }
+
+
+@router.post("/api/sessions/{name}/rollback-session")
+async def rollback_session(name: str, req: ScopeRequest, index: int = -1):
+    session = await manager.ensure_loaded(name, req.scope)
+    if not session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if session.status.value == "running":
+        return JSONResponse({"error": "agent is running"}, status_code=400)
+    if not session.session_id_history:
+        return JSONResponse({"error": "no session history"}, status_code=400)
+    try:
+        entry = session.session_id_history[index]
+    except IndexError:
+        return JSONResponse({"error": f"invalid index {index}"}, status_code=400)
+    old_sid = session.session_id
+    session.session_id = entry["session_id"]
+    await session._disconnect_backend()
+    session._persist()
+    return {
+        "ok": True,
+        "rolled_back_to": entry["session_id"],
+        "previous": old_sid,
+        "compacted_at": entry.get("compacted_at"),
+    }
+
+
 @router.post("/api/sessions/{name}/restart-cli")
 async def restart_cli(name: str, req: ScopeRequest):
     session = await manager.ensure_loaded(name, req.scope)
