@@ -132,12 +132,6 @@
   ]
  ],
  [
-  "/api/proxy/select/{proxy_id}",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/report_bug",
   [
    "POST"

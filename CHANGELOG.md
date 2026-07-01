@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.24.0 — 2026-07-01
+
+### Changed
+- 🔌 **Прокси: `.env` HTTPS_PROXY = единственный источник истины (вырезан DB/hot-switch)** — юзер: «всё лишнее вырежем». Управление прокси только через `.env` + `sudo systemctl restart orchestra`. Вся runtime-мутация env удалена → рассинхрон (`.env` показывал 12343, а CLI-агенты держали 12342 из DB) стал невозможен by design.
+  - **Root cause рассинхрона**: `kv.active_proxy` в DB **побеждал** `.env` — `load_saved_proxy()` при старте перезаписывал `os.environ` из DB. А живые CLI-агенты держали РАЗНЫЙ прокси, т.к. `backend_claude._make_client()` снимает `os.environ["HTTPS_PROXY"]` в момент `connect()` и запаивает в персистентный SDK-клиент (проверено: pid A→12334, pid B→12342).
+  - **Вырезано из `proxy_manager.py`** (−107 строк net): `load_saved_proxy` (читала DB kv), `select_proxy` (мутировала `os.environ`+`MCP_BASE_ENV`, писала kv), `refresh_loop`, `_cache`/`CACHE_TTL`/`_ts`-штампы, `_active_id` state. Стало read-only: `list_proxies()` (`active` вычисляется из `os.environ` через `_active_id()`, read-only) + `check_all()`/`check_proxy()` (on-demand живость, без кеша).
+  - **`routes/proxy.py`**: удалён `POST /api/proxy/select/{proxy_id}` (+ interrupt-логика живых агентов). Осталось `list` + `check` + `tunnel/status`. `route_surface_snapshot.json` обновлён.
+  - **`main.py`**: убраны `proxy_manager.load_saved_proxy()` + `refresh_loop` task.
+  - **Frontend** (`app.js`): убрана кнопка «выбрать прокси» (`.proxy-select-btn`) + handler. Осталась Check (проверить живость) + индикатор активного.
+  - **DB**: `DELETE FROM kv WHERE key='active_proxy'`. Миграция/колонка не тронуты (мёртвые, код не читает).
+  - **#3 Direct id fix**: `id="direct"` форсится когда `url=="direct"` — раньше генерился из имени → `direct-(vpn/соту)` (кириллица+скобки) → `select/direct` 404'ил. Имя в `.env` упрощено до `Direct`.
+  - **#4 zombie backoff+health-gate** (`ssh_tunnel.py`): мёртвый VPS (timeweb/ezhik) реконнектил ssh каждые 5с вечно (`kex_exchange_identification: Connection reset` в логах) → зомби. Теперь TCP health-gate на `:22` (2с) перед спавном + exponential backoff 5→300с + reset при uptime >60с.
+  - **CLAUDE.md**: секция «🔌 ПРОКСИ» — источник истины, как сменить, дашборд read-only.
+  - **Codex-враппер** (`~/.local/bin/codex`): добавлен `HTTP_PROXY` (был только HTTPS) — websocket Codex падал без него.
+  - **Tests**: `tests/test_proxy.py` (6 — direct id, active-from-env, no-mutation-methods, port probe, health-gate). 48 зелёных.
+  - **Reverted из v2.23.0**: `CACHE_TTL`/`refresh_loop`/`_cache` (были добавлены в прошлой итерации, теперь не нужны — дашборд on-demand).
+  - **Docs**: `docs/tasks/proxy-fix/{best-practices,plan-simplify}.md`.
+
 ## v2.23.0 — 2026-07-01
 
 ### Fixed

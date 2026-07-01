@@ -30,26 +30,6 @@ async def proxy_check(proxy_id: str):
     return result
 
 
-@router.post("/api/proxy/select/{proxy_id}")
-async def proxy_select(proxy_id: str):
-    _block_if_enterprise()
-    result = await proxy_manager.select_proxy(proxy_id)
-    if result.get("error"):
-        return JSONResponse(result, status_code=400)
-    from app.deps import manager
-    reconnected = 0
-    for s in list(manager.sessions.values()):
-        if s.status.value == "running" and s._backend:
-            try:
-                await s._backend.interrupt()
-                reconnected += 1
-            except Exception:
-                pass
-    if reconnected:
-        result["interrupted"] = reconnected
-    return result
-
-
 @router.get("/api/tunnel/status")
 async def api_tunnel_status():
     _block_if_enterprise()

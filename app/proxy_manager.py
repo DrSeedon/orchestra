@@ -1,18 +1,19 @@
-"""Proxy manager — switch HTTPS_PROXY for all agents."""
+"""Proxy list + on-demand health check — READ-ONLY.
+
+Source of truth for the active proxy is .env HTTPS_PROXY (systemd EnvironmentFile
+→ os.environ). This module NEVER mutates proxy env or persists anything: it only
+reads PROXY_LIST for the dashboard and probes liveness on demand. To switch proxy:
+edit .env + restart Orchestra.
+"""
 
 import asyncio
 import logging
 import os
-import time
 from dataclasses import dataclass
 
 import httpx
 
-from app.runtime_env import MCP_BASE_ENV
-
 logger = logging.getLogger(__name__)
-
-CACHE_TTL = 60  # seconds — stale check results are dropped so UI never shows a dead proxy as green
 
 COUNTRY_FLAGS = {
     "US": "🇺🇸", "GB": "🇬🇧", "DE": "🇩🇪", "NL": "🇳🇱", "FR": "🇫🇷",
@@ -57,55 +58,27 @@ def _parse_proxy_list() -> list[ProxyEntry]:
             url = item
             pid = url.split(":")[-1] if ":" in url else "proxy"
             name = url
+        # Stable id for direct — name-derived id mangles cyrillic/parens
+        # ("Direct (VPN/Соту)" → "direct-(vpn/соту)")
+        if url == "direct":
+            pid = "direct"
         entries.append(ProxyEntry(id=pid, name=name, url=url))
     return entries
 
 
-class ProxyManager:
-    def __init__(self):
-        self._active_id: str | None = None
-        self._cache: dict[str, dict] = {}
+def _active_id(entries: list[ProxyEntry]) -> str:
+    """Which entry matches the current HTTPS_PROXY (from .env). Read-only."""
+    current = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY") or ""
+    if not current:
+        direct = next((e for e in entries if e.url == "direct"), None)
+        return direct.id if direct else ""
+    match = next((e for e in entries if e.url == current), None)
+    return match.id if match else ""
 
+
+class ProxyManager:
     def _get_entries(self) -> list[ProxyEntry]:
         return _parse_proxy_list()
-
-    def load_saved_proxy(self) -> None:
-        """Load saved proxy from DB and apply to os.environ. Call at startup before auto_resume."""
-        try:
-            from app.db import kv_get
-            saved_id = kv_get("active_proxy")
-            if not saved_id:
-                return
-            entries = self._get_entries()
-            entry = next((e for e in entries if e.id == saved_id), None)
-            if not entry:
-                return
-            if entry.url == "direct":
-                for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
-                    os.environ.pop(k, None)
-            else:
-                for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
-                    os.environ[k] = entry.url
-            self._active_id = saved_id
-            logger.info(f"Restored proxy from DB: '{entry.name}' ({entry.url})")
-        except Exception as e:
-            logger.warning(f"Failed to load saved proxy: {e}")
-
-    def _get_active_id(self) -> str:
-        if self._active_id:
-            return self._active_id
-        entries = self._get_entries()
-        current_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY") or ""
-        if not current_proxy:
-            direct = next((e for e in entries if e.url == "direct"), None)
-            if direct:
-                self._active_id = direct.id
-                return direct.id
-        for e in entries:
-            if e.url == current_proxy:
-                self._active_id = e.id
-                return e.id
-        return entries[0].id if entries else ""
 
     async def check_proxy(self, proxy_id: str) -> dict:
         entries = self._get_entries()
@@ -124,80 +97,32 @@ class ProxyManager:
                 if resp.status_code != 200:
                     return {"id": entry.id, "ok": False, "error": f"HTTP {resp.status_code}"}
                 data = resp.json()
-                ip = data.get("ip", "?")
                 country = data.get("country", "??")
-                city = data.get("city", "")
-                org = data.get("org", "")
-                flag = COUNTRY_FLAGS.get(country, "🏳️")
-                result = {
+                return {
                     "id": entry.id, "ok": True,
-                    "ip": ip, "country": country, "city": city,
-                    "org": org, "flag": flag,
+                    "ip": data.get("ip", "?"), "country": country,
+                    "city": data.get("city", ""), "org": data.get("org", ""),
+                    "flag": COUNTRY_FLAGS.get(country, "🏳️"),
                 }
-                self._cache[entry.id] = {**result, "_ts": time.monotonic()}
-                return result
         except Exception as e:
-            result = {"id": entry.id, "ok": False, "error": str(e)}
-            self._cache[entry.id] = {**result, "_ts": time.monotonic()}
-            return result
+            return {"id": entry.id, "ok": False, "error": str(e)}
 
     async def list_proxies(self) -> dict:
+        """List proxies from .env. `active` = current HTTPS_PROXY (read-only).
+
+        No liveness here — call check/{id} or check_all for that (on-demand).
+        """
         entries = self._get_entries()
-        active_id = self._get_active_id()
-        proxies = []
-        now = time.monotonic()
-        for e in entries:
-            cached = self._cache.get(e.id)
-            info = {
-                "id": e.id, "name": e.name, "url": e.url,
-                "active": e.id == active_id,
-            }
-            # Drop stale results — a proxy that died stays "green" forever otherwise
-            if cached and now - cached.get("_ts", 0) < CACHE_TTL:
-                info.update({k: cached[k] for k in ("ok", "ip", "country", "city", "flag", "error") if k in cached})
-            proxies.append(info)
+        active_id = _active_id(entries)
+        proxies = [
+            {"id": e.id, "name": e.name, "url": e.url, "active": e.id == active_id}
+            for e in entries
+        ]
         return {"proxies": proxies, "active": active_id}
 
     async def check_all(self) -> list[dict]:
         entries = self._get_entries()
-        tasks = [self._do_check(e) for e in entries]
-        return await asyncio.gather(*tasks)
-
-    async def refresh_loop(self):
-        """Periodically re-check all proxies so the dashboard self-heals.
-
-        WHY: without this a proxy that dies stays 🟢 until someone clicks Check.
-        Combined with CACHE_TTL, results older than one interval never render green.
-        """
-        while True:
-            try:
-                await self.check_all()
-            except Exception as e:
-                logger.warning(f"proxy refresh_loop error: {e}")
-            await asyncio.sleep(CACHE_TTL)
-
-    async def select_proxy(self, proxy_id: str) -> dict:
-        entries = self._get_entries()
-        entry = next((e for e in entries if e.id == proxy_id), None)
-        if not entry:
-            return {"error": f"proxy '{proxy_id}' not found"}
-        if entry.url == "direct":
-            for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
-                os.environ.pop(k, None)
-                MCP_BASE_ENV.pop(k, None)
-        else:
-            for k, v in [("HTTPS_PROXY", entry.url), ("HTTP_PROXY", entry.url),
-                         ("https_proxy", entry.url), ("http_proxy", entry.url)]:
-                os.environ[k] = v
-                MCP_BASE_ENV[k] = v
-        self._active_id = proxy_id
-        try:
-            from app.db import kv_set
-            kv_set("active_proxy", proxy_id)
-        except Exception as e:
-            logger.warning(f"Failed to persist proxy choice: {e}")
-        logger.info(f"Proxy switched to '{entry.name}' ({entry.url})")
-        return {"ok": True, "active": proxy_id, "url": entry.url}
+        return await asyncio.gather(*(self._do_check(e) for e in entries))
 
 
 proxy_manager = ProxyManager()

@@ -10,13 +10,36 @@ Example:
 import asyncio
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("ssh-tunnel")
 
 RECONNECT_DELAY = 5
+BACKOFF_MAX = 300  # cap exponential backoff — dead VPS retries every 5min, not 5s
+HEALTHY_UPTIME = 60  # ssh alive this long → connection was healthy, reset backoff
+HEALTH_TIMEOUT = 2  # TCP :22 probe timeout before spawning ssh
 KILL_GRACE = 3  # seconds to wait after terminate() before SIGKILL
 DEFAULT_KEY = os.path.expanduser("~/.ssh/id_ed25519")
+
+
+async def _port_open(host: str, port: int, timeout: float) -> bool:
+    """Quick TCP reachability probe — gate ssh spawn so dead VPS don't churn.
+
+    WHY: without this, a dead/DPI-blocked VPS (timeweb/ezhik) respawns ssh every
+    5s forever, spamming logs and racing with half-dead forwards → zombies.
+    """
+    try:
+        fut = asyncio.open_connection(host, port)
+        _, writer = await asyncio.wait_for(fut, timeout=timeout)
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
 
 
 @dataclass
@@ -93,8 +116,17 @@ def _parse_legacy() -> list[Tunnel]:
 
 
 async def _tunnel_loop(t: Tunnel):
+    backoff = RECONNECT_DELAY
     while True:
         try:
+            # Health-gate: don't spawn ssh at a VPS whose :22 is unreachable —
+            # that's what makes dead VPS churn processes every 5s.
+            if not await _port_open(t.host, 22, HEALTH_TIMEOUT):
+                logger.info(f"tunnel {t.name} :22 unreachable, retry in {backoff}s")
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, BACKOFF_MAX)
+                continue
+            started = time.monotonic()
             t.proc = await asyncio.create_subprocess_exec(
                 "ssh", "-N",
                 "-L", f"{t.local_port}:127.0.0.1:{t.remote_port}",
@@ -115,6 +147,11 @@ async def _tunnel_loop(t: Tunnel):
             msg = stderr.decode().strip() if stderr else ""
             logger.warning(f"tunnel {t.name} died pid={t.proc.pid}"
                            f"{': ' + msg if msg else ''}")
+            # Reset backoff only if the tunnel stayed up long enough to be healthy
+            if time.monotonic() - started >= HEALTHY_UPTIME:
+                backoff = RECONNECT_DELAY
+            else:
+                backoff = min(backoff * 2, BACKOFF_MAX)
         except asyncio.CancelledError:
             if t.proc and t.proc.returncode is None:
                 t.proc.terminate()
@@ -127,8 +164,9 @@ async def _tunnel_loop(t: Tunnel):
         except Exception as e:
             t.running = False
             logger.error(f"tunnel {t.name} error: {e}")
-        logger.info(f"tunnel {t.name} reconnecting in {RECONNECT_DELAY}s...")
-        await asyncio.sleep(RECONNECT_DELAY)
+            backoff = min(backoff * 2, BACKOFF_MAX)
+        logger.info(f"tunnel {t.name} reconnecting in {backoff}s...")
+        await asyncio.sleep(backoff)
 
 
 async def start_tunnel():

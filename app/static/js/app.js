@@ -4893,7 +4893,6 @@ async function loadProxyList() {
                 </div>
                 <div class="flex gap-1 shrink-0">
                     <button class="proxy-check-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300" data-id="${p.id}" title="Check">🔍</button>
-                    ${!p.active ? `<button class="proxy-select-btn text-[10px] px-1.5 py-0.5 bg-indigo-600 hover:bg-indigo-500 rounded text-white" data-id="${p.id}" title="Activate">✓</button>` : ''}
                 </div>
             `;
             list.appendChild(el);
@@ -4904,16 +4903,6 @@ async function loadProxyList() {
                 b.textContent = '⏳';
                 try {
                     await fetch(`/api/proxy/check/${b.dataset.id}`, {method:'POST'});
-                    await loadProxyList();
-                } catch(err) { b.textContent = '❌'; }
-            });
-        });
-        list.querySelectorAll('.proxy-select-btn').forEach(b => {
-            b.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                b.textContent = '⏳';
-                try {
-                    await fetch(`/api/proxy/select/${b.dataset.id}`, {method:'POST'});
                     await loadProxyList();
                 } catch(err) { b.textContent = '❌'; }
             });
