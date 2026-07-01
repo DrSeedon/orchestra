@@ -1,0 +1,26 @@
+#!/bin/bash
+# NetworkManager dispatcher hook — auto-switch Orchestra proxy on network change.
+#
+# Install (as root):
+#   sudo cp scripts/99-orchestra-proxy /etc/NetworkManager/dispatcher.d/99-orchestra-proxy
+#   sudo chown root:root /etc/NetworkManager/dispatcher.d/99-orchestra-proxy
+#   sudo chmod 755 /etc/NetworkManager/dispatcher.d/99-orchestra-proxy
+#
+# WHY: сменил WiFi / выключил VPN → часть SSH-туннелей дохнет. Этот хук дёргает
+# check-proxies.sh, который находит живой прокси и переключает Orchestra+Codex+TG.
+# NM вызывает dispatcher-скрипты от root при событиях интерфейсов.
+
+INTERFACE="$1"
+ACTION="$2"
+
+# Реагируем только на реальную смену связи, не на каждый chatter (dhcp-change и т.п.)
+case "$ACTION" in
+    up|down|vpn-up|vpn-down|connectivity-change) ;;
+    *) exit 0 ;;
+esac
+
+# Скрипт бежит от юзера maxim (его .env, его ssh-ключи, его codex-wrapper)
+sudo -u maxim /bin/bash /mnt/data/Projects/Python/orchestra/scripts/check-proxies.sh \
+    >> /tmp/orchestra-proxy-switch.log 2>&1
+
+exit 0

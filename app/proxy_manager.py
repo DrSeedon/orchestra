@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -10,6 +11,8 @@ import httpx
 from app.runtime_env import MCP_BASE_ENV
 
 logger = logging.getLogger(__name__)
+
+CACHE_TTL = 60  # seconds — stale check results are dropped so UI never shows a dead proxy as green
 
 COUNTRY_FLAGS = {
     "US": "🇺🇸", "GB": "🇬🇧", "DE": "🇩🇪", "NL": "🇳🇱", "FR": "🇫🇷",
@@ -131,24 +134,26 @@ class ProxyManager:
                     "ip": ip, "country": country, "city": city,
                     "org": org, "flag": flag,
                 }
-                self._cache[entry.id] = result
+                self._cache[entry.id] = {**result, "_ts": time.monotonic()}
                 return result
         except Exception as e:
             result = {"id": entry.id, "ok": False, "error": str(e)}
-            self._cache[entry.id] = result
+            self._cache[entry.id] = {**result, "_ts": time.monotonic()}
             return result
 
     async def list_proxies(self) -> dict:
         entries = self._get_entries()
         active_id = self._get_active_id()
         proxies = []
+        now = time.monotonic()
         for e in entries:
             cached = self._cache.get(e.id)
             info = {
                 "id": e.id, "name": e.name, "url": e.url,
                 "active": e.id == active_id,
             }
-            if cached:
+            # Drop stale results — a proxy that died stays "green" forever otherwise
+            if cached and now - cached.get("_ts", 0) < CACHE_TTL:
                 info.update({k: cached[k] for k in ("ok", "ip", "country", "city", "flag", "error") if k in cached})
             proxies.append(info)
         return {"proxies": proxies, "active": active_id}
@@ -157,6 +162,19 @@ class ProxyManager:
         entries = self._get_entries()
         tasks = [self._do_check(e) for e in entries]
         return await asyncio.gather(*tasks)
+
+    async def refresh_loop(self):
+        """Periodically re-check all proxies so the dashboard self-heals.
+
+        WHY: without this a proxy that dies stays 🟢 until someone clicks Check.
+        Combined with CACHE_TTL, results older than one interval never render green.
+        """
+        while True:
+            try:
+                await self.check_all()
+            except Exception as e:
+                logger.warning(f"proxy refresh_loop error: {e}")
+            await asyncio.sleep(CACHE_TTL)
 
     async def select_proxy(self, proxy_id: str) -> dict:
         entries = self._get_entries()

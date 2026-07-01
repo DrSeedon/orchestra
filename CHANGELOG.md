@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.23.0 — 2026-07-01
+
+### Fixed
+- 🔌 **SSH-туннели к прокси зависели от VPN + zombie-процессы (proxy-fix)** — все прокси Orchestra = `ssh -L` туннели к VPS. При смене сети / выключении Reality VPN старые ssh-процессы висли в полумёртвом состоянии, держали local-порт → новый туннель не мог забиндить → прокси молча возвращал HTTP 000. Плюс дубли копились (9 ssh на 4 туннеля).
+  - **Root cause**: НЕ блокировка РКН. Contabo (158.220.127.161) и Fornex (89.127.206.225) достижимы напрямую с РФ-WiFi без VPN (проверено: SSH-баннер + `curl -x :12343 https://api.anthropic.com/v1/messages` → HTTP 405). Проблема — (1) при VPN ON xray TUN-режим (`ip rule 9001 lookup 2022`) заворачивал VPS-трафик в tun0, (2) stale ssh не убивались.
+  - **`_kill_stale(t)`** (`app/ssh_tunnel.py:37`) — `pkill -f "ssh -N -L {local}:127.0.0.1:{remote} .*root@{host}"` перед стартом каждого туннеля (once в `start_tunnel`, НЕ в reconnect-loop). Паттерн пинит local+remote порт **и** host → убивает только СВОЙ tunnel-def, не чужой same-port форвард. Протестировано на реальных ssh-процессах (kill свой / оставить чужой).
+  - **Hard-kill**: `stop_tunnel` + CancelledError-handler теперь `terminate()` → `wait_for(KILL_GRACE=3s)` → `kill()` (SIGKILL) если ssh завис на мёртвом маршруте. `KILL_GRACE=3` (`ssh_tunnel.py:18`).
+  - **Дашборд TTL** (`app/proxy_manager.py`) — `_cache` без TTL показывал мёртвый прокси 🟢 навсегда. Теперь `CACHE_TTL=60s`, результаты штампуются `_ts` (monotonic), `list_proxies` дропает stale → фронт рисует ⚪ (unknown, уже поддержано `app.js:4879`). `refresh_loop()` (bg task в `main.py:56`) перепроверяет каждые 60с → самозаживает.
+  - **.env**: `SSH_TUNNELS` переупорядочен — живые (contabo, fornex) первыми, мёртвые (ezhik, timeweb) последними. `check-proxies.sh` кандидаты аналогично.
+  - **NM hook**: `scripts/99-orchestra-proxy` — dispatcher-скрипт (up/down/vpn-*/connectivity-change → `check-proxies.sh`). Ставит юзер вручную (root, инструкция в шапке файла).
+  - **Triggered case**: юзер выключил Reality VPN на домашнем WiFi → Orchestra упала, т.к. туннели дохли. Цель: прокси как ЗАМЕНА VPN, а не зависимость от него.
+  - **Skipped**: `ip rule` split-tunnel (#5) — юзер использует VPN **или** прокси, не одновременно → перехватывать нечего при VPN off.
+  - **Codex review**: подтвердил safe (12340≠123400), правильное размещение `_kill_stale` в start_tunnel; принята суггестия сузить pkill-match до host+remote (сделано).
+  - **Research**: `docs/tasks/proxy-fix/research.md`.
+
 ## v2.22.0 — 2026-06-21
 
 ### Added

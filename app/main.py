@@ -54,8 +54,10 @@ async def lifespan(app: FastAPI):
         _tunnel_started = True
     from app.routes.system import _usage_snapshot_loop
     snapshot_task = asyncio.create_task(_usage_snapshot_loop())
+    proxy_refresh_task = asyncio.create_task(proxy_manager.refresh_loop())
     yield
     snapshot_task.cancel()
+    proxy_refresh_task.cancel()
     if _tunnel_started:
         await stop_tunnel()
     await stop_bridge()

@@ -10,11 +10,13 @@ ENV_FILE="/mnt/data/Projects/Python/orchestra/.env"
 CODEX_WRAPPER="/home/maxim/.local/bin/codex"
 PROXYCHAINS="/etc/proxychains4.conf"
 
-# Прокси-кандидаты: name:port (порядок = приоритет)
+# Прокси-кандидаты: name:port (порядок = приоритет).
+# Contabo/Fornex достижимы напрямую с РФ WiFi БЕЗ VPN → первыми.
+# Hiddify — VPN-fallback. Timeweb/Ezhik сейчас недостижимы по SSH (firewall/down) → в конец.
 CANDIDATES=(
     "Contabo-DE:12343"
-    "Hiddify:12334"
     "Fornex-NL:12342"
+    "Hiddify:12334"
     "Timeweb-NL:12341"
     "Ezhik:12340"
 )

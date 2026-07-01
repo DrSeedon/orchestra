@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 logger = logging.getLogger("ssh-tunnel")
 
 RECONNECT_DELAY = 5
+KILL_GRACE = 3  # seconds to wait after terminate() before SIGKILL
 DEFAULT_KEY = os.path.expanduser("~/.ssh/id_ed25519")
 
 
@@ -31,6 +32,30 @@ class Tunnel:
 
 
 _tunnels: list[Tunnel] = []
+
+
+async def _kill_stale(t: Tunnel):
+    """Kill orphan ssh forwards for THIS tunnel left by prior runs / network changes.
+
+    WHY: on network switch or non-graceful restart the old `ssh -N -L` process
+    lingers holding the port in a half-dead state → new tunnel can't bind →
+    proxy silently returns HTTP 000. Match pins the FULL forward spec
+    ({local}:127.0.0.1:{remote}) + host so it only kills our own tunnel def —
+    never a same-local-port forward owned by something else, and 12340 never
+    matches 123400.
+    """
+    pattern = f"ssh -N -L {t.local_port}:127.0.0.1:{t.remote_port} .*root@{t.host}"
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "pkill", "-f", pattern,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await proc.wait()
+        if proc.returncode == 0:
+            logger.info(f"killed stale ssh on :{t.local_port} ({t.name})")
+    except Exception as e:
+        logger.warning(f"stale cleanup failed for :{t.local_port}: {e}")
 
 
 def _parse_tunnels() -> list[Tunnel]:
@@ -93,6 +118,10 @@ async def _tunnel_loop(t: Tunnel):
         except asyncio.CancelledError:
             if t.proc and t.proc.returncode is None:
                 t.proc.terminate()
+                try:
+                    await asyncio.wait_for(t.proc.wait(), timeout=KILL_GRACE)
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    t.proc.kill()
             t.running = False
             return
         except Exception as e:
@@ -108,6 +137,7 @@ async def start_tunnel():
     if not _tunnels:
         logger.info("SSH tunnels: none configured")
         return
+    await asyncio.gather(*(_kill_stale(t) for t in _tunnels))
     for t in _tunnels:
         t.task = asyncio.create_task(_tunnel_loop(t))
     names = ", ".join(f"{t.name}(:{t.local_port})" for t in _tunnels)
@@ -125,6 +155,12 @@ async def stop_tunnel():
             t.task = None
         if t.proc and t.proc.returncode is None:
             t.proc.terminate()
+            try:
+                await asyncio.wait_for(t.proc.wait(), timeout=KILL_GRACE)
+            except asyncio.TimeoutError:
+                # terminate() ignored (ssh hung on dead route) → force SIGKILL
+                logger.warning(f"tunnel {t.name} pid={t.proc.pid} ignored SIGTERM, SIGKILL")
+                t.proc.kill()
         t.proc = None
         t.running = False
     logger.info(f"SSH tunnels stopped ({len(_tunnels)})")
