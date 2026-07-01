@@ -4875,26 +4875,33 @@ async function loadProxyList() {
         }
         for (const p of proxies) {
             const el = document.createElement('div');
-            el.className = `flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${p.active ? 'bg-indigo-900/40 border border-indigo-500/50' : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50'}`;
+            el.className = `flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors ${p.active ? 'bg-indigo-900/40 border border-indigo-500/50' : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50'}`;
             const status = p.ok === true ? '🟢' : p.ok === false ? '🔴' : '⚪';
+            const statusTitle = p.ok === true ? 'Живой' : p.ok === false ? 'Мёртвый' : 'Не проверен';
             const flag = p.flag || '🏳️';
-            const ip = p.ip || '';
             const location = p.city ? `${p.city}, ${p.country || ''}` : p.country || '';
             el.innerHTML = `
-                <span class="text-sm">${status}</span>
+                <span class="text-sm" title="${statusTitle}">${status}</span>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5">
-                        <span class="text-xs font-medium text-white">${escHtml(p.name)}</span>
-                        ${p.active ? '<span class="text-[9px] px-1 py-0.5 bg-indigo-500/30 text-indigo-300 rounded">ACTIVE</span>' : ''}
+                        <span class="text-sm">${flag}</span>
+                        <span class="proxy-name text-xs font-medium text-white truncate">${escHtml(p.name)}</span>
+                        ${p.active ? '<span class="text-[9px] px-1 py-0.5 bg-indigo-500/30 text-indigo-300 rounded shrink-0">ACTIVE</span>' : ''}
                     </div>
-                    <div class="text-[10px] text-slate-500 truncate">${escHtml(p.url)}</div>
-                    ${ip ? `<div class="text-[10px] text-slate-400">${flag} ${ip} ${location ? '· ' + escHtml(location) : ''}</div>` : ''}
+                    ${location ? `<div class="text-[10px] text-slate-400 truncate">${escHtml(location)}</div>` : ''}
+                    <div class="proxy-url-line text-[9px] text-slate-600 truncate cursor-pointer hidden" title="Показать URL">${escHtml(p.url)}</div>
                     ${p.error ? `<div class="text-[10px] text-red-400 truncate">${escHtml(String(p.error).slice(0, 60))}</div>` : ''}
                 </div>
                 <div class="flex gap-1 shrink-0">
-                    <button class="proxy-check-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300" data-id="${p.id}" title="Check">🔍</button>
+                    <button class="proxy-check-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300" data-id="${p.id}" title="Проверить живость">🔍</button>
+                    ${!p.active ? `<button class="proxy-select-btn text-[10px] px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 rounded text-white font-medium" data-id="${p.id}" data-name="${escHtml(p.name)}" title="Выбрать этот прокси">Выбрать</button>` : ''}
                 </div>
             `;
+            // URL revealed on click of the name area — hidden by default to keep UI clean
+            el.querySelector('.proxy-name')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                el.querySelector('.proxy-url-line')?.classList.toggle('hidden');
+            });
             list.appendChild(el);
         }
         list.querySelectorAll('.proxy-check-btn').forEach(b => {
@@ -4907,12 +4914,49 @@ async function loadProxyList() {
                 } catch(err) { b.textContent = '❌'; }
             });
         });
+        list.querySelectorAll('.proxy-select-btn').forEach(b => {
+            b.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                b.textContent = '⏳'; b.disabled = true;
+                try {
+                    const resp = await fetch('/api/proxy/set-env', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: b.dataset.id }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || data.ok === false) throw new Error(data.error || 'set-env failed');
+                    _showProxyRestartBanner(b.dataset.name, data.wrote);
+                } catch (err) {
+                    b.textContent = '❌'; b.disabled = false;
+                    console.warn('proxy set-env failed:', err);
+                }
+            });
+        });
         const active = proxies.find(p => p.active);
         if (active) {
             $('#proxy-flag').textContent = active.flag || '🌐';
             $('#proxy-ip').textContent = active.ip || '';
         }
     } catch (e) { console.warn('loadProxyList failed:', e); }
+}
+
+function _showProxyRestartBanner(name, wroteUrl) {
+    const banner = $('#proxy-restart-banner');
+    const msg = $('#proxy-restart-msg');
+    if (!banner || !msg) return;
+    msg.innerHTML = `<b>${escHtml(name)}</b> записан в .env${wroteUrl ? ` <span class="text-amber-400/60">(${escHtml(wroteUrl)})</span>` : ''}. Нажми Рестарт чтобы применить.`;
+    banner.classList.remove('hidden');
+    const btn = $('#proxy-restart-btn');
+    if (btn && !btn._wired) {
+        btn._wired = true;
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            btn.textContent = '⏳ Рестарт...'; btn.disabled = true;
+            try { await api('/api/restart', { method: 'POST' }); } catch {}
+            setTimeout(() => location.reload(), 3000);
+        });
+    }
 }
 
 // ── Profiles Manager (редактор реестра профилей Claude) ──
