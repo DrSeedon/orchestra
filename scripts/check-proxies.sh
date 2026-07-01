@@ -29,25 +29,39 @@ echo ""
 # WHY: при смене сети/выключении VPN Orchestra пересоздаёт SSH туннели по одному
 # с задержкой 5с. Разовая проверка ловит окно когда туннели ещё не встали → ложная паника.
 # Ретраим полный цикл до 60с, пока хоть один прокси не оживёт.
+# WHY приоритетный выбор: CANDIDATES отсортированы по приоритету (Contabo лучший).
+# На старте туннели встают 5-30с в РАЗНОМ порядке — низкоприоритетный Hiddify может
+# ожить раньше Contabo. Берём ПЕРВЫЙ живой в проходе (он приоритетнее по позиции),
+# НО пока не истёк GRACE (30с) — ждём топовый, не хватаем первый попавшийся живой
+# если это не голова списка. После GRACE соглашаемся на любой живой.
 WORKING_PORT=""
 WORKING_NAME=""
 DEADLINE=$(( $(date +%s) + 60 ))
+GRACE_UNTIL=$(( $(date +%s) + 30 ))
 attempt=0
 while :; do
     attempt=$(( attempt + 1 ))
+    # первый живой в порядке приоритета за этот проход
     for entry in "${CANDIDATES[@]}"; do
-        name="${entry%%:*}"
-        port="${entry##*:}"
+        name="${entry%%:*}"; port="${entry##*:}"
         ss -tlnH "sport = :$port" 2>/dev/null | grep -q ":$port" || continue
         code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 -x "http://127.0.0.1:$port" "$TEST_URL" 2>/dev/null)
-        if [[ "$code" =~ ^(200|401|403|404)$ ]]; then
-            printf "  ✅ %-12s (:%s) — работает (HTTP %s)\n" "$name" "$port" "$code"
-            WORKING_PORT="$port"; WORKING_NAME="$name"
-            break 2
-        fi
+        [[ "$code" =~ ^(200|401|403|404)$ ]] || continue
+        WORKING_PORT="$port"; WORKING_NAME="$name"
+        break
     done
+    if [[ -n "$WORKING_PORT" ]]; then
+        # топ-2 приоритет (Contabo/Fornex) → берём сразу. Ниже → только после GRACE.
+        top2="${CANDIDATES[0]##*:} ${CANDIDATES[1]##*:}"
+        if [[ " $top2 " == *" $WORKING_PORT "* ]] || [[ $(date +%s) -ge $GRACE_UNTIL ]]; then
+            printf "  ✅ %-12s (:%s) — работает\n" "$WORKING_NAME" "$WORKING_PORT"
+            break
+        fi
+        printf "  ⏳ жив %s, но жду топовый (grace)...\n" "$WORKING_NAME"
+        WORKING_PORT=""; WORKING_NAME=""
+    fi
     [[ $(date +%s) -ge $DEADLINE ]] && break
-    printf "  ⏳ попытка %s — ни один не готов, жду 5с...\n" "$attempt"
+    printf "  ⏳ попытка %s — жду 5с пока туннели встают...\n" "$attempt"
     sleep 5
 done
 
