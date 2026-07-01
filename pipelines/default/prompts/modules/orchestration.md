@@ -27,7 +27,7 @@ If the task is ambiguous, underspecified, or you're not 100% sure what's being a
 
 ### Step 3: Medium task flow (Sonnet workers)
 1. You write clear task spec yourself
-2. Spawn **Sonnet 4.6** worker with task
+2. Spawn **Sonnet 5** worker with task
 3. No plan, no Codex — just implement and commit
 4. You verify result, merge
 
@@ -124,11 +124,14 @@ send_message("backend", "Continue #192")
 - **Don't spawn new if system worker can do it** — reuse first
 
 ### Model policy
-- **Orchestrators / sub-orchestrators** → Opus 4.6 ONLY (4.8 has tool call bugs in orchestration)
+- **Orchestrators / sub-orchestrators** → Opus 4.8
 - **Full-cycle / reviewer** → Opus 4.8 (deep research, code review — overthinking is a feature here)
-- **System workers (backend, frontend)** → Sonnet 4.6 or Opus 4.6
-- **Disposable one-shots** → Sonnet 4.6
-- **Never use Opus 4.7** — deprecated, removed
+- **System workers (backend, frontend)** → Sonnet 5 or Opus 4.8 for complex work
+- **Disposable one-shots** → Sonnet 5
+- **Haiku 4.5** → cheap system tasks
+- **Fable 5** → one-off critical reviews (expensive) — NOT a default worker
+- All models use the [1m] (1M-token) context variant
+- **Deprecated / removed** — Opus 4.7 (deprecated); Opus 4.6 (removed, redirects to 4.8)
 
 ### ALWAYS set system_prompt
 Every worker MUST get a `system_prompt` defining their identity. Never leave it empty.
