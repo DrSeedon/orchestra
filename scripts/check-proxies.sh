@@ -23,32 +23,40 @@ CANDIDATES=(
 
 TEST_URL="https://api.anthropic.com"
 echo "🔍 Проверяю прокси (цель: $TEST_URL)..."
+echo "   (SSH туннели после смены сети встают ~5-30с — жду до 60с)"
 echo ""
 
+# WHY: при смене сети/выключении VPN Orchestra пересоздаёт SSH туннели по одному
+# с задержкой 5с. Разовая проверка ловит окно когда туннели ещё не встали → ложная паника.
+# Ретраим полный цикл до 60с, пока хоть один прокси не оживёт.
 WORKING_PORT=""
 WORKING_NAME=""
-for entry in "${CANDIDATES[@]}"; do
-    name="${entry%%:*}"
-    port="${entry##*:}"
-    # порт слушает?
-    if ! ss -tlnH "sport = :$port" 2>/dev/null | grep -q ":$port"; then
-        printf "  ❌ %-12s (:%s) — порт не слушает\n" "$name" "$port"
-        continue
-    fi
-    # реально ходит наружу?
-    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 -x "http://127.0.0.1:$port" "$TEST_URL" 2>/dev/null)
-    if [[ "$code" =~ ^(200|401|403|404)$ ]]; then
-        printf "  ✅ %-12s (:%s) — работает (HTTP %s)\n" "$name" "$port" "$code"
-        [[ -z "$WORKING_PORT" ]] && { WORKING_PORT="$port"; WORKING_NAME="$name"; }
-    else
-        printf "  ❌ %-12s (:%s) — нет ответа (code=%s)\n" "$name" "$port" "${code:-timeout}"
-    fi
+DEADLINE=$(( $(date +%s) + 60 ))
+attempt=0
+while :; do
+    attempt=$(( attempt + 1 ))
+    for entry in "${CANDIDATES[@]}"; do
+        name="${entry%%:*}"
+        port="${entry##*:}"
+        ss -tlnH "sport = :$port" 2>/dev/null | grep -q ":$port" || continue
+        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 -x "http://127.0.0.1:$port" "$TEST_URL" 2>/dev/null)
+        if [[ "$code" =~ ^(200|401|403|404)$ ]]; then
+            printf "  ✅ %-12s (:%s) — работает (HTTP %s)\n" "$name" "$port" "$code"
+            WORKING_PORT="$port"; WORKING_NAME="$name"
+            break 2
+        fi
+    done
+    [[ $(date +%s) -ge $DEADLINE ]] && break
+    printf "  ⏳ попытка %s — ни один не готов, жду 5с...\n" "$attempt"
+    sleep 5
 done
 
 echo ""
 if [[ -z "$WORKING_PORT" ]]; then
-    echo "🚨 НИ ОДИН прокси не работает. Включи VPN/Reality или подними туннель."
-    echo "   (Anthropic API заблокирован в РФ без выхода наружу)"
+    echo "🚨 За 60с НИ ОДИН прокси не поднялся. Проверь:"
+    echo "   • Orchestra запущена? (sudo systemctl status orchestra)"
+    echo "   • Есть выход наружу? (Anthropic API заблокирован в РФ без VPN/прокси)"
+    echo "   • VPS живы? (ssh root@158.220.127.161)"
     exit 1
 fi
 

@@ -101,7 +101,7 @@ class AgentSession:
     name: str
     scope: str
     cwd: str
-    model: str = "claude-sonnet-4-6"
+    model: str = "claude-sonnet-5[1m]"
     system_prompt: str = ""
     status: AgentStatus = AgentStatus.IDLE
     session_id: str | None = None

@@ -25,7 +25,7 @@ router = APIRouter()
 class CreateSessionRequest(BaseModel):
     name: str
     cwd: str
-    model: str = "claude-sonnet-4-6"
+    model: str = "claude-sonnet-5[1m]"
     scope: Optional[str] = None
     system_prompt: str = ""
     use_worktree: bool = False
