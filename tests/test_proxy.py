@@ -6,6 +6,7 @@ import pytest
 
 from app import proxy_manager as pm
 from app import ssh_tunnel as st
+from app.routes import proxy as proxy_routes
 
 
 @pytest.fixture(autouse=True)
@@ -46,6 +47,49 @@ def test_no_mutation_methods_gone():
     assert not hasattr(mgr, "select_proxy")
     assert not hasattr(mgr, "load_saved_proxy")
     assert not hasattr(mgr, "refresh_loop")
+
+
+def test_set_env_preserves_tokens(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text(
+        "HTTPS_PROXY=http://127.0.0.1:12343\n"
+        "HTTP_PROXY=http://127.0.0.1:12343\n"
+        "TG_BOT_TOKEN=123:ABC_secret\n"
+        "YOUGILE_KEY=xyz|special@chars\n"
+        "PROXY_LIST=Direct|direct,Contabo|http://127.0.0.1:12343\n",
+        encoding="utf-8")
+    monkeypatch.setattr(proxy_routes, "ENV_FILE", env)
+
+    proxy_routes._set_env_proxy("http://127.0.0.1:12342")
+    out = env.read_text()
+    assert "HTTPS_PROXY=http://127.0.0.1:12342" in out
+    assert "HTTP_PROXY=http://127.0.0.1:12342" in out
+    assert "TG_BOT_TOKEN=123:ABC_secret" in out  # tokens untouched
+    assert "YOUGILE_KEY=xyz|special@chars" in out
+    assert "PROXY_LIST=Direct|direct" in out  # ^-anchor: PROXY_LIST not matched
+    assert out.count("HTTPS_PROXY=") == 1  # no dup lines
+
+
+def test_set_env_direct_empties(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text("HTTPS_PROXY=http://127.0.0.1:12343\nHTTP_PROXY=http://127.0.0.1:12343\n",
+                   encoding="utf-8")
+    monkeypatch.setattr(proxy_routes, "ENV_FILE", env)
+    proxy_routes._set_env_proxy("direct")
+    out = env.read_text()
+    assert "HTTPS_PROXY=\n" in out
+    assert "HTTP_PROXY=\n" in out
+
+
+def test_set_env_appends_when_missing(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text("SOME_OTHER=1\n", encoding="utf-8")
+    monkeypatch.setattr(proxy_routes, "ENV_FILE", env)
+    proxy_routes._set_env_proxy("http://127.0.0.1:12343")
+    out = env.read_text()
+    assert "SOME_OTHER=1" in out
+    assert "HTTPS_PROXY=http://127.0.0.1:12343" in out
+    assert "HTTP_PROXY=http://127.0.0.1:12343" in out
 
 
 @pytest.mark.asyncio

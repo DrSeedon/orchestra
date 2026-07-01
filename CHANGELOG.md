@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.24.1 — 2026-07-01
+
+### Added
+- 🔀 **`POST /api/proxy/set-env` — сменить прокси кнопкой без ручной правки .env** — фронт шлёт `{"id": "contabo-de"}`, endpoint находит прокси в `PROXY_LIST` и переписывает ТОЛЬКО строки `HTTPS_PROXY`/`HTTP_PROXY` в `.env` (line-surgery через `(?m)^KEY=.*$`, токены TG/YouGile нетронуты). `url=="direct"` → пустое значение (прямой выход). Ответ `{"ok": true, "wrote": <url>, "need_restart": true}`.
+  - **НЕ hot-switch**: `os.environ` НЕ трогается, DB НЕ трогается. `.env` остаётся источником истины, применяется юзером через рестарт. Возврат старого `select_proxy` (мутировал env на лету → рассинхрон) исключён by design.
+  - **Реализация** (`app/routes/proxy.py`): `_set_env_proxy(url)` — atomic write (temp + `os.replace`, .env с токенами не должен побиться при crash). `ENV_FILE = Path(__file__).parent.parent.parent/.env` (= systemd `EnvironmentFile`/`WorkingDirectory`). `re.sub` с lambda-replacement (URL/пароль пишутся буквально, без `\`-escape).
+  - **Codex review**: 0 багов (проверены regex-anchor vs PROXY_LIST, case-sensitivity vs `https_proxy`, path traversal через `body.id`, direct→empty). Atomic write добавлен по остаточному замечанию.
+  - **Tests**: `tests/test_proxy.py` — token preservation, direct→empty, append-when-missing (9 pass).
+  - **Frontend**: кнопка выбора прокси под этот контракт — за frontend-opus.
+
 ## v2.24.0 — 2026-07-01
 
 ### Changed
