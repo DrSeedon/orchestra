@@ -240,69 +240,92 @@ class ClaudeBackend:
             await self._cleanup_failed_client()
             raise
 
+    @staticmethod
+    def _tag_sub(event: AgentEvent, sub_id) -> AgentEvent:
+        """Mark an event as belonging to a sub-agent so the UI nests it.
+
+        sub_id None (main agent) → event unchanged. Otherwise stamp subagent_id;
+        the type is preserved (tool_use stays tool_use) — the frontend groups by
+        subagent_id, not by a renamed type."""
+        if sub_id is not None:
+            event.metadata = {**event.metadata, "subagent_id": sub_id}
+        return event
+
     def _convert(self, msg) -> list[AgentEvent]:
         events = []
         if isinstance(msg, StreamEvent):
-            # v1 streaming scope: ONLY main-agent text. Skip subagent partials
-            # (parent_tool_use_id set) and non-text deltas (thinking/tool-arg/sig).
-            # The final AssistantMessage still carries everything and is persisted.
+            # Main-agent text partials → "stream". Subagent partials (parent_tool_use_id
+            # set) → "subagent_stream" tagged with sub_id so the UI nests them under the
+            # sub-agent block instead of dropping them (which looked like a hang).
             ev = msg.event or {}
-            if msg.parent_tool_use_id is not None:
-                return events
             if ev.get("type") != "content_block_delta":
                 return events
             delta = ev.get("delta") or {}
             if delta.get("type") != "text_delta":
                 return events
             text = delta.get("text") or ""
-            if text:
+            if not text:
+                return events
+            sub_id = msg.parent_tool_use_id
+            if sub_id is not None:
+                events.append(AgentEvent("subagent_stream", text, metadata={"subagent_id": sub_id}))
+            else:
                 events.append(AgentEvent("stream", text))
             return events
 
         if isinstance(msg, AssistantMessage):
+            # Subagent messages carry parent_tool_use_id → tag events so the UI groups
+            # them under the sub-agent block instead of mixing with the parent's stream.
+            sub_id = getattr(msg, "parent_tool_use_id", None)
             for block in msg.content:
                 if isinstance(block, TextBlock) and block.text:
-                    events.append(AgentEvent("text", block.text))
+                    events.append(self._tag_sub(AgentEvent("text", block.text), sub_id))
                 elif isinstance(block, ThinkingBlock) and block.thinking:
-                    events.append(AgentEvent("thinking", block.thinking))
+                    events.append(self._tag_sub(AgentEvent("thinking", block.thinking), sub_id))
                 elif isinstance(block, ToolUseBlock):
                     try:
                         inp = _json.dumps(block.input, ensure_ascii=False, indent=2)
                     except Exception:
                         inp = str(block.input)
                     short_name = block.name.split('__')[-1] if '__' in block.name else block.name
-                    events.append(AgentEvent("tool_use", f"{block.name}: {inp}",
-                                             metadata={"tool_name": block.name, "short_name": short_name}))
+                    events.append(self._tag_sub(AgentEvent("tool_use", f"{block.name}: {inp}",
+                                             metadata={"tool_name": block.name, "short_name": short_name}), sub_id))
                 elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                    events.append(AgentEvent("tool_result", _extract_tool_result(block)))
+                    events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
             err = getattr(msg, "error", None)
             if err:
                 events.append(AgentEvent("error", f"model error: {err}"))
 
         elif isinstance(msg, UserMessage):
+            sub_id = getattr(msg, "parent_tool_use_id", None)
             if hasattr(msg, 'content') and isinstance(msg.content, list):
                 for block in msg.content:
                     if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                        events.append(AgentEvent("tool_result", _extract_tool_result(block)))
+                        events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
 
         elif isinstance(msg, TaskStartedMessage):
             desc = getattr(msg, "description", "") or ""
             task_type = getattr(msg, "task_type", "") or ""
             task_id = getattr(msg, "task_id", "") or ""
-            events.append(AgentEvent("subagent_start", f"{desc} | type={task_type} | id={task_id}"))
+            events.append(AgentEvent("subagent_start", f"{desc} | type={task_type} | id={task_id}",
+                                     metadata={"subagent_id": task_id}))
 
         elif isinstance(msg, TaskProgressMessage):
             desc = getattr(msg, "description", "") or ""
             last_tool = getattr(msg, "last_tool_name", "") or ""
+            task_id = getattr(msg, "task_id", "") or ""
             usage = getattr(msg, "usage", None)
             tokens = usage.total_tokens if usage and hasattr(usage, "total_tokens") else 0
-            events.append(AgentEvent("subagent_progress", f"{desc} | tool={last_tool} | tokens={tokens}"))
+            events.append(AgentEvent("subagent_progress", f"{desc} | tool={last_tool} | tokens={tokens}",
+                                     metadata={"subagent_id": task_id}))
 
         elif isinstance(msg, TaskNotificationMessage):
             desc = getattr(msg, "description", "") or ""
             status = getattr(msg, "status", "") or ""
             summary = getattr(msg, "summary", "") or ""
-            events.append(AgentEvent("subagent_end", f"{desc} | status={status} | {summary[:500]}"))
+            task_id = getattr(msg, "task_id", "") or ""
+            events.append(AgentEvent("subagent_end", f"{desc} | status={status} | {summary[:500]}",
+                                     metadata={"subagent_id": task_id}))
 
         elif isinstance(msg, ResultMessage):
             sr = getattr(msg, "stop_reason", None) or "unknown"

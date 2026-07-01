@@ -26,8 +26,13 @@ COUNTRY_FLAGS = {
     "IT": "🇮🇹", "PT": "🇵🇹", "DK": "🇩🇰", "LT": "🇱🇹",
     "LV": "🇱🇻", "EE": "🇪🇪", "IS": "🇮🇸", "MD": "🇲🇩",
 }
-IP_CHECK_URL = "https://ipinfo.io/json"
-IP_CHECK_TIMEOUT = 8
+# Liveness = can we reach Anthropic (what we actually use)? ANY HTTP response
+# (200/401/403/404) means the proxy tunnels fine. ipinfo.io was giving false
+# "dead" for live proxies (intermittent timeouts) — it's now best-effort geo only.
+LIVENESS_URL = "https://api.anthropic.com"
+GEO_URL = "https://ipinfo.io/json"
+CHECK_TIMEOUT = 8
+GEO_TIMEOUT = 5
 
 
 @dataclass
@@ -88,24 +93,36 @@ class ProxyManager:
         return await self._do_check(entry)
 
     async def _do_check(self, entry: ProxyEntry) -> dict:
+        """Two-tier: liveness via Anthropic (any HTTP response = alive), geo via
+        ipinfo (best-effort — its flakiness must NOT mark a live proxy dead)."""
+        proxy = entry.url if entry.url and entry.url != "direct" else None
         try:
-            kwargs = {"timeout": IP_CHECK_TIMEOUT, "verify": False}
-            if entry.url and entry.url != "direct":
-                kwargs["proxy"] = entry.url
-            async with httpx.AsyncClient(**kwargs) as client:
-                resp = await client.get(IP_CHECK_URL)
+            async with httpx.AsyncClient(timeout=CHECK_TIMEOUT, verify=False, proxy=proxy) as client:
+                await client.get(LIVENESS_URL)  # any response (200/401/403/404) = tunnel works
+        except Exception as e:
+            return {"id": entry.id, "ok": False, "error": str(e) or "unreachable"}
+        result = {"id": entry.id, "ok": True}
+        try:
+            result.update(await self._geo(proxy))  # best-effort, never flips ok
+        except Exception:
+            pass  # geo is decoration — its failure must not mark a live proxy dead
+        return result
+
+    async def _geo(self, proxy: str | None) -> dict:
+        try:
+            async with httpx.AsyncClient(timeout=GEO_TIMEOUT, verify=False, proxy=proxy) as client:
+                resp = await client.get(GEO_URL)
                 if resp.status_code != 200:
-                    return {"id": entry.id, "ok": False, "error": f"HTTP {resp.status_code}"}
+                    return {}
                 data = resp.json()
-                country = data.get("country", "??")
+                country = data.get("country", "")
                 return {
-                    "id": entry.id, "ok": True,
-                    "ip": data.get("ip", "?"), "country": country,
+                    "ip": data.get("ip", ""), "country": country,
                     "city": data.get("city", ""), "org": data.get("org", ""),
                     "flag": COUNTRY_FLAGS.get(country, "🏳️"),
                 }
-        except Exception as e:
-            return {"id": entry.id, "ok": False, "error": str(e)}
+        except Exception:
+            return {}  # geo unavailable — proxy still reported alive
 
     async def list_proxies(self) -> dict:
         """List proxies from .env. `active` = current HTTPS_PROXY (read-only).

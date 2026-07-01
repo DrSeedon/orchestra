@@ -1353,6 +1353,13 @@ async def stream_logs(orch_name: str, thread_id: int):
                             if not still_running:
                                 await _update_topic_status(orch_name, False)
                         text = f"⚡ {c}"
+                    elif t == "subagent_end":
+                        # Only the FINAL of a sub-agent (start/progress/stream = spam, dropped).
+                        # Content: "desc | status=X | summary". Show desc + ok/fail.
+                        _parts = [p.strip() for p in c.split("|")]
+                        _desc = _parts[0] if _parts else ""
+                        _ok = "status=failed" not in c
+                        text = f"{'✅' if _ok else '❌'} Sub-agent {'done' if _ok else 'failed'}: {_desc}"
                     else:
                         continue
                     is_important = t in ("text", "error", "user_message")

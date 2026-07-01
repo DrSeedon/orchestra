@@ -180,10 +180,10 @@ function connectSSE() {
                         }
                     }
                 } else {
-                    addChatEntry(l.type, l.content, l.ts);
+                    addChatEntry(l.type, l.content, l.ts, null, l);
                 }
             } else {
-                addChatEntry(l.type, l.content, l.ts);
+                addChatEntry(l.type, l.content, l.ts, null, l);
             }
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
             // Live stream partials carry no id — skip id bookkeeping for them
@@ -2063,10 +2063,48 @@ function _findLastBefore(parent, selector, anchor) {
 }
 
 const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
+
+// Append a live sub-agent log line into its accordion body. If the accordion
+// isn't there yet (race: stream before start), no-op — the sub-agent block owns
+// its own rendering; live lines are best-effort decoration.
+function appendSubagentLog(subId, evType, content) {
+    const chat = $('#chat');
+    const host = chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`);
+    if (!host) return;
+    const body = host.querySelector('.sa-body');
+    if (!body) return;
+    if (evType === 'stream') {
+        // Coalesce contiguous stream text into one line (typewriter feel)
+        let last = body.lastElementChild;
+        if (last && last.classList.contains('sa-stream')) {
+            last.textContent += content;
+        } else {
+            last = document.createElement('div');
+            last.className = 'sa-stream';
+            last.textContent = content;
+            body.appendChild(last);
+        }
+    } else {
+        const line = document.createElement('div');
+        const icon = evType === 'tool_use' ? '🔧' : evType === 'tool_result' ? '↳' : evType === 'thinking' ? '💭' : '';
+        line.style.cssText = 'margin-top:2px;color:' + (evType === 'tool_use' ? '#c4b5fd' : '#94a3b8');
+        const short = content.length > 300 ? content.slice(0, 300) + '…' : content;
+        line.textContent = `${icon} ${short}`;
+        body.appendChild(line);
+    }
+    body.scrollTop = body.scrollHeight;
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
-function addChatEntry(type, content, ts, anchor) {
+// payload = full SSE log object (carries subagent_id for sub-agent nesting)
+function addChatEntry(type, content, ts, anchor, payload) {
     if (HIDE_THINKING && type === 'thinking') return;
+    // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
+    if ((type === 'subagent_stream' || type === 'subagent_event') && payload && payload.subagent_id) {
+        appendSubagentLog(payload.subagent_id, payload.event_type || 'stream', content);
+        return;
+    }
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
     const chat = $('#chat');
     let _insertedBeforeStream = false;
@@ -2239,38 +2277,69 @@ function addChatEntry(type, content, ts, anchor) {
         const el = document.createElement('div');
         el.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
 
+        const subId = (payload && payload.subagent_id) || meta.id || '';
+
         if (type === 'subagent_start') {
+            // Collapsible accordion: header + body where live sub-agent logs nest.
             el.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
-            el.innerHTML = `🤖 <span style="color:#e2e8f0">Sub-agent: "${DOMPurify.sanitize(desc)}"</span>`;
-            if (meta.type) {
-                const sub = document.createElement('div');
-                sub.style.cssText = 'font-size:10px;color:#64748b;margin-top:1px;padding-left:20px';
-                sub.textContent = `type: ${meta.type}`;
-                el.appendChild(sub);
-            }
+            if (subId) el.dataset.subagentId = subId;
+            const header = document.createElement('div');
+            header.style.cssText = 'cursor:pointer;user-select:none';
+            header.innerHTML = `<span class="sa-caret">▶</span> 🤖 <span style="color:#e2e8f0">Sub-agent: "${DOMPurify.sanitize(desc)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
+            const body = document.createElement('div');
+            body.className = 'sa-body';
+            body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
+            let _expanded = false;
+            header.addEventListener('click', () => {
+                _expanded = !_expanded;
+                body.style.display = _expanded ? 'block' : 'none';
+                header.querySelector('.sa-caret').textContent = _expanded ? '▼' : '▶';
+            });
+            el.appendChild(header);
+            el.appendChild(body);
         } else if (type === 'subagent_progress') {
-            el.style.cssText += ';color:#64748b';
+            // Update the live progress line inside the matching accordion (or standalone)
             const tokens = meta.tokens ? (parseInt(meta.tokens) >= 1000 ? (parseInt(meta.tokens) / 1000).toFixed(1) + 'k' : meta.tokens) : '';
-            el.textContent = `⏳ "${desc}" — ${meta.tool ? 'using ' + meta.tool : ''}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
-        } else {
+            const line = `⏳ ${meta.tool ? 'using ' + meta.tool : 'working'}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
+            const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
+            if (host) {
+                let prog = host.querySelector('.sa-progress');
+                if (!prog) {
+                    prog = document.createElement('div');
+                    prog.className = 'sa-progress';
+                    prog.style.cssText = 'font-size:10px;color:#64748b;padding-left:14px;margin-top:2px';
+                    host.appendChild(prog);
+                }
+                prog.textContent = line;
+                return;  // updated in place, no new bubble
+            }
+            el.style.cssText += ';color:#64748b';
+            el.textContent = `⏳ "${desc}" — ${line}`;
+        } else {  // subagent_end → mark the accordion done + collapse
             const ok = !meta.status || meta.status === 'completed';
+            const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
+            const summaryText = textParts.slice(1).join(' | ').trim();
+            if (host) {
+                const hdr = host.querySelector('div');
+                if (hdr) hdr.innerHTML = `<span class="sa-caret">▶</span> ${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'done' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
+                const prog = host.querySelector('.sa-progress');
+                if (prog) prog.remove();
+                if (summaryText) {
+                    const sumEl = document.createElement('div');
+                    sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:14px;white-space:pre-wrap';
+                    sumEl.textContent = summaryText;
+                    host.appendChild(sumEl);
+                }
+                host.style.borderLeftColor = ok ? '#22c55e' : '#ef4444';
+                return;  // updated existing accordion, no new bubble
+            }
             el.style.cssText += `;border-left:3px solid ${ok ? '#22c55e' : '#ef4444'};background:rgba(${ok ? '34,197,94' : '239,68,68'},0.06);color:${ok ? '#86efac' : '#fca5a5'}`;
             el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}${desc ? ': "'+DOMPurify.sanitize(desc)+'"' : ''}</span>`;
-            const summaryText = textParts.slice(1).join(' | ').trim();
             if (summaryText) {
                 const sumEl = document.createElement('div');
-                sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;max-height:40px;overflow:hidden;white-space:pre-wrap';
-                sumEl.textContent = summaryText.length > 200 ? summaryText.slice(0, 200) + '…' : summaryText;
+                sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;white-space:pre-wrap';
+                sumEl.textContent = summaryText.length > 300 ? summaryText.slice(0, 300) + '…' : summaryText;
                 el.appendChild(sumEl);
-                if (summaryText.length > 200) {
-                    el.style.cursor = 'pointer';
-                    let _saExp = false;
-                    el.addEventListener('click', () => {
-                        _saExp = !_saExp;
-                        sumEl.textContent = _saExp ? summaryText : summaryText.slice(0, 200) + '…';
-                        sumEl.style.maxHeight = _saExp ? 'none' : '40px';
-                    });
-                }
             }
         }
         addTimestamp(el, ts);

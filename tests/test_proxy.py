@@ -49,6 +49,39 @@ def test_no_mutation_methods_gone():
     assert not hasattr(mgr, "refresh_loop")
 
 
+@pytest.mark.asyncio
+async def test_check_geo_failure_keeps_alive(monkeypatch):
+    # liveness (Anthropic) OK but geo (ipinfo) throwing must NOT flip ok→false
+    mgr = pm.ProxyManager()
+
+    class _Resp:
+        status_code = 404  # any response = tunnel works
+
+    class _Client:
+        def __init__(self, **kw): ...
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): ...
+        async def get(self, url): return _Resp()
+
+    monkeypatch.setattr(pm.httpx, "AsyncClient", _Client)
+
+    async def boom(proxy):
+        raise RuntimeError("ipinfo timeout")
+
+    monkeypatch.setattr(mgr, "_geo", boom)
+    r = await mgr._do_check(pm.ProxyEntry(id="c", name="C", url="http://127.0.0.1:12343"))
+    assert r["ok"] is True  # geo blew up, liveness held
+
+
+@pytest.mark.asyncio
+async def test_check_dead_proxy_real_error():
+    # unreachable proxy → ok:false with a NON-empty error (not "")
+    entry = pm.ProxyEntry(id="d", name="D", url="http://127.0.0.1:19998")
+    r = await pm.ProxyManager()._do_check(entry)
+    assert r["ok"] is False
+    assert r["error"], "error must be non-empty for a dead proxy"
+
+
 def test_set_env_preserves_tokens(tmp_path, monkeypatch):
     env = tmp_path / ".env"
     env.write_text(

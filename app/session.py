@@ -526,6 +526,23 @@ class AgentSession:
             from app.live_broker import broker
             broker.publish(self.id, {"type": "stream", "content": event.content})
             return
+        if event.type == "subagent_stream":
+            # Live sub-agent output → broker only (ephemeral, like main stream).
+            # subagent_id lets the UI nest it under the right sub-agent block.
+            from app.live_broker import broker
+            broker.publish(self.id, {"type": "subagent_stream", "content": event.content,
+                                     "subagent_id": event.metadata.get("subagent_id", "")})
+            return
+        # Sub-agent tool_use/text/tool_result (tagged with subagent_id) → broker ONLY
+        # (ephemeral live nesting under the sub-agent block). NOT persisted — the DB
+        # record is subagent_start/end; persisting these too would double-render them
+        # (once in the accordion via broker, once in the main flow on reload).
+        sub_id = event.metadata.get("subagent_id")
+        if sub_id and event.type in ("tool_use", "tool_result", "text", "thinking"):
+            from app.live_broker import broker
+            broker.publish(self.id, {"type": "subagent_event", "event_type": event.type,
+                                     "content": event.content[:2000], "subagent_id": sub_id})
+            return
         if event.type == "text":
             from app.live_broker import broker
             broker.clear_accum(self.id)
