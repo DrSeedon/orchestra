@@ -186,7 +186,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 ### Research findings
 - `stop_reason=tool_use` = ALWAYS external interrupt (31 interrupt + 4 permission + 2 inject). Never "agent wants more"
 - `ede_diagnostic` = CLI telemetry noise, not real errors. Filtered
-- Fable 5 banned in USA — model dead as of 2026-06-15. Use Opus 4.8 instead
+- Fable 5 — was dead 2026-06-15 (banned USA), **RESTORED as of 2026-07-03** (verified live API call FABLE_ALIVE). Available again. Pricing $10/$50 per M (2x cheaper input than Opus 4.8, same output tier). Use for one-off critical reviews, NOT default (burns limits)
 
 ### Process rules
 - **Step 0: Clarify before acting** — added to orchestration.md decision tree
