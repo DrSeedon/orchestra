@@ -121,7 +121,14 @@ send_message("backend", "Continue #192")
 - **Unknown scope / research needed** → `full-cycle` Opus 4.8 worker. ALWAYS
 - **Clear spec, known files** → system worker or Sonnet disposable
 - **Never give research to Sonnet** — they cut corners and miss edge cases
-- **Don't spawn new if system worker can do it** — reuse first
+- **Don't spawn new if system worker can do it** — but reuse an **idle** worker, never dump new work on a **running** one (see below)
+
+### One task = one active worker
+- **New independent task arrives while a worker is RUNNING** → spawn a NEW worker or wait for the current one to go idle. Do NOT queue the new task onto the running worker ("do it after the current one").
+- **Never hand a worker a list of 3-4 unrelated tasks** "do these in order" — it loses focus, spreads thin, and quality smears across all of them.
+- One worker = one task at a time. DONE → next task. Running → leave it alone.
+- **EXCEPTION: a clarification/correction to the worker's CURRENT task is fine** — that's not a new task, it's steering. "Do X, not Y" on the current topic → OK. "Also do Z" (new, unrelated) → NOT OK on a running worker.
+- Parallel independent tasks → parallel workers. That's what Orchestra is for — don't serialize everything through one worker.
 
 ### Model policy
 - **Orchestrators / sub-orchestrators** → Opus 4.8
