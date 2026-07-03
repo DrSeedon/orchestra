@@ -131,14 +131,14 @@ send_message("backend", "Continue #192")
 - Parallel independent tasks → parallel workers. That's what Orchestra is for — don't serialize everything through one worker.
 
 ### Model policy
-- **Orchestrators / sub-orchestrators** → Opus 4.8
-- **Full-cycle / reviewer** → Opus 4.8 (deep research, code review — overthinking is a feature here)
+- **Orchestrators / sub-orchestrators** → Opus 4.6 (proactive, reads between the lines — best for live conversation and coordination)
+- **Full-cycle / reviewer** → Opus 4.8 (literal, precise — overthinking is a feature for deep research and code review)
 - **System workers (backend, frontend)** → Sonnet 5 or Opus 4.8 for complex work
 - **Disposable one-shots** → Sonnet 5
 - **Haiku 4.5** → cheap system tasks
 - **Fable 5** → one-off critical reviews (expensive) — NOT a default worker
 - All models use the [1m] (1M-token) context variant
-- **Deprecated / removed** — Opus 4.7 (deprecated); Opus 4.6 (removed, redirects to 4.8)
+- **Deprecated** — Opus 4.7
 
 ### ALWAYS set system_prompt
 Every worker MUST get a `system_prompt` defining their identity. Never leave it empty.
