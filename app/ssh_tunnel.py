@@ -49,6 +49,7 @@ class Tunnel:
     host: str
     remote_port: int
     key_path: str
+    mode: str = "forward"  # "forward" = -L (HTTP proxy), "dynamic" = -D (SOCKS5)
     proc: asyncio.subprocess.Process | None = field(default=None, repr=False)
     task: asyncio.Task | None = field(default=None, repr=False)
     running: bool = False
@@ -67,7 +68,10 @@ async def _kill_stale(t: Tunnel):
     never a same-local-port forward owned by something else, and 12340 never
     matches 123400.
     """
-    pattern = f"ssh -N -L {t.local_port}:127.0.0.1:{t.remote_port} .*root@{t.host}"
+    if t.mode == "dynamic":
+        pattern = f"ssh -N -D {t.local_port} .*root@{t.host}"
+    else:
+        pattern = f"ssh -N -L {t.local_port}:127.0.0.1:{t.remote_port} .*root@{t.host}"
     try:
         proc = await asyncio.create_subprocess_exec(
             "pkill", "-f", pattern,
@@ -99,8 +103,9 @@ def _parse_tunnels() -> list[Tunnel]:
         host = parts[2].strip()
         remote_port = int(parts[3].strip())
         key = parts[4].strip() if len(parts) > 4 and parts[4].strip() else DEFAULT_KEY
+        mode = parts[5].strip() if len(parts) > 5 and parts[5].strip() else "forward"
         tunnels.append(Tunnel(name=name, local_port=local_port, host=host,
-                              remote_port=remote_port, key_path=key))
+                              remote_port=remote_port, key_path=key, mode=mode))
     return tunnels
 
 
@@ -127,15 +132,20 @@ async def _tunnel_loop(t: Tunnel):
                 backoff = min(backoff * 2, BACKOFF_MAX)
                 continue
             started = time.monotonic()
-            t.proc = await asyncio.create_subprocess_exec(
-                "ssh", "-N",
-                "-L", f"{t.local_port}:127.0.0.1:{t.remote_port}",
+            if t.mode == "dynamic":
+                ssh_args = ["ssh", "-N", "-D", str(t.local_port)]
+            else:
+                ssh_args = ["ssh", "-N", "-L", f"{t.local_port}:127.0.0.1:{t.remote_port}"]
+            ssh_args += [
                 "-i", t.key_path,
                 "-o", "StrictHostKeyChecking=no",
                 "-o", "ServerAliveInterval=30",
                 "-o", "ServerAliveCountMax=3",
                 "-o", "ExitOnForwardFailure=yes",
                 f"root@{t.host}",
+            ]
+            t.proc = await asyncio.create_subprocess_exec(
+                *ssh_args,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,
             )
