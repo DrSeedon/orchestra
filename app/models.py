@@ -17,6 +17,7 @@ _proxy_connected: bool = False
 MODELS = {
     "claude-fable-5[1m]": "Fable 5 (1M)",
     "claude-opus-4-8[1m]": "Opus 4.8 (1M)",
+    "claude-opus-4-6[1m]": "Opus 4.6 (1M)",
     "claude-sonnet-5[1m]": "Sonnet 5 (1M)",
     "claude-haiku-4-5": "Haiku 4.5",
     "gpt-5.5": "GPT-5.5",
@@ -27,6 +28,7 @@ MODELS = {
 CONTEXT_LIMITS = {
     "claude-fable-5[1m]": 1000000,
     "claude-opus-4-8[1m]": 1000000,
+    "claude-opus-4-6[1m]": 1000000,
     "claude-sonnet-5[1m]": 1000000,
     "claude-haiku-4-5": 200000,
     "gpt-5.5": 258400,
@@ -46,10 +48,9 @@ ALIASES = {
     "opus4.8": "claude-opus-4-8[1m]",
     "claude-opus-4-8": "claude-opus-4-8[1m]",
     "claude-opus-4-8-1m": "claude-opus-4-8[1m]",
-    "opus4.6": "claude-opus-4-8[1m]",
-    "claude-opus-4-6": "claude-opus-4-8[1m]",
-    "claude-opus-4-6-1m": "claude-opus-4-8[1m]",
-    "claude-opus-4-6[1m]": "claude-opus-4-8[1m]",
+    "opus4.6": "claude-opus-4-6[1m]",
+    "claude-opus-4-6": "claude-opus-4-6[1m]",
+    "claude-opus-4-6-1m": "claude-opus-4-6[1m]",
     "sonnet": "claude-sonnet-5[1m]",
     "sonnet5": "claude-sonnet-5[1m]",
     "claude-sonnet-5-1m": "claude-sonnet-5[1m]",
@@ -66,6 +67,7 @@ ALIASES = {
 BACKENDS = {
     "claude-fable-5[1m]": "claude",
     "claude-opus-4-8[1m]": "claude",
+    "claude-opus-4-6[1m]": "claude",
     "claude-sonnet-5[1m]": "claude",
     "claude-haiku-4-5": "claude",
     "gpt-5.5": "codex",
@@ -78,6 +80,7 @@ BACKENDS = {
 TOKEN_PRICES = {
     "claude-fable-5[1m]": {"input": 10.0, "output": 50.0},
     "claude-opus-4-8[1m]": {"input": 5.0,  "output": 25.0},
+    "claude-opus-4-6[1m]": {"input": 5.0,  "output": 25.0},
     "claude-sonnet-5[1m]": {"input": 2.0,  "output": 10.0},
     "claude-haiku-4-5":    {"input": 0.80, "output": 4.0},
 }

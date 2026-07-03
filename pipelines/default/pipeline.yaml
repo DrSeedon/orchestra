@@ -19,7 +19,7 @@ roles:
     kind: orchestrator
     label: Orchestrator
     order: 0
-    model: opus
+    model: opus4.6
     skills: [html-artifacts, vps-deploy, codex-debate, grill-me]
     modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]
@@ -33,7 +33,7 @@ roles:
     kind: orchestrator
     label: Sub-Orchestrator
     order: 1
-    model: opus
+    model: opus4.6
     modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: true
