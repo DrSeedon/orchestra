@@ -77,7 +77,7 @@ BACKENDS = {
 # Codex models intentionally absent — their prices live in backend_codex.py
 TOKEN_PRICES = {
     "claude-fable-5[1m]": {"input": 10.0, "output": 50.0},
-    "claude-opus-4-8[1m]": {"input": 15.0, "output": 75.0},
+    "claude-opus-4-8[1m]": {"input": 5.0,  "output": 25.0},
     "claude-sonnet-5[1m]": {"input": 2.0,  "output": 10.0},
     "claude-haiku-4-5":    {"input": 0.80, "output": 4.0},
 }
