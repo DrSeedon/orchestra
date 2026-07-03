@@ -795,6 +795,8 @@ class SessionManager:
         s.total_turns = row.get("total_turns") or 0
         s.total_input_tokens = row.get("total_input_tokens") or 0
         s.total_output_tokens = row.get("total_output_tokens") or 0
+        s.total_cache_read_tokens = row.get("total_cache_read_tokens") or 0
+        s.total_cache_create_tokens = row.get("total_cache_create_tokens") or 0
         s.total_tool_calls = row.get("total_tool_calls") or 0
         s._last_context = {
             "percentage": row.get("context_pct", 0) or 0,
@@ -981,6 +983,12 @@ class SessionManager:
             owned_dirs=parse_owned_dirs(db_row.get("owned_dirs")),
             tg_topic=bool(db_row.get("tg_topic", 0)),
         )
+        session.total_turns = db_row.get("total_turns") or 0
+        session.total_input_tokens = db_row.get("total_input_tokens") or 0
+        session.total_output_tokens = db_row.get("total_output_tokens") or 0
+        session.total_cache_read_tokens = db_row.get("total_cache_read_tokens") or 0
+        session.total_cache_create_tokens = db_row.get("total_cache_create_tokens") or 0
+        session.total_tool_calls = db_row.get("total_tool_calls") or 0
         session.is_orchestrator = is_orch  # R1: восстановить денормализованное поле
         raw_hist = db_row.get("session_id_history") or "[]"
         try:

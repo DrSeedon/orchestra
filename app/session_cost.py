@@ -47,6 +47,8 @@ class CostTracker:
         s.total_turns += nt
         s.total_input_tokens += meta.get("input_tokens", 0)
         s.total_output_tokens += meta.get("output_tokens", 0)
+        s.total_cache_read_tokens += meta.get("cache_read", 0)
+        s.total_cache_create_tokens += meta.get("cache_create", 0)
         return ok, sr, nt
 
     def update_context_from_turn(self, meta: dict) -> None:

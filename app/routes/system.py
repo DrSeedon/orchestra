@@ -438,19 +438,43 @@ async def _refresh_oauth_token(refresh_token: str) -> str | None:
     return None
 
 
+def _cost_cached_for(r) -> float:
+    """Cached cost recomputed from RAW tokens + current TOKEN_PRICES, so a price
+    change reprices history. Fallback to stored cost_usd_cached when we can't
+    recompute (no price for model, or no raw cache tokens = old/no-cache rows).
+    Mirrors backend_claude.py:396 (cache_read=10% input, cache_create=125% input)."""
+    from app.models import TOKEN_PRICES
+    stored = r["cost_usd_cached"] or 0
+    prices = TOKEN_PRICES.get(r["model"])
+    cache_read = r["total_cache_read_tokens"] or 0
+    cache_create = r["total_cache_create_tokens"] or 0
+    if not prices or (cache_read == 0 and cache_create == 0):
+        return stored
+    p_in = prices["input"]
+    p_out = prices["output"]
+    return ((r["total_input_tokens"] or 0) * p_in
+            + cache_read * p_in * 0.1
+            + cache_create * p_in * 1.25
+            + (r["total_output_tokens"] or 0) * p_out) / 1_000_000
+
+
 def _get_agents_cost() -> dict:
     """Get per-agent cost breakdown from DB."""
     from app.db import _conn
     with _conn() as c:
         rows = c.execute(
-            "SELECT name, model, cost_usd, cost_usd_cached FROM sessions ORDER BY cost_usd DESC"
+            "SELECT name, model, cost_usd, cost_usd_cached, "
+            "total_input_tokens, total_output_tokens, "
+            "total_cache_read_tokens, total_cache_create_tokens "
+            "FROM sessions ORDER BY cost_usd DESC"
         ).fetchall()
         total = sum(r["cost_usd"] for r in rows)
-        total_cached = sum(r["cost_usd_cached"] or 0 for r in rows)
+        cached_by_row = [_cost_cached_for(r) for r in rows]
+        total_cached = sum(cached_by_row)
         agents = [
             {"name": r["name"], "cost_usd": round(r["cost_usd"], 4),
-             "cost_usd_cached": round(r["cost_usd_cached"] or 0, 4), "model": r["model"]}
-            for r in rows if r["cost_usd"] > 0
+             "cost_usd_cached": round(cc, 4), "model": r["model"]}
+            for r, cc in zip(rows, cached_by_row) if r["cost_usd"] > 0
         ]
         return {
             "total_cost_usd": round(total, 4),

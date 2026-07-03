@@ -142,6 +142,8 @@ class AgentSession:
     total_turns: int = 0
     total_input_tokens: int = 0
     total_output_tokens: int = 0
+    total_cache_read_tokens: int = 0
+    total_cache_create_tokens: int = 0
     total_tool_calls: int = 0
 
     _backend: Optional["BackendLike"] = field(default=None, repr=False)
@@ -1016,6 +1018,8 @@ class AgentSession:
             "total_turns": self.total_turns,
             "total_input_tokens": self.total_input_tokens,
             "total_output_tokens": self.total_output_tokens,
+            "total_cache_read_tokens": self.total_cache_read_tokens,
+            "total_cache_create_tokens": self.total_cache_create_tokens,
             "total_tool_calls": self.total_tool_calls,
             "template_hash": self._template_hash,
             "mcp_servers_custom": json.dumps(self.mcp_servers_custom) if self.mcp_servers_custom else "",
@@ -1051,6 +1055,8 @@ class AgentSession:
             "total_turns": self.total_turns,
             "total_input_tokens": self.total_input_tokens,
             "total_output_tokens": self.total_output_tokens,
+            "total_cache_read_tokens": self.total_cache_read_tokens,
+            "total_cache_create_tokens": self.total_cache_create_tokens,
             "total_tool_calls": self.total_tool_calls,
         }
 
