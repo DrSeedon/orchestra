@@ -167,7 +167,7 @@ async def get_session_prompt(name: str, scope: str):
 
 
 _SOURCE_BLOCKS = [
-    ("file",   "base",   "Platform Base",       "prompts/base.md",              "<platform>",       "</rules>",          2),
+    ("file",   "base",   "Platform Base",       "prompts/base.md",              "<platform>",       "</communication-style>", 1),
     ("file",   "role",   "Role",                "prompts/roles/*.md",           "<role>",           "</role>",           1),
     ("module", "module", "Git Workflow",         "prompts/modules/git-workflow.md",  "<git-workflow>",   "</git-workflow>",   1),
     ("module", "module", "Orchestration",        "prompts/modules/orchestration.md", "<orchestration>",  "</orchestration>",  1),
