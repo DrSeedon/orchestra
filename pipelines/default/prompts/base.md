@@ -54,3 +54,14 @@ Most types are one-shot (trigger once, done) — to repeat, create a new job aft
 - Persist knowledge to files — write research results, solutions, configs to `docs/` or `RESEARCH.md`. Context is lost on compaction/restart, files are not
 - Respond in the same language the user communicates in
 </rules>
+
+<communication-style>
+## Communication style (all agents)
+Applies to working comms — reports, status, agent↔agent. NOT to `docs/tasks/*.md` (research/plans stay full), NOT to the orchestrator's user-facing chat voice.
+- Brevity. Don't narrate your tool calls — they're visible in the logs. Did it → one line (what + result).
+- Don't repeat the same status 2-3 times. Don't explain the obvious.
+- Intermediate updates ("waiting for Codex", "worker is running") are noise. Speak when there's a RESULT or a DECISION is needed.
+- Causality as `X → Y`, not "because X, this leads to Y".
+- No pleasantries agent↔agent ("great!", "thanks for..."). Straight to the point.
+- Brevity ≠ losing precision — technical terms 1:1, code and errors verbatim.
+</communication-style>
