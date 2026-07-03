@@ -73,3 +73,8 @@ When switching between agents in dashboard sidebar, the last sent message can di
 Ожидаемо: codex_review должен запускать codex с cwd = worktree вызвавшего воркера (или принимать cwd явно), чтобы ревьюить его diff и писать output в его дерево.
 
 Фикс-гипотеза: в реализации codex_review взять cwd из session.cwd/worktree_path воркера, передать в subprocess cwd=. Сейчас, видимо, наследуется cwd оркестратора/main.
+
+## 2026-07-03 open
+- **status-desync** — session status shows idle while worker actually running (WAITING/persist/SSE race). session.py status transitions vs _persist timing. Deferred, needs research
+- **test_default_pipeline 3 fails** — pre-existing, manifest has extra modules/skills tests expect old set. CI-blocking if strict. Not our diff
+- **frontend readability** (frontend-opus fixing) — subagent modal: long bash commands as titles + transcript raw dumps; prompt/.md viewer no markdown render

@@ -258,3 +258,43 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - **Сделал → одна фраза** (что + результат). Панчлайны/таблицы/резюме — ТОЛЬКО для реального итога или решения, НЕ на рутину (спавн, merge, "жду воркера", "как вернётся покажу").
 - **Не отчитывайся о промежуточном** — "жду Codex", "воркер работает" = шум. Юзер узнает из авто-репортов/логов. Пиши когда есть РЕЗУЛЬТАТ или нужно РЕШЕНИЕ юзера.
 - Панчлайн-аналогия из глобального промпта — на ИТОГ сессии/крупное решение, не на каждый чих.
+
+## Session notes (2026-07-03) — dacha session, big refactor + fixes
+
+### Merged to main (all await ONE restart to apply — Python backend changes):
+- **Прокси = only .env** (DB/hot-switch removed), zombie-tunnel fix (health-gate+backoff), Check All fixed (via anthropic not ipinfo), "Выбрать" button writes .env + restart flow
+- **Terminal/CC proxy** — ~/.zshrc reads Orchestra .env (was hardcoded 12334), fallback Hiddify
+- **Models → only 4.8/5**, 14 orchestrators to 4.8 in DB, removed opus-4-7/deepseek/haiku-4-6, redirect-aliases kept
+- **Opus 4.8 price fixed $15/$75 → $5/$25** (was Opus 4.1-era; affected cost_cached secondary metric + model catalog, NOT main cost which comes from SDK)
+- **Subagent telemetry** — `subagents` table + 3 endpoints (/api/subagents/{sid}, /api/subagent-transcripts/{sid}, /api/subagent-transcript/{sid}/{agent_id}) + modal with cards+transcript
+- **Rate-limit** — banner with countdown + dedup log (single retry-status not raw+status)
+- **app/prompts DELETED** — single source = pipelines/default, fail loud on unknown role (Codex caught: old sessions pipeline='' → DEFAULT_PIPELINE fix)
+- **super-full-cycle role** — 3 phases (Research+Experiment → Plan+tickets(AC) → Implement ticket-by-ticket), /to-issues integrated, researcher+experimenter DELETED (merged into Phase 1)
+- **cost-tokens fix** — raw cache_read/cache_create tokens stored in DB (was only computed price), cost_cached recompute on-the-fly from TOKEN_PRICES → price change auto-recalcs history. + resume-gap fix (_load_from_db restores all totals). Columns: total_cache_read_tokens, total_cache_create_tokens
+- **archived "already exists" fix** — create_session deletes archived row to free UNIQUE(name,scope). manager.py:404
+- **auto-report WAITING fix** — don't fire auto-report when status==WAITING (bg job like codex_review running). session_turns.py:128
+- **communication-style rule** in base.md — brevity for ALL agents (don't narrate tool calls, no dup status, X→Y causality, no pleasantries agent↔agent). NOT for docs/tasks or user-chat
+- **Fable 5 RESTORED** 2026-07-03 (was banned USA 06-15, export-control not quality; verified FABLE_ALIVE). $10/$50. Research verdict: 🔴 don't put on orchestrator (only +2 pts independent, 2x price, burns limits, orchestrator=short answers not reasoning). CLAUDE.md model note updated.
+
+### Roles now: orchestrator, sub-orchestrator, worker, full-cycle (researcher/experimenter deleted, merged into full-cycle Phase 1)
+
+### Process rules learned (in CLAUDE.md):
+- One task = one active worker (don't queue onto running worker) — orchestration.md
+- Dead code: grep REAL reads before deleting (app/prompts looked dead, was live fallback+dashboard)
+- Brevity: don't narrate tool calls, don't duplicate status (I was watery — user called it out)
+
+### Proxy final state:
+- Contabo DE (12343) = primary, works直 from RF without VPN. Fornex(12342), Hiddify(12334 socks5 for TG proxychains), Timeweb/Ezhik dead
+- On mobile/dacha: SSH tunnels flaky → user uses Соту/Reality tun-VPN, then Direct works
+- Codex wrapper ~/.local/bin/codex on 12343
+
+### PENDING (next session):
+- **RESTART Orchestra** — ALL above backend fixes await restart. Not done yet
+- **frontend-opus RUNNING** — 2 frontend bugs: (1) subagent modal shows raw multiline bash commands as titles + transcript dumps everything (unreadable), (2) prompt/.md viewer doesn't render markdown (stone wall of text). Both app.js render
+- **status-desync bug** — status shows idle while worker running (WAITING/persist race). NOT fixed, deferred
+- **test_default_pipeline 3 fails** — pre-existing (manifest modules/skills), CI-blocking if strict
+- Kill one-shot workers: fix-cost-tokens, research-fable-vs-opus, research-caveman (done, artifacts merged). Keep: prompt-engineer, frontend-opus, taskmanager, research-proxy
+- research-caveman verdict 🟡 (adapt agent↔agent only) — already absorbed into brevity rule, no separate integration needed
+- Codex codex_review runs as bg job (type=run), returns immediately, wakes worker on done — NOT bash. Auto-report on "waiting for codex" was the noise (fixed but needs restart)
+
+### Active workers: frontend-opus(running, 2 frontend fixes), prompt-engineer/taskmanager/research-proxy/refactor-tg/feat-* (idle)
