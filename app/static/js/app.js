@@ -2224,6 +2224,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     // Stream events feed the typewriter buffer — RAF loop renders incrementally
     if (type === 'stream') {
         removeWaitingIndicator();
+        if (_rateLimitAgent) _hideRateLimitBanner();  // agent resumed → rate limit cleared
         if (!streamBubble) {
             streamBubble = document.createElement('div');
             streamBubble.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot markdown-body streaming';
@@ -2254,9 +2255,17 @@ function addChatEntry(type, content, ts, anchor, payload) {
     }
 
     if (type === 'status') {
+        const rl = _parseRateLimitStatus(content);
         const badge = document.createElement('div');
-        badge.className = 'text-center text-xs py-1 text-slate-500 italic';
-        badge.textContent = `⚡ ${content}`;
+        if (rl) {
+            // Rate limit: trigger the global banner (live logs only, not history replay)
+            if (!anchor) _showRateLimitBanner(selectedAgent, rl.retry, rl.max, rl.delay);
+            badge.className = 'text-center text-xs py-1 text-amber-400 italic';
+            badge.textContent = `⏳ Rate limit — Anthropic временно ограничил запросы, повтор ${rl.retry}/${rl.max} через ${rl.delay}с (это НЕ твой лимит подписки)`;
+        } else {
+            badge.className = 'text-center text-xs py-1 text-slate-500 italic';
+            badge.textContent = `⚡ ${content}`;
+        }
         addTimestamp(badge, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         _insert(badge);
@@ -4008,7 +4017,14 @@ function addChatEntry(type, content, ts, anchor, payload) {
             div.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleStandalone(); });
         }
     }
-    else if (type === 'error') { div.textContent = content; }
+    else if (type === 'error') {
+        if (/rate.?limit/i.test(content)) {
+            div.textContent = '⏳ Rate limit — Anthropic временно ограничил запросы (это НЕ лимит твоей подписки). Orchestra автоматически повторит.';
+            div.className = div.className.replace('text-red-400', 'text-amber-400');
+        } else {
+            div.textContent = content;
+        }
+    }
     else {
         div.innerHTML = DOMPurify.sanitize(marked.parse(content));
         const agentColor = agentColors[selectedAgent];
@@ -4318,6 +4334,43 @@ async function _pollReconnect() {
 function _onServerError() {
     _rebootFails++;
     if (_rebootFails >= 2) _showRebootOverlay();
+}
+
+// === Rate Limit Banner (Anthropic server-side rate_limit, not subscription) ===
+let _rateLimitTimer = null;
+let _rateLimitAgent = null;
+
+function _showRateLimitBanner(agentName, retryNum, maxRetries, delaySec) {
+    const banner = document.getElementById('rate-limit-banner');
+    if (!banner) return;
+    _rateLimitAgent = agentName;
+    let remaining = delaySec;
+    banner.classList.remove('hidden');
+    banner.classList.add('flex');
+    const render = () => {
+        banner.innerHTML = `⏳ <b>Rate limit (сервер Anthropic)</b> — ${escHtml(agentName)}: повтор ${retryNum}/${maxRetries} через <b class="text-amber-100">${remaining}с</b> <span class="text-amber-400/70">· это НЕ лимит твоей подписки</span>`;
+    };
+    render();
+    if (_rateLimitTimer) clearInterval(_rateLimitTimer);
+    _rateLimitTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) { render(); _hideRateLimitBanner(); return; }
+        render();
+    }, 1000);
+}
+
+function _hideRateLimitBanner() {
+    const banner = document.getElementById('rate-limit-banner');
+    if (_rateLimitTimer) { clearInterval(_rateLimitTimer); _rateLimitTimer = null; }
+    _rateLimitAgent = null;
+    if (banner) { banner.classList.add('hidden'); banner.classList.remove('flex'); banner.innerHTML = ''; }
+}
+
+// Parse "rate limited — retry N/M in Xs" from status log content
+function _parseRateLimitStatus(content) {
+    const m = content.match(/rate limited\s*—\s*retry\s*(\d+)\/(\d+)\s*in\s*(\d+)s/i);
+    if (!m) return null;
+    return { retry: +m[1], max: +m[2], delay: +m[3] };
 }
 
 function _onServerOk() {
@@ -4945,8 +4998,9 @@ async function loadProxyList() {
         for (const p of proxies) {
             const el = document.createElement('div');
             el.className = `flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors ${p.active ? 'bg-indigo-900/40 border border-indigo-500/50' : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50'}`;
-            const status = p.ok === true ? '🟢' : p.ok === false ? '🔴' : '⚪';
-            const statusTitle = p.ok === true ? 'Живой' : p.ok === false ? 'Мёртвый' : 'Не проверен';
+            const isRateLimited = p.ok === false && /429|rate.?limit/i.test(String(p.error || ''));
+            const status = isRateLimited ? '⏳' : p.ok === true ? '🟢' : p.ok === false ? '🔴' : '⚪';
+            const statusTitle = isRateLimited ? 'Rate limit (429) — проверь позже' : p.ok === true ? 'Живой' : p.ok === false ? 'Мёртвый' : 'Не проверен';
             const flag = p.flag || '🏳️';
             const location = p.city ? `${p.city}, ${p.country || ''}` : p.country || '';
             el.innerHTML = `
