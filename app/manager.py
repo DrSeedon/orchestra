@@ -398,6 +398,10 @@ class SessionManager:
             st = existing.get("status", "?")
             ctx = existing.get("context_pct", 0) or 0
             raise ValueError(f"worker '{name}' already exists ({st}, ctx:{ctx}%). Use send_message instead")
+        # Archived row still holds UNIQUE(name, scope) → INSERT would IntegrityError.
+        # Free the name by deleting the archived record (its logs cascade — it's gone anyway).
+        if existing and existing.get("status") == "archived":
+            delete_session(existing["id"])
 
         # Явно ли указана роль: генерик-воркер (role не задан) валидируется как
         # unrouted (child_role="") — им управляет allow_unrouted_workers родителя.
