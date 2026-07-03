@@ -1235,11 +1235,13 @@ function updateAgentInfo(session) {
         $('#ai-scope').textContent = '-';
         setContextDisplay('-');
         $('#view-prompt-btn').classList.add('hidden');
+        $('#subagents-btn')?.classList.add('hidden');
         $('#compact-btn').classList.add('hidden');
         $('#restart-cli-btn').classList.add('hidden');
         return;
     }
     $('#view-prompt-btn').classList.remove('hidden');
+    $('#subagents-btn')?.classList.remove('hidden');
     $('#compact-btn').classList.remove('hidden');
     $('#restart-cli-btn').classList.remove('hidden');
     const isRunning = session.status === 'running';
@@ -1409,6 +1411,7 @@ function createAgentItem(s) {
         isDead ? 'opacity-50 hover:opacity-70' : 'hover:bg-slate-800/50'
     }`;
     item.addEventListener('click', () => selectAgent(s.name));
+    if (s.id) item.dataset.sessionId = s.id;
 
     if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
 
@@ -4669,6 +4672,201 @@ function _analyticsRateBar(label, data, windowMs) {
         <div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold text-slate-300">${label}</span><span class="text-xs font-bold" style="color:${barColor}">${pct}%</span></div>
         <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2"><div class="h-full rounded-full transition-all" style="width:${Math.min(pct, 100)}%;background:${barColor}"></div></div>
         <div class="flex justify-between text-[10px] text-slate-500"><span>Reset: ${cd || '—'}</span>${rpNum != null ? `<span>Window: ${rpNum}%</span>` : ''}${pace ? `<span>${pace}</span>` : ''}</div>
+    </div>`;
+}
+
+// === Sub-agents Modal (post-hoc telemetry + transcripts) ===
+function _fmtTokens(n) {
+    n = n || 0;
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+}
+function _fmtDuration(ms) {
+    ms = ms || 0;
+    if (ms < 1000) return ms + 'ms';
+    const s = ms / 1000;
+    if (s < 60) return s.toFixed(1) + 's';
+    const m = Math.floor(s / 60);
+    const rem = Math.round(s % 60);
+    if (m < 60) return `${m}m ${rem}s`;
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
+}
+
+function openSubagentsModal() {
+    if (!selectedAgent || !currentScope) return;
+    const modal = document.getElementById('subagents-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('subagents-modal-agent').textContent = selectedAgent;
+    document.addEventListener('keydown', _subagentsEscHandler);
+    _loadSubagents();
+}
+function closeSubagentsModal() {
+    const modal = document.getElementById('subagents-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.removeEventListener('keydown', _subagentsEscHandler);
+}
+function _subagentsEscHandler(e) { if (e.key === 'Escape') closeSubagentsModal(); }
+
+async function _loadSubagents() {
+    const body = document.getElementById('subagents-body');
+    if (!body) return;
+    body.innerHTML = '<div class="text-center text-slate-500 py-8">Loading...</div>';
+    try {
+        const sid = manager_session_id_for(selectedAgent);
+        // Telemetry + transcript agent_ids in parallel. agent_id (SDK file id) != task_id,
+        // so map telemetry cards → transcript ids by index (both time-ordered).
+        const [data, tData] = await Promise.all([
+            api(`/api/subagents/${encodeURIComponent(sid)}`),
+            api(`/api/subagent-transcripts/${encodeURIComponent(sid)}`).catch(() => ({ agent_ids: [] })),
+        ]);
+        const subs = (data && data.subagents) || [];
+        const agentIds = (tData && tData.agent_ids) || [];
+        if (!subs.length) {
+            body.innerHTML = '<div class="text-center text-slate-500 py-8 italic">Этот агент ещё не запускал субагентов.</div>';
+            return;
+        }
+        body.innerHTML = subs.map((s, i) => _renderSubagentCard(s, i, agentIds[i] || '')).join('');
+        // Wire transcript toggles
+        body.querySelectorAll('.sa-transcript-btn').forEach(btn => {
+            btn.addEventListener('click', () => _toggleTranscript(btn, sid));
+        });
+        body.querySelectorAll('.sa-summary-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const full = btn.nextElementSibling;
+                if (full) full.classList.toggle('hidden');
+                btn.textContent = full && !full.classList.contains('hidden') ? '▼ Свернуть summary' : '▶ Показать summary';
+            });
+        });
+    } catch (e) {
+        body.innerHTML = `<div class="text-center text-red-400 py-8">Ошибка: ${_escHtml(e.message)}</div>`;
+    }
+}
+
+// session_id lookup — orchData/agent items carry the DB session id
+function manager_session_id_for(name) {
+    const el = [...document.querySelectorAll('.agent-item')].find(el => {
+        const nameEl = el.querySelector('.text-xs.font-medium');
+        return nameEl && nameEl.textContent === name;
+    });
+    return (el && el.dataset.sessionId) || name;
+}
+
+function _renderSubagentCard(s, idx, transcriptId) {
+    const statusMap = {
+        completed: ['🟢', '#22c55e', 'completed'],
+        failed: ['🔴', '#ef4444', 'failed'],
+        running: ['⏳', '#eab308', 'running'],
+    };
+    const [icon, color, label] = statusMap[s.status] || ['⚪', '#64748b', s.status || '?'];
+    const desc = _escHtml(s.description || 'Sub-agent');
+    const taskType = s.task_type ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">${_escHtml(s.task_type)}</span>` : '';
+    const metrics = [
+        `🔢 ${_fmtTokens(s.total_tokens)}`,
+        `🔧 ${s.tool_uses || 0}`,
+        `⏱️ ${_fmtDuration(s.duration_ms)}`,
+    ];
+    if (s.last_tool_name) metrics.push(`⚙️ ${_escHtml(s.last_tool_name)}`);
+
+    let summaryBlock = '';
+    if (s.summary) {
+        summaryBlock = `<div class="mt-2">
+            <button class="sa-summary-toggle text-[10px] text-indigo-300 hover:text-indigo-200">▶ Показать summary</button>
+            <div class="hidden mt-1 p-2 bg-slate-900/60 rounded-lg text-[11px] text-slate-300 whitespace-pre-wrap break-words">${_escHtml(s.summary)}</div>
+        </div>`;
+    }
+    let fileBlock = '';
+    if (s.output_file) {
+        fileBlock = `<div class="mt-1 text-[10px] text-slate-500">📄 <span class="text-emerald-400 break-all">${_escHtml(s.output_file)}</span></div>`;
+    }
+    const agentId = transcriptId || '';
+    const transcriptBtn = agentId
+        ? `<button class="sa-transcript-btn text-[10px] px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-purple-200 transition-colors" data-agent-id="${_escHtml(agentId)}" data-idx="${idx}">📜 Транскрипт</button>
+           <div class="sa-transcript-panel hidden mt-2"></div>`
+        : `<span class="text-[10px] text-slate-600 italic">транскрипт недоступен</span>`;
+
+    return `<div class="bg-slate-900/50 rounded-xl border border-slate-800 p-3 mb-3" style="border-left:3px solid ${color}">
+        <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-sm">🤖</span>
+                    <span class="text-xs font-semibold text-white break-words">${desc}</span>
+                    ${taskType}
+                </div>
+            </div>
+            <span class="text-[10px] font-mono shrink-0" style="color:${color}">${icon} ${label}</span>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap text-[11px] text-slate-400">
+            ${metrics.map(m => `<span>${m}</span>`).join('')}
+        </div>
+        ${fileBlock}
+        ${summaryBlock}
+        <div class="mt-2">${transcriptBtn}</div>
+    </div>`;
+}
+
+async function _toggleTranscript(btn, sid) {
+    const panel = btn.parentElement.querySelector('.sa-transcript-panel');
+    if (!panel) return;
+    if (!panel.classList.contains('hidden')) {
+        panel.classList.add('hidden');
+        btn.textContent = '📜 Транскрипт';
+        return;
+    }
+    const agentId = btn.dataset.agentId;
+    if (!agentId) { panel.innerHTML = '<div class="text-slate-500 italic text-[10px] p-2">Нет transcript id</div>'; panel.classList.remove('hidden'); return; }
+    panel.classList.remove('hidden');
+    btn.textContent = '📜 Скрыть транскрипт';
+    if (panel.dataset.loaded === '1') return;  // cache — don't refetch
+    panel.innerHTML = '<div class="text-slate-500 text-[10px] p-2">Загрузка транскрипта...</div>';
+    try {
+        const data = await api(`/api/subagent-transcript/${encodeURIComponent(sid)}/${encodeURIComponent(agentId)}?limit=200`);
+        const msgs = (data && data.messages) || [];
+        if (!msgs.length) {
+            panel.innerHTML = '<div class="text-slate-500 italic text-[10px] p-2">Транскрипт пуст или недоступен.</div>';
+            return;
+        }
+        panel.innerHTML = `<div class="bg-slate-950/60 rounded-lg border border-slate-800 p-2 max-h-[300px] overflow-y-auto space-y-1.5">${msgs.map(_renderTranscriptMsg).join('')}</div>`;
+        panel.dataset.loaded = '1';
+    } catch (e) {
+        panel.innerHTML = `<div class="text-red-400 text-[10px] p-2">Ошибка: ${_escHtml(e.message)}</div>`;
+    }
+}
+
+function _renderTranscriptMsg(m) {
+    // content may be string or array of blocks (text/tool_use/tool_result)
+    const role = m.type === 'user' ? 'user' : m.type === 'assistant' ? 'assistant' : m.type;
+    const roleColor = role === 'assistant' ? '#a78bfa' : role === 'user' ? '#38bdf8' : '#64748b';
+    const roleLabel = role === 'assistant' ? '🤖 субагент' : role === 'user' ? '🔧 tool result' : role;
+    let text = '';
+    const c = m.content;
+    if (typeof c === 'string') {
+        text = c;
+    } else if (Array.isArray(c)) {
+        const parts = [];
+        for (const block of c) {
+            if (!block || typeof block !== 'object') { parts.push(String(block)); continue; }
+            if (block.type === 'text') parts.push(block.text || '');
+            else if (block.type === 'tool_use') parts.push(`🔧 ${block.name || 'tool'}(${_escHtml(JSON.stringify(block.input || {}).slice(0, 120))})`);
+            else if (block.type === 'tool_result') {
+                const rc = block.content;
+                parts.push('📎 ' + (typeof rc === 'string' ? rc : JSON.stringify(rc)).slice(0, 300));
+            } else parts.push(JSON.stringify(block).slice(0, 200));
+        }
+        text = parts.join('\n');
+    } else {
+        text = JSON.stringify(c || '');
+    }
+    if (!text.trim()) return '';
+    const truncated = text.length > 1200 ? text.slice(0, 1200) + '…' : text;
+    return `<div class="text-[10px] leading-relaxed">
+        <span style="color:${roleColor};font-weight:600">${roleLabel}</span>
+        <div class="text-slate-300 whitespace-pre-wrap break-words pl-2 border-l border-slate-800 mt-0.5">${_escHtml(truncated)}</div>
     </div>`;
 }
 
