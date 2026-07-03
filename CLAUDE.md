@@ -164,9 +164,9 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - **tg_bridge split** — refactor-tg worker (Opus 4.8) in progress, research+plan done, awaiting impl
 
 ### New roles
-- `experimenter` — hypothesis → experiment → measure → conclude. Opus 4.8
-- `researcher` — search → verify → synthesize. Web research with counter-evidence. Opus 4.8
-- Both in `pipelines/default/pipeline.yaml` + `prompts/roles/`
+- ~~`experimenter`, `researcher`~~ — **MERGED into `full-cycle` Phase 1** (2026-07-01). Их суть
+  (hypothesis→measure + search→verify→counter-evidence) = research+experiment фаза super-full-cycle.
+  Отдельные роли УДАЛЕНЫ. «Только research» = оркестратор стопит после Phase 1
 
 ### Key features
 - **4-level cost**: turn/ctx/session/total. ctx persisted in DB (survives reboot), session = in-memory only
@@ -245,6 +245,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - **Don't auto-approve implementation** — user asked about self-learning, I approved impl without permission. Rule: ASK before approving large implementations
 - **Orchestrators delegate content** — sales playbook, user guides = specialist workers, not orchestrator
 - **Dynamic Workflows blocked** — Claude Code's built-in Workflow tool blocked for all agents (wastes tokens, MCP tools don't propagate)
+- **«Мёртвый код» → грепни РЕАЛЬНЫЕ чтения перед удалением** — разведка сказала «app/prompts мёртвая» (грепнули строку `app/prompts`, нашли только комменты). Но `prompting.py._PROMPTS_DIR` читал её через 12 функций — это был живой fallback + дашборд-визуализация. Правило: перед удалением папки/модуля грепни кто РЕАЛЬНО импортит/читает (не строковые совпадения), проверь fallback-пути. Перепроверка спасла дашборд от поломки
 
 ## BUGS.md — баг-репорты от агентов
 - Агенты (оркестраторы и воркеры) могут вызывать `report_bug(title, description)` MCP tool

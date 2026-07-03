@@ -203,13 +203,15 @@ class TestDefaultBuildSystemPrompt:
         assert "{orchestrator_name}" in out
 
     def test_full_cycle_prompt_has_three_phase_pipeline(self):
-        """full-cycle: строгий 3-фазный пайплайн с codex_review и docs/tasks/<id>/."""
+        """full-cycle: 3 фазы (research+experiment / plan+tickets / implement),
+        codex review, docs/tasks/<id>/."""
         out = P.build_system_prompt(PIPELINE, "full-cycle")
         assert out.startswith("<platform>")
         assert "## Role: Full-Cycle Worker" in out
         assert "<pipeline>" in out
-        assert "Phase 1: RESEARCH" in out
-        assert "Phase 3: IMPLEMENTATION" in out
+        assert "Phase 1: RESEARCH + EXPERIMENT" in out
+        assert "Phase 2: PLAN" in out
+        assert "Phase 3: IMPLEMENT" in out
         assert "docs/tasks/" in out
 
     def test_orchestrator_prompt_excludes_other_roles_bodies(self):

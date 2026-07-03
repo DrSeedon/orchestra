@@ -66,37 +66,11 @@ roles:
     modules: [git-workflow, report-format, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: false
-    when: New feature with unknowns, large refactoring (5+ files), external integration, anything where wrong approach = wasted day
-    not_for: Bug fixes, config changes, implementation from clear spec
+    when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
+    not_for: Trivial bug fixes, config changes, one-line implementation from a clear spec
     description: >
-      Research → Plan + Codex review → Implement + Codex review. Strict 3-phase pipeline
-      with 2 orchestrator approval gates. All artifacts saved to docs/tasks/<id>/.
-  experimenter:
-    kind: worker
-    label: Experimenter
-    order: 4
-    model: opus4.8
-    skills: [codex-debate]
-    modules: [git-workflow, report-format]
-    can_spawn: ["*"]
-    allow_unrouted_workers: false
-    when: Hypothesis needs empirical verification, performance measurement, A/B comparison, reproducing bugs, testing claims about models/SDK/tools
-    not_for: Implementation tasks, code changes that ship to production
-    description: >
-      Hypothesis → Experiment → Measure → Conclude. Empirical researcher that RUNS code,
-      measures results, and proves/disproves claims. No plans, no Codex — pure experimentation.
-      All artifacts saved to docs/experiments/<id>/.
-  researcher:
-    kind: worker
-    label: Researcher
-    order: 5
-    model: opus4.8
-    skills: []
-    modules: [git-workflow, report-format]
-    can_spawn: ["*"]
-    allow_unrouted_workers: false
-    when: Deep research needed — market analysis, technology comparison, paper review, best practices, "find out everything about X"
-    not_for: Code implementation, bug fixes, anything that changes files in the project
-    description: >
-      Search → Verify → Synthesize. Iterative web research with cross-checking and counter-evidence.
-      Every claim has a source. Output is structured report in docs/research/.
+      Research+Experiment (truth from sources and/or measurements) → Plan sliced into
+      tickets with acceptance criteria → Implement ticket-by-ticket. Strict 3-phase
+      pipeline, 2 orchestrator approval gates, Codex review at plan + impl. For a
+      research-only task the orchestrator simply stops after Phase 1. All artifacts
+      in docs/tasks/<id>/.
