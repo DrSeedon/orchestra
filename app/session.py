@@ -566,15 +566,18 @@ class AgentSession:
         elif event.type == "turn_end":
             self._turns.handle_turn_end(event)
         elif event.type == "error":
-            self._log("error", event.content)
+            # rate_limit → single retry-status log (skip raw error to avoid duplicate
+            # "model error: rate_limit" + "rate limited — retry" on one event)
             if "rate_limit" in event.content:
                 if self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
                     self._rate_limit_retries += 1
                     delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
-                    self._log("status", f"rate limited — retry {self._rate_limit_retries}/{self.RATE_LIMIT_MAX_RETRIES} in {delay}s")
+                    self._log("status", f"⏳ rate limit (Anthropic сервер) — повтор через {delay}s ({self._rate_limit_retries}/{self.RATE_LIMIT_MAX_RETRIES})")
                     self._spawn_bg(self._rate_limit_retry(delay))
                 else:
                     self._log("error", f"rate limit — gave up after {self.RATE_LIMIT_MAX_RETRIES} retries")
+            else:
+                self._log("error", event.content)
         elif event.type == "subagent_start":
             self._log("subagent_start", event.content)
         elif event.type == "subagent_progress":
