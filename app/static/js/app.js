@@ -516,7 +516,9 @@ async function openFilePreview(path) {
                     : h;
                 return `<img src="${src}"${a ? ` alt="${a}"` : ''}${t ? ` title="${t}"` : ''} loading="lazy" style="max-width:100%;border-radius:6px;margin:4px 0;cursor:pointer" onclick="openFilePreview('${h}')">`;
             };
-            contentEl.innerHTML = DOMPurify.sanitize(marked.parse(data.content, { renderer }), { ADD_ATTR: ['loading'] });
+            // Strip prompt-style XML tags (<platform>, <rules>) — they make marked treat
+            // wrapped markdown as raw HTML, so ## headings / - lists never render.
+            contentEl.innerHTML = DOMPurify.sanitize(marked.parse(_stripXmlTags(data.content), { renderer }), { ADD_ATTR: ['loading'] });
         } else if (/\.svg$/i.test(path)) {
             contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
         } else {
@@ -4753,6 +4755,18 @@ function manager_session_id_for(name) {
     return (el && el.dataset.sessionId) || name;
 }
 
+// Short, readable card title: prefer description; else first meaningful slice of a
+// (possibly huge multiline bash) command — stop at first ; << newline, cap length.
+function _subagentTitle(s) {
+    let t = (s.description || '').trim();
+    if (!t) t = (s.last_tool_name || 'Sub-agent');
+    // If it's a long command dump, take up to the first structural boundary
+    const boundary = t.search(/[;\n]|<</);
+    if (boundary > 0 && boundary < 80) t = t.slice(0, boundary);
+    t = t.replace(/\s+/g, ' ').trim();
+    return t.length > 80 ? t.slice(0, 80) + '…' : t;
+}
+
 function _renderSubagentCard(s, idx, transcriptId) {
     const statusMap = {
         completed: ['🟢', '#22c55e', 'completed'],
@@ -4760,12 +4774,13 @@ function _renderSubagentCard(s, idx, transcriptId) {
         running: ['⏳', '#eab308', 'running'],
     };
     const [icon, color, label] = statusMap[s.status] || ['⚪', '#64748b', s.status || '?'];
-    const desc = _escHtml(s.description || 'Sub-agent');
+    const desc = _escHtml(_subagentTitle(s));
     const taskType = s.task_type ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">${_escHtml(s.task_type)}</span>` : '';
+    // "—" for missing data (local_bash sub-agents have no usage), not misleading "0"
     const metrics = [
-        `🔢 ${_fmtTokens(s.total_tokens)}`,
-        `🔧 ${s.tool_uses || 0}`,
-        `⏱️ ${_fmtDuration(s.duration_ms)}`,
+        `🔢 ${s.total_tokens ? _fmtTokens(s.total_tokens) : '—'}`,
+        `🔧 ${s.tool_uses ? s.tool_uses : '—'}`,
+        `⏱️ ${s.duration_ms ? _fmtDuration(s.duration_ms) : '—'}`,
     ];
     if (s.last_tool_name) metrics.push(`⚙️ ${_escHtml(s.last_tool_name)}`);
 
@@ -4834,36 +4849,63 @@ async function _toggleTranscript(btn, sid) {
     }
 }
 
-function _renderTranscriptMsg(m) {
-    // content may be string or array of blocks (text/tool_use/tool_result)
-    const role = m.type === 'user' ? 'user' : m.type === 'assistant' ? 'assistant' : m.type;
-    const roleColor = role === 'assistant' ? '#a78bfa' : role === 'user' ? '#38bdf8' : '#64748b';
-    const roleLabel = role === 'assistant' ? '🤖 субагент' : role === 'user' ? '🔧 tool result' : role;
-    let text = '';
-    const c = m.content;
-    if (typeof c === 'string') {
-        text = c;
-    } else if (Array.isArray(c)) {
-        const parts = [];
-        for (const block of c) {
-            if (!block || typeof block !== 'object') { parts.push(String(block)); continue; }
-            if (block.type === 'text') parts.push(block.text || '');
-            else if (block.type === 'tool_use') parts.push(`🔧 ${block.name || 'tool'}(${_escHtml(JSON.stringify(block.input || {}).slice(0, 120))})`);
-            else if (block.type === 'tool_result') {
-                const rc = block.content;
-                parts.push('📎 ' + (typeof rc === 'string' ? rc : JSON.stringify(rc)).slice(0, 300));
-            } else parts.push(JSON.stringify(block).slice(0, 200));
-        }
-        text = parts.join('\n');
-    } else {
-        text = JSON.stringify(c || '');
+// Collapsible block for long text (bash commands, prompts, result dumps).
+// Short text shows inline; long text collapses behind a <details> toggle.
+function _saCollapsible(text, threshold) {
+    threshold = threshold || 200;
+    const clean = _escHtml(text);
+    if (text.length <= threshold) {
+        return `<div class="text-slate-300 whitespace-pre-wrap break-words">${clean}</div>`;
     }
-    if (!text.trim()) return '';
-    const truncated = text.length > 1200 ? text.slice(0, 1200) + '…' : text;
-    return `<div class="text-[10px] leading-relaxed">
-        <span style="color:${roleColor};font-weight:600">${roleLabel}</span>
-        <div class="text-slate-300 whitespace-pre-wrap break-words pl-2 border-l border-slate-800 mt-0.5">${_escHtml(truncated)}</div>
-    </div>`;
+    const preview = _escHtml(text.slice(0, threshold));
+    return `<details class="sa-details">
+        <summary class="cursor-pointer text-slate-500 hover:text-slate-300 select-none">${preview}<span class="text-purple-400"> … показать всё (${text.length} симв.)</span></summary>
+        <div class="text-slate-300 whitespace-pre-wrap break-words mt-1">${clean}</div>
+    </details>`;
+}
+
+function _renderTranscriptMsg(m) {
+    const role = m.type === 'user' ? 'user' : m.type === 'assistant' ? 'assistant' : m.type;
+    const c = m.content;
+    // A tool_use block naming Task/Agent means this line spawned a nested sub-agent
+    const rows = [];
+    const push = (label, labelColor, bodyHtml, nested) => {
+        rows.push(`<div class="text-[10px] leading-relaxed ${nested ? 'ml-3 pl-2 border-l-2 border-purple-800/60' : ''}">
+            <span style="color:${labelColor};font-weight:600">${label}</span>
+            <div class="pl-2 border-l border-slate-800 mt-0.5">${bodyHtml}</div>
+        </div>`);
+    };
+
+    if (typeof c === 'string') {
+        if (!c.trim()) return '';
+        push(role === 'user' ? '🔧 tool result' : '🤖 субагент',
+             role === 'user' ? '#38bdf8' : '#a78bfa', _saCollapsible(c));
+    } else if (Array.isArray(c)) {
+        for (const block of c) {
+            if (!block || typeof block !== 'object') {
+                const t = String(block); if (t.trim()) push('•', '#64748b', _saCollapsible(t));
+                continue;
+            }
+            if (block.type === 'text') {
+                if ((block.text || '').trim()) push('🤖 субагент', '#a78bfa', _saCollapsible(block.text));
+            } else if (block.type === 'tool_use') {
+                const name = block.name || 'tool';
+                const isNested = /^(Task|Agent)$/i.test(name);
+                const args = JSON.stringify(block.input || {});
+                const bodyHtml = _saCollapsible(args, 120);
+                push(`${isNested ? '🤖' : '🔧'} ${_escHtml(name)}`, isNested ? '#c4b5fd' : '#eab308', bodyHtml, isNested);
+            } else if (block.type === 'tool_result') {
+                const rc = block.content;
+                const txt = typeof rc === 'string' ? rc : JSON.stringify(rc);
+                push('📎 результат', '#64748b', _saCollapsible(txt, 200));
+            } else {
+                push('•', '#64748b', _saCollapsible(JSON.stringify(block), 200));
+            }
+        }
+    } else if (c) {
+        push('•', '#64748b', _saCollapsible(JSON.stringify(c)));
+    }
+    return rows.join('');
 }
 
 function renderTasksPanel(panel, data, payData) {
