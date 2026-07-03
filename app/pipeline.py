@@ -1,8 +1,8 @@
 """Loader пайплайнов: схема манифеста (pydantic) + резолв ролей/промптов/спавна.
 
 Источник истины о ролях — единый манифест ``pipelines/<name>/pipeline.yaml``
-(вместо frontmatter+glob апстрима). При активном пайплайне ВСЁ берётся только из
-``pipelines/<name>/`` — ``app/prompts/`` игнорируется (полная изоляция промптов).
+(вместо frontmatter+glob апстрима). ВСЁ берётся только из ``pipelines/<name>/``.
+``app/prompts/`` удалён — единственный источник промптов = pipelines.
 
 Наследование defaults→roles выполняется на РЕЗОЛВЕ (:func:`resolve_role`), не на
 загрузке: ``load_pipeline`` валидирует и кэширует сырой манифест, ``resolve_role``
@@ -382,7 +382,7 @@ def prompt_path(pipeline_name: str, rel: str) -> Path:
     """Путь к слою промпта. ВСЕГДА внутри ``pipelines/<name>/prompts/``.
 
     ``rel`` — элемент prompt_layers (``base.md``, ``roles/coder.md``, ``_pipeline.md``).
-    ``app/prompts/`` НЕ участвует — гарантия изоляции.
+    Единственный источник — ``pipelines/<name>/prompts/`` (app/prompts/ удалён).
     """
     return PIPELINES_DIR / pipeline_name / "prompts" / rel
 
@@ -396,7 +396,7 @@ def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
     """Собрать system_prompt из prompt_layers резолвнутой роли.
 
     Каждый слой читается из ``pipelines/<name>/prompts/<layer>`` через
-    :func:`prompt_path` (ПОЛНАЯ изоляция — ``app/prompts/`` не читается). Отсутствующий
+    :func:`prompt_path` (единственный источник — app/prompts/ удалён). Отсутствующий
     слой-файл пропускается. Конкатенация через ``\\n\\n``. Динамика (каталог ролей,
     блоки других оркестраторов/воркеров) добавляется вызывающим в manager — здесь
     только статика из файлов.

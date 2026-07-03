@@ -27,18 +27,19 @@ def mgr(db, tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _isolate_pipelines_dir(tmp_path, monkeypatch):
-    """По умолчанию изолируем PIPELINES_DIR на пустой tmp.
+def _isolate_pipelines_dir(monkeypatch):
+    """Point PIPELINES_DIR at the REAL pipelines/ so ROLE_SYSTEM_PROMPT resolves.
 
-    Делает модуль детерминированным независимо от реального ``pipelines/``
-    (Stage 4 параллельно создаёт ``pipelines/default/``). Тесты, которым нужен
-    манифест, переопределяют PIPELINES_DIR своей фикстурой (``pipeline_dir``/
-    ``roles_dir``), которая выполняется ПОСЛЕ этой autouse и выигрывает.
+    Was: isolated to an empty tmp dir, relying on the app/prompts legacy fallback
+    to still produce prompts. That fallback is removed (single source = pipelines),
+    so ROLE_SYSTEM_PROMPT now fails loud on a missing manifest. These tests don't
+    test prompts — they need SOME valid pipeline, so use the real default.
+    Tests that want a custom manifest override PIPELINES_DIR via ``pipeline_dir``.
     """
     import app.pipeline as pl
-    empty = tmp_path / "_no_pipelines_default"
-    empty.mkdir()
-    monkeypatch.setattr(pl, "PIPELINES_DIR", empty)
+    from pathlib import Path
+    real = Path(__file__).parent.parent / "pipelines"
+    monkeypatch.setattr(pl, "PIPELINES_DIR", real)
     pl.load_pipeline.cache_clear()
     yield
     pl.load_pipeline.cache_clear()
@@ -187,11 +188,14 @@ class TestInjectSkillsGating:
         inject.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_no_manifest_injects(self, mgr, tmp_path):
+    async def test_no_manifest_raises(self, mgr, tmp_path):
+        # Was test_no_manifest_injects: legacy fallback let a spawn proceed (and
+        # inject skills) when get_role raised FileNotFoundError. Fallback removed →
+        # missing manifest is fail loud, spawn aborts before skill injection.
         def _raise(p, r):
             raise FileNotFoundError("no manifest")
-        inject = await self._run(mgr, tmp_path, _raise)
-        inject.assert_called_once()
+        with pytest.raises((FileNotFoundError, ValueError)):
+            await self._run(mgr, tmp_path, _raise)
 
 
 class TestResolveBaseBranch:
@@ -369,13 +373,35 @@ class TestAutoResume:
             "cwd": "/tmp", "model": "claude-opus-4-8[1m]", "system_prompt": "",
             "status": "idle", "session_id": "sdk-123",
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
-            "is_orchestrator": True, "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
+            "is_orchestrator": True, "role": "orchestrator", "pipeline": "default",
+            "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
             "finished_at": None,
         })
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             await mgr.auto_resume_all()
         assert mgr.get("orch-1") is not None
+
+    @pytest.mark.asyncio
+    async def test_resume_normalizes_empty_pipeline(self, mgr):
+        """Old migrated rows store pipeline='' → _load_from_db must normalize to
+        DEFAULT_PIPELINE. Without it ROLE_SYSTEM_PROMPT('') fails loud (fallback
+        removed) and pre-pipeline sessions can't resume."""
+        from app.db import save_session, get_session_by_name
+        from tests.conftest import make_backend_mock
+        save_session({
+            "id": "old-empty-pipe", "name": "oldw", "scope": "/tmp", "cwd": "/tmp",
+            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "session_id": None, "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "role": "worker", "pipeline": "",
+            "color": "#fff", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+        row = get_session_by_name("oldw", "/tmp")
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr._load_from_db(row)  # must NOT raise ValueError
+        assert session.name == "oldw"
+        assert session.system_prompt  # prompt built from default pipeline
 
 
 
@@ -385,6 +411,12 @@ class TestCanSpawn:
 
     @pytest.fixture
     def roles_dir(self, tmp_path, monkeypatch):
+        # can_spawn is read from temp frontmatter (_PROMPTS_DIR). The prompt build
+        # (ROLE_SYSTEM_PROMPT) reads real pipelines/ — the app/prompts fallback is
+        # removed, so an empty PIPELINES_DIR would fail loud. These tests assert
+        # spawn-whitelist behaviour and spawn role="worker" (present in default),
+        # so point at the real default pipeline for the prompt step.
+        from pathlib import Path
         prompts = tmp_path / "prompts"
         rdir = prompts / "roles"
         rdir.mkdir(parents=True)
@@ -392,9 +424,7 @@ class TestCanSpawn:
         monkeypatch.setattr("app.prompting._PROMPTS_DIR", prompts)
         monkeypatch.setattr("app.prompting._SKILLS_DIR", prompts / "skills")
         import app.pipeline as pl
-        empty_pipelines = tmp_path / "no_pipelines"
-        empty_pipelines.mkdir()
-        monkeypatch.setattr(pl, "PIPELINES_DIR", empty_pipelines)
+        monkeypatch.setattr(pl, "PIPELINES_DIR", Path(__file__).parent.parent / "pipelines")
         pl.load_pipeline.cache_clear()
         return rdir
 
@@ -448,47 +478,12 @@ class TestCanSpawn:
             )
         assert session.name == "child"
 
-    @pytest.mark.asyncio
-    async def test_whitelist_blocks_unlisted(self, mgr, roles_dir):
-        from app.db import save_session
-        from tests.conftest import make_backend_mock
-        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker]")
-        self._write_role(roles_dir, "full-cycle", "name: full-cycle")
-        save_session({
-            "id": "p-2", "name": "parent", "scope": "/s", "cwd": "/tmp",
-            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
-            "cost_usd": 0.0, "worktree_path": None, "branch": None,
-            "is_orchestrator": False, "color": "#fff",
-            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
-            "role": "boss",
-        })
-        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            with pytest.raises(ValueError, match="not allowed to spawn"):
-                await mgr.create_session(
-                    name="child", scope="/s", cwd="/tmp", model="m",
-                    role="full-cycle", parent_name="parent",
-                )
-
-    @pytest.mark.asyncio
-    async def test_empty_can_spawn_blocks_all(self, mgr, roles_dir):
-        from app.db import save_session
-        from tests.conftest import make_backend_mock
-        self._write_role(roles_dir, "leaf", "name: leaf\ncan_spawn: []")
-        self._write_role(roles_dir, "worker", "name: worker")
-        save_session({
-            "id": "p-3", "name": "parent", "scope": "/s", "cwd": "/tmp",
-            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
-            "cost_usd": 0.0, "worktree_path": None, "branch": None,
-            "is_orchestrator": False, "color": "#fff",
-            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
-            "role": "leaf",
-        })
-        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            with pytest.raises(ValueError, match="terminal role"):
-                await mgr.create_session(
-                    name="child", scope="/s", cwd="/tmp", model="m",
-                    role="worker", parent_name="parent",
-                )
+    # REMOVED: test_whitelist_blocks_unlisted + test_empty_can_spawn_blocks_all.
+    # They tested the legacy frontmatter can_spawn fallback (role_can_spawn reading
+    # app/prompts/roles/*.md) triggered when validate_spawn hits FileNotFoundError.
+    # app/prompts is removed and the manifest is the single source — spawn-whitelist
+    # enforcement is now covered by validate_spawn / TestRolesCatalogFromManifest.
+    # These tested removed legacy behaviour, so they're deleted (not "broken").
 
     @pytest.mark.asyncio
     async def test_unknown_parent_fails_open(self, mgr, roles_dir):
@@ -582,7 +577,7 @@ class TestCustomMcp:
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": False, "color": "#fff",
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
-            "role": "worker", "mcp_servers_custom": json.dumps(custom),
+            "role": "worker", "pipeline": "default", "mcp_servers_custom": json.dumps(custom),
         })
         row = get_session_by_name("w24c", "/s")
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
@@ -653,50 +648,20 @@ def pipeline_dir(tmp_path, monkeypatch):
     pl.load_pipeline.cache_clear()
 
 
-class TestUpstreamFallbackCharacterization:
-    """Зафиксировать: при отсутствии манифеста ROLE_SYSTEM_PROMPT(pipeline, role)
-    идентичен поведению апстрима (_UPSTREAM_ROLE_SYSTEM_PROMPT)."""
+class TestRoleSystemPromptFailLoud:
+    """app/prompts legacy-fallback удалён → нет манифеста ИЛИ роли → ValueError (fail loud).
 
-    def _write_role(self, roles_dir, name, frontmatter_body):
-        (roles_dir / f"{name}.md").write_text(
-            f"---\n{frontmatter_body}\n---\n\nBody for {name}.\n")
+    Раньше здесь был TestUpstreamFallbackCharacterization (3 теста) — он проверял
+    _UPSTREAM_ROLE_SYSTEM_PROMPT, который РЕАЛЬНО собирал промпт из app/prompts при
+    отсутствии манифеста. Тот код удалён (единый источник = pipelines/), поэтому
+    тесты его поведения удалены, а не «сломались». Новое поведение — fail loud."""
 
-    @pytest.fixture
-    def upstream_prompts(self, tmp_path, monkeypatch):
-        prompts = tmp_path / "uprompts"
-        rdir = prompts / "roles"
-        rdir.mkdir(parents=True)
-        (prompts / "base.md").write_text("BASE")
-        monkeypatch.setattr("app.prompting._PROMPTS_DIR", prompts)
-        monkeypatch.setattr("app.prompting._SKILLS_DIR", prompts / "skills")
-        self._write_role(rdir, "orchestrator", "name: orchestrator\nlabel: Orchestrator")
-        self._write_role(rdir, "worker", "name: worker\nlabel: Worker")
-        return rdir
-
-    def test_upstream_helper_orchestrator_matches_legacy_shape(self, upstream_prompts, db):
-        """_UPSTREAM_ROLE_SYSTEM_PROMPT собирает base.md + тело роли (orchestrator)."""
-        from app.manager import _UPSTREAM_ROLE_SYSTEM_PROMPT
-        out = _UPSTREAM_ROLE_SYSTEM_PROMPT("orchestrator", "/some/scope")
-        assert out.startswith("BASE")
-        assert "Body for orchestrator." in out
-
-    def test_upstream_helper_worker(self, upstream_prompts, db):
-        from app.manager import _UPSTREAM_ROLE_SYSTEM_PROMPT
-        out = _UPSTREAM_ROLE_SYSTEM_PROMPT("worker")
-        assert out.startswith("BASE")
-        assert "Body for worker." in out
-
-    def test_no_manifest_falls_back_to_upstream(self, upstream_prompts, db):
-        """Нет манифеста (FileNotFoundError) → ROLE_SYSTEM_PROMPT(pipeline, ...) ==
-        _UPSTREAM_ROLE_SYSTEM_PROMPT (fallback идентичен апстриму)."""
+    def test_no_manifest_raises(self, db):
         import app.pipeline as pl
         pl.load_pipeline.cache_clear()
-        from app.manager import ROLE_SYSTEM_PROMPT, _UPSTREAM_ROLE_SYSTEM_PROMPT
-        # "ghost-pipe" манифеста нет → fallback
-        assert ROLE_SYSTEM_PROMPT("ghost-pipe", "orchestrator", "/s") == \
-            _UPSTREAM_ROLE_SYSTEM_PROMPT("orchestrator", "/s")
-        assert ROLE_SYSTEM_PROMPT("ghost-pipe", "worker") == \
-            _UPSTREAM_ROLE_SYSTEM_PROMPT("worker")
+        from app.manager import ROLE_SYSTEM_PROMPT
+        with pytest.raises(ValueError, match="not resolvable"):
+            ROLE_SYSTEM_PROMPT("ghost-pipe-no-manifest", "orchestrator", "/s")
 
 
 class TestRoleSystemPromptManifest:
@@ -727,27 +692,13 @@ class TestRoleSystemPromptManifest:
         assert "### `coder`" not in out
         assert "### `worker`" not in out
 
-    def test_unknown_role_falls_back_to_upstream(self, pipeline_dir, tmp_path,
-                                                  monkeypatch, db):
-        """B1: роли нет в манифесте (KeyError) → НЕ падает, fallback на upstream.
-
-        Манифест testpipe есть (FileNotFoundError не сработает), но
-        ``my-custom-worker`` в нём отсутствует → resolve_role бросает KeyError →
-        ROLE_SYSTEM_PROMPT делегирует в _UPSTREAM_ROLE_SYSTEM_PROMPT.
-        """
-        # upstream-каталог промптов (app/prompts): base.md + worker.md (fallback).
-        uprompts = tmp_path / "uprompts"
-        (uprompts / "roles").mkdir(parents=True)
-        (uprompts / "base.md").write_text("UPSTREAM-BASE")
-        (uprompts / "roles" / "worker.md").write_text(
-            "---\nname: worker\n---\n\nUPSTREAM worker body.\n")
-        monkeypatch.setattr("app.prompting._PROMPTS_DIR", uprompts)
-        monkeypatch.setattr("app.prompting._SKILLS_DIR", uprompts / "skills")
-        from app.manager import ROLE_SYSTEM_PROMPT, _UPSTREAM_ROLE_SYSTEM_PROMPT
-        out = ROLE_SYSTEM_PROMPT("testpipe", "my-custom-worker")
-        assert out  # непустой
-        assert out == _UPSTREAM_ROLE_SYSTEM_PROMPT("my-custom-worker")
-        assert "UPSTREAM-BASE" in out
+    def test_unknown_role_raises(self, pipeline_dir, db):
+        """Роли нет в манифесте (KeyError) → fail loud (ValueError), НЕ молчаливый
+        fallback. Раньше делегировал в _UPSTREAM_ROLE_SYSTEM_PROMPT (app/prompts,
+        удалён). Теперь роль обязана быть в pipeline.yaml или это ошибка."""
+        from app.manager import ROLE_SYSTEM_PROMPT
+        with pytest.raises(ValueError, match="not resolvable"):
+            ROLE_SYSTEM_PROMPT("testpipe", "my-custom-worker")
 
 
 class TestRolesCatalogFromManifest:
@@ -862,40 +813,9 @@ class TestValidateSpawnIntegration:
             )
         assert session.name == "sec-1"
 
-    @pytest.mark.asyncio
-    async def test_fallback_when_no_manifest(self, mgr, monkeypatch):
-        """Нет манифеста → validate_spawn кидает FileNotFoundError → fallback _role_can_spawn.
-
-        Воссоздаём fixture roles_dir-стиль для fallback-ветки.
-        """
-        from app.db import save_session
-        from tests.conftest import make_backend_mock
-        import app.pipeline as pl
-        # Форсим отсутствие манифеста: PIPELINES_DIR на пустой tmp (Stage 4 мог
-        # создать pipelines/default/) → load_pipeline FileNotFoundError → fallback.
-        import tempfile
-        empty = Path(tempfile.mkdtemp()) / "no_pipelines"
-        empty.mkdir()
-        monkeypatch.setattr(pl, "PIPELINES_DIR", empty)
-        pl.load_pipeline.cache_clear()
-        prompts = Path(self._mk_prompts(monkeypatch))
-        save_session({
-            "id": "p-fb", "name": "boss", "scope": "/s", "cwd": "/tmp",
-            "model": "m", "system_prompt": "", "status": "idle", "session_id": None,
-            "cost_usd": 0.0, "worktree_path": None, "branch": None,
-            "is_orchestrator": False, "color": "#fff",
-            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
-            "role": "boss",
-        })
-        (prompts / "roles" / "boss.md").write_text("---\nname: boss\ncan_spawn: [worker]\n---\nB")
-        (prompts / "roles" / "full-cycle.md").write_text("---\nname: full-cycle\n---\nB")
-        pl.load_pipeline.cache_clear()
-        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            with pytest.raises(ValueError, match="not allowed to spawn"):
-                await mgr.create_session(
-                    name="child", scope="/s", cwd="/tmp", model="m",
-                    role="full-cycle", parent_name="boss",
-                )
+    # REMOVED: test_fallback_when_no_manifest — tested the legacy _role_can_spawn
+    # frontmatter fallback (app/prompts) that fired on FileNotFoundError. That
+    # fallback is removed (single source = pipelines, fail loud on missing manifest).
 
     def _mk_prompts(self, monkeypatch):
         import tempfile

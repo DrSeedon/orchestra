@@ -14,9 +14,8 @@ from typing import Awaitable, Callable, Optional
 
 from app.session import AgentSession, AgentStatus
 from app.prompting import (
-    is_orchestrator_role, safe_format_prompt, read_prompt,
-    role_prompt_file, role_can_spawn,
-    roles_catalog, skills_catalog, prompt_template_hash, inject_skills_to_worktree,
+    is_orchestrator_role, safe_format_prompt,
+    prompt_template_hash, inject_skills_to_worktree,
 )
 
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
@@ -120,24 +119,6 @@ def _workers_block(scope: str, orchestrator_name: str = "") -> str:
         return ""
 
 
-def _UPSTREAM_ROLE_SYSTEM_PROMPT(role: str, scope: str = "", name: str = "") -> str:
-    base = f"{read_prompt('base.md')}\n\n{role_prompt_file(role)}"
-    if is_orchestrator_role(role):
-        catalog = roles_catalog()
-        if catalog:
-            base += f"\n\n{catalog}"
-        skills_cat = skills_catalog()
-        if skills_cat:
-            base += f"\n\n{skills_cat}"
-        others = _other_orchestrators_block(scope, caller_role=role)
-        if others:
-            base += f"\n\n{others}"
-        workers = _workers_block(scope, name)
-        if workers:
-            base += f"\n\n{workers}"
-    return base
-
-
 def _fmt_role_catalog_entry(rr) -> str:
     """Форматировать одну запись каталога ролей из :class:`ResolvedRole`.
 
@@ -189,22 +170,20 @@ def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
 def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     """Системный промпт роли: статика слоёв пайплайна + динамика (каталог/блоки).
 
-    Манифест-путь (есть ``pipelines/<pipeline>/``): статика через
-    :func:`build_system_prompt` (ТОЛЬКО ``pipelines/<name>/prompts/`` — изоляция),
-    затем для оркестратора — каталог ролей (фильтр ``can_spawn``) + блоки других
-    оркестраторов/воркеров из БД.
+    Единственный источник — ``pipelines/<pipeline>/prompts/`` через
+    :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
+    (фильтр ``can_spawn``) + блоки других оркестраторов/воркеров из БД.
 
-    Fallback (``FileNotFoundError`` — манифеста нет, ИЛИ ``KeyError`` — роли нет
-    в манифесте): делегируем в :func:`_UPSTREAM_ROLE_SYSTEM_PROMPT` (поведение
-    апстрима 1:1, B4 — default/fail-open на worker/orchestrator).
+    Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
+    Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
     """
     try:
         base = build_system_prompt(pipeline, role, scope)
-    except (FileNotFoundError, KeyError):
-        # Нет манифеста (FileNotFoundError) ИЛИ роли нет в манифесте (KeyError):
-        # делегируем в upstream-fallback (B4: default/fail-open 1:1 — upstream
-        # допускал произвольную роль воркера с fallback на worker/orchestrator).
-        return _UPSTREAM_ROLE_SYSTEM_PROMPT(role, scope)
+    except (FileNotFoundError, KeyError) as e:
+        raise ValueError(
+            f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
+            f"Define it in pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+        ) from e
     rr = get_role(pipeline, role)
     is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
     if is_orch:
@@ -499,21 +478,12 @@ class SessionManager:
             if p_session:
                 parent_id = p_session.id
 
-        # R2: валидация спавна ДО любых side-effects (worktree/start).
-        # Манифест-путь — validate_spawn (fail-closed/fail-open). Нет манифеста
-        # (FileNotFoundError) → fallback на inline _role_can_spawn (поведение апстрима).
+        # R2: валидация спавна ДО любых side-effects (worktree/start). Только
+        # манифест-путь (validate_spawn) — legacy frontmatter-fallback (role_can_spawn
+        # из app/prompts) удалён. Нет манифеста → FileNotFoundError пробрасывается
+        # (fail loud, единый источник = pipelines/).
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
-        try:
-            validate_spawn(pipeline, parent_role, role if explicit_role else "")
-        except FileNotFoundError:
-            if parent_role:
-                whitelist = role_can_spawn(parent_role)
-                if whitelist is not None and role not in whitelist:
-                    allowed = ", ".join(whitelist) if whitelist else "(none — terminal role)"
-                    raise ValueError(
-                        f"role '{parent_role}' is not allowed to spawn role '{role}'. "
-                        f"Allowed: {allowed}"
-                    )
+        validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
         # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
@@ -943,7 +913,10 @@ class SessionManager:
 
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         role = db_row.get("role") or ("orchestrator" if db_row.get("is_orchestrator") else "worker")
-        pipeline = db_row.get("pipeline", "") or ""
+        # Old rows (migrated) store pipeline='' → normalize to DEFAULT_PIPELINE.
+        # Without this, ROLE_SYSTEM_PROMPT('') now fails loud (legacy fallback removed)
+        # and resume/load of pre-pipeline sessions would break.
+        pipeline = db_row.get("pipeline") or DEFAULT_PIPELINE
         # R1: is_orch из манифеста пайплайна (kind) при наличии; иначе хранимая
         # колонка is_orchestrator (денормализована при спавне); иначе frozenset.
         is_orch = self._role_is_orchestrator(pipeline, role)

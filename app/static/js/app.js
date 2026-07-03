@@ -1937,7 +1937,7 @@ function buildCompactToolLine(type, content, ts) {
         let preview = body;
         try {
             const parsed = JSON.parse(body);
-            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-7[1m]':'Opus 4.7 1M','claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku','claude-haiku-4-6':'Haiku'})[parsed.model || 'claude-sonnet-4-6'] || parsed.model || 'Sonnet'})`;
+            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku'})[parsed.model || 'claude-sonnet-4-6'] || parsed.model || 'Sonnet'})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
@@ -2497,21 +2497,17 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
                 const MODEL_SHORT = {
                     'claude-opus-4-8[1m]': 'Opus 4.8 1M',
-                    'claude-opus-4-7[1m]': 'Opus 4.7 1M',
                     'claude-opus-4-6[1m]': 'Opus 4.6 1M',
                     'claude-opus-4-6': 'Opus 4.6',
                     'claude-sonnet-4-6': 'Sonnet 4.6',
                     'claude-haiku-4-5': 'Haiku 4.5',
-                    'claude-haiku-4-6': 'Haiku 4.6',
                 };
                 const MODEL_COLOR = {
                     'claude-opus-4-8[1m]': '#c084fc',
-                    'claude-opus-4-7[1m]': '#a78bfa',
                     'claude-opus-4-6[1m]': '#a78bfa',
                     'claude-opus-4-6': '#a78bfa',
                     'claude-sonnet-4-6': '#38bdf8',
                     'claude-haiku-4-5': '#4ade80',
-                    'claude-haiku-4-6': '#4ade80',
                 };
                 if (model) {
                     const badge = document.createElement('span');
@@ -3352,7 +3348,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     }
                 } else if (tn === 'mcp__orchestra__get_worker_info') {
                     const stColor = {'running':'#22c55e','idle':'#eab308','error':'#ef4444','stopped':'#6b7280','starting':'#f97316'}[parsed.status] || '#94a3b8';
-                    const MODEL_SHORT = {'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-7[1m]':'Opus 4.7 1M','claude-opus-4-6[1m]':'Opus 4.6 1M','claude-opus-4-6':'Opus 4.6','claude-sonnet-4-6':'Sonnet 4.6','claude-haiku-4-5':'Haiku 4.5','gpt-5.5':'GPT 5.5'};
+                    const MODEL_SHORT = {'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-6[1m]':'Opus 4.6 1M','claude-opus-4-6':'Opus 4.6','claude-sonnet-4-6':'Sonnet 4.6','claude-haiku-4-5':'Haiku 4.5','gpt-5.5':'GPT 5.5'};
                     const modelShort = MODEL_SHORT[parsed.model] || parsed.model || '?';
                     if (hdr) {
                         hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${parsed.status || '?'}</span>`;

@@ -100,10 +100,10 @@ def _generate_aliases(model_id: str) -> list[str]:
 
 
 def _infer_backend(model_id: str) -> str:
-    # gpt-* → Codex CLI, claude-* → Claude SDK, everything else (deepseek, gemini,
-    # llama, mistral, …) → the OpenCode daemon. The proxy serves these via
-    # provider/model IDs (e.g. "deepseek/deepseek-v4-flash") which start with the
-    # provider name, never "gpt-"/"claude-".
+    # gpt-* → Codex CLI, claude-* → Claude SDK, everything else (gemini, llama,
+    # mistral, …) → the OpenCode daemon. The proxy serves these via provider/model
+    # IDs (e.g. "gemini/gemini-2.5-flash") which start with the provider name,
+    # never "gpt-"/"claude-".
     if model_id.startswith("gpt-"):
         return "codex"
     if model_id.startswith("claude-"):
@@ -213,9 +213,6 @@ _SEMANTIC_PATTERNS = [
     ("sonnet", "sonnet"),
     ("haiku", "haiku"),
     ("fable", "fable"),
-    ("deepseek", "deepseek"),
-    ("deepseek-flash", "deepseek-v4-flash"),
-    ("deepseek-pro", "deepseek-v4-pro"),
     ("gemini", "gemini"),
     ("gemini-flash", "gemini-2.5-flash"),
     ("llama", "llama"),
@@ -264,7 +261,7 @@ def resolve_model(model: str) -> str:
 
 def backend_for_model(model: str) -> str:
     # Registered models win; unregistered ones infer from the ID prefix so a
-    # never-seen deepseek/gemini/… routes to opencode instead of defaulting to claude.
+    # never-seen gemini/llama/… routes to opencode instead of defaulting to claude.
     if model in BACKENDS:
         return BACKENDS[model]
     return _infer_backend(model)

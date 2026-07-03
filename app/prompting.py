@@ -10,7 +10,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_PROMPTS_DIR = Path(__file__).parent / "prompts"
+# Single source of prompts = pipelines/default/prompts/ (app/prompts/ removed —
+# no legacy fallback). These helpers feed dashboard prompt view, role icons,
+# skill injection, and the template hash — all off the default pipeline.
+_PROMPTS_DIR = Path(__file__).parent.parent / "pipelines" / "default" / "prompts"
 _MODULES_DIR = _PROMPTS_DIR / "modules"
 _SKILLS_DIR = _PROMPTS_DIR / "skills"
 
