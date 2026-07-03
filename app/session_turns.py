@@ -125,7 +125,11 @@ class TurnManager:
             s._log("status", f"auto-compact triggered ({live_pct}%)")
             s._spawn_bg(s._auto_compact())
 
-        self.fire_auto_report()
+        # Don't auto-report mid-flight: WAITING means a bg job (e.g. codex_review) is
+        # still running and will wake the worker with its result — the turn isn't
+        # really "done", so reporting now spams a half-status to the orchestrator.
+        if s.status != AgentStatus.WAITING:
+            self.fire_auto_report()
 
         if s._pending_messages:
             s._spawn_bg(s._flush_pending())
