@@ -580,10 +580,13 @@ class AgentSession:
                 self._log("error", event.content)
         elif event.type == "subagent_start":
             self._log("subagent_start", event.content)
+            self._persist_subagent(event.metadata)
         elif event.type == "subagent_progress":
             self._log("subagent_progress", event.content)
+            self._persist_subagent(event.metadata)
         elif event.type == "subagent_end":
             self._log("subagent_end", event.content)
+            self._persist_subagent(event.metadata, ended=True)
         elif event.type == "status":
             self._log("status", event.content)
 
@@ -968,6 +971,26 @@ class AgentSession:
     def _log(self, type: str, content: str) -> None:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
         asyncio.get_event_loop().run_in_executor(_db_executor(), add_log, self.id, datetime.now(timezone.utc), type, content)
+
+    def _persist_subagent(self, meta: dict, ended: bool = False) -> None:
+        """Upsert sub-agent telemetry from a Task* event. Fire-and-forget.
+
+        Only the fields the event carries are passed — subagent_upsert's
+        NULLIF-COALESCE keeps prior values, so progress never wipes start's data.
+        """
+        task_id = meta.get("subagent_id")
+        if not task_id:
+            return
+        fields = {k: meta[k] for k in (
+            "sdk_session_id", "tool_use_id", "description", "task_type", "status",
+            "last_tool_name", "output_file", "summary", "raw_json",
+            "total_tokens", "tool_uses", "duration_ms",
+        ) if k in meta}
+        if ended:
+            fields["ended_at"] = datetime.now(timezone.utc).isoformat()
+        from app.db import subagent_upsert
+        asyncio.get_event_loop().run_in_executor(
+            _db_executor(), lambda: subagent_upsert(self.id, task_id, **fields))
 
     def _to_db_dict(self) -> dict:
         return {

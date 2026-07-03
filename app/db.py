@@ -78,6 +78,28 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
             CREATE INDEX IF NOT EXISTS idx_sessions_scope ON sessions(scope, is_orchestrator, status);
 
+            CREATE TABLE IF NOT EXISTS subagents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                task_id TEXT NOT NULL,
+                sdk_session_id TEXT DEFAULT '',
+                tool_use_id TEXT DEFAULT '',
+                description TEXT DEFAULT '',
+                task_type TEXT DEFAULT '',
+                status TEXT DEFAULT 'running',
+                total_tokens INTEGER DEFAULT 0,
+                tool_uses INTEGER DEFAULT 0,
+                duration_ms INTEGER DEFAULT 0,
+                last_tool_name TEXT DEFAULT '',
+                output_file TEXT DEFAULT '',
+                summary TEXT DEFAULT '',
+                raw_json TEXT DEFAULT '',
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                UNIQUE(session_id, task_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_subagents_session ON subagents(session_id);
+
             CREATE TABLE IF NOT EXISTS inbox (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -658,6 +680,60 @@ def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
             (session_id, ts.isoformat(), type, content),
         )
         return cur.lastrowid
+
+
+# Sub-agent telemetry columns that upsert may set. Text cols use NULLIF-COALESCE
+# (empty from a progress event must NOT wipe a value set by start/end). Numeric
+# cols take the incoming value when > 0 (TaskUsage is cumulative → latest wins,
+# never summed — session total already counts subagents, see backend_claude).
+_SA_TEXT = ("sdk_session_id", "tool_use_id", "description", "task_type",
+            "status", "last_tool_name", "output_file", "summary", "raw_json", "ended_at")
+_SA_NUM = ("total_tokens", "tool_uses", "duration_ms")
+
+
+def subagent_upsert(session_id: str, task_id: str, **fields) -> None:
+    """Insert or update one sub-agent row (keyed by session_id+task_id).
+
+    start creates the row; progress/end update only the fields they carry.
+    Empty text / zero numbers never overwrite an existing value.
+    """
+    cols = ["session_id", "task_id", "started_at"]
+    vals = [session_id, task_id, datetime.now(timezone.utc).isoformat()]
+    updates = []
+    for k in _SA_TEXT:
+        if k in fields and fields[k] is not None:
+            cols.append(k); vals.append(fields[k])
+            updates.append(f"{k}=COALESCE(NULLIF(excluded.{k}, ''), subagents.{k})")
+    for k in _SA_NUM:
+        if k in fields and fields[k]:
+            cols.append(k); vals.append(int(fields[k]))
+            updates.append(f"{k}=MAX(excluded.{k}, subagents.{k})")
+    placeholders = ", ".join("?" for _ in cols)
+    set_clause = ", ".join(updates) if updates else "task_id=task_id"
+    with _conn() as c:
+        c.execute(
+            f"INSERT INTO subagents ({', '.join(cols)}) VALUES ({placeholders}) "
+            f"ON CONFLICT(session_id, task_id) DO UPDATE SET {set_clause}",
+            vals,
+        )
+
+
+def get_subagents(session_id: str) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM subagents WHERE session_id = ? ORDER BY started_at ASC",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_subagent(session_id: str, task_id: str) -> dict | None:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM subagents WHERE session_id = ? AND task_id = ?",
+            (session_id, task_id),
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -> list[dict]:

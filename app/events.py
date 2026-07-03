@@ -18,6 +18,7 @@ class AgentEvent:
 # "turn_end"          — turn completed (metadata: session_id, cost_usd, input_tokens, context_pct, ok, stop_reason, ...)
 # "error"             — error message
 # "status"            — lifecycle event
-# "subagent_start"    — sub-agent spawned
-# "subagent_progress" — sub-agent working
-# "subagent_end"      — sub-agent finished
+# "subagent_start"    — sub-agent spawned    (metadata: subagent_id, phase, description, task_type, sdk_session_id, tool_use_id)
+# "subagent_progress" — sub-agent working     (metadata: + last_tool_name, total_tokens, tool_uses, duration_ms)
+# "subagent_end"      — sub-agent finished    (metadata: + status, summary, output_file, raw_json, usage)
+# "subagent_stream"   — sub-agent live text   (metadata: subagent_id) — broker only, ephemeral

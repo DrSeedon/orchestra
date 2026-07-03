@@ -241,6 +241,18 @@ class ClaudeBackend:
             raise
 
     @staticmethod
+    def _task_usage(usage) -> dict:
+        """Extract TaskUsage (total_tokens/tool_uses/duration_ms) — TypedDict or obj."""
+        if not usage:
+            return {}
+        get = usage.get if isinstance(usage, dict) else lambda k, d=0: getattr(usage, k, d)
+        return {
+            "total_tokens": get("total_tokens", 0) or 0,
+            "tool_uses": get("tool_uses", 0) or 0,
+            "duration_ms": get("duration_ms", 0) or 0,
+        }
+
+    @staticmethod
     def _tag_sub(event: AgentEvent, sub_id) -> AgentEvent:
         """Mark an event as belonging to a sub-agent so the UI nests it.
 
@@ -308,24 +320,38 @@ class ClaudeBackend:
             task_type = getattr(msg, "task_type", "") or ""
             task_id = getattr(msg, "task_id", "") or ""
             events.append(AgentEvent("subagent_start", f"{desc} | type={task_type} | id={task_id}",
-                                     metadata={"subagent_id": task_id}))
+                                     metadata={"subagent_id": task_id, "phase": "start",
+                                               "description": desc, "task_type": task_type,
+                                               "sdk_session_id": getattr(msg, "session_id", "") or "",
+                                               "tool_use_id": getattr(msg, "tool_use_id", "") or ""}))
 
         elif isinstance(msg, TaskProgressMessage):
             desc = getattr(msg, "description", "") or ""
             last_tool = getattr(msg, "last_tool_name", "") or ""
             task_id = getattr(msg, "task_id", "") or ""
-            usage = getattr(msg, "usage", None)
-            tokens = usage.total_tokens if usage and hasattr(usage, "total_tokens") else 0
-            events.append(AgentEvent("subagent_progress", f"{desc} | tool={last_tool} | tokens={tokens}",
-                                     metadata={"subagent_id": task_id}))
+            u = self._task_usage(getattr(msg, "usage", None))
+            events.append(AgentEvent("subagent_progress",
+                                     f"{desc} | tool={last_tool} | tokens={u.get('total_tokens', 0)}",
+                                     metadata={"subagent_id": task_id, "phase": "progress",
+                                               "description": desc, "last_tool_name": last_tool,
+                                               "sdk_session_id": getattr(msg, "session_id", "") or "",
+                                               **u}))
 
         elif isinstance(msg, TaskNotificationMessage):
             desc = getattr(msg, "description", "") or ""
             status = getattr(msg, "status", "") or ""
             summary = getattr(msg, "summary", "") or ""
             task_id = getattr(msg, "task_id", "") or ""
+            output_file = getattr(msg, "output_file", "") or ""
+            u = self._task_usage(getattr(msg, "usage", None))
+            data = getattr(msg, "data", None)
             events.append(AgentEvent("subagent_end", f"{desc} | status={status} | {summary[:500]}",
-                                     metadata={"subagent_id": task_id}))
+                                     metadata={"subagent_id": task_id, "phase": "end",
+                                               "description": desc, "status": status,
+                                               "summary": summary, "output_file": output_file,
+                                               "sdk_session_id": getattr(msg, "session_id", "") or "",
+                                               "raw_json": _json.dumps(data, ensure_ascii=False) if data else "",
+                                               **u}))
 
         elif isinstance(msg, ResultMessage):
             sr = getattr(msg, "stop_reason", None) or "unknown"
