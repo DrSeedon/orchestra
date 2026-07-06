@@ -76,6 +76,8 @@ sudo systemctl status orchestra
 - **Max 20x subscription ($200/мес)** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
 - API цены (для калькуляции): Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 per M tokens
 - Не паниковать от "$172 на оркестратора" — monopoly money. Оптимизировать КАЧЕСТВО, не стоимость
+- **ТОЛЬКО ПОДПИСКА. НИКАКИХ API-КЛЮЧЕЙ.** Работаем исключительно на Max подписке. ANTHROPIC_API_KEY не используем, не покупаем, не обсуждаем. На VPS — те же креды подписки (claude login). Это окончательное решение
+- **БИНАРНИКИ — КОПИРОВАТЬ, НЕ КОМПИЛИРОВАТЬ.** Если бинарник (telegram-bot-api, и т.д.) уже собран локально — `scp` на VPS. Не тратить 10+ мин на компиляцию из исходников. Локальные бинарники: `/usr/local/bin/telegram-bot-api` (x86_64, ELF)
 
 ## AI Efficiency (design principle)
 Orchestra automates humans — but the AI agents themselves must be optimized too.
@@ -258,6 +260,58 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - **Сделал → одна фраза** (что + результат). Панчлайны/таблицы/резюме — ТОЛЬКО для реального итога или решения, НЕ на рутину (спавн, merge, "жду воркера", "как вернётся покажу").
 - **Не отчитывайся о промежуточном** — "жду Codex", "воркер работает" = шум. Юзер узнает из авто-репортов/логов. Пиши когда есть РЕЗУЛЬТАТ или нужно РЕШЕНИЕ юзера.
 - Панчлайн-аналогия из глобального промпта — на ИТОГ сессии/крупное решение, не на каждый чих.
+- **ВСЕ воркеры ВСЕХ проектов — МОЯ ответственность.** Воркеры в kesha-tg-bot, polus, seedon и любом другом проекте управляются Orchestra. Баги воркеров (status-desync, зацикливание, idle-while-running) — разбираю Я, не делегирую проектному оркестратору. Проектный оркестратор (kesha-tg-bot, polus-orchestrator) — это разработчик проекта, НЕ менеджер воркеров.
+
+## Session notes (2026-07-06) — VPS deploy, model policy, frontend fixes
+
+### Model policy change
+- **Opus 4.6 RESTORED** for orchestrators (4.8 too literal, doesn't read between lines). 4.8 stays for full-cycle/reviewer workers
+- All 17 orchestrators switched to 4.6 in DB + pipeline.yaml defaults
+- orchestration.md model policy updated
+- `opus` global alias still → 4.8 (for workers), orchestrator role explicitly uses `opus4.6`
+
+### VPS Orchestra deployed (Contabo 158.220.127.161)
+- **HTTPS**: https://orchestra.seedon.ru (DNS via Selectel API, certbot Let's Encrypt, nginx reverse proxy on :443, xray moved to :2443)
+- **Auth**: admin / 4QVXIhGwlmy5qbT1BtjzJQ== (from .env)
+- **systemd**: orchestra.service + telegram-bot-api.service (both enabled)
+- **telegram-bot-api**: binary copied from laptop (`scp`, not compiled), port 8081, TG_LOCAL_API_URL in .env
+- **Firewall**: ufw — 22/80/443/8888/9443/18081, rest blocked
+- **GitHub**: full SSH access (id_ed25519_github, account-level key "orchestra-vps-contabo")
+- **sudo**: kesha NOPASSWD ALL
+- **fetch_models_from_proxy fix**: skip if no HTTPS_PROXY env (was spamming on VPS where proxy not needed)
+
+### Agent migration
+- **research-migration** worker: full research + implementation done
+- `scripts/migrate_agent.py` — SSH-driven cross-server agent migrator (DB rows + CLI transcripts + git branches + worktrees)
+- Migration feasible and near-lossless, session_id NOT machine-bound
+- VPS already authorized via `claude login` — no need to copy OAuth creds
+
+### Frontend fixes
+- **Subagent modal readable**: _subagentTitle() truncates bash, collapsibles for long content, "—" for local_bash metrics
+- **Markdown in .md preview**: _stripXmlTags before marked.parse (CommonMark HTML-block rule)
+- **Dashboard scroll P0**: html+body overflow:hidden in style.css (body alone not enough — html scrolls)
+- **prompt-blocks viewer**: base.md now captured as single file block (was split into dynamic chunks — close tag was `</rules>` 2nd, now `</communication-style>`)
+
+### SOCKS5 tunnel for TG
+- ssh_tunnel.py: added `mode=dynamic` (ssh -D = SOCKS5), 6th field in SSH_TUNNELS pipe format
+- .env: contabo-socks|12345|158.220.127.161|0||dynamic
+- proxychains4.conf: switched from Hiddify 12334 → contabo-socks 12345 (needs Orchestra restart)
+
+### Process rules added
+- **ALL workers ALL projects = MY responsibility** — don't delegate worker bugs to project orchestrators
+- **Binaries: copy, don't compile** — scp from laptop, not 10min build on VPS
+- **Only subscription, no API keys** — Max 20x only, ANTHROPIC_API_KEY forbidden, VPS uses same subscription (claude login)
+
+### Pending (next session)
+- **Restart local Orchestra** — SOCKS5 tunnel, prompt-blocks fix, models need restart
+- **status-desync bug** — still unfixed (known, deferred)
+- **Kill one-shot workers**: research-migration, research-caveman, research-fable-vs-opus, fix-cost-tokens (all done/merged)
+- **VPS Orchestra**: test https://orchestra.seedon.ru from browser, verify TG bridge with local bot-api
+
+### Active workers
+- frontend-opus, prompt-engineer, taskmanager (system, keep)
+- research-migration, research-caveman, research-fable-vs-opus, fix-cost-tokens, test-sonnet5, exp-haiku-test (one-shot done, can kill)
+- feat-self-learning, feat-streaming, refactor-tg, research-proxy (feature, idle)
 
 ## Session notes (2026-07-03) — dacha session, big refactor + fixes
 
