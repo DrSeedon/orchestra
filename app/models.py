@@ -239,6 +239,10 @@ async def refresh_models() -> None:
     """Startup helper — fetch models, enterprise-aware."""
     from app.auth import is_auth_enabled
     enterprise = is_auth_enabled()
+    has_proxy = bool(os.environ.get("HTTPS_PROXY") or os.environ.get("ANTHROPIC_BASE_URL"))
+    if not has_proxy:
+        logger.info(f"No proxy configured, using {len(MODELS)} hardcoded models")
+        return
     ok = await fetch_models_from_proxy(enterprise_mode=enterprise)
     if ok:
         logger.info(f"Models ready: {len(MODELS)} total (proxy_connected=True)")
