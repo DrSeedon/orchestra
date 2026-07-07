@@ -571,7 +571,10 @@ class AgentSession:
             # rate_limit → single retry-status log (skip raw error to avoid duplicate
             # "model error: rate_limit" + "rate limited — retry" on one event)
             if "rate_limit" in event.content:
-                if self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
+                # Session limit (5-hour quota) = don't retry, wait for reset
+                if "session limit" in event.content or "session_limit" in event.content:
+                    self._log("error", f"⏳ session limit (подписка) — ждём сброса окна. НЕ ретраим")
+                elif self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
                     self._rate_limit_retries += 1
                     delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
                     self._log("status", f"⏳ rate limit (Anthropic сервер) — повтор через {delay}s ({self._rate_limit_retries}/{self.RATE_LIMIT_MAX_RETRIES})")
@@ -693,7 +696,7 @@ class AgentSession:
         COMPACT_MAX_RETRIES = 3
         COMPACT_RETRY_DELAY = 30
         COMPACT_MIN_SUMMARY_LEN = 200
-        _GARBAGE_PATTERNS = ["rate limit", "rate_limit", "api error", "overloaded", "temporarily limiting", "server error"]
+        _GARBAGE_PATTERNS = ["rate limit", "rate_limit", "api error", "overloaded", "temporarily limiting", "server error", "session limit", "hit your session"]
 
         if self._compacting:
             return {"ok": False, "error": "compact already in progress"}
