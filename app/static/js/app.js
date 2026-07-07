@@ -5262,6 +5262,16 @@ async function loadProxyList() {
             const statusTitle = isRateLimited ? 'Rate limit (429) — проверь позже' : p.ok === true ? 'Живой' : p.ok === false ? 'Мёртвый' : 'Не проверен';
             const flag = p.flag || '🏳️';
             const location = p.city ? `${p.city}, ${p.country || ''}` : p.country || '';
+            // Ping: green <200ms, yellow 200-500ms, red >500ms or dead
+            let pingHtml = '';
+            if (p.ok === true && Number.isFinite(p.latency_ms)) {
+                const ms = p.latency_ms;
+                const pc = ms < 200 ? '#22c55e' : ms <= 500 ? '#eab308' : '#ef4444';
+                pingHtml = `<span class="text-[10px] font-mono shrink-0" style="color:${pc}" title="Пинг">${ms}ms</span>`;
+            } else if (p.ok === false) {
+                pingHtml = `<span class="text-[10px] font-mono shrink-0 text-red-400" title="Недоступен">dead</span>`;
+            }
+            const ipHtml = p.ip ? `<span class="text-[10px] text-slate-400 font-mono">${escHtml(p.ip)}</span>` : '';
             el.innerHTML = `
                 <span class="text-sm" title="${statusTitle}">${status}</span>
                 <div class="flex-1 min-w-0">
@@ -5270,10 +5280,14 @@ async function loadProxyList() {
                         <span class="proxy-name text-xs font-medium text-white truncate">${escHtml(p.name)}</span>
                         ${p.active ? '<span class="text-[9px] px-1 py-0.5 bg-indigo-500/30 text-indigo-300 rounded shrink-0">ACTIVE</span>' : ''}
                     </div>
-                    ${location ? `<div class="text-[10px] text-slate-400 truncate">${escHtml(location)}</div>` : ''}
+                    <div class="flex items-center gap-2">
+                        ${ipHtml}
+                        ${location ? `<span class="text-[10px] text-slate-500 truncate">${escHtml(location)}</span>` : ''}
+                    </div>
                     <div class="proxy-url-line text-[9px] text-slate-600 truncate cursor-pointer hidden" title="Показать URL">${escHtml(p.url)}</div>
                     ${p.error ? `<div class="text-[10px] text-red-400 truncate">${escHtml(String(p.error).slice(0, 60))}</div>` : ''}
                 </div>
+                ${pingHtml}
                 <div class="flex gap-1 shrink-0">
                     <button class="proxy-check-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300" data-id="${p.id}" title="Проверить живость">🔍</button>
                     ${!p.active ? `<button class="proxy-select-btn text-[10px] px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 rounded text-white font-medium" data-id="${p.id}" data-name="${escHtml(p.name)}" title="Выбрать этот прокси">Выбрать</button>` : ''}
