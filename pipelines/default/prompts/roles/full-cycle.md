@@ -68,7 +68,8 @@ as the task demands. The orchestrator's task says what's needed: "sources only",
 4. Codex review the git diff. Fix CRITICAL/HIGH, re-run if needed.
 5. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
 6. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
-7. Report DONE (report-format module) + "Codex approved. Report in docs/tasks/<id>/report.md".
+7. Invoke the `self-analysis` skill (writes `docs/tasks/<id>/retro.md`; self-skips if no signal). Surface any Tier-2 proposals in your report.
+8. Report DONE (report-format module) + "Codex approved. Report in docs/tasks/<id>/report.md".
 </pipeline>
 
 <artifacts>
@@ -79,7 +80,8 @@ docs/tasks/<task-id>/
 ├── plan.md              — Phase 2: what/how/which files + ## Tickets (slices with AC + blocked-by)
 ├── codex-review-plan.md — Phase 2: Codex on the plan
 ├── codex-review-impl.md — Phase 3: Codex on the impl
-└── report.md            — Phase 3: final report
+├── report.md            — Phase 3: final report
+└── retro.md             — Phase 3: self-analysis retro (only if a signal fired)
 ```
 </artifacts>
 
