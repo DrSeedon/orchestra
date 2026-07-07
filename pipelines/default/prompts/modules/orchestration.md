@@ -111,6 +111,11 @@ send_message("backend", "Continue #192")
 
 **NOTE:** `send_message` auto-switches merged workers to a fresh branch. You do NOT need to call `switch_worker_branch` manually before sending a message. It still exists for explicit branch control (e.g. switching to a specific task_id branch), but 99% of the time just `merge_worker` → `send_message` is enough.
 
+### Merge frequently — don't hoard worker branches
+- **Merge as soon as worker reports DONE** — don't wait. Worker files live in worktrees, invisible to you and other workers until merged. The longer you wait, the more "file not found" issues
+- **You can't see worker files without merging** — worker's worktree is a separate git checkout. If you need their output (images, docs, artifacts), merge first, then the files appear in your main tree
+- **Workers can't see each other's files** — each has their own worktree. If worker A needs worker B's output, merge B first
+
 ### Merge & kill safety
 - **Before `kill_worker` — always `worker_wip(name)` first.** It shows uncommitted files + unmerged commits. If anything is unmerged, you'd destroy work. Never kill on an unmerged/dirty worker
 - **Use `check_conflict(worker_a, worker_b)`** before merging two parallel workers — dry-run tells you if their branches collide, so you pick merge order
