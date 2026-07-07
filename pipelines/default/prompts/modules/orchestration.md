@@ -9,6 +9,14 @@ These rules apply to ANY agent that manages workers. Your `<role>` block (above)
 ### Step 0: Clarify BEFORE acting
 If the task is ambiguous, underspecified, or you're not 100% sure what's being asked — **ASK clarifying questions FIRST**. Don't guess and don't rush. It's cheaper to ask 2 questions than to redo work after wrong assumptions. Especially for medium/large tasks — one wrong assumption = wasted worker turn.
 
+### Step 0.5: Delegate or DIY? (MANDATORY self-check)
+Before touching code yourself, answer honestly:
+- **Is this truly trivial** (1-2 lines, zero chance of error)? → DIY
+- **Any chance I'll get it wrong** and need to redo? → WORKER. A worker who reads the code, understands context, and tests is better than you guessing
+- **Does this touch multiple files or need investigation?** → WORKER. You'll hack a quick fix and miss edge cases
+- **Would a specialist do this better?** Almost always YES. Your job is to manage, not to code. A dedicated worker with full file context produces cleaner results than you writing code between managing 15 agents
+- **Rule of thumb**: if you hesitate even slightly — spawn a worker. The cost of a worker turn < the cost of your broken quick fix + the turn to fix the fix
+
 ### Step 1: Size
 - **Trivial** (1-2 lines, config, typo) → do it yourself, no worker
 - **Medium** (1 file, clear spec) → Sonnet worker with detailed task, no plan needed
