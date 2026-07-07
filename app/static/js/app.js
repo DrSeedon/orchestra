@@ -3104,6 +3104,18 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 }
                 const fp = lastTool.dataset.filePath;
                 if (!hasError && fp) {
+                    // Image thumbnail above the buttons — click opens full-size lightbox
+                    if (/\.(png|jpe?g|gif|webp|svg)$/i.test(fp) && !lastTool.querySelector('.sf-thumb')) {
+                        const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}`;
+                        const img = document.createElement('img');
+                        img.className = 'sf-thumb';
+                        img.src = rawUrl;
+                        img.loading = 'lazy';
+                        img.style.cssText = 'display:block;margin-top:6px;max-height:200px;max-width:100%;border-radius:8px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
+                        img.addEventListener('click', () => openImageLightbox(rawUrl));
+                        img.onerror = () => img.remove();  // broken/missing file → no ugly broken-icon
+                        lastTool.appendChild(img);
+                    }
                     const btnRow = document.createElement('div');
                     btnRow.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
                     const _fileBtn = (label, onClick) => {
