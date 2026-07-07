@@ -1134,6 +1134,7 @@ async function selectAgent(name) {
     pendingBubble = null;
     _finalizedBubble = null;
     selectedAgent = name;
+    _hideRateLimitBanner();
     if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
     streamBubble = null;
     streamContent = '';
@@ -2273,8 +2274,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const rl = _parseRateLimitStatus(content);
         const badge = document.createElement('div');
         if (rl) {
-            // Rate limit: trigger the global banner (live logs only, not history replay)
-            if (!anchor) _showRateLimitBanner(selectedAgent, rl.retry, rl.max, rl.delay);
+            // Rate limit: trigger the global banner (live logs only, not history/initial replay)
+            if (!anchor && !scrollAfterLoad) _showRateLimitBanner(selectedAgent, rl.retry, rl.max, rl.delay);
             badge.className = 'text-center text-xs py-1 text-amber-400 italic';
             badge.textContent = `⏳ Rate limit — Anthropic временно ограничил запросы, повтор ${rl.retry}/${rl.max} через ${rl.delay}с (это НЕ твой лимит подписки)`;
         } else {
