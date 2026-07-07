@@ -262,6 +262,47 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Панчлайн-аналогия из глобального промпта — на ИТОГ сессии/крупное решение, не на каждый чих.
 - **ВСЕ воркеры ВСЕХ проектов — МОЯ ответственность.** Воркеры в kesha-tg-bot, polus, seedon и любом другом проекте управляются Orchestra. Баги воркеров (status-desync, зацикливание, idle-while-running) — разбираю Я, не делегирую проектному оркестратору. Проектный оркестратор (kesha-tg-bot, polus-orchestrator) — это разработчик проекта, НЕ менеджер воркеров.
 
+## Session notes (2026-07-07) — VPS finalization, frontend fixes, cleanup
+
+### VPS Orchestra finalized
+- **HTTPS**: orchestra.seedon.ru on :443 (xray moved to :2443), certbot auto-renew
+- **telegram-bot-api**: binary scp'd from laptop (NOT compiled), systemd, port 8081
+- **nginx gzip**: enabled (app.js 290KB→65KB, 10.8s→0.6s load)
+- **Orchestra-orchestrator** created with proper UUID (was NULL→persist crash loop)
+- **fetch_models_from_proxy**: skip if no HTTPS_PROXY (was spamming on VPS)
+- **Firewall**: ufw 22/80/443/8888/18081 + orchestra port opened
+- **GitHub**: account-level SSH key `id_ed25519_github`, git config DrSeedon
+- **sudo**: kesha NOPASSWD ALL
+
+### Frontend fixes merged
+- **Load 500 more** in empty chat — was gating on `firstId<=1` (global IDs), now counts initialCount vs page-size
+- **Rate-limit banner** persists on agent switch — added `_hideRateLimitBanner()` in selectAgent + skip during initial SSE batch
+- **Download/Preview** instead of "Disabled on server" — reused `/api/files/raw?download=1`, no new endpoint
+- **New Orchestrator "+"** button hidden on auth — removed enterprise guard
+- **html+body overflow hidden** — kills residual viewport scroll
+- **prompt-blocks**: base.md as single file block (was split by XML tags into dynamic chunks)
+
+### Team structure
+- `docs/team-structure.md` created — worker profiles, file map, research artifacts for VPS replication
+- frontend-opus, prompt-engineer, taskmanager profiled with accumulated knowledge
+
+### Cleanup
+- Killed 8 one-shot workers (research-*, fix-*, exp-*, test-*, feat-streaming) — all done+merged
+- Remaining: frontend-opus, prompt-engineer, taskmanager (system) + feat-self-learning, refactor-tg (feature, idle)
+
+### Known bugs (unfixed)
+- **auth-enabled hides UI** — proxy panel, profiles hidden when DASHBOARD_USER set. Need to remove enterprise guard entirely (was doing when interrupted)
+- **codex_review wrong CWD** — runs in main repo not worktree. Known, in BUGS.md twice
+- **status-desync** — worker shows idle while running (or running while idle). Known, deferred
+- **TG not working locally** — needs Orchestra restart for SOCKS5 tunnel (contabo-socks :12345 in .env, proxychains updated to 12345)
+- **Proxy check shows nothing** — needs restart for new ssh_tunnel.py code
+
+### PENDING (next session)
+- **RESTART LOCAL ORCHESTRA** — SOCKS5 tunnel, proxy check, auth-guard removal, all backend fixes. CRITICAL
+- Remove auth-enabled UI hiding (was mid-edit when context hit 97%)
+- codex_review CWD fix (mcp_stdio.py — pass worker's cwd to subprocess)
+- Push latest to VPS after restart
+
 ## Session notes (2026-07-06) — VPS deploy, model policy, frontend fixes
 
 ### Model policy change
