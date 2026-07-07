@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
             compactBtn.textContent = window.compactMode ? '📄' : '📋';
             compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
             $('#chat').innerHTML = '';
-            if (chatLogs[selectedAgent]) { chatLogs[selectedAgent].lastId = 0; chatLogs[selectedAgent].firstId = null; }
+            if (chatLogs[selectedAgent]) { chatLogs[selectedAgent].lastId = 0; chatLogs[selectedAgent].firstId = null; chatLogs[selectedAgent].initialCount = 0; }
             scrollAfterLoad = true;
             connectSSE();
         });
@@ -185,12 +185,18 @@ function connectSSE() {
             } else {
                 addChatEntry(l.type, l.content, l.ts, null, l);
             }
-            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
+            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
             // Live stream partials carry no id — skip id bookkeeping for them
             if (Number.isFinite(l.id)) {
                 if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
                 if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
                     chatLogs[selectedAgent].firstId = l.id;
+                }
+                // Count only the initial history burst (scrollAfterLoad is true during it).
+                // Load-more shows only if that burst hit the page-size cap (100) → more may exist.
+                // Log IDs are global (shared across sessions), so firstId can't tell "start of history".
+                if (scrollAfterLoad) {
+                    chatLogs[selectedAgent].initialCount++;
                     updateLoadMoreBtn();
                 }
             }
@@ -209,21 +215,26 @@ function connectSSE() {
     };
 }
 
-function updateLoadMoreBtn() {
-    const chat = $('#chat');
-    const existing = $('#load-more-btn');
-    const firstId = chatLogs[selectedAgent]?.firstId;
-    if (!firstId || firstId <= 1) {
-        if (existing) existing.remove();
-        return;
-    }
-    if (existing) return;
+const _LOAD_MORE_THRESHOLD = 100;  // matches initial history page size (connectSSE limit=100)
+function _addLoadMoreBtn() {
+    if ($('#load-more-btn')) return;
     const btn = document.createElement('div');
     btn.id = 'load-more-btn';
     btn.className = 'text-xs text-slate-500 hover:text-indigo-300 py-2 text-center cursor-pointer select-none';
     btn.textContent = '▲ Load 500 more';
     btn.addEventListener('click', loadMoreLogs);
-    chat.prepend(btn);
+    $('#chat').prepend(btn);
+}
+function updateLoadMoreBtn() {
+    // Show only if the initial burst filled the page — otherwise all history is loaded.
+    // Can't use firstId: log IDs are global, a fresh session's first id is far above 1.
+    const initialCount = chatLogs[selectedAgent]?.initialCount || 0;
+    if (initialCount < _LOAD_MORE_THRESHOLD) {
+        const existing = $('#load-more-btn');
+        if (existing) existing.remove();
+        return;
+    }
+    _addLoadMoreBtn();
 }
 
 async function loadMoreLogs() {
@@ -247,13 +258,14 @@ async function loadMoreLogs() {
         const anchor = chat.firstChild;
         for (const l of logs) {
             addChatEntry(l.type, l.content, l.ts, anchor);
-            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null };
+            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
             if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
                 chatLogs[selectedAgent].firstId = l.id;
             }
         }
         chat.scrollTop = chat.scrollHeight - oldHeight;
-        updateLoadMoreBtn();
+        // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
+        if (logs.length >= 500) _addLoadMoreBtn();
     } catch (e) {
         if (btn) { btn.textContent = '▲ Load 500 more'; btn.style.pointerEvents = ''; }
         console.warn('loadMoreLogs error:', e);
@@ -1129,7 +1141,7 @@ async function selectAgent(name) {
     streamContent = '';
     streamPending = '';
     $('#chat').innerHTML = '';
-    chatLogs[name] = { lastId: 0, firstId: null };
+    chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
     scrollAfterLoad = true;
     updateInputState();
     restoreDraft();
