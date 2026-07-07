@@ -96,8 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#restart-btn').addEventListener('click', restartServer);
     // Enterprise: remove dev-only UI before init binds event listeners
     if (document.body.dataset.authEnabled === 'true') {
-        document.getElementById('new-orch-btn')?.remove();
-        document.getElementById('new-orch-modal')?.remove();
         document.querySelector('#proxy-btn')?.parentElement?.remove();
         document.getElementById('profiles-btn')?.parentElement?.remove();
         const clientBtn = document.getElementById('client-btn');
