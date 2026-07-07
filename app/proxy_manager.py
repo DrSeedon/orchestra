@@ -9,6 +9,7 @@ edit .env + restart Orchestra.
 import asyncio
 import logging
 import os
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -96,12 +97,14 @@ class ProxyManager:
         """Two-tier: liveness via Anthropic (any HTTP response = alive), geo via
         ipinfo (best-effort — its flakiness must NOT mark a live proxy dead)."""
         proxy = entry.url if entry.url and entry.url != "direct" else None
+        t0 = time.monotonic()
         try:
             async with httpx.AsyncClient(timeout=CHECK_TIMEOUT, verify=False, proxy=proxy) as client:
                 await client.get(LIVENESS_URL)  # any response (200/401/403/404) = tunnel works
         except Exception as e:
             return {"id": entry.id, "ok": False, "error": str(e) or "unreachable"}
-        result = {"id": entry.id, "ok": True}
+        latency_ms = round((time.monotonic() - t0) * 1000)
+        result = {"id": entry.id, "ok": True, "latency_ms": latency_ms}
         try:
             result.update(await self._geo(proxy))  # best-effort, never flips ok
         except Exception:
