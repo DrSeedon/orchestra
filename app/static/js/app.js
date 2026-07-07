@@ -3108,18 +3108,26 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 }
                 const fp = lastTool.dataset.filePath;
                 if (!hasError && fp) {
-                    const openBtn = document.createElement('button');
-                    openBtn.textContent = '📂 Открыть';
-                    openBtn.style.cssText = 'margin-top:4px;padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
-                    openBtn.onmouseenter = () => { openBtn.style.borderColor = 'rgba(99,102,241,0.6)'; openBtn.style.color = '#c7d2fe'; };
-                    openBtn.onmouseleave = () => { openBtn.style.borderColor = 'rgba(99,102,241,0.3)'; openBtn.style.color = '#a5b4fc'; };
-                    openBtn.onclick = () => {
-                        fetch(`/api/open-file?path=${encodeURIComponent(fp)}`)
-                            .then(r => { if (r.status === 403) throw new Error('disabled'); if (!r.ok) throw new Error('fail'); return r.json(); })
-                            .then(() => { openBtn.textContent = '✅ Opened'; setTimeout(() => { openBtn.textContent = '📂 Открыть'; }, 1500); })
-                            .catch(e => { openBtn.textContent = e.message === 'disabled' ? '🚫 Disabled on server' : '❌ Not found'; setTimeout(() => { openBtn.textContent = '📂 Открыть'; }, 2000); });
+                    const btnRow = document.createElement('div');
+                    btnRow.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
+                    const _fileBtn = (label, onClick) => {
+                        const b = document.createElement('button');
+                        b.textContent = label;
+                        b.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
+                        b.onmouseenter = () => { b.style.borderColor = 'rgba(99,102,241,0.6)'; b.style.color = '#c7d2fe'; };
+                        b.onmouseleave = () => { b.style.borderColor = 'rgba(99,102,241,0.3)'; b.style.color = '#a5b4fc'; };
+                        b.onclick = onClick;
+                        return b;
                     };
-                    lastTool.appendChild(openBtn);
+                    btnRow.appendChild(_fileBtn('📥 Download', () => {
+                        window.open(`/api/files/raw?path=${encodeURIComponent(fp)}&download=1`, '_blank');
+                    }));
+                    if (/\.html?$/i.test(fp)) {
+                        btnRow.appendChild(_fileBtn('👁 Preview', () => {
+                            window.open(`/api/files/raw?path=${encodeURIComponent(fp)}`, '_blank');
+                        }));
+                    }
+                    lastTool.appendChild(btnRow);
                 }
                 addTimestamp(lastTool, ts);
                 return;

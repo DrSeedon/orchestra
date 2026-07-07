@@ -197,14 +197,17 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
 
 
 @router.get("/api/files/raw")
-async def get_file_raw(path: str):
+async def get_file_raw(path: str, download: bool = False):
     if not _is_safe_path(path):
         return JSONResponse({"error": "access denied"}, status_code=403)
     from starlette.responses import FileResponse
     target = Path(path)
     if not target.is_file():
         return JSONResponse({"error": "not found"}, status_code=404)
-    return FileResponse(str(target))
+    # download=1 forces a save dialog (Content-Disposition: attachment); default lets
+    # the browser render inline (used for HTML preview in a new tab).
+    filename = target.name if download else None
+    return FileResponse(str(target), filename=filename)
 
 
 @router.get("/api/files/content")
