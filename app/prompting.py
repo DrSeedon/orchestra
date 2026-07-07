@@ -180,13 +180,12 @@ def _run_as_agent(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
-def inject_skills_to_worktree(role: str, worktree_path: str) -> None:
-    """Copy role skills into worktree/.claude/skills/ as native Claude CLI skills."""
-    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
-    if not role_path.exists():
-        return
-    meta, _ = parse_role_frontmatter(role_path.read_text())
-    skill_names = meta.get("skills", [])
+def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> None:
+    """Copy resolved pipeline skills into worktree/.claude/skills/ as native Claude CLI skills.
+
+    Skills are resolved from pipeline.yaml (ResolvedRole.skills), not role-file
+    frontmatter — role bodies are frontmatter-free, so reading them yielded nothing.
+    """
     if not skill_names or not _SKILLS_DIR.is_dir():
         return
     wt = Path(worktree_path)

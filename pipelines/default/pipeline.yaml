@@ -62,7 +62,7 @@ roles:
     label: Full-Cycle
     order: 3
     model: opus4.8
-    skills: [codex-debate]
+    skills: [codex-debate, self-analysis]
     modules: [git-workflow, report-format, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: false

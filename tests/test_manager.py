@@ -186,6 +186,8 @@ class TestInjectSkillsGating:
         rr = MagicMock(skills=["foo", "bar"], is_orchestrator=False)
         inject = await self._run(mgr, tmp_path, lambda p, r: rr)
         inject.assert_called_once()
+        # resolved pipeline skills are passed through, not the role name
+        assert inject.call_args.args[0] == ["foo", "bar"]
 
     @pytest.mark.asyncio
     async def test_no_manifest_raises(self, mgr, tmp_path):
@@ -196,6 +198,30 @@ class TestInjectSkillsGating:
             raise FileNotFoundError("no manifest")
         with pytest.raises((FileNotFoundError, ValueError)):
             await self._run(mgr, tmp_path, _raise)
+
+
+class TestInjectSkillsRealCopy:
+    """T0 AC: real injector actually copies skills/<name>.md → worktree/.claude/skills/<name>/SKILL.md.
+
+    The mocked gating tests prove the resolved list is passed; this proves files land on disk.
+    """
+
+    def test_copies_pipeline_skills_to_worktree(self, tmp_path):
+        from app.prompting import inject_skills_to_worktree
+        wt = tmp_path / "wt"
+        wt.mkdir()
+        # codex-debate + self-analysis are both real files in prompts/skills/
+        inject_skills_to_worktree(["codex-debate", "self-analysis"], str(wt))
+        for name in ("codex-debate", "self-analysis"):
+            assert (wt / ".claude" / "skills" / name / "SKILL.md").is_file(), \
+                f"{name} not injected into worktree"
+
+    def test_empty_list_is_noop(self, tmp_path):
+        from app.prompting import inject_skills_to_worktree
+        wt = tmp_path / "wt"
+        wt.mkdir()
+        inject_skills_to_worktree([], str(wt))
+        assert not (wt / ".claude").exists()
 
 
 class TestResolveBaseBranch:
