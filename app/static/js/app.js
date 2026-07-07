@@ -5204,6 +5204,9 @@ async function cancelJob(id) {
 // ── Proxy Manager ──
 
 let _proxyDropdownOpen = false;
+// Backend list_proxies is read-only (no liveness) by design; check/{id} returns
+// status but doesn't persist it. Cache check results here, keyed by proxy id.
+let _proxyStatus = {};
 
 function initProxy() {
     const btn = $('#proxy-btn');
@@ -5228,7 +5231,10 @@ function initProxy() {
         try {
             const data = await (await fetch('/api/proxy/list')).json();
             const ids = (data.proxies || []).map(p => p.id);
-            await Promise.all(ids.map(id => fetch(`/api/proxy/check/${id}`, {method:'POST'})));
+            const results = await Promise.all(ids.map(id =>
+                fetch(`/api/proxy/check/${id}`, {method:'POST'}).then(r => r.json()).catch(() => ({id, ok: false, error: 'check failed'}))
+            ));
+            for (const r of results) if (r && r.id) _proxyStatus[r.id] = r;
             await loadProxyList();
         } finally { btn.textContent = 'Check All'; }
     });
@@ -5246,7 +5252,9 @@ async function loadProxyList() {
             list.innerHTML = '<div class="text-[10px] text-slate-500 text-center py-2">No proxies configured.<br>Set PROXY_LIST in .env</div>';
             return;
         }
-        for (const p of proxies) {
+        for (const rawP of proxies) {
+            // Merge cached check result (ok/ip/flag/...) — list endpoint doesn't carry it
+            const p = { ...rawP, ..._proxyStatus[rawP.id] };
             const el = document.createElement('div');
             el.className = `flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors ${p.active ? 'bg-indigo-900/40 border border-indigo-500/50' : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50'}`;
             const isRateLimited = p.ok === false && /429|rate.?limit/i.test(String(p.error || ''));
@@ -5283,7 +5291,9 @@ async function loadProxyList() {
                 e.stopPropagation();
                 b.textContent = '⏳';
                 try {
-                    await fetch(`/api/proxy/check/${b.dataset.id}`, {method:'POST'});
+                    const r = await (await fetch(`/api/proxy/check/${b.dataset.id}`, {method:'POST'})).json();
+                    if (r && r.id) _proxyStatus[r.id] = r;
+                    else _proxyStatus[b.dataset.id] = { ok: false, error: 'check failed' };
                     await loadProxyList();
                 } catch(err) { b.textContent = '❌'; }
             });
@@ -5307,8 +5317,9 @@ async function loadProxyList() {
                 }
             });
         });
-        const active = proxies.find(p => p.active);
-        if (active) {
+        const activeRaw = proxies.find(p => p.active);
+        if (activeRaw) {
+            const active = { ...activeRaw, ..._proxyStatus[activeRaw.id] };
             $('#proxy-flag').textContent = active.flag || '🌐';
             $('#proxy-ip').textContent = active.ip || '';
         }
