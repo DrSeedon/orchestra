@@ -94,17 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
     initHiddenTabsBtn();
     initDropHint();
     $('#restart-btn').addEventListener('click', restartServer);
-    // Enterprise: remove dev-only UI before init binds event listeners
-    if (document.body.dataset.authEnabled === 'true') {
-        document.querySelector('#proxy-btn')?.parentElement?.remove();
-        document.getElementById('profiles-btn')?.parentElement?.remove();
-        const clientBtn = document.getElementById('client-btn');
-        if (clientBtn) clientBtn.addEventListener('click', openClientModal);
-        const clientClose = document.getElementById('client-modal-close');
-        if (clientClose) clientClose.addEventListener('click', closeClientModal);
-        const clientModal = document.getElementById('client-modal');
-        if (clientModal) clientModal.addEventListener('click', (e) => { if (e.target === clientModal) closeClientModal(); });
-    }
+    // Client modal (available with auth)
+    const clientBtn = document.getElementById('client-btn');
+    if (clientBtn) clientBtn.addEventListener('click', openClientModal);
+    const clientClose = document.getElementById('client-modal-close');
+    if (clientClose) clientClose.addEventListener('click', closeClientModal);
+    const clientModal = document.getElementById('client-modal');
+    if (clientModal) clientModal.addEventListener('click', (e) => { if (e.target === clientModal) closeClientModal(); });
     initProxy();
     initProfilesManager();
     $('#orch-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
