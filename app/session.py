@@ -1037,6 +1037,7 @@ class AgentSession:
     def to_dict(self) -> dict:
         return {
             "id": self.id, "name": self.name, "scope": self.scope,
+            "cwd": self.cwd, "worktree_path": self.worktree_path,
             "status": self.status.value, "model": self.model,
             "cost_usd": round(self.cost_usd, 4),
             "cost_usd_cached": round(self.cost_usd_cached, 4),
