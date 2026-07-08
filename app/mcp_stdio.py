@@ -729,14 +729,14 @@ async def codex_review(
         "message": f"Codex {mode} done. Results in {output}",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
-        "timeout_seconds": 300,
+        "timeout_seconds": 600,
         "created_by": WORKER_NAME,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Error creating bg job: {result['error']}"
     job_id = result.get("id", "?")
     return (
-        f"Codex {mode} started (bg job {job_id}, 5-min timeout). "
+        f"Codex {mode} started (bg job {job_id}, 10-min timeout). "
         f"You WILL be notified on success, timeout, or failure — do NOT poll, just wait. "
         f"On success: read {output}. Do not start another codex_review until this one reports back."
     )
