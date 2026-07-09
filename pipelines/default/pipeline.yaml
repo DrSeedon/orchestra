@@ -63,7 +63,7 @@ roles:
     order: 3
     model: opus4.8
     skills: [codex-debate, self-analysis]
-    modules: [research-method, git-workflow, report-format, self-improvement]
+    modules: [research-method, divergent-thinking, git-workflow, report-format, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
