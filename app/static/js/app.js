@@ -557,9 +557,9 @@ async function openFilePreview(path) {
                 let pretty = raw;
                 try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch {}
                 contentEl.className = 'flex-1 text-xs p-4';
-                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
+                contentEl.style.cssText = 'overflow-y:auto;overflow-x:hidden;max-height:calc(80vh - 48px)';
                 const pre = document.createElement('pre');
-                pre.style.cssText = 'margin:0;background:transparent';
+                pre.style.cssText = 'margin:0;background:transparent;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word';
                 const code = document.createElement('code');
                 code.className = 'language-json';
                 code.textContent = pretty;
@@ -569,9 +569,9 @@ async function openFilePreview(path) {
                 if (window.hljs) hljs.highlightElement(code);
             } else if (LANG_MAP[ext] && window.hljs) {
                 contentEl.className = 'flex-1 text-xs p-4';
-                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px)';
+                contentEl.style.cssText = 'overflow-y:auto;overflow-x:hidden;max-height:calc(80vh - 48px)';
                 const pre = document.createElement('pre');
-                pre.style.cssText = 'margin:0;background:transparent';
+                pre.style.cssText = 'margin:0;background:transparent;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word';
                 const code = document.createElement('code');
                 code.className = `language-${LANG_MAP[ext]}`;
                 code.textContent = raw;
@@ -581,7 +581,7 @@ async function openFilePreview(path) {
                 hljs.highlightElement(code);
             } else {
                 contentEl.className = 'flex-1 text-xs p-4 text-slate-300';
-                contentEl.style.cssText = 'overflow:auto;max-height:calc(80vh - 48px);white-space:pre;word-wrap:normal';
+                contentEl.style.cssText = 'overflow-y:auto;overflow-x:hidden;max-height:calc(80vh - 48px);white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word';
                 contentEl.textContent = raw;
             }
         }
