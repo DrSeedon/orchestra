@@ -11,7 +11,7 @@ MAX_LINES_EDIT = 50
 MAX_LINES_WRITE = 30
 
 
-WRAP_COLS = 90
+WRAP_COLS = 140
 
 
 def _load_fonts():
