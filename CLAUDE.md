@@ -263,6 +263,55 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Панчлайн-аналогия из глобального промпта — на ИТОГ сессии/крупное решение, не на каждый чих.
 - **ВСЕ воркеры ВСЕХ проектов — МОЯ ответственность.** Воркеры в kesha-tg-bot, polus, seedon и любом другом проекте управляются Orchestra. Баги воркеров (status-desync, зацикливание, idle-while-running) — разбираю Я, не делегирую проектному оркестратору. Проектный оркестратор (kesha-tg-bot, polus-orchestrator) — это разработчик проекта, НЕ менеджер воркеров.
 
+## Session notes (2026-07-09) — research day, prompt modules, optimizations
+
+### New prompt modules shipped (full-cycle only)
+- **research-method** — 6-step scientific methodology (falsification, decompose-then-verify, citation discipline). From meta-research
+- **divergent-thinking** — Verbalized Sampling (Stanford): 3-5 candidates with probabilities, target tail <0.10. For ideation, NOT implementation
+- **self-analysis** — per-task retro skill (signal-anchored, Tier-1 auto / Tier-2 propose). Triggers on ≥5 files / ≥10 calls / Codex HIGH / test fail / retry≥3
+
+### Bug fixes shipped
+- **codex_review CWD** — to_dict() omitted cwd/worktree_path → codex ran in main repo. 2 lines fix
+- **session limit retry spam** — "session limit" ≠ rate_limit, was retrying infinitely. Now detects and stops
+- **auto-report skip** — user writes to worker directly → no auto-report to orchestrator (user already sees)
+- **worker cross-project isolation** — base.md: workers can't contact other orchestrators
+- **auth-guard removed** — proxy panel, profiles visible on VPS with auth enabled
+- **worktree .gitignore** — injected skills (.claude/skills/) blocked merge. Now excluded via git common-dir info/exclude
+- **spawn archived collision** — dead code in manager.py:404 fixed (delete_archived_session)
+- **CI test_list_empty** — bootstrap orchestrator broke empty-list assertion
+- **diff image wrap** — WRAP_COLS truncate→wrap, IMG_W=960, no character loss anywhere
+- **proxy check** — frontend cached check results, shows 🟢/🔴 with ping/IP/flag
+- **tinyproxy saturated** — HuggingFace spam (150+ connections) blocked, MaxClients 500
+
+### New features
+- **Cache timer pill** — 🔥/🟡/🔴/🧊 per agent, countdown from last turn, TTL=1h
+- **Image preview** — send_file with .png/.jpg shows thumbnail + lightbox
+- **Download/Preview** — replaces "Disabled on server" for file results
+- **Proxy panel** — ping latency, IP, country flag after Check
+- **Step 0.5** — mandatory delegate-or-DIY self-check in orchestrator decision tree
+- **Merge frequently rule** — worker files invisible until merged
+
+### Research completed (all in docs/tasks/)
+- **cache-optimization** — TTL=1h on Max (confirmed docs+empirics), 4.6=4.8 per unit cost, cache timer spec
+- **token-waste** — narration=11% (small), tool_result=87% (elephant=base64 images re-read 3-4×)
+- **tool-result-optimization** — 89% bytes = images. Fixes: don't re-read images, subagent for heavy exploration, grep before Read
+- **verbalized-sampling** — Stanford VS technique, works on Claude, full-cycle only
+- **meta-research** — scientific research methodology for AI agents
+- **self-analysis** — Huang trap (naive self-critique degrades), signal-anchored approach
+- **codex-audit** — awaiting results from research-codex-audit worker
+
+### PENDING (next session)
+- **Мержни research-tool-result** + kill. Add prompt rules to base.md (don't re-read images, grep before Read, heavy exploration → subagent)
+- **research-codex-audit** — still running, await results
+- **Push + restart** — cache timer backend, session limit fix, codex CWD fix all need restart
+- **VPS sync** — git pull + restart on orchestra.seedon.ru
+
+### Active workers
+- frontend-opus, prompt-engineer, taskmanager (system, keep)
+- research-codex-audit (running)
+- research-tool-result (done, merge + kill pending)
+- feat-self-learning, refactor-tg (feature, idle)
+
 ## Session notes (2026-07-07) — VPS finalization, frontend fixes, cleanup
 
 ### VPS Orchestra finalized
