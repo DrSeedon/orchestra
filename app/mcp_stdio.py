@@ -668,65 +668,195 @@ _REVIEW_CONTEXT = (
 )
 
 
+def _codex_sessions_path(output_abs: str) -> str:
+    """codex_sessions.json lives next to the review output file (per worker/task dir)."""
+    return f"{os.path.dirname(output_abs)}/codex_sessions.json"
+
+
+def _codex_slug(output: str) -> str:
+    """Slug = output filename stem. One slug = one session = one output file (matches skill)."""
+    return os.path.splitext(os.path.basename(output))[0] or "review"
+
+
+def _read_codex_uuid(sessions_path: str, slug: str) -> str:
+    """Read stored thread UUID for a slug. Empty string = no session yet."""
+    try:
+        with open(sessions_path) as f:
+            data = json.load(f)
+        return (data.get("sessions", {}).get(slug, {}) or {}).get("uuid", "") or ""
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return ""
+
+
+def _codex_persist_snippet(sessions_path: str, slug: str, jsonl: str,
+                           is_resume: bool, output_abs: str, round_tmp: str) -> str:
+    """Shell snippet: append the resumed round to the review file (history-preserving) and
+    upsert the thread UUID into codex_sessions.json. Runs AFTER codex — the bg job is a
+    detached subprocess, so Python can't capture the post-run UUID.
+
+    Exit-code safety (dash, no PIPESTATUS): the caller captures codex's real exit code to
+    /tmp before this runs; this snippet never overrides it. jq/persistence failure must not
+    mask a successful review, nor vice-versa."""
+    # resume writes ONLY the last message to round_tmp → append as a new round, never overwrite
+    # prior rounds. (Fresh/fallback runs write directly to output_abs, so round_tmp stays empty.)
+    append = (
+        f"[ -s '{round_tmp}' ] && {{ "
+        f"printf '\\n\\n## Round (%s)\\n\\n' \"$NOW\" >> '{output_abs}'; "
+        f"cat '{round_tmp}' >> '{output_abs}'; rm -f '{round_tmp}'; }};"
+    ) if is_resume else ""
+    # Always upsert the captured thread_id: same UUID on resume, a NEW one if resume fell back
+    # to a fresh session (stale-UUID recovery). One code path handles new/resume/fallback.
+    upsert = (
+        f"jq --arg s '{slug}' --arg u \"$UUID\" --arg now \"$NOW\" "
+        f"'.sessions[$s]={{uuid:$u, started:(.sessions[$s].started // $now), "
+        f"last_used:$now, turns:((.sessions[$s].turns // 0)+1)}}' "
+        f"'{sessions_path}' > '{sessions_path}.tmp' && mv '{sessions_path}.tmp' '{sessions_path}'"
+    )
+    # jq may be absent (minimal VPS) → guard the UUID upsert; the append (plain cat) is unguarded.
+    return (
+        f"; NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ); {append}"
+        f" command -v jq >/dev/null 2>&1 && {{"
+        f" [ -f '{sessions_path}' ] || echo '{{\"sessions\":{{}}}}' > '{sessions_path}';"
+        f" UUID=$(jq -R -r 'fromjson? | select(.type==\"thread.started\") | .thread_id' '{jsonl}' | tail -1);"
+        f" [ -n \"$UUID\" ] && {upsert}; }}"
+    )
+
+
 @mcp.tool()
 async def codex_review(
     target: str = "",
     output: str = "CODEX_REVIEW.md",
     context: str = "",
     mode: str = "review",
+    resume: bool = False,
 ) -> str:
     """Run Codex (GPT-5.5) cross-LLM review in background. Returns immediately, notifies when done.
     target: file path for review, or empty for git diff review.
-    output: where to write results (relative to your cwd).
+    output: where to write results (relative to your cwd). Also the session key — reuse the SAME
+        output filename to continue a debate.
     context: extra instructions for the review prompt.
-    mode: 'review' (git diff, default) or 'exec' (review specific file)."""
+    mode: 'review' (git diff, default) or 'exec' (review specific file).
+    resume: continue the previous Codex session for this output (debate round). Falls back to a
+        fresh session if none stored. On a resumed round put your counter-arguments / changelog
+        in context (e.g. 'I fixed X and Y, re-review')."""
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
     if isinstance(info, dict) and info.get("error"):
         return f"Error resolving worker cwd: {info['error']}"
     cwd = info.get("worktree_path") or info.get("cwd") or info.get("scope", SCOPE)
     output_abs = f"{cwd}/{output}" if not output.startswith("/") else output
 
-    prompt_parts = [_REVIEW_CONTEXT]
-    if context:
-        prompt_parts.append(f"Additional context: {context}\n")
-    prompt_parts.append(f"Write your review to {output}.")
-    prompt_parts.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
-    review_prompt = "\n".join(prompt_parts)
-
+    sessions_path = _codex_sessions_path(output_abs)
+    slug = _codex_slug(output)
+    jsonl_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.jsonl"
     prompt_file = f"/tmp/codex_review_{WORKER_NAME}.txt"
+    rc_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.rc"
+    # resume writes its last message here; the persist snippet appends it as a ## Round to
+    # output_abs so prior rounds are never overwritten.
+    round_tmp = f"{output_abs}.round"
+
+    prev_uuid = _read_codex_uuid(sessions_path, slug) if resume else ""
+    is_resume = bool(prev_uuid)
+    if resume and not prev_uuid:
+        logger.info(f"codex_review: resume requested but no stored session for slug={slug} → fresh")
+
+    # resume's -o must NOT point at output_abs (it would truncate history); write to round_tmp.
+    codex_out = round_tmp if is_resume else output_abs
 
     if mode == "review":
-        cmd = (
+        # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
+        # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
+        fresh_review = (
             f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
-            f" --uncommitted --skip-git-repo-check --full-auto --ephemeral"
-            f" -o {output_abs}"
+            f" --uncommitted --skip-git-repo-check --full-auto --json"
+            f" -o {codex_out}"
         )
+        if is_resume:
+            # resume inherits sandbox from original session — do NOT pass -s. Re-review the diff.
+            resume_prompt = (
+                "Re-review the current uncommitted diff (run git diff yourself). "
+                "For each prior finding: FIXED / STILL BROKEN / NEW BUG. "
+                "Output a concise re-review (Re-review status, new findings, verdict)."
+            )
+            if context:
+                resume_prompt += f"\nAuthor notes: {context}"
+            # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
+            codex = (
+                f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{resume_prompt}\nCODEX_PROMPT_EOF\n"
+                f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec resume {prev_uuid}"
+                f" --skip-git-repo-check --full-auto --json"
+                f" -o {codex_out} - < {prompt_file}"
+                f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
+            )
+        else:
+            codex = fresh_review
     elif mode == "exec":
-        if not target:
+        if not target and not is_resume:
             return "Error: target file required for mode='exec'"
         prompt_parts_exec = [_REVIEW_CONTEXT]
         if context:
             prompt_parts_exec.append(f"Additional context: {context}\n")
-        prompt_parts_exec.append(f"Review the file: {target}")
-        prompt_parts_exec.append(f"Write your findings to {output}.")
+        # Keep the target in the prompt even on resume — the stale-UUID fresh-exec fallback
+        # reuses this same prompt file and would otherwise review nothing concrete.
+        if target:
+            prompt_parts_exec.append(f"Review the file: {target}")
+        if is_resume:
+            prompt_parts_exec.append("Re-review after the author's changes above. "
+                                     "Output a concise re-review (status of prior findings, new findings, verdict).")
+        else:
+            prompt_parts_exec.append(f"Write your findings to {output}.")
         prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
         exec_prompt = "\n".join(prompt_parts_exec)
 
-        cmd = (
+        # resume inherits sandbox — do NOT pass -s; fresh exec writes with workspace-write.
+        sandbox = "" if is_resume else " -s workspace-write"
+        subcmd = f"exec resume {prev_uuid}" if is_resume else "exec"
+        codex = (
             f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{exec_prompt}\nCODEX_PROMPT_EOF\n"
-            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
-            f" -s workspace-write --skip-git-repo-check --full-auto --ephemeral"
-            f" -o {output_abs}"
-            f" - < {prompt_file}"
+            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} {subcmd}"
+            f"{sandbox} --skip-git-repo-check --full-auto --json"
+            f" -o {codex_out} - < {prompt_file}"
         )
+        if is_resume and target:
+            # Stale/invalid UUID → resume fails → fresh exec. Only when a target exists —
+            # without one the prompt has nothing concrete to review, so let resume fail loud.
+            # Writes to codex_out (=round_tmp) so the recovery is appended, not overwriting history.
+            fresh_exec = (
+                f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
+                f" -s workspace-write --skip-git-repo-check --full-auto --json"
+                f" -o {codex_out} - < {prompt_file}"
+            )
+            codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
     else:
         return f"Error: unknown mode '{mode}'. Use 'review' or 'exec'."
 
-    logger.info(f"codex_review: mode={mode} cwd={cwd} output={output_abs} cmd={cmd[:300]}")
+    # Ensure codex_sessions.json / *.round are git-ignored in THIS worktree before writing them,
+    # so they never dirty the tree / block merge_worker — regardless of how old the worktree is
+    # (create_worktree only excludes on spawn; long-lived workers need this at use-time too).
+    exclude_setup = (
+        f"cd {cwd} && GD=$(git rev-parse --git-common-dir 2>/dev/null)"
+        f" && {{ case \"$GD\" in /*) ;; *) GD=\"{cwd}/$GD\";; esac;"
+        f" mkdir -p \"$GD/info\";"
+        f" for p in 'codex_sessions.json' '*.round'; do"
+        f" grep -qxF \"$p\" \"$GD/info/exclude\" 2>/dev/null || echo \"$p\" >> \"$GD/info/exclude\";"
+        f" done; }}; "
+    )
+
+    # dash has no PIPESTATUS: capture codex's exit code, tee JSONL, then persist, then exit
+    # with codex's real code so bg-job success/failure reporting reflects the review, not jq.
+    persist = _codex_persist_snippet(sessions_path, slug, jsonl_file, is_resume, output_abs, round_tmp)
+    cmd = (
+        f"{exclude_setup}"
+        f"{{ {codex} ; echo $? > {rc_file} ; }} | tee {jsonl_file}"
+        f"{persist}"
+        f"; exit $(cat {rc_file} 2>/dev/null || echo 1)"
+    )
+
+    action = "resume" if is_resume else mode
+    logger.info(f"codex_review: mode={mode} resume={is_resume} slug={slug} cwd={cwd} output={output_abs}")
     result = await _api("POST", "/api/bg/jobs", json={
         "type": "run",
         "config": {"command": cmd},
-        "message": f"Codex {mode} done. Results in {output}",
+        "message": f"Codex {action} done. Results in {output}",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
         "timeout_seconds": 600,
@@ -735,10 +865,12 @@ async def codex_review(
     if isinstance(result, dict) and result.get("error"):
         return f"Error creating bg job: {result['error']}"
     job_id = result.get("id", "?")
+    resumed_note = f" (resumed session {prev_uuid[:8]})" if is_resume else ""
     return (
-        f"Codex {mode} started (bg job {job_id}, 10-min timeout). "
+        f"Codex {action} started{resumed_note} (bg job {job_id}, 10-min timeout). "
         f"You WILL be notified on success, timeout, or failure — do NOT poll, just wait. "
-        f"On success: read {output}. Do not start another codex_review until this one reports back."
+        f"On success: read {output}. To continue this debate, call codex_review again with the "
+        f"SAME output and resume=True. Do not start another codex_review until this one reports back."
     )
 
 

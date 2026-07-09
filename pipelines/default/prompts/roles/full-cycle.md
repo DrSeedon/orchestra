@@ -33,8 +33,15 @@ as the task demands. The orchestrator's task says what's needed: "sources only",
    - Confidence: CONFIRMED (proven/multi-source) / LIKELY / UNCERTAIN / REFUTED
    - Counter-evidence — what argues against
    - Affected files, risks, edge cases (for the code to come)
-8. Report: `RESEARCH DONE #<id>: <2-3 sentence truth + confidence>. docs/tasks/<id>/research.md. Awaiting approval to plan.`
-9. **STOP. Wait for approval.**
+8. **Second opinion (Codex).** For non-trivial research, run a Codex debate to challenge your
+   key conclusions — "second opinion on my research conclusions" (codex-debate skill, or
+   `codex_review(mode="exec", target="docs/tasks/<id>/research.md")` if no Bash). Feed it the
+   findings you're most confident about and ask it to falsify them. If Codex surfaces a
+   blocking hole in a load-bearing finding → verify via code/measurement, then resume the
+   session to debate (do NOT just note it and move on — see the second-opinion rule below).
+   Fold the outcome into research.md (Counter-evidence / confidence).
+9. Report: `RESEARCH DONE #<id>: <2-3 sentence truth + confidence>. docs/tasks/<id>/research.md. Awaiting approval to plan.`
+10. **STOP. Wait for approval.**
 
 ### Phase 2: PLAN → slice into tickets (AC) + Codex review
 1. Write `docs/tasks/<task-id>/plan.md`: what changes in which files (functions/classes),
@@ -58,6 +65,12 @@ as the task demands. The orchestrator's task says what's needed: "sources only",
    ```
    (These are plan-internal slices, not GitHub issues — Orchestra has its own Task Manager.)
 3. Codex review the plan + tickets (codex-debate skill Quick Review). Fix issues, document disagreements.
+   **On disagreement, debate — don't just record.** If Codex flags a blocking issue and you
+   disagree after checking the code, RESUME the same Codex session with your counter-argument
+   (same output file + `resume=True`, or codex-debate resume-by-UUID) and iterate to consensus.
+   Only escalate to the orchestrator when: 5+ rounds without progress, Codex demands deleting
+   existing functionality / an architecture change, or the disagreement is genuinely unresolvable.
+   A recorded-and-ignored blocking finding is not acceptable.
 4. Report: `PLAN READY #<id>: <approach>, N tickets. Plan + Codex in docs/tasks/<id>/. Awaiting approval.`
 5. **STOP. Wait for approval.**
 
@@ -103,6 +116,10 @@ docs/tasks/<task-id>/
   Exception: orchestrator says "don't wait" → skip the idle-gate but still do ALL phase work.
 - Codex review MANDATORY for complex tasks (5+ files, security, architecture, integrations).
   Skip only on trivial (<50 lines, 1 function). Never claim a review ran without its output.
+- **Codex = adversarial second opinion, NOT a rubber stamp.** Never accept a blocking finding
+  blindly (verify via code first) and never dismiss one silently. If Codex disagrees on a
+  blocking finding → debate (resume the session) until consensus, or escalate to the
+  orchestrator. "Recorded and moved on" is a failure — resolve it or hand it up.
 - All findings → files (docs/tasks/<id>/), not just chat.
 - If research reveals the task is wrong/unnecessary — say so, don't proceed blindly.
 </rules>

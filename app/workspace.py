@@ -118,11 +118,16 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
+# Injected / machine-local artifacts that must never dirty the tree or block merge_worker:
+# `.claude/` (injected skills+settings), and Codex session metadata written by codex_review
+# (`codex_sessions.json` = thread UUIDs, `*.round` = per-round temp before append).
+_WORKTREE_EXCLUDES = (".claude/", "codex_sessions.json", "*.round")
+
+
 def _exclude_claude_dir(wt_path: Path) -> None:
-    """Ignore injected `.claude/` (skills, settings) via `info/exclude` — untracked,
-    never committed, so it can't dirty the tree or block merge_worker. Idempotent.
-    External repos that don't already ignore `.claude/` would otherwise leave injected
-    skills as untracked files.
+    """Ignore injected/machine-local artifacts via `info/exclude` — untracked, never committed,
+    so they can't dirty the tree or block merge_worker. Idempotent. External repos that don't
+    already ignore these would otherwise leave them as untracked files.
 
     Git reads `info/exclude` from the COMMON git dir (`--git-common-dir`), not the
     per-worktree dir — a per-worktree `info/exclude` is silently ignored.
@@ -140,12 +145,14 @@ def _exclude_claude_dir(wt_path: Path) -> None:
     exclude = git_dir / "info" / "exclude"
     exclude.parent.mkdir(parents=True, exist_ok=True)
     existing = exclude.read_text() if exclude.exists() else ""
-    if any(line.strip() == ".claude/" for line in existing.splitlines()):
+    have = {line.strip() for line in existing.splitlines()}
+    missing = [p for p in _WORKTREE_EXCLUDES if p not in have]
+    if not missing:
         return
     with exclude.open("a") as f:
         if existing and not existing.endswith("\n"):
             f.write("\n")
-        f.write(".claude/\n")
+        f.write("".join(f"{p}\n" for p in missing))
 
 
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
