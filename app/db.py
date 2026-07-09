@@ -675,6 +675,19 @@ def delete_session(session_id: str) -> None:
         c.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
 
 
+def delete_archived_session(name: str, scope: str) -> None:
+    """Free the UNIQUE(name, scope) slot held by an archived row before re-spawn.
+
+    get_session_by_name filters archived out, so the archived row is invisible to
+    callers — this deletes it explicitly (name+scope scoped, never name-only).
+    """
+    with _conn() as c:
+        c.execute(
+            "DELETE FROM sessions WHERE name=? AND scope=? AND status='archived'",
+            (name, scope),
+        )
+
+
 def archive_session(session_id: str) -> None:
     with _conn() as c:
         c.execute(

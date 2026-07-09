@@ -121,6 +121,43 @@ class TestUniqueness:
         assert get_session(other["id"]) is not None
 
 
+class TestDeleteArchivedSession:
+    def test_frees_slot_for_respawn(self, db, sample_session):
+        """kill (archive) → re-spawn same name+scope must not hit UNIQUE(name,scope)."""
+        from app.db import (
+            save_session, archive_session, delete_archived_session, get_session_by_name,
+        )
+        save_session(sample_session)
+        archive_session(sample_session["id"])
+        # archived row is invisible to get_session_by_name but still holds the slot
+        assert get_session_by_name("worker-1", sample_session["scope"]) is None
+        delete_archived_session("worker-1", sample_session["scope"])
+        respawn = {**sample_session, "id": "different-uuid", "status": "starting"}
+        save_session(respawn)  # must not raise IntegrityError
+        got = get_session_by_name("worker-1", sample_session["scope"])
+        assert got["id"] == "different-uuid"
+
+    def test_scope_isolated(self, db, sample_session):
+        """Cleanup for one scope must not delete archived rows in another scope."""
+        from app.db import save_session, archive_session, delete_archived_session, _conn
+        other = {**sample_session, "id": "other-uuid", "scope": "/other/project"}
+        save_session(other)
+        archive_session(other["id"])
+        delete_archived_session("worker-1", sample_session["scope"])  # different scope
+        with _conn() as c:
+            n = c.execute(
+                "SELECT count(*) FROM sessions WHERE id=?", (other["id"],)
+            ).fetchone()[0]
+        assert n == 1
+
+    def test_noop_when_no_archived(self, db, sample_session):
+        """No archived row → no-op, live row untouched."""
+        from app.db import save_session, delete_archived_session, get_session
+        save_session(sample_session)
+        delete_archived_session("worker-1", sample_session["scope"])
+        assert get_session(sample_session["id"]) is not None
+
+
 class TestUpsert:
     def test_updates_mutable_fields(self, db, sample_session):
         from app.db import save_session, get_session
