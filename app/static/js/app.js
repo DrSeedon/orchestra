@@ -138,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilePreviewModal();
     initUsageBar();
     initHeartbeat();
+    _startCacheCountdown();
 });
 
 let eventSource = null;
@@ -1411,6 +1412,61 @@ function renderAgentList(sessions) {
 let _roleIcons = {'orchestrator':'👑','worker':'⚙️','full-cycle':'🔄','sub-orchestrator':'🎯','reviewer':'🔍','watcher':'👁️'};
 fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,...d}}).catch(()=>{});
 
+// Cache timer pill — Anthropic prompt cache stays warm CACHE_TTL after last turn.
+// Warm resume = cheap; after eviction next turn is ~20× costlier.
+function _cachePill(s) {
+    const isDead = s.status === 'stopped' || s.status === 'error' || s.status === 'archived';
+    if (isDead) return null;
+    const running = s.status === 'running' || s.status === 'starting';
+    const ttl = (s.cache_ttl_seconds || 3600) * 1000;
+    let expiresAt = null;
+    if (!running) {
+        if (!s.last_turn_ts) return null;  // never ran a turn → no cache to time
+        expiresAt = new Date(s.last_turn_ts).getTime() + ttl;
+    }
+    const pill = document.createElement('span');
+    pill.className = 'cache-pill';
+    if (running) {
+        pill.dataset.cacheRunning = '1';
+    } else {
+        pill.dataset.cacheExpires = String(expiresAt);
+    }
+    _renderCachePill(pill);
+    return pill;
+}
+
+function _renderCachePill(pill) {
+    const running = pill.dataset.cacheRunning === '1';
+    let tier, label, color;
+    if (running) {
+        tier = 'hot'; label = '🔥 hot'; color = '#22c55e';
+        pill.title = 'Running — cache refreshes every turn.';
+    } else {
+        const remMs = Number(pill.dataset.cacheExpires) - Date.now();
+        const remMin = Math.floor(remMs / 60000);
+        if (remMin <= 0) {
+            tier = 'cold'; label = '🧊 cold'; color = '#64748b';
+            pill.title = 'Cache expired. Next turn re-warms the full prompt (~20× more expensive).';
+        } else {
+            if (remMin > 30) { tier = 'hot'; label = `🔥 hot ${remMin}m`; color = '#22c55e'; }
+            else if (remMin >= 12) { tier = 'warm'; label = `🟡 warm ${remMin}m`; color = '#eab308'; }
+            else { tier = 'cooling'; label = `🔴 cooling ${remMin}m`; color = '#ef4444'; }
+            pill.title = `Cache warm for ${remMin} more min. Resuming now = cheap. After eviction, next turn ~20× more expensive.`;
+        }
+    }
+    pill.textContent = label;
+    pill.style.color = color;
+    pill.dataset.tier = tier;
+}
+
+// Client-side countdown — re-render all pills every 30s without re-polling
+function _startCacheCountdown() {
+    if (window._cacheTimer) return;
+    window._cacheTimer = setInterval(() => {
+        document.querySelectorAll('.cache-pill[data-cache-expires]').forEach(_renderCachePill);
+    }, 30000);
+}
+
 function createAgentItem(s) {
     const isSelected = s.name === selectedAgent;
     const isDead = s.status === 'stopped' || s.status === 'error';
@@ -1462,6 +1518,9 @@ function createAgentItem(s) {
     }
 
     info.append(nameRow, meta);
+
+    const pill = _cachePill(s);
+    if (pill) { const row = document.createElement('div'); row.className = 'mt-0.5'; row.appendChild(pill); info.appendChild(row); }
 
     const pct = s.context_pct || 0;
     if (pct > 0) {

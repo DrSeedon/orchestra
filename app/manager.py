@@ -40,6 +40,9 @@ from app.db import (
 
 logger = logging.getLogger(__name__)
 
+# Anthropic prompt cache TTL — warm cache = cheap resume, eviction = ~20× costlier turn
+CACHE_TTL_SECONDS = 3600
+
 from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD  # noqa: F401 — re-exported for callers
 
 COLOR_PALETTE = [
@@ -1059,6 +1062,7 @@ class SessionManager:
     # ── Listings ──
 
     def list_sessions(self, scope: str | None = None) -> list[dict]:
+        from app.db import get_last_turn_map
         result = []
         seen = set()
         for s in self.sessions.values():
@@ -1068,6 +1072,11 @@ class SessionManager:
         for row in get_all_sessions(scope):
             if row["id"] not in seen:
                 result.append(row)
+        # Cache-timer: last 'turn ended' ts per session (prompt cache warm CACHE_TTL after it)
+        turn_map = get_last_turn_map()
+        for r in result:
+            r["last_turn_ts"] = turn_map.get(r["id"])
+            r["cache_ttl_seconds"] = CACHE_TTL_SECONDS
         return result
 
     def get_session_id(self, name: str, scope: str) -> str | None:
