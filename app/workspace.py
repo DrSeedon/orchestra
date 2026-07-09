@@ -118,6 +118,36 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
+def _exclude_claude_dir(wt_path: Path) -> None:
+    """Ignore injected `.claude/` (skills, settings) via `info/exclude` — untracked,
+    never committed, so it can't dirty the tree or block merge_worker. Idempotent.
+    External repos that don't already ignore `.claude/` would otherwise leave injected
+    skills as untracked files.
+
+    Git reads `info/exclude` from the COMMON git dir (`--git-common-dir`), not the
+    per-worktree dir — a per-worktree `info/exclude` is silently ignored.
+    """
+    gd = _git_cmd(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=str(wt_path), capture_output=True, text=True,
+    )
+    if gd.returncode != 0:
+        logger.warning(f"could not locate git-common-dir for {wt_path}: {gd.stderr.strip()}")
+        return
+    git_dir = Path(gd.stdout.strip())
+    if not git_dir.is_absolute():
+        git_dir = (wt_path / git_dir).resolve()
+    exclude = git_dir / "info" / "exclude"
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    existing = exclude.read_text() if exclude.exists() else ""
+    if any(line.strip() == ".claude/" for line in existing.splitlines()):
+        return
+    with exclude.open("a") as f:
+        if existing and not existing.endswith("\n"):
+            f.write("\n")
+        f.write(".claude/\n")
+
+
 def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
                     base_branch: str = "main",
                     worktree_cfg: "WorktreeCfg | None" = None) -> Worktree:
@@ -168,6 +198,8 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
         )
     if result.returncode != 0:
         raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
+
+    _exclude_claude_dir(wt_path)
 
     # worktree_cfg задан → правила манифеста (copies + symlinks) и ТОЛЬКО они.
     # None → upstream-fallback: хардкод PROJECT_FILES, симлинков нет.

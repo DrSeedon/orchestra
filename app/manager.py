@@ -35,7 +35,7 @@ from app.pipeline import (
 )
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
-    delete_session, archive_session, get_stats,
+    delete_session, delete_archived_session, archive_session, get_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -394,14 +394,13 @@ class SessionManager:
         if not Path(cwd).is_dir():
             raise ValueError(f"cwd does not exist: {cwd}")
         existing = get_session_by_name(name, scope)
-        if existing and existing.get("status") != "archived":
+        if existing:
             st = existing.get("status", "?")
             ctx = existing.get("context_pct", 0) or 0
             raise ValueError(f"worker '{name}' already exists ({st}, ctx:{ctx}%). Use send_message instead")
-        # Archived row still holds UNIQUE(name, scope) → INSERT would IntegrityError.
-        # Free the name by deleting the archived record (its logs cascade — it's gone anyway).
-        if existing and existing.get("status") == "archived":
-            delete_session(existing["id"])
+        # An archived row still holds UNIQUE(name, scope) but get_session_by_name hides it →
+        # INSERT would IntegrityError. Free the slot (its logs cascade — it's gone anyway).
+        delete_archived_session(name, scope)
 
         # Явно ли указана роль: генерик-воркер (role не задан) валидируется как
         # unrouted (child_role="") — им управляет allow_unrouted_workers родителя.

@@ -75,6 +75,30 @@ class TestCreateWorktree:
         with pytest.raises(ValueError, match="already exists"):
             create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
 
+    def test_injected_claude_dir_not_dirty(self, git_repo, wt_root):
+        """create_worktree excludes `.claude/` → injected skills don't dirty the tree
+        or block merge (repo has no `.claude/` in .gitignore = external-repo case)."""
+        from app.workspace import create_worktree
+        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        wt_path = Path(wt.path)
+        (wt_path / ".claude" / "skills" / "foo").mkdir(parents=True)
+        (wt_path / ".claude" / "skills" / "foo" / "SKILL.md").write_text("x")
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt_path, capture_output=True, text=True,
+        )
+        assert status.stdout.strip() == ""
+
+    def test_exclude_claude_dir_idempotent(self, git_repo, wt_root):
+        from app.workspace import create_worktree, _exclude_claude_dir
+        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        _exclude_claude_dir(Path(wt.path))  # second call (create already ran it once)
+        common = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=wt.path, capture_output=True, text=True,
+        ).stdout.strip()
+        exclude = (Path(wt.path) / common / "info" / "exclude").resolve()
+        assert exclude.read_text().count(".claude/") == 1
+
     def test_bad_repo_raises(self, wt_root):
         from app.workspace import create_worktree
         with pytest.raises(ValueError, match="does not exist"):
