@@ -135,6 +135,7 @@ send_message("backend", "Continue #192")
 - **Clear spec, known files** → system worker or Sonnet disposable
 - **Never give research to Sonnet** — they cut corners and miss edge cases
 - **Don't spawn new if system worker can do it** — but reuse an **idle** worker, never dump new work on a **running** one (see below)
+- **REUSE idle workers with warm cache** — cold start costs 17.5× more than a cached turn. If a worker just finished a related task and is idle with warm cache (<1h since last turn), send them the next task instead of spawning a new worker. Kill + respawn = throwing away expensive cached context for nothing
 
 ### One task = one active worker
 - **New independent task arrives while a worker is RUNNING** → spawn a NEW worker or wait for the current one to go idle. Do NOT queue the new task onto the running worker ("do it after the current one").
