@@ -159,3 +159,4 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .sa-details summary::-webkit-details-marker { display: none; }
 .sa-details[open] > summary { color: #64748b; }
 .sa-details[open] > summary > span { display: none; }
+.cache-pill { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 9999px; background: rgba(30,41,59,0.6); border: 1px solid rgba(51,65,85,0.5); cursor: help; white-space: nowrap; line-height: 1.4; }

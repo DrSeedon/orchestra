@@ -665,6 +665,17 @@ def get_all_sessions(scope: str | None = None, include_archived: bool = False) -
         return [dict(r) for r in rows]
 
 
+def get_last_turn_map() -> dict[str, str]:
+    """{session_id: last 'turn ended' log ts} for cache-timer display. One query."""
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT session_id, MAX(ts) AS last_ts FROM logs "
+            "WHERE type='status' AND content LIKE 'turn ended%' "
+            "GROUP BY session_id"
+        ).fetchall()
+        return {r["session_id"]: r["last_ts"] for r in rows}
+
+
 def rename_session(session_id: str, new_name: str) -> None:
     with _conn() as c:
         c.execute("UPDATE sessions SET name = ? WHERE id = ?", (new_name, session_id))
