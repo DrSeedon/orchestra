@@ -1414,6 +1414,10 @@ fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,..
 
 // Cache timer pill — Anthropic prompt cache stays warm CACHE_TTL after last turn.
 // Warm resume = cheap; after eviction next turn is ~20× costlier.
+function _shortModel(m) {
+    return m.replace('claude-', '').replace('[1m]', '').replace('-1m', '');
+}
+
 function _cachePill(s) {
     const isDead = s.status === 'stopped' || s.status === 'error' || s.status === 'archived';
     if (isDead) return null;
@@ -1505,20 +1509,21 @@ function createAgentItem(s) {
     nameRow.append(nameEl, statusEl);
 
     const meta = document.createElement('div');
-    meta.className = 'text-xs text-slate-600 mt-0.5 flex justify-between';
+    meta.className = 'text-xs text-slate-600 mt-0.5 flex items-center gap-1';
+    const pill = _cachePill(s);
+    if (pill) meta.appendChild(pill);
     const modelSpan = document.createElement('span');
-    modelSpan.textContent = s.model || '';
+    modelSpan.textContent = _shortModel(s.model || '');
+    modelSpan.title = s.model || '';
     meta.appendChild(modelSpan);
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
         costSpan.className = 'text-green-400';
+        costSpan.style.marginLeft = 'auto';
         costSpan.textContent = fmtCost(s.cost_usd);
         costSpan.title = fmtCost(s.cost_usd);
         meta.appendChild(costSpan);
     }
-
-    const pill = _cachePill(s);
-    if (pill) { pill.style.marginLeft = '6px'; meta.appendChild(pill); }
 
     info.append(nameRow, meta);
 
