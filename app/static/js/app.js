@@ -1,6 +1,11 @@
 // Cap DOM nodes to avoid memory growth during long agent sessions
 const MAX_CHAT_NODES = 500;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return '$0.00'; if (v < 0.01) return '$' + v.toFixed(4); return '$' + v.toFixed(2); }
+const _MODEL_COLORS = {
+    'claude-opus-4-8[1m]': '#c084fc', 'claude-opus-4-6[1m]': '#a78bfa',
+    'claude-sonnet-5[1m]': '#38bdf8', 'claude-haiku-4-5': '#4ade80',
+    'claude-fable-5[1m]': '#fb923c', 'gpt-5.5': '#f472b6', 'gpt-5.4': '#f472b6',
+};
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
@@ -778,6 +783,22 @@ function renderOrchTabs(sorted) {
         const shortName = o.name.replace(/-orchestrator$/, '');
         label.textContent = shortName;
         tab.append(dot, label);
+        // Cache indicator on orch tab — only show if hot/warm (cold = default, no clutter)
+        if (o.last_turn_ts) {
+            const ttl = (o.cache_ttl_seconds || 3600) * 1000;
+            const remMs = (o.status === 'running') ? ttl : new Date(o.last_turn_ts).getTime() + ttl - Date.now();
+            const remMin = Math.floor(remMs / 60000);
+            if (remMin > 0) {
+                const ce = document.createElement('span');
+                ce.style.cssText = 'font-size:9px;margin-left:3px;vertical-align:middle';
+                if (o.status === 'running') { ce.textContent = '🔥'; }
+                else if (remMin > 30) { ce.textContent = '🔥'; }
+                else if (remMin >= 12) { ce.textContent = '🟡'; }
+                else { ce.textContent = '🔴'; }
+                ce.title = `Cache ${remMin}m`;
+                tab.appendChild(ce);
+            }
+        }
         tab.title = o.scope;
         tab.style.position = 'relative';
         if (_unreadTabs.has(o.scope)) {
@@ -1513,8 +1534,10 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     const modelSpan = document.createElement('span');
+    const mc = _MODEL_COLORS[s.model] || '#94a3b8';
     modelSpan.textContent = _shortModel(s.model || '');
     modelSpan.title = s.model || '';
+    modelSpan.style.cssText = `color:${mc};border:1px solid ${mc}44;padding:0 4px;border-radius:4px;font-size:10px`;
     meta.appendChild(modelSpan);
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
