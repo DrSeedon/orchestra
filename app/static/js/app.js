@@ -4738,7 +4738,12 @@ function _renderAnalyticsBody(body, stats, daily, agents, usage) {
     // Render chart
     const labels = dailyData.map(d => d.day.slice(5));
     const costs = dailyData.map(d => d.cost_usd || 0);
-    const turns = dailyData.map(d => d.turns || 0);
+    const coldStarts = dailyData.map(d => d.cold_starts || 0);
+    const hitPct = dailyData.map(d => d.cache_hit_pct);  // null on days with no gap-turns
+    // Color the hit-rate line by its period average: green >90, yellow 70-90, red <70
+    const hitVals = hitPct.filter(v => v != null);
+    const avgHit = hitVals.length ? hitVals.reduce((a, b) => a + b, 0) / hitVals.length : 100;
+    const hitColor = avgHit > 90 ? '#22c55e' : avgHit >= 70 ? '#eab308' : '#ef4444';
     if (labels.length > 0 && typeof Chart !== 'undefined') {
         const ctx = document.getElementById('analytics-chart');
         if (ctx) {
@@ -4748,8 +4753,9 @@ function _renderAnalyticsBody(body, stats, daily, agents, usage) {
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Cost ($)', data: costs, backgroundColor: 'rgba(99,102,241,0.6)', borderColor: '#6366f1', borderWidth: 1, yAxisID: 'y', order: 2 },
-                        { label: 'Turns', data: turns, type: 'line', borderColor: '#22c55e', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y1', order: 1 },
+                        { label: 'Cost ($)', data: costs, backgroundColor: 'rgba(99,102,241,0.6)', borderColor: '#6366f1', borderWidth: 1, yAxisID: 'y', order: 3 },
+                        { label: 'Cold starts', data: coldStarts, backgroundColor: 'rgba(56,189,248,0.55)', borderColor: '#38bdf8', borderWidth: 1, yAxisID: 'yCold', order: 2 },
+                        { label: 'Cache hit %', data: hitPct, type: 'line', borderColor: hitColor, backgroundColor: hitColor, borderWidth: 2, pointRadius: 2, tension: 0.3, yAxisID: 'y1', order: 1, spanGaps: true },
                     ],
                 },
                 options: {
@@ -4757,12 +4763,14 @@ function _renderAnalyticsBody(body, stats, daily, agents, usage) {
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { labels: { color: '#94a3b8', font: { size: 10 } } },
-                        tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', borderColor: '#334155', borderWidth: 1, titleColor: '#e2e8f0', bodyColor: '#94a3b8' },
+                        tooltip: { backgroundColor: 'rgba(15,23,42,0.95)', borderColor: '#334155', borderWidth: 1, titleColor: '#e2e8f0', bodyColor: '#94a3b8',
+                            callbacks: { label: (c) => c.dataset.label === 'Cache hit %' ? `Cache hit %: ${c.raw == null ? 'n/a' : c.raw + '%'}` : `${c.dataset.label}: ${c.raw}` } },
                     },
                     scales: {
                         x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(51,65,85,0.3)' } },
                         y: { position: 'left', title: { display: true, text: 'Cost ($)', color: '#94a3b8', font: { size: 10 } }, ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(51,65,85,0.3)' } },
-                        y1: { position: 'right', title: { display: true, text: 'Turns', color: '#22c55e', font: { size: 10 } }, ticks: { color: '#22c55e', font: { size: 9 } }, grid: { drawOnChartArea: false } },
+                        yCold: { position: 'left', display: false, beginAtZero: true },  // hidden scale — keeps cold bars readable without a 3rd axis label
+                        y1: { position: 'right', min: 0, max: 100, title: { display: true, text: 'Cache hit %', color: hitColor, font: { size: 10 } }, ticks: { color: hitColor, font: { size: 9 }, callback: (v) => v + '%' }, grid: { drawOnChartArea: false } },
                     },
                 },
             });

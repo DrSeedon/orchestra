@@ -591,10 +591,16 @@ async def usage_history(hours: int = 24):
 
 @router.get("/api/usage/daily")
 async def usage_daily(days: int = 30):
-    """Daily cost breakdown from turn-end logs."""
+    """Daily cost + cache stats from turn-end logs.
+
+    cold_starts/cache_hit_pct per day: a turn is a cold start when >3600s passed
+    since the same agent's previous turn (prompt cache, 1h TTL, evicted → full
+    re-warm ~20× costlier). First turn per agent has no prev → excluded.
+    """
     from app.db import _conn
     c = _conn()
-    rows = c.execute("""
+    since = f"-{days} days"
+    cost_rows = c.execute("""
         SELECT date(l.ts) as day,
           COUNT(*) as turns,
           ROUND(SUM(CAST(SUBSTR(l.content, INSTR(l.content, '$') + 1,
@@ -604,9 +610,31 @@ async def usage_daily(days: int = 30):
           AND date(l.ts) >= date('now', ?)
         GROUP BY date(l.ts)
         ORDER BY day
-    """, (f"-{days} days",)).fetchall()
+    """, (since,)).fetchall()
+    cache_rows = c.execute("""
+        WITH turns AS (
+            SELECT ts, date(ts) AS day,
+                   LAG(ts) OVER (PARTITION BY session_id ORDER BY ts) AS prev_ts
+            FROM logs
+            WHERE type='status' AND content LIKE '%turn ended%'
+              AND date(ts) >= date('now', ?)
+        )
+        SELECT day,
+               COUNT(*) FILTER (WHERE prev_ts IS NOT NULL) AS gap_turns,
+               COUNT(*) FILTER (WHERE prev_ts IS NOT NULL
+                   AND (julianday(ts) - julianday(prev_ts)) * 86400 > 3600) AS cold
+        FROM turns GROUP BY day
+    """, (since,)).fetchall()
+    cache_by_day = {r[0]: (r[1] or 0, r[2] or 0) for r in cache_rows}
     c.close()
-    return [{"day": r[0], "turns": r[1], "cost_usd": r[2]} for r in rows]
+    out = []
+    for r in cost_rows:
+        day = r[0]
+        gap, cold = cache_by_day.get(day, (0, 0))
+        hit_pct = round((gap - cold) / gap * 100) if gap else None
+        out.append({"day": day, "turns": r[1], "cost_usd": r[2],
+                    "cold_starts": cold, "cache_hit_pct": hit_pct})
+    return out
 
 
 @router.get("/api/usage/daily/agents")
