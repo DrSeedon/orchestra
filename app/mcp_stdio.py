@@ -181,6 +181,30 @@ async def send_message(to: str, message: str) -> str:
 _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
 
+def _cache_pill(s: dict) -> str:
+    """Prompt-cache warmth as a short pill. Warm resume = cheap; after eviction
+    the next turn re-warms the full prompt (~20× costlier)."""
+    from datetime import datetime, timezone
+    if s.get("status") in ("running", "starting"):
+        return "🔥 hot"
+    ts = s.get("last_turn_ts")
+    if not ts:
+        return ""
+    try:
+        last = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return ""
+    ttl = s.get("cache_ttl_seconds") or 3600
+    rem_min = int((last.timestamp() + ttl - datetime.now(timezone.utc).timestamp()) // 60)
+    if rem_min <= 0:
+        return "🧊 cold"
+    if rem_min > 30:
+        return f"🔥 hot {rem_min}m"
+    if rem_min >= 12:
+        return f"🟡 warm {rem_min}m"
+    return f"🔴 cooling {rem_min}m"
+
+
 @mcp.tool()
 async def list_agents() -> str:
     """List all agents in your project (orchestrators and workers)."""
@@ -198,13 +222,15 @@ async def list_agents() -> str:
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
+        cache = _cache_pill(s)
+        cache_str = f" | {cache}" if cache else ""
         task = s.get('task_id', '')
         task_str = f" | {task}" if task else ""
         desc = s.get('description', '')
         desc_str = f' | "{desc}"' if desc else ""
         owner = s.get('parent_name', '')
         owner_str = f" | owner: {owner}" if show_owner and owner else ""
-        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{task_str}{desc_str}{owner_str}"
+        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}"
 
     is_worker = ROLE not in _ORCH_ROLES
     orchestrators, my_workers, other_workers = [], [], []
@@ -489,6 +515,8 @@ async def get_worker_info(name: str) -> str:
     result = await _api("GET", f"/api/sessions/{name}", params={"scope": SCOPE})
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
+    if isinstance(result, dict):
+        result["cache_status"] = _cache_pill(result)  # 🔥 hot Nm / 🟡 warm / 🧊 cold
     return json.dumps(result, ensure_ascii=False)
 
 
