@@ -5,6 +5,23 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <title>🎼 Orchestra</title>
     <script src="/static/css/vendor/tailwind.js"></script>
+    <script>
+      // Design tokens via Tailwind config (CDN). Lift faint slate shades to meet WCAG AA
+      // on the #0a0e17 bg, and route sans utilities to Inter (hybrid typography).
+      tailwind.config = {
+        theme: { extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'monospace'],
+          },
+          colors: { slate: {
+            400: '#a6b3c6',  // was #94a3b8 — meta/secondary
+            500: '#8595ab',  // was #64748b — faint labels (AA on bg)
+            600: '#6b7c93',  // was #475569 — faintest still-readable
+          } },
+        } },
+      };
+    </script>
     <script src="/static/css/vendor/marked.min.js"></script>
     <script src="/static/css/vendor/purify.min.js"></script>
     <script src="/static/css/vendor/diff_match_patch.js"></script>
