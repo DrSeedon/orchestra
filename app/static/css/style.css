@@ -91,6 +91,7 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.cache-pill { font-size: 10px; white-space: nowrap; vertical-align: middle; }
 .orch-tab { padding: 5px 14px; border-radius: 9999px; font-size: 11px; cursor: grab; white-space: nowrap; transition: all 0.15s; border: 1px solid #334155; background: #1e293b; color: #94a3b8; }
 .orch-tab:active { cursor: grabbing; }
 .orch-tab:hover { background: #334155; border-color: #475569; color: #e2e8f0; }
