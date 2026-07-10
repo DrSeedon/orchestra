@@ -180,6 +180,7 @@ class AgentSession:
     _spawn_warning: str = field(default="", repr=False)
     _auto_continue_count: int = field(default=0, repr=False)
     _rate_limit_retries: int = field(default=0, repr=False)
+    _session_limit_hit: bool = field(default=False, repr=False)
 
     TURN_TIMEOUT = 600
     AUTO_CONTINUE_MAX = 5
@@ -548,6 +549,9 @@ class AgentSession:
         if event.type == "text":
             from app.live_broker import broker
             broker.clear_accum(self.id)
+            # Session limit comes as text "You've hit your session limit", not as error event
+            if "session limit" in event.content.lower() or "hit your session" in event.content.lower():
+                self._session_limit_hit = True
             self._log("text", event.content)
             self._turn_logs.append(event.content)
         elif event.type == "thinking":
@@ -571,9 +575,10 @@ class AgentSession:
             # rate_limit → single retry-status log (skip raw error to avoid duplicate
             # "model error: rate_limit" + "rate limited — retry" on one event)
             if "rate_limit" in event.content:
-                # Session limit (5-hour quota) = don't retry, wait for reset
-                if "session limit" in event.content or "session_limit" in event.content:
+                # Session limit text arrives BEFORE the error event as text "You've hit your session limit"
+                if self._session_limit_hit:
                     self._log("error", f"⏳ session limit (подписка) — ждём сброса окна. НЕ ретраим")
+                    self._session_limit_hit = False
                 elif self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
                     self._rate_limit_retries += 1
                     delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
