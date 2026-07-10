@@ -681,15 +681,21 @@ async def report_bug_endpoint(req: Request):
 @router.get("/api/orchestrators")
 async def list_orchestrators():
     from app.prompting import is_orchestrator_role
+    from app.db import get_last_turn_map
     active = [s.to_dict() for s in manager.sessions.values() if s.is_orchestrator]
     active_ids = {s["id"] for s in active}
     db_orchs = [s for s in get_all_sessions() if is_orchestrator_role(s.get("role", "worker")) and s["id"] not in active_ids]
     result = active + db_orchs
     running_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "running"}
     waiting_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "waiting"}
+    turn_map = get_last_turn_map()
     for o in result:
         o["any_running"] = o.get("scope", "") in running_scopes
         o["any_waiting"] = o.get("scope", "") in waiting_scopes
+        if not o.get("last_turn_ts"):
+            o["last_turn_ts"] = turn_map.get(o["id"])
+        if "cache_ttl_seconds" not in o:
+            o["cache_ttl_seconds"] = 3600
     return result
 
 
