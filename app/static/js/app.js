@@ -1439,19 +1439,19 @@ function _renderCachePill(pill) {
     const running = pill.dataset.cacheRunning === '1';
     let tier, label, color;
     if (running) {
-        tier = 'hot'; label = '🔥 hot'; color = '#22c55e';
-        pill.title = 'Running — cache refreshes every turn.';
+        tier = 'hot'; label = '🔥'; color = '#22c55e';
+        pill.title = 'Running — cache refreshes every turn';
     } else {
         const remMs = Number(pill.dataset.cacheExpires) - Date.now();
         const remMin = Math.floor(remMs / 60000);
         if (remMin <= 0) {
-            tier = 'cold'; label = '🧊 cold'; color = '#64748b';
-            pill.title = 'Cache expired. Next turn re-warms the full prompt (~20× more expensive).';
+            tier = 'cold'; label = '🧊'; color = '#64748b';
+            pill.title = 'Cache cold — next turn ~20× дороже';
         } else {
-            if (remMin > 30) { tier = 'hot'; label = `🔥 hot ${remMin}m`; color = '#22c55e'; }
-            else if (remMin >= 12) { tier = 'warm'; label = `🟡 warm ${remMin}m`; color = '#eab308'; }
-            else { tier = 'cooling'; label = `🔴 cooling ${remMin}m`; color = '#ef4444'; }
-            pill.title = `Cache warm for ${remMin} more min. Resuming now = cheap. After eviction, next turn ~20× more expensive.`;
+            if (remMin > 30) { tier = 'hot'; label = `🔥${remMin}m`; color = '#22c55e'; }
+            else if (remMin >= 12) { tier = 'warm'; label = `🟡${remMin}m`; color = '#eab308'; }
+            else { tier = 'cooling'; label = `🔴${remMin}m`; color = '#ef4444'; }
+            pill.title = `Cache ${remMin}m — после истечения ~20× дороже`;
         }
     }
     pill.textContent = label;
@@ -1517,10 +1517,10 @@ function createAgentItem(s) {
         meta.appendChild(costSpan);
     }
 
-    info.append(nameRow, meta);
-
     const pill = _cachePill(s);
-    if (pill) { const row = document.createElement('div'); row.className = 'mt-0.5'; row.appendChild(pill); info.appendChild(row); }
+    if (pill) { pill.style.marginLeft = '6px'; meta.appendChild(pill); }
+
+    info.append(nameRow, meta);
 
     const pct = s.context_pct || 0;
     if (pct > 0) {
