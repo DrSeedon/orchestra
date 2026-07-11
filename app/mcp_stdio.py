@@ -68,13 +68,13 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        mcp_servers: str = "",
                        owned_dirs: str = "",
                        tg_topic: bool = False) -> str:
-    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-5[1m] for implementation from spec, gpt-5.5 for Codex.
+    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose explicitly: claude-opus-4-8[1m] for research/planning/long-lived, claude-sonnet-5[1m] for implementation from spec, gpt-5.6-sol for Codex.
     base_branch — от какой ветки ответвить worktree воркера. Пусто ("") = авто по стратегии пайплайна (parent → от ветки родителя, иначе main); явно указанная ветка переопределяет стратегию.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
-        return "Error: model is required. Choose: claude-opus-4-8[1m] (think), claude-sonnet-5[1m] (type), gpt-5.5 (codex)"
+        return "Error: model is required. Choose: claude-opus-4-8[1m] (think), claude-sonnet-5[1m] (type), gpt-5.6-sol (codex)"
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
@@ -758,7 +758,7 @@ async def codex_review(
     mode: str = "review",
     resume: bool = False,
 ) -> str:
-    """Run Codex (GPT-5.5) cross-LLM review in background. Returns immediately, notifies when done.
+    """Run Codex (GPT-5.6 Sol) cross-LLM review in background. Returns immediately, notifies when done.
     target: file path for review, or empty for git diff review.
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
         output filename to continue a debate.
