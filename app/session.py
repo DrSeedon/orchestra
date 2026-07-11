@@ -737,8 +737,10 @@ class AgentSession:
                             summary_parts.append(event.content)
                         elif event.type == "tool":
                             self._log("tool", event.content)
+                            summary_parts.append(f"\n[tool] {event.content[:200]}\n")
                         elif event.type == "tool_result":
                             self._log("tool_result", event.content[:500])
+                            summary_parts.append(f"\n[tool_result] {event.content[:200]}\n")
                         elif event.type == "turn_end":
                             if event.metadata.get("session_id"):
                                 self.session_id = event.metadata["session_id"]
@@ -765,13 +767,9 @@ class AgentSession:
                 self._backend = None
 
             summary = "".join(summary_parts).strip()
-            summary_lower = summary.lower()
-            is_garbage = any(p in summary_lower for p in _GARBAGE_PATTERNS)
-            is_too_short = len(summary) < COMPACT_MIN_SUMMARY_LEN
 
-            if not summary or is_garbage or is_too_short:
-                reason = "empty" if not summary else f"garbage ({summary[:100]}...)" if is_garbage else f"too short ({len(summary)} chars)"
-                last_error = f"invalid summary: {reason}"
+            if not summary:
+                last_error = "empty summary"
                 self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES}: {last_error}")
                 if attempt < COMPACT_MAX_RETRIES:
                     self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
