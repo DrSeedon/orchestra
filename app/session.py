@@ -447,7 +447,7 @@ class AgentSession:
                     return
                 # For claude: events() returns without error when SDK stream closes unexpectedly
                 # During shutdown/restart this is normal — don't spam the user
-                if self.status in (AgentStatus.IDLE, AgentStatus.STOPPED):
+                if self.status == AgentStatus.IDLE:
                     logger.info(f"[{self.name}] listener stream ended (agent idle/stopped — normal on restart)")
                     return
                 consecutive_failures += 1
