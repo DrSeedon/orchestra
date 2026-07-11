@@ -783,21 +783,15 @@ function renderOrchTabs(sorted) {
         const shortName = o.name.replace(/-orchestrator$/, '');
         label.textContent = shortName;
         tab.append(dot, label);
-        // Cache indicator on orch tab — only show if hot/warm (cold = default, no clutter)
-        if (o.last_turn_ts) {
-            const ttl = (o.cache_ttl_seconds || 3600) * 1000;
-            const remMs = (o.status === 'running') ? ttl : new Date(o.last_turn_ts).getTime() + ttl - Date.now();
-            const remMin = Math.floor(remMs / 60000);
-            if (remMin > 0) {
-                const ce = document.createElement('span');
-                ce.style.cssText = 'font-size:9px;margin-left:3px;vertical-align:middle';
-                if (o.status === 'running') { ce.textContent = '🔥'; }
-                else if (remMin > 30) { ce.textContent = '🔥'; }
-                else if (remMin >= 12) { ce.textContent = '🟡'; }
-                else { ce.textContent = '🔴'; }
-                ce.title = `Cache ${remMin}m`;
-                tab.appendChild(ce);
-            }
+        // Cache indicator on orch tab — reuse _cachePill / _renderCachePill so countdown ticks them
+        const orchPill = _cachePill(o);
+        if (orchPill) {
+            orchPill.style.fontSize = '9px';
+            orchPill.style.marginLeft = '3px';
+            orchPill.style.verticalAlign = 'middle';
+            orchPill.dataset.hideCold = '1';
+            if (orchPill.dataset.tier === 'cold') orchPill.style.display = 'none';
+            tab.appendChild(orchPill);
         }
         tab.title = o.scope;
         tab.style.position = 'relative';
@@ -1482,6 +1476,7 @@ function _renderCachePill(pill) {
     pill.textContent = label;
     pill.style.color = color;
     pill.dataset.tier = tier;
+    if (pill.dataset.hideCold === '1') pill.style.display = tier === 'cold' ? 'none' : '';
 }
 
 // Client-side countdown — re-render all pills every 30s without re-polling
