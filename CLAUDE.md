@@ -306,11 +306,46 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - **Push + restart** — cache timer backend, session limit fix, codex CWD fix all need restart
 - **VPS sync** — git pull + restart on orchestra.seedon.ru
 
+### Shipped 07-10 to 07-11 (continuation)
+- **Persistent Codex sessions** — codex_review(resume=True), UUID in codex_sessions.json, multi-round debate via MCP
+- **codex-debate skill rewrite** — 377→127 lines, Bash path removed, MCP-only
+- **Session limit fix** — _session_limit_hit flag from text event, stops retry spam on 5h quota
+- **Cache timer pill** — 🔥/🟡/🔴/🧊 per agent in sidebar + orch tabs + MCP list_agents/get_worker_info
+- **Cache stats on usage chart** — cache_hit_pct line + cold_starts bars on daily Chart.js graph
+- **Cache awareness rules** — orchestration.md: use warm workers, don't kill hot, scheduling by cache status
+- **Context economy rules** — base.md: no image re-read, grep before Read, subagent for heavy exploration
+- **Model color badges** — colored pills in agent list (opus purple, sonnet blue, haiku green)
+- **Short model names** — claude-opus-4-8[1m] → opus-4-8 in sidebar
+- **Design revamp** — CSS tokens (:root 14 vars), hybrid font (Inter+mono), WCAG AA contrast, unified radii
+- **Auto-report skip** — user→worker direct = no auto-report to orchestrator
+- **Worker cross-project isolation** — base.md: workers can't contact other orchestrators
+- **Task cleanup** — 7 obsolete tasks closed (#80,#76,#63,#55,#54,#68,#70)
+- **tinyproxy saturated fix** — HuggingFace blocked, MaxClients 500
+- **Diff image wrap** — WRAP_COLS truncate→wrap, IMG_W=960
+- **Image preview** — send_file thumbnails + lightbox
+- **Download/Preview** — replaces "Disabled on server"
+- **Proxy panel** — ping/IP/flag after Check
+- **Orchestrators endpoint** — last_turn_ts + cache_ttl added to /api/orchestrators
+
+### Research completed (07-09 to 07-11)
+- **cache-optimization** — TTL=1h on Max (confirmed docs+empirics), 4.6=4.8 per unit cost, cache timer spec
+- **token-waste** — narration=11% (small), tool_result=87% (elephant=base64 images re-read 3-4×)
+- **tool-result-optimization** — 89% bytes = images. Fixes: don't re-read images, subagent for heavy exploration, grep before Read
+- **verbalized-sampling** — Stanford VS technique, works on Claude, full-cycle only
+- **meta-research** — scientific research methodology for AI agents
+- **self-analysis** — Huang trap (naive self-critique degrades), signal-anchored approach
+- **codex-audit** — 95% reviews find bugs, $0.07/review, CWD bug was villain, persistent sessions underused
+
 ### Active workers
 - frontend-opus, prompt-engineer, taskmanager (system, keep)
-- research-codex-audit (running)
-- research-tool-result (done, merge + kill pending)
 - feat-self-learning, refactor-tg (feature, idle)
+
+### PENDING (next session)
+- **Rестарт нужен** — session limit fix, cache timer backend, codex CWD fix, persistent codex sessions, cache stats endpoint, orchestrators last_turn_ts — ALL in main, await restart
+- **VPS sync** — git pull + restart on orchestra.seedon.ru (many commits behind)
+- **Bash codex references** — still in some prompts (full-cycle.md mentions codex-debate skill), need cleanup pass
+- **Frontend audit impl** — design revamp shipped (da9c6e8), revert via `git revert da9c6e8` if user dislikes
+- **status-desync** — still unfixed (known, deferred)
 
 ## Session notes (2026-07-07) — VPS finalization, frontend fixes, cleanup
 
