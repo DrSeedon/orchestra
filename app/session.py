@@ -446,9 +446,13 @@ class AgentSession:
                         self._persist()
                     return
                 # For claude: events() returns without error when SDK stream closes unexpectedly
+                # During shutdown/restart this is normal — don't spam the user
+                if self.status in (AgentStatus.IDLE, AgentStatus.STOPPED):
+                    logger.info(f"[{self.name}] listener stream ended (agent idle/stopped — normal on restart)")
+                    return
                 consecutive_failures += 1
                 logger.warning(f"[{self.name}] events() exhausted normally (attempt {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES})")
-                self._log("error", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
+                self._log("status", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
             except asyncio.CancelledError:
                 logger.info(f"[{self.name}] claude event loop cancelled")
                 return
