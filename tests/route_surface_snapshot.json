@@ -54,9 +54,27 @@
   ]
  ],
  [
+  "/api/memory/reindex",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/memory/search",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/models",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/models/refresh",
+  [
+   "POST"
   ]
  ],
  [
@@ -129,6 +147,12 @@
   "/api/proxy/list",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/proxy/set-env",
+  [
+   "POST"
   ]
  ],
  [
@@ -246,6 +270,12 @@
   ]
  ],
  [
+  "/api/sessions/{name}/prompt-blocks",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/sessions/{name}/rename",
   [
    "POST"
@@ -258,9 +288,21 @@
   ]
  ],
  [
+  "/api/sessions/{name}/rollback-session",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/sessions/{name}/send",
   [
    "POST"
+  ]
+ ],
+ [
+  "/api/sessions/{name}/session-history",
+  [
+   "GET"
   ]
  ],
  [
@@ -282,6 +324,12 @@
   ]
  ],
  [
+  "/api/sessions/{name}/tg-topic",
+  [
+   "PATCH"
+  ]
+ ],
+ [
   "/api/sessions/{name}/tg_topic",
   [
    "POST"
@@ -295,6 +343,24 @@
  ],
  [
   "/api/stats",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/subagent-transcript/{session_id}/{agent_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/subagent-transcripts/{session_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/subagents/{session_id}",
   [
    "GET"
   ]
@@ -391,6 +457,18 @@
  ],
  [
   "/api/usage",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/usage/daily",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/usage/daily/agents",
   [
    "GET"
   ]

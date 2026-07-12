@@ -640,6 +640,16 @@ async def merge_session(name: str, req: dict):
                         link_results[task_ref] = {"ok": False, "error": str(link_err)}
                 if link_results:
                     result["linked_tasks"] = link_results
+                # RAG: re-index project's .md + logs now that knowledge is "frozen" into main.
+                # Fire-and-forget — merge must not fail if RAG is off/broken.
+                from app import rag_service
+                if rag_service.is_enabled():
+                    async def _rag_backfill(sc):
+                        try:
+                            await rag_service.backfill_scope(sc)
+                        except Exception as e:
+                            logger.warning(f"RAG backfill after merge failed for {sc}: {e}")
+                    asyncio.create_task(_rag_backfill(scope))
                 if found.loaded:
                     found.branch = target
                     found.task_id = ""
