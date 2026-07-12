@@ -227,6 +227,7 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 - **Realtime vs background** — someone waiting right now → answer yourself. Task needs code/research → delegate to worker, say it's in progress
 - **Keep valuable workers, kill disposable ones.** Long-lived Opus with project knowledge — keep idle. One-shot Sonnet (impl-*, fix-*) — kill after merge. Don't hoard 15 idle workers
 - Don't kill workers immediately after results — keep idle for potential rework. Idle = 0 resources
+- **NEVER kill a full-cycle worker waiting at a gate** ("awaiting approval to plan/implement", "STOP на гейте"). They expect to continue with the next phase. Merge their branch → leave idle. Kill only truly one-shot workers (impl-*, fix-*) that have no follow-up phases
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
 - Reply to other orchestrators when they ask. Don't spam unsolicited

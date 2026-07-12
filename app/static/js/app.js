@@ -510,7 +510,7 @@ async function openFilePreview(path) {
         if (data.error) {
             const sizeStr = data.size ? ` (${(data.size / 1024).toFixed(1)} KB)` : '';
             if (data.error === 'binary file' && /\.(png|jpg|jpeg|gif|webp|bmp|ico|svg)$/i.test(path)) {
-                contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
+                contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
             } else {
                 contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
             }
@@ -532,7 +532,7 @@ async function openFilePreview(path) {
             // wrapped markdown as raw HTML, so ## headings / - lists never render.
             contentEl.innerHTML = DOMPurify.sanitize(marked.parse(_stripXmlTags(data.content), { renderer }), { ADD_ATTR: ['loading'] });
         } else if (/\.svg$/i.test(path)) {
-            contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
+            contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
         } else {
             const ext = (path.match(/\.(\w+)$/)?.[1] || '').toLowerCase();
             const LANG_MAP = {
@@ -3100,7 +3100,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 // Use original file via API if Read tool has file_path — SDK compresses base64
                 const origPath = lastTool && lastTool.dataset.filePath;
                 const thumbSrc = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
-                img.src = origPath ? `/api/files/raw?path=${encodeURIComponent(origPath)}` : thumbSrc;
+                img.src = origPath ? `/api/files/raw?path=${encodeURIComponent(origPath)}&t=${Date.now()}` : thumbSrc;
                 img.onerror = () => { img.src = thumbSrc; };
                 img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
                 img.addEventListener('click', () => _showImageOverlay(origPath ? img.src : thumbSrc));
@@ -3188,7 +3188,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 if (!hasError && fp) {
                     // Image thumbnail above the buttons — click opens full-size lightbox
                     if (/\.(png|jpe?g|gif|webp|svg)$/i.test(fp) && !lastTool.querySelector('.sf-thumb')) {
-                        const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}`;
+                        const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}&t=${Date.now()}`;
                         const img = document.createElement('img');
                         img.className = 'sf-thumb';
                         img.src = rawUrl;
@@ -3963,7 +3963,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     }
                     if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
                         const img = document.createElement('img');
-                        img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}`;
+                        img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}&t=${Date.now()}`;
                         img.loading = 'lazy';
                         img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
                         img.addEventListener('click', () => openImageLightbox(img.src));

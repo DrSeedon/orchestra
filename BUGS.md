@@ -94,3 +94,8 @@ research-grok worker: called codex_review(mode=exec, target=docs/tasks/grok-rese
 Workaround который сработал: прогнал adversarial review напрямую через `codex exec "...read docs/.../research.md ... write findings to docs/.../codex-review-research.md"` — файл создался корректно (141 строка).
 
 Место для копания: обёртка codex_review в app/ (та что формирует bg job type=run и потом должна прочитать/записать вывод). Похоже job помечается failed несмотря на успешный Codex-прогон, и результат теряется. Приоритет: mid — codex_review это mandatory-шаг Phase 1/2 full-cycle pipeline, сейчас он молча не пишет файл.
+
+## [2026-07-12 13:15 UTC] codex_review fails consistently (7 jobs across 5 workers) — no output written
+- **Reporter:** research-rag-orchestra
+- **Scope:** /mnt/data/Projects/Python/orchestra
+codex_review(mode=exec) jobs all return status=failed with no output file created. Observed 7 consecutive failures: bg-8a5d9b0512, bg-a6d5d9dd75 (research-rag-orchestra), bg-3da08a15c0 (interaction-tax), bg-bc4692a1ef, bg-5c6e0307e8 (cc-config), bg-7d477ec9c4, bg-ba20facbdb (grok). The job message says "Codex exec done. Results in docs/tasks/.../codex-review-*.md" but the file is never written (0 bytes / missing). Pattern spans multiple projects and both mode=exec and default → not query-specific. Likely: Codex CLI wrapper crashing, proxy (Ёжик 12340) down for the codex endpoint, or session/auth failure. Blocks the mandatory Phase-1/Phase-2 Codex second-opinion gate for all full-cycle workers right now.
