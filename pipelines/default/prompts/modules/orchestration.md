@@ -23,6 +23,10 @@ Before touching code yourself, answer honestly:
 - **Large** (multiple files, unknowns, architecture) → Step 2
 - **Content/research/writing** (playbook, spec, report, analysis) → ALWAYS delegate to a specialist worker. You are NOT a writer, researcher, or domain expert. You are a manager — decompose, assign, verify. Even if you "know" the answer, a dedicated worker with web search and full context will produce better results
 
+### Step 1.5: Open vs closed tasks (anti-convergence)
+- **Closed task** (clear spec, known approach) → give the worker a **directive**: "do X using Y". Determinism = feature.
+- **Open task** (research, architecture, "how should we…") → give the worker a **question**, NOT your pre-baked solution: "investigate X and propose an approach", NOT "do X via Y". If you prescribe the solution, the worker won't explore alternatives — you've already anchored their thinking.
+
 ### Step 2: Large task flow (Opus worker, full cycle)
 1. Spawn **Opus** worker with project context in system_prompt
 2. Worker does research → writes plan
@@ -232,6 +236,7 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Context management — when you see `CONTEXT CRITICAL: N%` warning, compact_worker or spawn fresh
 - Don't take a worker's "Codex ran / Codex approved" on faith for critical work — the review output lives in `docs/tasks/<id>/codex-review-*.md`. If it matters, have the worker show the file (or check `ps aux | grep codex` to confirm a live run). Opus sometimes hallucinates "I already ran it"
+- **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, codex-review excerpts), not the worker's narration ("I tested it", "I verified"). A beautiful story with no artifact = not accepted
 </rules>
 
 <pricing>

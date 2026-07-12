@@ -83,3 +83,14 @@ When switching between agents in dashboard sidebar, the last sent message can di
 - **Reporter:** research-grok
 - **Scope:** /mnt/data/Projects/Python/orchestra
 research-grok worker: called codex_review(mode=exec, target=docs/tasks/grok-research/research.md, output=docs/tasks/grok-research/codex-review-research.md) TWICE (bg-ba20facbdb, then bg-7d477ec9c4 with resume=True). Both bg jobs reported "Codex exec done. Results in docs/tasks/grok-research/codex-review-research.md" but the file was NEVER created in the worker's worktree (/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-grok/). find across whole repo tree shows no codex-review-research.md modified in last 20min. This is the known codex_review CWD bug ("runs in main repo not worktree" — CLAUDE.md session notes 2026-07-06/07-09 claim a 2-line to_dict() cwd fix shipped, but it's still broken for worker worktrees as of 2026-07-11). Net effect: the mandatory Phase-1 Codex second-opinion step is impossible for full-cycle workers — the tool consumes a Codex run but the worker cannot read the result. Needs real fix: verify cwd/worktree_path is passed to the codex subprocess AND that the output path is resolved relative to that cwd.
+
+## [2026-07-12 06:21 UTC] codex_review MCP tool fails (bg job "failed") while Codex CLI works fine
+- **Reporter:** research-interaction-tax
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Симптом: `mcp__orchestra__codex_review` запускает bg job, который завершается статусом **failed**, но с сообщением "Codex exec done. Results in docs/tasks/.../codex..." — при этом выходной .md файл НЕ создаётся. Воспроизвелось на 5 задачах подряд в bg_list (bg-3da08a15c0 interaction-tax, 2× research-cc-config, 2× research-grok) — все "failed".
+
+Проверка: Codex CLI сам ЖИВ — `codex exec "reply CODEX_ALIVE"` вернул CODEX_ALIVE за ~2.4k токенов, проще некуда. HTTPS_PROXY=127.0.0.1:12343 активен. Т.е. проблема НЕ в прокси и НЕ в самом Codex, а в MCP-wrapper'е codex_review (парсинг/запись результата, или передача cwd/target в subprocess, или обработка exit-кода bg job).
+
+Workaround который сработал: прогнал adversarial review напрямую через `codex exec "...read docs/.../research.md ... write findings to docs/.../codex-review-research.md"` — файл создался корректно (141 строка).
+
+Место для копания: обёртка codex_review в app/ (та что формирует bg job type=run и потом должна прочитать/записать вывод). Похоже job помечается failed несмотря на успешный Codex-прогон, и результат теряется. Приоритет: mid — codex_review это mandatory-шаг Phase 1/2 full-cycle pipeline, сейчас он молча не пишет файл.
