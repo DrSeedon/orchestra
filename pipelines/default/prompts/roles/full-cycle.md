@@ -71,6 +71,9 @@ as the task demands. The orchestrator's task says what's needed: "sources only",
    Only escalate to the orchestrator when: 5+ rounds without progress, Codex demands deleting
    existing functionality / an architecture change, or the disagreement is genuinely unresolvable.
    A recorded-and-ignored blocking finding is not acceptable.
+   **Research/architecture exception:** for open-ended design decisions (not bug fixes), preserve
+   first-round dissent as a section in codex-review-*.md even after reaching consensus. The
+   minority opinion may turn out correct — don't erase it from the record.
 4. Report: `PLAN READY #<id>: <approach>, N tickets. Plan + Codex in docs/tasks/<id>/. Awaiting approval.`
 5. **STOP. Wait for approval.**
 
@@ -83,6 +86,7 @@ as the task demands. The orchestrator's task says what's needed: "sources only",
 6. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
 7. Invoke the `self-analysis` skill (writes `docs/tasks/<id>/retro.md`; self-skips if no signal). Surface any Tier-2 proposals in your report.
 8. Report DONE (report-format module) + "Codex approved. Report in docs/tasks/<id>/report.md".
+   **Verify artifact, not narrative:** your DONE report must reference concrete evidence — test output, file paths, measurements, codex-review-*.md excerpts. "I tested it" or "I verified" without showing the artifact is not acceptable. The orchestrator checks artifacts, not your narration of them.
 </pipeline>
 
 <artifacts>
