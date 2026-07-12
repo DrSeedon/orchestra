@@ -52,8 +52,13 @@ async def lifespan(app: FastAPI):
         _tunnel_started = True
     from app.routes.system import _usage_snapshot_loop
     snapshot_task = asyncio.create_task(_usage_snapshot_loop())
+    from app import rag_service
+    if rag_service.is_enabled():
+        rag_service.initialize()
     yield
     snapshot_task.cancel()
+    from app import rag_service as _rs
+    _rs.shutdown()
     if _tunnel_started:
         await stop_tunnel()
     await stop_bridge()
@@ -71,6 +76,7 @@ from app.routes.sessions import router as sessions_router
 from app.routes.system import router as system_router
 from app.routes.tg import router as tg_router
 from app.routes.subagent import router as subagent_router
+from app.routes.memory import router as memory_router
 app.include_router(tm_router)
 app.include_router(bg_router)
 app.include_router(proxy_router)
@@ -78,6 +84,7 @@ app.include_router(sessions_router)
 app.include_router(system_router)
 app.include_router(tg_router)
 app.include_router(subagent_router)
+app.include_router(memory_router)
 
 
 @app.exception_handler(Exception)

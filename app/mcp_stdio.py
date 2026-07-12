@@ -686,6 +686,37 @@ async def bg_cancel(job_id: str) -> str:
     return f"Job {job_id} cancelled."
 
 
+@mcp.tool()
+async def search_memory(query: str, limit: int = 5, cross_project: bool = False) -> str:
+    """Семантический поиск по ПАМЯТИ проекта — прошлые docs/tasks/*.md, CLAUDE.md, BUGS.md,
+    отчёты и решения агентов (send_message DONE-репорты, обсуждения). Юзай когда потерял
+    контекст после compact/restart, или ищешь как раньше решали похожую задачу — вместо того
+    чтобы grep'ать вслепую. Ищет по СВОЕМУ проекту. cross_project=True — по всем проектам
+    (редко нужно). limit — сколько результатов (default 5)."""
+    # scope НЕ параметр: берём ORCHESTRA_SCOPE из env воркера → нельзя запросить чужой проект.
+    if not SCOPE:
+        return "search_memory: no project scope (orchestrator context) — nothing to search."
+    body = {"scope": SCOPE, "query": query, "limit": limit, "cross_project": cross_project}
+    result = await _api("POST", "/api/memory/search", json=body)
+    if isinstance(result, dict) and result.get("error"):
+        return f"search_memory failed: {result['error']}"
+    hits = result.get("results", []) if isinstance(result, dict) else []
+    if not hits:
+        return f"No memory matches for: {query!r}"
+    lines = []
+    for h in hits:
+        if h.get("source") == "file":
+            head = f"[file: {h.get('path')}]"
+        else:
+            author = h.get("author")
+            tag = f"{h.get('kind')}" + (f" from {author}" if author else "")
+            head = f"[log: {tag}]"
+        if cross_project:
+            head = f"({h.get('project')}) {head}"
+        lines.append(f"{head}\n{h.get('content', '').strip()}")
+    return "\n\n---\n\n".join(lines)
+
+
 # Wrapper at ~/.local/bin/codex sets HTTPS_PROXY for Ёжик tunnel
 _CODEX_BIN = "/home/maxim/.local/bin/codex"
 _REVIEW_CONTEXT = (

@@ -22,7 +22,7 @@ roles:
     model: opus4.6
     effort: medium
     skills: [html-artifacts, vps-deploy, codex-debate, grill-me]
-    modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
+    modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     when: Managing a team of workers, decomposing tasks, approving plans
@@ -52,7 +52,7 @@ roles:
     model: sonnet
     effort: medium
     skills: [codex-debate]
-    modules: [git-workflow, report-format, self-improvement]
+    modules: [git-workflow, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
@@ -67,7 +67,7 @@ roles:
     model: opus4.8
     effort: xhigh
     skills: [codex-debate, self-analysis]
-    modules: [research-method, divergent-thinking, git-workflow, report-format, self-improvement]
+    modules: [research-method, divergent-thinking, git-workflow, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
