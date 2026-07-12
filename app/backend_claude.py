@@ -92,7 +92,8 @@ class ClaudeBackend:
                  scope_mcp_servers: dict | None = None,
                  config_dir: str = "",
                  inherit_claude_md: bool = True,
-                 user_mcp_servers: dict | None = None):
+                 user_mcp_servers: dict | None = None,
+                 effort: str | None = None):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -107,6 +108,7 @@ class ClaudeBackend:
         self._inherit_claude_md = inherit_claude_md
         # F2: user-MCP из профильного .claude.json (базовый слой merge).
         self._user_mcp_servers = user_mcp_servers or {}
+        self._effort = effort
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
 
@@ -141,6 +143,8 @@ class ClaudeBackend:
             env=env,
             user=agent_uid,
         )
+        if self._effort:
+            options.effort = self._effort
         if resume_id:
             options.resume = resume_id
         else:

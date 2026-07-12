@@ -502,6 +502,8 @@ class SessionManager:
 
         custom_mcp = _parse_custom_mcp(mcp_servers)
         bt = backend_for_model(model)
+        _rr_effort = get_role(pipeline, role)
+        effort = _rr_effort.effort if _rr_effort else None
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, role=role,
@@ -510,7 +512,7 @@ class SessionManager:
             color="" if is_orch else self._pick_color(),
             mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
-            backend_type=bt, task_id=task_id, description=description,
+            backend_type=bt, effort=effort, task_id=task_id, description=description,
             owned_dirs=owned_dirs,
             tg_topic=tg_topic,
         )
@@ -781,6 +783,7 @@ class SessionManager:
             description=row.get("description") or "",
             owned_dirs=parse_owned_dirs(row.get("owned_dirs")),
             tg_topic=bool(row.get("tg_topic") or 0),
+            effort=row.get("effort") or None,
             loaded=False,
             db_row=row,
         )
@@ -980,7 +983,8 @@ class SessionManager:
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role,
                                          parent_name=db_row.get("parent_name", ""), extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
-            backend_type=stored_bt, task_id=db_task_id,
+            backend_type=stored_bt, effort=db_row.get("effort") or None,
+            task_id=db_task_id,
             description=db_row.get("description", ""),
             owned_dirs=parse_owned_dirs(db_row.get("owned_dirs")),
             tg_topic=bool(db_row.get("tg_topic", 0)),
