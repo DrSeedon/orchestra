@@ -20,6 +20,7 @@ roles:
     label: Orchestrator
     order: 0
     model: opus4.6
+    effort: medium
     skills: [html-artifacts, vps-deploy, codex-debate, grill-me]
     modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]
@@ -34,6 +35,7 @@ roles:
     label: Sub-Orchestrator
     order: 1
     model: opus4.6
+    effort: medium
     modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]
     allow_unrouted_workers: true
@@ -48,6 +50,7 @@ roles:
     label: Worker
     order: 2
     model: sonnet
+    effort: medium
     skills: [codex-debate]
     modules: [git-workflow, report-format, self-improvement]
     can_spawn: ["*"]
@@ -62,6 +65,7 @@ roles:
     label: Full-Cycle
     order: 3
     model: opus4.8
+    effort: xhigh
     skills: [codex-debate, self-analysis]
     modules: [research-method, divergent-thinking, git-workflow, report-format, self-improvement]
     can_spawn: ["*"]

@@ -180,6 +180,7 @@ class RoleSpec(BaseModel):
     modules: list[str] = Field(default_factory=list)
     # Переопределения defaults (None → наследуем):
     model: str | None = None
+    effort: str | None = None
     skills: AllOrList | None = None
     mcp_servers: AllOrList | None = None
     base_branch_strategy: BranchStrategy | None = None
@@ -247,6 +248,7 @@ class ResolvedRole(BaseModel):
     allow_unrouted_workers: bool
     modules: list[str]
     model: str
+    effort: str | None
     skills: AllOrList
     mcp_servers: AllOrList
     base_branch_strategy: BranchStrategy
@@ -354,6 +356,7 @@ def resolve_role(pipeline: PipelineConfig, role: str) -> ResolvedRole:
         allow_unrouted_workers=spec.allow_unrouted_workers,
         modules=spec.modules,
         model=_merge_scalar(d.model, spec.model),
+        effort=spec.effort,
         skills=_merge_list(d.skills, spec.skills),
         mcp_servers=_merge_list(d.mcp_servers, spec.mcp_servers),
         base_branch_strategy=_merge_scalar(d.base_branch_strategy, spec.base_branch_strategy),

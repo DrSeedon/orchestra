@@ -122,6 +122,7 @@ class AgentSession:
     mcp_servers_custom: dict = field(default_factory=dict, repr=False)
     on_error: Optional[callable] = field(default=None, repr=False)
     backend_type: str = "claude"
+    effort: str | None = None
     task_id: str = ""
     description: str = ""
     owned_dirs: list = field(default_factory=list, repr=False)
@@ -254,6 +255,7 @@ class AgentSession:
                 config_dir=config_dir,
                 inherit_claude_md=inherit,
                 user_mcp_servers=user_mcp,
+                effort=self.effort,
             )
 
     def _codex_reasoning_effort(self) -> str:
@@ -1023,6 +1025,7 @@ class AgentSession:
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
+            "effort": self.effort or "",
             "task_id": self.task_id,
             "description": self.description,
             "total_turns": self.total_turns,
