@@ -569,6 +569,11 @@ async def delete_session(name: str, scope: str, force: bool = False):
     if not force:
         if found.loaded and found.status.value == "running":
             return JSONResponse({"error": "worker is running — stop first (or force=true)"}, status_code=400)
+        # Orphan-guard: killing a parent with live children leaves them dangling
+        # (no kill-cascade). Mirror the change_scope guard — block, force to override.
+        children = manager._live_children(name, found.scope or scope)
+        if children:
+            return JSONResponse({"error": f"worker has {len(children)} live child worker(s): {', '.join(children)}. Kill or merge them first (or force=true)"}, status_code=400)
         wt = found.worktree_path
         if wt and Path(wt).is_dir():
             status_proc = await asyncio.create_subprocess_exec(
