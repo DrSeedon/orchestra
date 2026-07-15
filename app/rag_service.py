@@ -47,7 +47,16 @@ def initialize() -> bool:
     models_dir = Path("data/models")
     if models_dir.is_dir():
         os.environ.setdefault("FASTEMBED_CACHE_PATH", str(models_dir.resolve()))
-    _write_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rag-w")
+    # nice the write-executor (backfill/index) so heavy reindex stays background-quiet.
+    # read-executor (search, user-facing) keeps normal priority.
+    def _nice_init():
+        if rag.RAG_NICE > 0:
+            try:
+                os.nice(rag.RAG_NICE)
+            except OSError:
+                pass  # nice may be restricted in some sandboxes — thread-cap still applies
+    _write_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rag-w",
+                                         initializer=_nice_init)
     _read_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rag-r")
     rag.set_executor(_write_executor, _read_executor, db_path=_DB_PATH)
     _initialized = True
@@ -75,13 +84,20 @@ async def search(project: str, query: str, limit: int = 5, cross_project: bool =
     return await rag.run(loop, "search", project, query, limit, cross_project, kinds)
 
 
-async def backfill_scope(project: str, root: Path | None = None) -> dict:
+async def backfill_scope(project: str, root: Path | None = None,
+                         session_name: str | None = None) -> dict:
     """Index all .md + agent logs of a project (write-executor). Fire-and-forget safe:
-    caller wraps in try. batch=16 (RAM), incremental (sha256 + logs_indexed dedup)."""
+    caller wraps in try. batch=16 (RAM), incremental (sha256 + logs_indexed dedup).
+    session_name задан → индексим ТОЛЬКО логи этой сессии (файлы .md пропускаем — они
+    не привязаны к сессии); иначе — весь scope (.md + все логи)."""
     if not _initialized:
         raise RuntimeError("RAG not initialized")
     from app import rag
     loop = asyncio.get_running_loop()
+    if session_name:
+        logs = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, 500, session_name)
+        logger.info(f"RAG backfill_scope[{project}] session={session_name}: {logs} logs")
+        return {"files": 0, "logs": logs}
     root = root or Path(project)
     files = await rag.run(loop, "backfill_files", project, root)
     logs = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB)

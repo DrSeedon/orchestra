@@ -403,6 +403,24 @@ def test_backfill_logs_type_and_length_filter(mem, tmp_path):
 
 
 @needs_model
+def test_backfill_logs_session_name_filter(mem, tmp_path):
+    odb = tmp_path / "orchestra.db"
+    long_a = "агент A проанализировал root cause и починил баг через мозаику тайлов подробно. " * 5
+    long_b = "агент B сделал совсем другую задачу про рендеринг карты мира и террейн. " * 5
+    _make_orchestra_db(odb,
+        sessions=[("s1", "worker-a", "/proj/a"), ("s2", "worker-b", "/proj/a")],
+        logs=[("s1", "t", "text", long_a), ("s2", "t", "text", long_b)])
+    # only worker-a's session → 1 log, worker-b untouched
+    n = mem.backfill_logs("/proj/a", odb, session_name="worker-a")
+    assert n == 1
+    # the indexed log belongs to s1 (worker-a): its content is long_a
+    txt = mem.conn.execute("SELECT text FROM log_chunks LIMIT 1").fetchone()[0]
+    assert "агент A" in txt
+    # worker-b's log still not indexed
+    assert mem.conn.execute("SELECT COUNT(*) FROM logs_indexed").fetchone()[0] == 1
+
+
+@needs_model
 def test_backfill_logs_dedup_second_run(mem, tmp_path):
     odb = tmp_path / "orchestra.db"
     long_text = "агент проанализировал проблему и починил через мозаику тайлов подробно. " * 5

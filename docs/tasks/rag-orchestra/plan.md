@@ -248,5 +248,24 @@ fts_logs USING fts5(text)
 - Индексация `tool`/`tool_result` — никогда (94% байт = машинный шум, base64).
 - codex-review-*.md — по умолчанию нет (шум > сигнал).
 
+## 5a. CPU-throttle (пост-деплой оптимизация, замерено)
+
+**Проблема (замерено):** backfill грузил **541% CPU** на 12-ядерном ноуте (репро reported "490%") → UI фризится. Root cause: ONNX `intra_op_num_threads` default `0` = все ядра; `max_workers=1` executor сериализует только Python-вызовы, но один `emb.embed()` внутри распараллеливает matmul на все 12 ядер.
+
+**kesha vs мы:** kesha НЕ делает ничего особого (нет nice/thread-cap, тот же batch=64, тот же max_workers=1). У неё не лагает т.к. индексит инкрементально через watcher (по файлу за раз), а мы бэкфиллим 4986 чанков разом на merge-хуке.
+
+**Фикс (3 рычага, env-конфигурируемо):**
+- `RAG_ONNX_THREADS=2` (default) → `so.intra_op_num_threads=2` + `inter_op=1`. Замер: **541% → ~2 потока**. Главный рычаг.
+- `RAG_NICE=10` (default) → `os.nice(10)` в write-executor треде (initializer) — backfill деприоритизирован, search (read-executor) в нормальном приоритете.
+- `RAG_EMBED_BATCH=16` (default) — RAM-митигация (не CPU).
+
+Замер (Tier-1, эта машина, 192 embeds одинаковый workload):
+| Config | Peak CPU | Time |
+|---|---|---|
+| Uncapped (all 12 cores) | **541%** | ~140s |
+| Capped (RAG_ONNX_THREADS=2, default) | **199%** | 235s |
+
+541%→199% = **2.7× меньше CPU** (~2 ядра вместо ~5.5), ноут отзывчив. Цена: 1.7× медленнее backfill — приемлемо для фоновой операции.
+
 ## 6. Оценка
 **~3-4 дня.** Риск не в коде (60% из kesha 1:1), а в: offline-модель, backfill-throttle (RAM), тест изоляции проектов. Тяжёлые бенчмарки (загрузка embedder, реальный backfill) на этой машине НЕ гоняем — только код + юнит-логика; embed-зависимые тесты помечаем `@pytest.mark.rag` (skip без модели).

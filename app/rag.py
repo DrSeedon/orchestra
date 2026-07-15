@@ -11,6 +11,7 @@
 """
 
 import logging
+import os
 import re
 import struct
 from pathlib import Path
@@ -42,7 +43,12 @@ CHUNK_CHAR_LIMIT = 1200   # ~300 токенов — выше этого реже
 CHUNK_SIZE = 800          # ~200 токенов на кусок
 CHUNK_OVERLAP = 200       # ~50 токенов перекрытие
 CHUNK_STRIDE = 1000       # макс чанков на источник (chunk_id = source_id*STRIDE + idx)
-EMBED_BATCH = 16          # research §6: batch=16 → peak 1.6GB (vs 2.4GB@64) — RAM-митигация
+EMBED_BATCH = int(os.getenv("RAG_EMBED_BATCH", "16"))  # research §6: 16 → peak 1.6GB (vs 2.4GB@64)
+# CPU throttle: ONNX intra-op threads default 0 = ALL cores → backfill hits ~490% CPU on a
+# 12-core laptop and freezes the UI. Cap it so reindex runs quietly in the background.
+# 0 = ORT default (all cores). Set RAG_ONNX_THREADS=2 for gentle background indexing.
+RAG_ONNX_THREADS = int(os.getenv("RAG_ONNX_THREADS", "2"))
+RAG_NICE = int(os.getenv("RAG_NICE", "10"))  # os.nice() on the write-executor thread (backfill)
 
 # Файловая индексация. Только markdown-проза: .md.
 # xml/csv/json/html = машинные данные/логи → мусор в retrieval (kesha-замер).
@@ -242,6 +248,10 @@ def _get_embedder():
             so = k.get("sess_options") or _ort.SessionOptions()
             so.enable_cpu_mem_arena = False
             so.enable_mem_pattern = False
+            # cap intra-op threads → backfill doesn't saturate all cores (490% CPU → controlled)
+            if RAG_ONNX_THREADS > 0:
+                so.intra_op_num_threads = RAG_ONNX_THREADS
+                so.inter_op_num_threads = 1
             k["sess_options"] = so
             _orig_sess(self_sess, *a, **k)
         _ort.InferenceSession.__init__ = _patched_init
@@ -485,9 +495,11 @@ class RagMemory:
             return bool(content and content.strip())
         return len(content or "") >= MIN_LOG_LEN
 
-    def backfill_logs(self, project: str, orchestra_db: Path, batch_size: int = 500) -> int:
+    def backfill_logs(self, project: str, orchestra_db: Path, batch_size: int = 500,
+                      session_name: str | None = None) -> int:
         """Индексирует логи проекта из orchestra.db (user_message/text). ATTACH read-only,
         джойн logs+sessions по scope=project. type/kind/length фильтр. Дедуп по logs_indexed.
+        session_name задан → только логи этой сессии (быстрый reindex одного агента).
         Возвращает число проиндексированных логов."""
         import sqlite3
         try:
@@ -496,13 +508,17 @@ class RagMemory:
             pass  # уже приаттачена
         try:
             type_ph = ",".join("?" * len(LOG_TYPES))
+            name_sql = "AND s.name = ? " if session_name else ""
+            params: list = [project, *LOG_TYPES]
+            if session_name:
+                params.append(session_name)
             rows = self.conn.execute(f"""
                 SELECT l.id, l.type, l.content
                 FROM orch.logs l JOIN orch.sessions s ON l.session_id = s.id
-                WHERE s.scope = ? AND l.type IN ({type_ph})
+                WHERE s.scope = ? AND l.type IN ({type_ph}) {name_sql}
                   AND l.id NOT IN (SELECT log_id FROM logs_indexed)
                 ORDER BY l.id
-            """, (project, *LOG_TYPES)).fetchall()
+            """, params).fetchall()
         finally:
             self.conn.execute("DETACH DATABASE orch")
         count = 0
