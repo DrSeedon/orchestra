@@ -14,6 +14,52 @@ from app.session_state import AgentStatus
 if TYPE_CHECKING:
     from app.session import AgentSession
 
+
+def _format_limits() -> str:
+    """Format current 5h/7d usage limits from cached usage data for turn-ended log."""
+    try:
+        from app.routes.system import _usage_cache
+        data = _usage_cache.get("data")
+        if not data:
+            return ""
+        parts = []
+        fh = data.get("five_hour") or {}
+        sd = data.get("seven_day") or {}
+        fh_pct = fh.get("utilization")
+        sd_pct = sd.get("utilization")
+        if fh_pct is not None:
+            fh_reset = fh.get("resets_at", "")
+            reset_s = ""
+            if fh_reset:
+                from datetime import datetime, timezone
+                try:
+                    dt = datetime.fromisoformat(fh_reset)
+                    remaining = (dt - datetime.now(timezone.utc)).total_seconds()
+                    if remaining > 0:
+                        h, m = divmod(int(remaining) // 60, 60)
+                        reset_s = f" reset {h}h{m:02d}m"
+                except Exception:
+                    pass
+            parts.append(f"5h:{fh_pct:.0f}%{reset_s}")
+        if sd_pct is not None:
+            sd_reset = sd.get("resets_at", "")
+            reset_s = ""
+            if sd_reset:
+                from datetime import datetime, timezone
+                try:
+                    dt = datetime.fromisoformat(sd_reset)
+                    remaining = (dt - datetime.now(timezone.utc)).total_seconds()
+                    if remaining > 0:
+                        d, rem = divmod(int(remaining), 86400)
+                        h = rem // 3600
+                        reset_s = f" reset {d}d{h}h" if d else f" reset {h}h"
+                except Exception:
+                    pass
+            parts.append(f"7d:{sd_pct:.0f}%{reset_s}")
+        return " | " + " ".join(parts) if parts else ""
+    except Exception:
+        return ""
+
 logger = logging.getLogger("app.session")
 
 
@@ -97,7 +143,8 @@ class TurnManager:
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
         def _fc(v):
             return f"{v:.4f}" if v < 0.01 and v > 0 else f"{v:.2f}"
-        s._log("status", f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, ${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total {ctx_s})")
+        limits_s = _format_limits()
+        s._log("status", f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, ${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total {ctx_s}){limits_s}")
 
         self.finish_turn_status()
         self.after_turn_idle_actions(live_pct)

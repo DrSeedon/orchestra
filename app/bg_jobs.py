@@ -446,16 +446,19 @@ class BgJobManager:
         proc = None
         output_buf = []
         try:
+            # 16MB readline limit: Codex JSONL contains base64 images / long JSON lines
+            # that exceed asyncio's default 64KB StreamReader limit → ValueError
+            _STREAM_LIMIT = 16 * 1024 * 1024
             if host:
                 proc = await asyncio.create_subprocess_exec(
                     "ssh", *_SSH_OPTS, host, command,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                    preexec_fn=os.setsid,
+                    preexec_fn=os.setsid, limit=_STREAM_LIMIT,
                 )
             else:
                 proc = await asyncio.create_subprocess_shell(
                     command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                    preexec_fn=os.setsid,
+                    preexec_fn=os.setsid, limit=_STREAM_LIMIT,
                 )
             self._procs[job_id] = proc
             where = host or "local"

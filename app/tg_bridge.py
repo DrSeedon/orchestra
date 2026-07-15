@@ -485,16 +485,29 @@ TG_MSG_LIMIT = 4096
 
 
 def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
-    if len(text) <= limit:
+    if _utf16_len(text) <= limit:
         return [text]
     chunks = []
     while text:
-        if len(text) <= limit:
+        if _utf16_len(text) <= limit:
             chunks.append(text)
             break
-        cut = text.rfind('\n', 0, limit)
-        if cut < limit // 4:
-            cut = limit
+        # Find a newline to cut at, but measure in UTF-16 units (TG's native encoding)
+        cut = -1
+        for i in range(min(len(text), limit) - 1, limit // 4, -1):
+            if text[i] == '\n' and _utf16_len(text[:i]) <= limit:
+                cut = i
+                break
+        if cut < 0:
+            # No good newline — binary search for the last char that fits
+            lo, hi = limit // 4, min(len(text), limit + 256)
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                if _utf16_len(text[:mid]) <= limit:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            cut = lo
         chunks.append(text[:cut])
         text = text[cut:].lstrip('\n')
     return chunks

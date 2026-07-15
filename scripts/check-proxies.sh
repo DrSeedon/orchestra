@@ -1,5 +1,6 @@
 #!/bin/bash
-# Проверяет все прокси Orchestra и переключает Orchestra+Codex+TG на первый рабочий.
+# Проверяет все прокси из PROXY_LIST и переключает Orchestra+TG на первый рабочий.
+# Claude/Codex/Cursor читают тот же .env при запуске, отдельно их переписывать не надо.
 # Запускай при смене сети (сменил WiFi / выключил VPN): bash scripts/check-proxies.sh
 #
 # WHY: все прокси = ssh -L туннели к VPS, маршрут к которым иногда идёт через tun0 (Reality VPN).
@@ -7,19 +8,28 @@
 
 set -uo pipefail
 ENV_FILE="/mnt/data/Projects/Python/orchestra/.env"
-CODEX_WRAPPER="/home/maxim/.local/bin/codex"
 PROXYCHAINS="/etc/proxychains4.conf"
 
-# Прокси-кандидаты: name:port (порядок = приоритет).
-# Contabo/Fornex достижимы напрямую с РФ WiFi БЕЗ VPN → первыми.
-# Hiddify — VPN-fallback. Timeweb/Ezhik сейчас недостижимы по SSH (firewall/down) → в конец.
-CANDIDATES=(
-    "Contabo-DE:12343"
-    "Fornex-NL:12342"
-    "Hiddify:12334"
-    "Timeweb-NL:12341"
-    "Ezhik:12340"
-)
+# Единственный реестр маршрутов и их приоритета — PROXY_LIST в .env.
+PROXY_LIST=$(sed -n 's/^PROXY_LIST=//p' "$ENV_FILE" | head -1)
+[[ -n "$PROXY_LIST" ]] || { echo "🚨 PROXY_LIST отсутствует в $ENV_FILE"; exit 1; }
+
+CANDIDATE_NAMES=()
+CANDIDATE_URLS=()
+CANDIDATE_PORTS=()
+IFS=',' read -ra PROXY_ENTRIES <<< "$PROXY_LIST"
+for item in "${PROXY_ENTRIES[@]}"; do
+    [[ "$item" == *"|"* ]] || continue
+    name="${item%%|*}"
+    url="${item#*|}"
+    [[ "$url" == "direct" ]] && continue
+    port="${url##*:}"
+    [[ "$port" =~ ^[0-9]+$ ]] || continue
+    CANDIDATE_NAMES+=("$name")
+    CANDIDATE_URLS+=("$url")
+    CANDIDATE_PORTS+=("$port")
+done
+(( ${#CANDIDATE_PORTS[@]} > 0 )) || { echo "🚨 В PROXY_LIST нет прокси-кандидатов"; exit 1; }
 
 TEST_URL="https://api.anthropic.com"
 echo "🔍 Проверяю прокси (цель: $TEST_URL)..."
@@ -29,7 +39,7 @@ echo ""
 # WHY: при смене сети/выключении VPN Orchestra пересоздаёт SSH туннели по одному
 # с задержкой 5с. Разовая проверка ловит окно когда туннели ещё не встали → ложная паника.
 # Ретраим полный цикл до 60с, пока хоть один прокси не оживёт.
-# WHY приоритетный выбор: CANDIDATES отсортированы по приоритету (Contabo лучший).
+# WHY приоритетный выбор: PROXY_LIST уже отсортирован по приоритету.
 # На старте туннели встают 5-30с в РАЗНОМ порядке — низкоприоритетный Hiddify может
 # ожить раньше Contabo. Берём ПЕРВЫЙ живой в проходе (он приоритетнее по позиции),
 # НО пока не истёк GRACE (30с) — ждём топовый, не хватаем первый попавшийся живой
@@ -42,17 +52,19 @@ attempt=0
 while :; do
     attempt=$(( attempt + 1 ))
     # первый живой в порядке приоритета за этот проход
-    for entry in "${CANDIDATES[@]}"; do
-        name="${entry%%:*}"; port="${entry##*:}"
+    for i in "${!CANDIDATE_PORTS[@]}"; do
+        name="${CANDIDATE_NAMES[$i]}"
+        url="${CANDIDATE_URLS[$i]}"
+        port="${CANDIDATE_PORTS[$i]}"
         ss -tlnH "sport = :$port" 2>/dev/null | grep -q ":$port" || continue
-        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 -x "http://127.0.0.1:$port" "$TEST_URL" 2>/dev/null)
+        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 -x "$url" "$TEST_URL" 2>/dev/null)
         [[ "$code" =~ ^(200|401|403|404)$ ]] || continue
-        WORKING_PORT="$port"; WORKING_NAME="$name"
+        WORKING_PORT="$port"; WORKING_NAME="$name"; WORKING_URL="$url"
         break
     done
     if [[ -n "$WORKING_PORT" ]]; then
-        # топ-2 приоритет (Contabo/Fornex) → берём сразу. Ниже → только после GRACE.
-        top2="${CANDIDATES[0]##*:} ${CANDIDATES[1]##*:}"
+        # Первые два маршрута из PROXY_LIST → берём сразу. Ниже → только после GRACE.
+        top2="${CANDIDATE_PORTS[0]} ${CANDIDATE_PORTS[1]:-}"
         if [[ " $top2 " == *" $WORKING_PORT "* ]] || [[ $(date +%s) -ge $GRACE_UNTIL ]]; then
             printf "  ✅ %-12s (:%s) — работает\n" "$WORKING_NAME" "$WORKING_PORT"
             break
@@ -77,22 +89,16 @@ fi
 echo "🎯 Рабочий прокси: $WORKING_NAME (:$WORKING_PORT)"
 
 # Текущий прокси в .env
-CURRENT=$(grep -oP 'HTTPS_PROXY=http://127.0.0.1:\K[0-9]+' "$ENV_FILE" | head -1)
-if [[ "$CURRENT" == "$WORKING_PORT" ]]; then
+CURRENT=$(sed -n 's/^HTTPS_PROXY=//p' "$ENV_FILE" | head -1)
+if [[ "$CURRENT" == "$WORKING_URL" ]]; then
     echo "✅ Orchestra уже на :$WORKING_PORT — ничего менять не нужно"
 else
-    echo "🔧 Переключаю Orchestra :$CURRENT → :$WORKING_PORT"
-    sed -i "s|HTTPS_PROXY=http://127.0.0.1:[0-9]*|HTTPS_PROXY=http://127.0.0.1:$WORKING_PORT|" "$ENV_FILE"
-    sed -i "s|HTTP_PROXY=http://127.0.0.1:[0-9]*|HTTP_PROXY=http://127.0.0.1:$WORKING_PORT|" "$ENV_FILE"
+    echo "🔧 Переключаю Orchestra → $WORKING_NAME (:$WORKING_PORT)"
+    escaped_url=${WORKING_URL//&/\\&}
+    sed -i "s|^HTTPS_PROXY=.*|HTTPS_PROXY=$escaped_url|" "$ENV_FILE"
+    sed -i "s|^HTTP_PROXY=.*|HTTP_PROXY=$escaped_url|" "$ENV_FILE"
     echo "   → нужен рестарт: sudo systemctl restart orchestra"
     NEED_ORCH_RESTART=1
-fi
-
-# Codex wrapper
-CODEX_CURRENT=$(grep -oP 'HTTPS_PROXY=http://127.0.0.1:\K[0-9]+' "$CODEX_WRAPPER" | head -1)
-if [[ "$CODEX_CURRENT" != "$WORKING_PORT" ]]; then
-    echo "🔧 Переключаю Codex :$CODEX_CURRENT → :$WORKING_PORT"
-    sed -i "s|HTTPS_PROXY=http://127.0.0.1:[0-9]*|HTTPS_PROXY=http://127.0.0.1:$WORKING_PORT|" "$CODEX_WRAPPER"
 fi
 
 # TG: proxychains для telegram-bot-api. Hiddify (12334) = socks5, остальные = http.
@@ -110,11 +116,13 @@ if [[ -w "$PROXYCHAINS" ]] || sudo -n true 2>/dev/null; then
             && echo "   → telegram-bot-api рестартнут" \
             || echo "   ⚠️  нет sudo — TG не переключён"
     fi
+else
+    echo "⚠️  TG proxychains не проверен: нет доступа к изменению $PROXYCHAINS"
 fi
 
 echo ""
 if [[ "${NEED_ORCH_RESTART:-0}" == "1" ]]; then
     echo "⚠️  Orchestra прокси сменился — рестартни: sudo systemctl restart orchestra"
 else
-    echo "✅ Всё на :$WORKING_PORT, рестарт Orchestra не нужен"
+    echo "✅ Orchestra и launchers Claude/Codex/Cursor используют :$WORKING_PORT; рестарт Orchestra не нужен"
 fi

@@ -54,7 +54,6 @@ Most types are one-shot (trigger once, done) — to repeat, create a new job aft
 - Persist knowledge to files — write research results, solutions, configs to `docs/` or `RESEARCH.md`. Context is lost on compaction/restart, files are not
 - Respond in the same language the user communicates in
 - **Context economy:** every tool_result stays in your context and is re-read every turn. Minimize replay:
-  - NEVER re-read images (Read on .png/.jpg) — you already saw them, base64 = 60K+ tokens each re-read
   - grep/search BEFORE full Read — find the lines you need, then Read with offset+limit
   - Large exploration (whole directory, many files) → use a subagent (isolated context, report back digest)
   - Workers: no narration between tool calls. One line before your first action, one at blockers, and the DONE report. Your thinking block does reasoning — don't duplicate in chat
