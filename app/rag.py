@@ -43,12 +43,9 @@ CHUNK_CHAR_LIMIT = 1200   # ~300 токенов — выше этого реже
 CHUNK_SIZE = 800          # ~200 токенов на кусок
 CHUNK_OVERLAP = 200       # ~50 токенов перекрытие
 CHUNK_STRIDE = 1000       # макс чанков на источник (chunk_id = source_id*STRIDE + idx)
-EMBED_BATCH = int(os.getenv("RAG_EMBED_BATCH", "16"))  # research §6: 16 → peak 1.6GB (vs 2.4GB@64)
-# CPU throttle: ONNX intra-op threads default 0 = ALL cores → backfill hits ~490% CPU on a
-# 12-core laptop and freezes the UI. Cap it so reindex runs quietly in the background.
-# 0 = ORT default (all cores). Set RAG_ONNX_THREADS=2 for gentle background indexing.
-RAG_ONNX_THREADS = int(os.getenv("RAG_ONNX_THREADS", "2"))
-RAG_NICE = int(os.getenv("RAG_NICE", "10"))  # os.nice() on the write-executor thread (backfill)
+EMBED_BATCH = int(os.getenv("RAG_EMBED_BATCH", "64"))  # kesha benchmark: 64 optimal (98ms/chunk)
+RAG_ONNX_THREADS = int(os.getenv("RAG_ONNX_THREADS", "2"))  # cap ONNX threads (0=all cores=490% CPU)
+RAG_NICE = int(os.getenv("RAG_NICE", "10"))  # os.nice() on backfill thread
 
 # Файловая индексация. Только markdown-проза: .md.
 # xml/csv/json/html = машинные данные/логи → мусор в retrieval (kesha-замер).
