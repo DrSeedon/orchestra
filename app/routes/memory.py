@@ -24,6 +24,7 @@ class MemorySearchRequest(BaseModel):
 
 class MemoryReindexRequest(BaseModel):
     scope: str
+    session_name: str | None = None  # if set → index ONLY this session's logs (fast per-agent reindex)
 
 
 @router.post("/search")
@@ -50,7 +51,7 @@ async def memory_reindex(req: MemoryReindexRequest):
     if not scope:
         return JSONResponse({"error": "scope required"}, status_code=400)
     try:
-        counts = await rag_service.backfill_scope(scope)
+        counts = await rag_service.backfill_scope(scope, session_name=req.session_name)
     except RuntimeError as e:
         return JSONResponse({"error": str(e)}, status_code=503)
     return {"ok": True, **counts}
