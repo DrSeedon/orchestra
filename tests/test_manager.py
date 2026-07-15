@@ -1257,3 +1257,49 @@ class TestChangeScopeUnloadedWorkerGuard:
         newdir = tmp_path / "newproj"; newdir.mkdir()
         res = await mgr.change_orchestrator_scope("orch", "/old/proj", str(newdir), str(newdir))
         assert res["ok"] is True
+
+
+class TestLiveChildren:
+    """Orphan-guard: _live_children finds active sub-workers of a parent."""
+
+    def _row(self, name, parent_name, status, scope="/proj"):
+        from datetime import datetime, timezone
+        return {
+            "id": f"id-{name}", "name": name, "scope": scope,
+            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "status": status, "session_id": "x", "cost_usd": 0.0,
+            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None, "role": "worker", "parent_name": parent_name,
+        }
+
+    def test_finds_live_children_from_db(self, mgr):
+        from app.db import save_session
+        save_session(self._row("child-a", "parent-w", "idle"))
+        save_session(self._row("child-b", "parent-w", "running"))
+        assert mgr._live_children("parent-w", "/proj") == ["child-a", "child-b"]
+
+    def test_archived_children_not_blocking(self, mgr):
+        from app.db import save_session
+        save_session(self._row("child-dead", "parent-w", "archived"))
+        assert mgr._live_children("parent-w", "/proj") == []
+
+    def test_only_own_children(self, mgr):
+        from app.db import save_session
+        save_session(self._row("mine", "parent-w", "idle"))
+        save_session(self._row("other", "another-parent", "idle"))
+        assert mgr._live_children("parent-w", "/proj") == ["mine"]
+
+    def test_scope_isolation(self, mgr):
+        from app.db import save_session
+        save_session(self._row("here", "parent-w", "idle", scope="/proj"))
+        save_session(self._row("elsewhere", "parent-w", "idle", scope="/other"))
+        assert mgr._live_children("parent-w", "/proj") == ["here"]
+
+    def test_empty_parent_name_returns_empty(self, mgr):
+        assert mgr._live_children("", "/proj") == []
+
+    def test_no_children_returns_empty(self, mgr):
+        from app.db import save_session
+        save_session(self._row("lonely", "", "idle"))
+        assert mgr._live_children("parent-w", "/proj") == []

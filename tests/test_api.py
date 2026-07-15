@@ -448,3 +448,37 @@ class TestChangeScopeEndpoint:
             })
         assert r.status_code == 403
         m.assert_not_awaited()
+
+
+class TestDeleteOrphanGuard:
+    """kill (DELETE) a parent with live children → blocked unless force."""
+
+    def _mk(self, client, name, parent_name=""):
+        body = {"name": name, "scope": "/tmp", "cwd": "/tmp",
+                "model": "claude-sonnet-5[1m]"}
+        if parent_name:
+            # worker parent + unrouted child is blocked by validate_spawn
+            # (allow_unrouted_workers=False) — give the child an explicit role.
+            body["parent_name"] = parent_name
+            body["role"] = "worker"
+        r = client.post("/api/sessions", json=body)
+        assert r.status_code == 201, r.text
+
+    def test_blocks_kill_with_live_child(self, client):
+        self._mk(client, "par")
+        self._mk(client, "kid", parent_name="par")
+        r = client.delete("/api/sessions/par", params={"scope": "/tmp"})
+        assert r.status_code == 400
+        assert "child" in r.json()["error"]
+        assert "kid" in r.json()["error"]
+
+    def test_force_overrides(self, client):
+        self._mk(client, "par2")
+        self._mk(client, "kid2", parent_name="par2")
+        r = client.delete("/api/sessions/par2", params={"scope": "/tmp", "force": "true"})
+        assert r.status_code == 200
+
+    def test_no_children_not_blocked(self, client):
+        self._mk(client, "lonely")
+        r = client.delete("/api/sessions/lonely", params={"scope": "/tmp"})
+        assert r.status_code == 200

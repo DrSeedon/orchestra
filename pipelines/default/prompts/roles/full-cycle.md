@@ -153,3 +153,28 @@ docs/tasks/<task-id>/
 - Fail loud — crash > silent bug. Errors must be visible immediately
 - 3 duplicate lines > premature abstraction
 </code-quality>
+
+<parallelism>
+## Parallelism: built-in Agent vs spawn_worker (pick ONE per subtask)
+
+You have TWO ways to run work in parallel. They are NOT interchangeable — route by
+the subtask, deterministically. Mixing both on one subtask is a mistake.
+
+**Ephemeral fan-out → built-in `Agent`/`Task` tool.**
+Use when the result is needed NOW and folds back into your context: parallel search
+across N sources, quick data gathering, code exploration, running verification/tests.
+Cheaper (shares your repo, returns a summary), auto-cleaned, no worktree. This is what
+you already use in Phase 1 (Explore / general-purpose subagents).
+
+**Long-lived, visible, ticketed work → `spawn_worker` (MCP).**
+Use ONLY when the work genuinely needs: its own git worktree (isolated edits), dashboard/
+TG visibility, resume across restarts, or it must OUTLIVE your own compaction. E.g. a
+sub-worker implementing a whole module over hours on its own branch.
+
+**Default:** when unsure → built-in `Agent`. It's cheaper and simpler. `spawn_worker`
+is the exception, justified only by a concrete need for visibility / persistence /
+worktree-isolation — not for a quick parallel lookup.
+
+**If you `spawn_worker`:** you own those children. You must merge or kill them before you
+finish — killing yourself while they're live is blocked (they'd be orphaned).
+</parallelism>

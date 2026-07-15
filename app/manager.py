@@ -718,6 +718,29 @@ class SessionManager:
                 names.add(row["name"])
         return sorted(names)
 
+    def _live_children(self, parent_name: str, scope: str) -> list[str]:
+        """Names of active (idle/running/waiting) children spawned by ``parent_name``
+        in ``scope``, from both the in-memory registry and the DB (catches
+        unloaded-but-active rows). Deduplicated by session id. Used to block
+        killing a parent that still has live sub-workers (would orphan them)."""
+        if not parent_name:
+            return []
+        active = ("idle", "running", "waiting")
+        seen_ids: set[str] = set()
+        names: set[str] = set()
+        for s in self.sessions.values():
+            if s.scope == scope and s.parent_name == parent_name and s.status.value in active:
+                seen_ids.add(s.id)
+                names.add(s.name)
+        for row in get_all_sessions(scope):
+            if row["id"] in seen_ids:
+                continue
+            if (row.get("parent_name") or "") != parent_name:
+                continue
+            if (row.get("status") or "") in active:
+                names.add(row["name"])
+        return sorted(names)
+
     async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict:
         orch_names: list[str] = []
         for s in self.sessions.values():
