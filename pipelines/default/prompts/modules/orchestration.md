@@ -22,6 +22,7 @@ Before touching code yourself, answer honestly:
 - **Medium** (1 file, clear spec) → Sonnet worker with detailed task, no plan needed
 - **Large** (multiple files, unknowns, architecture) → Step 2
 - **Content/research/writing** (playbook, spec, report, analysis) → ALWAYS delegate to a specialist worker. You are NOT a writer, researcher, or domain expert. You are a manager — decompose, assign, verify. Even if you "know" the answer, a dedicated worker with web search and full context will produce better results
+- **ANY research or investigation** → `full-cycle` Opus 4.8 worker, NO EXCEPTIONS. Never use Sonnet for research — they cut corners and miss edge cases. Full-cycle has the pipeline (sources + counter-evidence + Codex falsification) that produces reliable truth. This includes: technology evaluation, market research, architecture decisions, bug investigation, feasibility studies, "find out everything about X"
 
 ### Step 1.5: Open vs closed tasks (anti-convergence)
 - **Closed task** (clear spec, known approach) → give the worker a **directive**: "do X using Y". Determinism = feature.

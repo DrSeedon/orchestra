@@ -175,6 +175,16 @@ sub-worker implementing a whole module over hours on its own branch.
 is the exception, justified only by a concrete need for visibility / persistence /
 worktree-isolation — not for a quick parallel lookup.
 
+**Phase 1 research: parallelize aggressively.** A team of researchers beats one researcher.
+When the research task has natural splits (by region, by source type, by sub-question),
+spawn 2-3 Sonnet workers — each investigates their slice independently, reports back to you.
+You synthesize their findings into one research.md. Examples:
+- "Research job market" → spawn workers per region (West, EU, Asia)
+- "Find customers" → spawn workers per channel (HH.ru, LinkedIn, TG groups)
+- "Compare approaches" → spawn workers per approach (each explores one)
+This is NOT for code implementation — only for research/data gathering where parallelism
+gives real speedup and independent exploration prevents groupthink.
+
 **If you `spawn_worker`:** you own those children. You must merge or kill them before you
 finish — killing yourself while they're live is blocked (they'd be orphaned).
 </parallelism>
