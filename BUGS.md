@@ -99,3 +99,8 @@ Workaround который сработал: прогнал adversarial review н
 - **Reporter:** research-rag-orchestra
 - **Scope:** /mnt/data/Projects/Python/orchestra
 codex_review(mode=exec) jobs all return status=failed with no output file created. Observed 7 consecutive failures: bg-8a5d9b0512, bg-a6d5d9dd75 (research-rag-orchestra), bg-3da08a15c0 (interaction-tax), bg-bc4692a1ef, bg-5c6e0307e8 (cc-config), bg-7d477ec9c4, bg-ba20facbdb (grok). The job message says "Codex exec done. Results in docs/tasks/.../codex-review-*.md" but the file is never written (0 bytes / missing). Pattern spans multiple projects and both mode=exec and default → not query-specific. Likely: Codex CLI wrapper crashing, proxy (Ёжик 12340) down for the codex endpoint, or session/auth failure. Blocks the mandatory Phase-1/Phase-2 Codex second-opinion gate for all full-cycle workers right now.
+
+## [2026-07-16 03:53 UTC] codex_review: output-файл не создан (CWD-баг) + last_output обрезан
+- **Reporter:** legal-payment-researcher
+- **Scope:** /home/maxim/Рабочий стол/Cursor/COG-second-brain
+codex_review(mode=exec, target=block2-armenia.md, output=docs/tasks/payment-rails-2026/codex-review-armenia.md, project=legal-payment-researcher) завершился со статусом done, но: (1) output-файл codex-review-armenia.md НЕ создан ни в worktree агента, ни в main repo — известный CWD-баг (Codex пишет не в CWD агента). (2) bg_jobs.last_output обрезан до ~3.4KB, содержит только середину web_search-потока, финального agent_message с текстом ревью нет — вердикт Codex безвозвратно потерян. Пришлось верифицировать ключевой вывод (незачёт армянского turnover tax) вручную через WebSearch. Job id: bg-b6687fb86a.
