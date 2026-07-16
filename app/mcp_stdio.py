@@ -9,6 +9,7 @@ Usage: python -m app.mcp_stdio
 import json
 import logging
 import os
+import shlex
 import sys
 
 import httpx
@@ -717,7 +718,8 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
     return "\n\n---\n\n".join(lines)
 
 
-# Wrapper at ~/.local/bin/codex sets HTTPS_PROXY for Ёжик tunnel
+# Wrapper reloads Orchestra .env on every invocation, so Codex review follows the same
+# currently selected proxy as workers, Cursor, and the dashboard service.
 _CODEX_BIN = "/home/maxim/.local/bin/codex"
 _REVIEW_CONTEXT = (
     "PROJECT CONTEXT (calibrate review severity):\n"
@@ -747,40 +749,6 @@ def _read_codex_uuid(sessions_path: str, slug: str) -> str:
         return ""
 
 
-def _codex_persist_snippet(sessions_path: str, slug: str, jsonl: str,
-                           is_resume: bool, output_abs: str, round_tmp: str) -> str:
-    """Shell snippet: append the resumed round to the review file (history-preserving) and
-    upsert the thread UUID into codex_sessions.json. Runs AFTER codex — the bg job is a
-    detached subprocess, so Python can't capture the post-run UUID.
-
-    Exit-code safety (dash, no PIPESTATUS): the caller captures codex's real exit code to
-    /tmp before this runs; this snippet never overrides it. jq/persistence failure must not
-    mask a successful review, nor vice-versa."""
-    # resume writes ONLY the last message to round_tmp → append as a new round, never overwrite
-    # prior rounds. (Fresh/fallback runs write directly to output_abs, so round_tmp stays empty.)
-    append = (
-        f"[ -s '{round_tmp}' ] && {{ "
-        f"printf '\\n\\n## Round (%s)\\n\\n' \"$NOW\" >> '{output_abs}'; "
-        f"cat '{round_tmp}' >> '{output_abs}'; rm -f '{round_tmp}'; }};"
-    ) if is_resume else ""
-    # Always upsert the captured thread_id: same UUID on resume, a NEW one if resume fell back
-    # to a fresh session (stale-UUID recovery). One code path handles new/resume/fallback.
-    upsert = (
-        f"jq --arg s '{slug}' --arg u \"$UUID\" --arg now \"$NOW\" "
-        f"'.sessions[$s]={{uuid:$u, started:(.sessions[$s].started // $now), "
-        f"last_used:$now, turns:((.sessions[$s].turns // 0)+1)}}' "
-        f"'{sessions_path}' > '{sessions_path}.tmp' && mv '{sessions_path}.tmp' '{sessions_path}'"
-    )
-    # jq may be absent (minimal VPS) → guard the UUID upsert; the append (plain cat) is unguarded.
-    return (
-        f"; NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ); {append}"
-        f" command -v jq >/dev/null 2>&1 && {{"
-        f" [ -f '{sessions_path}' ] || echo '{{\"sessions\":{{}}}}' > '{sessions_path}';"
-        f" UUID=$(jq -R -r 'fromjson? | select(.type==\"thread.started\") | .thread_id' '{jsonl}' | tail -1);"
-        f" [ -n \"$UUID\" ] && {upsert}; }}"
-    )
-
-
 @mcp.tool()
 async def codex_review(
     target: str = "",
@@ -807,7 +775,7 @@ async def codex_review(
     sessions_path = _codex_sessions_path(output_abs)
     slug = _codex_slug(output)
     jsonl_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.jsonl"
-    prompt_file = f"/tmp/codex_review_{WORKER_NAME}.txt"
+    prompt_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.txt"
     rc_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.rc"
     # resume writes its last message here; the persist snippet appends it as a ## Round to
     # output_abs so prior rounds are never overwritten.
@@ -818,16 +786,19 @@ async def codex_review(
     if resume and not prev_uuid:
         logger.info(f"codex_review: resume requested but no stored session for slug={slug} → fresh")
 
-    # resume's -o must NOT point at output_abs (it would truncate history); write to round_tmp.
-    codex_out = round_tmp if is_resume else output_abs
+    # Never let `codex -o` write the durable artifact directly: -o stores the final
+    # agent_message and can overwrite a richer file created during the turn. Capture every
+    # run in a temporary round, validate it, then atomically persist it.
+    codex_out = round_tmp
+    q = shlex.quote
 
     if mode == "review":
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
         fresh_review = (
-            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec review"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --json"
-            f" -o {codex_out}"
+            f" -o {q(codex_out)}"
         )
         if is_resume:
             # resume inherits sandbox from original session — do NOT pass -s. Re-review the diff.
@@ -840,10 +811,10 @@ async def codex_review(
                 resume_prompt += f"\nAuthor notes: {context}"
             # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
             codex = (
-                f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{resume_prompt}\nCODEX_PROMPT_EOF\n"
-                f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec resume {prev_uuid}"
+                f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec resume {q(prev_uuid)}"
                 f" --skip-git-repo-check --full-auto --json"
-                f" -o {codex_out} - < {prompt_file}"
+                f" -o {q(codex_out)} - < {q(prompt_file)}"
                 f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
             )
         else:
@@ -862,7 +833,7 @@ async def codex_review(
             prompt_parts_exec.append("Re-review after the author's changes above. "
                                      "Output a concise re-review (status of prior findings, new findings, verdict).")
         else:
-            prompt_parts_exec.append(f"Write your findings to {output}.")
+            prompt_parts_exec.append("Return the complete review in your final response. Do not edit files.")
         prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
         exec_prompt = "\n".join(prompt_parts_exec)
 
@@ -870,19 +841,19 @@ async def codex_review(
         sandbox = "" if is_resume else " -s workspace-write"
         subcmd = f"exec resume {prev_uuid}" if is_resume else "exec"
         codex = (
-            f"cat > {prompt_file} << 'CODEX_PROMPT_EOF'\n{exec_prompt}\nCODEX_PROMPT_EOF\n"
-            f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} {subcmd}"
+            f"printf '%s' {q(exec_prompt)} > {q(prompt_file)}; "
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} {subcmd}"
             f"{sandbox} --skip-git-repo-check --full-auto --json"
-            f" -o {codex_out} - < {prompt_file}"
+            f" -o {q(codex_out)} - < {q(prompt_file)}"
         )
         if is_resume and target:
             # Stale/invalid UUID → resume fails → fresh exec. Only when a target exists —
             # without one the prompt has nothing concrete to review, so let resume fail loud.
             # Writes to codex_out (=round_tmp) so the recovery is appended, not overwriting history.
             fresh_exec = (
-                f"cd {cwd} && UV_CACHE_DIR=/tmp/uv-cache {_CODEX_BIN} exec"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec"
                 f" -s workspace-write --skip-git-repo-check --full-auto --json"
-                f" -o {codex_out} - < {prompt_file}"
+                f" -o {q(codex_out)} - < {q(prompt_file)}"
             )
             codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
     else:
@@ -892,29 +863,52 @@ async def codex_review(
     # so they never dirty the tree / block merge_worker — regardless of how old the worktree is
     # (create_worktree only excludes on spawn; long-lived workers need this at use-time too).
     exclude_setup = (
-        f"cd {cwd} && GD=$(git rev-parse --git-common-dir 2>/dev/null)"
-        f" && {{ case \"$GD\" in /*) ;; *) GD=\"{cwd}/$GD\";; esac;"
+        f"cd {q(cwd)} && GD=$(git rev-parse --git-common-dir 2>/dev/null)"
+        f" && {{ case \"$GD\" in /*) ;; *) GD={q(cwd)}/$GD;; esac;"
         f" mkdir -p \"$GD/info\";"
         f" for p in 'codex_sessions.json' '*.round'; do"
         f" grep -qxF \"$p\" \"$GD/info/exclude\" 2>/dev/null || echo \"$p\" >> \"$GD/info/exclude\";"
         f" done; }}; "
     )
 
-    # dash has no PIPESTATUS: capture codex's exit code, tee JSONL, then persist, then exit
-    # with codex's real code so bg-job success/failure reporting reflects the review, not jq.
-    persist = _codex_persist_snippet(sessions_path, slug, jsonl_file, is_resume, output_abs, round_tmp)
+    finalizer = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "codex_review_artifact.py")
+    finalize_args = [
+        q(sys.executable), q(finalizer),
+        "--output", q(output_abs),
+        "--round-file", q(round_tmp),
+        "--sessions-file", q(sessions_path),
+        "--slug", q(slug),
+        "--jsonl-file", q(jsonl_file),
+    ]
+    if is_resume:
+        finalize_args.append("--resume")
+    if mode == "exec":
+        finalize_args.append("--require-verdict")
+    finalize = " ".join(finalize_args)
+
+    # Remove stale temp state before each attempt. A service restart can kill the shell after
+    # an old .rc=0 was written but before the artifact was persisted; reusing that file caused
+    # false success. Codex's real exit code and the artifact validator must both pass.
     cmd = (
         f"{exclude_setup}"
-        f"{{ {codex} ; echo $? > {rc_file} ; }} | tee {jsonl_file}"
-        f"{persist}"
-        f"; exit $(cat {rc_file} 2>/dev/null || echo 1)"
+        f"mkdir -p {q(os.path.dirname(output_abs))}; "
+        f"rm -f {q(rc_file)} {q(jsonl_file)} {q(round_tmp)} {q(prompt_file)}; "
+        f"{{ {codex} ; echo $? > {q(rc_file)} ; }} | tee {q(jsonl_file)}; "
+        f"RC=$(cat {q(rc_file)} 2>/dev/null || echo 1); "
+        f"[ \"$RC\" -eq 0 ] || exit \"$RC\"; "
+        f"{finalize}"
     )
 
     action = "resume" if is_resume else mode
     logger.info(f"codex_review: mode={mode} resume={is_resume} slug={slug} cwd={cwd} output={output_abs}")
     result = await _api("POST", "/api/bg/jobs", json={
         "type": "run",
-        "config": {"command": cmd},
+        "config": {
+            "command": cmd,
+            "success_file": output_abs,
+            "success_pattern": r"(?im)^##\s+Verdict\b" if mode == "exec" else "",
+        },
         "message": f"Codex {action} done. Results in {output}",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,

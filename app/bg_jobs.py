@@ -80,6 +80,12 @@ def _validate_config(job_type: str, config: dict) -> str | None:
     elif job_type == "run":
         if not config.get("command"):
             return "command is required"
+        success_pattern = config.get("success_pattern", "")
+        if success_pattern:
+            try:
+                re.compile(success_pattern)
+            except re.error as e:
+                return f"invalid success_pattern: {e}"
     elif job_type == "cron":
         expr = config.get("cron_expr", "")
         if not expr:
@@ -183,7 +189,9 @@ class BgJobManager:
         elif job_type == "run":
             host = config.get("host")
             coro = self._run_exec(job_id, config["command"], message, target_name,
-                                  target_scope, timeout, host=host)
+                                  target_scope, timeout, host=host,
+                                  success_file=config.get("success_file"),
+                                  success_pattern=config.get("success_pattern", ""))
         elif job_type == "cron":
             cron_timeout = None if config.get("no_expiry") else timeout
             coro = self._run_cron(job_id, config["cron_expr"], message,
@@ -312,6 +320,23 @@ class BgJobManager:
             logger.warning(f"bg_job {job_id}: TIMED OUT after {dur} → notified {target_name}")
         except Exception as e:
             logger.error(f"bg_job {job_id}: timeout-notify failed: {e}")
+
+    async def _fail_notify(self, job_id, message, target_name, target_scope,
+                           error, output=""):
+        """Persist a failed run and wake the waiting agent with an explicit failure."""
+        bg_fail_job(job_id, error)
+        try:
+            session = await self._session_manager.ensure_loaded(target_name, target_scope)
+            if not session:
+                logger.warning(f"bg_job {job_id}: failed, target {target_name} not found")
+                return
+            body = f"[Background job FAILED] {message}\n{error}"
+            if output:
+                body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
+            await session.send(body)
+            logger.warning(f"bg_job {job_id}: FAILED → notified {target_name}: {error}")
+        except Exception as e:
+            logger.error(f"bg_job {job_id}: failure-notify failed: {e}")
 
     def _fail_if_active(self, job_id: str, error: str) -> None:
         bg_fail_job_if_active(job_id, error)
@@ -442,8 +467,10 @@ class BgJobManager:
                 await _kill_proc(proc)
 
     async def _run_exec(self, job_id, command, message, target_name,
-                        target_scope, timeout, host=None):
+                        target_scope, timeout, host=None, success_file=None,
+                        success_pattern=""):
         proc = None
+        reader_task = None
         output_buf = []
         try:
             # 16MB readline limit: Codex JSONL contains base64 images / long JSON lines
@@ -465,7 +492,9 @@ class BgJobManager:
             logger.info(f"bg_job {job_id}: run started pid={proc.pid} on={where} "
                         f"timeout={timeout}s cmd_len={len(command)}")
             last_progress = time.time()
-            async with asyncio.timeout(timeout):
+
+            async def read_output():
+                nonlocal last_progress, output_buf
                 async for line in proc.stdout:
                     output_buf.append(line.decode(errors="replace"))
                     if len(output_buf) > 500:
@@ -474,13 +503,74 @@ class BgJobManager:
                     if now - last_progress > OUTPUT_PROGRESS_INTERVAL:
                         bg_update_output(job_id, "".join(output_buf))
                         last_progress = now
-                await proc.wait()
+
+            async with asyncio.timeout(timeout):
+                reader_task = asyncio.create_task(read_output())
+                # asyncio Process.wait() itself waits for pipe EOF. A grandchild that
+                # inherited stdout can therefore keep it blocked after the command
+                # leader has exited. Observe the leader's returncode independently.
+                while proc.returncode is None:
+                    await asyncio.sleep(0.05)
+                try:
+                    await asyncio.wait_for(asyncio.shield(reader_task), timeout=2)
+                except asyncio.TimeoutError:
+                    # Codex may leave an MCP child holding the inherited stdout FD.
+                    # The job itself has exited, so terminate only its dedicated
+                    # process group and stop waiting for an EOF that will never come.
+                    logger.warning(
+                        f"bg_job {job_id}: stdout still open after pid={proc.pid} exited; "
+                        "terminating leftover process group"
+                    )
+                    try:
+                        os.killpg(proc.pid, signal.SIGTERM)
+                    except (ProcessLookupError, PermissionError):
+                        pass
+                    try:
+                        await asyncio.wait_for(asyncio.shield(reader_task), timeout=2)
+                    except asyncio.TimeoutError:
+                        try:
+                            os.killpg(proc.pid, signal.SIGKILL)
+                        except (ProcessLookupError, PermissionError):
+                            pass
+                        reader_task.cancel()
+                        await asyncio.gather(reader_task, return_exceptions=True)
+                        transport = getattr(proc, "_transport", None)
+                        if transport:
+                            transport.close()
             full_output = "".join(output_buf)
             exit_code = proc.returncode
-            note = "" if exit_code == 0 else " — process failed, see output"
-            trigger_msg = f"{message}\nExit code: {exit_code}{note}"
             logger.info(f"bg_job {job_id}: run done pid={proc.pid} exit={exit_code} "
                         f"lines={len(output_buf)}")
+            if exit_code != 0:
+                await self._fail_notify(
+                    job_id, message, target_name, target_scope,
+                    f"Process exited with exit code {exit_code}", full_output,
+                )
+                return
+
+            validation_error = ""
+            if success_file:
+                try:
+                    if not os.path.isfile(success_file) or os.path.getsize(success_file) == 0:
+                        validation_error = f"Required output artifact is missing or empty: {success_file}"
+                    elif success_pattern:
+                        with open(success_file, encoding="utf-8", errors="replace") as fh:
+                            artifact = fh.read()
+                        if re.search(success_pattern, artifact) is None:
+                            validation_error = (
+                                f"Required output artifact does not match success pattern: "
+                                f"{success_file}"
+                            )
+                except OSError as e:
+                    validation_error = f"Cannot validate output artifact {success_file}: {e}"
+            if validation_error:
+                await self._fail_notify(
+                    job_id, message, target_name, target_scope,
+                    validation_error, full_output,
+                )
+                return
+
+            trigger_msg = f"{message}\nExit code: 0"
             await self._trigger(job_id, trigger_msg, target_name, target_scope, full_output)
         except asyncio.TimeoutError:
             if proc:
@@ -492,6 +582,9 @@ class BgJobManager:
         except Exception as e:
             bg_fail_job(job_id, str(e)[:500])
         finally:
+            if reader_task and not reader_task.done():
+                reader_task.cancel()
+                await asyncio.gather(reader_task, return_exceptions=True)
             self._procs.pop(job_id, None)
             if proc:
                 await _kill_proc(proc)

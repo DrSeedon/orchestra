@@ -26,6 +26,18 @@ from app.db import save_session, add_log
 
 logger = logging.getLogger(__name__)
 
+
+def _is_terminal_subscription_limit(text: str) -> bool:
+    """Known non-transient subscription limits that must never enter server retry."""
+    lowered = text.lower()
+    return any(marker in lowered for marker in (
+        "session limit",
+        "hit your session",
+        "monthly spend limit",
+        "weekly usage limit",
+        "weekly limit",
+    ))
+
 import concurrent.futures
 _DB_EXECUTOR: Optional[concurrent.futures.ThreadPoolExecutor] = None
 
@@ -305,6 +317,11 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
+        if not message.startswith("[system] Retrying after rate limit."):
+            # Retry budget belongs to one logical request. A real new message starts a new
+            # budget; internal retry turns deliberately preserve the current count.
+            self._rate_limit_retries = 0
+            self._session_limit_hit = False
         if self._compacting:
             self._pending_messages.append(message)
             self._log("user_message", message)
@@ -572,8 +589,8 @@ class AgentSession:
         if event.type == "text":
             from app.live_broker import broker
             broker.clear_accum(self.id)
-            # Session limit comes as text "You've hit your session limit", not as error event
-            if "session limit" in event.content.lower() or "hit your session" in event.content.lower():
+            # Subscription limits arrive as text before the generic rate_limit error.
+            if _is_terminal_subscription_limit(event.content):
                 self._session_limit_hit = True
             self._log("text", event.content)
             self._turn_logs.append(event.content)
@@ -600,7 +617,7 @@ class AgentSession:
             if "rate_limit" in event.content:
                 # Session limit text arrives BEFORE the error event as text "You've hit your session limit"
                 if self._session_limit_hit:
-                    self._log("error", f"⏳ session limit (подписка) — ждём сброса окна. НЕ ретраим")
+                    self._log("error", "⏳ subscription limit — ждём сброса квоты. НЕ ретраим")
                     self._session_limit_hit = False
                 elif self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
                     self._rate_limit_retries += 1

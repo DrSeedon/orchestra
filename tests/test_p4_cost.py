@@ -86,6 +86,17 @@ def test_failed_turn_flags(session):
     assert session._last_stop_reason == "error"
 
 
+def test_delta_cost_is_added_directly_across_resume(session):
+    _apply(session, {"ok": True, "stop_reason": "end_turn", "num_turns": 1,
+                     "cost_usd": 0.10, "cost_usd_cached": 0.10,
+                     "cost_is_delta": True, "session_id": "s1"})
+    _apply(session, {"ok": True, "stop_reason": "end_turn", "num_turns": 1,
+                     "cost_usd": 0.03, "cost_usd_cached": 0.03,
+                     "cost_is_delta": True, "session_id": "s1"})
+    assert session.cost_usd == pytest.approx(0.13)
+    assert session._turn_cost == pytest.approx(0.03)
+
+
 def test_context_update(session):
     _update_ctx(session, {"context_pct": 42, "context_tokens": 84000,
                           "max_tokens": 200000, "cache_hit": 1,

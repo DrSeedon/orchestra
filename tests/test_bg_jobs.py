@@ -42,6 +42,12 @@ class TestValidateCron:
         assert _validate_config("cron", {"cron_expr": "*/5 * * * *"}) is None
 
 
+def test_run_rejects_invalid_success_pattern():
+    from app.bg_jobs import _validate_config
+    error = _validate_config("run", {"command": "true", "success_pattern": "["})
+    assert error and "success_pattern" in error
+
+
 class TestCronCreate:
     @pytest.mark.asyncio
     async def test_no_timeout_means_forever(self, db, monkeypatch):
@@ -153,3 +159,74 @@ class TestRunCron:
         assert fired["n"] == 2
         # sleep was called with the computed next-fire delay (<= 60s for * * * * *)
         assert slept and all(0 <= s <= 60 for s in slept)
+
+
+class TestRunExecOutcome:
+    @staticmethod
+    def _job(job_id, now):
+        return {
+            "id": job_id, "type": "run", "config": json.dumps({"command": "true"}),
+            "message": "review done", "target_session_id": "s-1", "target_name": "w1",
+            "target_scope": "/s", "created_by_name": "orch", "status": "active",
+            "expires_at": (now + timedelta(hours=1)).isoformat(),
+            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+        }
+
+    @pytest.mark.asyncio
+    async def test_nonzero_exit_is_failed_not_completed(self, db, mgr_mock):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-fail", datetime.now(timezone.utc)))
+
+        await mgr._run_exec("run-fail", "exit 7", "review done", "w1", "/s", 10)
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-fail")
+        assert row["status"] == "failed"
+        assert "exit code 7" in row["error"].lower()
+        sent = session.send.await_args.args[0]
+        assert "FAILED" in sent
+        assert "completed" not in sent.lower()
+
+    @pytest.mark.asyncio
+    async def test_finishes_when_child_keeps_stdout_open(self, db, mgr_mock):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-open-pipe", datetime.now(timezone.utc)))
+
+        await asyncio.wait_for(
+            mgr._run_exec(
+                "run-open-pipe",
+                "/usr/bin/python3 -c 'import os,time; os.fork() and os._exit(0); time.sleep(30)'",
+                "review done", "w1", "/s", 10,
+            ),
+            timeout=12,
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-open-pipe")
+        assert row["status"] == "triggered"
+        session.send.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_exit_zero_requires_declared_artifact(self, db, mgr_mock, tmp_path):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-no-artifact", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-no-artifact", "true", "review done", "w1", "/s", 10,
+            success_file=str(tmp_path / "missing.md"),
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-no-artifact")
+        assert row["status"] == "failed"
+        assert "artifact" in row["error"].lower()
+        assert "FAILED" in session.send.await_args.args[0]
