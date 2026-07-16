@@ -194,8 +194,8 @@ class AgentSession:
     _auto_continue_count: int = field(default=0, repr=False)
     _rate_limit_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
+    _manually_interrupted: bool = field(default=False, repr=False)
 
-    TURN_TIMEOUT = 600
     AUTO_CONTINUE_MAX = 5
     RATE_LIMIT_MAX_RETRIES = 3
     RATE_LIMIT_DELAY = 30
@@ -389,6 +389,7 @@ class AgentSession:
                 did_inject = True
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
+                self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
@@ -464,13 +465,6 @@ class AgentSession:
                     return
                 async for event in self._backend.events():
                     self._last_msg_time = asyncio.get_event_loop().time()
-                    if self._turn_start and (asyncio.get_event_loop().time() - self._turn_start) > self.TURN_TIMEOUT:
-                        logger.error(f"[{self.name}] turn timeout")
-                        self._log("error", f"Turn timeout ({self.TURN_TIMEOUT}s)")
-                        self._turn_start = asyncio.get_event_loop().time()
-                        # Keep status=RUNNING — agent is actively being continued
-                        await self._backend.send("[system] Turn timed out. Continue where you left off.")
-                        continue
                     self._handle_event(event)
                     consecutive_failures = 0
                 # For opencode: events() finishing = turn done (per-turn generator, not persistent stream).
@@ -533,19 +527,18 @@ class AgentSession:
                     self._persist()
                 return
 
-    CODEX_TURN_TIMEOUT = 600
-
     async def _codex_turn_loop(self) -> None:
         logger.info(f"[{self.name}] codex turn started")
         try:
-            async with asyncio.timeout(self.CODEX_TURN_TIMEOUT):
-                async for event in self._backend.events():
-                    self._last_msg_time = asyncio.get_event_loop().time()
-                    self._handle_event(event)
-        except TimeoutError:
-            logger.error(f"[{self.name}] codex turn timed out ({self.CODEX_TURN_TIMEOUT}s)")
-            self._log("error", f"codex turn timed out ({self.CODEX_TURN_TIMEOUT}s), killing backend")
-            await self._disconnect_backend()
+            async for event in self._backend.events():
+                self._last_msg_time = asyncio.get_event_loop().time()
+                # thread.started is emitted before turn.completed. Store it now so an
+                # interrupted long turn can resume instead of silently starting fresh.
+                early_session_id = event.metadata.get("session_id") if event.type == "status" else None
+                if early_session_id and early_session_id != self.session_id:
+                    self.session_id = early_session_id
+                    self._persist()
+                self._handle_event(event)
         except asyncio.CancelledError:
             return
         except Exception as e:
@@ -666,6 +659,7 @@ class AgentSession:
                     # compact grabbed the lock first — requeue, compact's finally re-flushes
                     self._pending_messages[0:0] = msgs
                     return
+                self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
@@ -706,12 +700,23 @@ class AgentSession:
     # ── Session operations ──
 
     async def interrupt(self) -> None:
-        if self._backend and self.status == AgentStatus.RUNNING:
-            await self._backend.interrupt()
-        self._turns.cancel_auto_report()
-        self.status = AgentStatus.IDLE
-        self._log("status", "interrupted")
-        self._persist()
+        async with self._lifecycle_lock:
+            backend = self._backend if self.status == AgentStatus.RUNNING else None
+            # Publish the stop before waiting for the SDK control acknowledgement. This
+            # prevents concurrent messages from being injected into the turn being
+            # interrupted; they will start a clean turn after this lock is released.
+            self._turns.cancel_auto_report()
+            self._turn_start = 0
+            self._manually_interrupted = True
+            self.status = AgentStatus.IDLE
+            self._log("status", "interrupted")
+            self._persist()
+
+            if backend:
+                acknowledged = await backend.interrupt()
+                if acknowledged is False and self._backend is backend:
+                    self._log("error", "interrupt was not acknowledged; disconnecting backend")
+                    await self._disconnect_backend()
 
     async def compact(self) -> dict:
         _ORCH_PRESAVE = (
@@ -836,6 +841,7 @@ class AgentSession:
         ack_event = self._compact_ack_event
         try:
             async with self._lifecycle_lock:
+                self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
                 self._compact_ack_gen = self._turn_gen
@@ -956,7 +962,8 @@ class AgentSession:
         if self._hibernate_task and not self._hibernate_task.done() and self._hibernate_task is not asyncio.current_task():
             self._hibernate_task.cancel()
             self._hibernate_task = None
-        if self._heartbeat_task and not self._heartbeat_task.done():
+        if (self._heartbeat_task and not self._heartbeat_task.done()
+                and self._heartbeat_task is not asyncio.current_task()):
             self._heartbeat_task.cancel()
             try:
                 await self._heartbeat_task

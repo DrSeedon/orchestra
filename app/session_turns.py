@@ -88,7 +88,7 @@ class TurnManager:
         leave the orchestrator waiting forever for a signal that never comes.
         """
         s = self.s
-        if s.is_orchestrator or not s.on_idle or s._did_report:
+        if s.is_orchestrator or not s.on_idle or s._did_report or s._manually_interrupted:
             return
         if s._pending_messages or s._compacting:
             return
