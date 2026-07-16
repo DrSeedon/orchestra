@@ -89,9 +89,11 @@
 - **Митигация:** для Sol перейти на `-s workspace-write` + approval `on-failure`/`on-request` вместо full-bypass. Оценить как отдельный security-тикет в Phase 2.
 - **Confidence: CONFIRMED** (Codex прочитал код; строки `:64,68` подтверждены мной ранее при чтении `send()`).
 
-**🟡 БАГ 4 (найден Codex-ревью): дефект накопления стоимости между ходами.**
-- Codex указал на дефект в том, как cost аккумулируется между turn-ами codex-сессии (turn.completed usage обрабатывается per-turn, но накопление/резюме стоимости между ходами имеет дефект). Точную строку не привёл в summary — **требует отдельной верификации кода в Phase 2** перед фиксом (не подтверждал сам, помечаю как UNCERTAIN до чтения cost-логики session_cost.py для codex-пути).
-- **Confidence: UNCERTAIN** (заявлено Codex-ом, мной не верифицировано построчно — честно помечаю как требующее проверки).
+**🟢 БАГ 4 (был UNCERTAIN) — ПРОВЕРЕН, ОКАЗАЛСЯ НЕ БАГОМ.**
+- Гипотеза: codex reports per-turn cost, а CostTracker (`session_cost.py:37-39`) дельтит `max(0, new_cost - last_cost)` → если turn дешевле предыдущего, добавит $0 (недосчёт).
+- **Эмпирическая проверка (реальный codex resume):** turn1 input=16728 → turn2 (resume) input=33472. **input_tokens КУМУЛЯТИВНЫ per thread** (весь диалог пере-подаётся каждый ход). Значит `cost = input×price + output×price` монотонно растёт → дельта-логика CostTracker даёт **правильный** per-turn cost, как у Claude SDK.
+- Первая версия фикса (`_cumulative_cost += turn_cost` в backend) **дублировала бы счёт** — откатил. Добавил поясняющий коммент в `backend_codex.py` чтобы следующий читатель не «чинил» заново.
+- **Confidence: CONFIRMED NOT-A-BUG** (измерено на живом CLI). Урок: UNCERTAIN-claim от Codex надо мерить, а не чинить на веру.
 
 **⚠️ Прокси-противоречие (не баг на этой машине, но хрупко).**
 - `backend_codex.py:_build_env()` СТРИПАЕТ `HTTPS_PROXY/HTTP_PROXY` (`:242-245`, коммент "talks directly to OpenAI").
@@ -235,6 +237,25 @@
 | Пропущено мной | **БАГ 3** (`--dangerously-bypass` на каждый turn = security-блокер для Sol) + **БАГ 4** (cost-accumulation defect) | Добавил оба (БАГ 3 verified, БАГ 4 — UNCERTAIN до проверки) |
 
 **Ключевой урок:** мой самый уверенный claim (БАГ 1) оказался наполовину неточным — 258400 не рандом, а `272K×0.95`. Adversarial review сработал как задумано: поймал имплицитное допущение ("любой fallback = баг"), которое я не проверил. Дал 2 новых находки (security + cost) поверх моих. Consensus достигнут за 1 раунд, эскалация не нужна.
+
+## Implementation + E2E pilot (2026-07-16, после research)
+
+**Пофикшено (commits 60add41, ee27fcd):**
+- БАГ 1 — Sol/Terra/Luna в `backend_codex.py` (context 997500, цены $5/$30, $2.50/$15, $1/$6).
+- БАГ 2 — effort через `self.effort` (per-role), `xhigh`+`max` в `CODEX_REASONING_EFFORTS`. (Флага `--reasoning-effort` в CLI НЕТ — через `-c model_reasoning_effort`.)
+- БАГ 3 — задокументирован `--dangerously-bypass` (worktree = внешний sandbox, для которого флаг предназначен; `--dangerously-skip-permissions` — Claude-флаг, в Codex НЕТ).
+- БАГ 4 — проверен, НЕ баг (см. выше).
+- **MCP per-worker** — `-c mcp_servers.NAME.FIELD` dotted leaves (whole-table `={...}` Codex парсит как строку, реджектит — словил E2E).
+- **CLAUDE.md→AGENTS.md** — зеркало в worktree (Codex читает AGENTS.md), исключено из git.
+- **Skills** — `read_skills_content()` инлайнит SKILL.md в system_prompt (Codex не читает worktree `.claude/skills/`, только `$CODEX_HOME/skills/`). Trade-off: always-loaded, но 13KB влезает.
+
+**E2E пилот (реальный GPT-5.6 Sol, прямой CodexBackend с моим кодом):** одна задача из 3 частей —
+- ✅ effort=xhigh применился
+- ✅ MCP tool вызван (Sol дёрнул `get_secret`, вернул `RAINBOW_7`) — per-worker MCP работает
+- ✅ AGENTS.md прочитан (Sol вернул `ORCHESTRA_PILOT` из файла)
+- ✅ context max=997500 (не сломанные 258400), cost_usd=0.32 (не $0)
+- ✅ skills в system_prompt (13KB), результат адекватный, лаконичный
+- **Вердикт: Sol full-cycle работает end-to-end.** Полный `spawn_worker` пилот через сервер требует merge ee27fcd → main + рестарт (решение оркестратора).
 
 ## Affected files (для Phase 2, если апрувнут)
 
