@@ -121,7 +121,10 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
 # Injected / machine-local artifacts that must never dirty the tree or block merge_worker:
 # `.claude/` (injected skills+settings), and Codex session metadata written by codex_review
 # (`codex_sessions.json` = thread UUIDs, `*.round` = per-round temp before append).
-_WORKTREE_EXCLUDES = (".claude/", "codex_sessions.json", "*.round")
+# AGENTS.md is mirrored from CLAUDE.md for codex workers (see create_worktree). Exclude so
+# it doesn't dirty the tree / block merge. info/exclude only affects UNTRACKED files, so a
+# repo that tracks its own AGENTS.md is unaffected (and we never overwrite an existing one).
+_WORKTREE_EXCLUDES = (".claude/", "codex_sessions.json", "*.round", "AGENTS.md")
 
 
 def _exclude_claude_dir(wt_path: Path) -> None:
@@ -223,6 +226,14 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
         if worktree_cfg is not None:
             for sl in worktree_cfg.symlinks:
                 _apply_symlink(repo, wt_path, sl)
+        # Codex CLI reads project instructions from AGENTS.md, not CLAUDE.md. Mirror CLAUDE.md
+        # → AGENTS.md so codex-backend workers get the same project context as claude workers.
+        # Claude workers ignore AGENTS.md (they read CLAUDE.md), so this is harmless for them.
+        # Don't clobber a repo that ships its own AGENTS.md.
+        claude_md = wt_path / "CLAUDE.md"
+        agents_md = wt_path / "AGENTS.md"
+        if claude_md.is_file() and not agents_md.exists():
+            _git_cmd(["cp", "-p", str(claude_md), str(agents_md)], capture_output=True)
     except Exception:
         _git_cmd(
             ["git", "worktree", "remove", str(wt_path), "--force"],
