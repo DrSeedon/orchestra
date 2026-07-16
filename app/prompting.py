@@ -198,3 +198,26 @@ def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> Non
         _run_as_agent(["mkdir", "-p", str(skill_dir)], capture_output=True)
         _run_as_agent(["cp", "-p", str(skill_src), str(skill_dir / "SKILL.md")], capture_output=True)
     logger.info(f"Injected {len(skill_names)} skills into {worktree_path}/.claude/skills/")
+
+
+def read_skills_content(skill_names: list[str]) -> str:
+    """Inline skill bodies for backends that can't auto-discover `.claude/skills/`.
+
+    Claude CLI progressively loads `.claude/skills/<name>/SKILL.md`; Codex discovers skills
+    from `$CODEX_HOME/skills/` (not per-worktree) so injected files are invisible to it.
+    Folding the content into the system prompt (via -c developer_instructions) is the
+    reliable parity path — the skills are small (~13KB for full-cycle's two). Trade-off:
+    no progressive disclosure, always loaded. Returns "" if no skills resolve."""
+    if not skill_names or not _SKILLS_DIR.is_dir():
+        return ""
+    blocks = []
+    for sname in skill_names:
+        skill_src = _SKILLS_DIR / f"{sname}.md"
+        if not skill_src.exists():
+            logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
+            continue
+        blocks.append(f"### Skill: {sname}\n\n{skill_src.read_text().strip()}")
+    if not blocks:
+        return ""
+    return ("\n\n## Skills (loaded — invoke as workflows when the trigger matches)\n\n"
+            + "\n\n---\n\n".join(blocks))

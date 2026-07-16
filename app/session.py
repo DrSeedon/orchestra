@@ -209,9 +209,12 @@ class AgentSession:
         resume = None if force_fresh else self.session_id
         if self.backend_type == "codex":
             from app.backend_codex import CodexBackend
+            # Codex can't auto-discover the worktree's .claude/skills/ (it reads
+            # $CODEX_HOME/skills/). Fold skill bodies into the prompt so a codex full-cycle
+            # worker gets the same skills (codex-debate, self-analysis) as a Claude one.
             return CodexBackend(
                 model=self.model, cwd=self.cwd,
-                system_prompt=self.system_prompt,
+                system_prompt=self.system_prompt + self._codex_skills_block(),
                 resume_thread_id=resume,
                 mcp_env=self._build_codex_mcp_env(),
                 mcp_servers=self.mcp_servers,
@@ -263,6 +266,17 @@ class AgentSession:
         # Reuse the same per-role effort as Claude (pipeline.yaml). CodexBackend validates
         # against CODEX_REASONING_EFFORTS and falls back to "high" for unknown/None values.
         return self.effort or "high"
+
+    def _codex_skills_block(self) -> str:
+        # Skill bodies inlined into the prompt (Codex can't read the worktree .claude/skills/).
+        from app.pipeline import get_role
+        from app.prompting import read_skills_content
+        try:
+            rr = get_role(self.pipeline, self.role)
+        except FileNotFoundError:
+            return ""
+        skills = rr.skills if rr and isinstance(rr.skills, list) else []
+        return read_skills_content(skills)
 
     def _spawn_bg(self, coro) -> asyncio.Task:
         task = asyncio.create_task(coro)

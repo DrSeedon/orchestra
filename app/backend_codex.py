@@ -188,6 +188,11 @@ class CodexBackend:
                 ctx_window = CODEX_CONTEXT_LIMITS.get(self.model, 258400)
                 ctx_pct = min(100, int(input_t * 100 / ctx_window)) if ctx_window else 0
 
+                # input_tokens are CUMULATIVE per thread (verified: turn1=16728 → turn2=33472
+                # on resume — the full conversation is re-fed each turn). So this cost is
+                # monotonically increasing per thread, and CostTracker's delta logic
+                # (max(0, new_cost - last_cost)) already yields the correct per-turn cost —
+                # same contract as the Claude SDK. Do NOT re-accumulate here (double-counts).
                 prices = CODEX_TOKEN_PRICES.get(self.model, {"input": 0, "output": 0})
                 cost = (input_t * prices["input"] + output_t * prices["output"]) / 1_000_000
 
