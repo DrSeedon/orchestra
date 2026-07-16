@@ -34,9 +34,11 @@ CONTEXT_LIMITS = {
     "claude-opus-4-6[1m]": 1000000,
     "claude-sonnet-5[1m]": 1000000,
     "claude-haiku-4-5": 200000,
-    "gpt-5.6-sol": 1050000,
-    "gpt-5.6-terra": 1050000,
-    "gpt-5.6-luna": 1050000,
+    # Effective ChatGPT-auth Codex runtime budget. Public API window is larger, but
+    # Orchestra's GPT workers run through Codex CLI and must use its runtime contract.
+    "gpt-5.6-sol": 258400,
+    "gpt-5.6-terra": 258400,
+    "gpt-5.6-luna": 258400,
     "gpt-5.5": 258400,
     "gpt-5.4": 258400,
     "gpt-5.4-mini": 258400,

@@ -137,7 +137,6 @@ class TurnManager:
                 return
         else:
             s._auto_continue_count = 0
-            s._rate_limit_retries = 0
 
         live_pct = s._last_context.get("percentage", 0)
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
