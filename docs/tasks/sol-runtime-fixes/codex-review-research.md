@@ -1,0 +1,1 @@
+The only change is a research document. Its claims are consistent with the referenced code paths and recorded measurements, and it introduces no runtime or test regressions.
