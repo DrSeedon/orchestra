@@ -1485,6 +1485,8 @@ function _startCacheCountdown() {
     window._cacheTimer = setInterval(() => {
         document.querySelectorAll('.cache-pill[data-cache-expires]').forEach(_renderCachePill);
     }, 30000);
+    // Refresh orch tabs every 60s to pick up new last_turn_ts
+    setInterval(() => loadOrchestrators(), 60000);
 }
 
 function createAgentItem(s) {

@@ -264,6 +264,59 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - **ВСЕ воркеры ВСЕХ проектов — МОЯ ответственность.** Воркеры в kesha-tg-bot, polus, seedon и любом другом проекте управляются Orchestra. Баги воркеров (status-desync, зацикливание, idle-while-running) — разбираю Я, не делегирую проектному оркестратору. Проектный оркестратор (kesha-tg-bot, polus-orchestrator) — это разработчик проекта, НЕ менеджер воркеров.
 - **НЕ убивать full-cycle воркеров после merge.** Full-cycle на гейте ("awaiting approval to plan/implement") = ЖДЁТ продолжения. merge → оставить idle, НЕ kill. Kill только одноразовых (impl-*, fix-*, research-*-без-фаз). Если воркер написал "STOP на гейте" — он ЖИВОЙ и ждёт следующую фазу.
 
+## Session notes (2026-07-11 to 2026-07-16) — mega session: RAG, Sol, effort, Interaction Tax
+
+### Major features shipped
+- **Per-role effort** — pipeline.yaml + backend_claude.py: orch/worker→medium, full-cycle→xhigh. SDK effort verified (subprocess_cli.py:392)
+- **RAG semantic memory** — app/rag.py (757 lines), bge-m3 int8, sqlite-vec+FTS5, RRF fusion, 25K+ file chunks, 7K+ log chunks, 16 projects indexing. MCP tool `search_memory`, REST `/api/memory/search`+`/reindex`. CPU throttle (ONNX 2 threads + nice 10). Session_name filter for per-agent reindex
+- **Sol/Codex full integration** — backend_codex.py: context 258K (ChatGPT-auth, not 1M API), prices, effort passthrough, MCP per-worker (dotted-leaves), AGENTS.md mirror, skills inline in system_prompt, fail-soft readline (limit=16MB + while/except ValueError), turn timeout 1200s
+- **Worker-spawns-worker** — R1 prompt (full-cycle parallelizes research), R2 orphan-guard (kill blocked with live children)
+- **Interaction Tax** — C1 (question not solution for open tasks), C2 (worker↔worker = facts only), A1-bis (preserve dissent), A3 (verify artifact not narrative)
+- **Turn ended limits** — 5h/7d usage % + reset countdown in turn ended log
+- **TG UTF-16 fix** — _split_message uses _utf16_len, no more работа��т
+- **Image cache-buster** — &t=Date.now() on all /api/files/raw image URLs
+- **Cache pills on orch tabs** — reuse _cachePill + 60s loadOrchestrators refresh
+- **bg_jobs StreamReader** — limit=16MB (was 64KB → Codex JSONL crash)
+- **Codex turn timeout** — 600→1200s for codex backend
+- **HTML artifact favicons** — per-type SVG icons with unique colors
+
+### Research completed
+- **Grok 4.5** — OFAC blocked for RF, redundant vs Codex. NOT adding
+- **CC config audit** — effort is the only gap (fixed), budget_tokens dead on Opus 4.7+
+- **Interaction Tax / Diversity Collapse** — ICML paper, Orchestra partially protected, hub-coupling real risk
+- **RAG for Orchestra** — full research + implementation, kesha rag.py port
+- **Worker-spawns-worker** — 2 real cases in DB, by-design via can_spawn:["*"]
+- **Codex/Sol integration** — Sol not drop-in (split crown), 258K effective context, hybrid strategy
+- **Grok Build** — Rust runtime, not integrating, no useful patterns to steal
+- **Codex JSONL crash** — asyncio StreamReader 64KB default, not Codex bug
+
+### Sol pilot results
+- Sol full-cycle works E2E (MCP ✅, AGENTS.md ✅, skills ✅, codex_review ✅)
+- Context = 258K effective (ChatGPT-auth), not 1M (API-only)
+- 6 runtime bugs found and fixed by sol-pilot itself
+- ctx:62% per task — more context-hungry than Opus
+- Turn timeout 600s too short → raised to 1200s
+- Loses context after timeout (needs re-poke)
+
+### Process rules
+- Research = ALWAYS full-cycle, NO EXCEPTIONS (orchestration.md)
+- NEVER kill full-cycle on gate (CLAUDE.md + orchestration.md)
+- Heavy benchmarks → VPS only, not laptop
+- Codex review failing → self-review acceptable (CLI bug "chunk exceed limit")
+
+### Active workers
+- impl-rag(25%), research-codex-integration(54%), research-worker-spawning(18%), sol-pilot(66%) — all idle, full-cycle
+- frontend-opus(6%), prompt-engineer(6%), taskmanager(37%) — system, keep
+- feat-self-learning(15%), refactor-tg(12%) — feature, idle
+
+### PENDING
+- RAG reindex for all 16 projects — 7/16 done, running in background
+- VPS sync — many commits behind, not done
+- Sol as default full-cycle — needs more testing, context-hungry
+- status-desync bug — known, deferred
+- Codex CLI "chunk exceed" — OpenAI bug, latest version (0.144.5), no fix
+- codex_review artifact module missing — sol-pilot reported bug
+
 ## Session notes (2026-07-09) — research day, prompt modules, optimizations
 
 ### New prompt modules shipped (full-cycle only)
