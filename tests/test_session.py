@@ -694,6 +694,60 @@ class TestCompactGuards:
         assert session._compact_ack_event.is_set()
 
 
+class TestRateLimitClassification:
+    @staticmethod
+    def _capture_coroutines(session):
+        spawned = []
+        session._log = lambda *_args, **_kwargs: None
+
+        def capture(coro):
+            spawned.append(coro)
+            coro.close()
+
+        session._spawn_bg = capture
+        return spawned
+
+    def test_monthly_spend_limit_is_terminal_and_never_retried(self, session):
+        from app.events import AgentEvent
+        spawned = self._capture_coroutines(session)
+
+        session._handle_event(AgentEvent(
+            type="text",
+            content="You've hit your monthly spend limit · raise it at claude.ai/settings/usage",
+        ))
+        session._handle_event(AgentEvent(type="error", content="rate_limit"))
+
+        assert session._rate_limit_retries == 0
+        assert spawned == []
+
+    @pytest.mark.asyncio
+    async def test_failed_turn_does_not_reset_transient_retry_budget(self, session, monkeypatch):
+        from app.events import AgentEvent
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        self._capture_coroutines(session)
+        session._rate_limit_retries = 2
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "ok": False, "stop_reason": "error", "num_turns": 0,
+        }))
+        await session._drain_persist()
+
+        assert session._rate_limit_retries == 2
+
+    @pytest.mark.asyncio
+    async def test_new_user_message_resets_retry_budget(self, session):
+        from app.session import AgentStatus
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._rate_limit_retries = 2
+        session._log = lambda *_args, **_kwargs: None
+
+        await session.send("new user request")
+
+        assert session._rate_limit_retries == 0
+
+
 class TestFlushPendingDefersDuringCompact:
     @pytest.mark.asyncio
     async def test_flush_defers_when_compacting(self, session):
