@@ -214,6 +214,7 @@ class AgentSession:
                 system_prompt=self.system_prompt,
                 resume_thread_id=resume,
                 mcp_env=self._build_codex_mcp_env(),
+                mcp_servers=self.mcp_servers,
                 reasoning_effort=self._codex_reasoning_effort(),
             )
         elif self.backend_type == "opencode":
@@ -259,7 +260,9 @@ class AgentSession:
             )
 
     def _codex_reasoning_effort(self) -> str:
-        return "high"
+        # Reuse the same per-role effort as Claude (pipeline.yaml). CodexBackend validates
+        # against CODEX_REASONING_EFFORTS and falls back to "high" for unknown/None values.
+        return self.effort or "high"
 
     def _spawn_bg(self, coro) -> asyncio.Task:
         task = asyncio.create_task(coro)

@@ -13,32 +13,45 @@ logger = logging.getLogger(__name__)
 
 CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
 
+# Context windows: value = usable prefill budget = model window × ~0.95 safety margin.
+# GPT-5.6 (Sol/Terra/Luna): 1,050,000 window → 997,500 usable. 5.4/5.5: 272,000 → 258,400.
 CODEX_CONTEXT_LIMITS = {
+    "gpt-5.6-sol":   997500,
+    "gpt-5.6-terra": 997500,
+    "gpt-5.6-luna":  997500,
     "gpt-5.5": 258400,
     "gpt-5.4": 258400,
     "gpt-5.4-mini": 258400,
 }
 
 CODEX_TOKEN_PRICES = {
+    "gpt-5.6-sol":   {"input": 5.0, "output": 30.0},
+    "gpt-5.6-terra": {"input": 2.5, "output": 15.0},
+    "gpt-5.6-luna":  {"input": 1.0, "output": 6.0},
     "gpt-5.5":      {"input": 5.0, "output": 30.0},
     "gpt-5.4":      {"input": 2.5, "output": 15.0},
     "gpt-5.4-mini": {"input": 0.3, "output": 1.25},
 }
 
 
-CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
+# GPT-5.6 reasoning ladder (light→low→medium→high→xhigh→max→ultra). "minimal" kept for
+# 5.4/5.5 back-compat. "ultra" (parallel sub-agents) intentionally excluded — a special
+# mode, not a plain effort level, and risky to trigger from a generic worker effort field.
+CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
 
 
 class CodexBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_thread_id: str | None = None,
                  mcp_env: dict[str, str] | None = None,
+                 mcp_servers: dict | None = None,
                  reasoning_effort: str = "high"):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._thread_id: str | None = resume_thread_id
         self._mcp_env: dict[str, str] = mcp_env or {}
+        self._mcp_servers: dict = mcp_servers or {}
         self.reasoning_effort = reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._stderr_task: Optional[asyncio.Task] = None
@@ -58,6 +71,15 @@ class CodexBackend:
         self._got_turn_completed = False
         self._last_stderr = ""
 
+        # --dangerously-bypass-approvals-and-sandbox: the flag's own help says it's
+        # "intended solely for running in environments that are externally sandboxed" —
+        # which is exactly our case: every worker runs in an isolated git worktree as a
+        # dedicated process, and an autonomous worker has no human to answer approval
+        # prompts. -s workspace-write would block on approvals it can't resolve. The
+        # worktree is the external sandbox this flag is designed for.
+        # RISK (Sol): GPT-5.6 Sol has elevated reward-hacking (METR); no sandbox means it
+        # can run arbitrary commands inside its worktree. Mitigate via worker prompt
+        # (evidence-based done-conditions, tests outside write-scope), not this flag.
         cmd = [CODEX_BIN]
         if self._thread_id:
             cmd += ["exec", "resume", "--json",
@@ -71,6 +93,13 @@ class CodexBackend:
                 escaped = self.system_prompt.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
                 cmd += ["-c", f'developer_instructions="{escaped}"']
             cmd += ["-c", f'model_reasoning_effort="{self.reasoning_effort}"']
+            # Per-worker MCP: inject each server as a -c mcp_servers.NAME={...} inline TOML
+            # table. Codex otherwise only reads MCP from the global ~/.codex/config.toml,
+            # which isn't per-worker and is absent on the VPS — so a codex worker would lack
+            # Orchestra tools (send_message/spawn_worker/report). Mirrors what the Claude SDK
+            # gets via mcp_servers=.
+            for arg in self._mcp_config_args():
+                cmd += ["-c", arg]
             cmd.append(message)
 
         self._proc = await asyncio.create_subprocess_exec(
@@ -235,6 +264,37 @@ class CodexBackend:
             chunks.append(chunk)
         data = b"".join(chunks)
         self._last_stderr = data[-500:].decode("utf-8", errors="replace")
+
+    @staticmethod
+    def _toml_str(s: str) -> str:
+        # TOML basic string: escape backslash and double-quote (control chars unlikely in
+        # command/args/env values here). Keeps the -c inline table parseable.
+        return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+    def _mcp_config_args(self) -> list[str]:
+        """Dotted `-c mcp_servers.NAME.FIELD=value` overrides, one field per entry.
+
+        Translates the Orchestra mcp_servers dict (same shape the Claude SDK gets) into
+        Codex config. Codex parses a whole-table value (`mcp_servers.NAME={...}`) as a
+        *string* and rejects it (`expected struct RawMcpServerConfig`) — dotted leaf keys
+        are the form it accepts (verified against CLI 0.144.3). `env` as a single inline
+        table works; command/args go as separate keys. Only STDIO servers (command+args+env)
+        are supported — Orchestra + scope .mcp.json servers are all STDIO. Unknown keys
+        (alwaysLoad, type) are dropped."""
+        args = []
+        for name, cfg in self._mcp_servers.items():
+            command = cfg.get("command")
+            if not command:
+                continue  # url/remote servers not expressible this way — skip, don't crash
+            args.append(f"mcp_servers.{name}.command={self._toml_str(str(command))}")
+            srv_args = cfg.get("args") or []
+            args.append(f"mcp_servers.{name}.args=[" +
+                        ", ".join(self._toml_str(str(a)) for a in srv_args) + "]")
+            env = cfg.get("env") or {}
+            if env:
+                env_inline = ", ".join(f"{k}={self._toml_str(str(v))}" for k, v in env.items())
+                args.append(f"mcp_servers.{name}.env={{" + env_inline + "}")
+        return args
 
     def _build_env(self) -> dict:
         env = dict(os.environ)
