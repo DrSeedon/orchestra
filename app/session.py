@@ -193,12 +193,15 @@ class AgentSession:
     _spawn_warning: str = field(default="", repr=False)
     _auto_continue_count: int = field(default=0, repr=False)
     _rate_limit_retries: int = field(default=0, repr=False)
+    _server_error_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
     _manually_interrupted: bool = field(default=False, repr=False)
 
     AUTO_CONTINUE_MAX = 5
     RATE_LIMIT_MAX_RETRIES = 3
     RATE_LIMIT_DELAY = 30
+    SERVER_ERROR_MAX_RETRIES = 3
+    SERVER_ERROR_RETRY_DELAY = 5
 
     def __post_init__(self) -> None:
         # Systems over state (ECS): cost/turn/hibernate methods live in systems,
@@ -317,10 +320,12 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
+        # Retry budgets belong to one logical request. A real new message resets both;
+        # each internal retry preserves only its own failure class.
         if not message.startswith("[system] Retrying after rate limit."):
-            # Retry budget belongs to one logical request. A real new message starts a new
-            # budget; internal retry turns deliberately preserve the current count.
             self._rate_limit_retries = 0
+        if not message.startswith("[system] Retrying after transient server error."):
+            self._server_error_retries = 0
             self._session_limit_hit = False
         if self._compacting:
             self._pending_messages.append(message)
@@ -898,6 +903,27 @@ class AgentSession:
             logger.info(f"[{self.name}] rate-limit retry after {delay}s")
         except Exception as e:
             logger.warning(f"[{self.name}] rate-limit retry failed: {e}")
+            self.status = AgentStatus.IDLE
+            self._persist()
+
+    async def _retry_after_server_error(self, delay: int, expected_turn_gen: int) -> None:
+        """Resume through a fresh SDK transport after an upstream stream failure."""
+        await asyncio.sleep(delay)
+        try:
+            async with self._lifecycle_lock:
+                # A real user message already started a newer turn; it supersedes this
+                # automatic retry and must not be duplicated.
+                if self._turn_gen != expected_turn_gen or self.status != AgentStatus.IDLE:
+                    return
+                await self._disconnect_backend()
+            await self.send(
+                "[system] Retrying after transient server error. Continue where you "
+                "left off. Do not repeat completed research; execute the pending "
+                "deliverable now."
+            )
+            logger.info(f"[{self.name}] server-error retry after {delay}s")
+        except Exception as e:
+            logger.warning(f"[{self.name}] server-error retry failed: {e}")
             self.status = AgentStatus.IDLE
             self._persist()
 

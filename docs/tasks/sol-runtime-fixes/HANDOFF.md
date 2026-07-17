@@ -1,7 +1,29 @@
 # Handoff: адаптация Orchestra под Codex / Sol
 
 Дата: 2026-07-16  
-Статус: реализовано, применено рестартом, live E2E пройден. Изменения не закоммичены.
+Статус: runtime-фиксы применялись ранее; новые фиксы ложных Codex/Claude timeout и Claude interrupt реализованы и протестированы, но сервис после них не перезапускался. Изменения не закоммичены.
+
+## Дополнение: ложная смерть Codex turn на 600-й секунде
+
+- `research-grok-build` не завис: с `16:37:00` до `16:46:58` от него продолжали приходить tool events. Orchestra убила backend ровно в `16:47:00` собственным `asyncio.timeout(600)`.
+- Прокси действительно оборвался в `16:43:53`, но Codex восстановил HTTPS transport к `16:44:10` и продолжил работу. Это сопутствующий сбой, не причина убийства.
+- Удалён абсолютный timeout всего Codex turn. Завершение теперь определяется потоком Codex (`turn.completed`/exit) или явным interrupt.
+- Heartbeat после 10 минут тишины не убивает живой Codex: recovery происходит только если исчез backend, завершился subprocess или умер listener. Тишина живого процесса только логируется.
+- `thread_id` сохраняется сразу по `thread.started`, поэтому restart/обрыв до `turn.completed` больше не лишает Orchestra возможности `codex exec resume`.
+- Исправлен self-cancel: `_disconnect_backend()` больше не отменяет и не `await`-ит heartbeat, если вызван из самого heartbeat.
+- Регрессионные тесты: `6 passed` для новых контрактов; расширенный набор — `72 passed, 1` известный несвязанный flaky `test_auto_report_fires_after_idle_timeout`. `compileall` и `git diff --check` прошли.
+- Для применения нужен явный рестарт `orchestra.service`; по правилам проекта в этой сессии он не выполнялся.
+
+## Дополнение: Claude SDK turn timeout и interrupt
+
+- В БД найдено `76` ложных `Turn timeout (600s)` у `32` Claude-сессий за 2026-07-09—16.
+- Старый код проверял возраст turn только при получении очередного события. После 600 секунд он выбрасывал именно это событие через `continue` и инжектил `[system] Turn timed out...` в живой SDK-stream; это могло разорвать пару `tool_use/tool_result` и породить `stop_reason=tool_use`.
+- Удалён абсолютный Claude turn timeout. Реальные stream failures по-прежнему проходят через существующий reconnect с лимитом пяти последовательных ошибок; heartbeat следит за listener отдельно.
+- SDK `interrupt()` внутри ждёт control response до `60s`. Orchestra теперь ждёт acknowledgement максимум `5s`; при timeout/error закрывает backend, чтобы модель не продолжала работать после отображения `idle`.
+- Состояние `idle` публикуется до ожидания control response под lifecycle lock. Новое сообщение ждёт завершения interrupt и начинает чистый turn вместо mid-turn injection.
+- Явный interrupt подавляет stale auto-report оборванного turn; следующий новый/queued/compact turn сбрасывает этот флаг.
+- `claude-agent-sdk` обновлён с `0.2.87` до `0.2.114`; минимальная версия `0.2.111`, где Anthropic исправил zombie CLI subprocess при asyncio cancellation.
+- Проверка затронутого набора: `64 passed, 1 deselected`; расширенный lifecycle/API/manager набор: `203 passed, 4 deselected` (известный flaky auto-report и три несвязанных manager-теста). `compileall` и `git diff --check` прошли.
 
 ## Что сделано
 

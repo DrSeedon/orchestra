@@ -4836,19 +4836,33 @@ async function _loadSubagents() {
     body.innerHTML = '<div class="text-center text-slate-500 py-8">Loading...</div>';
     try {
         const sid = manager_session_id_for(selectedAgent);
-        // Telemetry + transcript agent_ids in parallel. agent_id (SDK file id) != task_id,
-        // so map telemetry cards → transcript ids by index (both time-ordered).
-        const [data, tData] = await Promise.all([
-            api(`/api/subagents/${encodeURIComponent(sid)}`),
-            api(`/api/subagent-transcripts/${encodeURIComponent(sid)}`).catch(() => ({ agent_ids: [] })),
-        ]);
+        const data = await api(`/api/subagents/${encodeURIComponent(sid)}`);
         const subs = (data && data.subagents) || [];
-        const agentIds = (tData && tData.agent_ids) || [];
         if (!subs.length) {
-            body.innerHTML = '<div class="text-center text-slate-500 py-8 italic">Этот агент ещё не запускал субагентов.</div>';
+            body.innerHTML = '<div class="text-center text-slate-500 py-8 italic">Здесь пока нет ни SDK-агентов, ни фоновых задач.</div>';
             return;
         }
-        body.innerHTML = subs.map((s, i) => _renderSubagentCard(s, i, agentIds[i] || '')).join('');
+        const byNewest = (a, b) => String(b.started_at || '').localeCompare(String(a.started_at || ''));
+        const agents = subs.filter(s => s.kind !== 'background').sort(byNewest);
+        const jobs = subs.filter(s => s.kind === 'background').sort(byNewest);
+        const activeCount = subs.filter(s => s.status === 'running').length;
+
+        const sections = [
+            `<div class="mb-4 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                <span class="rounded-full bg-purple-500/10 px-2 py-1 text-purple-300">🤖 SDK-агенты: ${agents.length}</span>
+                <span class="rounded-full bg-sky-500/10 px-2 py-1 text-sky-300">⚙️ Фоновые задачи: ${jobs.length}</span>
+                ${activeCount ? `<span class="rounded-full bg-amber-500/10 px-2 py-1 text-amber-300">⏳ Активны: ${activeCount}</span>` : ''}
+            </div>`,
+        ];
+        if (agents.length) {
+            sections.push(`<section class="mb-5">
+                <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-purple-300">SDK-агенты</h3>
+                ${agents.map((s, i) => _renderSubagentCard(s, i)).join('')}
+            </section>`);
+        }
+        if (jobs.length) sections.push(_renderBackgroundJobs(jobs));
+        body.innerHTML = sections.join('');
+
         // Wire transcript toggles
         body.querySelectorAll('.sa-transcript-btn').forEach(btn => {
             btn.addEventListener('click', () => _toggleTranscript(btn, sid));
@@ -4886,39 +4900,59 @@ function _subagentTitle(s) {
     return t.length > 80 ? t.slice(0, 80) + '…' : t;
 }
 
-function _renderSubagentCard(s, idx, transcriptId) {
+function _subagentStatus(s) {
     const statusMap = {
         completed: ['🟢', '#22c55e', 'completed'],
         failed: ['🔴', '#ef4444', 'failed'],
         running: ['⏳', '#eab308', 'running'],
+        stopped: ['⏹️', '#94a3b8', 'stopped'],
     };
-    const [icon, color, label] = statusMap[s.status] || ['⚪', '#64748b', s.status || '?'];
+    return statusMap[s.status] || ['⚪', '#64748b', s.status || '?'];
+}
+
+function _subagentDuration(s) {
+    if (s.duration_ms) return _fmtDuration(s.duration_ms);
+    if (s.status === 'running' && s.started_at) {
+        const elapsed = Date.now() - new Date(s.started_at).getTime();
+        if (Number.isFinite(elapsed) && elapsed >= 0) return _fmtDuration(elapsed);
+    }
+    return '';
+}
+
+function _meaningfulSummary(s) {
+    const summary = String(s.summary || '').trim();
+    if (!summary) return '';
+    const normalize = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return normalize(summary) === normalize(s.description) ? '' : summary;
+}
+
+function _renderSubagentCard(s, idx) {
+    const [icon, color, label] = _subagentStatus(s);
     const desc = _escHtml(_subagentTitle(s));
-    const taskType = s.task_type ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">${_escHtml(s.task_type)}</span>` : '';
-    // "—" for missing data (local_bash sub-agents have no usage), not misleading "0"
-    const metrics = [
-        `🔢 ${s.total_tokens ? _fmtTokens(s.total_tokens) : '—'}`,
-        `🔧 ${s.tool_uses ? s.tool_uses : '—'}`,
-        `⏱️ ${s.duration_ms ? _fmtDuration(s.duration_ms) : '—'}`,
-    ];
+    const metrics = [];
+    if (s.total_tokens) metrics.push(`🔢 ${_fmtTokens(s.total_tokens)}`);
+    if (s.tool_uses) metrics.push(`🔧 ${s.tool_uses}`);
+    const duration = _subagentDuration(s);
+    if (duration) metrics.push(`⏱️ ${duration}`);
     if (s.last_tool_name) metrics.push(`⚙️ ${_escHtml(s.last_tool_name)}`);
 
     let summaryBlock = '';
-    if (s.summary) {
+    const summary = _meaningfulSummary(s);
+    if (summary) {
         summaryBlock = `<div class="mt-2">
             <button class="sa-summary-toggle text-[10px] text-indigo-300 hover:text-indigo-200">▶ Показать summary</button>
-            <div class="hidden mt-1 p-2 bg-slate-900/60 rounded-lg text-[11px] text-slate-300 whitespace-pre-wrap break-words">${_escHtml(s.summary)}</div>
+            <div class="hidden mt-1 p-2 bg-slate-900/60 rounded-lg text-[11px] text-slate-300 whitespace-pre-wrap break-words">${_escHtml(summary)}</div>
         </div>`;
     }
     let fileBlock = '';
     if (s.output_file) {
         fileBlock = `<div class="mt-1 text-[10px] text-slate-500">📄 <span class="text-emerald-400 break-all">${_escHtml(s.output_file)}</span></div>`;
     }
-    const agentId = transcriptId || '';
+    const agentId = s.transcript_id || '';
     const transcriptBtn = agentId
         ? `<button class="sa-transcript-btn text-[10px] px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-purple-200 transition-colors" data-agent-id="${_escHtml(agentId)}" data-idx="${idx}">📜 Транскрипт</button>
            <div class="sa-transcript-panel hidden mt-2"></div>`
-        : `<span class="text-[10px] text-slate-600 italic">транскрипт недоступен</span>`;
+        : `<span class="text-[10px] text-slate-600 italic">транскрипт ещё не записан</span>`;
 
     return `<div class="bg-slate-900/50 rounded-xl border border-slate-800 p-3 mb-3" style="border-left:3px solid ${color}">
         <div class="flex items-start justify-between gap-2 mb-2">
@@ -4926,18 +4960,57 @@ function _renderSubagentCard(s, idx, transcriptId) {
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm">🤖</span>
                     <span class="text-xs font-semibold text-white break-words">${desc}</span>
-                    ${taskType}
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">agent</span>
                 </div>
             </div>
             <span class="text-[10px] font-mono shrink-0" style="color:${color}">${icon} ${label}</span>
         </div>
-        <div class="flex items-center gap-3 flex-wrap text-[11px] text-slate-400">
-            ${metrics.map(m => `<span>${m}</span>`).join('')}
-        </div>
+        ${metrics.length ? `<div class="flex items-center gap-3 flex-wrap text-[11px] text-slate-400">${metrics.map(m => `<span>${m}</span>`).join('')}</div>` : ''}
         ${fileBlock}
         ${summaryBlock}
         <div class="mt-2">${transcriptBtn}</div>
     </div>`;
+}
+
+function _renderBackgroundJob(s) {
+    const [icon, color, label] = _subagentStatus(s);
+    const duration = _subagentDuration(s);
+    const summary = _meaningfulSummary(s);
+    const details = summary
+        ? `<div class="mt-1 text-[10px] text-slate-400">${_saCollapsible(summary, 180)}</div>`
+        : '';
+    const output = s.output_file
+        ? `<div class="mt-1 text-[10px] text-emerald-400 break-all">📄 ${_escHtml(s.output_file)}</div>`
+        : '';
+    return `<div class="rounded-lg border border-slate-800/80 bg-slate-950/30 px-3 py-2" style="border-left:2px solid ${color}">
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+                <div class="text-[11px] font-medium text-slate-200 break-words">${_escHtml(_subagentTitle(s))}</div>
+                ${details}${output}
+            </div>
+            <div class="shrink-0 text-right">
+                <div class="text-[10px] font-mono" style="color:${color}">${icon} ${label}</div>
+                ${duration ? `<div class="mt-1 text-[10px] text-slate-500">⏱️ ${duration}</div>` : ''}
+            </div>
+        </div>
+    </div>`;
+}
+
+function _renderBackgroundJobs(jobs) {
+    const pinned = jobs.filter(s => s.status === 'running' || s.status === 'failed');
+    const completed = jobs.filter(s => s.status !== 'running' && s.status !== 'failed');
+    const recent = completed.slice(0, 12);
+    const visibleIds = new Set([...pinned, ...recent].map(s => s.task_id));
+    const visible = jobs.filter(s => visibleIds.has(s.task_id));
+    const older = completed.slice(12);
+    return `<section>
+        <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300">Фоновые задачи</h3>
+        <div class="space-y-2">${visible.map(_renderBackgroundJob).join('')}</div>
+        ${older.length ? `<details class="mt-3 rounded-lg border border-slate-800/70 bg-slate-950/20 p-2">
+            <summary class="cursor-pointer select-none text-[10px] text-slate-400 hover:text-slate-200">Показать старые задачи (${older.length})</summary>
+            <div class="mt-2 space-y-2">${older.map(_renderBackgroundJob).join('')}</div>
+        </details>` : ''}
+    </section>`;
 }
 
 async function _toggleTranscript(btn, sid) {

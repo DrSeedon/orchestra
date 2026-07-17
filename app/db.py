@@ -746,6 +746,15 @@ def subagent_upsert(session_id: str, task_id: str, **fields) -> None:
         if k in fields and fields[k]:
             cols.append(k); vals.append(int(fields[k]))
             updates.append(f"{k}=MAX(excluded.{k}, subagents.{k})")
+    if fields.get("ended_at") and not fields.get("duration_ms"):
+        # local_bash notifications carry no TaskUsage. Preserve SDK duration
+        # when present; otherwise derive wall time from the persisted lifecycle.
+        updates.append(
+            "duration_ms=CASE WHEN subagents.duration_ms > 0 "
+            "THEN subagents.duration_ms ELSE MAX(0, CAST("
+            "(julianday(excluded.ended_at) - julianday(subagents.started_at)) "
+            "* 86400000 AS INTEGER)) END"
+        )
     placeholders = ", ".join("?" for _ in cols)
     set_clause = ", ".join(updates) if updates else "task_id=task_id"
     with _conn() as c:

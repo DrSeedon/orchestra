@@ -151,6 +151,11 @@ class CodexBackend:
     def session_id(self) -> Optional[str]:
         return self._thread_id
 
+    @property
+    def is_alive(self) -> bool:
+        """Whether the per-turn Codex subprocess is still running."""
+        return self._proc is not None and self._proc.returncode is None
+
     async def connect(self) -> None:
         # Codex launches a new subprocess per turn (stateless CLI), so connect is a no-op —
         # the actual process starts in send() when the first message arrives
@@ -229,7 +234,13 @@ class CodexBackend:
             if etype == "thread.started":
                 self._thread_id = data["thread_id"]
                 self._rollout_path = None
-                yield AgentEvent("status", f"codex thread={self._thread_id}")
+                # Persist the resumable thread immediately. A transport failure or
+                # service shutdown can happen before turn.completed arrives.
+                yield AgentEvent(
+                    "status",
+                    f"codex thread={self._thread_id}",
+                    metadata={"session_id": self._thread_id},
+                )
 
             elif etype == "item.completed":
                 item = data.get("item", {})

@@ -1069,7 +1069,12 @@ class SessionManager:
         return ""
 
     def _make_idle_callback(self, scope: str):
-        async def _on_worker_idle(worker_name: str, worker_scope: str, last_texts: list[str], stop_reason: str = ""):
+        async def _on_worker_idle(
+                worker_name: str,
+                worker_scope: str,
+                last_texts: list[str],
+                stop_reason: str = "",
+                turn_ok: bool = True):
             worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
             parent = worker_session.parent_name if worker_session else None
             orch = parent or self._find_orchestrator_name(scope)
@@ -1081,7 +1086,15 @@ class SessionManager:
             summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
             ctx = self._context_warning(worker_name)
             sr = f" (stop_reason={stop_reason})" if stop_reason else ""
-            msg = f"[from:{worker_name}] [auto-report]{sr} Finished without explicit report. Last output:\n{summary}{ctx}"
+            outcome = (
+                "Finished without explicit report"
+                if turn_ok
+                else "Turn failed before an explicit report"
+            )
+            msg = (
+                f"[from:{worker_name}] [auto-report]{sr} {outcome}. "
+                f"Last output:\n{summary}{ctx}"
+            )
             logger.info(f"Auto-report: {worker_name} → {orch}")
             await orch_session.send(msg)
         return _on_worker_idle
