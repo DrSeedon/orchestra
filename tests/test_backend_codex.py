@@ -7,6 +7,7 @@ Regression net for the three bugs found in the codex-integration audit:
 """
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -146,3 +147,31 @@ def test_codex_inherits_orchestra_proxy(monkeypatch):
     env = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")._build_env()
     assert env["HTTPS_PROXY"] == "http://127.0.0.1:12343"
     assert env["HTTP_PROXY"] == "http://127.0.0.1:12343"
+
+
+@pytest.mark.asyncio
+async def test_thread_started_exposes_session_id_before_turn_completion():
+    class FakeStdout:
+        async def readline(self):
+            return b'{"type":"thread.started","thread_id":"thread-early"}\n'
+
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._proc = SimpleNamespace(stdout=FakeStdout(), returncode=None)
+
+    events = backend.events()
+    event = await anext(events)
+    await events.aclose()
+
+    assert event.type == "status"
+    assert event.metadata["session_id"] == "thread-early"
+
+
+def test_is_alive_tracks_codex_process_state():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    assert backend.is_alive is False
+
+    backend._proc = SimpleNamespace(returncode=None)
+    assert backend.is_alive is True
+
+    backend._proc.returncode = 0
+    assert backend.is_alive is False

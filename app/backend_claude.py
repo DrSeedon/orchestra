@@ -30,6 +30,8 @@ from app.events import AgentEvent
 
 logger = logging.getLogger(__name__)
 
+CLAUDE_INTERRUPT_TIMEOUT = 5.0
+
 _BLOCKED_TOOLS = {"AskUserQuestion", "Monitor"}
 _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
 # Orchestrators must use spawn_worker instead of the built-in Agent/Task tools —
@@ -111,6 +113,7 @@ class ClaudeBackend:
         self._effort = effort
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
+        self._pending_model_error = ""
 
     @property
     def session_id(self) -> Optional[str]:
@@ -199,12 +202,30 @@ class ClaudeBackend:
             for event in self._convert(msg):
                 yield event
 
-    async def interrupt(self) -> None:
-        if self._client:
-            try:
-                await self._client.interrupt()
-            except Exception as e:
-                logger.warning(f"ClaudeBackend interrupt failed: {e}")
+    async def interrupt(self) -> bool:
+        """Interrupt the active turn, returning whether the CLI acknowledged it.
+
+        The SDK's control request waits up to 60 seconds by default. Orchestra needs a
+        short bound so a broken control channel cannot leave the Stop request hanging;
+        the session layer hard-disconnects this backend when False is returned.
+        """
+        if not self._client:
+            return True
+        try:
+            await asyncio.wait_for(
+                self._client.interrupt(),
+                timeout=CLAUDE_INTERRUPT_TIMEOUT,
+            )
+            return True
+        except asyncio.TimeoutError:
+            logger.error(
+                "ClaudeBackend interrupt was not acknowledged within %.1fs",
+                CLAUDE_INTERRUPT_TIMEOUT,
+            )
+            return False
+        except Exception as e:
+            logger.warning(f"ClaudeBackend interrupt failed: {e}")
+            return False
 
     async def disconnect(self) -> None:
         if self._client:
@@ -310,7 +331,12 @@ class ClaudeBackend:
                     events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
             err = getattr(msg, "error", None)
             if err:
-                events.append(AgentEvent("error", f"model error: {err}"))
+                self._pending_model_error = str(err)
+                events.append(AgentEvent(
+                    "error",
+                    f"model error: {err}",
+                    metadata={"model_error": str(err)},
+                ))
 
         elif isinstance(msg, UserMessage):
             sub_id = getattr(msg, "parent_tool_use_id", None)
@@ -363,8 +389,12 @@ class ClaudeBackend:
             if msg.session_id:
                 self._session_id = msg.session_id
 
-            is_err = bool(getattr(msg, "is_error", False))
-            err_list = getattr(msg, "errors", None) or []
+            model_error = self._pending_model_error
+            self._pending_model_error = ""
+            is_err = bool(getattr(msg, "is_error", False) or model_error)
+            err_list = list(getattr(msg, "errors", None) or [])
+            if model_error and model_error not in err_list:
+                err_list.append(model_error)
             denials = getattr(msg, "permission_denials", None) or []
 
             cost = getattr(msg, "total_cost_usd", 0) or 0
@@ -407,6 +437,7 @@ class ClaudeBackend:
                 "ok": not is_err,
                 "is_error": is_err,
                 "errors": err_list,
+                "model_error": model_error,
                 "stop_reason": sr,
                 "num_turns": nt,
                 "cost_usd": cost,

@@ -101,7 +101,13 @@ class TurnManager:
 
         async def _do_report():
             try:
-                await s.on_idle(s.name, s.scope, last_texts, stop_reason)
+                await s.on_idle(
+                    s.name,
+                    s.scope,
+                    last_texts,
+                    stop_reason,
+                    s._last_turn_ok,
+                )
             except Exception as e:
                 logger.error(f"Auto-report failed for {s.name}: {e}")
 
@@ -138,6 +144,24 @@ class TurnManager:
         else:
             s._auto_continue_count = 0
 
+        server_error_retry = None
+        model_error = str(meta.get("model_error") or "")
+        if not ok and model_error == "server_error":
+            if s._server_error_retries < s.SERVER_ERROR_MAX_RETRIES:
+                s._server_error_retries += 1
+                delay = s.SERVER_ERROR_RETRY_DELAY * s._server_error_retries
+                server_error_retry = (delay, s._turn_gen)
+                s._log(
+                    "status",
+                    f"transient server_error — fresh-backend retry in {delay}s "
+                    f"({s._server_error_retries}/{s.SERVER_ERROR_MAX_RETRIES})",
+                )
+            else:
+                s._log(
+                    "error",
+                    f"server_error — gave up after {s.SERVER_ERROR_MAX_RETRIES} retries",
+                )
+
         live_pct = s._last_context.get("percentage", 0)
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
         def _fc(v):
@@ -146,7 +170,12 @@ class TurnManager:
         s._log("status", f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, ${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total {ctx_s}){limits_s}")
 
         self.finish_turn_status()
-        self.after_turn_idle_actions(live_pct)
+        self.after_turn_idle_actions(
+            live_pct,
+            allow_auto_report=server_error_retry is None,
+        )
+        if server_error_retry is not None:
+            s._spawn_bg(s._retry_after_server_error(*server_error_retry))
 
     def finish_turn_status(self) -> None:
         """Set IDLE or WAITING based on bg jobs, then persist."""
@@ -161,7 +190,8 @@ class TurnManager:
             s.progress_status = ""
         s._persist()
 
-    def after_turn_idle_actions(self, live_pct: int) -> None:
+    def after_turn_idle_actions(
+            self, live_pct: int, *, allow_auto_report: bool = True) -> None:
         """Post-turn actions: compact ack, scope idle, auto-compact, auto-report, flush/hibernate."""
         s = self.s
         if s._compact_ack_event is not None and s._turn_gen == s._compact_ack_gen:
@@ -178,7 +208,7 @@ class TurnManager:
         # Don't auto-report mid-flight: WAITING means a bg job (e.g. codex_review) is
         # still running and will wake the worker with its result — the turn isn't
         # really "done", so reporting now spams a half-status to the orchestrator.
-        if s.status != AgentStatus.WAITING:
+        if allow_auto_report and s.status != AgentStatus.WAITING:
             self.fire_auto_report()
 
         if s._pending_messages:

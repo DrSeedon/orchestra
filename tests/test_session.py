@@ -238,13 +238,139 @@ class TestStop:
 
         assert session.status == AgentStatus.IDLE
 
+    @pytest.mark.asyncio
+    async def test_interrupt_marks_idle_first_and_disconnects_on_missing_ack(self, session):
+        from app.session import AgentStatus
+
+        observed = {}
+
+        class InterruptBackend:
+            disconnected = False
+
+            async def interrupt(self):
+                observed["status"] = session.status
+                observed["lock"] = session._lifecycle_lock.locked()
+                return False
+
+            async def disconnect(self):
+                self.disconnected = True
+
+        backend = InterruptBackend()
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+        session._turn_start = 123.0
+
+        await session.interrupt()
+        await session._drain_persist()
+
+        assert observed == {"status": AgentStatus.IDLE, "lock": True}
+        assert backend.disconnected is True
+        assert session._backend is None
+        assert session._turn_start == 0
+
+    @pytest.mark.asyncio
+    async def test_message_waits_for_interrupt_before_starting_clean_turn(self, session):
+        from app.session import AgentStatus
+
+        interrupt_started = asyncio.Event()
+        release_interrupt = asyncio.Event()
+
+        class InterruptBackend:
+            def __init__(self):
+                self.sent = []
+
+            async def interrupt(self):
+                interrupt_started.set()
+                await release_interrupt.wait()
+                return True
+
+            async def send(self, message):
+                self.sent.append(message)
+
+        backend = InterruptBackend()
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+
+        interrupt_task = asyncio.create_task(session.interrupt())
+        await interrupt_started.wait()
+        send_task = asyncio.create_task(session.send("new direction"))
+        await asyncio.sleep(0)
+
+        assert backend.sent == []
+        assert not send_task.done()
+
+        release_interrupt.set()
+        await interrupt_task
+        await send_task
+
+        assert backend.sent == ["new direction"]
+        assert session.status == AgentStatus.RUNNING
+        assert session._manually_interrupted is False
+
+    @pytest.mark.asyncio
+    async def test_manual_interrupt_suppresses_stale_auto_report(self, session):
+        from app.session import AgentStatus
+
+        backend = AsyncMock()
+        backend.interrupt = AsyncMock(return_value=True)
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+        session.last_task_sender = "parent"
+        session.on_idle = AsyncMock()
+
+        await session.interrupt()
+        session._turns.fire_auto_report()
+        await asyncio.sleep(0)
+
+        session.on_idle.assert_not_awaited()
+
+
+class TestClaudeTurnLifecycle:
+    @pytest.mark.asyncio
+    async def test_long_active_turn_keeps_event_and_does_not_inject_timeout(self, session, monkeypatch):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        class DelayedBackend:
+            def __init__(self):
+                self.sent = []
+
+            async def events(self):
+                await asyncio.sleep(0.06)
+                yield AgentEvent("status", "late but valid event")
+                yield AgentEvent("turn_end", metadata={
+                    "ok": True,
+                    "stop_reason": "end_turn",
+                    "num_turns": 1,
+                    "session_id": "claude-session-1",
+                })
+
+            async def send(self, message):
+                self.sent.append(message)
+
+        backend = DelayedBackend()
+        logs = []
+        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+        session._turn_start = asyncio.get_running_loop().time()
+        monkeypatch.setattr(session, "TURN_TIMEOUT", 0.02, raising=False)
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+
+        await asyncio.wait_for(session._claude_event_loop(), timeout=0.5)
+        await session._drain_persist()
+
+        assert backend.sent == []
+        assert ("status", "late but valid event") in logs
+        assert session.status == AgentStatus.IDLE
+
 
 # ── Auto-report gate tests (Task 5) ──
 
 # После мержа v2.16 авто-репорт стал немедленным (_fire_auto_report) вместо
 # отложенного (_schedule_auto_report/AUTO_REPORT_IDLE_SEC). Тесты обновлены под
 # живой API: проверяем те же гейты (did_report / orchestrator / pending / turn_ok),
-# но через немедленный fire. on_idle теперь принимает 4 аргумента (+stop_reason).
+# но через немедленный fire. on_idle принимает stop_reason и turn_ok.
 
 def _mk_session(monkeypatch=None, idle_sec=None):
     from app.session import AgentSession
@@ -257,10 +383,11 @@ def _mk_session(monkeypatch=None, idle_sec=None):
 async def test_auto_report_fires_after_idle_timeout(monkeypatch):
     s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts, stop_reason=""):
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
+    s.last_task_sender = "parent"
     s._turn_logs = ["did stuff"]
     # завершение хода → немедленный авто-репорт родителю
     s._turns.fire_auto_report()
@@ -272,7 +399,7 @@ async def test_auto_report_fires_after_idle_timeout(monkeypatch):
 async def test_auto_report_skipped_if_did_report(monkeypatch):
     s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts, stop_reason=""):
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = True  # был явный send_message
@@ -287,7 +414,7 @@ async def test_auto_report_cancelled_by_new_turn(monkeypatch):
     # есть отложенные сообщения (пришёл новый ход), авто-репорт не стреляет.
     s = _mk_session(monkeypatch)
     fired = []
-    async def on_idle(name, scope, texts, stop_reason=""):
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
@@ -302,7 +429,7 @@ async def test_orchestrator_never_auto_reports(monkeypatch):
     s = _mk_session(monkeypatch)
     s.is_orchestrator = True   # оркестратор отчитывается наверх ТОЛЬКО явным send_message
     fired = []
-    async def on_idle(name, scope, texts, stop_reason=""):
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
         fired.append(name)
     s.on_idle = on_idle
     s._did_report = False
@@ -310,6 +437,24 @@ async def test_orchestrator_never_auto_reports(monkeypatch):
     s._turns.fire_auto_report()
     await asyncio.sleep(0.05)
     assert fired == []  # оркестратор не auto-report'ит — нет спама наверх
+
+
+@pytest.mark.asyncio
+async def test_auto_report_passes_failed_turn_state(monkeypatch):
+    s = _mk_session(monkeypatch)
+    fired = []
+
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+        fired.append((stop_reason, turn_ok))
+
+    s.on_idle = on_idle
+    s.last_task_sender = "parent"
+    s._last_stop_reason = "stop_sequence"
+    s._last_turn_ok = False
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0.05)
+
+    assert fired == [("stop_sequence", False)]
 
 
 # ── Этап 1: pipeline + is_orchestrator как хранимое поле ──
@@ -741,11 +886,80 @@ class TestRateLimitClassification:
         session.backend_type = "codex"
         session.status = AgentStatus.RUNNING
         session._rate_limit_retries = 2
+        session._server_error_retries = 2
         session._log = lambda *_args, **_kwargs: None
 
         await session.send("new user request")
 
         assert session._rate_limit_retries == 0
+        assert session._server_error_retries == 0
+
+    @pytest.mark.asyncio
+    async def test_server_error_retries_fresh_without_false_auto_report(
+            self, session, monkeypatch):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        session.status = AgentStatus.RUNNING
+        session.last_task_sender = "parent"
+        session._turn_gen = 7
+        session._hibernate.schedule = MagicMock()
+        session._turns.fire_auto_report = MagicMock()
+
+        async def noop():
+            return None
+
+        spawned = []
+
+        def capture(coro):
+            spawned.append(coro.cr_code.co_name)
+            coro.close()
+
+        session._spawn_bg = capture
+        session._retry_after_server_error = MagicMock(
+            side_effect=lambda *_args: noop())
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "ok": False,
+            "stop_reason": "stop_sequence",
+            "num_turns": 1,
+            "model_error": "server_error",
+            "errors": ["server_error"],
+        }))
+        await session._drain_persist()
+
+        assert session.status == AgentStatus.IDLE
+        assert session._server_error_retries == 1
+        assert session._rate_limit_retries == 0
+        session._retry_after_server_error.assert_called_once_with(5, 7)
+        assert "noop" in spawned
+        session._turns.fire_auto_report.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_server_error_retry_reconnects_only_if_turn_is_still_current(
+            self, session):
+        from app.session import AgentStatus
+
+        session.status = AgentStatus.IDLE
+        session._turn_gen = 4
+        session._disconnect_backend = AsyncMock()
+        session.send = AsyncMock()
+
+        await session._retry_after_server_error(0, 4)
+
+        session._disconnect_backend.assert_awaited_once()
+        retry_message = session.send.await_args.args[0]
+        assert retry_message.startswith("[system] Retrying after transient server error.")
+
+        session._disconnect_backend.reset_mock()
+        session.send.reset_mock()
+        session._turn_gen = 5
+
+        await session._retry_after_server_error(0, 4)
+
+        session._disconnect_backend.assert_not_awaited()
+        session.send.assert_not_awaited()
 
 
 class TestFlushPendingDefersDuringCompact:
@@ -810,3 +1024,38 @@ class TestEnsureBackendForceFresh:
         session._backend = existing
         result = await session._ensure_backend()
         assert result is existing
+
+
+class TestCodexTurnLifecycle:
+    @pytest.mark.asyncio
+    async def test_active_turn_is_not_killed_by_total_wall_clock_timeout(self, session, monkeypatch):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        class DelayedBackend:
+            def __init__(self):
+                self.disconnected = False
+
+            async def events(self):
+                yield AgentEvent("status", "thread started", {"session_id": "codex-thread-1"})
+                for _ in range(3):
+                    await asyncio.sleep(0.03)
+                    yield AgentEvent("status", "still active")
+
+            async def disconnect(self):
+                self.disconnected = True
+
+        backend = DelayedBackend()
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._backend = backend
+        # The old implementation wrapped the whole turn in this timeout. A stream that
+        # stays active for longer than the threshold was still killed at the deadline.
+        monkeypatch.setattr(session, "CODEX_TURN_TIMEOUT", 0.05, raising=False)
+
+        await asyncio.wait_for(session._codex_turn_loop(), timeout=0.5)
+        await session._drain_persist()
+
+        assert backend.disconnected is False
+        assert session.session_id == "codex-thread-1"
+        assert session.status == AgentStatus.IDLE

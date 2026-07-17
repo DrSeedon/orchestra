@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("app.session")
 
-ZOMBIE_TIMEOUT_CODEX = 600
+CODEX_SILENCE_WARNING = 600
 ZOMBIE_TIMEOUT_CLAUDE = 1800
 HEARTBEAT_INTERVAL = 60
 
@@ -25,6 +25,20 @@ HEARTBEAT_INTERVAL = 60
 class HibernateManager:
     def __init__(self, s: "AgentSession") -> None:
         self.s = s
+        self._last_codex_silence_warning = 0.0
+
+    @staticmethod
+    def _codex_runtime_dead(s: "AgentSession") -> bool:
+        """Return true only when a Codex runtime component is definitely gone.
+
+        Silence alone is not proof: Codex may spend a long time reasoning or running a
+        tool without producing JSONL events. Process and listener state are observable.
+        """
+        if s._backend is None:
+            return True
+        if s._listen_task is None or s._listen_task.done():
+            return True
+        return getattr(s._backend, "is_alive", None) is False
 
     def schedule(self) -> None:
         s = self.s
@@ -60,14 +74,32 @@ class HibernateManager:
                 await asyncio.sleep(HEARTBEAT_INTERVAL)
 
                 if s.status == AgentStatus.RUNNING and s._last_msg_time > 0:
-                    silence = asyncio.get_event_loop().time() - s._last_msg_time
-                    zombie_timeout = ZOMBIE_TIMEOUT_CODEX if s.backend_type == "codex" else ZOMBIE_TIMEOUT_CLAUDE
+                    now = asyncio.get_event_loop().time()
+                    silence = now - s._last_msg_time
+                    zombie_timeout = CODEX_SILENCE_WARNING if s.backend_type == "codex" else ZOMBIE_TIMEOUT_CLAUDE
                     if silence > zombie_timeout:
-                        if s.backend_type == "codex" or s._backend is None:
-                            logger.error(f"[{s.name}] heartbeat: zombie detected ({silence:.0f}s silence, backend={'alive' if s._backend else 'dead'})")
+                        if s.backend_type == "codex" and self._codex_runtime_dead(s):
+                            logger.error(f"[{s.name}] heartbeat: dead Codex runtime detected ({silence:.0f}s silence)")
                             s._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
                             if s._backend:
                                 await s._disconnect_backend()
+                            s.status = AgentStatus.IDLE
+                            s._persist()
+                            if s._pending_messages:
+                                s._spawn_bg(s._flush_pending())
+                        elif s.backend_type == "codex":
+                            # Long quiet turns are valid. Keep them alive and report at
+                            # most once per warning interval; manual interrupt remains
+                            # available for a genuinely wedged upstream process.
+                            if now - self._last_codex_silence_warning >= CODEX_SILENCE_WARNING:
+                                logger.warning(
+                                    f"[{s.name}] heartbeat: {silence:.0f}s silence, "
+                                    "Codex process and listener still alive"
+                                )
+                                self._last_codex_silence_warning = now
+                        elif s._backend is None:
+                            logger.error(f"[{s.name}] heartbeat: zombie detected ({silence:.0f}s silence, backend=dead)")
+                            s._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
                             s.status = AgentStatus.IDLE
                             s._persist()
                             if s._pending_messages:

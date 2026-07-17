@@ -1,6 +1,6 @@
 """Sub-agent telemetry: upsert (start→progress→end), no-wipe, latest-tokens."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -69,6 +69,16 @@ def test_end_sets_summary_output_status(db):
     assert sa["output_file"] == "/tmp/out.md"
     assert sa["total_tokens"] == 1200
     assert sa["ended_at"]
+
+
+def test_end_derives_duration_when_sdk_omits_usage(db):
+    from app.db import subagent_upsert, get_subagent
+    subagent_upsert("sess-1", "task-a", description="Background command",
+                    task_type="local_bash")
+    ended_at = (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat()
+    subagent_upsert("sess-1", "task-a", status="completed", ended_at=ended_at)
+    sa = get_subagent("sess-1", "task-a")
+    assert 1_500 <= sa["duration_ms"] <= 2_500
 
 
 def test_two_subagents_same_session_distinct(db):
