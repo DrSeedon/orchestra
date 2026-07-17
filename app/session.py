@@ -1029,17 +1029,21 @@ class AgentSession:
 
         Only the fields the event carries are passed — subagent_upsert's
         NULLIF-COALESCE keeps prior values, so progress never wipes start's data.
+        Lifecycle timestamps are captured before the executor can reorder jobs.
         """
         task_id = meta.get("subagent_id")
         if not task_id:
             return
+        event_at = datetime.now(timezone.utc).isoformat()
         fields = {k: meta[k] for k in (
             "sdk_session_id", "tool_use_id", "description", "task_type", "status",
             "last_tool_name", "output_file", "summary", "raw_json",
             "total_tokens", "tool_uses", "duration_ms",
         ) if k in meta}
-        if ended:
-            fields["ended_at"] = datetime.now(timezone.utc).isoformat()
+        if meta.get("phase") == "start":
+            fields["started_at"] = event_at
+        if ended or meta.get("phase") == "end":
+            fields["ended_at"] = event_at
         from app.db import subagent_upsert
         asyncio.get_event_loop().run_in_executor(
             _db_executor(), lambda: subagent_upsert(self.id, task_id, **fields))

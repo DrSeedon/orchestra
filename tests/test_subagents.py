@@ -81,6 +81,66 @@ def test_end_derives_duration_when_sdk_omits_usage(db):
     assert 1_500 <= sa["duration_ms"] <= 2_500
 
 
+def test_end_before_start_preserves_lifecycle_order(db):
+    from app.db import subagent_upsert, get_subagent
+    from app.routes.subagent import _duration_ms
+
+    started_at = "2026-07-17T00:00:00+00:00"
+    ended_at = "2026-07-17T00:00:02+00:00"
+    subagent_upsert("sess-1", "task-a", status="completed", summary="Done",
+                    ended_at=ended_at)
+    subagent_upsert("sess-1", "task-a", description="Explore X",
+                    task_type="Explore", started_at=started_at)
+
+    sa = get_subagent("sess-1", "task-a")
+    assert sa["description"] == "Explore X"
+    assert sa["task_type"] == "Explore"
+    assert sa["status"] == "completed"
+    assert datetime.fromisoformat(sa["started_at"]) <= datetime.fromisoformat(sa["ended_at"])
+    assert _duration_ms(sa) == 2_000
+
+
+def test_persist_subagent_start_captures_timestamp_before_executor(monkeypatch):
+    from app.session import AgentSession
+
+    captured = {}
+    event_at = datetime(2026, 7, 17, tzinfo=timezone.utc)
+
+    class FakeLoop:
+        def run_in_executor(self, executor, job):
+            captured["job"] = job
+
+    class FakeDateTime(datetime):
+        current = event_at
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.current
+
+    monkeypatch.setattr("app.session.asyncio.get_event_loop", lambda: FakeLoop())
+    monkeypatch.setattr("app.session._db_executor", lambda: object())
+    monkeypatch.setattr("app.session.datetime", FakeDateTime)
+
+    def fake_upsert(session_id, task_id, **fields):
+        captured["call"] = (session_id, task_id, fields)
+
+    monkeypatch.setattr("app.db.subagent_upsert", fake_upsert)
+    session = AgentSession(id="sess-1", name="worker", scope="/s", cwd="/c")
+
+    session._persist_subagent({
+        "subagent_id": "task-a", "phase": "start",
+        "description": "Explore X",
+    })
+    FakeDateTime.current = event_at + timedelta(seconds=5)
+    captured["job"]()
+
+    session_id, task_id, fields = captured["call"]
+    assert (session_id, task_id) == ("sess-1", "task-a")
+    assert fields["description"] == "Explore X"
+    assert fields["started_at"] == event_at.isoformat()
+    assert "ended_at" not in fields
+
+
 def test_two_subagents_same_session_distinct(db):
     from app.db import subagent_upsert, get_subagents
     subagent_upsert("sess-1", "task-a", description="A")
