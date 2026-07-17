@@ -17,9 +17,13 @@ class LiveBroker:
     def __init__(self) -> None:
         self._subs: dict[str, set[asyncio.Queue]] = defaultdict(set)
         self._accum: dict[str, str] = {}
+        self._closing = False
 
     def subscribe(self, session_id: str) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(maxsize=_MAXSIZE)
+        if self._closing:
+            q.put_nowait(STREAM_CLOSE)
+            return q
         # Replay accumulated stream text so reconnecting clients see what they missed
         current = self._accum.get(session_id, "")
         if current:
@@ -38,6 +42,8 @@ class LiveBroker:
                 self._subs.pop(session_id, None)
 
     def publish(self, session_id: str, payload: dict) -> None:
+        if self._closing:
+            return
         if payload.get("type") == "stream":
             self._accum[session_id] = self._accum.get(session_id, "") + payload.get("content", "")
         for q in tuple(self._subs.get(session_id, ())):  # snapshot — safe if set mutates
@@ -57,6 +63,7 @@ class LiveBroker:
 
     def close_subscribers(self) -> None:
         """Ask all current SSE generators to finish before graceful shutdown."""
+        self._closing = True
         for queues in tuple(self._subs.values()):
             for q in tuple(queues):
                 if q.full():
