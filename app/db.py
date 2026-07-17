@@ -739,10 +739,16 @@ def subagent_upsert(session_id: str, task_id: str, **fields) -> None:
 
     start creates the row; progress/end update only the fields they carry.
     Empty text / zero numbers never overwrite an existing value.
+    Explicit starts keep the earliest known lifecycle timestamp.
     """
+    started_at = fields.get("started_at") or datetime.now(timezone.utc).isoformat()
     cols = ["session_id", "task_id", "started_at"]
-    vals = [session_id, task_id, datetime.now(timezone.utc).isoformat()]
-    updates = []
+    vals = [session_id, task_id, started_at]
+    updates = [
+        "started_at=CASE WHEN julianday(excluded.started_at) < "
+        "julianday(subagents.started_at) THEN excluded.started_at "
+        "ELSE subagents.started_at END"
+    ]
     for k in _SA_TEXT:
         if k in fields and fields[k] is not None:
             cols.append(k); vals.append(fields[k])
