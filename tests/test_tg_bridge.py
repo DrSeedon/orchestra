@@ -7,6 +7,7 @@
   ``config["topic_names"]``. Mirrors не трогаем. Ошибки Bot API не должны валить процесс.
 """
 
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -25,6 +26,20 @@ def tb(tmp_path, monkeypatch):
     tg_bridge.bot = None
     tg_bridge._pil_available = None
     return tg_bridge
+
+
+@pytest.mark.asyncio
+async def test_polling_does_not_override_uvicorn_signal_handlers(tb):
+    dispatcher = AsyncMock()
+    dispatcher.start_polling.side_effect = asyncio.CancelledError
+    bot = object()
+    tb.dp = dispatcher
+    tb.bot = bot
+
+    with pytest.raises(asyncio.CancelledError):
+        await tb._safe_polling()
+
+    dispatcher.start_polling.assert_awaited_once_with(bot, handle_signals=False)
 
 
 # ── _short_name ────────────────────────────────────────────────────────────

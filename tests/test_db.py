@@ -99,6 +99,14 @@ class TestSaveAndGetSession:
         save_session(sample_session)
         assert get_session_by_name("worker-1", "/other/scope") is None
 
+    def test_runtime_handoff_round_trip(self, db, sample_session):
+        from app.db import get_session, save_session
+
+        sample_session["runtime_handoff"] = "User:\ncontinue after runtime switch"
+        save_session(sample_session)
+
+        assert get_session(sample_session["id"])["runtime_handoff"] == sample_session["runtime_handoff"]
+
 
 class TestUniqueness:
     def test_same_name_scope_raises(self, db, sample_session):

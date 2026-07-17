@@ -1644,7 +1644,9 @@ async def _safe_polling():
     while True:
         try:
             logger.info("TG polling started")
-            await dp.start_polling(bot)
+            # Uvicorn owns process signals. Aiogram's default handlers overwrite
+            # them, so SIGINT would restart only polling instead of stopping Orchestra.
+            await dp.start_polling(bot, handle_signals=False)
         except Exception as e:
             logger.error(f"TG polling crashed: {e}, restarting in 10s")
             await asyncio.sleep(10)

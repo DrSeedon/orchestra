@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from app.session_state import (
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
 )
+from app.runtime_registry import get_runtime
 
 if TYPE_CHECKING:
     from app.session import AgentSession
@@ -28,8 +29,8 @@ class HibernateManager:
         self._last_codex_silence_warning = 0.0
 
     @staticmethod
-    def _codex_runtime_dead(s: "AgentSession") -> bool:
-        """Return true only when a Codex runtime component is definitely gone.
+    def _process_runtime_dead(s: "AgentSession") -> bool:
+        """Return true only when a process-backed runtime component is gone.
 
         Silence alone is not proof: Codex may spend a long time reasoning or running a
         tool without producing JSONL events. Process and listener state are observable.
@@ -44,7 +45,7 @@ class HibernateManager:
         s = self.s
         if s._hibernate_task and not s._hibernate_task.done():
             s._hibernate_task.cancel()
-        if s.backend_type != "claude":
+        if not get_runtime(s.backend_type).capabilities.hibernate:
             return
         timeout = IDLE_TIMEOUT_ORCHESTRATOR if s.is_orchestrator else IDLE_TIMEOUT_WORKER
         s._hibernate_task = asyncio.create_task(self._idle_hibernate(timeout))
@@ -74,12 +75,17 @@ class HibernateManager:
                 await asyncio.sleep(HEARTBEAT_INTERVAL)
 
                 if s.status == AgentStatus.RUNNING and s._last_msg_time > 0:
+                    capabilities = get_runtime(s.backend_type).capabilities
                     now = asyncio.get_event_loop().time()
                     silence = now - s._last_msg_time
-                    zombie_timeout = CODEX_SILENCE_WARNING if s.backend_type == "codex" else ZOMBIE_TIMEOUT_CLAUDE
+                    zombie_timeout = (
+                        CODEX_SILENCE_WARNING
+                        if capabilities.process_liveness
+                        else ZOMBIE_TIMEOUT_CLAUDE
+                    )
                     if silence > zombie_timeout:
-                        if s.backend_type == "codex" and self._codex_runtime_dead(s):
-                            logger.error(f"[{s.name}] heartbeat: dead Codex runtime detected ({silence:.0f}s silence)")
+                        if capabilities.process_liveness and self._process_runtime_dead(s):
+                            logger.error(f"[{s.name}] heartbeat: dead process runtime detected ({silence:.0f}s silence)")
                             s._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
                             if s._backend:
                                 await s._disconnect_backend()
@@ -87,14 +93,14 @@ class HibernateManager:
                             s._persist()
                             if s._pending_messages:
                                 s._spawn_bg(s._flush_pending())
-                        elif s.backend_type == "codex":
+                        elif capabilities.event_stream == "per_turn":
                             # Long quiet turns are valid. Keep them alive and report at
                             # most once per warning interval; manual interrupt remains
                             # available for a genuinely wedged upstream process.
                             if now - self._last_codex_silence_warning >= CODEX_SILENCE_WARNING:
                                 logger.warning(
                                     f"[{s.name}] heartbeat: {silence:.0f}s silence, "
-                                    "Codex process and listener still alive"
+                                    "runtime process and listener still alive"
                                 )
                                 self._last_codex_silence_warning = now
                         elif s._backend is None:
@@ -112,12 +118,13 @@ class HibernateManager:
                     continue
 
                 task_dead = s._listen_task is None or s._listen_task.done()
-                if task_dead and s.status == AgentStatus.RUNNING and s.backend_type not in ("codex", "opencode"):
+                capabilities = get_runtime(s.backend_type).capabilities
+                if task_dead and s.status == AgentStatus.RUNNING and capabilities.reconnect:
                     logger.warning(f"[{s.name}] heartbeat: listener dead but status=RUNNING — reconnecting")
                     s._log("error", "heartbeat detected dead listener, reconnecting")
                     try:
                         await s._backend.reconnect()
-                        s._listen_task = asyncio.create_task(s._claude_event_loop())
+                        s._listen_task = asyncio.create_task(s._persistent_event_loop())
                         s._listen_task.add_done_callback(s._on_task_done)
                         await s._backend.send("[system] Connection was restored after interruption. Continue your work.")
                         logger.info(f"[{s.name}] heartbeat reconnect OK")

@@ -1,6 +1,17 @@
 """Task #96 Phase 2 — backend routing: non-Claude/non-GPT models → opencode."""
 
-from app.models import _infer_backend, backend_for_model, BACKENDS
+import pytest
+
+from app.models import (
+    BACKENDS,
+    ModelSpec,
+    _infer_backend,
+    backend_for_model,
+    fetch_models_from_proxy,
+    get_model_spec,
+    register_model,
+    unregister_model,
+)
 from app.backend_opencode import OpenCodeBackend
 
 
@@ -39,6 +50,73 @@ def test_backend_for_model_unregistered_infers_opencode():
 
 def test_backend_for_model_unregistered_gpt_infers_codex():
     assert backend_for_model("gpt-9-future") == "codex"
+
+
+def test_registered_model_spec_wins_over_name_prefix():
+    model_id = "gpt-served-by-openrouter"
+    register_model(ModelSpec(
+        id=model_id,
+        name="GPT via OpenRouter",
+        runtime="opencode",
+        provider="openrouter",
+        context_length=123456,
+    ))
+    try:
+        assert backend_for_model(model_id) == "opencode"
+        assert get_model_spec(model_id).provider == "openrouter"
+        assert get_model_spec(model_id).context_length == 123456
+    finally:
+        unregister_model(model_id)
+
+
+def test_unknown_grok_gets_explicit_opencode_spec():
+    spec = get_model_spec("x-ai/grok-4")
+    assert spec.runtime == "opencode"
+    assert spec.provider == "x-ai"
+
+
+@pytest.mark.asyncio
+async def test_models_api_exposes_runtime_provider_and_capabilities():
+    from app.routes.system import list_models
+
+    response = await list_models()
+    sol = next(model for model in response["models"] if model["id"] == "gpt-5.6-sol")
+    assert sol["runtime"] == "codex"
+    assert sol["provider"] == "openai"
+    assert sol["capabilities"]["event_stream"] == "per_turn"
+
+
+@pytest.mark.asyncio
+async def test_proxy_model_fetch_omits_empty_authorization_header(monkeypatch):
+    captured = {}
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{"id": "gpt-5.5", "context_length": 258400}]}
+
+    class _Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url, headers):
+            captured["headers"] = headers
+            return _Response()
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr("app.models.httpx.AsyncClient", _Client)
+    monkeypatch.setattr("app.models._proxy_connected", False)
+
+    assert await fetch_models_from_proxy() is True
+    assert captured["headers"] == {}
 
 
 # ── provider/model split for proxy IDs ──

@@ -357,7 +357,7 @@ class TestClaudeTurnLifecycle:
         monkeypatch.setattr(session, "TURN_TIMEOUT", 0.02, raising=False)
         monkeypatch.setattr("app.bg_jobs.bg_manager", None)
 
-        await asyncio.wait_for(session._claude_event_loop(), timeout=0.5)
+        await asyncio.wait_for(session._persistent_event_loop(), timeout=0.5)
         await session._drain_persist()
 
         assert backend.sent == []
@@ -1011,7 +1011,7 @@ class TestEnsureBackendForceFresh:
         new.connect = AsyncMock()
         with patch.object(session, "_disconnect_backend", AsyncMock()) as disc, \
              patch.object(session, "_make_backend", return_value=new) as mk, \
-             patch.object(session, "_claude_event_loop", AsyncMock()), \
+             patch.object(session, "_persistent_event_loop", AsyncMock()), \
              patch.object(session._hibernate, "heartbeat_loop", AsyncMock()):
             result = await session._ensure_backend(force_fresh=True)
         disc.assert_awaited_once()
@@ -1053,9 +1053,112 @@ class TestCodexTurnLifecycle:
         # stays active for longer than the threshold was still killed at the deadline.
         monkeypatch.setattr(session, "CODEX_TURN_TIMEOUT", 0.05, raising=False)
 
-        await asyncio.wait_for(session._codex_turn_loop(), timeout=0.5)
+        await asyncio.wait_for(session._turn_event_loop(), timeout=0.5)
         await session._drain_persist()
 
         assert backend.disconnected is False
         assert session.session_id == "codex-thread-1"
         assert session.status == AgentStatus.IDLE
+
+
+class TestRuntimeCapabilities:
+    @pytest.mark.asyncio
+    async def test_per_turn_runtime_queues_mid_turn_message(self, session):
+        from app.session import AgentStatus
+
+        backend = AsyncMock()
+        backend.send = AsyncMock()
+        session.backend_type = "opencode"
+        session.status = AgentStatus.RUNNING
+        session._backend = backend
+        session._log = lambda *_args, **_kwargs: None
+
+        await session.send("queue me")
+
+        backend.send.assert_not_awaited()
+        assert session._pending_messages == ["queue me"]
+
+    @pytest.mark.asyncio
+    async def test_cross_runtime_model_switch_resets_native_session_and_builds_handoff(
+            self, session, monkeypatch):
+        from app.session import AgentStatus
+
+        session.model = "claude-sonnet-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "claude-native-session"
+        session.session_id_history = [{"session_id": "legacy-claude-session"}]
+        session.status = AgentStatus.IDLE
+        session._backend = AsyncMock()
+        session._backend.disconnect = AsyncMock()
+        session._log = lambda *_args, **_kwargs: None
+        monkeypatch.setattr("app.session.get_logs", lambda *_args, **_kwargs: [
+            {"type": "user_message", "content": "Fix the parser"},
+            {"type": "text", "content": "Parser fixed and tests pass"},
+        ])
+
+        result = await session.change_model("gpt-5.6-sol")
+
+        assert result["ok"] is True
+        assert result["runtime_changed"] is True
+        assert session.backend_type == "codex"
+        assert session.session_id is None
+        assert "Fix the parser" in session.runtime_handoff
+        assert "Parser fixed" in session.runtime_handoff
+        assert session.session_id_history[0]["runtime"] == "claude"
+        assert session.session_id_history[0]["model"] == "claude-sonnet-5[1m]"
+
+    @pytest.mark.asyncio
+    async def test_codex_model_switch_starts_fresh_native_thread(
+            self, session, monkeypatch):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.5"
+        session.backend_type = "codex"
+        session.session_id = "codex-native-session"
+        session.status = AgentStatus.IDLE
+        session._backend = AsyncMock()
+        session._backend.disconnect = AsyncMock()
+        session._log = lambda *_args, **_kwargs: None
+        monkeypatch.setattr(
+            session,
+            "_build_runtime_handoff",
+            AsyncMock(return_value="provider-neutral handoff"),
+        )
+
+        result = await session.change_model("gpt-5.6-sol")
+
+        assert result["runtime_changed"] is False
+        assert result["native_session_reset"] is True
+        assert session.session_id is None
+        assert session.runtime_handoff == "provider-neutral handoff"
+        assert session.session_id_history[-1]["session_id"] == "codex-native-session"
+
+    @pytest.mark.asyncio
+    async def test_runtime_handoff_is_one_shot_user_message_context(self, session):
+        from app.session import AgentStatus
+
+        backend = _MockBackend()
+        session.backend_type = "codex"
+        session.model = "gpt-5.6-sol"
+        session.runtime_handoff = "User:\nold request\n\nAssistant:\nold answer"
+
+        with patch.object(session, "_make_backend", return_value=backend):
+            await session.send("first after switch")
+            assert "<prior-conversation>" in backend.sent[0]
+            assert "old answer" in backend.sent[0]
+            assert "<current-user-message>\nfirst after switch" in backend.sent[0]
+            assert session.runtime_handoff == ""
+
+            backend.finish()
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.IDLE:
+                    break
+
+            await session.send("second after switch")
+            assert backend.sent[1] == "second after switch"
+            backend.finish()
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.IDLE:
+                    break

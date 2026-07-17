@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import signal
 import time
 from pathlib import Path
 from typing import Optional
@@ -19,8 +20,9 @@ from pydantic import BaseModel
 from app.auth import is_auth_enabled
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
 from app.deps import manager, templates
-from app.models import MODELS, CONTEXT_LIMITS, TOKEN_PRICES, is_proxy_connected
+from app.models import MODELS, get_model_spec, is_proxy_connected
 from app.pipeline import list_pipelines
+from app.runtime_registry import get_runtime
 
 logger = logging.getLogger("orchestra.system")
 
@@ -341,14 +343,20 @@ async def remove_profile(name: str):
 async def list_models():
     models = []
     for mid, name in MODELS.items():
-        entry = {"id": mid, "name": name}
-        ctx = CONTEXT_LIMITS.get(mid)
-        if ctx:
-            entry["context_length"] = ctx
-        prices = TOKEN_PRICES.get(mid)
-        if prices:
-            entry["price_input"] = prices["input"]
-            entry["price_output"] = prices["output"]
+        spec = get_model_spec(mid)
+        entry = {
+            "id": mid,
+            "name": name,
+            "runtime": spec.runtime,
+            "backend": spec.runtime,
+            "provider": spec.provider,
+            "context_length": spec.context_length,
+            "capabilities": get_runtime(spec.runtime).capabilities.to_dict(),
+        }
+        if spec.price_input is not None:
+            entry["price_input"] = spec.price_input
+        if spec.price_output is not None:
+            entry["price_output"] = spec.price_output
         models.append(entry)
     return {"models": models, "proxy_connected": is_proxy_connected()}
 
@@ -801,17 +809,23 @@ async def get_git_status(scope: str):
     return result
 
 
+_restart_tasks: set[asyncio.Task] = set()
+
+
+async def _restart_service_after_response() -> None:
+    """Let the response flush, then exit cleanly; systemd Restart=always revives us."""
+    await asyncio.sleep(0.5)
+    from app.live_broker import broker
+    broker.close_subscribers()
+    os.kill(os.getpid(), signal.SIGINT)
+
+
 @router.post("/api/restart")
 async def restart_server():
-    import subprocess
-    result = await asyncio.to_thread(
-        subprocess.run,
-        ["sudo", "-n", "systemctl", "restart", "orchestra"],
-        capture_output=True, text=True, timeout=10,
-    )
-    if result.returncode != 0:
-        return JSONResponse({"error": result.stderr.strip()}, status_code=500)
-    return {"ok": True}
+    task = asyncio.create_task(_restart_service_after_response())
+    _restart_tasks.add(task)
+    task.add_done_callback(_restart_tasks.discard)
+    return {"ok": True, "scheduled": True}
 
 
 # ── GitHub Webhook (CI failure routing) ──
