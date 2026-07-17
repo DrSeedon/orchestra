@@ -49,7 +49,7 @@ roles:
     kind: worker
     label: Worker
     order: 2
-    model: sonnet
+    model: gpt5.6sol
     effort: medium
     skills: [codex-debate]
     modules: [git-workflow, report-format, self-improvement, memory-search]
@@ -64,7 +64,7 @@ roles:
     kind: worker
     label: Full-Cycle
     order: 3
-    model: opus4.8
+    model: gpt5.6sol
     effort: xhigh
     skills: [codex-debate, self-analysis]
     modules: [research-method, divergent-thinking, git-workflow, report-format, self-improvement, memory-search]
