@@ -114,6 +114,12 @@ class ClaudeBackend:
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
         self._pending_model_error = ""
+        # SDK content events point at parent tool_use_id, while Task* lifecycle
+        # messages use task_id. Keep the bridge so live output and persisted
+        # lifecycle records address the same UI card.
+        self._subagent_tool_to_task: dict[str, str] = {}
+        self._subagent_descriptions: dict[str, str] = {}
+        self._subagent_types: dict[str, str] = {}
 
     @property
     def session_id(self) -> Optional[str]:
@@ -277,6 +283,14 @@ class ClaudeBackend:
             "duration_ms": get("duration_ms", 0) or 0,
         }
 
+    def _resolve_subagent_id(self, parent_tool_use_id):
+        if parent_tool_use_id is None:
+            return None
+        return self._subagent_tool_to_task.get(
+            str(parent_tool_use_id),
+            str(parent_tool_use_id),
+        )
+
     @staticmethod
     def _tag_sub(event: AgentEvent, sub_id) -> AgentEvent:
         """Mark an event as belonging to a sub-agent so the UI nests it.
@@ -303,7 +317,7 @@ class ClaudeBackend:
             text = delta.get("text") or ""
             if not text:
                 return events
-            sub_id = msg.parent_tool_use_id
+            sub_id = self._resolve_subagent_id(msg.parent_tool_use_id)
             if sub_id is not None:
                 events.append(AgentEvent("subagent_stream", text, metadata={"subagent_id": sub_id}))
             else:
@@ -313,7 +327,9 @@ class ClaudeBackend:
         if isinstance(msg, AssistantMessage):
             # Subagent messages carry parent_tool_use_id → tag events so the UI groups
             # them under the sub-agent block instead of mixing with the parent's stream.
-            sub_id = getattr(msg, "parent_tool_use_id", None)
+            sub_id = self._resolve_subagent_id(
+                getattr(msg, "parent_tool_use_id", None)
+            )
             for block in msg.content:
                 if isinstance(block, TextBlock) and block.text:
                     events.append(self._tag_sub(AgentEvent("text", block.text), sub_id))
@@ -339,7 +355,9 @@ class ClaudeBackend:
                 ))
 
         elif isinstance(msg, UserMessage):
-            sub_id = getattr(msg, "parent_tool_use_id", None)
+            sub_id = self._resolve_subagent_id(
+                getattr(msg, "parent_tool_use_id", None)
+            )
             if hasattr(msg, 'content') and isinstance(msg.content, list):
                 for block in msg.content:
                     if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
@@ -349,37 +367,66 @@ class ClaudeBackend:
             desc = getattr(msg, "description", "") or ""
             task_type = getattr(msg, "task_type", "") or ""
             task_id = getattr(msg, "task_id", "") or ""
-            events.append(AgentEvent("subagent_start", f"{desc} | type={task_type} | id={task_id}",
+            tool_use_id = getattr(msg, "tool_use_id", "") or ""
+            if task_id:
+                self._subagent_descriptions[task_id] = desc
+                self._subagent_types[task_id] = task_type
+            if task_id and tool_use_id:
+                self._subagent_tool_to_task[tool_use_id] = task_id
+            events.append(AgentEvent(
+                "subagent_start",
+                f"{desc} | type={task_type} | id={task_id} | "
+                f"tool_use_id={tool_use_id}",
                                      metadata={"subagent_id": task_id, "phase": "start",
                                                "description": desc, "task_type": task_type,
                                                "sdk_session_id": getattr(msg, "session_id", "") or "",
-                                               "tool_use_id": getattr(msg, "tool_use_id", "") or ""}))
+                                               "tool_use_id": tool_use_id}))
 
         elif isinstance(msg, TaskProgressMessage):
             desc = getattr(msg, "description", "") or ""
             last_tool = getattr(msg, "last_tool_name", "") or ""
             task_id = getattr(msg, "task_id", "") or ""
+            tool_use_id = getattr(msg, "tool_use_id", "") or ""
+            if task_id and desc:
+                self._subagent_descriptions[task_id] = desc
+            if task_id and tool_use_id:
+                self._subagent_tool_to_task[tool_use_id] = task_id
+            desc = desc or self._subagent_descriptions.get(task_id, "")
+            task_type = self._subagent_types.get(task_id, "")
             u = self._task_usage(getattr(msg, "usage", None))
             events.append(AgentEvent("subagent_progress",
-                                     f"{desc} | tool={last_tool} | tokens={u.get('total_tokens', 0)}",
+                                     f"{desc} | type={task_type} | id={task_id} | "
+                                     f"tool_use_id={tool_use_id} | tool={last_tool} | "
+                                     f"tokens={u.get('total_tokens', 0)}",
                                      metadata={"subagent_id": task_id, "phase": "progress",
-                                               "description": desc, "last_tool_name": last_tool,
+                                               "description": desc, "task_type": task_type,
+                                               "last_tool_name": last_tool,
                                                "sdk_session_id": getattr(msg, "session_id", "") or "",
+                                               "tool_use_id": tool_use_id,
                                                **u}))
 
         elif isinstance(msg, TaskNotificationMessage):
-            desc = getattr(msg, "description", "") or ""
             status = getattr(msg, "status", "") or ""
             summary = getattr(msg, "summary", "") or ""
             task_id = getattr(msg, "task_id", "") or ""
+            tool_use_id = getattr(msg, "tool_use_id", "") or ""
+            if task_id and tool_use_id:
+                self._subagent_tool_to_task[tool_use_id] = task_id
+            desc = self._subagent_descriptions.get(task_id, "")
+            task_type = self._subagent_types.get(task_id, "")
             output_file = getattr(msg, "output_file", "") or ""
             u = self._task_usage(getattr(msg, "usage", None))
             data = getattr(msg, "data", None)
-            events.append(AgentEvent("subagent_end", f"{desc} | status={status} | {summary[:500]}",
+            events.append(AgentEvent(
+                "subagent_end",
+                f"{desc} | type={task_type} | id={task_id} | "
+                f"tool_use_id={tool_use_id} | status={status} | {summary[:500]}",
                                      metadata={"subagent_id": task_id, "phase": "end",
-                                               "description": desc, "status": status,
+                                               "description": desc, "task_type": task_type,
+                                               "status": status,
                                                "summary": summary, "output_file": output_file,
                                                "sdk_session_id": getattr(msg, "session_id", "") or "",
+                                               "tool_use_id": tool_use_id,
                                                "raw_json": _json.dumps(data, ensure_ascii=False) if data else "",
                                                **u}))
 
