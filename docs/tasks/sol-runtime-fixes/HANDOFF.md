@@ -1,7 +1,7 @@
 # Handoff: адаптация Orchestra под Codex / Sol
 
 Дата: 2026-07-16  
-Статус: runtime-фиксы применялись ранее; новые фиксы ложных Codex/Claude timeout и Claude interrupt реализованы и протестированы, но сервис после них не перезапускался. Изменения не закоммичены.
+Статус: runtime-фиксы, обработка Claude `server_error` и новый экран agent activity реализованы, протестированы и применены рестартом `orchestra.service` 2026-07-17 12:04 +07. Этот handoff входит в итоговый коммит.
 
 ## Дополнение: ложная смерть Codex turn на 600-й секунде
 
@@ -24,6 +24,23 @@
 - Явный interrupt подавляет stale auto-report оборванного turn; следующий новый/queued/compact turn сбрасывает этот флаг.
 - `claude-agent-sdk` обновлён с `0.2.87` до `0.2.114`; минимальная версия `0.2.111`, где Anthropic исправил zombie CLI subprocess при asyncio cancellation.
 - Проверка затронутого набора: `64 passed, 1 deselected`; расширенный lifecycle/API/manager набор: `203 passed, 4 deselected` (известный flaky auto-report и три несвязанных manager-теста). `compileall` и `git diff --check` прошли.
+
+## Дополнение: Claude `server_error` после пяти минут stalled stream
+
+- В transcript `mass-job-hunter` подтверждено два upstream-сбоя: через ~301 секунду после текста модель присылала `AssistantMessage.error=server_error`, затем `ResultMessage(stop_sequence)`. Orchestra теряла тип ошибки, считала ход обычным завершением и отправляла ложный auto-report `Finished`.
+- `backend_claude` переносит `model_error` в terminal `turn_end`; failed turn больше не маскируется `stop_sequence`.
+- Для `server_error` выполняются до трёх fresh-backend resume через 5/10/15 секунд. Retry привязан к generation: новое сообщение пользователя отменяет устаревший повтор.
+- Пока retry ожидается, ложный auto-report подавлен. Если лимит повторов исчерпан, родитель получает явный failed auto-report.
+- Счётчик `server_error` отделён от Anthropic rate-limit budget, поэтому разные классы сбоев не съедают лимиты друг друга.
+
+## Дополнение: SDK sub-agents и background tasks в dashboard
+
+- Claude SDK `Task*` события включают настоящие `local_agent` и фоновые `local_bash`. Старый UI показывал оба вида как sub-agent cards, поэтому у bash-задач были пустые tokens/tools/duration и заведомо отсутствующий transcript.
+- API теперь отдаёт явный `kind=agent|background`. Для `local_bash` длительность сохраняется/вычисляется по `started_at→ended_at`, включая старые строки.
+- Transcript связывается по реальному `task_id == agent_id`, а не по позиции в двух списках. Для старых агентов используется сохранённый `sdk_session_id`, поэтому transcript переживает rotation/resume родительской сессии.
+- UI разделён на SDK-агентов и фоновые задачи. Background jobs компактны, без фиктивных метрик/transcript; последние 12 видны сразу, старая история свёрнута. Дублирующий description summary скрывается.
+- Live-проверка после рестарта: `seedon-orchestrator` — 39 background jobs, 0 фиктивных transcript; `mass-job-hunter` — 14 SDK agents и 14 рабочих transcript buttons. Headless Chrome: transcript открылся, JS console errors отсутствуют.
+- Итоговая проверка затронутого набора: `233 passed, 3 deselected`; `compileall`, `node --check`, `git diff --check` прошли. Полный `pytest` в текущем окружении непоказателен: отсутствует Playwright Chromium ревизии 1223, после browser fixture каскадно ломается общий asyncio runner; до каскада 509 тестов прошли.
 
 ## Что сделано
 
