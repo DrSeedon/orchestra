@@ -10,6 +10,7 @@ import asyncio
 from collections import defaultdict
 
 _MAXSIZE = 256  # per-subscriber backlog; drop-oldest beyond this
+STREAM_CLOSE = object()
 
 
 class LiveBroker:
@@ -53,6 +54,20 @@ class LiveBroker:
     def clear_accum(self, session_id: str) -> None:
         """Clear accumulated stream text — call when final 'text' event arrives."""
         self._accum.pop(session_id, None)
+
+    def close_subscribers(self) -> None:
+        """Ask all current SSE generators to finish before graceful shutdown."""
+        for queues in tuple(self._subs.values()):
+            for q in tuple(queues):
+                if q.full():
+                    try:
+                        q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        pass
+                try:
+                    q.put_nowait(STREAM_CLOSE)
+                except asyncio.QueueFull:
+                    pass
 
 
 broker = LiveBroker()

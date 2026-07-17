@@ -1,10 +1,11 @@
 """Backend protocol — structural typing contract for agent backends."""
 
-from typing import AsyncIterator, Optional, Protocol
+from typing import AsyncIterator, Optional, Protocol, runtime_checkable
 
 from app.events import AgentEvent
 
 
+@runtime_checkable
 class BackendLike(Protocol):
     @property
     def session_id(self) -> Optional[str]: ...

@@ -16,7 +16,7 @@ async def _empty_events():
     """Async iterator для мока backend.events(): ждёт cancellation, не yield'ит.
 
     Просто ``if False: yield`` создаёт пустой генератор — он завершается мгновенно,
-    и внешний ``while True`` цикл в ``_claude_event_loop`` крутится в hot-loop,
+    и внешний ``while True`` цикл в ``_persistent_event_loop`` крутится в hot-loop,
     не давая ``cancel()`` шанса сработать. Поэтому мы ждём вечно и завершаемся
     по CancelledError, имитируя живой backend, который просто молчит.
     """

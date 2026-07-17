@@ -1259,6 +1259,22 @@ class TestChangeScopeUnloadedWorkerGuard:
         assert res["ok"] is True
 
 
+class TestManagerLifecycle:
+    @pytest.mark.asyncio
+    async def test_shutdown_rebinds_background_primitives_for_next_event_loop(self, mgr):
+        old_queue = mgr._spawn_queue
+        mgr.start_background_tasks()
+        await asyncio.sleep(0)
+
+        await mgr.shutdown_all()
+
+        assert mgr._spawn_task is None
+        assert mgr._cleanup_task is None
+        assert mgr._wt_cleanup_task is None
+        assert mgr._spawn_queue is not old_queue
+        assert mgr._session_locks == {}
+
+
 class TestLiveChildren:
     """Orphan-guard: _live_children finds active sub-workers of a parent."""
 

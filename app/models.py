@@ -7,12 +7,24 @@ fetch_models_from_proxy() replaces them with proxy-only models.
 import logging
 import os
 import re
+from dataclasses import dataclass
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
 _proxy_connected: bool = False
+
+
+@dataclass(frozen=True)
+class ModelSpec:
+    id: str
+    name: str
+    runtime: str
+    provider: str
+    context_length: int = 200000
+    price_input: float | None = None
+    price_output: float | None = None
 
 MODELS = {
     "claude-fable-5[1m]": "Fable 5 (1M)",
@@ -101,6 +113,7 @@ TOKEN_PRICES = {
 }
 
 DEFAULT_MODEL = "claude-sonnet-5[1m]"
+MODEL_SPECS: dict[str, ModelSpec] = {}
 
 _VERSION_RE = re.compile(r"[-.]v?\d[\d.]*$")
 
@@ -129,6 +142,74 @@ def _infer_backend(model_id: str) -> str:
     return "opencode"
 
 
+def _infer_provider(model_id: str) -> str:
+    if "/" in model_id:
+        return model_id.split("/", 1)[0]
+    if model_id.startswith("gpt-"):
+        return "openai"
+    if model_id.startswith("claude-"):
+        return "anthropic"
+    return "unknown"
+
+
+def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
+    """Register one explicit provider/model/runtime route and legacy lookup views."""
+    if not spec.id:
+        raise ValueError("model id must not be empty")
+    if spec.id in MODEL_SPECS and not replace:
+        raise ValueError(f"model '{spec.id}' is already registered")
+    MODEL_SPECS[spec.id] = spec
+    MODELS[spec.id] = spec.name
+    CONTEXT_LIMITS[spec.id] = spec.context_length
+    BACKENDS[spec.id] = spec.runtime
+    if spec.price_input is not None or spec.price_output is not None:
+        TOKEN_PRICES[spec.id] = {
+            "input": float(spec.price_input or 0),
+            "output": float(spec.price_output or 0),
+        }
+
+
+def unregister_model(model_id: str) -> None:
+    MODEL_SPECS.pop(model_id, None)
+    MODELS.pop(model_id, None)
+    CONTEXT_LIMITS.pop(model_id, None)
+    BACKENDS.pop(model_id, None)
+    TOKEN_PRICES.pop(model_id, None)
+
+
+def get_model_spec(model_id: str) -> ModelSpec:
+    """Return an explicit route; synthesize a compatibility spec at the boundary."""
+    if model_id in MODEL_SPECS:
+        return MODEL_SPECS[model_id]
+    prices = TOKEN_PRICES.get(model_id, {})
+    return ModelSpec(
+        id=model_id,
+        name=MODELS.get(model_id, model_id),
+        runtime=BACKENDS.get(model_id, _infer_backend(model_id)),
+        provider=_infer_provider(model_id),
+        context_length=CONTEXT_LIMITS.get(model_id, 200000),
+        price_input=prices.get("input"),
+        price_output=prices.get("output"),
+    )
+
+
+def _seed_model_specs() -> None:
+    for model_id, name in list(MODELS.items()):
+        prices = TOKEN_PRICES.get(model_id, {})
+        MODEL_SPECS[model_id] = ModelSpec(
+            id=model_id,
+            name=name,
+            runtime=BACKENDS[model_id],
+            provider=_infer_provider(model_id),
+            context_length=CONTEXT_LIMITS[model_id],
+            price_input=prices.get("input"),
+            price_output=prices.get("output"),
+        )
+
+
+_seed_model_specs()
+
+
 def is_proxy_connected() -> bool:
     return _proxy_connected
 
@@ -145,13 +226,11 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
     url = f"{base_url.rstrip('/')}/v1/models"
 
     proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     try:
         async with httpx.AsyncClient(timeout=10, proxy=proxy_url) as client:
-            resp = await client.get(
-                url,
-                headers={"Authorization": f"Bearer {api_key}"},
-            )
+            resp = await client.get(url, headers=headers)
             resp.raise_for_status()
             data = resp.json()
     except Exception as e:
@@ -162,6 +241,7 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
             CONTEXT_LIMITS.clear()
             TOKEN_PRICES.clear()
             BACKENDS.clear()
+            MODEL_SPECS.clear()
             ALIASES.clear()
         return False
 
@@ -174,6 +254,7 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
             CONTEXT_LIMITS.clear()
             TOKEN_PRICES.clear()
             BACKENDS.clear()
+            MODEL_SPECS.clear()
             ALIASES.clear()
         return False
 
@@ -182,6 +263,7 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
         CONTEXT_LIMITS.clear()
         TOKEN_PRICES.clear()
         BACKENDS.clear()
+        MODEL_SPECS.clear()
         ALIASES.clear()
 
     added = 0
@@ -201,7 +283,8 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
         prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
         completion_price = float(pricing.get("completion", "0")) * 1_000_000
 
-        backend = _infer_backend(mid)
+        backend = str(m.get("runtime") or m.get("backend") or _infer_backend(mid))
+        provider = str(m.get("provider") or _infer_provider(mid))
 
         if mid not in MODELS:
             MODELS[mid] = label
@@ -212,6 +295,16 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
             TOKEN_PRICES[mid] = {"input": round(prompt_price, 4), "output": round(completion_price, 4)}
         if mid not in BACKENDS:
             BACKENDS[mid] = backend
+        if mid not in MODEL_SPECS:
+            MODEL_SPECS[mid] = ModelSpec(
+                id=mid,
+                name=MODELS[mid],
+                runtime=BACKENDS[mid],
+                provider=provider,
+                context_length=CONTEXT_LIMITS[mid],
+                price_input=TOKEN_PRICES.get(mid, {}).get("input"),
+                price_output=TOKEN_PRICES.get(mid, {}).get("output"),
+            )
 
         for alias in _generate_aliases(mid):
             if alias not in ALIASES and alias != mid:
@@ -282,21 +375,20 @@ def resolve_model(model: str) -> str:
 
 
 def backend_for_model(model: str) -> str:
-    # Registered models win; unregistered ones infer from the ID prefix so a
-    # never-seen gemini/llama/… routes to opencode instead of defaulting to claude.
-    if model in BACKENDS:
-        return BACKENDS[model]
-    return _infer_backend(model)
+    return get_model_spec(model).runtime
 
 
 def available_models_block() -> str:
     """Prompt block listing all available models for spawn_worker."""
     lines = ["## Available models for spawn_worker(model=...)"]
     for model_id, label in MODELS.items():
-        ctx = CONTEXT_LIMITS.get(model_id, 200000)
+        spec = get_model_spec(model_id)
+        ctx = spec.context_length
         ctx_k = f"{ctx // 1000}k"
-        backend = BACKENDS.get(model_id, "claude")
         alias_list = [a for a, m in ALIASES.items() if m == model_id]
         alias_str = f" (aliases: {', '.join(alias_list[:3])})" if alias_list else ""
-        lines.append(f"- `{model_id}` — {label}, {ctx_k} context, backend: {backend}{alias_str}")
+        lines.append(
+            f"- `{model_id}` — {label}, {ctx_k} context, "
+            f"runtime: {spec.runtime}, provider: {spec.provider}{alias_str}"
+        )
     return "\n".join(lines)

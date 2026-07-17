@@ -10,6 +10,7 @@ status sequence; the lifecycle is covered by the gated integration test at the b
 import contextlib
 import shutil
 
+import httpx
 import pytest
 
 from app.backend_opencode import (
@@ -33,6 +34,8 @@ def test_model_bare_keeps_default_provider():
     b = OpenCodeBackend(model="mimo-v2.5-free", cwd="/tmp", provider_id="opencode")
     assert b.provider_id == "opencode"
     assert b.model == "mimo-v2.5-free"
+    assert b._transport_provider_id == "opencode"
+    assert b._transport_model_id == "mimo-v2.5-free"
 
 
 # ── SSE parsing ──
@@ -214,6 +217,15 @@ def test_turn_end_unknown_model_default_context():
     assert b._turn_end(msg).metadata["max_tokens"] == DEFAULT_CONTEXT
 
 
+def test_turn_end_uses_registry_context_limit():
+    b = OpenCodeBackend(model="x-ai/grok-4", cwd="/tmp", context_limit=256_000)
+    msg = {"info": {"cost": 0, "finish": "stop", "error": None,
+                    "tokens": {"input": 128_000}}}
+    event = b._turn_end(msg)
+    assert event.metadata["context_pct"] == 50
+    assert event.metadata["max_tokens"] == 256_000
+
+
 # ── MCP translation ──
 
 def test_to_opencode_mcp_translates_orchestra_shape():
@@ -241,29 +253,64 @@ def test_free_port_returns_usable_int():
     assert isinstance(p, int) and 1024 < p < 65536
 
 
-# ── opencode.json writing ──
+# ── secure inline config ──
 
-def test_write_opencode_json_fresh(tmp_path):
+def test_inline_config_keeps_secret_out_of_workspace(tmp_path, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://proxy.test")
     b = OpenCodeBackend(model="claude-sonnet-5[1m]", cwd=str(tmp_path),
                         mcp_servers={"orchestra": {"command": "py", "args": ["s.py"], "env": {}}})
-    b._write_opencode_json()
     import json
-    cfg = json.loads((tmp_path / "opencode.json").read_text())
+    cfg = json.loads(b._build_inline_config())
     assert cfg["mcp"]["orchestra"]["type"] == "local"
     assert cfg["permission"] == {"edit": "allow", "bash": "allow", "webfetch": "allow",
                                  "external_directory": "allow", "doom_loop": "allow"}
+    assert cfg["provider"]["openrouter"]["options"]["apiKey"] == "{env:ANTHROPIC_API_KEY}"
+    assert cfg["provider"]["openrouter"]["options"]["baseURL"] == "https://proxy.test/v1"
+    assert not (tmp_path / "opencode.json").exists()
 
 
-def test_write_opencode_json_merges_existing(tmp_path):
+def test_daemon_env_uses_inline_config_without_embedding_key(tmp_path, monkeypatch):
     import json
-    (tmp_path / "opencode.json").write_text(json.dumps({"model": "x", "mcp": {"keep": {"type": "local", "command": ["k"]}}}))
-    b = OpenCodeBackend(model="m", cwd=str(tmp_path),
-                        mcp_servers={"orchestra": {"command": "py", "env": {}}})
-    b._write_opencode_json()
-    cfg = json.loads((tmp_path / "opencode.json").read_text())
-    assert cfg["model"] == "openrouter/m"   # model is (re)written from the backend's model
-    assert "keep" in cfg["mcp"]             # existing mcp preserved
-    assert "orchestra" in cfg["mcp"]        # ours merged in
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-secret")
+    b = OpenCodeBackend(model="x-ai/grok-4", cwd=str(tmp_path))
+    env = b._build_daemon_env()
+    assert "sk-secret" not in env["OPENCODE_CONFIG_CONTENT"]
+    assert json.loads(env["OPENCODE_CONFIG_CONTENT"])["model"] == "openrouter/x-ai/grok-4"
+
+
+def test_native_opencode_model_keeps_native_transport():
+    import json
+    b = OpenCodeBackend(model="opencode/mimo-v2.5-free", cwd="/tmp")
+    assert json.loads(b._build_inline_config())["model"] == "opencode/mimo-v2.5-free"
+
+
+@pytest.mark.asyncio
+async def test_wait_ready_retries_read_timeout(monkeypatch):
+    class _Probe:
+        calls = 0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _path):
+            self.calls += 1
+            if self.calls == 1:
+                raise httpx.ReadTimeout("daemon is still starting")
+            return type("_Response", (), {"status_code": 200})()
+
+    async def _no_sleep(_seconds):
+        return None
+
+    probe = _Probe()
+    monkeypatch.setattr("app.backend_opencode.httpx.AsyncClient", lambda **_kwargs: probe)
+    monkeypatch.setattr("app.backend_opencode.asyncio.sleep", _no_sleep)
+
+    assert await _b()._wait_ready() is True
+    assert probe.calls == 2
 
 
 # ── poll-based events() loop (#97 — fake SSE + scripted status, no daemon) ──
@@ -516,20 +563,19 @@ async def test_events_flat_assistant_message_shape():
 
 
 @pytest.mark.asyncio
-async def test_events_perma_busy_hits_hard_deadline():
-    """status busy forever, no idle ever → events() ends at TURN_TIMEOUT with
-    turn_timeout error (codex #1 — the in-events deadline). Would hang without it."""
+async def test_events_long_busy_turn_has_no_absolute_wall_clock_deadline(monkeypatch):
+    """A healthy busy turn may outlive an arbitrary wall-clock threshold."""
     import app.backend_opencode as bo
-    b = _poll_backend([], status_seq=["busy"])  # always busy
-    orig = bo.TURN_TIMEOUT
-    bo.TURN_TIMEOUT = 0.05  # tiny deadline
-    try:
-        out = await asyncio.wait_for(_drain(b), timeout=5)
-    finally:
-        bo.TURN_TIMEOUT = orig
+    monkeypatch.setattr(bo, "STATUS_POLL_INTERVAL", 0.01)
+    b = _poll_backend(
+        [],
+        status_seq=["busy"] * 8 + ["idle"],
+        message=[{"role": "assistant", "cost": 0, "finish": "stop",
+                  "error": None, "tokens": {}}],
+    )
+    out = await asyncio.wait_for(_drain(b), timeout=2)
     assert out[-1].type == "turn_end"
-    assert out[-1].metadata["ok"] is False
-    assert out[-1].metadata["stop_reason"] == "turn_timeout"
+    assert out[-1].metadata["ok"] is True
 
 
 @pytest.mark.asyncio
@@ -601,7 +647,10 @@ async def test_send_posts_prompt_async_with_nested_model():
     b.system_prompt = "sys"
     await b.send("hello")
     assert captured["url"] == "/session/ses_x/prompt_async"
-    assert captured["body"]["model"] == {"providerID": "anthropic", "modelID": "claude-sonnet-5[1m]"}
+    assert captured["body"]["model"] == {
+        "providerID": "openrouter",
+        "modelID": "anthropic/claude-sonnet-5[1m]",
+    }
     assert captured["body"]["parts"] == [{"type": "text", "text": "hello"}]
     assert captured["body"]["system"] == "sys"
     assert b._turn_active is True
@@ -633,16 +682,17 @@ async def test_send_failure_clears_turn_active():
 
 @pytest.mark.skipif(shutil.which("opencode") is None, reason="opencode binary not installed")
 @pytest.mark.asyncio
-async def test_integration_lifecycle():
+async def test_integration_lifecycle(tmp_path, monkeypatch):
     """Real daemon: connect creates a session + spawns the daemon; disconnect reaps it.
     Does NOT drive a model turn (the free model is slow/rate-limited and would flake)."""
-    import os
-    b = OpenCodeBackend(model="opencode/mimo-v2.5-free", cwd="/tmp")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    b = OpenCodeBackend(model="opencode/mimo-v2.5-free", cwd=str(tmp_path))
     try:
         await b.connect()
         assert b.session_id and b.session_id.startswith("ses_")
         assert b._proc is not None and b._proc.returncode is None  # daemon running
-        assert os.path.exists("/tmp/opencode.json")                # config written
+        assert not (tmp_path / "opencode.json").exists()           # no secret-bearing file
     finally:
         await b.disconnect()
     assert b._proc is None  # reaped — no zombie

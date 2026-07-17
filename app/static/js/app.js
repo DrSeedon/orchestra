@@ -6,6 +6,21 @@ const _MODEL_COLORS = {
     'claude-sonnet-5[1m]': '#38bdf8', 'claude-haiku-4-5': '#4ade80',
     'claude-fable-5[1m]': '#fb923c', 'gpt-5.5': '#f472b6', 'gpt-5.4': '#f472b6',
 };
+const _PROVIDER_COLORS = {
+    anthropic: '#fb923c', openai: '#22c55e', 'x-ai': '#e2e8f0',
+    openrouter: '#a78bfa', unknown: '#94a3b8',
+};
+function _modelMeta(id) {
+    return _MODELS.find(m => m.id === id) || null;
+}
+function _modelLabel(id) {
+    const meta = _modelMeta(id);
+    return meta?.label || id || '?';
+}
+function _modelColor(id) {
+    const meta = _modelMeta(id);
+    return _MODEL_COLORS[id] || _PROVIDER_COLORS[meta?.provider || 'unknown'] || '#94a3b8';
+}
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
@@ -278,7 +293,7 @@ async function loadModels() {
     try {
         const data = await api('/api/models');
         const models = data.models || [];
-        _MODELS = models.map(m => ({ id: m.id, label: m.name }));
+        _MODELS = models.map(m => ({ ...m, label: m.name }));
         _modelsLoaded = true;
         const select = $('#orch-model');
         if (select) {
@@ -1198,7 +1213,7 @@ async function _ensureModels() {
     try {
         const data = await api('/api/models');
         const models = data.models || [];
-        _MODELS = models.map(m => ({ id: m.id, label: m.name }));
+        _MODELS = models.map(m => ({ ...m, label: m.name }));
         _modelsLoaded = true;
     } catch {}
 }
@@ -1430,7 +1445,8 @@ fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,..
 // Cache timer pill — Anthropic prompt cache stays warm CACHE_TTL after last turn.
 // Warm resume = cheap; after eviction next turn is ~20× costlier.
 function _shortModel(m) {
-    return m.replace('claude-', '').replace('[1m]', '').replace('-1m', '');
+    const meta = _modelMeta(m);
+    return meta?.label || m.replace('claude-', '').replace('[1m]', '').replace('-1m', '');
 }
 
 function _cachePill(s) {
@@ -1531,7 +1547,7 @@ function createAgentItem(s) {
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
     const modelSpan = document.createElement('span');
-    const mc = _MODEL_COLORS[s.model] || '#94a3b8';
+    const mc = _modelColor(s.model);
     modelSpan.textContent = _shortModel(s.model || '');
     modelSpan.title = s.model || '';
     modelSpan.style.cssText = `color:${mc};border:1px solid ${mc}44;padding:0 4px;border-radius:4px;font-size:10px`;
@@ -2030,7 +2046,7 @@ function buildCompactToolLine(type, content, ts) {
         let preview = body;
         try {
             const parsed = JSON.parse(body);
-            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${({'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-6[1m]':'Opus 1M','claude-opus-4-6':'Opus','claude-sonnet-4-6':'Sonnet','claude-haiku-4-5':'Haiku'})[parsed.model || 'claude-sonnet-4-6'] || parsed.model || 'Sonnet'})`;
+            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${_modelLabel(parsed.model || 'claude-sonnet-4-6')})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
@@ -2588,24 +2604,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 header.textContent = `🚀 Spawning ${workerName}`;
                 header.style.color = '#a78bfa';
 
-                const MODEL_SHORT = {
-                    'claude-opus-4-8[1m]': 'Opus 4.8 1M',
-                    'claude-opus-4-6[1m]': 'Opus 4.6 1M',
-                    'claude-opus-4-6': 'Opus 4.6',
-                    'claude-sonnet-4-6': 'Sonnet 4.6',
-                    'claude-haiku-4-5': 'Haiku 4.5',
-                };
-                const MODEL_COLOR = {
-                    'claude-opus-4-8[1m]': '#c084fc',
-                    'claude-opus-4-6[1m]': '#a78bfa',
-                    'claude-opus-4-6': '#a78bfa',
-                    'claude-sonnet-4-6': '#38bdf8',
-                    'claude-haiku-4-5': '#4ade80',
-                };
                 if (model) {
                     const badge = document.createElement('span');
-                    badge.textContent = MODEL_SHORT[model] || model;
-                    badge.style.cssText = `font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:${MODEL_COLOR[model] || '#94a3b8'};border-color:${MODEL_COLOR[model] || '#94a3b8'};opacity:0.8;vertical-align:middle;margin-left:6px`;
+                    const color = _modelColor(model);
+                    badge.textContent = _modelLabel(model);
+                    badge.style.cssText = `font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:${color};border-color:${color};opacity:0.8;vertical-align:middle;margin-left:6px`;
                     header.appendChild(badge);
                 }
                 const role = d.role || '';
@@ -3461,8 +3464,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     }
                 } else if (tn === 'mcp__orchestra__get_worker_info') {
                     const stColor = {'running':'#22c55e','idle':'#eab308','error':'#ef4444','stopped':'#6b7280','starting':'#f97316'}[parsed.status] || '#94a3b8';
-                    const MODEL_SHORT = {'claude-opus-4-8[1m]':'Opus 4.8 1M','claude-opus-4-6[1m]':'Opus 4.6 1M','claude-opus-4-6':'Opus 4.6','claude-sonnet-4-6':'Sonnet 4.6','claude-haiku-4-5':'Haiku 4.5','gpt-5.5':'GPT 5.5'};
-                    const modelShort = MODEL_SHORT[parsed.model] || parsed.model || '?';
+                    const modelShort = _modelLabel(parsed.model);
                     if (hdr) {
                         hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${parsed.status || '?'}</span>`;
                     }

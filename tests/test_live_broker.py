@@ -1,7 +1,8 @@
 """Tests for app.live_broker — in-memory pub/sub for stream partials."""
+import asyncio
 import pytest
 
-from app.live_broker import LiveBroker, _MAXSIZE
+from app.live_broker import LiveBroker, STREAM_CLOSE, _MAXSIZE
 
 
 @pytest.mark.asyncio
@@ -77,3 +78,33 @@ async def test_isolated_sessions():
     b.publish("a", {"content": "for-a"})
     assert qa.get_nowait() == {"content": "for-a"}
     assert qb.empty()
+
+
+def test_close_subscribers_wakes_every_current_stream():
+    broker = LiveBroker()
+    first = broker.subscribe("session-1")
+    second = broker.subscribe("session-1")
+    third = broker.subscribe("session-2")
+
+    broker.close_subscribers()
+
+    assert first.get_nowait() is STREAM_CLOSE
+    assert second.get_nowait() is STREAM_CLOSE
+    assert third.get_nowait() is STREAM_CLOSE
+
+
+def test_close_subscribers_makes_room_in_full_queue():
+    broker = LiveBroker()
+    queue = broker.subscribe("session")
+    for index in range(queue.maxsize):
+        queue.put_nowait({"index": index})
+
+    broker.close_subscribers()
+
+    items = []
+    while True:
+        try:
+            items.append(queue.get_nowait())
+        except asyncio.QueueEmpty:
+            break
+    assert STREAM_CLOSE in items

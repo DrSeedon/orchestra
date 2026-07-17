@@ -503,7 +503,8 @@ class SessionManager:
         custom_mcp = _parse_custom_mcp(mcp_servers)
         bt = backend_for_model(model)
         _rr_effort = get_role(pipeline, role)
-        effort = _rr_effort.effort if _rr_effort else None
+        raw_effort = getattr(_rr_effort, "effort", None) if _rr_effort else None
+        effort = raw_effort if isinstance(raw_effort, str) and raw_effort else None
         session = AgentSession(
             id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, role=role,
@@ -681,6 +682,8 @@ class SessionManager:
                                                    parent_name=session.parent_name,
                                                    extra=session.mcp_servers_custom)
             session._persist()
+            if session._persist_task:
+                await asyncio.gather(session._persist_task, return_exceptions=True)
         logger.info(f"Orchestrator '{name}' scope changed: {old_scope} → {new_scope}")
         return result
 
@@ -802,6 +805,7 @@ class SessionManager:
             pipeline=row.get("pipeline") or "",
             profile=row.get("profile") or "",
             backend_type=row.get("backend_type") or "claude",
+            runtime_handoff=row.get("runtime_handoff") or "",
             task_id=row.get("task_id") or "",
             description=row.get("description") or "",
             owned_dirs=parse_owned_dirs(row.get("owned_dirs")),
@@ -1007,6 +1011,7 @@ class SessionManager:
                                          parent_name=db_row.get("parent_name", ""), extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, effort=db_row.get("effort") or None,
+            runtime_handoff=db_row.get("runtime_handoff") or "",
             task_id=db_task_id,
             description=db_row.get("description", ""),
             owned_dirs=parse_owned_dirs(db_row.get("owned_dirs")),
@@ -1289,13 +1294,36 @@ class SessionManager:
                 logger.warning(f"Periodic worktree cleanup failed: {e}")
 
     async def shutdown_all(self) -> None:
-        if getattr(self, '_cleanup_task', None) and not self._cleanup_task.done():
-            self._cleanup_task.cancel()
-        if getattr(self, '_wt_cleanup_task', None) and not self._wt_cleanup_task.done():
-            self._wt_cleanup_task.cancel()
-        for session in list(self.sessions.values()):
-            try:
-                await session.stop()
-            except Exception as e:
-                logger.warning(f"session '{session.name}' stop failed on shutdown: {e}")
+        background_tasks = [
+            task for task in (
+                self._spawn_task,
+                getattr(self, '_cleanup_task', None),
+                getattr(self, '_wt_cleanup_task', None),
+            )
+            if task is not None
+        ]
+        for task in background_tasks:
+            if not task.done():
+                task.cancel()
+        if background_tasks:
+            await asyncio.gather(*background_tasks, return_exceptions=True)
+        self._spawn_task = None
+        self._cleanup_task = None
+        self._wt_cleanup_task = None
+        sessions = list(self.sessions.values())
+        results = await asyncio.gather(
+            *(session.stop() for session in sessions),
+            return_exceptions=True,
+        )
+        for session, result in zip(sessions, results):
+            if isinstance(result, BaseException):
+                logger.warning(
+                    "session '%s' stop failed on shutdown: %s",
+                    session.name,
+                    result,
+                )
         self.sessions.clear()
+        # asyncio primitives bind lazily to their first event loop. Lifespan may be
+        # entered again by TestClient or an embedded server in the same process.
+        self._spawn_queue = asyncio.Queue()
+        self._session_locks.clear()

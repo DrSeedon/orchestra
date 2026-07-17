@@ -278,7 +278,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     async def event_generator():
         from app.db import _conn
-        from app.live_broker import broker
+        from app.live_broker import STREAM_CLOSE, broker
         last_id = after_id
         c = _conn()
         q = broker.subscribe(session_id)  # session_id == manager.get_session_id == session.id
@@ -299,6 +299,8 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
                         payload = q.get_nowait()
                     except asyncio.QueueEmpty:
                         break
+                    if payload is STREAM_CLOSE:
+                        return
                     yield f"data: {json.dumps(payload)}\n\n"
                     drained += 1
                 # 2) DB-persisted logs (finals + all other log types)
@@ -415,13 +417,19 @@ async def rollback_session(name: str, req: ScopeRequest, index: int = -1):
     except IndexError:
         return JSONResponse({"error": f"invalid index {index}"}, status_code=400)
     old_sid = session.session_id
-    session.session_id = entry["session_id"]
     await session._disconnect_backend()
+    session.session_id = entry["session_id"]
+    if entry.get("runtime") and entry.get("model"):
+        session.backend_type = entry["runtime"]
+        session.model = entry["model"]
+        session.runtime_handoff = ""
     session._persist()
     return {
         "ok": True,
         "rolled_back_to": entry["session_id"],
         "previous": old_sid,
+        "runtime": session.backend_type,
+        "model": session.model,
         "compacted_at": entry.get("compacted_at"),
     }
 

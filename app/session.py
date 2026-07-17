@@ -3,16 +3,21 @@
 import asyncio
 import json
 import logging
-import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from app.events import AgentEvent
-from app.models import backend_for_model
+from app.models import backend_for_model, get_model_spec
 from app.prompting import is_orchestrator_role, prompt_template_hash
+from app.runtime_registry import (
+    BackendBuildContext,
+    _load_scope_mcp_servers,
+    _load_user_mcp_servers,
+    build_backend,
+    get_runtime,
+)
 from app.session_cost import CostTracker
 from app.session_hibernate import HibernateManager
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
@@ -22,7 +27,7 @@ from app.session_turns import TurnManager
 
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
-from app.db import save_session, add_log
+from app.db import add_log, get_logs, save_session
 
 logger = logging.getLogger(__name__)
 
@@ -50,61 +55,6 @@ def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
         # 4 workers: enough for concurrent log/persist bursts without starving the event loop
         _DB_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="db")
     return _DB_EXECUTOR
-
-
-def _load_scope_mcp_servers(scope: str) -> dict:
-    servers = {}
-    for name in ("settings.json", "settings.local.json"):
-        path = Path(scope) / ".claude" / name
-        if not path.is_file():
-            continue
-        try:
-            data = json.loads(path.read_text())
-            for k, v in data.get("mcpServers", {}).items():
-                if k != "orchestra":
-                    servers[k] = v
-        except Exception as e:
-            logger.warning(f"Failed to parse MCP servers from {path}: {e}")
-    mcp_json = Path(scope) / ".mcp.json"
-    if mcp_json.is_file():
-        try:
-            data = json.loads(mcp_json.read_text())
-            for k, v in data.get("mcpServers", {}).items():
-                if k != "orchestra":
-                    servers[k] = v
-        except Exception as e:
-            logger.warning(f"Failed to parse .mcp.json from {mcp_json}: {e}")
-    return servers
-
-
-def _load_user_mcp_servers(config_dir: str) -> dict:
-    """F2: user-MCP из top-level ``.claude.json`` профиля.
-
-    ``config_dir`` непуст → ``<config_dir>/.claude.json``; пуст → ``~/.claude.json``
-    (env процесса orchestra). Берёт ключ ``mcpServers``, пропуская ``orchestra``
-    (серверный MCP подмешивается отдельно и не должен подменяться профилем).
-    Зеркалит стиль ``_load_scope_mcp_servers``: ошибки парсинга — warning, не падаем.
-
-    ВНИМАНИЕ: личный профиль CLI хранит ``.claude.json`` в HOME root
-    (``~/.claude.json``), а НЕ внутри ``~/.claude/``. Поэтому для личного профиля
-    держим ``config_dir=""`` (сид-профиль ``personal`` так и сидится). Если задать
-    ``config_dir="~/.claude"`` — функция пойдёт в ``~/.claude/.claude.json``,
-    которого нет, и вернёт пусто. Рабочий профиль (``~/.claude-work``) хранит
-    ``.claude.json`` ВНУТРИ config dir — для него путь верный.
-    """
-    servers: dict = {}
-    base = Path(os.path.expanduser(config_dir)) if config_dir else Path.home()
-    path = base / ".claude.json"
-    if not path.is_file():
-        return servers
-    try:
-        data = json.loads(path.read_text())
-        for k, v in data.get("mcpServers", {}).items():
-            if k != "orchestra":
-                servers[k] = v
-    except Exception as e:
-        logger.warning(f"Failed to parse user MCP servers from {path}: {e}")
-    return servers
 
 
 @dataclass
@@ -135,6 +85,7 @@ class AgentSession:
     on_error: Optional[callable] = field(default=None, repr=False)
     backend_type: str = "claude"
     effort: str | None = None
+    runtime_handoff: str = ""
     task_id: str = ""
     description: str = ""
     owned_dirs: list = field(default_factory=list, repr=False)
@@ -163,6 +114,7 @@ class AgentSession:
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _background_tasks: set = field(default_factory=set, repr=False)
+    _log_futures: set = field(default_factory=set, repr=False)
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
@@ -221,77 +173,23 @@ class AgentSession:
         self._is_orchestrator = value
 
     def _make_backend(self, force_fresh: bool = False):
-        resume = None if force_fresh else self.session_id
-        if self.backend_type == "codex":
-            from app.backend_codex import CodexBackend
-            # Codex can't auto-discover the worktree's .claude/skills/ (it reads
-            # $CODEX_HOME/skills/). Fold skill bodies into the prompt so a codex full-cycle
-            # worker gets the same skills (codex-debate, self-analysis) as a Claude one.
-            return CodexBackend(
-                model=self.model, cwd=self.cwd,
-                system_prompt=self.system_prompt + self._codex_skills_block(),
-                resume_thread_id=resume,
-                mcp_env=self._build_codex_mcp_env(),
-                mcp_servers=self.mcp_servers,
-                reasoning_effort=self._codex_reasoning_effort(),
-            )
-        elif self.backend_type == "opencode":
-            from app.backend_opencode import OpenCodeBackend
-            return OpenCodeBackend(
-                model=self.model, cwd=self.cwd,
-                system_prompt=self.system_prompt,
-                resume_session_id=resume,
-                mcp_servers=self.mcp_servers,
-                is_orchestrator=self.is_orchestrator,
-            )
-        else:
-            from app.backend_claude import ClaudeBackend
-            from app.pipeline import get_role
-            from app.db import get_profile
-            # Резолв роли: нет манифеста → чистый upstream-fallback
-            # (inherit=True, config_dir по профилю, user_mcp пуст — как сегодня).
-            try:
-                rr = get_role(self.pipeline, self.role)
-            except FileNotFoundError:
-                rr = None
-            inherit = rr.inherit_claude_md if rr else True
-            config_dir = ""
-            if self.profile:
-                p = get_profile(self.profile)
-                config_dir = p["config_dir"] if p else ""
-            # F2: user-MCP подмешиваем ТОЛЬКО при mcp_servers=="all" (tasks-pm);
-            # default/список — без user-MCP (1:1 upstream).
-            user_mcp: dict = {}
-            if rr is not None and rr.mcp_servers == "all":
-                user_mcp = _load_user_mcp_servers(config_dir)
-            return ClaudeBackend(
-                model=self.model, cwd=self.cwd,
-                system_prompt=self.system_prompt,
-                resume_session_id=resume,
-                mcp_servers=self.mcp_servers,
-                is_orchestrator=self.is_orchestrator,
-                scope_mcp_servers=_load_scope_mcp_servers(self.scope),
-                config_dir=config_dir,
-                inherit_claude_md=inherit,
-                user_mcp_servers=user_mcp,
-                effort=self.effort,
-            )
-
-    def _codex_reasoning_effort(self) -> str:
-        # Reuse the same per-role effort as Claude (pipeline.yaml). CodexBackend validates
-        # against CODEX_REASONING_EFFORTS and falls back to "high" for unknown/None values.
-        return self.effort or "high"
-
-    def _codex_skills_block(self) -> str:
-        # Skill bodies inlined into the prompt (Codex can't read the worktree .claude/skills/).
-        from app.pipeline import get_role
-        from app.prompting import read_skills_content
-        try:
-            rr = get_role(self.pipeline, self.role)
-        except FileNotFoundError:
-            return ""
-        skills = rr.skills if rr and isinstance(rr.skills, list) else []
-        return read_skills_content(skills)
+        spec = get_model_spec(self.model)
+        context = BackendBuildContext(
+            model=self.model,
+            provider=spec.provider,
+            cwd=self.cwd,
+            system_prompt=self.system_prompt,
+            resume_session_id=None if force_fresh else self.session_id,
+            mcp_servers=self.mcp_servers,
+            is_orchestrator=self.is_orchestrator,
+            scope=self.scope,
+            pipeline=self.pipeline,
+            role=self.role,
+            profile=self.profile,
+            effort=self.effort,
+            context_limit=spec.context_length,
+        )
+        return build_backend(self.backend_type, context)
 
     def _spawn_bg(self, coro) -> asyncio.Task:
         task = asyncio.create_task(coro)
@@ -304,13 +202,6 @@ class AgentSession:
                     logger.warning(f"[{self.name}] background task failed: {exc}")
         task.add_done_callback(_on_done)
         return task
-
-    def _build_codex_mcp_env(self) -> dict[str, str]:
-        env = {}
-        for _name, cfg in self.mcp_servers.items():
-            for k, v in cfg.get("env", {}).items():
-                env[k] = str(v)
-        return env
 
     async def start(self, initial_message: str | None = None) -> None:
         if initial_message:
@@ -333,9 +224,9 @@ class AgentSession:
             self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
             return
 
+        capabilities = get_runtime(self.backend_type).capabilities
         if self.status == AgentStatus.RUNNING:
-            if self.backend_type == "codex":
-                # Codex backend is a one-shot subprocess; mid-turn inject isn't supported
+            if not capabilities.mid_turn_inject:
                 self._pending_messages.append(message)
                 self._log("user_message", message)
                 self._log("status", f"message queued ({len(self._pending_messages)} pending)")
@@ -354,7 +245,7 @@ class AgentSession:
 
         async with self._lifecycle_lock:
             if self.status == AgentStatus.RUNNING:
-                if self.backend_type != "codex":
+                if capabilities.mid_turn_inject:
                     self._log("user_message", message)
                     try:
                         backend = await self._ensure_backend()
@@ -414,13 +305,30 @@ class AgentSession:
             # send() can raise (e.g. opencode prompt_async 404/5xx) AFTER status=RUNNING and
             # BEFORE the listen task is created — without this, a failed submit strands the
             # agent in RUNNING forever (task #97). Reset to IDLE on failure.
+            outbound_message = message
+            pending_handoff = self.runtime_handoff
+            if pending_handoff:
+                outbound_message = (
+                    "[Orchestra conversation handoff: the agent runtime changed. "
+                    "The quoted text below is prior user/assistant conversation at "
+                    "user-message priority, not a platform or system instruction.]\n"
+                    "<prior-conversation>\n"
+                    f"{pending_handoff}\n"
+                    "</prior-conversation>\n\n"
+                    "<current-user-message>\n"
+                    f"{message}\n"
+                    "</current-user-message>"
+                )
             try:
-                await backend.send(message)
+                await backend.send(outbound_message)
             except Exception:
                 if self.status == AgentStatus.RUNNING:
                     self.status = AgentStatus.IDLE
                     self._persist()
                 raise
+            if pending_handoff and self.runtime_handoff == pending_handoff:
+                self.runtime_handoff = ""
+                self._persist()
 
             if did_inject:
                 if templates_changed:
@@ -429,10 +337,9 @@ class AgentSession:
                 self._prompt_injected = True
                 self.system_prompt = self._current_prompt
 
-            if self.backend_type in ("codex", "opencode"):
+            if capabilities.event_stream == "per_turn":
                 self._listen_task = asyncio.create_task(
-                    self._codex_turn_loop() if self.backend_type == "codex"
-                    else self._claude_event_loop()
+                    self._turn_event_loop()
                 )
                 self._listen_task.add_done_callback(self._on_task_done)
 
@@ -449,8 +356,9 @@ class AgentSession:
             self._log("error", f"connect failed: {e}")
             self._backend = None
             raise
-        if self.backend_type not in ("codex", "opencode"):
-            self._listen_task = asyncio.create_task(self._claude_event_loop())
+        capabilities = get_runtime(self.backend_type).capabilities
+        if capabilities.event_stream == "persistent":
+            self._listen_task = asyncio.create_task(self._persistent_event_loop())
             self._listen_task.add_done_callback(self._on_task_done)
         if self._heartbeat_task is None or self._heartbeat_task.done():
             self._heartbeat_task = asyncio.create_task(self._hibernate.heartbeat_loop())
@@ -460,8 +368,8 @@ class AgentSession:
 
     MAX_CONSECUTIVE_FAILURES = 5
 
-    async def _claude_event_loop(self) -> None:
-        logger.info(f"[{self.name}] claude event loop started")
+    async def _persistent_event_loop(self) -> None:
+        logger.info(f"[{self.name}] {self.backend_type} persistent event loop started")
         consecutive_failures = 0
         while True:
             try:
@@ -472,15 +380,7 @@ class AgentSession:
                     self._last_msg_time = asyncio.get_event_loop().time()
                     self._handle_event(event)
                     consecutive_failures = 0
-                # For opencode: events() finishing = turn done (per-turn generator, not persistent stream).
-                # Exit cleanly — next send() will start a new listen task.
-                if self.backend_type == "opencode":
-                    logger.info(f"[{self.name}] opencode turn completed normally, status={self.status}")
-                    if self.status == AgentStatus.RUNNING:
-                        self.status = AgentStatus.IDLE
-                        self._persist()
-                    return
-                # For claude: events() returns without error when SDK stream closes unexpectedly
+                # Persistent streams may return without error when the upstream closes.
                 # During shutdown/restart this is normal — don't spam the user
                 if self.status == AgentStatus.IDLE:
                     logger.info(f"[{self.name}] listener stream ended (agent idle/stopped — normal on restart)")
@@ -489,13 +389,13 @@ class AgentSession:
                 logger.warning(f"[{self.name}] events() exhausted normally (attempt {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES})")
                 self._log("status", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
             except asyncio.CancelledError:
-                logger.info(f"[{self.name}] claude event loop cancelled")
+                logger.info(f"[{self.name}] persistent event loop cancelled")
                 return
             except Exception as e:
                 consecutive_failures += 1
                 import traceback
                 tb = traceback.format_exc()
-                logger.error(f"[{self.name}] claude event loop died: {e}\n{tb}")
+                logger.error(f"[{self.name}] persistent event loop died: {e}\n{tb}")
                 self._log("error", f"listener died (attempt {consecutive_failures}): {e}")
 
             if consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
@@ -510,12 +410,6 @@ class AgentSession:
 
             try:
                 if self._backend is None:
-                    return
-                if self.backend_type == "opencode":
-                    logger.info(f"[{self.name}] opencode listener ended, status={self.status}")
-                    if self.status == AgentStatus.RUNNING:
-                        self.status = AgentStatus.IDLE
-                        self._persist()
                     return
                 await self._backend.reconnect()
                 logger.info(f"[{self.name}] listener reconnected after error")
@@ -532,8 +426,8 @@ class AgentSession:
                     self._persist()
                 return
 
-    async def _codex_turn_loop(self) -> None:
-        logger.info(f"[{self.name}] codex turn started")
+    async def _turn_event_loop(self) -> None:
+        logger.info(f"[{self.name}] {self.backend_type} turn started")
         try:
             async for event in self._backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
@@ -547,8 +441,8 @@ class AgentSession:
         except asyncio.CancelledError:
             return
         except Exception as e:
-            logger.error(f"[{self.name}] codex turn error: {e}")
-            self._log("error", f"codex turn error: {e}")
+            logger.error(f"[{self.name}] {self.backend_type} turn error: {e}")
+            self._log("error", f"{self.backend_type} turn error: {e}")
         finally:
             if self.status == AgentStatus.RUNNING:
                 self.status = AgentStatus.IDLE
@@ -837,6 +731,8 @@ class AgentSession:
         if pre_compact_session_id:
             self.session_id_history.append({
                 "session_id": pre_compact_session_id,
+                "runtime": self.backend_type,
+                "model": self.model,
                 "compacted_at": datetime.now(timezone.utc).isoformat(),
                 "context_pct": before_pct,
             })
@@ -964,6 +860,36 @@ class AgentSession:
         except Exception as e:
             logger.warning(f"[{self.name}] auto-compact failed: {e}")
 
+    async def _build_runtime_handoff(self) -> str:
+        """Build a bounded provider-neutral transcript for a new native runtime."""
+        if self._log_futures:
+            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        logs = await asyncio.get_running_loop().run_in_executor(
+            _db_executor(),
+            lambda: get_logs(self.id, limit=120),
+        )
+        labels = {"user_message": "User", "text": "Assistant"}
+        blocks: list[str] = []
+        total = 0
+        max_chars = 32_000
+        for entry in reversed(logs):
+            label = labels.get(entry.get("type"))
+            content = str(entry.get("content") or "").strip()
+            if not label or not content:
+                continue
+            if content.startswith("[Orchestra platform note:"):
+                continue
+            content = content[:6_000]
+            block = f"{label}:\n{content}"
+            if total + len(block) > max_chars:
+                remaining = max_chars - total
+                if remaining > 200:
+                    blocks.append(block[-remaining:])
+                break
+            blocks.append(block)
+            total += len(block)
+        return "\n\n".join(reversed(blocks))
+
     async def change_model(self, new_model: str) -> dict:
         old_model = self.model
         if old_model == new_model:
@@ -971,18 +897,54 @@ class AgentSession:
         if self.status == AgentStatus.RUNNING:
             return {"ok": False, "error": "cannot change model while running"}
 
-        old_backend = backend_for_model(old_model)
-        new_backend_type = backend_for_model(new_model)
-        if old_backend != new_backend_type:
-            return {"ok": False, "error": f"Cannot change from {old_backend} to {new_backend_type}. Kill and respawn."}
+        old_runtime = self.backend_type or backend_for_model(old_model)
+        new_runtime = get_model_spec(new_model).runtime
+        runtime_changed = old_runtime != new_runtime
+        native_session_reset = (
+            runtime_changed
+            or not get_runtime(new_runtime).capabilities.resume_across_models
+        )
+        if native_session_reset:
+            self.runtime_handoff = await self._build_runtime_handoff()
+            # Legacy history predates runtime/model metadata. Cross-runtime switching
+            # used to be forbidden, so those native IDs belong to the current runtime.
+            for entry in self.session_id_history:
+                entry.setdefault("runtime", old_runtime)
+                entry.setdefault("model", old_model)
+            if self.session_id:
+                self.session_id_history.append({
+                    "session_id": self.session_id,
+                    "runtime": old_runtime,
+                    "model": old_model,
+                    "switched_at": datetime.now(timezone.utc).isoformat(),
+                })
+                self.session_id_history = self.session_id_history[-10:]
 
-        self._log("status", f"model change: {old_model} → {new_model}")
+        self._log(
+            "status",
+            f"model change: {old_model} ({old_runtime}) → {new_model} ({new_runtime})",
+        )
         await self._disconnect_backend()
+        if native_session_reset:
+            self.session_id = None
+            self._last_context = {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
         self.model = new_model
+        self.backend_type = new_runtime
+        self._prompt_injected = False
+        self._hibernated = False
         self._persist()
         snapshot = self._to_db_dict()
         await asyncio.get_running_loop().run_in_executor(_db_executor(), save_session, snapshot)
-        return {"ok": True, "model": new_model, "old_model": old_model, "changed": True}
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": new_runtime,
+            "old_runtime": old_runtime,
+            "runtime_changed": runtime_changed,
+            "native_session_reset": native_session_reset,
+            "changed": True,
+        }
 
     async def _disconnect_backend(self) -> None:
         if self._hibernate_task and not self._hibernate_task.done() and self._hibernate_task is not asyncio.current_task():
@@ -1051,7 +1013,16 @@ class AgentSession:
 
     def _log(self, type: str, content: str) -> None:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
-        asyncio.get_event_loop().run_in_executor(_db_executor(), add_log, self.id, datetime.now(timezone.utc), type, content)
+        future = asyncio.get_event_loop().run_in_executor(
+            _db_executor(),
+            add_log,
+            self.id,
+            datetime.now(timezone.utc),
+            type,
+            content,
+        )
+        self._log_futures.add(future)
+        future.add_done_callback(self._log_futures.discard)
 
     def _persist_subagent(self, meta: dict, ended: bool = False) -> None:
         """Upsert sub-agent telemetry from a Task* event. Fire-and-forget.
@@ -1093,6 +1064,7 @@ class AgentSession:
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
             "effort": self.effort or "",
+            "runtime_handoff": self.runtime_handoff,
             "task_id": self.task_id,
             "description": self.description,
             "total_turns": self.total_turns,
@@ -1127,6 +1099,8 @@ class AgentSession:
             "progress_pct": self.progress_pct,
             "progress_status": self.progress_status,
             "backend_type": self.backend_type,
+            "runtime": self.backend_type,
+            "provider": get_model_spec(self.model).provider,
             "hibernated": self._hibernated,
             "task_id": self.task_id,
             "description": self.description,

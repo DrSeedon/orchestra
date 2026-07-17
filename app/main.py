@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -20,9 +21,28 @@ logger = logging.getLogger("orchestra")
 async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
+    # Load admin-selected provider adapters only after .env is available. Plugins fail
+    # loudly here and may register both runtimes and models before model discovery.
+    from app.runtime_registry import load_runtime_plugins
+    load_runtime_plugins()
     init_db()
+    _tunnel_started = False
+    if not is_auth_enabled():
+        # Model discovery may itself use a local SSH-forward from .env. Start those
+        # routes before the first proxy request instead of waiting 60s for recovery.
+        from app.ssh_tunnel import start_tunnel, stop_tunnel
+        await start_tunnel()
+        _tunnel_started = True
     from app.models import refresh_models, is_proxy_connected
-    await refresh_models()
+    custom_model_endpoint = bool(
+        os.environ.get("ANTHROPIC_BASE_URL") or os.environ.get("UPSTREAM_API")
+    )
+    attempts = 5 if _tunnel_started and custom_model_endpoint else 1
+    for attempt in range(attempts):
+        await refresh_models()
+        if is_proxy_connected() or attempt == attempts - 1:
+            break
+        await asyncio.sleep(1)
     if is_auth_enabled() and not is_proxy_connected():
         async def _proxy_retry_loop():
             while not is_proxy_connected():
@@ -45,11 +65,6 @@ async def lifespan(app: FastAPI):
     await bg_manager.restore_from_db()
     from app.tg_bridge import start_bridge, stop_bridge
     await start_bridge(manager)
-    _tunnel_started = False
-    if not is_auth_enabled():
-        from app.ssh_tunnel import start_tunnel, stop_tunnel
-        await start_tunnel()
-        _tunnel_started = True
     from app.routes.system import _usage_snapshot_loop
     snapshot_task = asyncio.create_task(_usage_snapshot_loop())
     from app import rag_service

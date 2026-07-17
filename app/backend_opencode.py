@@ -52,7 +52,8 @@ def _resolve_uid(val: str) -> int | None:
         logger.warning(f"Cannot resolve uid for '{val}'")
         return None
 
-# Native cost comes from the daemon, so no TOKEN_PRICES table — only a context map.
+# Native cost comes from the daemon. This map is a direct-construction fallback;
+# Orchestra passes the registered ModelSpec context limit into the backend.
 OPENCODE_CONTEXT_LIMITS = {
     "claude-sonnet-4-6": 200000,
     "claude-opus-4-6": 200000,
@@ -60,7 +61,6 @@ OPENCODE_CONTEXT_LIMITS = {
 }
 DEFAULT_CONTEXT = 200000
 
-TURN_TIMEOUT = 1800         # hard ceiling on a single turn (s) — enforced INSIDE events()
 DAEMON_READY_TIMEOUT = 30   # wait for GET /app to return 200 (gosu startup slower)
 PORT_RETRIES = 3
 STATUS_POLL_INTERVAL = 3    # seconds between GET /session/status polls (boundary detection)
@@ -109,12 +109,21 @@ class OpenCodeBackend:
                  resume_session_id: str | None = None,
                  mcp_servers: dict | None = None,
                  is_orchestrator: bool = False,
-                 provider_id: str = "anthropic"):
+                 provider_id: str = "unknown",
+                 context_limit: int | None = None):
         # model may be "provider/modelID" or a bare modelID; split if prefixed.
+        self._upstream_model_id = model
         if "/" in model:
             provider_id, model = model.split("/", 1)
         self.model = model
         self.provider_id = provider_id
+        self._transport_provider_id = (
+            "opencode" if provider_id == "opencode" else "openrouter"
+        )
+        self._transport_model_id = (
+            model if provider_id == "opencode" else self._upstream_model_id
+        )
+        self._context_limit = context_limit
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._mcp_servers = mcp_servers or {}
@@ -131,70 +140,67 @@ class OpenCodeBackend:
         return self._session_id
 
     @property
+    def is_alive(self) -> bool:
+        """Whether the OpenCode daemon is still available for the active turn."""
+        return self._proc is not None and self._proc.returncode is None
+
+    @property
     def _base(self) -> str:
         return f"http://127.0.0.1:{self._port}"
 
     # ── lifecycle ──
 
     async def connect(self) -> None:
-        self._write_opencode_json()
-        await self._start_daemon()
-        self._http = httpx.AsyncClient(base_url=self._base, timeout=httpx.Timeout(TURN_TIMEOUT))
-        if not self._session_id:
-            resp = await self._http.post("/session", json={})
-            resp.raise_for_status()
-            self._session_id = resp.json()["id"]
+        try:
+            await self._start_daemon()
+            self._http = httpx.AsyncClient(
+                base_url=self._base,
+                timeout=httpx.Timeout(connect=30, read=None, write=60, pool=30),
+            )
+            if not self._session_id:
+                resp = await self._http.post("/session", json={})
+                resp.raise_for_status()
+                self._session_id = resp.json()["id"]
+        except Exception:
+            await self.disconnect()
+            raise
 
-    def _write_opencode_json(self) -> None:
-        """Write opencode.json to /tmp (not workspace — secrets would be visible to client).
-
-        Config contains API keys and internal tokens. /tmp is tmpfs in Docker,
-        not visible via file browser, not persisted.
-        """
-        # opencode reads opencode.json from CWD — write via subprocess setuid (agent owns cwd)
-        path = os.path.join(self.cwd, "opencode.json")
-        config = {}
-        if os.path.exists(path):
-            try:
-                with open(path) as f:
-                    config = json.load(f)
-            except (ValueError, OSError):
-                logger.warning("existing opencode.json unreadable; overwriting")
-                config = {}
+    def _build_inline_config(self) -> str:
+        """Build highest-precedence OpenCode config without persisting API secrets."""
+        config: dict = {}
         if self._mcp_servers:
-            config["mcp"] = {**config.get("mcp", {}), **_to_opencode_mcp(self._mcp_servers)}
+            config["mcp"] = _to_opencode_mcp(self._mcp_servers)
         config["permission"] = {"edit": "allow", "bash": "allow", "webfetch": "allow",
                                 "external_directory": "allow", "doom_loop": "allow"}
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
         if base_url and not base_url.endswith("/v1"):
             base_url = base_url.rstrip("/") + "/v1"
-        config["provider"] = config.get("provider", {})
-        config["provider"]["openrouter"] = {
-            "options": {"apiKey": api_key, **({"baseURL": base_url} if base_url else {})},
+        config["provider"] = {
+            "openrouter": {
+                "options": {
+                    "apiKey": "{env:ANTHROPIC_API_KEY}",
+                    **({"baseURL": base_url} if base_url else {}),
+                },
+            },
         }
-        full_model = f"{self.provider_id}/{self.model}" if self.provider_id != "anthropic" else self.model
-        config["model"] = f"openrouter/{full_model}"
-        content = json.dumps(config, indent=2)
+        config["model"] = (
+            f"{self._transport_provider_id}/{self._transport_model_id}"
+        )
+        return json.dumps(config)
+
+    def _build_daemon_env(self) -> dict[str, str]:
+        env = dict(os.environ)
+        env["OPENCODE_CONFIG_CONTENT"] = self._build_inline_config()
         raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         uid = _resolve_uid(raw_uid) if raw_uid else None
-        # Write as agent via gosu (root can't write to agent-owned dirs with cap_drop=ALL)
-        raw_uid = os.environ.get("ORCHESTRA_AGENT_UID", "")
-        if raw_uid:
-            import subprocess as sp
-            gosu = shutil.which("gosu")
-            if gosu:
-                sp.run([gosu, raw_uid, "tee", path], input=content.encode(), capture_output=True, check=True)
-            else:
-                with open(path, "w") as f:
-                    f.write(content)
-        else:
-            with open(path, "w") as f:
-                f.write(content)
-        self._config_path = path
+        if uid is not None:
+            env["HOME"] = "/workspace"
+            env["XDG_DATA_HOME"] = "/workspace/.local/share"
+            env["XDG_CONFIG_HOME"] = "/workspace/.config"
+        return env
 
     async def _start_daemon(self) -> None:
-        env = dict(os.environ)
+        env = self._build_daemon_env()
         raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         uid = _resolve_uid(raw_uid) if raw_uid else None
         # Use gosu for proper uid switch — preexec_fn setuid doesn't fully work
@@ -202,9 +208,6 @@ class OpenCodeBackend:
         cmd_prefix: list[str] = []
         if uid is not None:
             cmd_prefix = ["gosu", str(uid)]
-            env["HOME"] = "/workspace"
-            env["XDG_DATA_HOME"] = "/workspace/.local/share"
-            env["XDG_CONFIG_HOME"] = "/workspace/.config"
         last_err = None
         for attempt in range(PORT_RETRIES):
             self._port = _free_port()
@@ -222,21 +225,6 @@ class OpenCodeBackend:
             await self._kill_proc()
         raise RuntimeError(f"OpenCode daemon failed to start: {last_err}")
 
-    def _cleanup_config(self) -> None:
-        """Remove opencode.json after daemon loaded it — secrets should not persist on disk."""
-        if hasattr(self, '_config_path') and self._config_path and os.path.exists(self._config_path):
-            try:
-                raw_uid = os.environ.get("ORCHESTRA_AGENT_UID")
-                uid = _resolve_uid(raw_uid) if raw_uid else None
-                if uid is not None:
-                    import subprocess as sp
-                    sp.run(["python3", "-c", f"import os; os.setuid({uid}); os.remove('{self._config_path}')"],
-                           capture_output=True)
-                else:
-                    os.remove(self._config_path)
-            except OSError as e:
-                logger.warning(f"Failed to cleanup opencode.json: {e}")
-
     async def _wait_ready(self) -> bool:
         deadline = asyncio.get_event_loop().time() + DAEMON_READY_TIMEOUT
         async with httpx.AsyncClient(base_url=self._base, timeout=2) as probe:
@@ -247,7 +235,12 @@ class OpenCodeBackend:
                     r = await probe.get("/app")
                     if r.status_code == 200:
                         return True
-                except (httpx.ConnectError, httpx.ReadError, httpx.ConnectTimeout):
+                except (
+                    httpx.ConnectError,
+                    httpx.ReadError,
+                    httpx.ConnectTimeout,
+                    httpx.ReadTimeout,
+                ):
                     pass
                 await asyncio.sleep(0.2)
         return False
@@ -268,7 +261,10 @@ class OpenCodeBackend:
         # background, so a lost HTTP response can no longer strand us. Note: `model` is
         # NESTED here (unlike the old /message which had providerID/modelID top-level).
         body = {
-            "model": {"providerID": self.provider_id, "modelID": self.model},
+            "model": {
+                "providerID": self._transport_provider_id,
+                "modelID": self._transport_model_id,
+            },
             "parts": [{"type": "text", "text": message}],
         }
         if self.system_prompt:
@@ -309,16 +305,10 @@ class OpenCodeBackend:
         saw_activity = False                # first busy/retry OR any SSE event for our sid
         status_fails = 0
         loop = asyncio.get_event_loop()
-        start = loop.time()
-        deadline = start + TURN_TIMEOUT     # HARD ceiling — enforced HERE, not in session.py
+        start = loop.time()                  # submit grace only; not a total turn deadline
         poll_now = False                    # SSE idle hint → poll status immediately
         try:
             while True:
-                if loop.time() > deadline:
-                    logger.error(f"opencode turn exceeded {TURN_TIMEOUT}s — forcing end")
-                    error_out = "turn_timeout"
-                    break
-
                 if sse_live and (next_line is None or next_line.done()):
                     next_line = asyncio.ensure_future(sse.__anext__())
                 if poll is None or poll.done():
@@ -549,7 +539,10 @@ class OpenCodeBackend:
         output_t = int(tok.get("output", 0) or 0)
         cache_read = int(cache.get("read", 0) or 0)
         cache_create = int(cache.get("write", 0) or 0)
-        max_tokens = OPENCODE_CONTEXT_LIMITS.get(self.model, DEFAULT_CONTEXT)
+        max_tokens = (
+            self._context_limit
+            or OPENCODE_CONTEXT_LIMITS.get(self.model, DEFAULT_CONTEXT)
+        )
         cache_total = cache_read + cache_create
         cost = float(info.get("cost", 0) or 0)
         err = info.get("error")
@@ -581,7 +574,10 @@ class OpenCodeBackend:
             "cost_usd_cached": 0,
             "context_pct": 0,
             "context_tokens": 0,
-            "max_tokens": OPENCODE_CONTEXT_LIMITS.get(self.model, DEFAULT_CONTEXT),
+            "max_tokens": (
+                self._context_limit
+                or OPENCODE_CONTEXT_LIMITS.get(self.model, DEFAULT_CONTEXT)
+            ),
             "cache_hit": 0,
             "cache_read": 0,
             "cache_create": 0,
