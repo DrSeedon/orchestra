@@ -2176,13 +2176,22 @@ function _findLastBefore(parent, selector, anchor) {
 
 const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
 
-// Append a live sub-agent log line into its accordion body. If the accordion
-// isn't there yet (race: stream before start), no-op — the sub-agent block owns
-// its own rendering; live lines are best-effort decoration.
+// SDK stream events can beat TaskStarted by a few milliseconds. Buffer those
+// lines by parent tool id, then move them into the task-id card once it exists.
+const _pendingSubagentLogs = new Map();
 function appendSubagentLog(subId, evType, content) {
     const chat = $('#chat');
     const host = chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`);
-    if (!host) return;
+    if (!host) {
+        if (!_pendingSubagentLogs.has(subId) && _pendingSubagentLogs.size >= 50) {
+            _pendingSubagentLogs.delete(_pendingSubagentLogs.keys().next().value);
+        }
+        const pending = _pendingSubagentLogs.get(subId) || [];
+        pending.push([evType, content]);
+        if (pending.length > 100) pending.shift();
+        _pendingSubagentLogs.set(subId, pending);
+        return;
+    }
     const body = host.querySelector('.sa-body');
     if (!body) return;
     if (evType === 'stream') {
@@ -2205,6 +2214,16 @@ function appendSubagentLog(subId, evType, content) {
         body.appendChild(line);
     }
     body.scrollTop = body.scrollHeight;
+}
+
+function _flushPendingSubagentLogs(sourceId, targetId) {
+    if (!sourceId || !targetId) return;
+    const pending = _pendingSubagentLogs.get(sourceId);
+    if (!pending) return;
+    _pendingSubagentLogs.delete(sourceId);
+    for (const [evType, content] of pending) {
+        appendSubagentLog(targetId, evType, content);
+    }
 }
 
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
@@ -2399,14 +2418,17 @@ function addChatEntry(type, content, ts, anchor, payload) {
         el.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
 
         const subId = (payload && payload.subagent_id) || meta.id || '';
+        const isBackground = meta.type === 'local_bash';
 
         if (type === 'subagent_start') {
             // Collapsible accordion: header + body where live sub-agent logs nest.
             el.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
             if (subId) el.dataset.subagentId = subId;
+            el.dataset.subagentKind = isBackground ? 'background' : 'agent';
             const header = document.createElement('div');
             header.style.cssText = 'cursor:pointer;user-select:none';
-            header.innerHTML = `<span class="sa-caret">▶</span> 🤖 <span style="color:#e2e8f0">Sub-agent: "${DOMPurify.sanitize(desc)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
+            const noun = isBackground ? 'Background task' : 'Sub-agent';
+            header.innerHTML = `<span class="sa-caret">▶</span> ${isBackground ? '⚙️' : '🤖'} <span style="color:#e2e8f0">${noun}: "${DOMPurify.sanitize(desc)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
             const body = document.createElement('div');
             body.className = 'sa-body';
             body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
@@ -2435,14 +2457,15 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 return;  // updated in place, no new bubble
             }
             el.style.cssText += ';color:#64748b';
-            el.textContent = `⏳ "${desc}" — ${line}`;
+            el.textContent = `⏳ ${isBackground ? 'Background task' : 'Sub-agent'} "${desc}" — ${line}`;
         } else {  // subagent_end → mark the accordion done + collapse
             const ok = !meta.status || meta.status === 'completed';
             const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
             const summaryText = textParts.slice(1).join(' | ').trim();
             if (host) {
                 const hdr = host.querySelector('div');
-                if (hdr) hdr.innerHTML = `<span class="sa-caret">▶</span> ${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'done' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
+                const noun = host.dataset.subagentKind === 'background' ? 'Background task' : 'Sub-agent';
+                if (hdr) hdr.innerHTML = `<span class="sa-caret">▶</span> ${ok ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${ok ? 'done' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
                 const prog = host.querySelector('.sa-progress');
                 if (prog) prog.remove();
                 if (summaryText) {
@@ -2455,7 +2478,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 return;  // updated existing accordion, no new bubble
             }
             el.style.cssText += `;border-left:3px solid ${ok ? '#22c55e' : '#ef4444'};background:rgba(${ok ? '34,197,94' : '239,68,68'},0.06);color:${ok ? '#86efac' : '#fca5a5'}`;
-            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">Sub-agent ${ok ? 'completed' : 'failed'}${desc ? ': "'+DOMPurify.sanitize(desc)+'"' : ''}</span>`;
+            const noun = isBackground ? 'Background task' : 'Sub-agent';
+            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${ok ? 'completed' : 'failed'}${desc ? ': "'+DOMPurify.sanitize(desc)+'"' : ''}</span>`;
             if (summaryText) {
                 const sumEl = document.createElement('div');
                 sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;white-space:pre-wrap';
@@ -2466,6 +2490,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
         addTimestamp(el, ts);
         const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
         _insert(el);
+        if (type === 'subagent_start' && subId) {
+            _flushPendingSubagentLogs(subId, subId);
+            _flushPendingSubagentLogs(meta.tool_use_id, subId);
+        }
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
