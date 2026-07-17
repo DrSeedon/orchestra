@@ -108,3 +108,15 @@ def test_close_subscribers_makes_room_in_full_queue():
         except asyncio.QueueEmpty:
             break
     assert STREAM_CLOSE in items
+
+
+def test_subscribe_after_shutdown_closes_immediately():
+    broker = LiveBroker()
+    broker.close_subscribers()
+
+    queue = broker.subscribe("late-session")
+    broker.publish("late-session", {"type": "stream", "content": "too late"})
+
+    assert queue.get_nowait() is STREAM_CLOSE
+    assert queue.empty()
+    assert "late-session" not in broker._subs
