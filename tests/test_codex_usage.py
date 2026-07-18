@@ -41,6 +41,45 @@ def test_normalize_codex_usage_prefers_codex_bucket():
     }
 
 
+def test_normalize_codex_usage_exposes_separate_spark_bucket():
+    result = {
+        "rateLimitsByLimitId": {
+            "codex": {
+                "planType": "prolite",
+                "primary": {
+                    "usedPercent": 39,
+                    "windowDurationMins": 10080,
+                    "resetsAt": 1784957080,
+                },
+                "secondary": None,
+            },
+            "codex_bengalfox": {
+                "planType": "prolite",
+                "primary": {
+                    "usedPercent": 8,
+                    "windowDurationMins": 10080,
+                    "resetsAt": 1784964042,
+                },
+                "secondary": None,
+            },
+        },
+    }
+
+    usage = system._normalize_codex_usage(result)
+
+    assert usage["primary"]["utilization"] == 39
+    assert usage["spark"] == {
+        "limit_id": "codex_bengalfox",
+        "plan_type": "prolite",
+        "primary": {
+            "utilization": 8,
+            "window_minutes": 10080,
+            "resets_at": "2026-07-25T07:20:42Z",
+        },
+        "secondary": None,
+    }
+
+
 def test_provider_usage_snapshot_unifies_anthropic_and_codex_windows():
     anthropic = {
         "five_hour": {"utilization": 9, "resets_at": "2026-07-18T11:20:00Z"},
@@ -54,6 +93,16 @@ def test_provider_usage_snapshot_unifies_anthropic_and_codex_windows():
             "resets_at": "2026-07-25T05:24:41Z",
         },
         "secondary": None,
+        "spark": {
+            "limit_id": "codex_bengalfox",
+            "plan_type": "prolite",
+            "primary": {
+                "utilization": 8,
+                "window_minutes": 10080,
+                "resets_at": "2026-07-25T07:20:42Z",
+            },
+            "secondary": None,
+        },
     }
 
     providers = system._provider_usage_snapshot(anthropic, codex)
@@ -88,6 +137,19 @@ def test_provider_usage_snapshot_unifies_anthropic_and_codex_windows():
                     "utilization": 34,
                     "window_minutes": 10080,
                     "resets_at": "2026-07-25T05:24:41Z",
+                },
+            ],
+        },
+        "codex_spark": {
+            "label": "Codex Spark",
+            "plan_type": "prolite",
+            "windows": [
+                {
+                    "id": "primary",
+                    "label": "7d",
+                    "utilization": 8,
+                    "window_minutes": 10080,
+                    "resets_at": "2026-07-25T07:20:42Z",
                 },
             ],
         },

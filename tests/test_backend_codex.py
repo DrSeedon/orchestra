@@ -6,6 +6,7 @@ Regression net for the three bugs found in the codex-integration audit:
   MCP   — per-worker MCP servers now injected via -c dotted-leaf overrides.
 """
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -31,6 +32,10 @@ def test_gpt56_context_limits_present():
     # accounting or auto-compact for a local Codex worker.
     for m in ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"):
         assert CODEX_CONTEXT_LIMITS[m] == 258400, m
+
+
+def test_spark_context_limit_matches_local_codex_metadata():
+    assert CODEX_CONTEXT_LIMITS["gpt-5.3-codex-spark"] == 128000
 
 
 def test_gpt56_prices_present():
@@ -202,6 +207,25 @@ async def test_send_starts_turn_when_idle():
         "effort": "high",
     })
     assert backend._active_turn_id == "turn-2"
+
+
+@pytest.mark.asyncio
+async def test_silent_active_turn_emits_transient_heartbeat():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-1"
+    backend._active_turn_id = "turn-1"
+    backend._notifications = SimpleNamespace(
+        get=AsyncMock(side_effect=asyncio.TimeoutError),
+    )
+
+    iterator = backend.events()
+    event = await anext(iterator)
+    await iterator.aclose()
+
+    assert event.type == "thinking_stream"
+    assert event.metadata == {"activity": "waiting", "item_id": "turn-1"}
+    assert "still working" in event.content.lower()
 
 
 def test_app_server_events_cover_web_reasoning_and_network_failure():

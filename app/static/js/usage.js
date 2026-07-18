@@ -120,18 +120,23 @@ function renderUsageBar() {
         parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
     }
 
-    const codexWindows = [cx.primary, cx.secondary].filter(Boolean);
-    if (codexWindows.length) {
+    const codexProviders = [
+        {label:'Codex', color:'#22c55e', windows:[cx.primary, cx.secondary].filter(Boolean)},
+        {label:'Spark', color:'#f59e0b', windows:[cx.spark?.primary, cx.spark?.secondary].filter(Boolean)},
+    ].filter(provider => provider.windows.length);
+    if (codexProviders.length) {
         parts.push('<span style="height:14px;border-left:1px solid rgba(71,85,105,0.6)"></span>');
-        parts.push('<span style="color:#22c55e;font-weight:600">Codex</span>');
-        for (const window of codexWindows) {
-            const windowMs = window.window_minutes * 60000;
-            const rpNum = _resetPctNum(window.resets_at, windowMs);
-            const c = _usageColor(window.utilization, rpNum);
-            const cd = _resetCountdown(window.resets_at);
-            const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
-            const label = _codexWindowLabel(window.window_minutes);
-            parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+        for (const provider of codexProviders) {
+            parts.push(`<span style="color:${provider.color};font-weight:600">${provider.label}</span>`);
+            for (const window of provider.windows) {
+                const windowMs = window.window_minutes * 60000;
+                const rpNum = _resetPctNum(window.resets_at, windowMs);
+                const c = _usageColor(window.utilization, rpNum);
+                const cd = _resetCountdown(window.resets_at);
+                const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
+                const label = _codexWindowLabel(window.window_minutes);
+                parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+            }
         }
     }
 
@@ -200,18 +205,21 @@ function renderUsageBar() {
                     h += '</div>';
                 }
                 h += '<div id="usage-sparkline-slot" style="margin:8px 0"></div>';
-                const codexWindows = [_c.primary, _c.secondary].filter(Boolean);
-                if (codexWindows.length) {
+                const codexProviders = [
+                    {title:'✦ Codex Pro', accent:'#22c55e', windowAccent:'#86efac', windows:[_c.primary, _c.secondary].filter(Boolean)},
+                    {title:'⚡ GPT-5.3-Codex-Spark', accent:'#f59e0b', windowAccent:'#fcd34d', windows:[_c.spark?.primary, _c.spark?.secondary].filter(Boolean)},
+                ].filter(provider => provider.windows.length);
+                for (const provider of codexProviders) {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:8px;margin-top:6px">';
-                    h += '<div style="color:#22c55e;font-weight:600;margin-bottom:5px">✦ Codex Pro</div>';
-                    for (const window of codexWindows) {
+                    h += `<div style="color:${provider.accent};font-weight:600;margin-bottom:5px">${provider.title}</div>`;
+                    for (const window of provider.windows) {
                         const windowMs = window.window_minutes * 60000;
                         const cd = _resetCountdown(window.resets_at);
                         const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
                         const eta = _etaToLimit(window.utilization, window.resets_at, windowMs);
                         const rpNum = _resetPctNum(window.resets_at, windowMs);
                         const label = _codexWindowLabel(window.window_minutes);
-                        h += `<div style="margin-bottom:8px"><div style="color:#86efac;font-weight:600;margin-bottom:2px">${label} окно</div>`;
+                        h += `<div style="margin-bottom:8px"><div style="color:${provider.windowAccent};font-weight:600;margin-bottom:2px">${label} окно</div>`;
                         h += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
                         if (cd) h += _row('Сброс через', cd, '#64748b');
                         if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
@@ -340,6 +348,7 @@ function _renderSparklines(slot) {
     const providerColors = {
         anthropic: ['#38bdf8', '#f97316'],
         codex: ['#22c55e', '#a3e635'],
+        codex_spark: ['#f59e0b', '#fcd34d'],
     };
 
     const mkSvg = (pts, idealPts, color, guides) => {

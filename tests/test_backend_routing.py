@@ -3,9 +3,13 @@
 import pytest
 
 from app.models import (
+    ALIASES,
     BACKENDS,
+    CONTEXT_LIMITS,
+    MODELS,
     ModelSpec,
     _infer_backend,
+    available_models_block,
     backend_for_model,
     fetch_models_from_proxy,
     get_model_spec,
@@ -20,6 +24,16 @@ from app.backend_opencode import OpenCodeBackend
 def test_infer_gpt_to_codex():
     assert _infer_backend("gpt-5.5") == "codex"
     assert _infer_backend("gpt-5.4-mini") == "codex"
+
+
+def test_spark_is_registered_for_codex_workers():
+    model_id = "gpt-5.3-codex-spark"
+    assert MODELS[model_id] == "GPT-5.3 Codex Spark"
+    assert CONTEXT_LIMITS[model_id] == 128000
+    assert BACKENDS[model_id] == "codex"
+    assert ALIASES["spark"] == model_id
+    assert backend_for_model(model_id) == "codex"
+    assert "`gpt-5.3-codex-spark` — GPT-5.3 Codex Spark, 128k context" in available_models_block()
 
 
 def test_infer_claude_to_claude():
@@ -84,6 +98,10 @@ async def test_models_api_exposes_runtime_provider_and_capabilities():
     assert sol["runtime"] == "codex"
     assert sol["provider"] == "openai"
     assert sol["capabilities"]["event_stream"] == "per_turn"
+    spark = next(model for model in response["models"] if model["id"] == "gpt-5.3-codex-spark")
+    assert spark["runtime"] == "codex"
+    assert spark["provider"] == "openai"
+    assert spark["context_length"] == 128000
 
 
 @pytest.mark.asyncio

@@ -177,7 +177,7 @@ worktree-isolation — not for a quick parallel lookup.
 
 **Phase 1 research: parallelize aggressively.** A team of researchers beats one researcher.
 When the research task has natural splits (by region, by source type, by sub-question),
-spawn 2-3 Sonnet workers — each investigates their slice independently, reports back to you.
+spawn 2-3 `worker`-role agents — each investigates their slice independently and reports back to you.
 You synthesize their findings into one research.md. Examples:
 - "Research job market" → spawn workers per region (West, EU, Asia)
 - "Find customers" → spawn workers per channel (HH.ru, LinkedIn, TG groups)
