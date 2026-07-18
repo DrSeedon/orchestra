@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import time
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -181,6 +182,36 @@ def test_usage_history_round_trips_universal_provider_windows(tmp_path, monkeypa
     assert history
     assert history[-1]["providers"] == providers
     assert "provider_usage" not in history[-1]
+
+
+def test_usage_history_includes_latest_snapshot_before_next_grid_point(tmp_path, monkeypatch):
+    db_path = tmp_path / "usage.db"
+    monkeypatch.setattr("app.db.DB_PATH", db_path)
+    from app.db import init_db, usage_get_history
+
+    init_db()
+    old_ts = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+    latest_ts = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+    old_providers = {"anthropic": {"label": "Claude", "windows": []}}
+    latest_providers = {
+        "codex": {"label": "Codex", "windows": []},
+        "codex_spark": {"label": "Codex Spark", "windows": []},
+    }
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, provider_usage)
+               VALUES (?, 0, 0, ?)""",
+            [
+                (old_ts, json.dumps(old_providers)),
+                (latest_ts, json.dumps(latest_providers)),
+            ],
+        )
+
+    history = usage_get_history(hours=1, step_minutes=5)
+
+    assert history[-1]["ts"] == latest_ts
+    assert history[-1]["providers"] == latest_providers
 
 
 def test_usage_snapshot_migrates_old_history_schema(tmp_path, monkeypatch):
