@@ -476,6 +476,35 @@ def test_reasoning_plan_warning_and_compaction_telemetry_are_visible():
     assert mcp_ready[0].content == "codex mcp orchestra: ready"
 
 
+def test_long_mcp_arguments_remain_valid_structured_json():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    events = backend._convert_notification({
+        "method": "item/started",
+        "params": {
+            "item": {
+                "id": "spawn-1",
+                "type": "mcpToolCall",
+                "server": "orchestra",
+                "tool": "spawn_worker",
+                "arguments": {
+                    "name": "mobile-os-strategy",
+                    "model": "gpt-5.6-sol",
+                    "task": "Research the mobile OS strategy",
+                    "system_prompt": "Detailed worker instructions. " * 200,
+                },
+            },
+        },
+    })
+
+    assert len(events) == 1
+    payload = json.loads(events[0].content.split(": ", 1)[1])
+    assert payload["name"] == "mobile-os-strategy"
+    assert payload["model"] == "gpt-5.6-sol"
+    assert payload["task"] == "Research the mobile OS strategy"
+    assert payload["system_prompt"].startswith("Detailed worker instructions.")
+    assert payload["_codex_item_id"] == "spawn-1"
+
+
 def test_collab_terminal_event_keeps_spawn_description_and_summary():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     backend._convert_notification({

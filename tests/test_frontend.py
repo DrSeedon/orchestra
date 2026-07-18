@@ -189,3 +189,110 @@ def test_claude_cache_pill_keeps_exact_thresholds(dashboard_browser: Browser):
         "tier": "cold",
         "title": "Cache cold — next turn ~20× дороже",
     }
+
+
+def _open_tool_fixture_page(browser: Browser) -> Page:
+    page = browser.new_page()
+    page.goto(BASE, wait_until="domcontentloaded")
+    expect(page.locator("#chat")).to_be_visible()
+    page.wait_for_function(
+        "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
+    )
+    page.evaluate("""() => {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        window.compactMode = false;
+        document.querySelector('#chat').innerHTML = '';
+    }""")
+    return page
+
+
+def test_codex_web_search_renders_queries_without_transport_json(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    page.evaluate("""() => {
+        addChatEntry(
+            'tool',
+            'WebSearch: {"query":"","action":null,"_codex_item_id":"web-1"}',
+            null,
+            null,
+            {tool_use_id: 'web-1'}
+        );
+        addChatEntry(
+            'tool_result',
+            JSON.stringify({
+                query: 'AOSP official documentation',
+                action: {
+                    type: 'search',
+                    query: null,
+                    queries: [
+                        'site:source.android.com AOSP CDD official',
+                        'site:source.android.com CTS compatibility official',
+                        'site:developer.android.com Play Integrity official',
+                    ],
+                },
+                status: 'completed',
+            }),
+            null,
+            null,
+            {tool_use_id: 'web-1'}
+        );
+    }""")
+
+    card = page.locator("#chat .codex-tool-card")
+    expect(card).to_have_count(1)
+    expect(card.locator(".codex-tool-title")).to_have_text("Web search")
+    expect(card.locator(".codex-search-query")).to_have_count(3)
+    expect(card.locator(".codex-tool-state")).to_have_text("done")
+    text = card.inner_text()
+    assert '"action"' not in text
+    assert '"queries"' not in text
+    page.close()
+
+
+def test_codex_spawn_worker_renders_task_model_and_completion(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    payload = {
+        "name": "mobile-os-strategy",
+        "role": "full-cycle",
+        "model": "gpt-5.6-sol",
+        "task": "Research an AOSP-first product strategy.",
+        "description": "Mobile OS strategy",
+        "system_prompt": "Detailed instructions. " * 200,
+        "_codex_item_id": "spawn-1",
+    }
+    page.evaluate(
+        """([payload]) => {
+            addChatEntry(
+                'tool',
+                `mcp__orchestra__spawn_worker: ${JSON.stringify(payload)}`,
+                null,
+                null,
+                {tool_use_id: 'spawn-1'}
+            );
+            addChatEntry(
+                'tool_result',
+                "Worker 'mobile-os-strategy' spawned. Model: gpt-5.6-sol. Task sent.",
+                null,
+                null,
+                {tool_use_id: 'spawn-1'}
+            );
+        }""",
+        [payload],
+    )
+
+    card = page.locator("#chat .codex-tool-card")
+    expect(card).to_have_count(1)
+    expect(card.locator(".codex-tool-title")).to_have_text(
+        "mobile-os-strategy spawned"
+    )
+    expect(card.locator(".codex-tool-state")).to_have_text("done")
+    expect(card).to_contain_text("GPT-5.6 Sol")
+    expect(card).to_contain_text("Research an AOSP-first product strategy.")
+    assert '"system_prompt"' not in card.inner_text()
+    page.close()
