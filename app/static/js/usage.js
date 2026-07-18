@@ -147,7 +147,7 @@ function renderUsageBar() {
                 const fh = _a.five_hour;
                 const sd = _a.seven_day;
                 const _row = (label, val, color) => `<div style="display:flex;justify-content:space-between"><span>${label}</span><span style="color:${color || '#cbd5e1'}">${val}</span></div>`;
-                let h = '<div style="color:#e2e8f0;font-weight:600;margin-bottom:10px">📊 Claude Max · $200/мес</div>';
+                let h = '<div style="color:#e2e8f0;font-weight:600;margin-bottom:10px">📊 Claude Max $100 + Codex Pro $100</div>';
                 if (fh) {
                     const cd = _resetCountdown(fh.resets_at);
                     const pace = _paceIndicator(fh.utilization, fh.resets_at, 5 * 3600000);
@@ -178,7 +178,7 @@ function renderUsageBar() {
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
-                    h += _row('Подписка', '$200/мес', '#64748b');
+                    h += _row('Подписка', '$100+$100/мес', '#64748b');
                     h += '</div>';
                 }
                 if (typeof _o.agents_count === 'number') {

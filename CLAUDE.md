@@ -74,7 +74,9 @@ sudo systemctl status orchestra
 - **TG bot** (telegram-bot-api) — через proxychains (`/etc/proxychains4.conf`), C++ бинарник не читает .env. Обычно socks5 Contabo (12345). **ВАЖНО**: при смене прокси обновлять ОБА файла: `/etc/proxychains4.conf` И `~/.proxychains/proxychains.conf` — user-config имеет приоритет
 
 ## Pricing
-- **Max 20x subscription ($200/мес)** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
+- **Claude Max $100/мес + Codex Pro $100/мес** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
+- Claude Max даунгрейд с $200 (2026-07-18): лимиты ниже, оркестраторы на Claude, воркеры на Codex Sol
+- Codex Pro апгрейд с $20 (2026-07-18): 5× больше reasoning budget для Sol воркеров
 - API цены (для калькуляции): Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 per M tokens
 - Не паниковать от "$172 на оркестратора" — monopoly money. Оптимизировать КАЧЕСТВО, не стоимость
 - **ТОЛЬКО ПОДПИСКА. НИКАКИХ API-КЛЮЧЕЙ.** Работаем исключительно на Max подписке. ANTHROPIC_API_KEY не используем, не покупаем, не обсуждаем. На VPS — те же креды подписки (claude login). Это окончательное решение
@@ -480,7 +482,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 ### Process rules added
 - **ALL workers ALL projects = MY responsibility** — don't delegate worker bugs to project orchestrators
 - **Binaries: copy, don't compile** — scp from laptop, not 10min build on VPS
-- **Only subscription, no API keys** — Max 20x only, ANTHROPIC_API_KEY forbidden, VPS uses same subscription (claude login)
+- **Only subscription, no API keys** — Claude Max $100 + Codex Pro $100, ANTHROPIC_API_KEY forbidden, VPS uses same subscription (claude login)
 
 ### Pending (next session)
 - **Restart local Orchestra** — SOCKS5 tunnel, prompt-blocks fix, models need restart
