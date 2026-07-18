@@ -12,9 +12,17 @@ const MCP_ICONS = {
     'orchestra': '🎼', 'websearch': '🌐', 'kesha': '🦜',
     'yougile': '📋', 'pandoc': '📄', 'aperant': '🏠',
     'github': '🐙', 'serena': '🧠', 'mailru': '📧',
+    'openaiDeveloperDocs': '📚',
 };
 
+function canonicalToolName(name) {
+    const clean = String(name || '').trim();
+    if (!clean || clean.startsWith('mcp__')) return clean;
+    return clean.includes('__') ? `mcp__${clean}` : clean;
+}
+
 function toolIcon(name) {
+    name = canonicalToolName(name);
     if (name.startsWith('mcp__')) {
         const server = name.split('__')[1];
         return MCP_ICONS[server] || '🔌';
@@ -26,11 +34,139 @@ function toolIcon(name) {
 }
 
 function toolShortName(name) {
+    name = canonicalToolName(name);
     if (name.startsWith('mcp__')) {
         const parts = name.split('__');
         return parts.length >= 3 ? parts[2] : name;
     }
     return name;
+}
+
+function codexWebSearchSpec(raw) {
+    let data = raw;
+    if (typeof raw === 'string') {
+        try { data = JSON.parse(raw); } catch { return null; }
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+    const action = data.action && typeof data.action === 'object' ? data.action : {};
+    const actionType = action.type || (Array.isArray(action.queries) ? 'search' : '');
+    const queryCandidates = Array.isArray(action.queries) ? action.queries
+        : Array.isArray(data.queries) ? data.queries
+        : [];
+    const queries = queryCandidates
+        .map(query => String(query || '').trim())
+        .filter(Boolean);
+    const singleQuery = String(action.query || data.query || '').trim();
+    if (!queries.length && singleQuery) queries.push(singleQuery);
+
+    return {
+        type: actionType,
+        queries,
+        url: String(action.url || action.pageUrl || data.url || '').trim(),
+        pattern: String(action.pattern || action.text || data.pattern || '').trim(),
+        status: String(data.status || '').trim(),
+    };
+}
+
+function codexWebSearchCompactLabel(spec) {
+    if (!spec) return '🌐 Web search';
+    if (spec.queries.length === 1) return `🌐 ${spec.queries[0]}`;
+    if (spec.queries.length > 1) return `🌐 ${spec.queries[0]} +${spec.queries.length - 1}`;
+    if (spec.type === 'openPage') {
+        try { return `🌐 Open ${new URL(spec.url).hostname}`; } catch { return '🌐 Open page'; }
+    }
+    if (spec.type === 'findInPage') return `🌐 Find ${spec.pattern || 'in page'}`;
+    return '🌐 Web search';
+}
+
+function renderCodexWebSearchActivity(spec) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'codex-search-activity';
+
+    if (spec && spec.queries.length) {
+        const list = document.createElement('div');
+        list.className = 'codex-search-query-list';
+        spec.queries.forEach((query, index) => {
+            const row = document.createElement('div');
+            row.className = 'codex-search-query';
+            const number = document.createElement('span');
+            number.className = 'codex-search-index';
+            number.textContent = String(index + 1).padStart(2, '0');
+            const text = document.createElement('span');
+            text.textContent = query;
+            row.append(number, text);
+            list.appendChild(row);
+        });
+        wrapper.appendChild(list);
+        return wrapper;
+    }
+
+    const detail = document.createElement('div');
+    detail.className = 'codex-search-detail';
+    if (spec?.type === 'openPage') {
+        detail.textContent = spec.url ? `Open page · ${spec.url}` : 'Open page';
+    } else if (spec?.type === 'findInPage') {
+        detail.textContent = spec.pattern ? `Find in page · ${spec.pattern}` : 'Find in page';
+    } else if (spec?.type) {
+        detail.textContent = 'Browser action';
+    } else {
+        detail.textContent = 'Waiting for query details…';
+    }
+    wrapper.appendChild(detail);
+    return wrapper;
+}
+
+function updateCodexWebSearchActivity(card, spec) {
+    const previous = card.querySelector('.codex-search-activity');
+    const next = renderCodexWebSearchActivity(spec);
+    if (previous) previous.replaceWith(next);
+    else card.appendChild(next);
+}
+
+function setCodexToolTitle(header, text, icon = '') {
+    let title = header.querySelector('.codex-tool-title');
+    if (!title) {
+        header.textContent = '';
+        if (icon) {
+            const iconEl = document.createElement('span');
+            iconEl.className = 'codex-tool-icon';
+            iconEl.textContent = icon;
+            header.appendChild(iconEl);
+        }
+        title = document.createElement('span');
+        title.className = 'codex-tool-title';
+        header.appendChild(title);
+    }
+    title.textContent = text;
+}
+
+function decorateCodexToolCard(card, header, family = '') {
+    card.classList.add('codex-tool-card');
+    if (family) card.classList.add(`codex-tool-card-${family}`);
+    if (header) {
+        header.classList.add('codex-tool-header');
+        if (!header.querySelector('.codex-tool-title')) {
+            const title = document.createElement('span');
+            title.className = 'codex-tool-title';
+            while (header.firstChild) title.appendChild(header.firstChild);
+            header.appendChild(title);
+        }
+    }
+    if (!card.querySelector('.codex-tool-state')) {
+        const state = document.createElement('span');
+        state.className = 'codex-tool-state';
+        state.textContent = 'running';
+        card.appendChild(state);
+    }
+    card.dataset.toolState = 'running';
+}
+
+function completeCodexToolCard(card, ok = true) {
+    if (!card?.classList.contains('codex-tool-card')) return;
+    card.dataset.toolState = ok ? 'done' : 'failed';
+    const state = card.querySelector('.codex-tool-state');
+    if (state) state.textContent = ok ? 'done' : 'failed';
 }
 
 // Returns null when lines are too different (< 40% common chars) — fall back to plain del/add

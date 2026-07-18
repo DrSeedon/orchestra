@@ -2079,7 +2079,7 @@ function buildCompactToolLine(type, content, ts) {
 
     if (type === 'tool') {
         const colonIdx = content.indexOf(':');
-        const rawName = colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30);
+        const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
         const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
         const icon = toolIcon(rawName);
         const short = toolShortName(rawName);
@@ -2088,7 +2088,7 @@ function buildCompactToolLine(type, content, ts) {
         try {
             const parsed = JSON.parse(body);
             if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${_modelLabel(parsed.model || 'claude-sonnet-4-6')})`;
-            else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = `🌐 "${parsed.query || ''}"`;
+            else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = codexWebSearchCompactLabel(codexWebSearchSpec(parsed));
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
             else if (rawName === 'mcp__orchestra__send_file') preview = `📎 ${(parsed.path || '').split('/').pop() || '?'}`;
@@ -2158,7 +2158,7 @@ function buildCompactToolLine(type, content, ts) {
         descSpan.textContent = desc ? `— ${desc}` : '';
 
         const previewSpan = document.createElement('span');
-        previewSpan.className = 'truncate flex-1 opacity-60';
+        previewSpan.className = 'truncate flex-1 opacity-60 compact-preview';
         previewSpan.textContent = preview;
 
         const resultSpan = document.createElement('span');
@@ -2540,6 +2540,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
                 const isWebFetchCompact = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
                 const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
+                const isSpawnWorkerCompact = rawName === 'mcp__orchestra__spawn_worker';
                 const resultSpan = lastC.querySelector('.compact-result');
                 if (resultSpan && isSendFileCompact) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
@@ -2568,7 +2569,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     if (!toolName) { const m = clean.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
                     resultSpan.textContent = toolName ? `✅ ${toolName}` : '✅ loaded';
                 } else if (resultSpan && isWebSearchCompact) {
-                    resultSpan.textContent = '✅ results';
+                    const spec = codexWebSearchSpec(content);
+                    const compactPreview = lastC.querySelector('.compact-preview');
+                    if (compactPreview && spec) compactPreview.textContent = codexWebSearchCompactLabel(spec);
+                    resultSpan.textContent = spec?.queries.length ? `✅ ${spec.queries.length} queries` : '✅';
+                } else if (resultSpan && isSpawnWorkerCompact) {
+                    resultSpan.textContent = clean.toLowerCase().includes('error') ? '❌' : '✅ spawned';
                 } else if (resultSpan && !isEditTool && !isReadTool) {
                     const short = clean.length > 40 ? clean.slice(0, 40).replace(/\n/g, ' ') + '…' : clean.replace(/\n/g, ' ');
                     resultSpan.textContent = '📎 ' + short;
@@ -2847,7 +2853,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     }
     else if (type === 'tool') {
         const colonIdx = content.indexOf(':');
-        const rawName = colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30);
+        const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
         const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
         const icon = toolIcon(rawName);
         const short = toolShortName(rawName);
@@ -2948,8 +2954,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const sysPrompt = d.system_prompt || '';
                 const repoPath = d.repo_path || '';
 
-                header.textContent = `🚀 Spawning ${workerName}`;
+                setCodexToolTitle(header, `Spawning ${workerName}`, '🚀');
                 header.style.color = '#a78bfa';
+                div.dataset.isSpawnWorker = '1';
+                div.dataset.workerName = workerName;
 
                 if (model) {
                     const badge = document.createElement('span');
@@ -3036,9 +3044,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (isWebSearchCall) {
             try {
                 const d = JSON.parse(body);
-                const q = d.query || '';
-                header.textContent = `🌐 Searching: "${q}"`;
+                setCodexToolTitle(header, 'Web search', '🌐');
                 header.style.color = '#38bdf8';
+                if (rawName === 'WebSearch') {
+                    div.dataset.isCodexWebSearch = '1';
+                    updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
+                }
                 if (d.model) {
                     const badge = document.createElement('span');
                     badge.textContent = d.model;
@@ -3496,14 +3507,23 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 });
             }
         }
-        if (codexItemId) _flushCodexToolUpdates(div, codexItemId);
+        if (codexItemId) {
+            decorateCodexToolCard(div, div.querySelector('.flex.items-center'), isOrch ? 'orchestra' : 'native');
+            _flushCodexToolUpdates(div, codexItemId);
+        }
     }
     else if (type === 'tool_result') {
         const chat = $('#chat');
-        const lastTool = _findLastBefore(chat, '[data-last-tool]', anchor);
+        const resultToolId = payload?.tool_use_id || '';
+        const resultSelector = resultToolId
+            ? `[data-last-tool][data-tool-use-id="${CSS.escape(resultToolId)}"]`
+            : '[data-last-tool]';
+        const lastTool = _findLastBefore(chat, resultSelector, anchor) ||
+            (resultToolId ? _findLastBefore(chat, '[data-last-tool]', anchor) : null);
         if (lastTool) {
             const liveOutput = lastTool.querySelector('.codex-live-output');
             if (liveOutput) liveOutput.remove();
+            completeCodexToolCard(lastTool);
             if (lastTool.dataset.isFileChange) {
                 let data = {};
                 try { data = JSON.parse(content); } catch {}
@@ -3601,6 +3621,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             errDiv.className = 'px-3 py-2 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-900/50';
             errDiv.textContent = '⚠️ ' + errMsg;
             if (lastTool) {
+                completeCodexToolCard(lastTool, false);
                 delete lastTool.dataset.lastTool;
                 const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
                 if (skeleton) skeleton.remove();
@@ -3629,6 +3650,19 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const full = _hasMore ? linked : null;
 
         if (lastTool) {
+            if (lastTool.dataset.isCodexWebSearch) {
+                updateCodexWebSearchActivity(lastTool, codexWebSearchSpec(content));
+                delete lastTool.dataset.lastTool;
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.isSpawnWorker) {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (hdr) setCodexToolTitle(hdr, `${lastTool.dataset.workerName || 'Worker'} spawned`);
+                delete lastTool.dataset.lastTool;
+                addTimestamp(lastTool, ts);
+                return;
+            }
             delete lastTool.dataset.lastTool;
             if (lastTool.dataset.isEdit) {
                 addTimestamp(lastTool, ts);

@@ -129,6 +129,35 @@ def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> di
     return result
 
 
+_TOOL_ARGUMENT_LONG_FIELDS = {
+    "content", "context", "description", "message", "prompt", "system_prompt", "task",
+}
+
+
+def _bounded_tool_arguments(value, *, field: str = ""):
+    """Keep tool telemetry structured without letting prompts flood the log."""
+    if isinstance(value, dict):
+        return {
+            str(key): _bounded_tool_arguments(item, field=str(key))
+            for key, item in list(value.items())[:50]
+        }
+    if isinstance(value, list):
+        return [_bounded_tool_arguments(item, field=field) for item in value[:50]]
+    if isinstance(value, str):
+        limit = 4000 if field in _TOOL_ARGUMENT_LONG_FIELDS else 1500
+        if len(value) > limit:
+            omitted = len(value) - limit
+            return f"{value[:limit]}… [truncated {omitted} chars]"
+    return value
+
+
+def _tool_arguments_json(arguments) -> str:
+    return json.dumps(
+        _bounded_tool_arguments(arguments if isinstance(arguments, dict) else {}),
+        ensure_ascii=False,
+    )
+
+
 ORCHESTRA_FULL_MCP_TOOLS = (
     "spawn_worker", "acquire_test_lock", "release_test_lock", "test_lock_status",
     "send_message", "list_agents", "list_orchestrators", "get_worker_logs",
@@ -688,14 +717,14 @@ class CodexBackend:
             name = f"mcp__{server}__{tool}" if server else tool
             return [self._tool_use(
                 name,
-                json.dumps(item.get("arguments") or {}, ensure_ascii=False)[:500],
+                _tool_arguments_json(item.get("arguments")),
                 item_id,
                 short_name=tool,
             )]
         if item_type == "dynamicToolCall":
             return [self._tool_use(
                 item.get("tool", "tool"),
-                json.dumps(item.get("arguments") or {}, ensure_ascii=False)[:500],
+                _tool_arguments_json(item.get("arguments")),
                 item_id,
             )]
         if item_type == "webSearch":
@@ -776,7 +805,7 @@ class CodexBackend:
             if unseen:
                 events.append(self._tool_use(
                     name,
-                    json.dumps(item.get("arguments") or {}, ensure_ascii=False)[:500],
+                    _tool_arguments_json(item.get("arguments")),
                     item_id,
                     short_name=tool,
                 ))
