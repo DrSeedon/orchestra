@@ -335,6 +335,16 @@ function _usagePeriods(series) {
     }).filter(period => period.length);
 }
 
+function _seriesPointsForPeriod(series, anchorPeriod) {
+    if (!anchorPeriod?.length) return [];
+    const start = new Date(anchorPeriod[0].ts).getTime();
+    const end = new Date(anchorPeriod[anchorPeriod.length - 1].ts).getTime();
+    return series.points.filter(point => {
+        const ts = new Date(point.ts).getTime();
+        return ts >= start && ts <= end;
+    });
+}
+
 function _renderSparklines(slot, providerFilter = null) {
     const data = _sparkData;
     if (!data || data.length < 1) return;
@@ -413,27 +423,39 @@ function _renderSparklines(slot, providerFilter = null) {
     for (const [providerId, providerSeries] of grouped) {
         if (providerFilter && !providerFilter.has(providerId)) continue;
         const palette = providerColors[providerId] || ['#c084fc', '#f0abfc'];
+        // The longest window owns period navigation. Shorter windows use the
+        // same time slice, so Claude 5h and 7d always describe one selected week.
+        const anchorSeries = providerSeries.reduce((longest, series) =>
+            series.points[0]?.window_minutes > longest.points[0]?.window_minutes ? series : longest
+        );
+        const periods = _usagePeriods(anchorSeries);
+        const periodIdx = Math.max(0, Math.min(_sparkPeriodIdx[anchorSeries.key] || 0, periods.length - 1));
+        _sparkPeriodIdx[anchorSeries.key] = periodIdx;
+        const anchorPeriod = periods[periods.length - 1 - periodIdx];
+        const hasOlder = periodIdx < periods.length - 1;
+        const hasNewer = periodIdx > 0;
+        const anchorMinutes = anchorSeries.points[0]?.window_minutes || 0;
+        const periodLabel = periodIdx === 0
+            ? 'current'
+            : anchorMinutes >= 10080
+                ? `${periodIdx}w ago`
+                : `${periodIdx} period${periodIdx === 1 ? '' : 's'} ago`;
         html += `<div style="border-top:1px solid rgba(51,65,85,0.45);padding-top:7px;margin-top:7px">`;
         html += `<div style="font-size:10px;color:${palette[0]};font-weight:700;letter-spacing:.04em;margin-bottom:4px">${providerSeries[0].providerLabel} history</div>`;
         providerSeries.forEach((series, index) => {
-            const periods = _usagePeriods(series);
-            const periodIdx = Math.max(0, Math.min(_sparkPeriodIdx[series.key] || 0, periods.length - 1));
-            _sparkPeriodIdx[series.key] = periodIdx;
-            const period = periods[periods.length - 1 - periodIdx];
+            const period = _seriesPointsForPeriod(series, anchorPeriod);
             if (!period?.length) return;
-            const hasOlder = periodIdx < periods.length - 1;
-            const hasNewer = periodIdx > 0;
+            const isAnchor = series.key === anchorSeries.key;
             const color = palette[index % palette.length];
             const current = period[period.length - 1].utilization;
             const points = mkPts(period);
-            const label = periodIdx === 0 ? 'current' : `${periodIdx} period${periodIdx === 1 ? '' : 's'} ago`;
-            const older = hasOlder
+            const older = isAnchor && hasOlder
                 ? `<span data-spark-nav="older" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">◀</span>`
-                : '<span style="color:#1e293b">◀</span>';
-            const newer = hasNewer
+                : isAnchor ? '<span style="color:#1e293b">◀</span>' : '';
+            const newer = isAnchor && hasNewer
                 ? `<span data-spark-nav="newer" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">▶</span>`
-                : '<span style="color:#1e293b">▶</span>';
-            html += `<div style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${series.windowLabel}</span><span style="color:#64748b">${current}% · ${label}</span>${newer}</div>`;
+                : isAnchor ? '<span style="color:#1e293b">▶</span>' : '';
+            html += `<div data-usage-series="${series.key}" style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${series.windowLabel}</span><span style="color:#64748b">${current}% · ${periodLabel}</span>${newer}</div>`;
             html += `<div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(points.pts, points.ideal, color, getGuides(period))}</div>`;
         });
         html += '</div>';
