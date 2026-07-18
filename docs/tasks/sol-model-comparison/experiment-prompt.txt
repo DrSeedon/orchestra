@@ -1,0 +1,42 @@
+You are reviewing a small Python async cache used by multiple concurrent workers.
+Do not edit files or use tools. Analyze only the code below.
+
+Return a concise JSON object with this shape:
+{"bugs":[{"id":"B1","severity":"high|medium|low","explanation":"..."}],"safe":true|false}
+
+Use only these bug IDs when the corresponding defect is really present:
+- B1: falsey cached values are treated as misses
+- B2: the lock is created but never used, so concurrent misses duplicate loader calls
+- B3: an expired value can overwrite a newer value because loading is not guarded/rechecked
+- B4: loader exceptions leave a permanently stored exception or corrupt cache state
+- B5: clear() races with an in-flight loader, allowing cleared data to be resurrected
+
+There may be fewer real bugs than listed. Do not report a bug merely because an ID exists.
+Set safe=true only if the implementation is safe for concurrent use and false otherwise.
+
+```python
+import asyncio
+from time import monotonic
+
+
+class AsyncTTLCache:
+    def __init__(self, ttl: float = 30.0):
+        self.ttl = ttl
+        self._values: dict[str, tuple[float, object]] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    async def get(self, key: str, loader):
+        if cached := self._values.get(key):
+            expires_at, value = cached
+            if expires_at > monotonic() and value:
+                return value
+
+        self._locks.setdefault(key, asyncio.Lock())
+        value = await loader()
+        self._values[key] = (monotonic() + self.ttl, value)
+        return value
+
+    def clear(self) -> None:
+        self._values.clear()
+        self._locks.clear()
+```
