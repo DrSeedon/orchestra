@@ -21,7 +21,12 @@ from pydantic import BaseModel
 from app.auth import is_auth_enabled
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
 from app.deps import manager, templates
-from app.models import MODELS, get_model_spec, is_proxy_connected
+from app.models import (
+    MODELS,
+    cache_policy_for_runtime,
+    get_model_spec,
+    is_proxy_connected,
+)
 from app.pipeline import list_pipelines
 from app.runtime_registry import get_runtime
 
@@ -896,8 +901,8 @@ async def list_orchestrators():
         o["any_waiting"] = o.get("scope", "") in waiting_scopes
         if not o.get("last_turn_ts"):
             o["last_turn_ts"] = turn_map.get(o["id"])
-        if "cache_ttl_seconds" not in o:
-            o["cache_ttl_seconds"] = 3600
+        runtime = o.get("backend_type") or o.get("runtime") or o.get("backend") or "claude"
+        o.update(cache_policy_for_runtime(runtime))
     return result
 
 

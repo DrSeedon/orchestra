@@ -222,11 +222,24 @@ _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
 
 def _cache_pill(s: dict) -> str:
-    """Prompt-cache warmth as a short pill. Warm resume = cheap; after eviction
-    the next turn re-warms the full prompt (~20× costlier)."""
+    """Prompt-cache warmth as a short exact/approximate text pill."""
     from datetime import datetime, timezone
+    from app.models import cache_policy_for_runtime
+
+    runtime = s.get("backend_type") or s.get("runtime") or s.get("backend") or "claude"
+    policy = cache_policy_for_runtime(runtime)
+    raw_ttl = s.get("cache_ttl_seconds")
+    raw_ttl = policy["cache_ttl_seconds"] if raw_ttl is None else raw_ttl
+    try:
+        ttl = int(raw_ttl)
+    except (TypeError, ValueError):
+        return ""
+    if ttl <= 0:
+        return ""
+    approximate = bool(s.get("cache_ttl_approximate", policy["cache_ttl_approximate"]))
+
     if s.get("status") in ("running", "starting"):
-        return "🔥 hot"
+        return f"🔥 hot ≈{ttl // 60}m" if approximate else "🔥 hot"
     ts = s.get("last_turn_ts")
     if not ts:
         return ""
@@ -234,15 +247,16 @@ def _cache_pill(s: dict) -> str:
         last = datetime.fromisoformat(ts.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return ""
-    ttl = s.get("cache_ttl_seconds") or 3600
     rem_min = int((last.timestamp() + ttl - datetime.now(timezone.utc).timestamp()) // 60)
     if rem_min <= 0:
-        return "🧊 cold"
-    if rem_min > 30:
-        return f"🔥 hot {rem_min}m"
-    if rem_min >= 12:
-        return f"🟡 warm {rem_min}m"
-    return f"🔴 cooling {rem_min}m"
+        return f"🧊? unknown (≈{ttl // 60}m+)" if approximate else "🧊 cold"
+    marker = "≈" if approximate else ""
+    ttl_min = ttl / 60
+    if rem_min > ttl_min * 0.5:
+        return f"🔥 hot {marker}{rem_min}m"
+    if rem_min >= ttl_min * 0.2:
+        return f"🟡 warm {marker}{rem_min}m"
+    return f"🔴 cooling {marker}{rem_min}m"
 
 
 @mcp.tool()

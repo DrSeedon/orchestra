@@ -11,6 +11,7 @@ from app.models import (
     _infer_backend,
     available_models_block,
     backend_for_model,
+    cache_policy_for_runtime,
     fetch_models_from_proxy,
     get_model_spec,
     register_model,
@@ -87,6 +88,21 @@ def test_unknown_grok_gets_explicit_opencode_spec():
     spec = get_model_spec("x-ai/grok-4")
     assert spec.runtime == "opencode"
     assert spec.provider == "x-ai"
+
+
+def test_cache_policy_is_exact_for_claude_and_approximate_for_codex():
+    assert cache_policy_for_runtime("claude") == {
+        "cache_ttl_seconds": 3600,
+        "cache_ttl_approximate": False,
+    }
+    assert cache_policy_for_runtime("codex") == {
+        "cache_ttl_seconds": 1800,
+        "cache_ttl_approximate": True,
+    }
+    assert cache_policy_for_runtime("opencode") == {
+        "cache_ttl_seconds": 3600,
+        "cache_ttl_approximate": False,
+    }
 
 
 @pytest.mark.asyncio

@@ -21,7 +21,13 @@ from app.prompting import (
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap
-from app.models import resolve_model, backend_for_model, available_models_block, CONTEXT_LIMITS
+from app.models import (
+    CONTEXT_LIMITS,
+    available_models_block,
+    backend_for_model,
+    cache_policy_for_runtime,
+    resolve_model,
+)
 from app.pipeline import (
     DEFAULT_PIPELINE,
     build_system_prompt,
@@ -39,9 +45,6 @@ from app.db import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Anthropic prompt cache TTL — warm cache = cheap resume, eviction = ~20× costlier turn
-CACHE_TTL_SECONDS = 3600
 
 from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD  # noqa: F401 — re-exported for callers
 
@@ -1118,11 +1121,12 @@ class SessionManager:
         for row in get_all_sessions(scope):
             if row["id"] not in seen:
                 result.append(row)
-        # Cache-timer: last 'turn ended' ts per session (prompt cache warm CACHE_TTL after it)
+        # Cache-timer metadata is runtime-derived; Codex exposes only an approximate window.
         turn_map = get_last_turn_map()
         for r in result:
             r["last_turn_ts"] = turn_map.get(r["id"])
-            r["cache_ttl_seconds"] = CACHE_TTL_SECONDS
+            runtime = r.get("backend_type") or r.get("runtime") or r.get("backend") or "claude"
+            r.update(cache_policy_for_runtime(runtime))
         return result
 
     def get_session_id(self, name: str, scope: str) -> str | None:

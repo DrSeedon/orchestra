@@ -334,6 +334,26 @@ class TestListSessions:
         result = mgr.list_sessions()
         assert len(result) >= 1
 
+    @pytest.mark.asyncio
+    async def test_runtime_cache_policy_for_active_and_persisted_sessions(self, mgr):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            claude = await mgr.create_session(
+                name="claude-cache", scope="/s", cwd="/tmp",
+                model="claude-sonnet-5[1m]",
+            )
+            codex = await mgr.create_session(
+                name="codex-cache", scope="/s", cwd="/tmp",
+                model="gpt-5.6-sol",
+            )
+        mgr.sessions.pop(codex.id)
+
+        rows = {row["name"]: row for row in mgr.list_sessions(scope="/s")}
+        assert rows[claude.name]["cache_ttl_seconds"] == 3600
+        assert rows[claude.name]["cache_ttl_approximate"] is False
+        assert rows[codex.name]["cache_ttl_seconds"] == 1800
+        assert rows[codex.name]["cache_ttl_approximate"] is True
+
 
 class TestRemoveScope:
     @pytest.mark.asyncio

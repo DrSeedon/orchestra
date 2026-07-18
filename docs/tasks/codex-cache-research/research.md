@@ -152,6 +152,26 @@ I = total input, R = cached reads, W = cache writes, O = output
 
 **Рекомендация:** не делать TTL-driven precompact и не compact-ить idle Sol workers «чтобы оставить горячими». Оставить native auto-compact. Orchestra manual compact использовать только при context pressure или перед заведомо длинной фазой близко к лимиту, воспринимая его как компромисс context capacity vs fidelity, а не cache optimization.
 
+### 6.1 Почему fresh-thread compact сильнее бьёт по Codex, чем по Claude
+
+**CONFIRMED — official cache semantics + installed CLI source + Orchestra code.**
+
+Сначала поправка к premise: compact не сохраняет старый conversation cache ни у Claude, ни у Codex. Summary меняет историю, поэтому exact full-conversation prefix после compact невозможен у обоих. Разница — в том, какая часть старого cache остаётся достижимой:
+
+| Этап | Claude | Codex GPT-5.6 Sol |
+|---|---|---|
+| Summary turn в старой session/thread | Summarization instruction добавляется к прежней истории, поэтому request читает старый warm prefix [13] | Orchestra отправляет summary prompt через прежний Codex thread; прежний `thread_id` остаётся `prompt_cache_key`, поэтому старый prefix eligible для hit [5] |
+| После `_ensure_backend(force_fresh=True)` | Новый Claude session UUID сам по себе не участвует в cache key. Неизменные system prompt/tools/project-context prefixes могут hit-нуться между sessions; новая summary-history переписывается [13] | Новый Codex thread получает новый `prompt_cache_key`. GPT-5.6 теряет более надёжный key+prefix matching старого thread; новая summary-history также переписывается [1][5] |
+| Что реально «умирает» | Conversation layer; system/project layers остаются reusable при exact match [13] | Надёжный старый thread-key route и conversation layer. Полный cache не обязательно равен zero: automatic prefix hit без прежнего key всё ещё возможен, но он partial/opportunistic [1][8] |
+
+Архитектурная причина:
+
+- **Claude Code** организует request как слои `system prompt → project context → conversation`; server cache ищет exact prefix, а session UUID не назван частью cache key. Официальная документация прямо говорит, что после compact conversation layer invalidated, но system prompt переиспользуется, project context reload-ится и hit-ится при неизменных CLAUDE.md/memory [13].
+- **Codex CLI `0.144.5`** также требует exact prefix, но для GPT-5.6 передаёт `prompt_cache_key=thread_id`. OpenAI комбинирует этот key с prefix hash; одинаковый key нужен для более надёжного matching [1][5]. Orchestra generic compact не вызывает native Codex compact: он создаёт новый thread, значит меняет key.
+- Поэтому «Claude переживает compact, Codex нет» — сокращение. Точнее: **оба rebuild-ят summary conversation; Claude сохраняет cross-session eligibility стабильных верхних слоёв, Codex дополнительно теряет stable thread key для reliable matching**.
+
+Практическое следствие: текущий generic `compact_worker` не надо вызывать ради Codex TTL. Если когда-нибудь оптимизировать именно Codex compaction, кандидат — native same-thread compact, а не fresh-thread handoff; это отдельная архитектурная задача и не входит в cache-indicator change.
+
 ### 7. Orchestra сейчас недосчитывает GPT-5.6 cache-write cost
 
 **CONFIRMED — local code + installed/upstream protocol diff.**
@@ -211,6 +231,7 @@ upper = ((I-R)*6.25 + R*0.50 + O*30) / 1M
 10. **Tier 4 — single community analysis:** repeated compaction information loss, #14347. https://github.com/openai/codex/issues/14347
 11. **Tier 4 — single community experiment:** compact drops tool/reasoning detail, #14589. https://github.com/openai/codex/issues/14589
 12. **Tier 1 — direct measurement:** local CLI help/source inspection and 1,969 deduplicated `gpt-5.6-sol` model calls from 35 sessions, snapshot cutoff `2026-07-18T07:43:00Z`; exact metadata-only parser: `docs/tasks/codex-cache-research/measure_rollouts.py`.
+13. **Tier 2 — primary official docs:** Claude Code prompt caching: cache layers, exact-prefix matching, compact invalidates conversation layer but reuses system/project prefixes, session scope and 1h subscription TTL. https://code.claude.com/docs/en/prompt-caching
 
 ## Adversarial second opinion
 
