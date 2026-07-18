@@ -174,7 +174,7 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         try:
             async with httpx.AsyncClient(timeout=120, verify=True) as client:
                 resp = await client.post(
-                    "https://api.deepgram.com/v1/listen?model=nova-3&language=ru&smart_format=true&profanity_filter=false",
+                    "https://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&profanity_filter=false",
                     headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg"},
                     content=audio_data,
                 )
