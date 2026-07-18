@@ -47,6 +47,8 @@ class TestInitDb:
         assert "sessions" in tables
         assert "logs" in tables
         assert "voice_costs" in tables
+        assert "tool_errors" in tables
+        assert "improvement_rules" in tables
 
     def test_idempotent(self, db):
         from app.db import init_db
@@ -89,6 +91,104 @@ class TestVoiceCosts:
         assert row["duration_sec"] == 90.0
         assert row["model"] == "nova-3"
         assert row["file_id"] == "tg-file-1"
+
+
+class TestToolErrors:
+    def test_add_and_recent(self, db):
+        from app.db import tool_error_add, tool_errors_recent
+
+        tool_error_add("worker-1", "/scope", "Read", "file not found")
+        tool_error_add("worker-2", "/other", "Bash", "command failed")
+
+        rows = tool_errors_recent(limit=1)
+        assert len(rows) == 1
+        assert rows[0]["session_name"] == "worker-2"
+        assert rows[0]["scope"] == "/other"
+        assert rows[0]["tool_name"] == "Bash"
+        assert rows[0]["error_text"] == "command failed"
+
+    def test_summary_groups_tools_and_ranks_errors(self, db):
+        from app.db import tool_error_add, tool_errors_summary
+
+        for error_text in ("missing arg", "timeout", "missing arg"):
+            tool_error_add("worker", "/scope", "Read", error_text)
+        tool_error_add("worker", "/scope", "Bash", "exit 1")
+
+        assert tool_errors_summary() == [
+            {
+                "tool_name": "Read",
+                "error_count": 3,
+                "top_errors": ["missing arg", "timeout"],
+            },
+            {
+                "tool_name": "Bash",
+                "error_count": 1,
+                "top_errors": ["exit 1"],
+            },
+        ]
+
+    def test_summary_excludes_old_errors(self, db):
+        from app.db import _conn, tool_error_add, tool_errors_summary
+
+        tool_error_add("worker", "/scope", "Read", "old")
+        with _conn() as c:
+            c.execute(
+                "UPDATE tool_errors SET ts = datetime('now', '-8 days') "
+                "WHERE error_text = 'old'"
+            )
+        tool_error_add("worker", "/scope", "Bash", "recent")
+
+        assert tool_errors_summary(days=7) == [
+            {
+                "tool_name": "Bash",
+                "error_count": 1,
+                "top_errors": ["recent"],
+            }
+        ]
+
+
+class TestImprovementRules:
+    def test_propose_and_list(self, db):
+        from app.db import rule_list, rule_propose
+
+        rule_id = rule_propose(
+            "When a tool fails, record the error",
+            "repeated tool failure",
+            "worker-1",
+            "CLAUDE.md",
+        )
+
+        rules = rule_list()
+        assert len(rules) == 1
+        assert rules[0]["id"] == rule_id
+        assert rules[0]["rule_text"] == "When a tool fails, record the error"
+        assert rules[0]["source_signal"] == "repeated tool failure"
+        assert rules[0]["proposed_by"] == "worker-1"
+        assert rules[0]["target_file"] == "CLAUDE.md"
+        assert rules[0]["status"] == "proposed"
+        assert rules[0]["proposed_at"] is not None
+
+    def test_approve_and_filter(self, db):
+        from app.db import rule_approve, rule_list, rule_propose
+
+        active_id = rule_propose("active rule", "signal", "worker")
+        rule_propose("pending rule", "signal", "worker")
+        rule_approve(active_id)
+
+        active = rule_list(status="active")
+        assert [rule["id"] for rule in active] == [active_id]
+        assert active[0]["approved_at"] is not None
+        assert active[0]["retired_at"] is None
+
+    def test_retire(self, db):
+        from app.db import rule_list, rule_propose, rule_retire
+
+        rule_id = rule_propose("obsolete rule", "signal", "worker")
+        rule_retire(rule_id)
+
+        retired = rule_list(status="retired")
+        assert [rule["id"] for rule in retired] == [rule_id]
+        assert retired[0]["retired_at"] is not None
 
 
 class TestSaveAndGetSession:
