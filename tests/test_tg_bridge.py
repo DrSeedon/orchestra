@@ -8,9 +8,12 @@
 """
 
 import asyncio
+import time
 from unittest.mock import AsyncMock
 
 import pytest
+from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError, TelegramRetryAfter
+from aiogram.methods import SendMessage
 
 
 @pytest.fixture
@@ -25,6 +28,9 @@ def tb(tmp_path, monkeypatch):
     tg_bridge._topic_status = {}
     tg_bridge.bot = None
     tg_bridge._pil_available = None
+    monkeypatch.setattr(tg_bridge, "_tg_chat_locks", {}, raising=False)
+    monkeypatch.setattr(tg_bridge, "_tg_flood_until", {}, raising=False)
+    monkeypatch.setattr(tg_bridge, "_tg_last_send", {}, raising=False)
     return tg_bridge
 
 
@@ -482,3 +488,261 @@ class TestSendFileRouting:
         result = await tb.send_file_to_tg(file_tmp, "cap", "/s", "ghost")
 
         assert "error" in result
+
+
+# ── reliable outbound delivery ─────────────────────────────────────────────
+
+
+class TestFormattedChunks:
+    def test_splits_after_markdown_expands_table(self, tb):
+        raw = (
+            f"| {'A' * 100} | B |\n"
+            "| --- | --- |\n"
+            + "\n".join("| x | y |" for _ in range(40))
+        )
+
+        converted, _ = tb.md_convert(raw)
+        chunks = tb._formatted_chunks(raw)
+
+        assert tb._utf16_len(raw) < tb.TG_MSG_LIMIT
+        assert tb._utf16_len(converted) > tb.TG_MSG_LIMIT
+        assert len(chunks) > 1
+        assert all(tb._utf16_len(text) <= tb.TG_MSG_LIMIT for text, _ in chunks)
+        assert all(entities is None for _, entities in chunks)
+
+    def test_keeps_entities_for_single_chunk(self, tb):
+        chunks = tb._formatted_chunks("hello **world**")
+
+        assert len(chunks) == 1
+        text, entities = chunks[0]
+        assert text == "hello world"
+        assert entities
+
+
+class TestTgSendSafe:
+    @pytest.mark.asyncio
+    async def test_serializes_concurrent_group_sends(self, tb, monkeypatch):
+        sent_at = []
+
+        async def send_message(*args, **kwargs):
+            sent_at.append(time.monotonic())
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.02)
+
+        await asyncio.gather(*(
+            tb._tg_send_safe(-100, f"m{i}", 42, important=True)
+            for i in range(3)
+        ))
+
+        assert len(sent_at) == 3
+        assert sent_at[1] - sent_at[0] >= 0.018
+        assert sent_at[2] - sent_at[1] >= 0.018
+
+    @pytest.mark.asyncio
+    async def test_different_chats_do_not_share_lock(self, tb, monkeypatch):
+        both_started = asyncio.Event()
+        started = []
+
+        async def send_message(chat_id, *args, **kwargs):
+            started.append(chat_id)
+            if len(started) == 2:
+                both_started.set()
+            await asyncio.wait_for(both_started.wait(), timeout=0.1)
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        await asyncio.gather(
+            tb._tg_send_safe(-100, "a", 1, important=True),
+            tb._tg_send_safe(-200, "b", 2, important=True),
+        )
+
+        assert set(started) == {-100, -200}
+
+    @pytest.mark.asyncio
+    async def test_retries_rate_limit_with_same_thread(self, tb, monkeypatch):
+        method = SendMessage(chat_id=-100, text="hello")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = [
+            TelegramRetryAfter(method=method, message="flood", retry_after=0),
+            object(),
+        ]
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_RETRY_AFTER_MARGIN", 0)
+
+        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
+
+        assert result is not None
+        assert tb.bot.send_message.await_count == 2
+        assert [c.kwargs["message_thread_id"] for c in tb.bot.send_message.await_args_list] == [77, 77]
+
+    @pytest.mark.asyncio
+    async def test_retries_ambiguous_network_error(self, tb, monkeypatch, caplog):
+        method = SendMessage(chat_id=-100, text="hello")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = [
+            TelegramNetworkError(method=method, message="timeout"),
+            object(),
+        ]
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+
+        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
+
+        assert result is not None
+        assert tb.bot.send_message.await_count == 2
+        assert "ambiguous delivery" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_network_retry_counts_failed_request_against_interval(self, tb, monkeypatch):
+        method = SendMessage(chat_id=-100, text="hello")
+        started = []
+
+        async def send_message(*args, **kwargs):
+            started.append(asyncio.get_running_loop().time())
+            if len(started) == 1:
+                raise TelegramNetworkError(method=method, message="timeout")
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.03)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+
+        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
+
+        assert result is not None
+        assert started[1] - started[0] >= 0.025
+
+    @pytest.mark.asyncio
+    async def test_retries_bad_entities_as_plain_text(self, tb, monkeypatch):
+        method = SendMessage(chat_id=-100, text="local path")
+
+        async def send_message(*args, **kwargs):
+            if kwargs.get("entities"):
+                raise TelegramBadRequest(method=method, message="entity URL is invalid")
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        result = await tb._tg_send_safe(-100, "local path", 77, entities=[object()], important=True)
+
+        assert result is not None
+        assert tb.bot.send_message.await_count == 2
+        assert tb.bot.send_message.await_args_list[1].kwargs["entities"] is None
+
+    @pytest.mark.asyncio
+    async def test_plain_entity_fallback_uses_a_new_rate_slot(self, tb, monkeypatch):
+        method = SendMessage(chat_id=-100, text="local path")
+        started = []
+
+        async def send_message(*args, **kwargs):
+            started.append(asyncio.get_running_loop().time())
+            if kwargs.get("entities"):
+                raise TelegramBadRequest(method=method, message="entity URL is invalid")
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.03)
+
+        result = await tb._tg_send_safe(
+            -100, "local path", 77, entities=[object()], important=True,
+        )
+
+        assert result is not None
+        assert started[1] - started[0] >= 0.025
+
+    @pytest.mark.asyncio
+    async def test_logs_lost_after_final_network_failure(self, tb, monkeypatch, caplog):
+        method = SendMessage(chat_id=-100, text="hello")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = TelegramNetworkError(method=method, message="timeout")
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+
+        result = await tb._tg_send_safe(-100, "hello", 77, important=True)
+
+        assert result is None
+        assert tb.bot.send_message.await_count == tb._TG_IMPORTANT_ATTEMPTS
+        assert "LOST" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_drops_nonimportant_call_while_chat_busy(self, tb):
+        tb.bot = AsyncMock()
+        lock = asyncio.Lock()
+        await lock.acquire()
+        tb._tg_chat_locks[-100] = lock
+        try:
+            result = await tb._tg_send_safe(-100, "tool", 77, important=False)
+        finally:
+            lock.release()
+
+        assert result is None
+        tb.bot.send_message.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_drops_nonimportant_call_inside_interval(self, tb, monkeypatch):
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = object()
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 10)
+
+        first = await tb._tg_send_safe(-100, "tool-1", 77)
+        second = await tb._tg_send_safe(-100, "tool-2", 77)
+
+        assert first is not None
+        assert second is None
+        tb.bot.send_message.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_drops_edit_before_lock_wait(self, tb):
+        tb.bot = AsyncMock()
+        lock = asyncio.Lock()
+        await lock.acquire()
+        tb._tg_chat_locks[-100] = lock
+        try:
+            result = await tb._tg_edit_message_safe(-100, 5, "updated", [object()])
+        finally:
+            lock.release()
+
+        assert result is None
+        tb.bot.edit_message_text.assert_not_awaited()
+
+
+class TestSendFileRetry:
+    @pytest.mark.asyncio
+    async def test_recreates_files_for_primary_and_mirror_retry(self, tb, tmp_path, monkeypatch):
+        path = tmp_path / "report.txt"
+        path.write_text("hello")
+        method = SendMessage(chat_id=-100, text="file placeholder")
+        primary = type("M", (), {
+            "message_id": 5,
+            "chat": type("C", (), {"id": -100123456})(),
+            "message_thread_id": 555,
+        })()
+        tb.bot = AsyncMock()
+        tb.bot.send_document.side_effect = [
+            TelegramNetworkError(method=method, message="timeout"),
+            primary,
+            TelegramNetworkError(method=method, message="timeout"),
+            object(),
+        ]
+        tb.config["topics"] = {"worker-a": 555}
+        tb.config["mirrors"] = {"worker-a": {"chat_id": -200, "topic_id": 666}}
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+
+        result = await tb.send_file_to_tg(str(path), "cap", "/s", "worker-a", as_document=True)
+
+        assert result["ok"] is True
+        assert tb.bot.send_document.await_count == 4
+        files = [call.args[1] for call in tb.bot.send_document.await_args_list]
+        assert len({id(file) for file in files}) == 4
+        assert [call.kwargs["message_thread_id"] for call in tb.bot.send_document.await_args_list] == [555, 555, 666, 666]

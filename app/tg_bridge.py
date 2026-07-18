@@ -14,7 +14,12 @@ from pathlib import Path
 
 import aiohttp
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.exceptions import TelegramRetryAfter
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+    TelegramServerError,
+)
 from aiogram.client.default import DefaultBotProperties
 from telegramify_markdown import convert as md_convert
 
@@ -424,20 +429,11 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
         e.offset += offsets[2]
     for e in result_ents:
         e.offset += offsets[6]
-    try:
-        entities = [
-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
-            MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
-        ] + tool_ents + result_ents
-        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
-    except Exception as e:
-        if "message is not modified" in str(e).lower():
-            return
-        try:
-            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
-        except Exception as e2:
-            if "message is not modified" not in str(e2).lower():
-                logger.warning(f"TG edit failed: {e2}")
+    entities = [
+        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
+        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
+    ] + tool_ents + result_ents
+    await _tg_edit_message_safe(chat_id, msg.message_id, text, entities)
 
 
 async def _edit_expandable(msg, chat_id: int, header: str, body: str):
@@ -447,17 +443,8 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
     text = f"{header}\n{conv_body}"
     offset = _utf16_len(header) + 1
     length = _utf16_len(conv_body)
-    try:
-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
-        await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id, entities=entities)
-    except Exception as e:
-        if "message is not modified" in str(e).lower():
-            return
-        try:
-            await bot.edit_message_text(text, chat_id=chat_id, message_id=msg.message_id)
-        except Exception as e2:
-            if "message is not modified" not in str(e2).lower():
-                logger.warning(f"TG edit failed: {e2}")
+    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+    await _tg_edit_message_safe(chat_id, msg.message_id, text, entities)
 
 
 # Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
@@ -470,15 +457,8 @@ async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str)
     text = f"{header}\n{conv_body}"
     offset = _utf16_len(header) + 1
     length = _utf16_len(conv_body)
-    try:
-        entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
-        return await bot.send_message(chat_id, text, message_thread_id=thread_id, entities=entities)
-    except Exception:
-        try:
-            return await bot.send_message(chat_id, text, message_thread_id=thread_id)
-        except Exception as e:
-            logger.warning(f"TG send failed: {e}")
-            return None
+    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+    return await _tg_send_safe(chat_id, text, thread_id, entities=entities)
 
 
 TG_MSG_LIMIT = 4096
@@ -513,45 +493,176 @@ def _split_message(text: str, limit: int = TG_MSG_LIMIT) -> list[str]:
     return chunks
 
 
-_flood_until: float = 0
-_last_send: float = 0
-# TG allows ~1 msg/sec per chat — enforce minimum interval to avoid flood errors
-_TG_MIN_INTERVAL = 1.0
+def _formatted_chunks(text: str) -> list[tuple[str, list | None]]:
+    """Convert first, then enforce Telegram's limit on the final payload."""
+    converted, entities = _md_entities(text)
+    if _utf16_len(converted) <= TG_MSG_LIMIT:
+        return [(converted, entities or None)]
+    return [(chunk, None) for chunk in _split_message(converted)]
 
 
-# Rate-limited send with flood control: waits out flood bans before retrying important messages.
-# Non-important messages are silently dropped after a flood to avoid queue buildup.
+_TG_GROUP_INTERVAL = 3.05
+_TG_PRIVATE_INTERVAL = 1.05
+_TG_IMPORTANT_ATTEMPTS = 3
+_TG_NETWORK_RETRY_DELAY = 1.0
+_TG_RETRY_AFTER_MARGIN = 0.25
+_TG_ENTITY_REJECTED = object()
+_tg_chat_locks: dict[int, asyncio.Lock] = {}
+_tg_flood_until: dict[int, float] = {}
+_tg_last_send: dict[int, float] = {}
+
+
+def _reset_tg_delivery_state() -> None:
+    _tg_chat_locks.clear()
+    _tg_flood_until.clear()
+    _tg_last_send.clear()
+
+
+def _tg_interval(chat_id: int) -> float:
+    return _TG_GROUP_INTERVAL if chat_id < 0 else _TG_PRIVATE_INTERVAL
+
+
+async def _tg_call_safe(chat_id: int, call, *, important: bool = False, label: str = "call"):
+    """Serialize one chat, retry important transient failures, shed low-value bursts."""
+    loop = asyncio.get_running_loop()
+    lock = _tg_chat_locks.setdefault(chat_id, asyncio.Lock())
+    interval = _tg_interval(chat_id)
+    now = loop.time()
+    if not important and (
+        lock.locked()
+        or _tg_flood_until.get(chat_id, 0) > now
+        or now - _tg_last_send.get(chat_id, 0) < interval
+    ):
+        logger.debug(f"TG {label} dropped before queue: chat={chat_id}")
+        return None
+
+    attempts = _TG_IMPORTANT_ATTEMPTS if important else 1
+    async with lock:
+        for attempt in range(1, attempts + 1):
+            now = loop.time()
+            flood_wait = _tg_flood_until.get(chat_id, 0) - now
+            interval_wait = interval - (now - _tg_last_send.get(chat_id, 0))
+            wait = max(0, flood_wait, interval_wait)
+            if wait:
+                await asyncio.sleep(wait)
+            # A timeout is ambiguous: Telegram may have accepted the request. Count
+            # every attempt, not only confirmed responses, before any retry.
+            _tg_last_send[chat_id] = loop.time()
+            try:
+                result = await call()
+                return result
+            except TelegramRetryAfter as e:
+                _tg_flood_until[chat_id] = loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN
+                logger.warning(f"TG {label} flood: retry in {e.retry_after}s")
+                if not important or attempt == attempts:
+                    break
+            except (TelegramNetworkError, TelegramServerError) as e:
+                if important and attempt < attempts:
+                    logger.warning(
+                        f"TG {label} ambiguous delivery, retry {attempt + 1}/{attempts}: {e}"
+                    )
+                    await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
+                    continue
+                if important:
+                    logger.warning(f"TG {label} LOST after {attempt} attempts: {e}")
+                else:
+                    logger.warning(f"TG {label} failed: {e}")
+                return None
+            except Exception as e:
+                if important:
+                    logger.warning(f"TG {label} LOST: {e}")
+                else:
+                    logger.warning(f"TG {label} failed: {e}")
+                return None
+
+        if important:
+            logger.warning(f"TG {label} LOST after {attempts} flood attempts")
+        return None
+
+
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
                          entities=None, important: bool = False):
-    global _flood_until, _last_send
-    now = asyncio.get_event_loop().time()
-    if _flood_until > now:
-        await asyncio.sleep(_flood_until - now + 0.1)
-        now = asyncio.get_event_loop().time()
-    gap = now - _last_send
-    if gap < _TG_MIN_INTERVAL:
-        await asyncio.sleep(_TG_MIN_INTERVAL - gap)
-    try:
-        result = await bot.send_message(chat_id, text, message_thread_id=thread_id,
-                                         parse_mode=None, entities=entities)
-        _last_send = asyncio.get_event_loop().time()
+    async def _send():
+        try:
+            return await bot.send_message(
+                chat_id, text, message_thread_id=thread_id,
+                parse_mode=None, entities=entities,
+            )
+        except TelegramBadRequest:
+            if not entities:
+                raise
+            return _TG_ENTITY_REJECTED
+
+    result = await _tg_call_safe(
+        chat_id, _send, important=important, label="send_message",
+    )
+    if result is not _TG_ENTITY_REJECTED:
         return result
-    except TelegramRetryAfter as e:
-        _flood_until = asyncio.get_event_loop().time() + e.retry_after
-        logger.warning(f"TG flood: pausing {e.retry_after}s")
-        if important:
-            await asyncio.sleep(e.retry_after + 0.5)
-            try:
-                result = await bot.send_message(chat_id, text, message_thread_id=thread_id,
-                                                parse_mode=None, entities=entities)
-                _last_send = asyncio.get_event_loop().time()
-                return result
-            except Exception as e2:
-                logger.warning(f"TG important message LOST after flood retry: {e2}; text[:80]={text[:80]!r}")
-        return None
-    except Exception as e:
-        logger.warning(f"TG send failed: {e}")
-        return None
+
+    logger.warning("TG formatted send rejected; trying without entities")
+
+    async def _send_plain():
+        return await bot.send_message(
+            chat_id, text, message_thread_id=thread_id,
+            parse_mode=None, entities=None,
+        )
+
+    return await _tg_call_safe(
+        chat_id, _send_plain, important=important, label="send_message_plain",
+    )
+
+
+async def _tg_edit_message_safe(chat_id: int, message_id: int, text: str, entities=None):
+    async def _edit():
+        try:
+            return await bot.edit_message_text(
+                text, chat_id=chat_id, message_id=message_id,
+                entities=entities,
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e).lower():
+                return True
+            if not entities:
+                raise
+            return _TG_ENTITY_REJECTED
+
+    result = await _tg_call_safe(chat_id, _edit, label="edit_message")
+    if result is not _TG_ENTITY_REJECTED:
+        return result
+
+    async def _edit_plain():
+        try:
+            return await bot.edit_message_text(
+                text, chat_id=chat_id, message_id=message_id,
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e).lower():
+                return True
+            raise
+
+    return await _tg_call_safe(chat_id, _edit_plain, label="edit_message_plain")
+
+
+async def _tg_send_file_safe(
+    chat_id: int, path: str, caption: str | None, thread_id: int | None,
+    *, is_photo: bool, important: bool,
+):
+    from aiogram.types import FSInputFile
+
+    async def _send():
+        tg_file = FSInputFile(path, filename=Path(path).name)
+        if is_photo:
+            return await bot.send_photo(
+                chat_id, tg_file, caption=caption, message_thread_id=thread_id,
+            )
+        return await bot.send_document(
+            chat_id, tg_file, caption=caption, message_thread_id=thread_id,
+        )
+
+    label = "send_photo" if is_photo else "send_document"
+    return await _tg_call_safe(
+        chat_id, _send, important=important, label=label,
+    )
 
 
 _TG_TOOL_ICONS = {
@@ -758,7 +869,7 @@ def _find_thread_for_scope(scope: str) -> int | None:
     return None
 
 
-async def _mirror_send_file(orch_name: str, tg_file, caption: str, is_photo: bool):
+async def _mirror_send_file(orch_name: str, path: str, caption: str, is_photo: bool):
     mirror = config.get("mirrors", {}).get(orch_name)
     if not mirror or not bot:
         return
@@ -766,13 +877,9 @@ async def _mirror_send_file(orch_name: str, tg_file, caption: str, is_photo: boo
     topic_id = mirror.get("topic_id")
     if not chat_id:
         return
-    try:
-        if is_photo:
-            await bot.send_photo(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
-        else:
-            await bot.send_document(chat_id, tg_file, caption=caption, message_thread_id=topic_id)
-    except Exception as e:
-        logger.warning(f"Mirror file send failed for {orch_name}: {e}")
+    await _tg_send_file_safe(
+        chat_id, path, caption, topic_id, is_photo=is_photo, important=True,
+    )
 
 
 async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_document: bool = False) -> dict:
@@ -800,36 +907,17 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
     label = label[:1024]
-    try:
-        from aiogram.types import FSInputFile
-        tg_file = FSInputFile(path, filename=fp.name)
-        is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
-        if is_photo:
-            msg = await bot.send_photo(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
-        else:
-            msg = await bot.send_document(config["group_id"], tg_file, caption=label, message_thread_id=thread_id)
-        logger.info(f"send_file: delivered msg_id={msg.message_id} chat_id={msg.chat.id} thread={getattr(msg, 'message_thread_id', None)}")
-        if orch_name:
-            mirror_file = FSInputFile(path, filename=fp.name)
-            await _mirror_send_file(orch_name, mirror_file, label, is_photo)
-        return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}
-    except TelegramRetryAfter as e:
-        logger.warning(f"send_file flood: retry after {e.retry_after}s")
-        await asyncio.sleep(e.retry_after + 0.5)
-        try:
-            tg_file2 = FSInputFile(path, filename=fp.name)
-            if is_photo:
-                msg2 = await bot.send_photo(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
-            else:
-                msg2 = await bot.send_document(config["group_id"], tg_file2, caption=label, message_thread_id=thread_id)
-            logger.info(f"send_file retry: delivered msg_id={msg2.message_id} chat_id={msg2.chat.id}")
-            return {"ok": True, "message_id": msg2.message_id, "chat_id": msg2.chat.id}
-        except Exception as e2:
-            logger.error(f"send_file retry failed: {e2}")
-            return {"error": f"Send failed after flood retry: {e2}"}
-    except Exception as e:
-        logger.error(f"send_file exception: type={type(e).__name__} err={e}")
-        return {"error": str(e)}
+    is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
+    msg = await _tg_send_file_safe(
+        config["group_id"], path, label, thread_id,
+        is_photo=is_photo, important=True,
+    )
+    if msg is None:
+        return {"error": "TG file delivery failed; see tg-bridge logs"}
+    logger.info(f"send_file: delivered msg_id={msg.message_id} chat_id={msg.chat.id} thread={getattr(msg, 'message_thread_id', None)}")
+    if orch_name:
+        await _mirror_send_file(orch_name, path, label, is_photo)
+    return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}
 
 
 _topic_status = {}
@@ -905,33 +993,37 @@ _ICON_IDLE = "5350392020785437399"
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
-    _topic_status[orch_name] = is_running
     short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
 
     async def _do_edit(chat_id, thread_id):
-        for attempt in range(3):
+        async def _edit():
             try:
-                await bot.edit_forum_topic(chat_id=chat_id, message_thread_id=thread_id,
-                                           name=short, icon_custom_emoji_id=icon_id)
-                return
-            except TelegramRetryAfter as e:
-                await asyncio.sleep(e.retry_after + 0.5)
-            except Exception as e:
-                if "TOPIC_NOT_MODIFIED" in str(e):
-                    return
-                logger.debug(f"Topic icon update failed: {e}")
-                return
+                return await bot.edit_forum_topic(
+                    chat_id=chat_id, message_thread_id=thread_id,
+                    name=short, icon_custom_emoji_id=icon_id,
+                )
+            except TelegramBadRequest as e:
+                if "TOPIC_NOT_MODIFIED" in str(e).upper():
+                    return True
+                raise
+
+        return await _tg_call_safe(
+            chat_id, _edit, label="topic_status",
+        )
 
     thread_id = config["topics"].get(orch_name)
+    primary_updated = False
     if thread_id and bot:
-        await _do_edit(config["group_id"], thread_id)
+        primary_updated = await _do_edit(config["group_id"], thread_id) is not None
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
         await _do_edit(mirror["chat_id"], mirror["topic_id"])
+    if primary_updated:
+        _topic_status[orch_name] = is_running
 
 
-async def _mirror_send(orch_name: str, text: str, entities=None):
+async def _mirror_send(orch_name: str, text: str, entities=None, *, important: bool = False):
     mirrors = config.get("mirrors", {})
     mirror = mirrors.get(orch_name)
     if not mirror or not bot:
@@ -940,10 +1032,9 @@ async def _mirror_send(orch_name: str, text: str, entities=None):
     topic_id = mirror.get("topic_id")
     if not chat_id:
         return
-    try:
-        await bot.send_message(chat_id, text, message_thread_id=topic_id, entities=entities)
-    except Exception as e:
-        logger.warning(f"Mirror send failed for {orch_name}: {e}")
+    return await _tg_send_safe(
+        chat_id, text, topic_id, entities=entities, important=important,
+    )
 
 
 async def ensure_topics():
@@ -1018,8 +1109,9 @@ async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) 
     with open(tmp, "wb") as f:
         f.write(png)
     try:
-        from aiogram.types import FSInputFile
-        await bot.send_photo(chat_id, FSInputFile(tmp), message_thread_id=thread_id)
+        await _tg_send_file_safe(
+            chat_id, tmp, None, thread_id, is_photo=True, important=False,
+        )
     finally:
         try:
             os.unlink(tmp)
@@ -1192,13 +1284,17 @@ async def stream_logs(orch_name: str, thread_id: int):
                             img_path = img_match.group(1)
                             caption = c.replace(img_path, '').strip()[:1024] or None
                             try:
-                                from aiogram.types import FSInputFile
-                                tg_file = FSInputFile(img_path)
-                                await bot.send_photo(config["group_id"], tg_file, caption=caption, message_thread_id=thread_id)
+                                await _tg_send_file_safe(
+                                    config["group_id"], img_path, caption, thread_id,
+                                    is_photo=True, important=True,
+                                )
                                 mirror = config.get("mirrors", {}).get(orch_name)
                                 if mirror and mirror.get("chat_id"):
-                                    mirror_file = FSInputFile(img_path)
-                                    await bot.send_photo(mirror["chat_id"], mirror_file, caption=caption, message_thread_id=mirror.get("topic_id"))
+                                    await _tg_send_file_safe(
+                                        mirror["chat_id"], img_path, caption,
+                                        mirror.get("topic_id"), is_photo=True,
+                                        important=True,
+                                    )
                             except Exception as e:
                                 logger.warning(f"TG send photo failed: {e}")
                             continue
@@ -1213,18 +1309,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                         # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
                         head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
                         raw_text = f"{head}\n{c}"
-                        for chunk in _split_message(raw_text):
-                            try:
-                                converted, ents = md_convert(chunk)
-                                from aiogram.types import MessageEntity as AioEntity
-                                aio_ents = [AioEntity(**e.to_dict()) for e in ents] if ents else None
-                                await _tg_send_safe(config["group_id"], converted, thread_id,
-                                                    entities=aio_ents, important=True)
-                                await _mirror_send(orch_name, converted, entities=aio_ents)
-                            except Exception as e:
-                                logger.warning(f"text md_convert/send failed, fallback to plain: {e}; chunk[:80]={chunk[:80]!r}")
-                                await _tg_send_safe(config["group_id"], chunk, thread_id, important=True)
-                                await _mirror_send(orch_name, chunk)
+                        for converted, aio_ents in _formatted_chunks(raw_text):
+                            await _tg_send_safe(
+                                config["group_id"], converted, thread_id,
+                                entities=aio_ents, important=True,
+                            )
+                            await _mirror_send(
+                                orch_name, converted, entities=aio_ents, important=True,
+                            )
                         continue
                     elif t == "tool":
                         tool_name = c.split(":")[0].strip() if ":" in c else "tool"
@@ -1264,12 +1356,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 sm_to = sm_params.get("to", "?")
                                 sm_msg = sm_params.get("message", "")
                                 sm_md = f"✉️ **→ {sm_to}**\n\n{sm_msg}"
-                                converted, entities = md_convert(sm_md)
-                                from aiogram.types import MessageEntity as AioEntity
-                                aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
-                                for chunk in _split_message(converted):
-                                    await _tg_send_safe(config["group_id"], chunk, thread_id, entities=aio_ents, important=True)
-                                    aio_ents = None
+                                for chunk, aio_ents in _formatted_chunks(sm_md):
+                                    await _tg_send_safe(
+                                        config["group_id"], chunk, thread_id,
+                                        entities=aio_ents, important=True,
+                                    )
                                 _last_diff_sent = True
                             except Exception as _e:
                                 logger.debug(f"send_message pretty format failed: {_e}")
@@ -1319,9 +1410,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 _read_params = _json.loads(_last_tool_raw[_colon + 1:].strip())
                                 _img_path = _read_params.get("file_path", "")
                                 if _img_path and Path(_img_path).is_file():
-                                    from aiogram.types import FSInputFile
-                                    await bot.send_photo(config["group_id"], FSInputFile(_img_path),
-                                                         message_thread_id=thread_id, caption=f"📷 {Path(_img_path).name}")
+                                    await _tg_send_file_safe(
+                                        config["group_id"], _img_path,
+                                        f"📷 {Path(_img_path).name}", thread_id,
+                                        is_photo=True, important=False,
+                                    )
                                     if _last_tool_msg:
                                         _last_tool_msg = None
                                         _last_tool_text = ""
@@ -1376,18 +1469,15 @@ async def stream_logs(orch_name: str, thread_id: int):
                     else:
                         continue
                     is_important = t in ("text", "error", "user_message")
-                    for chunk in _split_message(text):
-                        try:
-                            converted, entities = md_convert(chunk)
-                            from aiogram.types import MessageEntity as AioEntity
-                            aio_ents = [AioEntity(**e.to_dict()) for e in entities] if entities else None
-                            await _tg_send_safe(config["group_id"], converted, thread_id,
-                                                entities=aio_ents, important=is_important)
-                            await _mirror_send(orch_name, converted, entities=aio_ents)
-                        except Exception:
-                            await _tg_send_safe(config["group_id"], chunk, thread_id,
-                                                important=is_important)
-                            await _mirror_send(orch_name, chunk)
+                    for converted, aio_ents in _formatted_chunks(text):
+                        await _tg_send_safe(
+                            config["group_id"], converted, thread_id,
+                            entities=aio_ents, important=is_important,
+                        )
+                        await _mirror_send(
+                            orch_name, converted, entities=aio_ents,
+                            important=is_important,
+                        )
             except Exception as e:
                 logger.error(f"Stream error for {orch_name}: {e}")
                 _idle_ticks = 0
@@ -1549,6 +1639,7 @@ async def start_bridge(manager):
     global bot, _manager, DEEPGRAM_API_KEY
     from dotenv import load_dotenv
     load_dotenv()
+    _reset_tg_delivery_state()
 
     DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 
@@ -1671,6 +1762,7 @@ async def stop_bridge():
     # drop stale refs — a handler racing past the unhook must see inactive state
     bot = None
     _manager = None
+    _reset_tg_delivery_state()
 
 
 if __name__ == "__main__":
