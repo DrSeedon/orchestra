@@ -18,6 +18,7 @@ CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
 # advertises a larger GPT-5.6 window, but that is a different surface; local rollout
 # token_count events are the runtime source of truth and may override these fallbacks.
 CODEX_CONTEXT_LIMITS = {
+    "gpt-5.3-codex-spark": 128000,
     "gpt-5.6-sol":   258400,
     "gpt-5.6-terra": 258400,
     "gpt-5.6-luna":  258400,
@@ -40,6 +41,7 @@ CODEX_TOKEN_PRICES = {
 # 5.4/5.5 back-compat. "ultra" (parallel sub-agents) intentionally excluded — a special
 # mode, not a plain effort level, and risky to trigger from a generic worker effort field.
 CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
+CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 
 
 def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
@@ -308,7 +310,20 @@ class CodexBackend:
         self._events_active = True
         try:
             while True:
-                message = await self._notifications.get()
+                try:
+                    message = await asyncio.wait_for(
+                        self._notifications.get(),
+                        timeout=CODEX_SILENCE_HEARTBEAT_SECONDS,
+                    )
+                except asyncio.TimeoutError:
+                    if not self._active_turn_id:
+                        return
+                    yield AgentEvent(
+                        "thinking_stream",
+                        "Still working · no new events for 30s. Steered messages wait for the next model checkpoint.",
+                        {"activity": "waiting", "item_id": self._active_turn_id},
+                    )
+                    continue
                 method = message.get("method", "")
                 params = message.get("params") or {}
                 thread_id = params.get("threadId")

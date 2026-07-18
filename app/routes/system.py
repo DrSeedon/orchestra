@@ -458,7 +458,7 @@ def _normalize_codex_usage(result: dict) -> dict:
     limits = by_limit.get("codex") or result.get("rateLimits") or {}
     credits = limits.get("credits") or {}
     reset_credits = result.get("rateLimitResetCredits") or {}
-    return {
+    usage = {
         "plan_type": limits.get("planType"),
         "primary": _normalize_codex_window(limits.get("primary")),
         "secondary": _normalize_codex_window(limits.get("secondary")),
@@ -469,6 +469,15 @@ def _normalize_codex_usage(result: dict) -> dict:
         },
         "reset_credits": reset_credits.get("availableCount", 0),
     }
+    spark_limits = by_limit.get("codex_bengalfox")
+    if isinstance(spark_limits, dict):
+        usage["spark"] = {
+            "limit_id": "codex_bengalfox",
+            "plan_type": spark_limits.get("planType"),
+            "primary": _normalize_codex_window(spark_limits.get("primary")),
+            "secondary": _normalize_codex_window(spark_limits.get("secondary")),
+        }
+    return usage
 
 
 def _usage_window_label(window_minutes: int) -> str:
@@ -500,27 +509,31 @@ def _provider_usage_snapshot(anthropic: dict | None, codex: dict | None) -> dict
     if anthropic_windows:
         providers["anthropic"] = {"label": "Claude", "windows": anthropic_windows}
 
-    codex_windows = []
-    for window_id in ("primary", "secondary"):
-        window = (codex or {}).get(window_id)
-        if not isinstance(window, dict) or not isinstance(window.get("utilization"), (int, float)):
-            continue
-        minutes = window.get("window_minutes")
-        if not isinstance(minutes, int) or minutes <= 0:
-            continue
-        codex_windows.append({
-            "id": window_id,
-            "label": _usage_window_label(minutes),
-            "utilization": window["utilization"],
-            "window_minutes": minutes,
-            "resets_at": window.get("resets_at"),
-        })
-    if codex_windows:
-        providers["codex"] = {
-            "label": "Codex",
-            "plan_type": (codex or {}).get("plan_type"),
-            "windows": codex_windows,
-        }
+    for provider_id, label, usage in (
+        ("codex", "Codex", codex),
+        ("codex_spark", "Codex Spark", (codex or {}).get("spark")),
+    ):
+        windows = []
+        for window_id in ("primary", "secondary"):
+            window = (usage or {}).get(window_id)
+            if not isinstance(window, dict) or not isinstance(window.get("utilization"), (int, float)):
+                continue
+            minutes = window.get("window_minutes")
+            if not isinstance(minutes, int) or minutes <= 0:
+                continue
+            windows.append({
+                "id": window_id,
+                "label": _usage_window_label(minutes),
+                "utilization": window["utilization"],
+                "window_minutes": minutes,
+                "resets_at": window.get("resets_at"),
+            })
+        if windows:
+            providers[provider_id] = {
+                "label": label,
+                "plan_type": (usage or {}).get("plan_type"),
+                "windows": windows,
+            }
     return providers
 
 

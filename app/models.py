@@ -32,6 +32,7 @@ MODELS = {
     "claude-opus-4-6[1m]": "Opus 4.6 (1M)",
     "claude-sonnet-5[1m]": "Sonnet 5 (1M)",
     "claude-haiku-4-5": "Haiku 4.5",
+    "gpt-5.3-codex-spark": "GPT-5.3 Codex Spark",
     "gpt-5.6-sol": "GPT-5.6 Sol",
     "gpt-5.6-terra": "GPT-5.6 Terra",
     "gpt-5.6-luna": "GPT-5.6 Luna",
@@ -48,6 +49,7 @@ CONTEXT_LIMITS = {
     "claude-haiku-4-5": 200000,
     # Effective ChatGPT-auth Codex runtime budget. Public API window is larger, but
     # Orchestra's GPT workers run through Codex CLI and must use its runtime contract.
+    "gpt-5.3-codex-spark": 128000,
     "gpt-5.6-sol": 258400,
     "gpt-5.6-terra": 258400,
     "gpt-5.6-luna": 258400,
@@ -77,6 +79,9 @@ ALIASES = {
     "claude-sonnet-4-6": "claude-sonnet-5[1m]",
     "claude-sonnet-4-5": "claude-sonnet-5[1m]",
     "haiku": "claude-haiku-4-5",
+    "spark": "gpt-5.3-codex-spark",
+    "codexspark": "gpt-5.3-codex-spark",
+    "gpt5.3spark": "gpt-5.3-codex-spark",
     "gpt5.6": "gpt-5.6-sol",
     "gpt5.6sol": "gpt-5.6-sol",
     "gpt5.6terra": "gpt-5.6-terra",
@@ -94,6 +99,7 @@ BACKENDS = {
     "claude-opus-4-6[1m]": "claude",
     "claude-sonnet-5[1m]": "claude",
     "claude-haiku-4-5": "claude",
+    "gpt-5.3-codex-spark": "codex",
     "gpt-5.6-sol": "codex",
     "gpt-5.6-terra": "codex",
     "gpt-5.6-luna": "codex",

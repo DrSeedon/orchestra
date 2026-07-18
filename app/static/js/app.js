@@ -2415,7 +2415,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
             _codexThinkingLive.dataset.activity = activity;
             const label = document.createElement('div');
             label.className = 'codex-live-label';
-            label.textContent = activity === 'plan' ? '▦ Planning live' : '◇ Reasoning live';
+            label.textContent = activity === 'plan'
+                ? '▦ Planning live'
+                : activity === 'waiting'
+                    ? '⌁ Codex still working'
+                    : '◇ Reasoning live';
             const body = document.createElement('div');
             body.className = 'codex-live-thinking-body';
             _codexThinkingLive.append(label, body);
@@ -2423,7 +2427,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
             _insert(_codexThinkingLive);
         }
         const body = _codexThinkingLive.querySelector('.codex-live-thinking-body');
-        body.textContent = (body.textContent + content).slice(-30_000);
+        body.textContent = activity === 'waiting'
+            ? content
+            : (body.textContent + content).slice(-30_000);
         return;
     }
 
