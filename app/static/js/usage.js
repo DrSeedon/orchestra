@@ -208,7 +208,7 @@ async function _loadSparkline(tipEl) {
     const now = Date.now();
     if (!_sparkData || now - _sparkDataTs >= 300000) {
         try {
-            _sparkData = await api('/api/usage/history?hours=336');
+            _sparkData = await api('/api/usage/history?hours=8760');
             _sparkDataTs = now;
         } catch { _sparkData = null; }
     }
