@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import re
-import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -118,6 +117,18 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
+def _copy_file(src: Path, dst: Path) -> None:
+    """Copy through the agent-user command path and fail loudly on errors."""
+    result = _git_cmd(
+        ["cp", "-p", str(src), str(dst)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise OSError(f"copy {src} -> {dst} failed: {detail}")
+
+
 # Injected / machine-local artifacts that must never dirty the tree or block merge_worker:
 # `.claude/` (injected skills+settings), and Codex session metadata written by codex_review
 # (`codex_sessions.json` = thread UUIDs, `*.round` = per-round temp before append).
@@ -222,7 +233,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
             dst = wt_path / fname
             if not _within(dst.parent, wt_path):
                 raise ValueError(f"copy target '{fname}' escapes worktree")
-            _git_cmd(["cp", "-p", str(src), str(dst)], capture_output=True)
+            _copy_file(src, dst)
         if worktree_cfg is not None:
             for sl in worktree_cfg.symlinks:
                 _apply_symlink(repo, wt_path, sl)
@@ -233,7 +244,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
         claude_md = wt_path / "CLAUDE.md"
         agents_md = wt_path / "AGENTS.md"
         if claude_md.is_file() and not agents_md.exists():
-            _git_cmd(["cp", "-p", str(claude_md), str(agents_md)], capture_output=True)
+            _copy_file(claude_md, agents_md)
     except Exception:
         _git_cmd(
             ["git", "worktree", "remove", str(wt_path), "--force"],

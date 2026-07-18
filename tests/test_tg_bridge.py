@@ -287,11 +287,11 @@ class TestDiffImagesEnabled:
 
 
 class TestResultImagesEnabled:
-    def test_default_false_without_env(self, tb, monkeypatch):
-        """`_result_images_enabled()` без TG_RESULT_IMAGES = False (opt-in)."""
+    def test_default_true_without_env(self, tb, monkeypatch):
+        """`_result_images_enabled()` без TG_RESULT_IMAGES = True (opt-out)."""
         tb._pil_available = True
         monkeypatch.delenv("TG_RESULT_IMAGES", raising=False)
-        assert tb._result_images_enabled() is False
+        assert tb._result_images_enabled() is True
 
     def test_true_when_env_true(self, tb, monkeypatch):
         """TG_RESULT_IMAGES=true → True."""

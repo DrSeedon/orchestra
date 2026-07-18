@@ -13,9 +13,9 @@ BASE = "http://localhost:8888"
 @pytest.fixture(scope="module")
 def dashboard_page(browser):
     page = browser.new_page()
-    resp = page.goto(BASE)
+    resp = page.goto(BASE, wait_until="domcontentloaded")
     assert resp.status == 200
-    page.wait_for_load_state("networkidle")
+    expect(page.locator("#agent-list")).to_be_visible()
     yield page
     page.close()
 
@@ -69,8 +69,8 @@ def test_no_js_errors(browser):
     errors = []
     page = browser.new_page()
     page.on("pageerror", lambda e: errors.append(str(e)))
-    page.goto(BASE)
-    page.wait_for_load_state("networkidle")
+    page.goto(BASE, wait_until="domcontentloaded")
+    expect(page.locator("#agent-list")).to_be_visible()
     page.wait_for_timeout(2000)
     page.close()
     assert len(errors) == 0, f"JS errors on page: {errors}"
