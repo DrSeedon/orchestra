@@ -5,14 +5,22 @@ Run: pytest tests/test_frontend.py -v
 """
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Browser, Page, expect, sync_playwright
 
 BASE = "http://localhost:8888"
 
 
 @pytest.fixture(scope="module")
-def dashboard_page(browser):
-    page = browser.new_page()
+def dashboard_browser():
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        yield browser
+        browser.close()
+
+
+@pytest.fixture(scope="module")
+def dashboard_page(dashboard_browser: Browser):
+    page = dashboard_browser.new_page()
     resp = page.goto(BASE, wait_until="domcontentloaded")
     assert resp.status == 200
     expect(page.locator("#agent-list")).to_be_visible()
@@ -65,9 +73,9 @@ def test_agent_info_panel_exists(dashboard_page: Page):
     expect(info).to_be_visible()
 
 
-def test_no_js_errors(browser):
+def test_no_js_errors(dashboard_browser: Browser):
     errors = []
-    page = browser.new_page()
+    page = dashboard_browser.new_page()
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(BASE, wait_until="domcontentloaded")
     expect(page.locator("#agent-list")).to_be_visible()
