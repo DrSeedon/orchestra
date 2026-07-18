@@ -234,7 +234,8 @@ def init_db() -> None:
                 five_hour_resets_at TEXT,
                 seven_day_resets_at TEXT,
                 total_cost_usd REAL DEFAULT 0,
-                active_agents INTEGER DEFAULT 0
+                active_agents INTEGER DEFAULT 0,
+                provider_usage TEXT NOT NULL DEFAULT '{}'
             );
             CREATE INDEX IF NOT EXISTS idx_usage_ts ON usage_snapshots(ts);
         """)
@@ -464,6 +465,9 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN effort TEXT DEFAULT ''")
     if "runtime_handoff" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN runtime_handoff TEXT DEFAULT ''")
+    usage_cols = {row[1] for row in c.execute("PRAGMA table_info(usage_snapshots)").fetchall()}
+    if usage_cols and "provider_usage" not in usage_cols:
+        c.execute("ALTER TABLE usage_snapshots ADD COLUMN provider_usage TEXT NOT NULL DEFAULT '{}'")
     # Идемпотентный сид профиля 'personal' (config_dir="" → env процесса, как сегодня).
     # INSERT OR IGNORE: повторная миграция не падает и не перетирает существующую строку.
     c.execute("INSERT OR IGNORE INTO profiles (name, config_dir) VALUES ('personal', '')")
@@ -1140,18 +1144,42 @@ def bg_cleanup_old(max_age_hours: int = 24) -> int:
 
 def usage_save_snapshot(five_hour_pct: float, seven_day_pct: float,
                         five_hour_resets_at: str, seven_day_resets_at: str,
-                        total_cost_usd: float, active_agents: int) -> None:
+                        total_cost_usd: float, active_agents: int,
+                        providers: dict | None = None) -> None:
     with _conn() as c:
         c.execute(
             """INSERT INTO usage_snapshots
                (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
-                seven_day_resets_at, total_cost_usd, active_agents)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (datetime.now(timezone.utc).isoformat(),
              five_hour_pct, seven_day_pct,
              five_hour_resets_at or "", seven_day_resets_at or "",
-             total_cost_usd, active_agents),
+             total_cost_usd, active_agents,
+             json.dumps(providers or {}, ensure_ascii=False)),
         )
+
+
+def _usage_providers_from_row(row: dict) -> dict:
+    providers = json.loads(row.pop("provider_usage", "{}") or "{}")
+    if providers:
+        return providers
+    windows = []
+    if row.get("five_hour_resets_at") or row.get("five_hour_pct"):
+        windows.append({
+            "id": "five_hour", "label": "5h",
+            "utilization": row.get("five_hour_pct", 0),
+            "window_minutes": 300,
+            "resets_at": row.get("five_hour_resets_at") or None,
+        })
+    if row.get("seven_day_resets_at") or row.get("seven_day_pct"):
+        windows.append({
+            "id": "seven_day", "label": "7d",
+            "utilization": row.get("seven_day_pct", 0),
+            "window_minutes": 10080,
+            "resets_at": row.get("seven_day_resets_at") or None,
+        })
+    return {"anthropic": {"label": "Claude", "windows": windows}} if windows else {}
 
 
 def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
@@ -1162,7 +1190,11 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
             "SELECT * FROM usage_snapshots WHERE ts > ? ORDER BY ts ASC",
             (cutoff,),
         ).fetchall()
-        raw = [dict(r) for r in rows]
+        raw = []
+        for db_row in rows:
+            row = dict(db_row)
+            row["providers"] = _usage_providers_from_row(row)
+            raw.append(row)
     if not raw:
         return []
     step = timedelta(minutes=step_minutes)
