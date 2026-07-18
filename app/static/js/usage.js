@@ -177,58 +177,48 @@ function renderUsageBar() {
                 const fh = _a.five_hour;
                 const sd = _a.seven_day;
                 const _row = (label, val, color) => `<div style="display:flex;justify-content:space-between"><span>${label}</span><span style="color:${color || '#cbd5e1'}">${val}</span></div>`;
-                let h = '<div style="color:#e2e8f0;font-weight:600;margin-bottom:10px">📊 Claude Max $100 + Codex Pro $100</div>';
+                const _windowBlock = (window, label, accent) => {
+                    const windowMs = window.window_minutes * 60000;
+                    const cd = _resetCountdown(window.resets_at);
+                    const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
+                    const eta = _etaToLimit(window.utilization, window.resets_at, windowMs);
+                    const rpNum = _resetPctNum(window.resets_at, windowMs);
+                    let html = `<div style="margin-bottom:9px"><div style="color:${accent};font-weight:600;margin-bottom:2px">${label} окно</div>`;
+                    html += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
+                    if (cd) html += _row('Сброс через', cd, '#64748b');
+                    if (rpNum != null) html += _row('Прогресс окна', `${rpNum}%`, '#64748b');
+                    html += _row('Отклонение', pace, null);
+                    if (eta) html += _row('Лимит через', eta, null);
+                    return html + '</div>';
+                };
+                let claudeHtml = '<section style="min-width:0;padding-right:2px">';
+                claudeHtml += '<div style="color:#38bdf8;font-weight:700;margin-bottom:7px">☕ Claude Max</div>';
                 if (fh) {
-                    const cd = _resetCountdown(fh.resets_at);
-                    const pace = _paceIndicator(fh.utilization, fh.resets_at, 5 * 3600000);
-                    const eta = _etaToLimit(fh.utilization, fh.resets_at, 5 * 3600000);
-                    const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
-                    h += `<div style="margin-bottom:8px"><div style="color:#38bdf8;font-weight:600;margin-bottom:2px">5h окно</div>`;
-                    h += _row('Использовано', `${fh.utilization}%`, fh.utilization >= 80 ? '#ef4444' : fh.utilization >= 50 ? '#eab308' : '#22c55e');
-                    if (cd) h += _row('Сброс через', cd, '#64748b');
-                    if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
-                    h += _row('Отклонение', pace, null);
-                    if (eta) h += _row('Лимит через', eta, null);
-                    h += '</div>';
+                    claudeHtml += _windowBlock({...fh, window_minutes:300}, '5h', '#38bdf8');
                 }
                 if (sd) {
-                    const cd = _resetCountdown(sd.resets_at);
-                    const pace = _paceIndicator(sd.utilization, sd.resets_at, 7 * 86400000);
-                    const eta = _etaToLimit(sd.utilization, sd.resets_at, 7 * 86400000);
-                    const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
-                    h += `<div style="margin-bottom:8px"><div style="color:#38bdf8;font-weight:600;margin-bottom:2px">7d окно</div>`;
-                    h += _row('Использовано', `${sd.utilization}%`, sd.utilization >= 80 ? '#ef4444' : sd.utilization >= 50 ? '#eab308' : '#22c55e');
-                    if (cd) h += _row('Сброс через', cd, '#64748b');
-                    if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
-                    h += _row('Отклонение', pace, null);
-                    if (eta) h += _row('Лимит через', eta, null);
-                    h += '</div>';
+                    claudeHtml += _windowBlock({...sd, window_minutes:10080}, '7d', '#38bdf8');
                 }
-                h += '<div id="usage-sparkline-slot" style="margin:8px 0"></div>';
+                claudeHtml += '<div data-usage-history="anthropic"></div></section>';
+
                 const codexProviders = [
                     {title:'✦ Codex Pro', accent:'#22c55e', windowAccent:'#86efac', windows:[_c.primary, _c.secondary].filter(Boolean)},
                     {title:'⚡ GPT-5.3-Codex-Spark', accent:'#f59e0b', windowAccent:'#fcd34d', windows:[_c.spark?.primary, _c.spark?.secondary].filter(Boolean)},
                 ].filter(provider => provider.windows.length);
+                let codexHtml = '<section style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
                 for (const provider of codexProviders) {
-                    h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:8px;margin-top:6px">';
-                    h += `<div style="color:${provider.accent};font-weight:600;margin-bottom:5px">${provider.title}</div>`;
+                    codexHtml += '<div style="border-bottom:1px solid rgba(51,65,85,0.45);padding-bottom:4px;margin-bottom:7px">';
+                    codexHtml += `<div style="color:${provider.accent};font-weight:700;margin-bottom:5px">${provider.title}</div>`;
                     for (const window of provider.windows) {
-                        const windowMs = window.window_minutes * 60000;
-                        const cd = _resetCountdown(window.resets_at);
-                        const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
-                        const eta = _etaToLimit(window.utilization, window.resets_at, windowMs);
-                        const rpNum = _resetPctNum(window.resets_at, windowMs);
-                        const label = _codexWindowLabel(window.window_minutes);
-                        h += `<div style="margin-bottom:8px"><div style="color:${provider.windowAccent};font-weight:600;margin-bottom:2px">${label} окно</div>`;
-                        h += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
-                        if (cd) h += _row('Сброс через', cd, '#64748b');
-                        if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
-                        h += _row('Отклонение', pace, null);
-                        if (eta) h += _row('Лимит через', eta, null);
-                        h += '</div>';
+                        codexHtml += _windowBlock(window, _codexWindowLabel(window.window_minutes), provider.windowAccent);
                     }
-                    h += '</div>';
+                    codexHtml += '</div>';
                 }
+                codexHtml += '<div data-usage-history="codex,codex_spark"></div></section>';
+
+                let h = '<div style="color:#e2e8f0;font-weight:700;margin-bottom:10px">📊 Usage control</div>';
+                h += '<div id="usage-sparkline-slot" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px">';
+                h += claudeHtml + codexHtml + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
@@ -242,10 +232,10 @@ function renderUsageBar() {
                     h += `<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">📈 Агенты: <span style="color:#cbd5e1">${_o.agents_count}</span></div>`;
                 }
                 tip = document.createElement('div');
-                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;max-width:320px;min-width:240px;backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,0.4);font-size:12px;line-height:1.6;color:#94a3b8';
+                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 52px);overflow:auto;overscroll-behavior:contain;backdrop-filter:blur(12px);box-shadow:0 12px 36px rgba(0,0,0,0.5);font-size:12px;line-height:1.6;color:#94a3b8';
                 tip.innerHTML = h;
                 const rect = infoBtn.getBoundingClientRect();
-                tip.style.left = Math.min(rect.left, window.innerWidth - 336) + 'px';
+                tip.style.right = '12px';
                 tip.style.top = (rect.bottom + 6) + 'px';
                 tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
                 tip.addEventListener('mouseleave', () => { delayedHide(); });
@@ -260,8 +250,8 @@ function renderUsageBar() {
 let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {};
 // Cache sparkline data for 5 minutes — tooltip opens frequently, avoid hammering /api/usage/history
 async function _loadSparkline(tipEl) {
-    const slot = tipEl.querySelector('#usage-sparkline-slot');
-    if (!slot) return;
+    const slots = [...tipEl.querySelectorAll('[data-usage-history]')];
+    if (!slots.length) return;
     const now = Date.now();
     if (!_sparkData || now - _sparkDataTs >= 300000) {
         try {
@@ -270,11 +260,16 @@ async function _loadSparkline(tipEl) {
         } catch { _sparkData = null; }
     }
     if (!Array.isArray(_sparkData) || _sparkData.length < 1) {
-        slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
+        slots.forEach(slot => {
+            slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
+        });
         return;
     }
     _sparkPeriodIdx = {};
-    _renderSparklines(slot);
+    slots.forEach(slot => {
+        const providerFilter = new Set(slot.dataset.usageHistory.split(','));
+        _renderSparklines(slot, providerFilter);
+    });
 }
 
 function _historyProviders(row) {
@@ -340,7 +335,7 @@ function _usagePeriods(series) {
     }).filter(period => period.length);
 }
 
-function _renderSparklines(slot) {
+function _renderSparklines(slot, providerFilter = null) {
     const data = _sparkData;
     if (!data || data.length < 1) return;
     const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
@@ -416,6 +411,7 @@ function _renderSparklines(slot) {
     }
     let html = '';
     for (const [providerId, providerSeries] of grouped) {
+        if (providerFilter && !providerFilter.has(providerId)) continue;
         const palette = providerColors[providerId] || ['#c084fc', '#f0abfc'];
         html += `<div style="border-top:1px solid rgba(51,65,85,0.45);padding-top:7px;margin-top:7px">`;
         html += `<div style="font-size:10px;color:${palette[0]};font-weight:700;letter-spacing:.04em;margin-bottom:4px">${providerSeries[0].providerLabel} history</div>`;
@@ -449,7 +445,7 @@ function _renderSparklines(slot) {
             const key = button.dataset.sparkKey;
             const delta = button.dataset.sparkNav === 'older' ? 1 : -1;
             _sparkPeriodIdx[key] = Math.max(0, (_sparkPeriodIdx[key] || 0) + delta);
-            _renderSparklines(slot);
+            _renderSparklines(slot, providerFilter);
         });
     });
 }
