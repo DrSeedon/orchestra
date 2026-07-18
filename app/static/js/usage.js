@@ -249,7 +249,7 @@ function renderUsageBar() {
     }
 }
 
-let _sparkData = null, _sparkDataTs = 0, _spark7dWeekIdx = 0;
+let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {};
 // Cache sparkline data for 5 minutes — tooltip opens frequently, avoid hammering /api/usage/history
 async function _loadSparkline(tipEl) {
     const slot = tipEl.querySelector('#usage-sparkline-slot');
@@ -261,21 +261,88 @@ async function _loadSparkline(tipEl) {
             _sparkDataTs = now;
         } catch { _sparkData = null; }
     }
-    if (!Array.isArray(_sparkData) || _sparkData.length < 3) {
+    if (!Array.isArray(_sparkData) || _sparkData.length < 1) {
         slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
         return;
     }
-    _spark7dWeekIdx = 0;
+    _sparkPeriodIdx = {};
     _renderSparklines(slot);
+}
+
+function _historyProviders(row) {
+    if (row?.providers && typeof row.providers === 'object') return row.providers;
+    const windows = [];
+    if (row?.five_hour_resets_at || Number(row?.five_hour_pct)) {
+        windows.push({id:'five_hour', label:'5h', utilization:Number(row.five_hour_pct) || 0,
+            window_minutes:300, resets_at:row.five_hour_resets_at || null});
+    }
+    if (row?.seven_day_resets_at || Number(row?.seven_day_pct)) {
+        windows.push({id:'seven_day', label:'7d', utilization:Number(row.seven_day_pct) || 0,
+            window_minutes:10080, resets_at:row.seven_day_resets_at || null});
+    }
+    return windows.length ? {anthropic:{label:'Claude', windows}} : {};
+}
+
+function _usageHistorySeries(data) {
+    const series = new Map();
+    for (const row of data) {
+        for (const [providerId, provider] of Object.entries(_historyProviders(row))) {
+            for (const window of provider.windows || []) {
+                if (!Number.isFinite(Number(window.utilization)) || !Number(window.window_minutes)) continue;
+                const key = `${providerId}:${window.id}`;
+                if (!series.has(key)) {
+                    series.set(key, {
+                        key, providerId, providerLabel: provider.label || providerId,
+                        windowId: window.id, windowLabel: window.label || _codexWindowLabel(window.window_minutes),
+                        points: [],
+                    });
+                }
+                series.get(key).points.push({
+                    ts: row.ts,
+                    utilization: Number(window.utilization),
+                    resets_at: window.resets_at || null,
+                    window_minutes: Number(window.window_minutes),
+                });
+            }
+        }
+    }
+    return [...series.values()];
+}
+
+function _usagePeriods(series) {
+    const raw = [];
+    let current = [];
+    for (const point of series.points) {
+        const prev = current[current.length - 1];
+        const resetChanged = prev?.resets_at && point.resets_at &&
+            Math.abs(new Date(point.resets_at) - new Date(prev.resets_at)) > 3600000;
+        const durationChanged = prev && prev.window_minutes !== point.window_minutes;
+        if (current.length && (resetChanged || durationChanged)) {
+            raw.push(current);
+            current = [];
+        }
+        current.push(point);
+    }
+    if (current.length) raw.push(current);
+    return raw.map(period => {
+        const latest = period[period.length - 1];
+        if (!latest?.resets_at) return period;
+        const start = new Date(latest.resets_at).getTime() - latest.window_minutes * 60000;
+        return period.filter(point => new Date(point.ts).getTime() >= start);
+    }).filter(period => period.length);
 }
 
 function _renderSparklines(slot) {
     const data = _sparkData;
-    if (!data || data.length < 3) return;
+    if (!data || data.length < 1) return;
     const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
     const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const providerColors = {
+        anthropic: ['#38bdf8', '#f97316'],
+        codex: ['#22c55e', '#a3e635'],
+    };
 
-    const mkSvg = (pts, idealPts, color, xLabels, midnights) => {
+    const mkSvg = (pts, idealPts, color, guides) => {
         const allV = [...pts.map(p=>p.v), ...idealPts.map(p=>p.v)];
         let yMin = Math.floor(Math.min(...allV)), yMax = Math.ceil(Math.max(...allV));
         if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
@@ -285,14 +352,14 @@ function _renderSparklines(slot) {
             const y = gh - ((Math.min(p.v, 100) - yMin) / yRange) * gh;
             return `${x.toFixed(1)},${y.toFixed(1)}`;
         }).join(' ');
-        const totalH = xLabels ? H + 12 : H;
+        const totalH = H + 12;
         let s = `<svg width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" style="display:block">`;
         s += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
         s += `<text x="${PL - 3}" y="${gh - 1}" text-anchor="end" fill="#64748b" font-size="9">${yMin}%</text>`;
-        for (const m of midnights) {
-            const mx = PL + m.t * gw;
+        for (const guide of guides) {
+            const mx = PL + guide.t * gw;
             s += `<line x1="${mx}" y1="0" x2="${mx}" y2="${gh}" stroke="rgba(100,116,139,0.3)" stroke-width="0.5"/>`;
-            if (xLabels) s += `<text x="${mx}" y="${H + 11}" text-anchor="middle" fill="#64748b" font-size="8">${m.label}</text>`;
+            s += `<text x="${mx}" y="${H + 11}" text-anchor="middle" fill="#64748b" font-size="8">${guide.label}</text>`;
         }
         if (idealPts.length >= 2) s += `<polyline points="${toStr(idealPts)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
         if (pts.length >= 2) s += `<polyline points="${toStr(pts)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
@@ -301,79 +368,81 @@ function _renderSparklines(slot) {
         return s;
     };
 
-    const getMidnights = (slice) => {
+    const getGuides = (slice) => {
         if (slice.length < 2) return [];
         const t0 = new Date(slice[0].ts).getTime(), tN = new Date(slice[slice.length-1].ts).getTime();
         const range = tN - t0 || 1;
-        const mids = [];
-        const first = new Date(slice[0].ts); first.setHours(0,0,0,0); first.setDate(first.getDate()+1);
-        for (let d = first.getTime(); d < tN; d += 86400000) {
-            mids.push({ t: (d - t0) / range, label: DAYS[new Date(d).getDay()] });
+        const step = range > 36 * 3600000 ? 86400000 : range > 8 * 3600000 ? 6 * 3600000 : 3600000;
+        const guides = [];
+        for (let at = Math.ceil(t0 / step) * step; at < tN; at += step) {
+            const date = new Date(at);
+            const label = step === 86400000
+                ? DAYS[date.getDay()]
+                : `${String(date.getHours()).padStart(2, '0')}:00`;
+            guides.push({t:(at - t0) / range, label});
         }
-        return mids;
+        return guides;
     };
 
-    const mkPts = (slice, key, resetKey, windowMs) => {
+    const mkPts = (slice) => {
         if (!slice.length) return { pts: [], ideal: [] };
         const t0 = new Date(slice[0].ts).getTime(), tN = new Date(slice[slice.length-1].ts).getTime();
         const range = tN - t0 || 1;
         const pts = [], ideal = [];
-        for (const d of slice) {
-            const t = (new Date(d.ts).getTime() - t0) / range;
-            pts.push({ t, v: d[key] || 0 });
-            const ra = d[resetKey]; if (!ra) { ideal.push({ t, v: 0 }); continue; }
-            const remain = new Date(ra) - new Date(d.ts);
-            const elapsed = windowMs - remain;
-            ideal.push({ t, v: Math.max(0, Math.min(100, elapsed / windowMs * 100)) });
+        for (const point of slice) {
+            const t = (new Date(point.ts).getTime() - t0) / range;
+            pts.push({t, v:point.utilization});
+            if (!point.resets_at) { ideal.push({t, v:0}); continue; }
+            const windowMs = point.window_minutes * 60000;
+            const remain = new Date(point.resets_at) - new Date(point.ts);
+            ideal.push({t, v:Math.max(0, Math.min(100, (windowMs - remain) / windowMs * 100))});
         }
         return { pts, ideal };
     };
 
-    // Split history into 7-day billing periods by detecting when resets_at changes.
-    // 1h gap threshold avoids false splits from clock skew or API flakiness.
-    const rawWeeks = []; let curWeek = [data[0]];
-    for (let i = 1; i < data.length; i++) {
-        const prev = data[i-1], cur = data[i];
-        const prevReset = prev.seven_day_resets_at, curReset = cur.seven_day_resets_at;
-        const isNewPeriod = prevReset && curReset && prevReset !== curReset &&
-            new Date(curReset) - new Date(prevReset) > 3600000;
-        if (isNewPeriod) {
-            rawWeeks.push(curWeek);
-            curWeek = [];
-        }
-        curWeek.push(data[i]);
+    const grouped = new Map();
+    for (const series of _usageHistorySeries(data)) {
+        if (!grouped.has(series.providerId)) grouped.set(series.providerId, []);
+        grouped.get(series.providerId).push(series);
     }
-    if (curWeek.length > 0) rawWeeks.push(curWeek);
-    const weeks = rawWeeks.map(w => {
-        const resetAt = w[w.length - 1]?.seven_day_resets_at;
-        if (!resetAt) return w;
-        const periodStart = new Date(resetAt).getTime() - 7 * 86400000;
-        return w.filter(d => new Date(d.ts).getTime() >= periodStart);
-    }).filter(w => w.length > 0);
-
-    const wi = Math.max(0, Math.min(_spark7dWeekIdx, weeks.length - 1));
-    const weekData = weeks[weeks.length - 1 - wi];
-    const hasPrev = wi < weeks.length - 1;
-    const hasNext = wi > 0;
-    const sd = mkPts(weekData, 'seven_day_pct', 'seven_day_resets_at', 7*86400000);
-    const sdMids = getMidnights(weekData);
-    const fh = mkPts(weekData, 'five_hour_pct', 'five_hour_resets_at', 5*3600000);
-    const fhMids = getMidnights(weekData);
-    const fhCur = weekData[weekData.length-1]?.five_hour_pct || 0;
-    let html = `<div style="margin-bottom:4px"><div style="font-size:10px;color:#38bdf8;margin-bottom:1px;font-weight:600">5h <span style="color:#64748b;font-weight:normal">${fhCur}%</span></div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(fh.pts, fh.ideal, '#38bdf8', true, fhMids)}</div>`;
-
-    const sdCur = weekData[weekData.length-1]?.seven_day_pct || 0;
-    const navLeft = hasPrev ? `<span id="spark-7d-prev" style="cursor:pointer;color:#64748b;hover:color:#94a3b8">◀</span> ` : '<span style="color:#1e293b">◀</span> ';
-    const navRight = hasNext ? ` <span id="spark-7d-next" style="cursor:pointer;color:#64748b">▶</span>` : ` <span style="color:#1e293b">▶</span>`;
-    const weekLabel = wi === 0 ? 'current' : `${wi}w ago`;
-    html += `<div style="margin-bottom:4px"><div style="font-size:10px;margin-bottom:1px;display:flex;align-items:center;gap:4px">${navLeft}<span style="color:#f97316;font-weight:600">7d</span> <span style="color:#64748b;font-weight:normal">${sdCur}% · ${weekLabel}</span>${navRight}</div><div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${sd.pts.length >= 1 ? mkSvg(sd.pts, sd.ideal, '#f97316', true, sdMids) : '<div style="font-size:10px;color:#475569;font-style:italic">Not enough data</div>'}</div>`;
-
-    slot.innerHTML = html;
-
-    const prevBtn = slot.querySelector('#spark-7d-prev');
-    const nextBtn = slot.querySelector('#spark-7d-next');
-    if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); _spark7dWeekIdx++; _renderSparklines(slot); });
-    if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); _spark7dWeekIdx--; _renderSparklines(slot); });
+    let html = '';
+    for (const [providerId, providerSeries] of grouped) {
+        const palette = providerColors[providerId] || ['#c084fc', '#f0abfc'];
+        html += `<div style="border-top:1px solid rgba(51,65,85,0.45);padding-top:7px;margin-top:7px">`;
+        html += `<div style="font-size:10px;color:${palette[0]};font-weight:700;letter-spacing:.04em;margin-bottom:4px">${providerSeries[0].providerLabel} history</div>`;
+        providerSeries.forEach((series, index) => {
+            const periods = _usagePeriods(series);
+            const periodIdx = Math.max(0, Math.min(_sparkPeriodIdx[series.key] || 0, periods.length - 1));
+            _sparkPeriodIdx[series.key] = periodIdx;
+            const period = periods[periods.length - 1 - periodIdx];
+            if (!period?.length) return;
+            const hasOlder = periodIdx < periods.length - 1;
+            const hasNewer = periodIdx > 0;
+            const color = palette[index % palette.length];
+            const current = period[period.length - 1].utilization;
+            const points = mkPts(period);
+            const label = periodIdx === 0 ? 'current' : `${periodIdx} period${periodIdx === 1 ? '' : 's'} ago`;
+            const older = hasOlder
+                ? `<span data-spark-nav="older" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">◀</span>`
+                : '<span style="color:#1e293b">◀</span>';
+            const newer = hasNewer
+                ? `<span data-spark-nav="newer" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">▶</span>`
+                : '<span style="color:#1e293b">▶</span>';
+            html += `<div style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${series.windowLabel}</span><span style="color:#64748b">${current}% · ${label}</span>${newer}</div>`;
+            html += `<div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(points.pts, points.ideal, color, getGuides(period))}</div>`;
+        });
+        html += '</div>';
+    }
+    slot.innerHTML = html || '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
+    slot.querySelectorAll('[data-spark-nav]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            const key = button.dataset.sparkKey;
+            const delta = button.dataset.sparkNav === 'older' ? 1 : -1;
+            _sparkPeriodIdx[key] = Math.max(0, (_sparkPeriodIdx[key] || 0) + delta);
+            _renderSparklines(slot);
+        });
+    });
 }
 
 async function fetchUsage() {
