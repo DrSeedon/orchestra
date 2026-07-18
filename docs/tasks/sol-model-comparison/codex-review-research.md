@@ -1,0 +1,17 @@
+Naturally, the routing plan breaks hardest exactly where YAML starts pretending to be runtime policy.
+
+issue: [docs/tasks/sol-model-comparison/research.md:34] and [docs/tasks/sol-model-comparison/research.md:165] recommend Luna `high` for disposable workers, but the benchmark table in the same doc only supports Luna `high` as roughly Sol `low`, not current Sol `medium`. The baseline is explicitly Sol `medium` at [docs/tasks/sol-model-comparison/research.md:7], while the matrix shows Luna `high` 48 vs Sol `medium` 55 at [docs/tasks/sol-model-comparison/research.md:102]. That is a material quality regression against the actual baseline, not a validated replacement.
+
+issue: The proposed `disposable` role does not actually automate Luna routing. Session creation resolves the request model before role handling in [app/manager.py:396], the API default model is still `claude-sonnet-5[1m]` in [app/routes/sessions.py:28], MCP `spawn_worker` requires an explicit `model` in [app/mcp_stdio.py:62], and manager only reads role `effort` at [app/manager.py:505]. So adding `model: gpt5.6luna` to [docs/tasks/sol-model-comparison/research.md:198] is not sufficient unless all spawners also pass Luna or manager/API logic starts deriving model from role.
+
+issue: The local experiment is too leading to support the routing recommendation. [docs/tasks/sol-model-comparison/experiment-prompt.txt:7] gives the model the exact candidate bug IDs and descriptions, so the task tests recognition from a supplied checklist more than independent review ability. Combined with `n=2`, no tools, no file edits, and no raw logs beside [docs/tasks/sol-model-comparison/research.md:136], it should not be used as evidence for “clear impl/fix workers” beyond a sanity smoke test.
+
+issue: The subscription-throughput conclusion for Luna `high` is under-supported. The OpenAI pricing page confirms Pro 5x ranges by model, but also says model choice, context, reasoning, tool use, retrieval, and caching all affect allowance consumption; the doc itself repeats this at [docs/tasks/sol-model-comparison/research.md:153]. That means “Luna has much higher subscription throughput” at [docs/tasks/sol-model-comparison/research.md:165] is not proven for Luna `high` vs Sol `medium` in Orchestra’s actual tool-heavy workflow.
+
+suggestion: Change the disposable recommendation to “unproven candidate” unless you compare Luna `high` and Luna `max` directly against Sol `medium` on real Orchestra tasks with tools, tests, retries, wall time, and five-hour allowance depletion.
+
+question: Where are the raw Codex JSONL outputs for the six local runs? Without them, [docs/tasks/sol-model-comparison/research.md:140] through [docs/tasks/sol-model-comparison/research.md:145] cannot be audited for prompt parity, cached context effects, or whether the runs used the intended model/effort.
+
+praise: The doc correctly avoids mixing the OpenAI launch scale with the rescaled live AA matrix, and the Ultra caution matches OpenAI’s Codex model guidance that Max is single-task reasoning while Ultra uses subagents. Sources checked: [OpenAI Codex models](https://learn.chatgpt.com/docs/models), [OpenAI pricing](https://learn.chatgpt.com/docs/pricing), [OpenAI model catalog](https://developers.openai.com/api/docs/models), [Artificial Analysis launch analysis](https://artificialanalysis.ai/articles/gpt-5-6-has-landed).
+
+VERDICT: BLOCKED
