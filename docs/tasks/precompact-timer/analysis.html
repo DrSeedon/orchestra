@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='5' fill='%230a0c0b'/><path d='M5 21h22M8 17l4-4 4 3 8-9' fill='none' stroke='%23d8ff3e' stroke-width='3'/><path d='M24 5v8' stroke='%23ff6b45' stroke-width='3'/></svg>">
+<title>Orchestra — preventive compact timer: анализ реальных idle gaps</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
+<style>
+:root {
+  --bg:#090b0a; --panel:#111512; --panel2:#171c18; --line:#2a332d;
+  --ink:#f1f0e8; --muted:#a7afa8; --acid:#d8ff3e; --orange:#ff6b45;
+  --blue:#67b8ff; --danger:#ff5570; --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:"Avenir Next","Gill Sans",Calibri,sans-serif; --mono:"IBM Plex Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box} html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;color:var(--ink);font:16px/1.58 var(--serif);background:
+  linear-gradient(90deg,transparent 0 49.85%,#d8ff3e0a 49.85% 50.15%,transparent 50.15%),
+  radial-gradient(circle at 82% 4%,#d8ff3e12,transparent 22rem),var(--bg)}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;z-index:99;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E")}
+.wrap{width:min(1180px,calc(100% - 32px));margin:auto}.eyebrow,.label,.chip,th,.nav a{font-family:var(--sans);text-transform:uppercase;letter-spacing:.105em}
+header{min-height:88vh;display:grid;align-content:center;padding:84px 0 54px;border-bottom:1px solid var(--line);position:relative}
+.eyebrow{color:var(--acid);font-size:12px;font-weight:700}.hero-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.6fr);gap:54px;align-items:end}
+h1{font:700 clamp(3.4rem,8vw,7.5rem)/.87 var(--sans);letter-spacing:-.075em;margin:.32em 0 .18em;max-width:9ch}
+h1 span{color:var(--acid)}.dek{font-size:clamp(1.15rem,2vw,1.48rem);line-height:1.38;max-width:63ch;color:#d8d8d0}.dek strong{color:var(--ink)}
+.stamp{border:1px solid var(--acid);padding:22px;transform:rotate(1.2deg);background:#0c100d;box-shadow:9px 9px 0 #d8ff3e14}
+.stamp .big{font:800 4.4rem/.9 var(--sans);letter-spacing:-.06em;color:var(--acid)}.stamp p{margin:.7rem 0 0;color:var(--muted)}
+.hero-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}.chip{font-size:10px;border:1px solid var(--line);padding:7px 9px;color:var(--muted);background:#0d100e}
+.nav{position:sticky;top:0;z-index:20;background:#090b0aed;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}.nav .wrap{display:flex;gap:20px;overflow:auto;padding:12px 0}.nav a{color:var(--muted);font-size:10px;text-decoration:none;white-space:nowrap}.nav a:hover{color:var(--acid)}
+section{padding:84px 0;border-bottom:1px solid var(--line);scroll-margin-top:46px}.section-head{display:grid;grid-template-columns:95px 1fr;gap:24px;margin-bottom:34px}.index{font:800 2.8rem/.9 var(--sans);color:var(--acid);letter-spacing:-.05em}
+h2{font:700 clamp(2rem,4vw,3.7rem)/.98 var(--sans);letter-spacing:-.045em;margin:0;max-width:16ch}h3{font:700 1.1rem/1.25 var(--sans);margin:0 0 8px}p{margin:.6rem 0}.lead{color:var(--muted);font-size:1.13rem;max-width:74ch}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:26px 0}.kpi{background:var(--panel);padding:22px}.kpi .v{font:750 clamp(1.8rem,4vw,3.2rem)/1 var(--sans);letter-spacing:-.045em}.kpi .v.acid{color:var(--acid)}.kpi .v.orange{color:var(--orange)}.kpi .l{font:11px/1.35 var(--sans);color:var(--muted);margin-top:9px;text-transform:uppercase;letter-spacing:.07em}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.card{border:1px solid var(--line);background:var(--panel);padding:22px;min-width:0}.card.accent{border-color:var(--acid);box-shadow:inset 0 0 0 1px #d8ff3e1c}.card p{color:var(--muted);font-size:.95rem}.card strong{color:var(--ink)}
+.chart{border:1px solid var(--line);background:linear-gradient(180deg,#121713,#0e120f);padding:20px;margin:20px 0}.chart-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:14px}.chart-head p{margin:0;color:var(--muted);font:12px/1.4 var(--sans)}.chart-box{height:350px;position:relative}.chart-box.tall{height:410px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}.control{border:1px solid var(--line);background:var(--panel);padding:18px}.control label{display:flex;justify-content:space-between;font:700 12px/1 var(--sans);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.control output{color:var(--acid);font:800 20px/1 var(--mono)}input[type=range]{width:100%;accent-color:var(--acid);margin-top:18px}
+table{width:100%;border-collapse:collapse;font:13px/1.4 var(--sans);margin:18px 0}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left}th{font-size:9px;color:var(--muted)}td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}tr:hover td{background:#d8ff3e08}.good{color:var(--acid)}.warn{color:var(--orange)}.bad{color:var(--danger)}
+.formula{font:13px/1.75 var(--mono);padding:18px;border-left:3px solid var(--blue);background:#67b8ff0c;overflow:auto}.formula b{color:var(--blue)}
+.decision{padding:32px;border:1px solid var(--acid);background:linear-gradient(135deg,#d8ff3e12,transparent 52%),var(--panel);position:relative;overflow:hidden}.decision:after{content:"55";position:absolute;right:-8px;bottom:-43px;font:900 11rem/1 var(--sans);color:#d8ff3e0b}.decision h3{font-size:1.5rem;color:var(--acid)}
+.guardrails{counter-reset:g;display:grid;gap:1px;background:var(--line);border:1px solid var(--line)}.guard{counter-increment:g;background:var(--panel);padding:18px 20px;display:grid;grid-template-columns:42px 1fr;gap:10px}.guard:before{content:counter(g,decimal-leading-zero);font:800 18px/1 var(--mono);color:var(--orange)}.guard b{font-family:var(--sans)}
+.note{border-left:3px solid var(--orange);padding:14px 18px;background:#ff6b450a;color:var(--muted);margin:20px 0}.note strong{color:var(--ink)}details{border:1px solid var(--line);background:var(--panel);padding:0 18px;margin:12px 0}summary{cursor:pointer;padding:15px 0;font:700 13px/1.3 var(--sans)}details p,details li{color:var(--muted);font-size:.92rem}
+code{font-family:var(--mono);font-size:.86em;background:#ffffff0d;padding:.15em .38em;color:#e9f6de}a{color:var(--blue)}footer{padding:48px 0 76px;color:var(--muted);font:12px/1.7 var(--sans)}
+.reveal{animation:up .7s both}.reveal:nth-child(2){animation-delay:.08s}.reveal:nth-child(3){animation-delay:.16s}@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@media(max-width:820px){header{min-height:auto}.hero-grid,.section-head,.grid2,.grid3,.controls{grid-template-columns:1fr}.stamp{transform:none}.kpis{grid-template-columns:1fr 1fr}.section-head{gap:10px}.index{font-size:1.5rem}.chart-box{height:300px}section{padding:58px 0}}
+@media(max-width:520px){.wrap{width:min(100% - 20px,1180px)}h1{font-size:3.35rem}.kpis{grid-template-columns:1fr}.chart{padding:12px}.chart-box{height:270px}.hero-meta{gap:6px}table{display:block;overflow-x:auto}code{overflow-wrap:anywhere;word-break:break-all}}
+@media print{.nav,.controls{display:none}.wrap{width:100%}body{background:#fff;color:#111}.card,.chart,.kpi,.decision,.guard{background:#fff;color:#111;break-inside:avoid}.lead,.card p,.note{color:#444}section{padding:35px 0}.chart-box{height:280px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap hero-grid">
+    <div class="reveal">
+      <div class="eyebrow">Orchestra / cache flight recorder / 2026-07-18</div>
+      <h1>Compact до <span>нуля</span></h1>
+      <p class="dek"><strong>Да, делать.</strong> На реальных логах Orchestra таймер на 55-й минуте правильно предсказывает переход через TTL примерно в 99% случаев. Policy-aligned оценка после <code>turn ended</code>: 98.91% / 98.68%. Но только для idle Claude-сессий, один раз за эпизод и при контексте выше 5%.</p>
+      <div class="hero-meta"><span class="chip">34 216 Claude logs</span><span class="chip">119 sessions</span><span class="chip">9.74 days</span><span class="chip">Asia/Krasnoyarsk</span></div>
+    </div>
+    <aside class="stamp reveal"><div class="label">Production timer</div><div class="big">55m</div><p>Для оркестраторов и воркеров. Математический край — 59m, но он оставляет таймеру и compact всего минуту.</p></aside>
+  </div>
+</header>
+<nav class="nav"><div class="wrap"><a href="#verdict">Вердикт</a><a href="#sample">Выборка</a><a href="#gaps">Гистограмма</a><a href="#sweep">Свип</a><a href="#false">False rate</a><a href="#ev">Breakeven</a><a href="#hours">Часы</a><a href="#sensitivity">Sensitivity</a><a href="#policy">Политика</a></div></nav>
+
+<main>
+<section id="verdict"><div class="wrap">
+  <div class="section-head"><div class="index">00</div><div><h2>Ответ без ритуальных танцев</h2><p class="lead">Паттерны Orchestra отличаются от Кеши в середине кривой, но у самой границы TTL сходятся: если агент молчит уже 55 минут, возврат до часа почти не случается.</p></div></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v acid">98.91%</div><div class="l">Policy P(correct) · orchestrators · 91/92</div></div>
+    <div class="kpi"><div class="v acid">98.68%</div><div class="l">Policy P(correct) · workers · 75/76</div></div>
+    <div class="kpi"><div class="v orange">1.09%</div><div class="l">Policy false · orchestrators · 1 случай</div></div>
+    <div class="kpi"><div class="v orange">1.32%</div><div class="l">Policy false · workers · 1 случай</div></div>
+  </div>
+  <div class="grid2">
+    <div class="decision"><h3>Рекомендация: включать</h3><p><strong>Orchestrators: T=55m. Workers: T=55m.</strong> Разные таймеры данным не нужны. При T=50 воркеры уже надёжнее оркестраторов (97.9% vs 94.8%), но ожидание до 55 почти обнуляет разницу.</p></div>
+    <div class="card"><h3>Контекстный порог</h3><p>По policy-aligned оценке breakeven на T=55 — <strong class="good">4.25% ctx</strong> у обоих типов. Наблюдаемая медиана после <code>turn ended</code> — 33% у оркестраторов и 37% у воркеров: запас по EV огромный.</p><p>При 40% контекста один trigger даёт ожидаемые <strong>около $1.16 virtual saving</strong>.</p></div>
+  </div>
+</div></section>
+
+<section id="sample"><div class="wrap">
+  <div class="section-head"><div class="index">01</div><div><h2>Что именно измерено</h2><p class="lead">Snapshot SQLite, а не текущая живая БД: числа не менялись во время расчёта. Группировка по стабильному session ID; имя — только подпись.</p></div></div>
+  <div class="grid3">
+    <div class="card"><h3>Primary sample</h3><p><strong>34 216 логов</strong>, 119 Claude-сессий: 16 orchestrators и 103 workers/full-cycle. Получено 12 383 + 21 714 соседних gap.</p></div>
+    <div class="card"><h3>Осознанное исключение</h3><p><strong>947 логов / 6 Codex-сессий</strong> исключены: Anthropic Max TTL и заданная cost-модель к ним неприменимы.</p></div>
+    <div class="card"><h3>Окно</h3><p>2026-07-08 12:04 UTC → 2026-07-18 05:51 UTC, <strong>9.741 дня</strong>. Snapshot SHA-256: <code>2cf00b36…c15f0</code>.</p></div>
+  </div>
+  <div class="formula"><b>trigger(T)</b> = gap &gt; T · <b>correct</b> = gap &gt; 60m · <b>false</b> = T &lt; gap ≤ 60m · <b>Pcorrect</b> = correct / trigger</div>
+  <div class="note"><strong>Почему не group by name буквально:</strong> имя <code>nir-writer</code> встречается в двух scopes. Слияние сделало бы искусственные gaps между независимыми сессиями. Фактический аналог session_name здесь — <code>logs.session_id → sessions.id</code>.</div>
+</div></section>
+
+<section id="gaps"><div class="wrap">
+  <div class="section-head"><div class="index">02</div><div><h2>Работа — вспышками. Пауза — обрывом</h2><p class="lead">92.6% orchestrator gaps и 96.5% worker gaps короче минуты: это события внутри одного turn. Полезный сигнал лежит в хвосте, поэтому ось количества логарифмическая.</p></div></div>
+  <div class="chart"><div class="chart-head"><div><h3>Idle-gap histogram</h3><p>Все последовательные log gaps · count · log scale</p></div><span class="chip">12 bins</span></div><div class="chart-box tall"><canvas id="histChart"></canvas></div></div>
+  <div class="grid2">
+    <div class="card"><h3>Orchestrators</h3><p>Из 918 пауз длиннее минуты <strong>127 (13.8%)</strong> пересекли 60m. Median хвоста &gt;1m — 4.9m. Long-gap rate на всех событиях — 1.03%.</p></div>
+    <div class="card"><h3>Workers</h3><p>Из 752 пауз длиннее минуты <strong>138 (18.4%)</strong> пересекли 60m. Median хвоста &gt;1m — 7.1m. Long-gap rate на всех событиях — 0.64%.</p></div>
+  </div>
+</div></section>
+
+<section id="sweep"><div class="wrap">
+  <div class="section-head"><div class="index">03</div><div><h2>Вероятность растёт к cliff edge</h2><p class="lead">P(gap&gt;60 | gap&gt;T) для каждой минуты 1–59. Worker tail становится предсказуемым раньше; к T=55 обе линии уже практически совпали.</p></div></div>
+  <div class="controls">
+    <div class="control"><label>Timer T <output id="timerOut">55m</output></label><input id="timer" type="range" min="1" max="59" value="55"></div>
+    <div class="control"><label>Context <output id="ctxOut">40%</output></label><input id="ctx" type="range" min="5" max="100" value="40"></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="oProb">99.22%</div><div class="l">Orchestrator P correct</div></div>
+    <div class="kpi"><div class="v" id="wProb">99.28%</div><div class="l">Worker P correct</div></div>
+    <div class="kpi"><div class="v" id="oN">128</div><div class="l">Orchestrator triggers</div></div>
+    <div class="kpi"><div class="v" id="wN">139</div><div class="l">Worker triggers</div></div>
+  </div>
+  <div class="chart"><div class="chart-head"><div><h3>Conditional survival</h3><p>Зона 55–59 подсвечена как операционный buffer</p></div></div><div class="chart-box"><canvas id="pChart"></canvas></div></div>
+  <table id="sweepTable"><thead><tr><th>T</th><th class="num">Orch P&gt;60</th><th class="num">Orch false</th><th class="num">Worker P&gt;60</th><th class="num">Worker false</th></tr></thead><tbody></tbody></table>
+</div></section>
+
+<section id="false"><div class="wrap">
+  <div class="section-head"><div class="index">04</div><div><h2>False compact почти исчезает</h2><p class="lead">Ложное срабатывание — compact состоялся, но следующий лог пришёл до 60m. T=55 оставляет два наблюдения из 267 triggers: один orchestrator gap 58.149m и один worker gap 59.152m.</p></div></div>
+  <div class="chart"><div class="chart-head"><div><h3>False-trigger rate, minute by minute</h3><p>1 − Pcorrect · lower is better</p></div></div><div class="chart-box"><canvas id="falseChart"></canvas></div></div>
+  <div class="note"><strong>59m — не бесплатный апгрейд:</strong> у workers false-rate остаётся 0.72% из-за реального gap 59.152m, а операционного запаса остаётся одна минута. Выигрыш против 55m статистически ничтожен; риск опоздать к TTL — нет.</div>
+</div></section>
+
+<section id="ev"><div class="wrap">
+  <div class="section-head"><div class="index">05</div><div><h2>Breakeven ниже рабочего контекста</h2><p class="lead">Cost-модель ровно из постановки. Виртуальные доллары трактуются как burn лимитов Max, а не как счёт к оплате.</p></div></div>
+  <div class="formula"><b>x</b> = ctx/100<br><b>cold(x)</b> = $3.50x · <b>compact(x)</b> = $0.20x · <b>cold_after</b> = $0.14<br><b>EV</b> = Pc × (3.50x − 0.14 − 0.20x) − Pf × 0.20x</div>
+  <div class="chart"><div class="chart-head"><div><h3 id="evTitle">EV per trigger at 40% ctx</h3><p>Двигается slider контекста выше</p></div><span class="chip" id="evChip">+$1.17 @ T55</span></div><div class="chart-box"><canvas id="evChart"></canvas></div></div>
+  <div class="chart"><div class="chart-head"><div><h3>Breakeven context by timer</h3><p>Даже ранние triggers окупаются по cost-only модели; semantic loss здесь не оценён</p></div></div><div class="chart-box"><canvas id="beChart"></canvas></div></div>
+  <div class="grid2">
+    <div class="card accent"><h3>Orchestrator median = 37%</h3><p>При корректном trigger: cold без compact ≈ <strong>$1.30</strong>; compact + cold-small ≈ <strong>$0.21</strong>. Чистая экономия ≈ <strong>$1.08</strong>.</p><p>Контекст известен для 119/128 triggers (92.97%).</p></div>
+    <div class="card accent"><h3>Worker median = 35%</h3><p>При корректном trigger: cold без compact ≈ <strong>$1.23</strong>; compact + cold-small ≈ <strong>$0.21</strong>. Чистая экономия ≈ <strong>$1.02</strong>.</p><p>Контекст известен для 111/139 triggers (79.86%).</p></div>
+  </div>
+</div></section>
+
+<section id="hours"><div class="wrap">
+  <div class="section-head"><div class="index">06</div><div><h2>Длинные паузы стартуют днём</h2><p class="lead">По количеству long gaps лидирует 12–18, потому что там же максимум активности. По условной вероятности среди пауз &gt;1m ночь выше, но ночная выборка мала.</p></div></div>
+  <div class="chart"><div class="chart-head"><div><h3>Hour-of-day · Asia/Krasnoyarsk</h3><p>Bars = gaps &gt;60m · lines = P(&gt;60m | &gt;1m)</p></div></div><div class="chart-box tall"><canvas id="hourChart"></canvas></div></div>
+  <table><thead><tr><th>Период</th><th class="num">Orch long / rate</th><th class="num">Worker long / rate</th><th>Чтение</th></tr></thead><tbody>
+    <tr><td>Ночь 23–08</td><td class="num">9 / 32.1%</td><td class="num">5 / 20.8%</td><td>Высокая propensity, но n=28/24</td></tr>
+    <tr><td>Утро 08–12</td><td class="num">7 / 4.1%</td><td class="num">18 / 11.9%</td><td>Самый непрерывный режим</td></tr>
+    <tr><td>День 12–18</td><td class="num">71 / 13.9%</td><td class="num">88 / 20.0%</td><td>Максимум абсолютных triggers</td></tr>
+    <tr><td>Вечер 18–23</td><td class="num">40 / 19.2%</td><td class="num">27 / 19.7%</td><td>Вероятность ухода растёт</td></tr>
+  </tbody></table>
+  <div class="note"><strong>17:00 spike не надо превращать в расписание:</strong> часть fleet получила массовый manual-stop позже в тот же день. Hour-of-day полезен для наблюдаемости, но timer должен быть event-driven, а не включаться «после пяти».</div>
+</div></section>
+
+<section id="sensitivity"><div class="wrap">
+  <div class="section-head"><div class="index">07</div><div><h2>Lifecycle noise меняет объём, не вывод</h2><p class="lead">Manual stop, waiting и interrupt — это записи в logs, но не cache hit. Второй прогон удалил lifecycle-only status и пересобрал последовательные gaps.</p></div></div>
+  <div class="chart"><div class="chart-head"><div><h3>Primary vs cache-relevant vs turn-ended policy at T=55</h3><p>Pcorrect и trigger count</p></div></div><div class="chart-box"><canvas id="sensitivityChart"></canvas></div></div>
+  <div class="grid2">
+    <div class="card"><h3>Orchestrators</h3><p>Primary <strong>127/128 = 99.22%</strong>. Filtered <strong>102/103 = 99.03%</strong>. Реальная policy, только после <code>turn ended</code>: <strong>91/92 = 98.91%</strong>.</p></div>
+    <div class="card"><h3>Workers</h3><p>Primary <strong>138/139 = 99.28%</strong>. Filtered <strong>84/85 = 98.82%</strong>. Реальная policy, только после <code>turn ended</code>: <strong>75/76 = 98.68%</strong>.</p></div>
+  </div>
+  <details><summary>Что ещё ограничивает уверенность</summary><ul>
+    <li>Окно короткое: 9.74 дня. Это 16 orchestrator и 103 worker sessions, но не сезон поведения.</li>
+    <li>Последний gap каждой сессии right-censored и не входит в primary по условию задачи. 115 idle Claude-сессий на snapshot уже молчали &gt;60m; их включение увеличило бы tail, но исход неизвестен.</li>
+    <li>Gaps внутри одной сессии зависимы. Wilson CI (orch 95.7–99.9%, worker 96.0–99.9%) описывает события, не независимых агентов.</li>
+    <li>Два самых активных оркестратора дают 55/127 long gaps; fleet-wide rate не равен «среднему агенту».</li>
+    <li>False-rate считает стоимость, но не semantic loss от summary. Поэтому policy требует natural break, idle state и сохранённую память.</li>
+  </ul></details>
+</div></section>
+
+<section id="policy"><div class="wrap">
+  <div class="section-head"><div class="index">08</div><div><h2>Политика, которую трудно сломать</h2><p class="lead">Экономика говорит «да». Guardrails решают, не превратится ли экономия в потерю незавершённой работы.</p></div></div>
+  <div class="guardrails">
+    <div class="guard"><div><b>Только Claude Max + TTL=60m.</b><br><span class="lead">Codex, API-credit mode и forced 5m TTL — другой режим.</span></div></div>
+    <div class="guard"><div><b>Только после завершённого turn и при status=idle.</b><br><span class="lead">Не compact во время долгой команды, background job, subagent или running turn.</span></div></div>
+    <div class="guard"><div><b>T=55m для обеих ролей; ctx ≥5%.</b><br><span class="lead">Ниже порога cost-only EV близок к нулю, semantic loss доминирует.</span></div></div>
+    <div class="guard"><div><b>Один compact на idle episode.</b><br><span class="lead">Lifecycle status не должен re-arm timer. Сбрасывать флаг только новой user/agent activity.</span></div></div>
+    <div class="guard"><div><b>Persist before compact.</b><br><span class="lead">Orchestrator пишет session notes/TODO; worker фиксирует gate/report state. Summary не считается долговременной памятью.</span></div></div>
+    <div class="guard"><div><b>Логировать trigger и outcome.</b><br><span class="lead">Через 30 дней пересчитать false-rate по реальной feature telemetry, отдельно по role/backend/hour.</span></div></div>
+  </div>
+  <div class="decision" style="margin-top:24px"><h3>Финальный вердикт</h3><p><strong>Да: preventive compact внедрять.</strong> Оптимум production — 55 минут и одинаков для orchestrators/workers. Включать при ctx≥5%, только в idle state и ровно один раз. Данные не подтверждают необходимость role-specific T; они подтверждают необходимость role-agnostic guardrails.</p></div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <p><strong>Источник:</strong> read-only snapshot <code>data/orchestra.db</code>, SHA-256 <code>2cf00b36d0d8df8942b9106c2ae4df5dc73e3de02032dc5275765b9c53fc15f0</code>. Расчёт: <code>docs/tasks/precompact-timer/analyze.py</code>.</p>
+  <p><strong>Теория:</strong> <a href="https://code.claude.com/docs/en/prompt-caching">Claude Code prompt caching</a> — subscription TTL=1h, hit refreshes TTL, compact summary request reads warm prefix; <a href="../cache-optimization/research.md">Orchestra cache-optimization research</a> — measured cold/hot ratio 17.5×. Snapshot virtual cost model supplied by task.</p>
+</div></footer>
+
+<script>
+const T=[...Array(59)].map((_,i)=>i+1);
+const COLORS={o:'#d8ff3e',w:'#67b8ff',orange:'#ff6b45',danger:'#ff5570',grid:'#2a332d',muted:'#a7afa8'};
+const D={
+ o:{p:[0.1383442266,0.1851311953,0.2185886403,0.2495088409,0.2822222222,0.3067632850,0.3333333333,0.3860182371,0.4044585987,0.4205298013,0.4425087108,0.4601449275,0.5059760956,0.5204918033,0.5669642857,0.5825688073,0.5934579439,0.6135265700,0.6195121951,0.6287128713,0.6446700508,0.6649214660,0.6719576720,0.7341040462,0.7426900585,0.7559523810,0.7650602410,0.7650602410,0.7696969697,0.7791411043,0.79375,0.8089171975,0.8193548387,0.8300653595,0.8300653595,0.8410596026,0.8581081081,0.8581081081,0.8581081081,0.8639455782,0.8639455782,0.8819444444,0.9071428571,0.9202898551,0.9202898551,0.9270072993,0.9338235294,0.9407407407,0.9477611940,0.9477611940,0.9548872180,0.9694656489,0.9769230769,0.9844961240,0.9921875,0.9921875,0.9921875,0.9921875,1],n:[918,686,581,509,450,414,381,329,314,302,287,276,251,244,224,218,214,207,205,202,197,191,189,173,171,168,166,166,165,163,160,157,155,153,153,151,148,148,148,147,147,144,140,138,138,137,136,135,134,134,133,131,130,129,128,128,128,128,127],hist:[11465,468,226,61,25,10,1,33,44,12,22,16],hourCount:[1,1,0,0,0,0,0,0,0,0,1,6,7,15,7,10,4,28,9,7,6,8,10,7],hourRate:[50,100,null,null,null,null,null,null,null,null,2.70,4.44,5.43,23.81,25.93,22.22,3.81,19.86,25,14.29,12.24,25.81,23.26,28]},
+ w:{p:[0.1835106383,0.2455516014,0.2822085890,0.3053097345,0.3224299065,0.3293556086,0.3407407407,0.4367088608,0.4408945687,0.4509803922,0.4539473684,0.4615384615,0.5348837209,0.5411764706,0.6478873239,0.6540284360,0.6731707317,0.6831683168,0.69,0.69,0.69,0.7040816327,0.7040816327,0.8789808917,0.8846153846,0.8903225806,0.8903225806,0.8961038961,0.9019607843,0.9019607843,0.9078947368,0.9139072848,0.92,0.9261744966,0.9261744966,0.9324324324,0.9324324324,0.9324324324,0.9452054795,0.9517241379,0.9517241379,0.9583333333,0.9650349650,0.9650349650,0.9650349650,0.9650349650,0.9650349650,0.9650349650,0.9718309859,0.9787234043,0.9857142857,0.9857142857,0.9928057554,0.9928057554,0.9928057554,0.9928057554,0.9928057554,0.9928057554,0.9928057554],n:[752,562,489,452,428,419,405,316,313,306,304,299,258,255,213,211,205,202,200,200,200,196,196,157,156,155,155,154,153,153,152,151,150,149,149,148,148,148,146,145,145,144,143,143,143,143,143,143,142,141,140,140,139,139,139,139,139,139,139],hist:[20962,324,215,60,10,4,1,16,65,8,27,22],hourCount:[0,0,0,0,0,0,0,0,0,0,3,15,14,10,4,4,4,52,1,3,7,7,9,5],hourRate:[null,null,null,null,null,null,null,null,null,null,8.33,13.04,20.90,25.64,36.36,30.77,2.68,32.30,5.56,10.71,21.88,50,20,20.83]}
+};
+const histLabels=['≤1m','1–5m','5–15m','15–30m','30–45m','45–55m','55–60m','1–2h','2–6h','6–12h','12–24h','>24h'];
+Chart.defaults.color=COLORS.muted;Chart.defaults.borderColor=COLORS.grid;Chart.defaults.font.family='Avenir Next, Gill Sans, sans-serif';
+const marker={id:'safeBuffer',beforeDatasetsDraw(chart){if(!chart.options.plugins.safeBuffer)return;const x=chart.scales.x,y=chart.scales.y;const x55=x.getPixelForValue(54),right=x.right;const c=chart.ctx;c.save();c.fillStyle='#d8ff3e0d';c.fillRect(x55,y.top,right-x55,y.bottom-y.top);c.strokeStyle=COLORS.acid;c.setLineDash([5,5]);c.beginPath();c.moveTo(x55,y.top);c.lineTo(x55,y.bottom);c.stroke();c.fillStyle=COLORS.acid;c.font='700 10px Avenir Next';c.fillText('55m SAFE',x55+6,y.top+14);c.restore();}};Chart.register(marker);
+const base={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{boxWidth:10,usePointStyle:true}},tooltip:{backgroundColor:'#080a09',borderColor:COLORS.grid,borderWidth:1,padding:12}},scales:{x:{grid:{display:false}},y:{grid:{color:COLORS.grid}}}};
+new Chart(document.getElementById('histChart'),{type:'bar',data:{labels:histLabels,datasets:[{label:'Orchestrators',data:D.o.hist,backgroundColor:'#d8ff3eb5'},{label:'Workers',data:D.w.hist,backgroundColor:'#67b8ff9e'}]},options:{...base,scales:{x:{grid:{display:false}},y:{type:'logarithmic',min:1,ticks:{callback:v=>v.toLocaleString('ru-RU')},title:{display:true,text:'gap count · log'}}}}});
+new Chart(document.getElementById('pChart'),{type:'line',data:{labels:T,datasets:[{label:'Orchestrators',data:D.o.p.map(v=>v*100),borderColor:COLORS.o,backgroundColor:'#d8ff3e18',fill:true,tension:.14,pointRadius:0},{label:'Workers',data:D.w.p.map(v=>v*100),borderColor:COLORS.w,tension:.14,pointRadius:0}]},options:{...base,plugins:{...base.plugins,safeBuffer:true,tooltip:{...base.plugins.tooltip,callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`}}},scales:{x:{title:{display:true,text:'timer T · minutes'},grid:{display:false}},y:{min:0,max:100,ticks:{callback:v=>v+'%'},title:{display:true,text:'P(gap > 60 | gap > T)'}}}}});
+new Chart(document.getElementById('falseChart'),{type:'line',data:{labels:T,datasets:[{label:'Orchestrators false',data:D.o.p.map(v=>(1-v)*100),borderColor:COLORS.orange,tension:.12,pointRadius:0},{label:'Workers false',data:D.w.p.map(v=>(1-v)*100),borderColor:COLORS.danger,tension:.12,pointRadius:0}]},options:{...base,plugins:{...base.plugins,safeBuffer:true},scales:{x:{title:{display:true,text:'timer T · minutes'},grid:{display:false}},y:{min:0,max:90,ticks:{callback:v=>v+'%'},title:{display:true,text:'false compact rate'}}}}});
+function ev(p,ctx){const x=ctx/100;return p*(3.5*x-.14-.2*x)-(1-p)*.2*x}function be(p){return 100*(p*.14)/(p*3.3-(1-p)*.2)}
+const evChart=new Chart(document.getElementById('evChart'),{type:'line',data:{labels:T,datasets:[{label:'Orchestrators',data:D.o.p.map(p=>ev(p,40)),borderColor:COLORS.o,backgroundColor:'#d8ff3e12',fill:true,pointRadius:0},{label:'Workers',data:D.w.p.map(p=>ev(p,40)),borderColor:COLORS.w,pointRadius:0}]},options:{...base,plugins:{...base.plugins,safeBuffer:true,tooltip:{...base.plugins.tooltip,callbacks:{label:c=>`${c.dataset.label}: $${c.parsed.y.toFixed(3)}`}}},scales:{x:{grid:{display:false},title:{display:true,text:'timer T · minutes'}},y:{title:{display:true,text:'expected virtual $ saved / trigger'},ticks:{callback:v=>'$'+v.toFixed(2)}}}}});
+new Chart(document.getElementById('beChart'),{type:'line',data:{labels:T,datasets:[{label:'Orchestrators',data:D.o.p.map(be),borderColor:COLORS.o,pointRadius:0},{label:'Workers',data:D.w.p.map(be),borderColor:COLORS.w,pointRadius:0}]},options:{...base,plugins:{...base.plugins,safeBuffer:true},scales:{x:{grid:{display:false},title:{display:true,text:'timer T · minutes'}},y:{min:4,max:7.2,ticks:{callback:v=>v+'%'},title:{display:true,text:'breakeven context'}}}}});
+new Chart(document.getElementById('hourChart'),{data:{labels:[...Array(24)].map((_,i)=>String(i).padStart(2,'0')),datasets:[{type:'bar',label:'Orch long gaps',data:D.o.hourCount,backgroundColor:'#d8ff3e8f',yAxisID:'y'},{type:'bar',label:'Worker long gaps',data:D.w.hourCount,backgroundColor:'#67b8ff78',yAxisID:'y'},{type:'line',label:'Orch long rate',data:D.o.hourRate,borderColor:COLORS.o,pointRadius:2,yAxisID:'y1'},{type:'line',label:'Worker long rate',data:D.w.hourRate,borderColor:COLORS.w,pointRadius:2,yAxisID:'y1'}]},options:{...base,scales:{x:{grid:{display:false},title:{display:true,text:'gap start hour · Krasnoyarsk'}},y:{beginAtZero:true,title:{display:true,text:'count gap >60m'}},y1:{position:'right',min:0,max:100,grid:{display:false},ticks:{callback:v=>v+'%'},title:{display:true,text:'P(>60 | >1m)'}}}}});
+new Chart(document.getElementById('sensitivityChart'),{data:{labels:['Orchestrators','Workers'],datasets:[{type:'bar',label:'Primary triggers',data:[128,139],backgroundColor:'#ff6b4585',yAxisID:'y'},{type:'bar',label:'Filtered triggers',data:[103,85],backgroundColor:'#67b8ff75',yAxisID:'y'},{type:'bar',label:'Turn-ended triggers',data:[92,76],backgroundColor:'#d8ff3e70',yAxisID:'y'},{type:'line',label:'Primary Pcorrect',data:[99.22,99.28],borderColor:COLORS.orange,pointRadius:5,yAxisID:'y1'},{type:'line',label:'Filtered Pcorrect',data:[99.03,98.82],borderColor:COLORS.w,pointRadius:5,yAxisID:'y1'},{type:'line',label:'Turn-ended Pcorrect',data:[98.91,98.68],borderColor:COLORS.o,pointRadius:7,yAxisID:'y1'}]},options:{...base,scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'trigger count'}},y1:{position:'right',min:90,max:100,grid:{display:false},ticks:{callback:v=>v+'%'},title:{display:true,text:'Pcorrect'}}}}});
+const timer=document.getElementById('timer'),ctx=document.getElementById('ctx');function pct(v){return (v*100).toFixed(2)+'%'}
+function update(){const t=+timer.value,c=+ctx.value,i=t-1;document.getElementById('timerOut').value=t+'m';document.getElementById('ctxOut').value=c+'%';document.getElementById('oProb').textContent=pct(D.o.p[i]);document.getElementById('wProb').textContent=pct(D.w.p[i]);document.getElementById('oN').textContent=D.o.n[i];document.getElementById('wN').textContent=D.w.n[i];evChart.data.datasets[0].data=D.o.p.map(p=>ev(p,c));evChart.data.datasets[1].data=D.w.p.map(p=>ev(p,c));evChart.update('none');document.getElementById('evTitle').textContent=`EV per trigger at ${c}% ctx`;const avg=(ev(D.o.p[i],c)+ev(D.w.p[i],c))/2;document.getElementById('evChip').textContent=`${avg>=0?'+':''}$${avg.toFixed(2)} @ T${t}`}
+timer.addEventListener('input',update);ctx.addEventListener('input',update);update();
+const body=document.querySelector('#sweepTable tbody');[1,5,10,20,30,40,45,50,55,59].forEach(t=>{const i=t-1;body.insertAdjacentHTML('beforeend',`<tr class="${t===55?'good':''}"><td>${t}m</td><td class="num">${pct(D.o.p[i])}</td><td class="num">${pct(1-D.o.p[i])}</td><td class="num">${pct(D.w.p[i])}</td><td class="num">${pct(1-D.w.p[i])}</td></tr>`)});
+</script>
+</body>
+</html>
