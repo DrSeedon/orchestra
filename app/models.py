@@ -108,6 +108,20 @@ BACKENDS = {
     "gpt-5.4-mini": "codex",
 }
 
+
+def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
+    """Return cache-window metadata exposed to dashboard and MCP consumers."""
+    if runtime == "codex":
+        return {
+            "cache_ttl_seconds": 1800,
+            "cache_ttl_approximate": True,
+        }
+    return {
+        "cache_ttl_seconds": 3600,
+        "cache_ttl_approximate": False,
+    }
+
+
 # TOKEN_PRICES is for internal cost tracking only (subscription plan, not real API billing)
 # Codex models intentionally absent — their prices live in backend_codex.py
 TOKEN_PRICES = {

@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch
+from datetime import datetime, timedelta, timezone
 
 
 @pytest.mark.asyncio
@@ -186,6 +187,7 @@ async def test_list_agents_groups_by_parent(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "orch-a")
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
     sessions = [
         {"name": "orch-a", "scope": "/s", "role": "orchestrator", "parent_name": "", "status": "idle", "model": "opus"},
         {"name": "my-coder", "scope": "/s", "role": "worker", "parent_name": "orch-a", "status": "idle", "model": "sonnet"},
@@ -205,6 +207,43 @@ async def test_list_agents_groups_by_parent(monkeypatch):
     assert "orch-a" in out
     assert "my-coder" in out
     assert "their-coder" in out
+
+
+def test_cache_pill_uses_exact_and_approximate_runtime_policies():
+    import app.mcp_stdio as m
+
+    recent = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    expired = (datetime.now(timezone.utc) - timedelta(minutes=31)).isoformat()
+
+    assert m._cache_pill({
+        "status": "running",
+        "cache_ttl_seconds": 1800,
+        "cache_ttl_approximate": True,
+    }) == "🔥 hot ≈30m"
+    assert m._cache_pill({
+        "status": "idle",
+        "last_turn_ts": recent,
+        "cache_ttl_seconds": 1800,
+        "cache_ttl_approximate": True,
+    }).startswith("🔥 hot ≈")
+    assert m._cache_pill({
+        "status": "idle",
+        "last_turn_ts": expired,
+        "cache_ttl_seconds": 1800,
+        "cache_ttl_approximate": True,
+    }) == "🧊? unknown (≈30m+)"
+    assert m._cache_pill({
+        "status": "idle",
+        "last_turn_ts": expired,
+        "cache_ttl_seconds": 3600,
+        "cache_ttl_approximate": False,
+    }).startswith("🟡 warm ")
+    assert m._cache_pill({
+        "status": "idle",
+        "last_turn_ts": recent,
+        "cache_ttl_seconds": 0,
+        "cache_ttl_approximate": True,
+    }) == ""
 
 
 def test_read_only_access_mode_hides_mutating_tools():

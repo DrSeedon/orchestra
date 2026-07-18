@@ -202,6 +202,27 @@ class TestOrchestrators:
         assert r.status_code == 200
         assert isinstance(r.json(), list)
 
+    def test_list_orchestrators_exposes_runtime_cache_policy(self, client):
+        for name, model in (
+            ("claude-orch", "claude-opus-4-8[1m]"),
+            ("codex-orch", "gpt-5.6-sol"),
+        ):
+            response = client.post("/api/sessions", json={
+                "name": name,
+                "scope": f"/tmp/{name}",
+                "cwd": "/tmp",
+                "model": model,
+                "is_orchestrator": True,
+                "role": "orchestrator",
+            })
+            assert response.status_code == 201
+
+        rows = {row["name"]: row for row in client.get("/api/orchestrators").json()}
+        assert rows["claude-orch"]["cache_ttl_seconds"] == 3600
+        assert rows["claude-orch"]["cache_ttl_approximate"] is False
+        assert rows["codex-orch"]["cache_ttl_seconds"] == 1800
+        assert rows["codex-orch"]["cache_ttl_approximate"] is True
+
 
 def test_create_request_accepts_base_branch():
     from app.routes.sessions import CreateSessionRequest

@@ -1444,25 +1444,72 @@ function renderAgentList(sessions) {
 let _roleIcons = {'orchestrator':'👑','worker':'⚙️','full-cycle':'🔄','sub-orchestrator':'🎯','reviewer':'🔍','watcher':'👁️'};
 fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,...d}}).catch(()=>{});
 
-// Cache timer pill — Anthropic prompt cache stays warm CACHE_TTL after last turn.
-// Warm resume = cheap; after eviction next turn is ~20× costlier.
+// Cache timer pill. Claude has an exact 1h policy; Codex exposes a ≈30m reference window.
 function _shortModel(m) {
     const meta = _modelMeta(m);
     return meta?.label || m.replace('claude-', '').replace('[1m]', '').replace('-1m', '');
+}
+
+function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.now()}) {
+    const ttlMin = ttlMs / 60000;
+    if (running) {
+        return approximate
+            ? {
+                tier: 'hot', label: '🔥≈', color: '#22c55e',
+                title: `Running — Codex cache reference window ≈${ttlMin}m; actual ChatGPT TTL is not guaranteed`,
+            }
+            : {
+                tier: 'hot', label: '🔥', color: '#22c55e',
+                title: 'Running — cache refreshes every turn',
+            };
+    }
+
+    const remMin = Math.floor((expiresAt - nowMs) / 60000);
+    if (remMin <= 0) {
+        return approximate
+            ? {
+                tier: 'unknown', label: '🧊?', color: '#64748b',
+                title: `Codex cache state unknown after ≈${ttlMin}m reference window; actual ChatGPT TTL is not guaranteed`,
+            }
+            : {
+                tier: 'cold', label: '🧊', color: '#64748b',
+                title: 'Cache cold — next turn ~20× дороже',
+            };
+    }
+
+    let tier, label, color;
+    const marker = approximate ? '≈' : '';
+    if (remMin > ttlMin * 0.5) {
+        tier = 'hot'; label = `🔥${marker}${remMin}m`; color = '#22c55e';
+    } else if (remMin >= ttlMin * 0.2) {
+        tier = 'warm'; label = `🟡${marker}${remMin}m`; color = '#eab308';
+    } else {
+        tier = 'cooling'; label = `🔴${marker}${remMin}m`; color = '#ef4444';
+    }
+    const title = approximate
+        ? `Codex cache ≈${remMin}m within a ${ttlMin}m reference window; actual ChatGPT TTL is not guaranteed`
+        : `Cache ${remMin}m — после истечения ~20× дороже`;
+    return {tier, label, color, title};
 }
 
 function _cachePill(s) {
     const isDead = s.status === 'stopped' || s.status === 'error' || s.status === 'archived';
     if (isDead) return null;
     const running = s.status === 'running' || s.status === 'starting';
-    const ttl = (s.cache_ttl_seconds || 3600) * 1000;
+    const rawTtl = s.cache_ttl_seconds == null ? 3600 : Number(s.cache_ttl_seconds);
+    if (!Number.isFinite(rawTtl) || rawTtl <= 0) return null;
+    const ttl = rawTtl * 1000;
     let expiresAt = null;
     if (!running) {
         if (!s.last_turn_ts) return null;  // never ran a turn → no cache to time
-        expiresAt = new Date(s.last_turn_ts).getTime() + ttl;
+        const lastTurn = new Date(s.last_turn_ts).getTime();
+        if (!Number.isFinite(lastTurn)) return null;
+        expiresAt = lastTurn + ttl;
     }
     const pill = document.createElement('span');
     pill.className = 'cache-pill';
+    pill.dataset.cacheTtlMs = String(ttl);
+    pill.dataset.cacheApproximate = s.cache_ttl_approximate === true ? '1' : '0';
     if (running) {
         pill.dataset.cacheRunning = '1';
     } else {
@@ -1474,27 +1521,19 @@ function _cachePill(s) {
 
 function _renderCachePill(pill) {
     const running = pill.dataset.cacheRunning === '1';
-    let tier, label, color;
-    if (running) {
-        tier = 'hot'; label = '🔥'; color = '#22c55e';
-        pill.title = 'Running — cache refreshes every turn';
-    } else {
-        const remMs = Number(pill.dataset.cacheExpires) - Date.now();
-        const remMin = Math.floor(remMs / 60000);
-        if (remMin <= 0) {
-            tier = 'cold'; label = '🧊'; color = '#64748b';
-            pill.title = 'Cache cold — next turn ~20× дороже';
-        } else {
-            if (remMin > 30) { tier = 'hot'; label = `🔥${remMin}m`; color = '#22c55e'; }
-            else if (remMin >= 12) { tier = 'warm'; label = `🟡${remMin}m`; color = '#eab308'; }
-            else { tier = 'cooling'; label = `🔴${remMin}m`; color = '#ef4444'; }
-            pill.title = `Cache ${remMin}m — после истечения ~20× дороже`;
-        }
-    }
-    pill.textContent = label;
-    pill.style.color = color;
-    pill.dataset.tier = tier;
-    if (pill.dataset.hideCold === '1') pill.style.display = tier === 'cold' ? 'none' : '';
+    const ttlMs = Number(pill.dataset.cacheTtlMs);
+    if (!Number.isFinite(ttlMs) || ttlMs <= 0) return;
+    const state = _cachePillState({
+        running,
+        expiresAt: Number(pill.dataset.cacheExpires),
+        ttlMs,
+        approximate: pill.dataset.cacheApproximate === '1',
+    });
+    pill.textContent = state.label;
+    pill.style.color = state.color;
+    pill.title = state.title;
+    pill.dataset.tier = state.tier;
+    if (pill.dataset.hideCold === '1') pill.style.display = state.tier === 'cold' ? 'none' : '';
 }
 
 // Client-side countdown — re-render all pills every 30s without re-polling
