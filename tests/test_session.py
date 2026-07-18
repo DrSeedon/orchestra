@@ -1,7 +1,7 @@
 """TDD tests for session.py — AgentSession."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -866,6 +866,117 @@ class TestCompactGuards:
         assert session._compact_ack_event.is_set()
 
 
+class TestPrecompactTimer:
+    @pytest.mark.asyncio
+    async def test_precompact_timer_fires_and_logs_outcome_when_ready(self, session, monkeypatch):
+        from app.session import AgentStatus
+        from unittest.mock import MagicMock
+
+        logs = []
+        session._log = lambda log_type, content: logs.append((log_type, content))
+        session.status = AgentStatus.IDLE
+        session._last_context["percentage"] = 55
+
+        compact_called = asyncio.Event()
+
+        async def compact_ok() -> dict:
+            compact_called.set()
+            return {"ok": True}
+
+        session.compact = compact_ok
+        monkeypatch.setattr("app.bg_jobs.bg_manager", MagicMock(has_active_jobs=lambda *_: False))
+        session.PRECOMPACT_DELAY_SECONDS = 0
+
+        session._schedule_precompact_timer(55)
+        await asyncio.wait_for(compact_called.wait(), timeout=1)
+        await asyncio.sleep(0)
+
+        assert session._precompact_timer is not None
+        assert session._precompact_timer.get("fired_at") is not None
+        session._precompact_timer["fired_at"] = (
+            datetime.now(timezone.utc) - timedelta(hours=1, minutes=5)
+        ).isoformat()
+        session._note_next_precompact_activity()
+
+        outcome = [c for t, c in logs if t == "status" and "precompact timer outcome" in c]
+        assert outcome, "next activity must be logged with crossed_60m"
+        assert '"crossed_60m": true' in outcome[0].lower()
+
+    @pytest.mark.asyncio
+    async def test_precompact_timer_suppressed_when_not_idle(self, session, monkeypatch):
+        from app.session import AgentStatus
+        from unittest.mock import MagicMock
+
+        logs = []
+        session._log = lambda log_type, content: logs.append((log_type, content))
+        session.backend_type = "claude"
+        session.status = AgentStatus.WAITING
+        session._last_context["percentage"] = 55
+
+        session.compact = AsyncMock(return_value={"ok": True})
+        monkeypatch.setattr("app.bg_jobs.bg_manager", MagicMock(has_active_jobs=lambda *_: False))
+        session.PRECOMPACT_DELAY_SECONDS = 0
+
+        session._schedule_precompact_timer(55)
+        await asyncio.sleep(0.05)
+
+        assert session.compact.await_count == 0
+        assert session._precompact_timer is None
+        assert any("precompact timer skipped" in c for _, c in logs)
+
+    def test_precompact_timer_arm_once_per_episode(self, session):
+        launched = []
+        session._log = lambda *_: None
+
+        def capture(coro):
+            launched.append(coro)
+            try:
+                coro.close()
+            except Exception:
+                pass
+            return AsyncMock()
+
+        session._spawn_bg = capture
+        session._precompact_timer = None
+
+        session._schedule_precompact_timer(55)
+        session._schedule_precompact_timer(55)
+
+        assert len(launched) == 1
+
+    def test_precompact_timer_activity_cancels_pending_before_fire(self, session):
+        session._log = lambda *_: None
+        session._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "role": session.role,
+            "backend": session.backend_type,
+            "context_pct": 55,
+        }
+        session._precompact_timer_task = None
+
+        session._note_next_precompact_activity()
+
+        assert session._precompact_timer is None
+
+    @pytest.mark.asyncio
+    async def test_precompact_timer_skipped_when_bg_job_active(self, session, monkeypatch):
+        from app.session import AgentStatus
+        from unittest.mock import MagicMock
+
+        logs = []
+        session._log = lambda log_type, content: logs.append((log_type, content))
+        session.status = AgentStatus.IDLE
+        session._last_context["percentage"] = 55
+        session.compact = AsyncMock(return_value={"ok": True})
+        monkeypatch.setattr("app.bg_jobs.bg_manager", MagicMock(has_active_jobs=lambda *_: True))
+        session.PRECOMPACT_DELAY_SECONDS = 0
+
+        session._schedule_precompact_timer(55)
+        await asyncio.sleep(0.05)
+
+        assert session.compact.await_count == 0
+        assert session._precompact_timer is None
+        assert any("precompact timer skipped" in c for _, c in logs)
 class TestRateLimitClassification:
     @staticmethod
     def _capture_coroutines(session):

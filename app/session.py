@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from app.events import AgentEvent
@@ -148,12 +148,137 @@ class AgentSession:
     _server_error_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
     _manually_interrupted: bool = field(default=False, repr=False)
+    _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
+    _precompact_timer: dict | None = field(default=None, repr=False)
 
     AUTO_CONTINUE_MAX = 5
     RATE_LIMIT_MAX_RETRIES = 3
     RATE_LIMIT_DELAY = 30
     SERVER_ERROR_MAX_RETRIES = 3
     SERVER_ERROR_RETRY_DELAY = 5
+    PRECOMPACT_DELAY_SECONDS = 55 * 60
+    PRECOMPACT_CONTEXT_THRESHOLD = 20
+
+    def _precompact_payload(self, payload: dict) -> str:
+        return json.dumps(payload, ensure_ascii=False)
+
+    def _cancel_precompact_timer(self, reason: str = "activity") -> None:
+        if self._precompact_timer_task and not self._precompact_timer_task.done():
+            self._precompact_timer_task.cancel()
+        self._precompact_timer_task = None
+        if self._precompact_timer:
+            payload = {
+                "event": "precompact_timer_cancelled",
+                "scheduled_at": self._precompact_timer.get("scheduled_at"),
+                "reason": reason,
+            }
+            self._log("status", f"precompact timer cancelled: {self._precompact_payload(payload)}")
+        self._precompact_timer = None
+
+    def _note_next_precompact_activity(self) -> None:
+        if not self._precompact_timer:
+            return
+        fired_at = self._precompact_timer.get("fired_at")
+        if not fired_at:
+            self._cancel_precompact_timer(reason="activity_before_fire")
+            return
+        if not self._precompact_timer.get("next_activity"):
+            next_activity = datetime.now(timezone.utc)
+            try:
+                crossed_60m = (
+                    next_activity - datetime.fromisoformat(fired_at) >= timedelta(minutes=60)
+                )
+            except Exception:
+                crossed_60m = False
+            self._precompact_timer["next_activity"] = next_activity.isoformat()
+            self._precompact_timer["crossed_60m"] = crossed_60m
+            self._log(
+                "status",
+                f"precompact timer outcome: {self._precompact_payload(self._precompact_timer)}",
+            )
+            self._precompact_timer = None
+
+    def _schedule_precompact_timer(self, context_pct: int) -> None:
+        if self._precompact_timer is not None:
+            return
+        self._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "role": self.role,
+            "backend": self.backend_type,
+            "context_pct": context_pct,
+        }
+        self._log(
+            "status",
+            f"precompact timer scheduled: {self._precompact_payload(self._precompact_timer)}",
+        )
+        self._precompact_timer_task = self._spawn_bg(self._run_precompact_timer())
+
+    async def _run_precompact_timer(self) -> None:
+        try:
+            await asyncio.sleep(self.PRECOMPACT_DELAY_SECONDS)
+            await self._fire_precompact_timer()
+        except asyncio.CancelledError:
+            pass
+
+    async def _fire_precompact_timer(self) -> None:
+        state = self._precompact_timer
+        self._precompact_timer_task = None
+        if not state:
+            return
+
+        fired_at = datetime.now(timezone.utc)
+        state["fired_at"] = fired_at.isoformat()
+        state["context_pct"] = self._last_context.get("percentage", 0)
+
+        if self.status != AgentStatus.IDLE:
+            state["skip_reason"] = "not_idle"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        from app.bg_jobs import bg_manager
+        if bg_manager and bg_manager.has_active_jobs(self.id):
+            state["skip_reason"] = "active_bg_jobs"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        if self.backend_type != "claude":
+            state["skip_reason"] = "not_claude"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        if self._last_context.get("percentage", 0) < self.PRECOMPACT_CONTEXT_THRESHOLD:
+            state["skip_reason"] = "low_context"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        state["role"] = self.role
+        state["backend"] = self.backend_type
+        self._log(
+            "status",
+            f"precompact timer fired: {self._precompact_payload(state)}",
+        )
+        result = await self.compact()
+        state["compact_result"] = result
+        self._log(
+            "status",
+            f"precompact timer compacted: {self._precompact_payload(state)}",
+        )
 
     def __post_init__(self) -> None:
         # Systems over state (ECS): cost/turn/hibernate methods live in systems,
@@ -219,6 +344,8 @@ class AgentSession:
         if not message.startswith("[system] Retrying after transient server error."):
             self._server_error_retries = 0
             self._session_limit_hit = False
+
+        self._note_next_precompact_activity()
         if self._compacting:
             self._pending_messages.append(message)
             self._log("user_message", message)
@@ -641,6 +768,7 @@ class AgentSession:
             # prevents concurrent messages from being injected into the turn being
             # interrupted; they will start a clean turn after this lock is released.
             self._turns.cancel_auto_report()
+            self._cancel_precompact_timer("interrupt")
             self._turn_start = 0
             self._manually_interrupted = True
             self.status = AgentStatus.IDLE
@@ -1021,6 +1149,7 @@ class AgentSession:
     async def stop(self) -> None:
         self._log("status", "⏹️ stopped (manual interrupt)")
         self._turns.cancel_auto_report()
+        self._cancel_precompact_timer("stop")
         await self._disconnect_backend()
         self._hibernated = False
         self.status = AgentStatus.IDLE
