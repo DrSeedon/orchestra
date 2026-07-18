@@ -643,6 +643,11 @@ def _get_agents_cost() -> dict:
         }
 
 
+def _get_voice_cost_usd() -> float:
+    from app.db import voice_cost_total_usd
+    return voice_cost_total_usd()
+
+
 @router.get("/api/usage")
 async def get_usage():
     if is_auth_enabled():
@@ -701,6 +706,7 @@ async def get_usage():
         "anthropic": anthropic_data,
         "codex": codex_data,
         "orchestra": _get_agents_cost(),
+        "voice_cost_usd": round(_get_voice_cost_usd(), 4),
     }
 
 

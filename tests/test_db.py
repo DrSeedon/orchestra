@@ -46,6 +46,7 @@ class TestInitDb:
             ).fetchall()}
         assert "sessions" in tables
         assert "logs" in tables
+        assert "voice_costs" in tables
 
     def test_idempotent(self, db):
         from app.db import init_db
@@ -71,6 +72,23 @@ class TestConnection:
         with _conn() as c:
             fk = c.execute("PRAGMA foreign_keys").fetchone()[0]
         assert fk == 1
+
+
+class TestVoiceCosts:
+    def test_add_and_total(self, db):
+        from app.db import _conn, voice_cost_add, voice_cost_total_usd
+
+        voice_cost_add("orch", "/scope", 90.0, 0.0078, "tg-file-1")
+        voice_cost_add("orch", "/scope", 30.0, 0.0026, "tg-file-2")
+
+        assert voice_cost_total_usd() == pytest.approx(0.0104)
+        with _conn() as c:
+            row = c.execute("SELECT * FROM voice_costs ORDER BY id LIMIT 1").fetchone()
+        assert row["session_name"] == "orch"
+        assert row["scope"] == "/scope"
+        assert row["duration_sec"] == 90.0
+        assert row["model"] == "nova-3"
+        assert row["file_id"] == "tg-file-1"
 
 
 class TestSaveAndGetSession:

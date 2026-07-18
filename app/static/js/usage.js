@@ -224,6 +224,9 @@ function renderUsageBar() {
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
+                    if (typeof _usageData.voice_cost_usd === 'number') {
+                        h += `<div style="font-size:10px">${_row('🎤 Voice', `$${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
+                    }
                     h += _row('Подписка', '$100+$100/мес', '#64748b');
                     h += '</div>';
                 }

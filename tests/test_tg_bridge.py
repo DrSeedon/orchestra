@@ -8,6 +8,7 @@
 """
 
 import asyncio
+import json
 import time
 from unittest.mock import AsyncMock
 
@@ -46,6 +47,56 @@ async def test_polling_does_not_override_uvicorn_signal_handlers(tb):
         await tb._safe_polling()
 
     dispatcher.start_polling.assert_awaited_once_with(bot, handle_signals=False)
+
+
+@pytest.mark.asyncio
+async def test_transcribe_audio_persists_voice_cost(tb, tmp_path, monkeypatch):
+    db_path = tmp_path / "voice-cost.db"
+    monkeypatch.setattr("app.db.DB_PATH", db_path)
+    from app.db import _conn, init_db
+    init_db()
+
+    audio_path = tmp_path / "voice.oga"
+    audio_path.write_bytes(b"audio")
+    tb.DEEPGRAM_API_KEY = "test-key"
+    tb._transcription_cache = {}
+    monkeypatch.setattr(tb, "_save_transcription_cache", lambda cache: None)
+
+    payload = {
+        "metadata": {"duration": 90.0},
+        "results": {"channels": [{"alternatives": [{"transcript": "hello"}]}]},
+    }
+
+    class FakeResponse:
+        content = json.dumps(payload).encode()
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def post(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("httpx.AsyncClient", lambda **kwargs: FakeClient())
+
+    text, err = await tb._transcribe_audio(
+        str(audio_path),
+        "tg-file-1",
+        session_name="orch",
+        scope="/scope",
+    )
+
+    assert (text, err) == ("hello", None)
+    with _conn() as c:
+        row = c.execute("SELECT * FROM voice_costs").fetchone()
+    assert row["duration_sec"] == 90.0
+    assert row["cost_usd"] == pytest.approx(90 / 60 * 0.0052)
+    assert row["session_name"] == "orch"
+    assert row["scope"] == "/scope"
+    assert row["file_id"] == "tg-file-1"
 
 
 # ── _short_name ────────────────────────────────────────────────────────────

@@ -238,6 +238,17 @@ def init_db() -> None:
                 provider_usage TEXT NOT NULL DEFAULT '{}'
             );
             CREATE INDEX IF NOT EXISTS idx_usage_ts ON usage_snapshots(ts);
+
+            CREATE TABLE IF NOT EXISTS voice_costs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT NOT NULL,
+                session_name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                duration_sec REAL NOT NULL,
+                cost_usd REAL NOT NULL,
+                model TEXT NOT NULL DEFAULT 'nova-3',
+                file_id TEXT NOT NULL
+            );
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS kv (
@@ -1141,6 +1152,25 @@ def bg_cleanup_old(max_age_hours: int = 24) -> int:
 
 
 # ── Usage Snapshots ──
+
+def voice_cost_add(session_name: str, scope: str, duration_sec: float,
+                   cost_usd: float, file_id: str, model: str = "nova-3") -> None:
+    with _conn() as c:
+        c.execute(
+            """INSERT INTO voice_costs
+               (ts, session_name, scope, duration_sec, cost_usd, model, file_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (datetime.now(timezone.utc).isoformat(), session_name, scope,
+             duration_sec, cost_usd, model, file_id),
+        )
+
+
+def voice_cost_total_usd() -> float:
+    with _conn() as c:
+        return float(c.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0) FROM voice_costs"
+        ).fetchone()[0])
+
 
 def usage_save_snapshot(five_hour_pct: float, seven_day_pct: float,
                         five_hour_resets_at: str, seven_day_resets_at: str,
