@@ -157,7 +157,8 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
         return None
 
 
-async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | None]:
+async def _transcribe_audio(path: str, unique_id: str = "", *,
+                            session_name: str = "", scope: str = "") -> tuple[str, str | None]:
     if unique_id and unique_id in _transcription_cache:
         cached = _transcription_cache[unique_id]
         logger.info(f"Transcription cache hit: {unique_id}")
@@ -194,8 +195,16 @@ async def _transcribe_audio(path: str, unique_id: str = "") -> tuple[str, str | 
         if "error" in data:
             return "", data["error"]
         text = data["results"]["channels"][0]["alternatives"][0]["transcript"]
-        duration = data.get("metadata", {}).get("duration", 0)
+        duration = float(data.get("metadata", {}).get("duration") or 0)
         logger.info(f"Deepgram: audio={duration:.1f}s size={file_size//1024}KB transcribe={transcribe_ms:.0f}ms")
+        from app.db import voice_cost_add
+        voice_cost_add(
+            session_name=session_name,
+            scope=scope,
+            duration_sec=duration,
+            cost_usd=duration / 60 * 0.0052,
+            file_id=unique_id,
+        )
         if unique_id and text:
             _transcription_cache[unique_id] = text
             _save_transcription_cache(_transcription_cache)
@@ -1513,7 +1522,12 @@ async def handle_voice(msg: types.Message):
     if not path:
         await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: file too large]")
         return
-    text, err = await _transcribe_audio(path, msg.voice.file_unique_id)
+    text, err = await _transcribe_audio(
+        path,
+        msg.voice.file_unique_id,
+        session_name=session.name,
+        scope=session.scope,
+    )
     total_ms = (time.monotonic() - t_total) * 1000
     logger.info(f"handle_voice total={total_ms:.0f}ms duration={msg.voice.duration}s")
     if text:
@@ -1543,7 +1557,12 @@ async def handle_video_note(msg: types.Message):
     )
     await p.communicate()
     if p.returncode == 0:
-        text, err = await _transcribe_audio(audio_path, msg.video_note.file_unique_id)
+        text, err = await _transcribe_audio(
+            audio_path,
+            msg.video_note.file_unique_id,
+            session_name=session.name,
+            scope=session.scope,
+        )
         if text:
             await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path} | {text}]")
             return

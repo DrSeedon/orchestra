@@ -185,12 +185,14 @@ async def test_usage_endpoint_adds_codex_without_changing_anthropic(monkeypatch)
     monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
     monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(return_value=codex))
     monkeypatch.setattr(system, "_get_agents_cost", lambda: {"agents_count": 0})
+    monkeypatch.setattr(system, "_get_voice_cost_usd", lambda: 0.42)
 
     response = await system.get_usage()
 
     assert response["anthropic"] is anthropic
     assert response["codex"] is codex
     assert response["orchestra"] == {"agents_count": 0}
+    assert response["voice_cost_usd"] == 0.42
 
 
 @pytest.mark.asyncio
@@ -201,6 +203,7 @@ async def test_codex_failure_does_not_break_anthropic_usage(monkeypatch):
     monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
     monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(side_effect=RuntimeError("not logged in")))
     monkeypatch.setattr(system, "_get_agents_cost", lambda: {})
+    monkeypatch.setattr(system, "_get_voice_cost_usd", lambda: 0.0)
 
     response = await system.get_usage()
 
