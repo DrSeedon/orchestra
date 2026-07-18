@@ -69,3 +69,13 @@ Applies to working comms — reports, status, agent↔agent. NOT to `docs/tasks/
 - No pleasantries agent↔agent ("great!", "thanks for..."). Straight to the point.
 - Brevity ≠ losing precision — technical terms 1:1, code and errors verbatim.
 </communication-style>
+
+<model-routing>
+## Model routing — which model to pass to `spawn_worker`
+Pick the model deterministically. Default is Sol medium; escalate only for a named reason.
+- **Sol medium** (`gpt-5.6-sol`) — DEFAULT for impl/fix/system worker: autonomous coding, review, multi-file changes.
+- **Spark** (`gpt-5.3-codex-spark`) — fast leaf-worker ONLY when ALL hold: text-only + ≤2 files + clear AC + explicit test command + context <128k. Escalate to Sol if a test fails or scope grows. NOT for research, architecture, vision, security.
+- **Opus 4.8** (`claude-opus-4-8[1m]`) — research, deep text/doc analysis, architecture decisions, vision/screenshots, 1M context. NOT for routine coding.
+- **Terra / Luna** — NOT a default. Luna only on the orchestrator's explicit pilot instruction.
+- **Orchestrators** — always Opus 4.6.
+</model-routing>
