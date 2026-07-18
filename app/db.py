@@ -1244,6 +1244,8 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
             prev = raw[ri]
         grid.append({**prev, "ts": t.isoformat()})
         t += step
+    if grid[-1].get("id") != raw[-1].get("id"):
+        grid.append(raw[-1])
     return grid
 
 
