@@ -35,16 +35,9 @@ BranchStrategy = Literal["parent", "main"]
 
 
 def _model_is_known(model: str) -> bool:
-    """Модель валидна, если резолвится в любую доступную модель.
-
-    In enterprise mode with limited models, resolve_model falls back to
-    first available — so any alias is valid as long as MODELS is non-empty.
-    """
-    if model.lower() in ALIASES or model in MODELS:
-        return True
-    from app.models import resolve_model
-    resolved = resolve_model(model)
-    return resolved in MODELS
+    """Модель валидна, если её ID или alias явно присутствует в реестре."""
+    normalized = model.lower().strip()
+    return normalized in ALIASES or normalized in MODELS
 
 
 def _is_safe_rel(p: str) -> bool:

@@ -1,15 +1,12 @@
-"""Тесты дефолтного пайплайна ``pipelines/default/`` (Этап 4, обновлён под v2.16).
+"""Тесты дефолтного пайплайна ``pipelines/default/``.
 
-Проверяют, что портированный из апстрима (mccalpink/orchestra main, DrSeedon)
-манифест + промпты грузятся нашим loader'ом (app/pipeline.py) и воспроизводят
-поведение апстрима 1:1: 6 ролей (orchestrator/sub-orchestrator/worker/full-cycle/
-reviewer/watcher), worker на Sonnet, watcher на Haiku, fail-open валидация, сборка
-промпта без слоя ``_pipeline.md``, инлайн ``modules`` (git-workflow/codex-review/
-report-format) после слоёв роли.
+Проверяют реальный локальный манифест на базе mccalpink/orchestra v2.18:
+4 роли (orchestrator/sub-orchestrator/worker/full-cycle), локальные модели,
+fail-open валидацию, сборку промпта без слоя ``_pipeline.md`` и инлайн ``modules``
+после слоёв роли.
 
 В отличие от test_pipeline.py (tmp-фикстуры), здесь тесты идут по РЕАЛЬНОМУ
-``pipelines/default/`` на диске — это и есть характеризация 1:1 с апстримом.
-Уровень loader'а: БД/manager НЕ задействованы.
+``pipelines/default/`` на диске. Уровень loader'а: БД/manager НЕ задействованы.
 """
 from __future__ import annotations
 
@@ -87,56 +84,66 @@ class TestDefaultManifestLoads:
         assert entries[PIPELINE]["valid"] is True
 
 
-# ── resolve_role: модели и kind (главный риск 1:1 — worker на sonnet) ───────
+# ── resolve_role: локальные модели и kind ──────────────────────────────────
 
 class TestDefaultRolesResolve:
-    def test_worker_model_resolves_to_sonnet(self):
-        """ГЛАВНЫЙ риск 1:1: его frontmatter worker.md model:'sonnet/opus' —
-        невалидный alias. Берём 'sonnet' (его эффективный дефолт), он резолвится."""
+    def test_worker_model_resolves_to_sol(self):
         rr = P.get_role(PIPELINE, "worker")
         assert rr is not None
-        assert rr.model == "sonnet"
-        # sonnet — известный alias реестра app/models.py
-        assert "sonnet" in P.ALIASES
+        assert rr.model == "gpt5.6sol"
+        assert "gpt5.6sol" in P.ALIASES
 
     def test_orchestrator_is_orchestrator(self):
         rr = P.get_role(PIPELINE, "orchestrator")
         assert rr is not None
         assert rr.is_orchestrator is True
-        assert rr.model == "opus"
+        assert rr.model == "opus4.6"
 
     def test_worker_and_full_cycle_are_not_orchestrators(self):
         """worker И full-cycle — воркеры (оркестратор спавнит их как исполнителей)."""
         assert P.get_role(PIPELINE, "worker").is_orchestrator is False
         assert P.get_role(PIPELINE, "full-cycle").is_orchestrator is False
 
-    def test_full_cycle_model_opus(self):
+    def test_full_cycle_model_sol(self):
         rr = P.get_role(PIPELINE, "full-cycle")
         assert rr is not None
-        assert rr.model == "opus4.8"
+        assert rr.model == "gpt5.6sol"
 
-    def test_sub_orchestrator_is_orchestrator_opus(self):
-        """sub-orchestrator — kind:orchestrator, opus, can_spawn=['*']."""
+    def test_sub_orchestrator_is_orchestrator_opus46(self):
+        """sub-orchestrator — kind:orchestrator, opus4.6, can_spawn=['*']."""
         rr = P.get_role(PIPELINE, "sub-orchestrator")
         assert rr is not None
         assert rr.is_orchestrator is True
-        assert rr.model == "opus"
+        assert rr.model == "opus4.6"
         assert rr.can_spawn == ["*"]
         assert rr.allow_unrouted_workers is True
 
     def test_modules_resolve_from_manifest(self):
         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
-        assert P.get_role(PIPELINE, "orchestrator").modules == ["git-workflow", "orchestration"]
-        assert P.get_role(PIPELINE, "sub-orchestrator").modules == ["git-workflow", "orchestration"]
-        assert P.get_role(PIPELINE, "worker").modules == ["git-workflow", "report-format"]
-        assert P.get_role(PIPELINE, "full-cycle").modules == ["git-workflow", "report-format"]
+        assert P.get_role(PIPELINE, "orchestrator").modules == [
+            "git-workflow", "orchestration", "background-jobs",
+            "task-management", "self-improvement", "memory-search",
+        ]
+        assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
+            "git-workflow", "orchestration", "background-jobs",
+            "task-management", "self-improvement",
+        ]
+        assert P.get_role(PIPELINE, "worker").modules == [
+            "git-workflow", "report-format", "self-improvement", "memory-search",
+        ]
+        assert P.get_role(PIPELINE, "full-cycle").modules == [
+            "research-method", "divergent-thinking", "git-workflow",
+            "report-format", "self-improvement", "memory-search",
+        ]
 
     def test_tg_emoji_for_v216_roles(self):
         assert P.get_role(PIPELINE, "sub-orchestrator").tg.emoji == "🎯"
 
     def test_orchestrator_skills_from_manifest(self):
         rr = P.get_role(PIPELINE, "orchestrator")
-        assert set(rr.skills) == {"html-artifacts", "vps-deploy", "codex-debate"}
+        assert set(rr.skills) == {
+            "html-artifacts", "vps-deploy", "codex-debate", "grill-me",
+        }
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):
         """Апстрим не ограничивает оркестратора: can_spawn=['*'], дефолтный
@@ -293,9 +300,11 @@ class TestUpstreamCharacterization:
         """build_system_prompt(orchestrator) = base.md + role + modules."""
         base = P.prompt_path(PIPELINE, "base.md").read_text()
         role = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text()
-        git = P.prompt_path(PIPELINE, "modules/git-workflow.md").read_text().strip()
-        orch = P.prompt_path(PIPELINE, "modules/orchestration.md").read_text().strip()
-        expected = f"{base}\n\n{role}\n\n{git}\n\n{orch}"
+        modules = [
+            P.prompt_path(PIPELINE, f"modules/{name}.md").read_text().strip()
+            for name in P.get_role(PIPELINE, "orchestrator").modules
+        ]
+        expected = "\n\n".join([base, role, *modules])
         assert P.build_system_prompt(PIPELINE, "orchestrator") == expected
 
 

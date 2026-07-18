@@ -125,10 +125,10 @@ class TestCreateWorktree:
         import app.workspace as ws
         from app.workspace import create_worktree
 
-        def boom(*a, **k):
+        def boom(*_args, **_kwargs):
             raise OSError("disk full")
 
-        monkeypatch.setattr(ws.shutil, "copy2", boom)
+        monkeypatch.setattr(ws, "_copy_file", boom)
         with pytest.raises(OSError, match="disk full"):
             create_worktree(str(git_repo), "worker-x", "/scope")
         wt_path = wt_root / "scope" / "worker-x"
