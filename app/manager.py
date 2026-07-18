@@ -268,6 +268,7 @@ def _make_mcp_config(name: str, scope: str, role: str = "worker",
         "ORCHESTRA_URL": "http://127.0.0.1:8888",
         "ORCHESTRA_SCOPE": scope,
         "ORCHESTRA_ROLE": role,
+        "ORCHESTRA_ACCESS_MODE": "full",
         "WORKER_NAME": name,
         "PARENT_NAME": parent_name,
     }

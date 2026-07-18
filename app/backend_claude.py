@@ -3,7 +3,9 @@
 import asyncio
 import json as _json
 import logging
+import os
 import shutil
+from pathlib import Path
 from typing import AsyncIterator, Optional
 
 from claude_agent_sdk import (
@@ -113,6 +115,8 @@ class ClaudeBackend:
         self._effort = effort
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
+        self.resume_failed = False
+        self._stderr_tail = ""
         self._pending_model_error = ""
         # SDK content events point at parent tool_use_id, while Task* lifecycle
         # messages use task_id. Keep the bridge so live output and persisted
@@ -126,7 +130,6 @@ class ClaudeBackend:
         return self._session_id
 
     def _make_client(self) -> ClaudeSDKClient:
-        import os
         cli = shutil.which("claude") or os.environ.get("CLAUDE_CLI_PATH", "claude")
         resume_id = self._session_id or self._resume_id
         env = {}
@@ -151,6 +154,7 @@ class ClaudeBackend:
             max_buffer_size=50 * 1024 * 1024,
             env=env,
             user=agent_uid,
+            stderr=self._capture_stderr,
         )
         if self._effort:
             options.effort = self._effort
@@ -188,13 +192,65 @@ class ClaudeBackend:
             self._client = None
 
     async def connect(self) -> None:
+        self.resume_failed = False
+        self._stderr_tail = ""
         self._client = self._make_client()
         try:
             await asyncio.wait_for(self._client.connect(), timeout=60)
         except BaseException as e:
-            logger.error(f"ClaudeBackend connect failed: {e}")
             await self._cleanup_failed_client()
+            if (
+                not isinstance(e, asyncio.CancelledError)
+                and (self._session_id or self._resume_id)
+                and not self._resume_transcript_exists()
+            ):
+                stale_id = self._session_id or self._resume_id
+                logger.warning(
+                    "Claude resume transcript %s is missing; starting fresh transport",
+                    str(stale_id)[:8],
+                )
+                self._session_id = None
+                self._resume_id = None
+                self.resume_failed = True
+                self._client = self._make_client()
+                try:
+                    await asyncio.wait_for(self._client.connect(), timeout=60)
+                    return
+                except BaseException as fresh_error:
+                    await self._cleanup_failed_client()
+                    logger.error(
+                        "ClaudeBackend fresh connect after stale resume failed: %s%s",
+                        fresh_error,
+                        f" | stderr: {self._stderr_tail[-1000:]}" if self._stderr_tail else "",
+                    )
+                    raise
+            logger.error(
+                "ClaudeBackend connect failed: %s%s",
+                e,
+                f" | stderr: {self._stderr_tail[-1000:]}" if self._stderr_tail else "",
+            )
             raise
+
+    def _capture_stderr(self, line: str) -> None:
+        self._stderr_tail = (self._stderr_tail + str(line))[-4000:]
+
+    def _resume_transcript_exists(self) -> bool:
+        resume_id = self._session_id or self._resume_id
+        if not resume_id:
+            return False
+        if self._config_dir:
+            root = Path(os.path.expanduser(self._config_dir))
+        elif os.environ.get("CLAUDE_CONFIG_DIR"):
+            root = Path(os.path.expanduser(os.environ["CLAUDE_CONFIG_DIR"]))
+        else:
+            root = Path.home() / ".claude"
+        projects = root / "projects"
+        if not projects.is_dir():
+            return False
+        try:
+            return next(projects.glob(f"**/{resume_id}.jsonl"), None) is not None
+        except OSError:
+            return False
 
     async def send(self, message: str) -> None:
         if not self._client:

@@ -200,6 +200,33 @@ class TestTurn:
         assert session.status == AgentStatus.IDLE
 
     @pytest.mark.asyncio
+    async def test_stale_claude_resume_uses_bounded_log_handoff(self, session):
+        backend = AsyncMock()
+        backend.resume_failed = True
+        backend.send = AsyncMock()
+        session.session_id = "stale-session"
+        session._current_prompt = "refreshed worker context"
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._build_runtime_handoff = AsyncMock(return_value=(
+            "User:\nold request\n\nAssistant:\nold answer"
+        ))
+
+        await session.send("what do you remember?")
+
+        assert session.session_id is None
+        sent = backend.send.await_args.args[0]
+        assert "<prior-conversation>" in sent
+        assert "old answer" in sent
+        assert "<current-user-message>\n[Orchestra platform note:" in sent
+        assert "what do you remember?" in sent
+        session._build_runtime_handoff.assert_awaited_once_with(
+            exclude_latest_user="what do you remember?"
+        )
+        assert session.runtime_handoff == ""
+        assert session.session_id_history[-1]["session_id"] == "stale-session"
+        assert session._last_context["percentage"] == 0
+
+    @pytest.mark.asyncio
     async def test_connect_error_returns_to_idle(self, session):
         """Ошибка connect() → status остаётся/возвращается в IDLE."""
         from app.session import AgentStatus
@@ -888,11 +915,15 @@ class TestRateLimitClassification:
         session._rate_limit_retries = 2
         session._server_error_retries = 2
         session._log = lambda *_args, **_kwargs: None
+        backend = AsyncMock()
+        backend.send = AsyncMock()
+        session._backend = backend
 
         await session.send("new user request")
 
         assert session._rate_limit_retries == 0
         assert session._server_error_retries == 0
+        backend.send.assert_awaited_once_with("new user request")
 
     @pytest.mark.asyncio
     async def test_server_error_retries_fresh_without_false_auto_report(
@@ -1077,6 +1108,22 @@ class TestRuntimeCapabilities:
 
         backend.send.assert_not_awaited()
         assert session._pending_messages == ["queue me"]
+
+    @pytest.mark.asyncio
+    async def test_codex_runtime_steers_mid_turn_message(self, session):
+        from app.session import AgentStatus
+
+        backend = AsyncMock()
+        backend.send = AsyncMock()
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._backend = backend
+        session._log = lambda *_args, **_kwargs: None
+
+        await session.send("steer now")
+
+        backend.send.assert_awaited_once_with("steer now")
+        assert session._pending_messages == []
 
     @pytest.mark.asyncio
     async def test_cross_runtime_model_switch_resets_native_session_and_builds_handoff(

@@ -3,6 +3,7 @@
 const TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️', 'file': '📄',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
+    'ViewImage': '🖼️', 'ImageGeneration': '🎨',
     'Agent': '🤖', 'Task': '🤖', 'TodoWrite': '📝', 'NotebookEdit': '📓',
     'ToolSearch': '🔍', 'AskUserQuestion': '❓', 'SendMessage': '💬',
 };

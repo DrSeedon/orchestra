@@ -25,8 +25,47 @@ ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
+ACCESS_MODE = os.environ.get("ORCHESTRA_ACCESS_MODE", "full").strip().lower()
+
+READ_ONLY_MCP_TOOLS = frozenset({
+    "test_lock_status",
+    "list_agents",
+    "list_orchestrators",
+    "get_worker_logs",
+    "list_jobs",
+    "check_conflict",
+    "worker_wip",
+    "get_worker_info",
+    "task_list",
+    "task_get",
+    "payment_status",
+    "bg_list",
+    "search_memory",
+})
 
 mcp = FastMCP("orchestra")
+
+
+def _tool_names_for_access_mode(names: set[str], mode: str) -> set[str]:
+    normalized = mode.strip().lower()
+    if normalized in {"read-only", "readonly", "read"}:
+        return names & READ_ONLY_MCP_TOOLS
+    if normalized == "full":
+        return set(names)
+    raise ValueError(f"Unknown ORCHESTRA_ACCESS_MODE: {mode!r}")
+
+
+def _apply_access_mode() -> None:
+    registered = {tool.name for tool in mcp._tool_manager.list_tools()}
+    visible = _tool_names_for_access_mode(registered, ACCESS_MODE)
+    for name in registered - visible:
+        mcp.remove_tool(name)
+    logger.info(
+        "Orchestra MCP access=%s tools=%d/%d",
+        ACCESS_MODE,
+        len(visible),
+        len(registered),
+    )
 
 
 def _auth_headers() -> dict:
@@ -928,5 +967,6 @@ async def codex_review(
 
 
 if __name__ == "__main__":
+    _apply_access_mode()
     logger.info(f"Orchestra MCP stdio (url={ORCHESTRA_URL}, scope={SCOPE})")
     mcp.run(transport="stdio")

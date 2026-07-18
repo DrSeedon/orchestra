@@ -1,6 +1,7 @@
 """Proxy manager (read-only, .env source of truth) + ssh_tunnel health-gate."""
 
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -158,3 +159,25 @@ async def test_health_gate_blocks_dead_vps():
         pass
     assert not out.decode().strip(), "dead VPS must not spawn ssh"
     assert t.running is False
+
+
+@pytest.mark.asyncio
+async def test_start_tunnel_adopts_already_bound_external_forward(monkeypatch):
+    tunnel = st.Tunnel(
+        name="systemd-owned",
+        local_port=12341,
+        host="example.invalid",
+        remote_port=3128,
+        key_path="",
+    )
+    cleanup = AsyncMock()
+    monkeypatch.setattr(st, "_parse_tunnels", lambda: [tunnel])
+    monkeypatch.setattr(st, "_port_open", AsyncMock(return_value=True))
+    monkeypatch.setattr(st, "_kill_stale", cleanup)
+
+    await st.start_tunnel()
+
+    assert tunnel.externally_managed is True
+    assert tunnel.running is True
+    assert tunnel.task is None
+    cleanup.assert_not_awaited()

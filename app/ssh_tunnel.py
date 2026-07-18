@@ -53,6 +53,7 @@ class Tunnel:
     proc: asyncio.subprocess.Process | None = field(default=None, repr=False)
     task: asyncio.Task | None = field(default=None, repr=False)
     running: bool = False
+    externally_managed: bool = False
 
 
 _tunnels: list[Tunnel] = []
@@ -185,10 +186,30 @@ async def start_tunnel():
     if not _tunnels:
         logger.info("SSH tunnels: none configured")
         return
-    await asyncio.gather(*(_kill_stale(t) for t in _tunnels))
-    for t in _tunnels:
+
+    managed = []
+    for tunnel in _tunnels:
+        # Several routes may already be owned by systemd user units. Treat a bound
+        # local forward as external instead of killing it and entering a restart war
+        # where both managers alternate `Address already in use`.
+        if await _port_open("127.0.0.1", tunnel.local_port, 0.25):
+            tunnel.externally_managed = True
+            tunnel.running = True
+            logger.info(
+                "tunnel %s adopted external listener on :%d",
+                tunnel.name,
+                tunnel.local_port,
+            )
+        else:
+            managed.append(tunnel)
+
+    await asyncio.gather(*(_kill_stale(t) for t in managed))
+    for t in managed:
         t.task = asyncio.create_task(_tunnel_loop(t))
-    names = ", ".join(f"{t.name}(:{t.local_port})" for t in _tunnels)
+    names = ", ".join(
+        f"{t.name}(:{t.local_port}{', external' if t.externally_managed else ''})"
+        for t in _tunnels
+    )
     logger.info(f"SSH tunnels starting: {names}")
 
 
@@ -223,6 +244,7 @@ def tunnel_status() -> list[dict]:
             "local_port": t.local_port,
             "remote_port": t.remote_port,
             "pid": t.proc.pid if t.proc and t.proc.returncode is None else None,
+            "externally_managed": t.externally_managed,
         }
         for t in _tunnels
     ]

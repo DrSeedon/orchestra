@@ -205,3 +205,28 @@ async def test_list_agents_groups_by_parent(monkeypatch):
     assert "orch-a" in out
     assert "my-coder" in out
     assert "their-coder" in out
+
+
+def test_read_only_access_mode_hides_mutating_tools():
+    import app.mcp_stdio as m
+
+    visible = m._tool_names_for_access_mode(
+        {"list_agents", "get_worker_logs", "send_message", "spawn_worker", "kill_worker"},
+        "read-only",
+    )
+
+    assert visible == {"list_agents", "get_worker_logs"}
+
+
+def test_full_access_mode_preserves_all_tools():
+    import app.mcp_stdio as m
+
+    names = {"list_agents", "send_message", "spawn_worker"}
+    assert m._tool_names_for_access_mode(names, "full") == names
+
+
+def test_unknown_access_mode_is_rejected():
+    import app.mcp_stdio as m
+
+    with pytest.raises(ValueError, match="ORCHESTRA_ACCESS_MODE"):
+        m._tool_names_for_access_mode({"list_agents", "spawn_worker"}, "typo")

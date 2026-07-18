@@ -221,6 +221,7 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
         mcp_env=mcp_env,
         mcp_servers=context.mcp_servers,
         reasoning_effort=context.effort or "high",
+        is_orchestrator=context.is_orchestrator,
     )
 
 
@@ -255,7 +256,7 @@ register_runtime(RuntimeDefinition(
     id="codex",
     capabilities=RuntimeCapabilities(
         event_stream="per_turn",
-        mid_turn_inject=False,
+        mid_turn_inject=True,
         reconnect=False,
         hibernate=False,
         process_liveness=True,
