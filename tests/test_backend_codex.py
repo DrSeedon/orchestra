@@ -307,6 +307,220 @@ def test_agent_message_delta_is_streamed_to_frontend():
     assert [(event.type, event.content) for event in events] == [("stream", "partial")]
 
 
+def test_command_execution_exposes_actions_and_live_output():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    started = backend._convert_notification({
+        "method": "item/started",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {
+                "id": "cmd-1",
+                "type": "commandExecution",
+                "command": "rg -n TODO app",
+                "commandActions": [{
+                    "type": "search",
+                    "command": "rg -n TODO app",
+                    "path": "app",
+                    "query": "TODO",
+                }],
+                "cwd": "/tmp",
+                "status": "inProgress",
+            },
+        },
+    })
+    live = backend._convert_notification({
+        "method": "item/commandExecution/outputDelta",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "itemId": "cmd-1",
+            "delta": "app/main.py:4:TODO\n",
+        },
+    })
+
+    assert started[0].type == "tool_use"
+    assert started[0].metadata["tool_name"] == "Bash"
+    command_payload = json.loads(started[0].content.split(": ", 1)[1])
+    assert command_payload["command"] == "rg -n TODO app"
+    assert command_payload["command_actions"][0]["type"] == "search"
+    assert live[0].type == "tool_stream"
+    assert live[0].metadata["tool_use_id"] == "cmd-1"
+
+
+def test_file_change_exposes_unified_diff_and_patch_updates():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    item = {
+        "id": "patch-1",
+        "type": "fileChange",
+        "changes": [{
+            "path": "/tmp/app.py",
+            "kind": "update",
+            "diff": "@@ -1 +1 @@\n-old\n+new\n",
+        }],
+        "status": "inProgress",
+    }
+    started = backend._convert_notification({
+        "method": "item/started",
+        "params": {"threadId": "thread-1", "turnId": "turn-1", "item": item},
+    })
+    patch = backend._convert_notification({
+        "method": "item/fileChange/patchUpdated",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "itemId": "patch-1",
+            "changes": item["changes"],
+        },
+    })
+    completed = backend._convert_notification({
+        "method": "item/completed",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {**item, "status": "completed"},
+        },
+    })
+
+    assert started[0].metadata["tool_name"] == "FileChange"
+    assert json.loads(started[0].content.split(": ", 1)[1])["changes"][0]["diff"]
+    assert patch[0].type == "tool_patch"
+    assert patch[0].metadata["tool_use_id"] == "patch-1"
+    assert completed[0].type == "tool_result"
+    assert json.loads(completed[0].content)["status"] == "completed"
+
+
+def test_reasoning_plan_warning_and_compaction_telemetry_are_visible():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+
+    reasoning = backend._convert_notification({
+        "method": "item/reasoning/summaryTextDelta",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "itemId": "reason-1",
+            "summaryIndex": 0,
+            "delta": "Checking contracts",
+        },
+    })
+    plan_delta = backend._convert_notification({
+        "method": "item/plan/delta",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "itemId": "plan-1",
+            "delta": "1. Inspect UI",
+        },
+    })
+    plan = backend._convert_notification({
+        "method": "turn/plan/updated",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "explanation": "Parity pass",
+            "plan": [
+                {"step": "Inspect UI", "status": "completed"},
+                {"step": "Patch renderer", "status": "inProgress"},
+            ],
+        },
+    })
+    warning = backend._convert_notification({
+        "method": "warning",
+        "params": {"threadId": "thread-1", "message": "Transport is degraded"},
+    })
+    compacted = backend._convert_notification({
+        "method": "thread/compacted",
+        "params": {"threadId": "thread-1"},
+    })
+    mcp_ready = backend._convert_notification({
+        "method": "mcpServer/startupStatus/updated",
+        "params": {
+            "threadId": "thread-1",
+            "name": "orchestra",
+            "status": "ready",
+        },
+    })
+
+    assert reasoning[0].type == "thinking_stream"
+    assert reasoning[0].metadata["activity"] == "reasoning"
+    assert plan_delta[0].type == "thinking_stream"
+    assert plan_delta[0].metadata["activity"] == "plan"
+    assert plan[0].type == "plan"
+    assert json.loads(plan[0].content)["plan"][1]["status"] == "inProgress"
+    assert warning[0].type == "warning"
+    assert compacted[0].content == "codex context compacted"
+    assert mcp_ready[0].content == "codex mcp orchestra: ready"
+
+
+def test_collab_terminal_event_keeps_spawn_description_and_summary():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._convert_notification({
+        "method": "item/started",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {
+                "id": "collab-1",
+                "type": "collabAgentToolCall",
+                "tool": "spawnAgent",
+                "receiverThreadIds": ["child-1"],
+                "senderThreadId": "thread-1",
+                "agentsStates": {},
+                "status": "inProgress",
+                "prompt": "Research the API",
+            },
+        },
+    })
+    ended = backend._convert_notification({
+        "method": "item/completed",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {
+                "id": "collab-2",
+                "type": "collabAgentToolCall",
+                "tool": "wait",
+                "receiverThreadIds": ["child-1"],
+                "senderThreadId": "thread-1",
+                "agentsStates": {
+                    "child-1": {"status": "completed", "message": "Found the schema"},
+                },
+                "status": "completed",
+            },
+        },
+    })
+
+    assert ended[0].type == "subagent_end"
+    assert ended[0].metadata["description"] == "Research the API"
+    assert ended[0].metadata["summary"] == "Found the schema"
+    assert "Found the schema" in ended[0].content
+
+
+def test_image_and_review_items_have_frontend_friendly_payloads():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    viewed = backend._item_started({
+        "id": "image-1",
+        "type": "imageView",
+        "path": "/tmp/chart.png",
+    })
+    generated = backend._item_completed({
+        "id": "image-2",
+        "type": "imageGeneration",
+        "status": "completed",
+        "result": "generated",
+        "savedPath": "/tmp/generated.png",
+    })
+    review = backend._item_completed({
+        "id": "review-1",
+        "type": "enteredReviewMode",
+        "review": "Review the current diff",
+    })
+
+    assert json.loads(viewed[0].content.split(": ", 1)[1])["file_path"] == "/tmp/chart.png"
+    assert json.loads(generated[-1].content)["saved_path"] == "/tmp/generated.png"
+    assert review[0].type == "review"
+
+
 def test_is_alive_tracks_codex_process_state():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     assert backend.is_alive is False

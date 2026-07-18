@@ -129,11 +129,17 @@ Dashboard теперь отдельно показывает:
 
 - жёлтый `Codex reconnecting` с причиной transport error;
 - голубой `Message steered into the current Codex turn`;
-- встроенный `WebSearch`;
+- live reasoning и plan state;
+- live stdout/stdin команд и MCP progress с заменой на финальный result;
+- command action badges (`read`, `search`, `listFiles`);
+- встроенный `WebSearch`, image view/generation;
+- unified diff для `fileChange` и текущего turn;
+- warnings, review mode, hooks, MCP startup и model reroute;
 - Codex collaboration как обычные раскрываемые subagent cards;
 - финальные command/MCP results и reasoning summary.
 
-Headless Chromium подтвердил все четыре блока и ноль JavaScript errors.
+Headless Chromium прогнал полный синтетический Codex turn и подтвердил все
+перечисленные блоки, корректное завершение live output и ноль JavaScript errors.
 `networkidle` для dashboard неприменим из-за долгоживущих SSE/polling
 соединений, поэтому smoke ждёт `domcontentloaded`, `#chat` и короткую
 стабилизацию DOM.
@@ -143,17 +149,15 @@ Headless Chromium подтвердил все четыре блока и нол�
 1. `codex app-server` — официальный deep-integration interface, но его CLI
    subcommand всё ещё помечен experimental. Адаптер проверен против схемы
    установленной версии; upgrade Codex требует regression smoke.
-2. Live command-output deltas пока не рисуются посимвольно. Вызов виден сразу,
-   агрегированный stdout/stderr — после item completion.
-3. App-server client не реализует интерактивные approvals и MCP elicitation:
+2. App-server client не реализует интерактивные approvals и MCP elicitation:
    autonomous worker работает с `never`; неожиданный server request получает
    явный JSON-RPC error.
-4. `danger-full-access` необходим текущему worktree/git/MCP workflow, но git
+3. `danger-full-access` необходим текущему worktree/git/MCP workflow, но git
    worktree не является security sandbox. Codex и Claude workers всё ещё
    доверенные локальные процессы с доступом пользователя.
-5. Активный proxy остаётся единым значением из `.env`. Скрытого hot-switch между
+4. Активный proxy остаётся единым значением из `.env`. Скрытого hot-switch между
    странами нет; восстановление выполняют SSH tunnel restart и backend retry.
-6. Изменения backend/runtime/tunnel требуют явного restart `orchestra.service`.
+5. Изменения backend/runtime/tunnel требуют явного restart `orchestra.service`.
    В рамках этой работы сервис не перезапускался.
 
 Официальный протокол: [Codex App Server](https://developers.openai.com/codex/app-server).

@@ -131,6 +131,61 @@ class TestStart:
         assert session.cost_usd == pytest.approx(0.05)
 
 
+def test_codex_live_activity_is_brokered_without_db_noise(session, monkeypatch):
+    from app.events import AgentEvent
+    from app.live_broker import broker
+
+    published = []
+    monkeypatch.setattr(broker, "publish", lambda sid, payload: published.append((sid, payload)))
+    session._log = MagicMock()
+
+    session._handle_event(AgentEvent(
+        "thinking_stream",
+        "Checking the renderer",
+        {"activity": "reasoning", "item_id": "reason-1"},
+    ))
+    session._handle_event(AgentEvent(
+        "tool_stream",
+        "line 1\n",
+        {"tool_use_id": "cmd-1"},
+    ))
+    session._handle_event(AgentEvent(
+        "tool_patch",
+        '{"changes":[]}',
+        {"tool_use_id": "patch-1"},
+    ))
+    session._handle_event(AgentEvent(
+        "turn_diff",
+        "@@ -1 +1 @@\n-old\n+new\n",
+        {"turn_id": "turn-1"},
+    ))
+
+    assert [payload["type"] for _, payload in published] == [
+        "thinking_stream",
+        "tool_stream",
+        "tool_patch",
+        "turn_diff",
+    ]
+    assert published[0][1]["activity"] == "reasoning"
+    assert published[1][1]["tool_use_id"] == "cmd-1"
+    session._log.assert_not_called()
+
+
+def test_codex_plan_warning_and_review_are_persisted(session):
+    from app.events import AgentEvent
+
+    session._log = MagicMock()
+    session._handle_event(AgentEvent("plan", '{"plan":[]}'))
+    session._handle_event(AgentEvent("warning", "Transport degraded"))
+    session._handle_event(AgentEvent("review", '{"phase":"entered"}'))
+
+    assert session._log.call_args_list == [
+        ((("plan", '{"plan":[]}')), {}),
+        ((("warning", "Transport degraded")), {}),
+        ((("review", '{"phase":"entered"}')), {}),
+    ]
+
+
 class TestSend:
     @pytest.mark.asyncio
     async def test_send_idle_sets_running(self, session):

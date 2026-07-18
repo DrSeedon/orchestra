@@ -628,6 +628,18 @@ class AgentSession:
             broker.publish(self.id, {"type": "subagent_stream", "content": event.content,
                                      "subagent_id": event.metadata.get("subagent_id", "")})
             return
+        if event.type in ("thinking_stream", "tool_stream", "tool_patch", "turn_diff"):
+            # Codex app-server exposes fine-grained activity that is valuable live but
+            # would flood the DB. The authoritative thinking/tool/file events are still
+            # persisted when their item completes.
+            from app.live_broker import broker
+            payload = {"type": event.type, "content": event.content}
+            for key in ("activity", "item_id", "tool_use_id", "turn_id", "stream"):
+                value = event.metadata.get(key)
+                if value:
+                    payload[key] = value
+            broker.publish(self.id, payload)
+            return
         # Sub-agent tool_use/text/tool_result (tagged with subagent_id) → broker ONLY
         # (ephemeral live nesting under the sub-agent block). NOT persisted — the DB
         # record is subagent_start/end; persisting these too would double-render them
@@ -661,6 +673,8 @@ class AgentSession:
         elif event.type == "file_change":
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")
+        elif event.type in ("plan", "warning", "review"):
+            self._log(event.type, event.content)
         elif event.type == "turn_end":
             self._turns.handle_turn_end(event)
         elif event.type == "error":
