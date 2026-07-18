@@ -1,6 +1,7 @@
 import json
+import sqlite3
 import time
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -38,6 +39,137 @@ def test_normalize_codex_usage_prefers_codex_bucket():
         "credits": {"has_credits": False, "unlimited": False, "balance": "0"},
         "reset_credits": 2,
     }
+
+
+def test_provider_usage_snapshot_unifies_anthropic_and_codex_windows():
+    anthropic = {
+        "five_hour": {"utilization": 9, "resets_at": "2026-07-18T11:20:00Z"},
+        "seven_day": {"utilization": 67, "resets_at": "2026-07-21T07:00:00Z"},
+    }
+    codex = {
+        "plan_type": "prolite",
+        "primary": {
+            "utilization": 34,
+            "window_minutes": 10080,
+            "resets_at": "2026-07-25T05:24:41Z",
+        },
+        "secondary": None,
+    }
+
+    providers = system._provider_usage_snapshot(anthropic, codex)
+
+    assert providers == {
+        "anthropic": {
+            "label": "Claude",
+            "windows": [
+                {
+                    "id": "five_hour",
+                    "label": "5h",
+                    "utilization": 9,
+                    "window_minutes": 300,
+                    "resets_at": "2026-07-18T11:20:00Z",
+                },
+                {
+                    "id": "seven_day",
+                    "label": "7d",
+                    "utilization": 67,
+                    "window_minutes": 10080,
+                    "resets_at": "2026-07-21T07:00:00Z",
+                },
+            ],
+        },
+        "codex": {
+            "label": "Codex",
+            "plan_type": "prolite",
+            "windows": [
+                {
+                    "id": "primary",
+                    "label": "7d",
+                    "utilization": 34,
+                    "window_minutes": 10080,
+                    "resets_at": "2026-07-25T05:24:41Z",
+                },
+            ],
+        },
+    }
+
+
+def test_usage_history_round_trips_universal_provider_windows(tmp_path, monkeypatch):
+    db_path = tmp_path / "usage.db"
+    monkeypatch.setattr("app.db.DB_PATH", db_path)
+    from app.db import init_db, usage_get_history, usage_save_snapshot
+
+    init_db()
+    providers = {
+        "codex": {
+            "label": "Codex",
+            "windows": [{
+                "id": "primary",
+                "label": "7d",
+                "utilization": 34,
+                "window_minutes": 10080,
+                "resets_at": "2026-07-25T05:24:41Z",
+            }],
+        },
+    }
+    usage_save_snapshot(9, 67, "a", "b", 1.0, 0, providers=providers)
+
+    history = usage_get_history(hours=1)
+
+    assert history
+    assert history[-1]["providers"] == providers
+    assert "provider_usage" not in history[-1]
+
+
+def test_usage_snapshot_migrates_old_history_schema(tmp_path, monkeypatch):
+    db_path = tmp_path / "old-usage.db"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("""
+            CREATE TABLE usage_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT NOT NULL,
+                five_hour_pct REAL DEFAULT 0,
+                seven_day_pct REAL DEFAULT 0,
+                five_hour_resets_at TEXT,
+                seven_day_resets_at TEXT,
+                total_cost_usd REAL DEFAULT 0,
+                active_agents INTEGER DEFAULT 0
+            )
+        """)
+    monkeypatch.setattr("app.db.DB_PATH", db_path)
+    from app.db import init_db
+
+    init_db()
+
+    with sqlite3.connect(db_path) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(usage_snapshots)")}
+    assert "provider_usage" in columns
+
+
+@pytest.mark.asyncio
+async def test_snapshot_collector_persists_codex_without_anthropic_oauth(monkeypatch):
+    codex = {
+        "plan_type": "prolite",
+        "primary": {
+            "utilization": 34,
+            "window_minutes": 10080,
+            "resets_at": "2026-07-25T05:24:41Z",
+        },
+        "secondary": None,
+    }
+    save_snapshot = MagicMock()
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: (None, None, None))
+    monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(return_value=codex))
+    monkeypatch.setattr(system, "_usage_cache", {"data": None, "ts": 0.0, "token": None})
+    monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
+    monkeypatch.setattr(system.manager, "sessions", {})
+    monkeypatch.setattr("app.db.usage_save_snapshot", save_snapshot)
+
+    await system._collect_usage_snapshot()
+
+    save_snapshot.assert_called_once()
+    assert save_snapshot.call_args.kwargs["providers"]["codex"]["windows"][0]["utilization"] == 34
+    assert system._codex_usage_cache["data"] is codex
 
 
 @pytest.mark.asyncio

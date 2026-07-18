@@ -471,6 +471,59 @@ def _normalize_codex_usage(result: dict) -> dict:
     }
 
 
+def _usage_window_label(window_minutes: int) -> str:
+    if window_minutes % 1440 == 0:
+        return f"{window_minutes // 1440}d"
+    if window_minutes % 60 == 0:
+        return f"{window_minutes // 60}h"
+    return f"{window_minutes}m"
+
+
+def _provider_usage_snapshot(anthropic: dict | None, codex: dict | None) -> dict:
+    """Normalize provider-specific limits into one history/chart contract."""
+    providers = {}
+    anthropic_windows = []
+    for window_id, label, minutes in (
+        ("five_hour", "5h", 300),
+        ("seven_day", "7d", 10080),
+    ):
+        window = (anthropic or {}).get(window_id)
+        if not isinstance(window, dict) or not isinstance(window.get("utilization"), (int, float)):
+            continue
+        anthropic_windows.append({
+            "id": window_id,
+            "label": label,
+            "utilization": window["utilization"],
+            "window_minutes": minutes,
+            "resets_at": window.get("resets_at"),
+        })
+    if anthropic_windows:
+        providers["anthropic"] = {"label": "Claude", "windows": anthropic_windows}
+
+    codex_windows = []
+    for window_id in ("primary", "secondary"):
+        window = (codex or {}).get(window_id)
+        if not isinstance(window, dict) or not isinstance(window.get("utilization"), (int, float)):
+            continue
+        minutes = window.get("window_minutes")
+        if not isinstance(minutes, int) or minutes <= 0:
+            continue
+        codex_windows.append({
+            "id": window_id,
+            "label": _usage_window_label(minutes),
+            "utilization": window["utilization"],
+            "window_minutes": minutes,
+            "resets_at": window.get("resets_at"),
+        })
+    if codex_windows:
+        providers["codex"] = {
+            "label": "Codex",
+            "plan_type": (codex or {}).get("plan_type"),
+            "windows": codex_windows,
+        }
+    return providers
+
+
 async def _fetch_codex_usage() -> dict:
     """Read ChatGPT subscription limits through Codex's local app-server protocol."""
     from app.backend_codex import CODEX_BIN
@@ -654,40 +707,55 @@ async def get_usage():
 SNAPSHOT_INTERVAL = 300
 
 
-async def _usage_snapshot_loop():
+async def _collect_usage_snapshot() -> None:
     from app.db import usage_save_snapshot
+    anthropic_data = None
+    token, refresh_token, _tier = _read_oauth_credentials()
+    if token:
+        try:
+            anthropic_data = await _fetch_anthropic_usage(token)
+        except PermissionError:
+            if refresh_token:
+                new_token = await _refresh_oauth_token(refresh_token)
+                if new_token:
+                    anthropic_data = await _fetch_anthropic_usage(new_token)
+        except Exception:
+            anthropic_data = None
+    if anthropic_data:
+        _usage_cache["data"] = anthropic_data
+        _usage_cache["ts"] = time.time()
+        _save_usage_cache()
+
+    try:
+        codex_data = await _fetch_codex_usage()
+    except Exception:
+        codex_data = None
+    if codex_data:
+        _codex_usage_cache["data"] = codex_data
+        _codex_usage_cache["ts"] = time.time()
+
+    snapshot_anthropic = anthropic_data or _usage_cache.get("data")
+    snapshot_codex = codex_data or _codex_usage_cache.get("data")
+    providers = _provider_usage_snapshot(snapshot_anthropic, snapshot_codex)
+    if not providers:
+        return
+
+    fh = (snapshot_anthropic or {}).get("five_hour") or {}
+    sd = (snapshot_anthropic or {}).get("seven_day") or {}
+    cost = sum(s.cost_usd for s in manager.sessions.values())
+    active = sum(1 for s in manager.sessions.values() if s.status.value == "running")
+    usage_save_snapshot(
+        fh.get("utilization", 0), sd.get("utilization", 0),
+        fh.get("resets_at", ""), sd.get("resets_at", ""),
+        round(cost, 4), active, providers=providers,
+    )
+
+
+async def _usage_snapshot_loop():
     await asyncio.sleep(10)
     while True:
         try:
-            token, refresh_token, _tier = _read_oauth_credentials()
-            if token:
-                try:
-                    data = await _fetch_anthropic_usage(token)
-                except PermissionError:
-                    if refresh_token:
-                        new_token = await _refresh_oauth_token(refresh_token)
-                        if new_token:
-                            data = await _fetch_anthropic_usage(new_token)
-                        else:
-                            data = None
-                    else:
-                        data = None
-                except Exception:
-                    data = None
-
-                if data:
-                    fh = data.get("five_hour") or {}
-                    sd = data.get("seven_day") or {}
-                    cost = sum(s.cost_usd for s in manager.sessions.values())
-                    active = sum(1 for s in manager.sessions.values() if s.status.value == "running")
-                    usage_save_snapshot(
-                        fh.get("utilization", 0), sd.get("utilization", 0),
-                        fh.get("resets_at", ""), sd.get("resets_at", ""),
-                        round(cost, 4), active,
-                    )
-                    _usage_cache["data"] = data
-                    _usage_cache["ts"] = time.time()
-                    _save_usage_cache()
+            await _collect_usage_snapshot()
             # usage_cleanup_old removed — keep all history
         except asyncio.CancelledError:
             return

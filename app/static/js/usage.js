@@ -44,14 +44,14 @@ function _paceIndicator(currentPct, isoStr, windowMs) {
     const elapsedMs = windowMs - remainMs;
     const idealPct = (elapsedMs / windowMs) * 100;
     const delta = currentPct - idealPct;
-    if (delta <= 5) return '<span style="color:#22c55e">ok</span>';
+    if (delta <= 5) return '<span style="color:#22c55e" title="Расход не опережает линейный темп окна">темп ok</span>';
     const cooldownMin = Math.round(delta * windowMs / 100 / 60000);
     const color = delta <= 20 ? '#eab308' : '#ef4444';
     let label;
     if (cooldownMin < 60) label = `${cooldownMin}m`;
     else if (cooldownMin < 1440) label = `${Math.floor(cooldownMin/60)}h ${cooldownMin%60}m`;
     else label = `${Math.floor(cooldownMin/1440)}d ${Math.floor((cooldownMin%1440)/60)}h ${cooldownMin%60}m`;
-    return `<span style="color:${color}">⏸${label}</span>`;
+    return `<span style="color:${color}" title="Локальная оценка опережения линейного темпа. Это не отдельное лимитное окно и не официальный таймер провайдера.">темп +${label}</span>`;
 }
 
 function _etaToLimit(currentPct, isoStr, windowMs) {
@@ -182,7 +182,7 @@ function renderUsageBar() {
                     h += _row('Использовано', `${fh.utilization}%`, fh.utilization >= 80 ? '#ef4444' : fh.utilization >= 50 ? '#eab308' : '#22c55e');
                     if (cd) h += _row('Сброс через', cd, '#64748b');
                     if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
-                    h += _row('Темп', pace, null);
+                    h += _row('Отклонение', pace, null);
                     if (eta) h += _row('Лимит через', eta, null);
                     h += '</div>';
                 }
@@ -195,7 +195,7 @@ function renderUsageBar() {
                     h += _row('Использовано', `${sd.utilization}%`, sd.utilization >= 80 ? '#ef4444' : sd.utilization >= 50 ? '#eab308' : '#22c55e');
                     if (cd) h += _row('Сброс через', cd, '#64748b');
                     if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
-                    h += _row('Темп', pace, null);
+                    h += _row('Отклонение', pace, null);
                     if (eta) h += _row('Лимит через', eta, null);
                     h += '</div>';
                 }
@@ -215,7 +215,7 @@ function renderUsageBar() {
                         h += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
                         if (cd) h += _row('Сброс через', cd, '#64748b');
                         if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
-                        h += _row('Темп', pace, null);
+                        h += _row('Отклонение', pace, null);
                         if (eta) h += _row('Лимит через', eta, null);
                         h += '</div>';
                     }
