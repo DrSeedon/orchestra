@@ -646,7 +646,7 @@ async def usage_daily(days: int = 30):
 
 
 @router.get("/api/usage/daily/agents")
-async def usage_daily_agents(days: int = 7):
+async def usage_daily_agents(days: int = 30):
     """Per-agent daily cost breakdown from turn-end logs."""
     from app.db import _conn
     c = _conn()
