@@ -4696,12 +4696,12 @@ async function _loadAnalytics() {
     body.innerHTML = '<div class="text-center text-slate-500 py-8">Loading...</div>';
     try {
         const scope = currentScope;
-        const daysMap = { today: 1, week: 7, month: 30, all: 365 };
+        const daysMap = { today: 1, week: 7, month: 30, all: 9999 };
         const days = daysMap[_analyticsPeriod];
         const [stats, daily, agents, usage] = await Promise.all([
             api(`/api/stats${scope ? '?scope=' + encodeURIComponent(scope) : ''}`),
             api(`/api/usage/daily?days=${days}`),
-            api(`/api/usage/daily/agents?days=${Math.min(days, 7)}`),
+            api(`/api/usage/daily/agents?days=${days}`),
             api('/api/usage').catch(() => null),
         ]);
         _renderAnalyticsBody(body, stats, daily, agents, usage);
