@@ -1136,6 +1136,7 @@ async function onOrchestratorChange() {
     streamBubble = null;
     streamContent = '';
     streamPending = '';
+    _resetCodexActivityState();
     selectedAgent = opt?.dataset?.name || null;
     if (currentScope && selectedAgent) {
         localStorage.setItem('lastOrchScope', currentScope);
@@ -1166,6 +1167,7 @@ async function selectAgent(name) {
     streamBubble = null;
     streamContent = '';
     streamPending = '';
+    _resetCodexActivityState();
     $('#chat').innerHTML = '';
     chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
     scrollAfterLoad = true;
@@ -1937,7 +1939,7 @@ function _renderJsonGrid(obj, container, maxDepth) {
     grid.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px;align-items:baseline';
     const entries = Object.entries(obj);
     for (const [key, val] of entries) {
-        if (key === 'system_prompt' || key === 'error_trace') continue;
+        if (key === 'system_prompt' || key === 'error_trace' || key === '_codex_item_id') continue;
         const keyEl = document.createElement('span');
         keyEl.style.cssText = 'color:#64748b;white-space:nowrap;font-family:monospace';
         keyEl.textContent = key;
@@ -2065,6 +2067,13 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
+            else if (rawName === 'FileChange') {
+                const changes = parsed.changes || [];
+                preview = `📝 ${changes.length} file${changes.length === 1 ? '' : 's'}`;
+            }
+            else if (rawName === 'ViewImage') preview = `🖼 ${(parsed.file_path || '').split('/').pop() || 'image'}`;
+            else if (rawName === 'ImageGeneration') preview = '🎨 generating image';
+            else if (rawName === 'Sleep') preview = `⏱ ${Math.round((parsed.duration_ms || 0) / 1000)}s`;
             else if (rawName === 'mcp__orchestra__task_create') { const _pp = {0:'🔴',1:'🟠',3:'🟢'}[parsed.priority]||''; preview = `📋 New: ${_pp}"${parsed.title || '?'}"${parsed.price ? ' | '+parsed.price+' ${CUR}' : ''}`; }
             else if (rawName === 'mcp__orchestra__task_update') { const _f = Object.keys(parsed).filter(k=>k!=='par').map(k=>`${k}→${parsed[k]}`).join(', '); preview = `✏️ #${taskNum(parsed.par) || '?'}: ${_f}`; }
             else if (rawName === 'mcp__orchestra__task_list') { const _fl = [parsed.status,parsed.project,parsed.assignee].filter(Boolean).join(', '); preview = `📋 Tasks${_fl ? ' ('+_fl+')' : ''}`; }
@@ -2121,6 +2130,13 @@ function buildCompactToolLine(type, content, ts) {
         line.dataset.compactTool = '1';
         line.dataset.toolContent = content;
         line.dataset.toolRaw = rawName;
+        try {
+            const parsed = JSON.parse(body);
+            if (parsed._codex_item_id) {
+                line.dataset.toolUseId = parsed._codex_item_id;
+                _flushCodexToolUpdates(line, parsed._codex_item_id);
+            }
+        } catch {}
 
         line.addEventListener('mouseenter', () => line.style.backgroundColor = 'rgba(30,41,59,0.5)');
         line.addEventListener('mouseleave', () => line.style.backgroundColor = '');
@@ -2230,11 +2246,145 @@ function _flushPendingSubagentLogs(sourceId, targetId) {
     }
 }
 
+let _codexThinkingLive = null;
+let _codexThinkingKey = '';
+let _codexTurnDiffBubble = null;
+const _pendingCodexToolUpdates = new Map();
+
+function _resetCodexActivityState() {
+    _removeCodexThinkingLive();
+    _codexTurnDiffBubble = null;
+    _pendingCodexToolUpdates.clear();
+}
+
+function _removeCodexThinkingLive(activity) {
+    if (!_codexThinkingLive) return;
+    if (activity && _codexThinkingLive.dataset.activity !== activity) return;
+    _codexThinkingLive.remove();
+    _codexThinkingLive = null;
+    _codexThinkingKey = '';
+}
+
+function _codexToolHost(chat, payload, anchor) {
+    const itemId = payload && payload.tool_use_id;
+    if (itemId) {
+        const exact = chat.querySelector(`[data-tool-use-id="${CSS.escape(itemId)}"]`);
+        if (exact) return exact;
+    }
+    return _findLastBefore(chat, '[data-last-tool], [data-compact-tool]', anchor);
+}
+
+function _applyCodexToolUpdate(host, type, content) {
+    if (!host) return;
+    if (type === 'tool_patch') {
+        const patch = renderCodexFileChange(content);
+        if (!patch) return;
+        const old = host.querySelector('.codex-file-change');
+        if (old) old.replaceWith(patch);
+        else host.appendChild(patch);
+        return;
+    }
+    if (host.dataset.compactTool) {
+        const result = host.querySelector('.compact-result');
+        if (result) {
+            const lastLine = String(content).trim().split('\n').pop() || 'working';
+            result.textContent = `⚡ ${lastLine.slice(0, 42)}`;
+            result.style.color = '#38bdf8';
+        }
+        return;
+    }
+    let pre = host.querySelector('.codex-live-output');
+    if (!pre) {
+        pre = document.createElement('pre');
+        pre.className = 'codex-live-output';
+        host.appendChild(pre);
+    }
+    const prefix = type === 'tool_stream' && host.dataset.toolStream === 'stdin' ? '› ' : '';
+    pre.textContent = (pre.textContent + prefix + content).slice(-20_000);
+    pre.scrollTop = pre.scrollHeight;
+}
+
+function _queueOrApplyCodexToolUpdate(chat, type, content, payload, anchor) {
+    const host = _codexToolHost(chat, payload, anchor);
+    const itemId = payload && payload.tool_use_id;
+    if (host) {
+        if (itemId) host.dataset.toolUseId = itemId;
+        if (payload && payload.stream) host.dataset.toolStream = payload.stream;
+        _applyCodexToolUpdate(host, type, content);
+        return;
+    }
+    if (!itemId) return;
+    const pending = _pendingCodexToolUpdates.get(itemId) || [];
+    pending.push([type, content, payload || {}]);
+    if (pending.length > 100) pending.shift();
+    _pendingCodexToolUpdates.set(itemId, pending);
+}
+
+function _flushCodexToolUpdates(host, itemId) {
+    if (!host || !itemId) return;
+    const pending = _pendingCodexToolUpdates.get(itemId);
+    if (!pending) return;
+    _pendingCodexToolUpdates.delete(itemId);
+    for (const [type, content, payload] of pending) {
+        if (payload.stream) host.dataset.toolStream = payload.stream;
+        _applyCodexToolUpdate(host, type, content);
+    }
+}
+
+function _renderCodexThinking(content, label) {
+    const card = document.createElement('div');
+    card.className = 'codex-activity-card codex-thinking-card';
+    const header = document.createElement('button');
+    header.className = 'codex-activity-header';
+    header.innerHTML = `<span class="codex-activity-caret">▶</span><span>${label || 'Reasoning'}</span>`;
+    const body = document.createElement('div');
+    body.className = 'codex-activity-body markdown-body';
+    body.innerHTML = DOMPurify.sanitize(marked.parse(content || ''));
+    body.style.display = 'none';
+    header.addEventListener('click', () => {
+        const expanded = body.style.display !== 'none';
+        body.style.display = expanded ? 'none' : 'block';
+        header.querySelector('.codex-activity-caret').textContent = expanded ? '▶' : '▼';
+    });
+    card.append(header, body);
+    return card;
+}
+
+function _renderCodexPlan(content) {
+    let data;
+    try { data = JSON.parse(content); } catch { data = {explanation: '', plan: []}; }
+    const card = document.createElement('div');
+    card.className = 'codex-activity-card codex-plan-card';
+    const title = document.createElement('div');
+    title.className = 'codex-plan-title';
+    title.textContent = '▦ Plan';
+    card.appendChild(title);
+    if (data.explanation) {
+        const explanation = document.createElement('div');
+        explanation.className = 'codex-plan-explanation';
+        explanation.textContent = data.explanation;
+        card.appendChild(explanation);
+    }
+    const steps = document.createElement('div');
+    steps.className = 'codex-plan-steps';
+    for (const step of data.plan || []) {
+        const row = document.createElement('div');
+        const status = String(step.status || 'pending');
+        row.className = `codex-plan-step codex-plan-${status.toLowerCase()}`;
+        const icon = status === 'completed' ? '✓' : status === 'inProgress' ? '●' : '○';
+        row.innerHTML = `<span class="codex-plan-icon">${icon}</span><span></span>`;
+        row.lastChild.textContent = step.step || '';
+        steps.appendChild(row);
+    }
+    card.appendChild(steps);
+    return card;
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
 function addChatEntry(type, content, ts, anchor, payload) {
-    if (HIDE_THINKING && type === 'thinking') return;
+    if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
     // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
     if ((type === 'subagent_stream' || type === 'subagent_event') && payload && payload.subagent_id) {
         appendSubagentLog(payload.subagent_id, payload.event_type || 'stream', content);
@@ -2254,6 +2404,52 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     // Heuristic: detect base64 image payloads from tool results (e.g. screenshot tools)
     const _isBase64Image = content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"') || /['"]?data['"]?\s*[:=]\s*['"][A-Za-z0-9+/=\s]{500,}['"]/.test(content);
+
+    if (type === 'thinking_stream') {
+        const activity = (payload && payload.activity) || 'reasoning';
+        const key = `${activity}:${(payload && payload.item_id) || ''}`;
+        if (!_codexThinkingLive || _codexThinkingKey !== key) {
+            _removeCodexThinkingLive();
+            _codexThinkingLive = document.createElement('div');
+            _codexThinkingLive.className = 'codex-activity-card codex-thinking-live';
+            _codexThinkingLive.dataset.activity = activity;
+            const label = document.createElement('div');
+            label.className = 'codex-live-label';
+            label.textContent = activity === 'plan' ? '▦ Planning live' : '◇ Reasoning live';
+            const body = document.createElement('div');
+            body.className = 'codex-live-thinking-body';
+            _codexThinkingLive.append(label, body);
+            _codexThinkingKey = key;
+            _insert(_codexThinkingLive);
+        }
+        const body = _codexThinkingLive.querySelector('.codex-live-thinking-body');
+        body.textContent = (body.textContent + content).slice(-30_000);
+        return;
+    }
+
+    if (type === 'tool_stream' || type === 'tool_patch') {
+        _queueOrApplyCodexToolUpdate(chat, type, content, payload, anchor);
+        return;
+    }
+
+    if (type === 'turn_diff') {
+        const patch = renderCodexFileChange({
+            changes: [{path: 'Current turn', kind: 'update', diff: content}],
+        });
+        if (!_codexTurnDiffBubble) {
+            _codexTurnDiffBubble = document.createElement('div');
+            _codexTurnDiffBubble.className = 'codex-activity-card codex-turn-diff';
+            const title = document.createElement('div');
+            title.className = 'codex-live-label';
+            title.textContent = '± Live turn diff';
+            _codexTurnDiffBubble.appendChild(title);
+            _insert(_codexTurnDiffBubble);
+        }
+        const old = _codexTurnDiffBubble.querySelector('.codex-file-change');
+        if (old && patch) old.replaceWith(patch);
+        else if (patch) _codexTurnDiffBubble.appendChild(patch);
+        return;
+    }
 
     if (_isBase64Image && type !== 'tool' && type !== 'tool_result') {
         const div = document.createElement('div');
@@ -2389,10 +2585,53 @@ function addChatEntry(type, content, ts, anchor, payload) {
         return;
     }
 
+    if (type === 'thinking') {
+        _removeCodexThinkingLive('reasoning');
+        const card = _renderCodexThinking(content, '◇ Reasoning');
+        addTimestamp(card, ts);
+        _insert(card);
+        return;
+    }
+
+    if (type === 'plan') {
+        _removeCodexThinkingLive('plan');
+        const card = _renderCodexPlan(content);
+        addTimestamp(card, ts);
+        _insert(card);
+        return;
+    }
+
+    if (type === 'warning') {
+        const warning = document.createElement('div');
+        warning.className = 'codex-warning';
+        warning.innerHTML = '<span class="codex-warning-icon">⚠</span><span></span>';
+        warning.lastChild.textContent = content;
+        addTimestamp(warning, ts);
+        _insert(warning);
+        return;
+    }
+
+    if (type === 'review') {
+        let reviewData = {};
+        try { reviewData = JSON.parse(content); } catch {}
+        const review = document.createElement('div');
+        review.className = 'codex-review';
+        const phase = reviewData.phase === 'exited' ? 'Review completed' : 'Review mode';
+        review.innerHTML = `<div class="codex-review-title">◎ ${phase}</div><div class="codex-review-body"></div>`;
+        review.querySelector('.codex-review-body').textContent = reviewData.review || '';
+        addTimestamp(review, ts);
+        _insert(review);
+        return;
+    }
+
     if (type === 'status') {
         const rl = _parseRateLimitStatus(content);
         const codexReconnect = content.startsWith('codex reconnecting:');
         const codexSteer = content === 'message steered into active Codex turn';
+        const codexReroute = content.startsWith('model rerouted:');
+        const codexHook = content.startsWith('codex hook ');
+        const codexMcp = content.startsWith('codex mcp ');
+        const codexCompaction = content.includes('codex context compact');
         const badge = document.createElement('div');
         if (rl) {
             // Rate limit: trigger the global banner (live logs only, not history/initial replay)
@@ -2405,6 +2644,18 @@ function addChatEntry(type, content, ts, anchor, payload) {
         } else if (codexSteer) {
             badge.className = 'text-center text-xs py-1 text-cyan-400 italic';
             badge.textContent = '↪ Message steered into the current Codex turn';
+        } else if (codexReroute) {
+            badge.className = 'text-center text-xs py-1 text-fuchsia-400 italic';
+            badge.textContent = `⇄ Codex model rerouted — ${content.slice('model rerouted:'.length).trim()}`;
+        } else if (codexHook) {
+            badge.className = 'text-center text-xs py-1 text-sky-400 italic';
+            badge.textContent = `⌁ ${content}`;
+        } else if (codexMcp) {
+            badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
+            badge.textContent = `🔌 ${content}`;
+        } else if (codexCompaction) {
+            badge.className = 'text-center text-xs py-1 text-amber-300 italic';
+            badge.textContent = '🗜 Codex context compacted';
         } else {
             badge.className = 'text-center text-xs py-1 text-slate-500 italic';
             badge.textContent = `⚡ ${content}`;
@@ -2471,7 +2722,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             el.style.cssText += ';color:#64748b';
             el.textContent = `⏳ ${isBackground ? 'Background task' : 'Sub-agent'} "${desc}" — ${line}`;
         } else {  // subagent_end → mark the accordion done + collapse
-            const ok = !meta.status || meta.status === 'completed';
+            const ok = !meta.status || ['completed', 'shutdown'].includes(meta.status);
             const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
             const summaryText = textParts.slice(1).join(' | ').trim();
             if (host) {
@@ -2558,6 +2809,14 @@ function addChatEntry(type, content, ts, anchor, payload) {
         div.dataset.toolContent = content;
         div.dataset.toolRawName = rawName;
         div.style.cursor = 'pointer';
+        let codexItemId = '';
+        try {
+            const parsed = JSON.parse(body);
+            if (parsed._codex_item_id) {
+                codexItemId = parsed._codex_item_id;
+                div.dataset.toolUseId = codexItemId;
+            }
+        } catch {}
 
         const header = document.createElement('div');
         header.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
@@ -2930,7 +3189,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (isBashTool) {
             try {
                 let cmd = body;
-                try { const d = JSON.parse(body); cmd = d.command || body; } catch {}
+                let commandData = {};
+                try {
+                    commandData = JSON.parse(body);
+                    cmd = commandData.command || body;
+                } catch {}
                 cmd = cmd.replace(/^\/(?:usr\/)?bin\/(?:bash|zsh) -lc /, '').replace(/^["']|["']$/g, '');
                 const cmdLines = cmd.split('\n');
                 const PREVIEW_LINES = 3;
@@ -2959,6 +3222,23 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     cmdWrap.appendChild(hint);
                 }
                 div.appendChild(cmdWrap);
+                const actions = commandData.command_actions || [];
+                if (actions.length) {
+                    const actionRow = document.createElement('div');
+                    actionRow.className = 'codex-command-actions';
+                    for (const action of actions) {
+                        const pill = document.createElement('span');
+                        pill.className = `codex-command-action codex-command-${action.type || 'unknown'}`;
+                        const actionIcon = action.type === 'read' ? '📖' :
+                            action.type === 'search' ? '🔎' :
+                            action.type === 'listFiles' ? '🗂' : '⌁';
+                        const detail = action.query || action.path || action.name || '';
+                        pill.textContent = `${actionIcon} ${action.type || 'command'}${detail ? ': ' + detail : ''}`;
+                        pill.title = action.command || '';
+                        actionRow.appendChild(pill);
+                    }
+                    div.appendChild(actionRow);
+                }
                 div.dataset.isBash = '1';
                 div.style.cursor = 'pointer';
                 let bashExpanded = false;
@@ -2974,6 +3254,41 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     if (resWrap) resWrap.style.display = bashExpanded ? 'block' : 'none';
                     if (resHint) resHint.textContent = bashExpanded ? '▲ collapse result' : `▼ ${resHint.dataset.count} more lines`;
                 });
+            } catch {}
+        }
+        const isFileChangeTool = rawName === 'FileChange';
+        if (isFileChangeTool) {
+            const patch = renderCodexFileChange(body);
+            header.textContent = '📝 Applying file changes';
+            header.style.color = '#f59e0b';
+            if (patch) div.appendChild(patch);
+            div.dataset.isFileChange = '1';
+        }
+        const isViewImageTool = rawName === 'ViewImage';
+        if (isViewImageTool) {
+            try {
+                const data = JSON.parse(body);
+                const path = data.file_path || '';
+                header.textContent = `🖼 Viewing ${(path.split('/').pop() || 'image')}`;
+                const img = document.createElement('img');
+                img.src = `/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}`;
+                img.loading = 'lazy';
+                img.className = 'codex-tool-image';
+                img.addEventListener('click', () => openImageLightbox(img.src));
+                div.appendChild(img);
+            } catch {}
+        }
+        const isImageGenerationTool = rawName === 'ImageGeneration';
+        if (isImageGenerationTool) {
+            header.textContent = '🎨 Generating image';
+            header.style.color = '#f472b6';
+        }
+        const isSleepTool = rawName === 'Sleep';
+        if (isSleepTool) {
+            try {
+                const data = JSON.parse(body);
+                header.textContent = `⏱ Waiting ${((data.duration_ms || 0) / 1000).toFixed(1)}s`;
+                header.style.color = '#94a3b8';
             } catch {}
         }
         const isAgentTool = rawName === 'Agent';
@@ -3081,7 +3396,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isProgress && !isSendMsg && !isGrepTool && !isBashTool && !isAgentTool && !isSpawnWorker && !isWebSearchCall && !isToolSearchCall && !isBugReport && !isWebFetch && !isSendFile && !isOrchSimple && !isGlob && !isSkill && !isYougile) {
+        } else if (!isProgress && !isSendMsg && !isGrepTool && !isBashTool &&
+                   !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
+                   !isToolSearchCall && !isBugReport && !isWebFetch &&
+                   !isSendFile && !isOrchSimple && !isGlob && !isSkill &&
+                   !isYougile && !isFileChangeTool && !isViewImageTool &&
+                   !isImageGenerationTool && !isSleepTool) {
             let _inputJsonRendered = false;
             if (body) {
                 try {
@@ -3128,10 +3448,71 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 });
             }
         }
+        if (codexItemId) _flushCodexToolUpdates(div, codexItemId);
     }
     else if (type === 'tool_result') {
         const chat = $('#chat');
         const lastTool = _findLastBefore(chat, '[data-last-tool]', anchor);
+        if (lastTool) {
+            const liveOutput = lastTool.querySelector('.codex-live-output');
+            if (liveOutput) liveOutput.remove();
+            if (lastTool.dataset.isFileChange) {
+                let data = {};
+                try { data = JSON.parse(content); } catch {}
+                const header = lastTool.querySelector('.flex.items-center');
+                const ok = !data.status || data.status === 'completed';
+                if (header) {
+                    header.textContent = `${ok ? '✅' : '❌'} File changes ${ok ? 'applied' : 'failed'}${data.files != null ? ` · ${data.files} file${data.files === 1 ? '' : 's'}` : ''}`;
+                    header.style.color = ok ? '#4ade80' : '#f87171';
+                }
+                delete lastTool.dataset.lastTool;
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'ImageGeneration') {
+                let data = {};
+                try { data = JSON.parse(content); } catch {}
+                const header = lastTool.querySelector('.flex.items-center');
+                if (header) {
+                    header.textContent = data.status === 'failed' ? '❌ Image generation failed' : '✅ Image generated';
+                    header.style.color = data.status === 'failed' ? '#f87171' : '#f472b6';
+                }
+                if (data.saved_path) {
+                    const img = document.createElement('img');
+                    img.src = `/api/files/raw?path=${encodeURIComponent(data.saved_path)}&t=${Date.now()}`;
+                    img.loading = 'lazy';
+                    img.className = 'codex-tool-image';
+                    img.addEventListener('click', () => openImageLightbox(img.src));
+                    lastTool.appendChild(img);
+                }
+                if (data.revised_prompt) {
+                    const prompt = document.createElement('div');
+                    prompt.className = 'codex-image-prompt';
+                    prompt.textContent = data.revised_prompt;
+                    lastTool.appendChild(prompt);
+                }
+                delete lastTool.dataset.lastTool;
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'ViewImage') {
+                const header = lastTool.querySelector('.flex.items-center');
+                if (header) header.style.color = '#7dd3fc';
+                delete lastTool.dataset.lastTool;
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'Sleep') {
+                const header = lastTool.querySelector('.flex.items-center');
+                if (header) {
+                    header.textContent = '✓ Wait completed';
+                    header.style.color = '#64748b';
+                }
+                delete lastTool.dataset.lastTool;
+                addTimestamp(lastTool, ts);
+                return;
+            }
+        }
         if (_isBase64Image) {
             const b64Match = content.match(/data['":\s]+['"]([A-Za-z0-9+/=\s]{100,})['"]/);
             if (lastTool) {

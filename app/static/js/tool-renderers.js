@@ -2,6 +2,7 @@
 
 const TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️', 'file': '📄',
+    'FileChange': '📝', 'Sleep': '⏱️',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
     'ViewImage': '🖼️', 'ImageGeneration': '🎨',
     'Agent': '🤖', 'Task': '🤖', 'TodoWrite': '📝', 'NotebookEdit': '📓',
@@ -147,6 +148,70 @@ function renderEditDiff(body) {
     }
 
     return container;
+}
+
+function _unifiedDiffLines(diff) {
+    return String(diff || '').split('\n').filter((line, idx, lines) => {
+        return !(idx === lines.length - 1 && line === '');
+    }).map(line => {
+        let type = 'ctx';
+        if (line.startsWith('+') && !line.startsWith('+++')) type = 'add';
+        else if (line.startsWith('-') && !line.startsWith('---')) type = 'del';
+        const text = line.startsWith('@@') ? `⋯ ${line}` : line;
+        return {type, html: _escHtml(text)};
+    });
+}
+
+// Codex app-server provides ready-made unified diffs instead of Claude's
+// old_string/new_string pair. Render every changed file without reparsing source files.
+function renderCodexFileChange(body) {
+    let data;
+    try { data = typeof body === 'string' ? JSON.parse(body) : body; } catch { return null; }
+    const changes = data && Array.isArray(data.changes) ? data.changes : [];
+    if (!changes.length) return null;
+
+    const root = document.createElement('div');
+    root.className = 'codex-file-change';
+    for (const change of changes) {
+        const block = document.createElement('div');
+        block.className = 'diff-view';
+        const fp = String(change.path || '');
+        const shortPath = fp.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || fp;
+        const fileEl = document.createElement('div');
+        fileEl.className = 'diff-file codex-diff-file';
+
+        const path = document.createElement('span');
+        path.textContent = shortPath || 'file';
+        path.title = fp;
+        const kind = document.createElement('span');
+        kind.className = `codex-change-kind codex-change-${change.kind || 'update'}`;
+        kind.textContent = change.kind || 'update';
+        fileEl.append(path, kind);
+        block.appendChild(fileEl);
+
+        const lines = _unifiedDiffLines(change.diff);
+        const preview = lines.slice(0, 8);
+        const rest = lines.slice(8);
+        block.appendChild(_buildDiffEl(preview));
+        if (rest.length) {
+            const restEl = _buildDiffEl(rest);
+            restEl.dataset.role = 'codex-diff-rest';
+            restEl.style.display = 'none';
+            block.appendChild(restEl);
+            const more = document.createElement('div');
+            more.className = 'diff-file codex-diff-more';
+            more.textContent = `▼ ${rest.length} more lines`;
+            more.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const expanded = restEl.style.display !== 'none';
+                restEl.style.display = expanded ? 'none' : 'block';
+                more.textContent = expanded ? `▼ ${rest.length} more lines` : '▲ collapse';
+            });
+            block.appendChild(more);
+        }
+        root.appendChild(block);
+    }
+    return root;
 }
 
 // Renders a placeholder skeleton while the tool_result (file content) is still in flight.

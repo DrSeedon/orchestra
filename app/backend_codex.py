@@ -185,6 +185,7 @@ class CodexBackend:
         self._last_stderr = ""
         self._last_turn_error: dict = {}
         self._started_items: set[str] = set()
+        self._subagent_descriptions: dict[str, str] = {}
         self._rollout_path: Path | None = None
         self._usage_baseline: dict[str, int] | None = None
         self._thread_usage_total: dict[str, int] | None = None
@@ -504,8 +505,63 @@ class CodexBackend:
         if method == "model/rerouted":
             return [AgentEvent("status", f"model rerouted: {json.dumps(params, ensure_ascii=False)}")]
 
-        if method == "context/compacted":
+        if method in ("context/compacted", "thread/compacted"):
             return [AgentEvent("status", "codex context compacted")]
+
+        if method in (
+            "item/reasoning/summaryTextDelta",
+            "item/reasoning/textDelta",
+            "item/plan/delta",
+        ):
+            activity = "plan" if method == "item/plan/delta" else "reasoning"
+            return [AgentEvent(
+                "thinking_stream",
+                params.get("delta", ""),
+                metadata={
+                    "activity": activity,
+                    "item_id": params.get("itemId", ""),
+                },
+            )]
+
+        if method == "turn/plan/updated":
+            return [AgentEvent("plan", json.dumps({
+                "explanation": params.get("explanation"),
+                "plan": params.get("plan") or [],
+            }, ensure_ascii=False))]
+
+        if method == "turn/diff/updated":
+            return [AgentEvent(
+                "turn_diff",
+                params.get("diff", ""),
+                metadata={"turn_id": params.get("turnId", "")},
+            )]
+
+        if method in (
+            "item/commandExecution/outputDelta",
+            "item/fileChange/outputDelta",
+        ):
+            return [AgentEvent(
+                "tool_stream",
+                params.get("delta", ""),
+                metadata={"tool_use_id": params.get("itemId", "")},
+            )]
+
+        if method == "item/commandExecution/terminalInteraction":
+            return [AgentEvent(
+                "tool_stream",
+                params.get("stdin", ""),
+                metadata={
+                    "tool_use_id": params.get("itemId", ""),
+                    "stream": "stdin",
+                },
+            )]
+
+        if method == "item/fileChange/patchUpdated":
+            return [AgentEvent(
+                "tool_patch",
+                json.dumps({"changes": params.get("changes") or []}, ensure_ascii=False),
+                metadata={"tool_use_id": params.get("itemId", "")},
+            )]
 
         if method == "item/started":
             item = params.get("item") or {}
@@ -518,10 +574,52 @@ class CodexBackend:
             return self._item_completed(params.get("item") or {})
 
         if method == "item/mcpToolCall/progress":
-            return [AgentEvent("status", f"MCP: {params.get('message', '')}")]
+            return [AgentEvent(
+                "tool_stream",
+                params.get("message", ""),
+                metadata={"tool_use_id": params.get("itemId", "")},
+            )]
 
         if method == "item/agentMessage/delta":
             return [AgentEvent("stream", params.get("delta", ""))]
+
+        if method in ("warning", "guardianWarning", "deprecationNotice", "configWarning"):
+            content = (
+                params.get("message")
+                or params.get("summary")
+                or "Codex warning"
+            )
+            details = params.get("details")
+            if details:
+                content = f"{content}\n{details}"
+            return [AgentEvent("warning", content)]
+
+        if method == "mcpServer/startupStatus/updated":
+            name = params.get("name") or "unknown"
+            status = params.get("status") or "unknown"
+            detail = params.get("error") or params.get("failureReason") or ""
+            content = f"codex mcp {name}: {status}"
+            if detail:
+                content = f"{content} — {detail}"
+            event_type = "warning" if status in ("failed", "cancelled") else "status"
+            return [AgentEvent(event_type, content)]
+
+        if method in ("hook/started", "hook/completed"):
+            run = params.get("run") or {}
+            phase = "started" if method.endswith("/started") else "completed"
+            label = run.get("eventName") or run.get("id") or "hook"
+            status = run.get("status") or phase
+            duration = run.get("durationMs")
+            suffix = f" · {duration}ms" if duration is not None else ""
+            return [AgentEvent("status", f"codex hook {label}: {status}{suffix}")]
+
+        if method in ("item/autoApprovalReview/started", "item/autoApprovalReview/completed"):
+            phase = "started" if method.endswith("/started") else "completed"
+            return [AgentEvent("status", f"codex approval review {phase}")]
+
+        if method == "model/safetyBuffering/updated" and params.get("showBufferingUi"):
+            reasons = ", ".join(params.get("reasons") or [])
+            return [AgentEvent("warning", f"Codex safety buffering: {reasons or params.get('model', '')}")]
 
         if method == "turn/completed":
             turn = params.get("turn") or {}
@@ -550,7 +648,26 @@ class CodexBackend:
         item_type = item.get("type", "")
         item_id = str(item.get("id") or "")
         if item_type == "commandExecution":
-            return [self._tool_use("Bash", item.get("command", ""), item_id)]
+            payload = {
+                "command": item.get("command", ""),
+                "cwd": item.get("cwd", self.cwd),
+                "command_actions": item.get("commandActions") or [],
+            }
+            return [self._tool_use(
+                "Bash",
+                json.dumps(payload, ensure_ascii=False),
+                item_id,
+            )]
+        if item_type == "fileChange":
+            payload = {
+                "changes": item.get("changes") or [],
+                "status": item.get("status", ""),
+            }
+            return [self._tool_use(
+                "FileChange",
+                json.dumps(payload, ensure_ascii=False),
+                item_id,
+            )]
         if item_type == "mcpToolCall":
             server, tool = item.get("server", ""), item.get("tool", "")
             name = f"mcp__{server}__{tool}" if server else tool
@@ -567,11 +684,32 @@ class CodexBackend:
                 item_id,
             )]
         if item_type == "webSearch":
-            return [self._tool_use("WebSearch", item.get("query", ""), item_id)]
+            return [self._tool_use(
+                "WebSearch",
+                json.dumps({
+                    "query": item.get("query", ""),
+                    "action": item.get("action"),
+                }, ensure_ascii=False),
+                item_id,
+            )]
         if item_type == "imageView":
-            return [self._tool_use("ViewImage", item.get("path", ""), item_id)]
+            return [self._tool_use(
+                "ViewImage",
+                json.dumps({"file_path": item.get("path", "")}, ensure_ascii=False),
+                item_id,
+            )]
         if item_type == "imageGeneration":
-            return [self._tool_use("ImageGeneration", "", item_id)]
+            return [self._tool_use(
+                "ImageGeneration",
+                json.dumps({"status": item.get("status", "")}, ensure_ascii=False),
+                item_id,
+            )]
+        if item_type == "sleep":
+            return [self._tool_use(
+                "Sleep",
+                json.dumps({"duration_ms": item.get("durationMs", 0)}),
+                item_id,
+            )]
         if item_type == "collabAgentToolCall":
             return self._collab_events(item, completed=False)
         if item_type == "contextCompaction":
@@ -598,7 +736,7 @@ class CodexBackend:
                 events.append(AgentEvent("thinking", item["text"]))
         elif item_type == "commandExecution":
             if unseen:
-                events.append(self._tool_use("Bash", item.get("command", ""), item_id))
+                events.extend(self._item_started(item))
             output = item.get("aggregatedOutput")
             if output is not None:
                 events.append(AgentEvent(
@@ -607,12 +745,16 @@ class CodexBackend:
                     metadata={"exit_code": item.get("exitCode"), "tool_use_id": item_id},
                 ))
         elif item_type == "fileChange":
-            changes = item.get("changes") or []
-            desc = ", ".join(
-                f"{change.get('kind', '')} {change.get('path', '')}".strip()
-                for change in changes
-            )
-            events.append(AgentEvent("file_change", desc, metadata={"tool_use_id": item_id}))
+            if unseen:
+                events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({
+                    "status": item.get("status", ""),
+                    "files": len(item.get("changes") or []),
+                }, ensure_ascii=False),
+                metadata={"tool_use_id": item_id},
+            ))
         elif item_type == "mcpToolCall":
             server, tool = item.get("server", ""), item.get("tool", "")
             name = f"mcp__{server}__{tool}" if server else tool
@@ -645,22 +787,59 @@ class CodexBackend:
                     self._result_text(content),
                     metadata={"tool_use_id": item_id},
                 ))
+            elif item.get("success") is False or item.get("status") == "failed":
+                events.append(AgentEvent(
+                    "tool_result",
+                    json.dumps({
+                        "status": item.get("status"),
+                        "success": item.get("success"),
+                    }),
+                    metadata={"tool_use_id": item_id},
+                ))
         elif item_type == "webSearch":
             if unseen:
                 events.extend(self._item_started(item))
             events.append(AgentEvent(
                 "tool_result",
-                f"Web search completed: {item.get('query', '')}",
+                json.dumps({
+                    "query": item.get("query", ""),
+                    "action": item.get("action"),
+                    "status": "completed",
+                }, ensure_ascii=False),
                 metadata={"tool_use_id": item_id},
             ))
         elif item_type == "imageView":
             if unseen:
                 events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({
+                    "status": "viewed",
+                    "file_path": item.get("path", ""),
+                }, ensure_ascii=False),
+                metadata={"tool_use_id": item_id},
+            ))
         elif item_type == "imageGeneration":
             if unseen:
                 events.extend(self._item_started(item))
-            result = item.get("result") or item.get("savedPath") or item.get("status", "")
-            events.append(AgentEvent("tool_result", str(result), metadata={"tool_use_id": item_id}))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({
+                    "result": item.get("result"),
+                    "saved_path": item.get("savedPath"),
+                    "status": item.get("status", ""),
+                    "revised_prompt": item.get("revisedPrompt"),
+                }, ensure_ascii=False),
+                metadata={"tool_use_id": item_id},
+            ))
+        elif item_type == "sleep":
+            if unseen:
+                events.extend(self._item_started(item))
+            events.append(AgentEvent(
+                "tool_result",
+                json.dumps({"status": "completed", "duration_ms": item.get("durationMs", 0)}),
+                metadata={"tool_use_id": item_id},
+            ))
         elif item_type == "collabAgentToolCall":
             events.extend(self._collab_events(item, completed=True))
         elif item_type == "subAgentActivity":
@@ -674,6 +853,12 @@ class CodexBackend:
             ))
         elif item_type == "contextCompaction":
             events.append(AgentEvent("status", "codex context compacted"))
+        elif item_type in ("enteredReviewMode", "exitedReviewMode"):
+            phase = "entered" if item_type == "enteredReviewMode" else "exited"
+            events.append(AgentEvent("review", json.dumps({
+                "phase": phase,
+                "review": item.get("review", ""),
+            }, ensure_ascii=False)))
 
         if item_id:
             self._started_items.discard(item_id)
@@ -685,15 +870,20 @@ class CodexBackend:
         agent_states = item.get("agentsStates") or {}
         events = []
         for sub_id in receiver_ids:
-            description = item.get("prompt") or tool
+            prompt = item.get("prompt") or ""
+            if tool == "spawnAgent" and prompt:
+                self._subagent_descriptions[sub_id] = prompt
+            description = prompt or self._subagent_descriptions.get(sub_id) or tool
             agent_state = agent_states.get(sub_id) or {}
             agent_status = agent_state.get("status", "")
+            summary = agent_state.get("message") or ""
             metadata = {
                 "subagent_id": sub_id,
                 "tool_use_id": item.get("id", ""),
                 "description": description,
                 "task_type": "codex",
                 "status": agent_status or item.get("status", ""),
+                "summary": summary,
             }
             if tool == "spawnAgent" and not completed:
                 metadata["phase"] = "start"
@@ -710,6 +900,7 @@ class CodexBackend:
                 content = (
                     f"{description} | type=codex | id={sub_id} | "
                     f"tool_use_id={item.get('id', '')} | status={metadata['status']}"
+                    f"{' | ' + summary[:500] if summary else ''}"
                 )
                 events.append(AgentEvent("subagent_end", content, metadata))
             else:
@@ -812,6 +1003,14 @@ class CodexBackend:
     @staticmethod
     def _tool_use(name: str, summary: str, item_id: str,
                   short_name: str | None = None) -> AgentEvent:
+        if item_id:
+            try:
+                payload = json.loads(summary)
+            except (json.JSONDecodeError, TypeError):
+                payload = None
+            if isinstance(payload, dict):
+                payload["_codex_item_id"] = item_id
+                summary = json.dumps(payload, ensure_ascii=False)
         short = short_name or name
         return AgentEvent(
             "tool_use",
