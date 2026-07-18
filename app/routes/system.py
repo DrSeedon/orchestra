@@ -10,6 +10,7 @@ import os
 import re
 import signal
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -373,10 +374,11 @@ async def stats(scope: Optional[str] = None):
     return manager.stats(scope)
 
 
-# ── Usage (Anthropic OAuth) ──
+# ── Usage (subscription limits) ──
 
 _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.json"
 _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
+_codex_usage_cache: dict = {"data": None, "ts": 0.0}
 _USAGE_CACHE_TTL = 300
 _CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 
@@ -430,6 +432,99 @@ async def _fetch_anthropic_usage(token: str) -> dict:
             raise RuntimeError("rate_limited")
         resp.raise_for_status()
         return resp.json()
+
+
+def _normalize_codex_window(window: dict | None) -> dict | None:
+    if not isinstance(window, dict):
+        return None
+    used = window.get("usedPercent")
+    duration = window.get("windowDurationMins")
+    if not isinstance(used, (int, float)) or not isinstance(duration, int) or duration <= 0:
+        return None
+    resets_at = window.get("resetsAt")
+    reset_iso = None
+    if isinstance(resets_at, (int, float)) and resets_at > 0:
+        reset_iso = datetime.fromtimestamp(resets_at, timezone.utc).isoformat().replace("+00:00", "Z")
+    utilization = max(0, min(100, used))
+    return {
+        "utilization": int(utilization) if float(utilization).is_integer() else utilization,
+        "window_minutes": duration,
+        "resets_at": reset_iso,
+    }
+
+
+def _normalize_codex_usage(result: dict) -> dict:
+    by_limit = result.get("rateLimitsByLimitId") or {}
+    limits = by_limit.get("codex") or result.get("rateLimits") or {}
+    credits = limits.get("credits") or {}
+    reset_credits = result.get("rateLimitResetCredits") or {}
+    return {
+        "plan_type": limits.get("planType"),
+        "primary": _normalize_codex_window(limits.get("primary")),
+        "secondary": _normalize_codex_window(limits.get("secondary")),
+        "credits": {
+            "has_credits": bool(credits.get("hasCredits")),
+            "unlimited": bool(credits.get("unlimited")),
+            "balance": credits.get("balance"),
+        },
+        "reset_credits": reset_credits.get("availableCount", 0),
+    }
+
+
+async def _fetch_codex_usage() -> dict:
+    """Read ChatGPT subscription limits through Codex's local app-server protocol."""
+    from app.backend_codex import CODEX_BIN
+
+    proc = await asyncio.create_subprocess_exec(
+        CODEX_BIN, "app-server",
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+
+    async def send(message: dict) -> None:
+        assert proc.stdin is not None
+        proc.stdin.write((json.dumps(message) + "\n").encode())
+        await proc.stdin.drain()
+
+    try:
+        await send({
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "clientInfo": {"name": "orchestra-dashboard", "title": "Orchestra dashboard", "version": "1"},
+                "capabilities": None,
+            },
+        })
+        assert proc.stdout is not None
+        init = json.loads((await asyncio.wait_for(proc.stdout.readline(), timeout=5)).decode())
+        if init.get("id") != 1 or init.get("error"):
+            raise RuntimeError(f"Codex app-server initialization failed: {init.get('error', 'invalid response')}")
+
+        await send({"method": "initialized"})
+        await send({"id": 2, "method": "account/rateLimits/read", "params": None})
+        async with asyncio.timeout(10):
+            while line := await proc.stdout.readline():
+                response = json.loads(line)
+                if response.get("id") != 2:
+                    continue
+                if response.get("error"):
+                    raise RuntimeError(f"Codex rate limit fetch failed: {response['error']}")
+                return _normalize_codex_usage(response.get("result") or {})
+        raise RuntimeError("Codex app-server closed without a rate limit response")
+    finally:
+        if proc.stdin:
+            proc.stdin.close()
+        if proc.returncode is None:
+            try:
+                proc.terminate()
+            except ProcessLookupError:
+                pass
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=1)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
 
 
 async def _refresh_oauth_token(refresh_token: str) -> str | None:
@@ -538,8 +633,20 @@ async def get_usage():
         _usage_cache["ts"] = now
         _save_usage_cache()
 
+    if _codex_usage_cache["data"] and (now - _codex_usage_cache["ts"]) < _USAGE_CACHE_TTL:
+        codex_data = _codex_usage_cache["data"]
+    else:
+        try:
+            codex_data = await _fetch_codex_usage()
+            _codex_usage_cache["data"] = codex_data
+            _codex_usage_cache["ts"] = now
+        except Exception as e:
+            logger.warning(f"Codex usage fetch failed: {e}")
+            codex_data = _codex_usage_cache["data"]
+
     return {
         "anthropic": anthropic_data,
+        "codex": codex_data,
         "orchestra": _get_agents_cost(),
     }
 

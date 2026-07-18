@@ -76,6 +76,14 @@ function _miniBar(pct, color) {
     return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
 }
 
+function _codexWindowLabel(windowMinutes) {
+    if (windowMinutes === 300) return '5h';
+    if (windowMinutes === 10080) return '7d';
+    if (windowMinutes % 1440 === 0) return `${windowMinutes / 1440}d`;
+    if (windowMinutes % 60 === 0) return `${windowMinutes / 60}h`;
+    return `${windowMinutes}m`;
+}
+
 function renderUsageBar() {
     const bar = document.getElementById('usage-bar');
     if (!bar) return;
@@ -87,6 +95,7 @@ function renderUsageBar() {
     bar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
 
     const a = _usageData.anthropic || {};
+    const cx = _usageData.codex || {};
     const o = _usageData.orchestra || {};
     const parts = [];
 
@@ -109,6 +118,21 @@ function renderUsageBar() {
         const cd = _resetCountdown(sd.resets_at);
         const pace = _paceIndicator(sd.utilization, sd.resets_at, 7 * 86400000);
         parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+    }
+
+    const codexWindows = [cx.primary, cx.secondary].filter(Boolean);
+    if (codexWindows.length) {
+        parts.push('<span style="height:14px;border-left:1px solid rgba(71,85,105,0.6)"></span>');
+        parts.push('<span style="color:#22c55e;font-weight:600">Codex</span>');
+        for (const window of codexWindows) {
+            const windowMs = window.window_minutes * 60000;
+            const rpNum = _resetPctNum(window.resets_at, windowMs);
+            const c = _usageColor(window.utilization, rpNum);
+            const cd = _resetCountdown(window.resets_at);
+            const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
+            const label = _codexWindowLabel(window.window_minutes);
+            parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+        }
     }
 
     parts.push('<span style="flex:1"></span>');
@@ -143,6 +167,7 @@ function renderUsageBar() {
             showTimer = setTimeout(async () => {
                 if (tip) return;
                 const _a = _usageData?.anthropic || {};
+                const _c = _usageData?.codex || {};
                 const _o = _usageData?.orchestra || {};
                 const fh = _a.five_hour;
                 const sd = _a.seven_day;
@@ -175,6 +200,27 @@ function renderUsageBar() {
                     h += '</div>';
                 }
                 h += '<div id="usage-sparkline-slot" style="margin:8px 0"></div>';
+                const codexWindows = [_c.primary, _c.secondary].filter(Boolean);
+                if (codexWindows.length) {
+                    h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:8px;margin-top:6px">';
+                    h += '<div style="color:#22c55e;font-weight:600;margin-bottom:5px">✦ Codex Pro</div>';
+                    for (const window of codexWindows) {
+                        const windowMs = window.window_minutes * 60000;
+                        const cd = _resetCountdown(window.resets_at);
+                        const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
+                        const eta = _etaToLimit(window.utilization, window.resets_at, windowMs);
+                        const rpNum = _resetPctNum(window.resets_at, windowMs);
+                        const label = _codexWindowLabel(window.window_minutes);
+                        h += `<div style="margin-bottom:8px"><div style="color:#86efac;font-weight:600;margin-bottom:2px">${label} окно</div>`;
+                        h += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
+                        if (cd) h += _row('Сброс через', cd, '#64748b');
+                        if (rpNum != null) h += _row('Прогресс окна', `${rpNum}%`, '#64748b');
+                        h += _row('Темп', pace, null);
+                        if (eta) h += _row('Лимит через', eta, null);
+                        h += '</div>';
+                    }
+                    h += '</div>';
+                }
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
