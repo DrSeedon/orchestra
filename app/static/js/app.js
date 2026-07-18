@@ -2083,7 +2083,11 @@ function buildCompactToolLine(type, content, ts) {
             else if (parsed.message) preview = parsed.message;
             else if (parsed.content) preview = parsed.content.slice(0, 80);
             else preview = body.slice(0, 80);
-        } catch { preview = body.slice(0, 120); }
+        } catch {
+            preview = rawName === 'WebSearch'
+                ? `🌐 "${body.slice(0, 120)}"`
+                : body.slice(0, 120);
+        }
 
         const isOrch = rawName.startsWith('mcp__orchestra__');
         const nameColor = isOrch ? '#a78bfa' : '#38bdf8';
@@ -2387,12 +2391,20 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     if (type === 'status') {
         const rl = _parseRateLimitStatus(content);
+        const codexReconnect = content.startsWith('codex reconnecting:');
+        const codexSteer = content === 'message steered into active Codex turn';
         const badge = document.createElement('div');
         if (rl) {
             // Rate limit: trigger the global banner (live logs only, not history/initial replay)
             if (!anchor && !scrollAfterLoad) _showRateLimitBanner(selectedAgent, rl.retry, rl.max, rl.delay);
             badge.className = 'text-center text-xs py-1 text-amber-400 italic';
             badge.textContent = `⏳ Rate limit — Anthropic временно ограничил запросы, повтор ${rl.retry}/${rl.max} через ${rl.delay}с (это НЕ твой лимит подписки)`;
+        } else if (codexReconnect) {
+            badge.className = 'text-center text-xs py-1 text-amber-400 italic';
+            badge.textContent = `🔌 Codex reconnecting — ${content.slice('codex reconnecting:'.length).trim()}`;
+        } else if (codexSteer) {
+            badge.className = 'text-center text-xs py-1 text-cyan-400 italic';
+            badge.textContent = '↪ Message steered into the current Codex turn';
         } else {
             badge.className = 'text-center text-xs py-1 text-slate-500 italic';
             badge.textContent = `⚡ ${content}`;

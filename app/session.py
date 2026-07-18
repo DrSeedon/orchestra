@@ -211,6 +211,7 @@ class AgentSession:
             self._persist()
 
     async def send(self, message: str) -> None:
+        original_user_message = message
         # Retry budgets belong to one logical request. A real new message resets both;
         # each internal retry preserves only its own failure class.
         if not message.startswith("[system] Retrying after rate limit."):
@@ -236,6 +237,8 @@ class AgentSession:
                 backend = await self._ensure_backend()
                 # Claude SDK supports inject via stdin during an active turn
                 await backend.send(message)
+                if self.backend_type == "codex":
+                    self._log("status", "message steered into active Codex turn")
                 return
             except Exception as e:
                 logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
@@ -250,6 +253,8 @@ class AgentSession:
                     try:
                         backend = await self._ensure_backend()
                         await backend.send(message)
+                        if self.backend_type == "codex":
+                            self._log("status", "message steered into active Codex turn")
                         return
                     except Exception as e:
                         logger.warning(f"[{self.name}] mid-turn inject failed in lock, queueing: {e}")
@@ -301,6 +306,34 @@ class AgentSession:
                 self.status = AgentStatus.IDLE
                 self._persist()
                 raise
+
+            # Claude transcripts are local files. A DB row can outlive that file (old
+            # manual stops/cleanup), in which case Claude CLI cannot resume the UUID.
+            # ClaudeBackend reconnects fresh; carry a bounded DB transcript explicitly
+            # so the new session does not wake up amnesiac or keep returning HTTP 500.
+            if getattr(backend, "resume_failed", False):
+                self.runtime_handoff = await self._build_runtime_handoff(
+                    exclude_latest_user=original_user_message
+                )
+                stale_session_id = self.session_id
+                if stale_session_id:
+                    self.session_id_history.append({
+                        "session_id": stale_session_id,
+                        "runtime": self.backend_type,
+                        "model": self.model,
+                        "resume_missing_at": datetime.now(timezone.utc).isoformat(),
+                        "context_pct": self._last_context.get("percentage", 0),
+                    })
+                    self.session_id_history = self.session_id_history[-10:]
+                self.session_id = None
+                self._last_context = {
+                    "percentage": 0,
+                    "total_tokens": 0,
+                    "max_tokens": 0,
+                }
+                backend.resume_failed = False
+                self._log("status", "native Claude transcript missing — restored from Orchestra logs")
+                self._persist()
 
             # send() can raise (e.g. opencode prompt_async 404/5xx) AFTER status=RUNNING and
             # BEFORE the listen task is created — without this, a failed submit strands the
@@ -568,6 +601,9 @@ class AgentSession:
                 self._persist()
                 backend = await self._ensure_backend()
                 await backend.send(combined)
+                if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
+                    self._listen_task = asyncio.create_task(self._turn_event_loop())
+                    self._listen_task.add_done_callback(self._on_task_done)
         except Exception as e:
             logger.error(f"[{self.name}] flush pending failed: {e}")
             self._pending_messages[0:0] = msgs
@@ -860,7 +896,7 @@ class AgentSession:
         except Exception as e:
             logger.warning(f"[{self.name}] auto-compact failed: {e}")
 
-    async def _build_runtime_handoff(self) -> str:
+    async def _build_runtime_handoff(self, exclude_latest_user: str = "") -> str:
         """Build a bounded provider-neutral transcript for a new native runtime."""
         if self._log_futures:
             await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
@@ -872,10 +908,19 @@ class AgentSession:
         blocks: list[str] = []
         total = 0
         max_chars = 32_000
+        skipped_latest_user = False
         for entry in reversed(logs):
             label = labels.get(entry.get("type"))
             content = str(entry.get("content") or "").strip()
             if not label or not content:
+                continue
+            if (
+                exclude_latest_user
+                and not skipped_latest_user
+                and label == "User"
+                and content == exclude_latest_user.strip()
+            ):
+                skipped_latest_user = True
                 continue
             if content.startswith("[Orchestra platform note:"):
                 continue

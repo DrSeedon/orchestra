@@ -41,6 +41,54 @@ async def test_connect_cancelled_disconnects_client():
 
 
 @pytest.mark.asyncio
+async def test_missing_resume_transcript_falls_back_to_fresh_client():
+    failed = AsyncMock()
+    failed.connect = AsyncMock(side_effect=RuntimeError("Check stderr output for details"))
+    failed.disconnect = AsyncMock()
+    fresh = AsyncMock()
+    fresh.connect = AsyncMock()
+    fresh.disconnect = AsyncMock()
+    b = ClaudeBackend(
+        model="claude-opus-4-6[1m]",
+        cwd="/tmp",
+        resume_session_id="missing-session",
+    )
+
+    with (
+        patch.object(b, "_make_client", side_effect=[failed, fresh]),
+        patch.object(b, "_resume_transcript_exists", return_value=False),
+    ):
+        await b.connect()
+
+    failed.disconnect.assert_awaited_once()
+    fresh.connect.assert_awaited_once()
+    assert b.resume_failed is True
+    assert b.session_id is None
+    assert b._client is fresh
+
+
+@pytest.mark.asyncio
+async def test_existing_resume_transcript_does_not_hide_connect_failure():
+    failed = AsyncMock()
+    failed.connect = AsyncMock(side_effect=RuntimeError("upstream unavailable"))
+    failed.disconnect = AsyncMock()
+    b = ClaudeBackend(
+        model="claude-opus-4-6[1m]",
+        cwd="/tmp",
+        resume_session_id="existing-session",
+    )
+
+    with (
+        patch.object(b, "_make_client", return_value=failed),
+        patch.object(b, "_resume_transcript_exists", return_value=True),
+        pytest.raises(RuntimeError, match="upstream unavailable"),
+    ):
+        await b.connect()
+
+    assert b.resume_failed is False
+
+
+@pytest.mark.asyncio
 async def test_reconnect_timeout_disconnects_client():
     client = AsyncMock()
     client.connect = AsyncMock(side_effect=TimeoutError("reconnect timed out"))

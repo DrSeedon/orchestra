@@ -8,6 +8,7 @@ Regression net for the three bugs found in the codex-integration audit:
 
 import json
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -124,13 +125,19 @@ def test_mcp_config_args_dotted_leaves():
     assert 'mcp_servers.orchestra.command="python"' in args
     assert 'mcp_servers.orchestra.args=["/x/mcp_stdio.py"]' in args
     assert 'mcp_servers.orchestra.env={WORKER_NAME="w1"}' in args
+    assert "mcp_servers.orchestra.enabled=true" in args
+    enabled_tools = next(a for a in args if a.startswith("mcp_servers.orchestra.enabled_tools="))
+    assert '"send_message"' in enabled_tools
+    assert '"spawn_worker"' in enabled_tools
 
 
-def test_mcp_config_skips_url_only_servers():
+def test_mcp_config_supports_url_only_servers():
     b = CodexBackend(model="gpt-5.6-sol", cwd="/tmp", mcp_servers={
         "remote": {"url": "https://example/sse"},
     })
-    assert b._mcp_config_args() == []  # no command → skipped, not crashed
+    args = b._mcp_config_args()
+    assert "mcp_servers.remote.enabled=true" in args
+    assert 'mcp_servers.remote.url="https://example/sse"' in args
 
 
 def test_mcp_config_empty_when_no_servers():
@@ -151,19 +158,153 @@ def test_codex_inherits_orchestra_proxy(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_thread_started_exposes_session_id_before_turn_completion():
-    class FakeStdout:
-        async def readline(self):
-            return b'{"type":"thread.started","thread_id":"thread-early"}\n'
-
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
-    backend._proc = SimpleNamespace(stdout=FakeStdout(), returncode=None)
-
-    events = backend.events()
-    event = await anext(events)
-    await events.aclose()
+    events = backend._convert_notification({
+        "method": "thread/started",
+        "params": {"thread": {"id": "thread-early"}},
+    })
+    event = events[0]
 
     assert event.type == "status"
     assert event.metadata["session_id"] == "thread-early"
+
+
+@pytest.mark.asyncio
+async def test_send_steers_active_app_server_turn():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-1"
+    backend._active_turn_id = "turn-1"
+    backend._request = AsyncMock(return_value={"turnId": "turn-1"})
+
+    await backend.send("extra context")
+
+    backend._request.assert_awaited_once_with("turn/steer", {
+        "threadId": "thread-1",
+        "expectedTurnId": "turn-1",
+        "input": [{"type": "text", "text": "extra context"}],
+    })
+
+
+@pytest.mark.asyncio
+async def test_send_starts_turn_when_idle():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-1"
+    backend._request = AsyncMock(return_value={"turn": {"id": "turn-2"}})
+
+    await backend.send("do it")
+
+    backend._request.assert_awaited_once_with("turn/start", {
+        "threadId": "thread-1",
+        "input": [{"type": "text", "text": "do it"}],
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+    })
+    assert backend._active_turn_id == "turn-2"
+
+
+def test_app_server_events_cover_web_reasoning_and_network_failure():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+
+    web = backend._convert_notification({
+        "method": "item/started",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {"id": "web-1", "type": "webSearch", "query": "official Codex docs"},
+        },
+    })
+    assert web[0].type == "tool_use"
+    assert web[0].metadata["short_name"] == "WebSearch"
+
+    reasoning = backend._convert_notification({
+        "method": "item/completed",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {
+                "id": "reason-1",
+                "type": "reasoning",
+                "summary": ["Inspecting runtime", "Checking transport"],
+                "content": [],
+            },
+        },
+    })
+    assert reasoning[0].type == "thinking"
+    assert "Checking transport" in reasoning[0].content
+
+    backend._last_turn_error = {
+        "message": "stream disconnected",
+        "codexErrorInfo": {"responseStreamDisconnected": {"httpStatusCode": None}},
+    }
+    failed = backend._convert_notification({
+        "method": "turn/completed",
+        "params": {
+            "threadId": "thread-1",
+            "turn": {"id": "turn-1", "status": "failed", "items": []},
+        },
+    })
+    end = next(event for event in failed if event.type == "turn_end")
+    assert end.metadata["ok"] is False
+    assert end.metadata["model_error"] == "server_error"
+
+
+def test_collab_agent_event_is_visible_as_subagent():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    events = backend._convert_notification({
+        "method": "item/started",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {
+                "id": "collab-1",
+                "type": "collabAgentToolCall",
+                "tool": "spawnAgent",
+                "receiverThreadIds": ["child-1"],
+                "senderThreadId": "thread-1",
+                "agentsStates": {},
+                "status": "inProgress",
+                "prompt": "Research the API",
+            },
+        },
+    })
+    assert events[0].type == "subagent_start"
+    assert events[0].metadata["subagent_id"] == "child-1"
+
+
+def test_completed_collab_wait_emits_subagent_end_for_terminal_agent():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    events = backend._convert_notification({
+        "method": "item/completed",
+        "params": {
+            "threadId": "thread-1",
+            "turnId": "turn-1",
+            "item": {
+                "id": "collab-2",
+                "type": "collabAgentToolCall",
+                "tool": "wait",
+                "receiverThreadIds": ["child-1"],
+                "senderThreadId": "thread-1",
+                "agentsStates": {"child-1": {"status": "completed", "message": "Done"}},
+                "status": "completed",
+            },
+        },
+    })
+
+    assert events[0].type == "subagent_end"
+    assert events[0].metadata["status"] == "completed"
+
+
+def test_agent_message_delta_is_streamed_to_frontend():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+
+    events = backend._convert_notification({
+        "method": "item/agentMessage/delta",
+        "params": {"threadId": "thread-1", "turnId": "turn-1", "delta": "partial"},
+    })
+
+    assert [(event.type, event.content) for event in events] == [("stream", "partial")]
 
 
 def test_is_alive_tracks_codex_process_state():
