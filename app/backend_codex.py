@@ -42,6 +42,7 @@ CODEX_TOKEN_PRICES = {
 # mode, not a plain effort level, and risky to trigger from a generic worker effort field.
 CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
+CODEX_COMPACT_TIMEOUT_SECONDS = 120
 
 
 def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
@@ -222,6 +223,8 @@ class CodexBackend:
         self._thread_usage_total: dict[str, int] | None = None
         self._last_call_usage: dict[str, int] | None = None
         self._model_context_window = CODEX_CONTEXT_LIMITS.get(model, 258400)
+        self._compact_future: asyncio.Future | None = None
+        self._compact_context_tokens: int | None = None
 
     @property
     def session_id(self) -> Optional[str]:
@@ -378,6 +381,51 @@ class CodexBackend:
             logger.warning("Codex turn interrupt failed: %s", exc)
             return False
 
+    async def compact_context(self) -> dict:
+        """Compact the current Codex thread without replacing its thread id."""
+        if not self.is_alive:
+            raise RuntimeError("Codex app-server is not running")
+        if not self._thread_id:
+            raise RuntimeError("Codex thread is not initialized")
+        if self._active_turn_id:
+            raise RuntimeError("cannot compact Codex context during an active turn")
+        if self._compact_future and not self._compact_future.done():
+            raise RuntimeError("Codex context compact already in progress")
+
+        future = asyncio.get_running_loop().create_future()
+        self._compact_future = future
+        self._compact_context_tokens = None
+        try:
+            await self._request(
+                "thread/compact/start",
+                {"threadId": self._thread_id},
+            )
+            result = await asyncio.wait_for(
+                future,
+                timeout=CODEX_COMPACT_TIMEOUT_SECONDS,
+            )
+            # The usage notification normally precedes contextCompaction completion,
+            # but yield once for app-server versions that emit it immediately after.
+            await asyncio.sleep(0)
+            context_tokens = self._compact_context_tokens
+            if context_tokens is None:
+                runtime_context = self._runtime_context()
+                if runtime_context:
+                    context_tokens = int(runtime_context.get("input_tokens") or 0)
+                    runtime_window = runtime_context.get("model_context_window")
+                    if isinstance(runtime_window, int) and runtime_window > 0:
+                        self._model_context_window = runtime_window
+            result["context_tokens"] = context_tokens
+            result["max_tokens"] = self._model_context_window
+            return result
+        finally:
+            if self._compact_future is future:
+                self._compact_future = None
+            if not future.done():
+                future.cancel()
+            elif not future.cancelled():
+                future.exception()
+
     async def disconnect(self) -> None:
         proc = self._proc
         if proc is None:
@@ -399,6 +447,10 @@ class CodexBackend:
             if not future.done():
                 future.set_exception(RuntimeError("Codex app-server disconnected"))
         self._pending_requests.clear()
+        if self._compact_future and not self._compact_future.done():
+            self._compact_future.set_exception(
+                RuntimeError("Codex app-server disconnected during context compact")
+            )
         self._proc = None
         self._reader_task = None
         self._stderr_task = None
@@ -470,6 +522,9 @@ class CodexBackend:
                             future.set_result(message.get("result") or {})
                     continue
                 if message.get("method"):
+                    if message["method"] == "thread/tokenUsage/updated":
+                        self._record_token_usage(message.get("params") or {})
+                    self._complete_compaction_from_notification(message)
                     await self._notifications.put(message)
         except asyncio.CancelledError:
             return
@@ -481,6 +536,8 @@ class CodexBackend:
             for future in self._pending_requests.values():
                 if not future.done():
                     future.set_exception(error)
+            if self._compact_future and not self._compact_future.done():
+                self._compact_future.set_exception(error)
             if not self._disconnecting:
                 await self._notifications.put({
                     "method": "_process/exited",
@@ -503,6 +560,47 @@ class CodexBackend:
                 self._last_stderr = (self._last_stderr + text)[-4000:]
         except asyncio.CancelledError:
             return
+
+    def _record_token_usage(self, params: dict) -> None:
+        usage = params.get("tokenUsage") or {}
+        total = usage.get("total") or {}
+        last = usage.get("last") or {}
+        self._thread_usage_total = self._usage_breakdown(total)
+        self._last_call_usage = self._usage_breakdown(last)
+        context_tokens = last.get("totalTokens")
+        if isinstance(context_tokens, int) and context_tokens >= 0:
+            self._compact_context_tokens = context_tokens
+        window = usage.get("modelContextWindow")
+        if isinstance(window, int) and window > 0:
+            self._model_context_window = window
+
+    def _complete_compaction_from_notification(self, message: dict) -> bool:
+        method = message.get("method", "")
+        params = message.get("params") or {}
+        thread_id = params.get("threadId")
+        if thread_id and thread_id != self._thread_id:
+            return False
+
+        item = params.get("item") or {}
+        completed = (
+            method in ("context/compacted", "thread/compacted")
+            or (
+                method == "item/completed"
+                and item.get("type") == "contextCompaction"
+            )
+        )
+        if not completed:
+            return False
+
+        future = self._compact_future
+        if future and not future.done():
+            future.set_result({
+                "ok": True,
+                "thread_id": self._thread_id,
+                "context_tokens": self._compact_context_tokens,
+                "max_tokens": self._model_context_window,
+            })
+        return True
 
     def _convert_notification(self, message: dict) -> list[AgentEvent]:
         method = message.get("method", "")
@@ -527,12 +625,7 @@ class CodexBackend:
             return [AgentEvent("status", f"codex turn={turn_id} started")]
 
         if method == "thread/tokenUsage/updated":
-            usage = params.get("tokenUsage") or {}
-            self._thread_usage_total = self._usage_breakdown(usage.get("total") or {})
-            self._last_call_usage = self._usage_breakdown(usage.get("last") or {})
-            window = usage.get("modelContextWindow")
-            if isinstance(window, int) and window > 0:
-                self._model_context_window = window
+            self._record_token_usage(params)
             return []
 
         if method == "error":

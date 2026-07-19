@@ -922,7 +922,7 @@ class TestCompactGuards:
 
 
 class TestPrecompactTimer:
-    def test_codex_post_turn_relies_on_native_compaction(self, session):
+    def test_codex_post_turn_schedules_native_precompact_without_generic_handoff(self, session):
         spawned = []
         logs = []
 
@@ -941,7 +941,7 @@ class TestPrecompactTimer:
 
         session._turns.after_turn_idle_actions(95)
 
-        session._schedule_precompact_timer.assert_not_called()
+        session._schedule_precompact_timer.assert_called_once_with(95)
         assert "_auto_compact" not in spawned
         assert not any("auto-compact triggered" in content for _, content in logs)
 
@@ -970,6 +970,142 @@ class TestPrecompactTimer:
             for call in session._log.call_args_list
         )
 
+    def test_codex_precompact_policy_uses_25m_and_60pct_threshold(self, session):
+        launched = []
+        session.backend_type = "codex"
+        session._log = lambda *_: None
+
+        def capture(coro):
+            launched.append(coro)
+            coro.close()
+            return MagicMock(done=lambda: False)
+
+        session._spawn_bg = capture
+
+        session._schedule_precompact_timer(59)
+        assert session._precompact_timer is None
+
+        session._schedule_precompact_timer(60)
+
+        assert len(launched) == 1
+        assert session._precompact_timer["delay_seconds"] == 25 * 60
+        assert session._precompact_timer["cache_window_seconds"] == 30 * 60
+        assert session._precompact_timer["context_threshold"] == 60
+        assert session._precompact_timer["compact_mode"] == "native"
+
+    @pytest.mark.asyncio
+    async def test_codex_precompact_timer_calls_native_session_compact(self, session, monkeypatch):
+        from app.session import AgentStatus
+
+        session.backend_type = "codex"
+        session.status = AgentStatus.IDLE
+        session._last_context["percentage"] = 70
+        session._log = MagicMock()
+        session.compact = AsyncMock(return_value={
+            "ok": True,
+            "mode": "native",
+            "before_pct": 70,
+            "after_pct": 12,
+        })
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: False),
+        )
+        session.CODEX_PRECOMPACT_DELAY_SECONDS = 0
+
+        session._schedule_precompact_timer(70)
+        await asyncio.sleep(0.05)
+
+        session.compact.assert_awaited_once_with()
+        assert session._precompact_timer["compact_result"]["mode"] == "native"
+
+    @pytest.mark.asyncio
+    async def test_codex_manual_compact_uses_native_backend_and_preserves_session(
+        self, session
+    ):
+        from app.session import AgentStatus
+
+        backend = MagicMock()
+        backend.compact_context = AsyncMock(return_value={
+            "ok": True,
+            "thread_id": "thread-1",
+            "context_tokens": 31_000,
+            "max_tokens": 258_400,
+        })
+        session.backend_type = "codex"
+        session.session_id = "thread-1"
+        session.status = AgentStatus.IDLE
+        session._last_context = {
+            "percentage": 88,
+            "total_tokens": 227_000,
+            "max_tokens": 258_400,
+        }
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._hibernate.schedule = MagicMock()
+        session._log = MagicMock()
+        session._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "backend": "codex",
+        }
+
+        result = await session.compact()
+
+        backend.compact_context.assert_awaited_once_with()
+        assert session.session_id == "thread-1"
+        assert result["ok"] is True
+        assert result["mode"] == "native"
+        assert result["before_pct"] == 88
+        assert result["after_pct"] == 12
+        assert session._last_context["total_tokens"] == 31_000
+        assert session._precompact_timer is None
+        session._hibernate.schedule.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_codex_native_compact_queues_message_until_completion(self, session):
+        from app.session import AgentStatus
+
+        compact_started = asyncio.Event()
+        finish_compact = asyncio.Event()
+
+        async def compact_context():
+            compact_started.set()
+            await finish_compact.wait()
+            return {
+                "ok": True,
+                "thread_id": "thread-1",
+                "context_tokens": 30_000,
+                "max_tokens": 258_400,
+            }
+
+        backend = MagicMock()
+        backend.compact_context = AsyncMock(side_effect=compact_context)
+        session.backend_type = "codex"
+        session.session_id = "thread-1"
+        session.status = AgentStatus.IDLE
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._log = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        spawned = []
+
+        def capture(coro):
+            spawned.append(coro.cr_code.co_name)
+            coro.close()
+            return MagicMock()
+
+        session._spawn_bg = capture
+
+        task = asyncio.create_task(session.compact())
+        await asyncio.wait_for(compact_started.wait(), timeout=1)
+        await session.send("follow-up while compacting")
+
+        assert session._pending_messages == ["follow-up while compacting"]
+        finish_compact.set()
+        result = await asyncio.wait_for(task, timeout=1)
+
+        assert result["ok"] is True
+        assert "_flush_pending" in spawned
+        session._hibernate.schedule.assert_not_called()
+
     @pytest.mark.asyncio
     async def test_precompact_timer_fires_and_logs_outcome_when_ready(self, session, monkeypatch):
         from app.session import AgentStatus
@@ -996,13 +1132,14 @@ class TestPrecompactTimer:
 
         assert session._precompact_timer is not None
         assert session._precompact_timer.get("fired_at") is not None
-        session._precompact_timer["fired_at"] = (
+        session._precompact_timer["scheduled_at"] = (
             datetime.now(timezone.utc) - timedelta(hours=1, minutes=5)
         ).isoformat()
         session._note_next_precompact_activity()
 
         outcome = [c for t, c in logs if t == "status" and "precompact timer outcome" in c]
-        assert outcome, "next activity must be logged with crossed_60m"
+        assert outcome, "next activity must be logged with crossed cache window"
+        assert '"crossed_cache_window": true' in outcome[0].lower()
         assert '"crossed_60m": true' in outcome[0].lower()
 
     @pytest.mark.asyncio
