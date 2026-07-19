@@ -108,7 +108,7 @@ def test_codex_cache_pill_is_approximate_and_expires_to_unknown(
             approximate: pill.dataset.cacheApproximate,
         });
         const recent = new Date(Date.now() - 5 * 60000).toISOString();
-        const expired = new Date(Date.now() - 31 * 60000).toISOString();
+        const expired = new Date(Date.now() - 37 * 60000).toISOString();
         return {
             running: snapshot(_cachePill({
                 status: 'running',
@@ -151,8 +151,9 @@ def test_codex_cache_pill_is_approximate_and_expires_to_unknown(
     assert states["running"]["text"] == "🔥≈"
     assert states["recent"]["text"].startswith("🔥≈")
     assert states["recent"]["approximate"] == "1"
-    assert states["expired"]["text"] == "🧊?"
+    assert states["expired"]["text"] == "🧊? +7m"
     assert states["expired"]["tier"] == "unknown"
+    assert "7m past" in states["expired"]["title"]
     assert "not guaranteed" in states["expired"]["title"]
     assert states["invalidTtl"] is None
     assert states["missingTurn"] is None

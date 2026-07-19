@@ -922,6 +922,54 @@ class TestCompactGuards:
 
 
 class TestPrecompactTimer:
+    def test_codex_post_turn_relies_on_native_compaction(self, session):
+        spawned = []
+        logs = []
+
+        def capture(coro):
+            spawned.append(coro.cr_code.co_name)
+            coro.close()
+
+        session.backend_type = "codex"
+        session._is_orchestrator = False
+        session._schedule_precompact_timer = MagicMock()
+        session._spawn_bg = capture
+        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._turns.fire_auto_report = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        session._pending_messages = []
+
+        session._turns.after_turn_idle_actions(95)
+
+        session._schedule_precompact_timer.assert_not_called()
+        assert "_auto_compact" not in spawned
+        assert not any("auto-compact triggered" in content for _, content in logs)
+
+    def test_claude_post_turn_keeps_orchestra_compaction(self, session):
+        spawned = []
+
+        def capture(coro):
+            spawned.append(coro.cr_code.co_name)
+            coro.close()
+
+        session.backend_type = "claude"
+        session._is_orchestrator = False
+        session._schedule_precompact_timer = MagicMock()
+        session._spawn_bg = capture
+        session._log = MagicMock()
+        session._turns.fire_auto_report = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        session._pending_messages = []
+
+        session._turns.after_turn_idle_actions(95)
+
+        session._schedule_precompact_timer.assert_called_once_with(95)
+        assert "_auto_compact" in spawned
+        assert any(
+            "auto-compact triggered" in call.args[1]
+            for call in session._log.call_args_list
+        )
+
     @pytest.mark.asyncio
     async def test_precompact_timer_fires_and_logs_outcome_when_ready(self, session, monkeypatch):
         from app.session import AgentStatus

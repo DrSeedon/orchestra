@@ -247,9 +247,22 @@ def _cache_pill(s: dict) -> str:
         last = datetime.fromisoformat(ts.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return ""
-    rem_min = int((last.timestamp() + ttl - datetime.now(timezone.utc).timestamp()) // 60)
+    now = datetime.now(timezone.utc)
+    elapsed_min = max(0, int((now.timestamp() - last.timestamp()) // 60))
+    rem_min = (ttl // 60) - elapsed_min
     if rem_min <= 0:
-        return f"🧊? unknown (≈{ttl // 60}m+)" if approximate else "🧊 cold"
+        if approximate:
+            past_reference = max(0, elapsed_min - ttl // 60)
+            if past_reference < 60:
+                past_label = f"{past_reference}m"
+            elif past_reference < 1440:
+                hours, minutes = divmod(past_reference, 60)
+                past_label = f"{hours}h{f'{minutes}m' if minutes else ''}"
+            else:
+                days, hours = divmod(past_reference // 60, 24)
+                past_label = f"{days}d{f'{hours}h' if hours else ''}"
+            return f"🧊? unknown (+{past_label} past ≈{ttl // 60}m)"
+        return "🧊 cold"
     marker = "≈" if approximate else ""
     ttl_min = ttl / 60
     if rem_min > ttl_min * 0.5:
