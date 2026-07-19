@@ -210,6 +210,19 @@ def _open_tool_fixture_page(browser: Browser) -> Page:
     return page
 
 
+def test_codex_successful_mcp_startup_status_is_hidden(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    page.evaluate("""() => {
+        addChatEntry('status', 'codex mcp orchestra: starting');
+        addChatEntry('status', 'codex mcp orchestra: ready');
+    }""")
+
+    expect(page.locator("#chat").locator("text=codex mcp")).to_have_count(0)
+    page.close()
+
+
 def test_codex_web_search_renders_queries_without_transport_json(
     dashboard_browser: Browser,
 ):

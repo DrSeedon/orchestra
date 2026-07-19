@@ -734,6 +734,8 @@ class CodexBackend:
         if method == "mcpServer/startupStatus/updated":
             name = params.get("name") or "unknown"
             status = params.get("status") or "unknown"
+            if status in ("starting", "ready"):
+                return []
             detail = params.get("error") or params.get("failureReason") or ""
             content = f"codex mcp {name}: {status}"
             if detail:
