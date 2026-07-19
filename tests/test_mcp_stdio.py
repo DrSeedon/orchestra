@@ -213,7 +213,7 @@ def test_cache_pill_uses_exact_and_approximate_runtime_policies():
     import app.mcp_stdio as m
 
     recent = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
-    expired = (datetime.now(timezone.utc) - timedelta(minutes=31)).isoformat()
+    expired = (datetime.now(timezone.utc) - timedelta(minutes=37)).isoformat()
 
     assert m._cache_pill({
         "status": "running",
@@ -231,7 +231,7 @@ def test_cache_pill_uses_exact_and_approximate_runtime_policies():
         "last_turn_ts": expired,
         "cache_ttl_seconds": 1800,
         "cache_ttl_approximate": True,
-    }) == "🧊? unknown (≈30m+)"
+    }) == "🧊? unknown (+7m past ≈30m)"
     assert m._cache_pill({
         "status": "idle",
         "last_turn_ts": expired,

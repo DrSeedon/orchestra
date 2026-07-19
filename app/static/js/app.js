@@ -1466,10 +1466,12 @@ function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.n
 
     const remMin = Math.floor((expiresAt - nowMs) / 60000);
     if (remMin <= 0) {
+        const pastReferenceMin = Math.max(0, Math.floor((nowMs - expiresAt) / 60000));
+        const pastReference = _cacheDuration(pastReferenceMin);
         return approximate
             ? {
-                tier: 'unknown', label: '🧊?', color: '#64748b',
-                title: `Codex cache state unknown after ≈${ttlMin}m reference window; actual ChatGPT TTL is not guaranteed`,
+                tier: 'unknown', label: `🧊? +${pastReference}`, color: '#64748b',
+                title: `Codex cache state unknown · ${pastReference} past the ≈${ttlMin}m reference window; actual ChatGPT TTL is not guaranteed`,
             }
             : {
                 tier: 'cold', label: '🧊', color: '#64748b',
@@ -1490,6 +1492,17 @@ function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.n
         ? `Codex cache ≈${remMin}m within a ${ttlMin}m reference window; actual ChatGPT TTL is not guaranteed`
         : `Cache ${remMin}m — после истечения ~20× дороже`;
     return {tier, label, color, title};
+}
+
+function _cacheDuration(totalMinutes) {
+    const minutes = Math.max(0, Math.floor(totalMinutes));
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours < 24) return `${hours}h${remainingMinutes ? `${remainingMinutes}m` : ''}`;
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days}d${remainingHours ? `${remainingHours}h` : ''}`;
 }
 
 function _cachePill(s) {
