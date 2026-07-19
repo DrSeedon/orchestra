@@ -2692,6 +2692,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         // precompact timer scheduled/cancelled = internal housekeeping noise, never show in chat
         if (content && content.startsWith('precompact timer')) return;
         if (/^codex hook .+: (?:running|started|completed)(?: · \d+ms)?$/i.test(content || '')) return;
+        if (/^codex mcp .+: (?:starting|ready)$/i.test(content || '')) return;
         const rl = _parseRateLimitStatus(content);
         const codexReconnect = content.startsWith('codex reconnecting:');
         const codexSteer = content === 'message steered into active Codex turn';

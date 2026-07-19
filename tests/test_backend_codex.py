@@ -464,7 +464,7 @@ def test_file_change_exposes_unified_diff_and_patch_updates():
     assert json.loads(completed[0].content)["status"] == "completed"
 
 
-def test_reasoning_plan_warning_and_compaction_telemetry_are_visible():
+def test_reasoning_plan_warning_compaction_and_mcp_failure_telemetry():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
 
     reasoning = backend._convert_notification({
@@ -506,12 +506,29 @@ def test_reasoning_plan_warning_and_compaction_telemetry_are_visible():
         "method": "thread/compacted",
         "params": {"threadId": "thread-1"},
     })
+    mcp_starting = backend._convert_notification({
+        "method": "mcpServer/startupStatus/updated",
+        "params": {
+            "threadId": "thread-1",
+            "name": "orchestra",
+            "status": "starting",
+        },
+    })
     mcp_ready = backend._convert_notification({
         "method": "mcpServer/startupStatus/updated",
         "params": {
             "threadId": "thread-1",
             "name": "orchestra",
             "status": "ready",
+        },
+    })
+    mcp_failed = backend._convert_notification({
+        "method": "mcpServer/startupStatus/updated",
+        "params": {
+            "threadId": "thread-1",
+            "name": "orchestra",
+            "status": "failed",
+            "failureReason": "process exited",
         },
     })
 
@@ -523,7 +540,10 @@ def test_reasoning_plan_warning_and_compaction_telemetry_are_visible():
     assert json.loads(plan[0].content)["plan"][1]["status"] == "inProgress"
     assert warning[0].type == "warning"
     assert compacted[0].content == "codex context compacted"
-    assert mcp_ready[0].content == "codex mcp orchestra: ready"
+    assert mcp_starting == []
+    assert mcp_ready == []
+    assert mcp_failed[0].type == "warning"
+    assert mcp_failed[0].content == "codex mcp orchestra: failed — process exited"
 
 
 def test_long_mcp_arguments_remain_valid_structured_json():
