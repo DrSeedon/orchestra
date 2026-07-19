@@ -197,8 +197,7 @@ class TurnManager:
         if s._compact_ack_event is not None and s._turn_gen == s._compact_ack_gen:
             s._compact_ack_event.set()
 
-        if s.backend_type == "claude":
-            s._schedule_precompact_timer(live_pct)
+        s._schedule_precompact_timer(live_pct)
         s._spawn_bg(s._notify_scope_idle())
 
         if (
@@ -210,7 +209,7 @@ class TurnManager:
             # Workers auto-compact to stay operational; orchestrators are left for
             # the user to compact manually since they hold long-running session state.
             # Codex app-server compacts the current thread natively; replacing that
-            # thread with Orchestra's generic handoff loses its stable cache key.
+            # thread with Orchestra's generic handoff loses native thread continuity.
             s._log("status", f"auto-compact triggered ({live_pct}%)")
             s._spawn_bg(s._auto_compact())
 

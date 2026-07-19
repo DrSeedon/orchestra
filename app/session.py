@@ -158,9 +158,34 @@ class AgentSession:
     SERVER_ERROR_RETRY_DELAY = 5
     PRECOMPACT_DELAY_SECONDS = 55 * 60
     PRECOMPACT_CONTEXT_THRESHOLD = 20
+    CODEX_PRECOMPACT_DELAY_SECONDS = 25 * 60
+    CODEX_PRECOMPACT_CONTEXT_THRESHOLD = 60
+    CLAUDE_CACHE_WINDOW_SECONDS = 60 * 60
+    # ChatGPT-auth Codex publishes no contractual cache TTL. Keep a five-minute
+    # safety margin before the observed/documented ~30-minute reference window.
+    CODEX_CACHE_WINDOW_SECONDS = 30 * 60
 
     def _precompact_payload(self, payload: dict) -> str:
         return json.dumps(payload, ensure_ascii=False)
+
+    def _precompact_policy(self) -> dict | None:
+        if self.backend_type == "claude":
+            return {
+                "delay_seconds": self.PRECOMPACT_DELAY_SECONDS,
+                "cache_window_seconds": self.CLAUDE_CACHE_WINDOW_SECONDS,
+                "context_threshold": self.PRECOMPACT_CONTEXT_THRESHOLD,
+                "arm_threshold": 0,
+                "compact_mode": "handoff",
+            }
+        if self.backend_type == "codex":
+            return {
+                "delay_seconds": self.CODEX_PRECOMPACT_DELAY_SECONDS,
+                "cache_window_seconds": self.CODEX_CACHE_WINDOW_SECONDS,
+                "context_threshold": self.CODEX_PRECOMPACT_CONTEXT_THRESHOLD,
+                "arm_threshold": self.CODEX_PRECOMPACT_CONTEXT_THRESHOLD,
+                "compact_mode": "native",
+            }
+        return None
 
     def _cancel_precompact_timer(self, reason: str = "activity") -> None:
         if self._precompact_timer_task and not self._precompact_timer_task.done():
@@ -185,12 +210,25 @@ class AgentSession:
         if not self._precompact_timer.get("next_activity"):
             next_activity = datetime.now(timezone.utc)
             try:
-                crossed_60m = (
-                    next_activity - datetime.fromisoformat(fired_at) >= timedelta(minutes=60)
+                elapsed = (
+                    next_activity
+                    - datetime.fromisoformat(self._precompact_timer["scheduled_at"])
                 )
+                cache_window_seconds = int(
+                    self._precompact_timer.get(
+                        "cache_window_seconds",
+                        self.CLAUDE_CACHE_WINDOW_SECONDS,
+                    )
+                )
+                crossed_cache_window = (
+                    elapsed >= timedelta(seconds=cache_window_seconds)
+                )
+                crossed_60m = elapsed >= timedelta(minutes=60)
             except Exception:
+                crossed_cache_window = False
                 crossed_60m = False
             self._precompact_timer["next_activity"] = next_activity.isoformat()
+            self._precompact_timer["crossed_cache_window"] = crossed_cache_window
             self._precompact_timer["crossed_60m"] = crossed_60m
             self._log(
                 "status",
@@ -201,11 +239,15 @@ class AgentSession:
     def _schedule_precompact_timer(self, context_pct: int) -> None:
         if self._precompact_timer is not None:
             return
+        policy = self._precompact_policy()
+        if policy is None or context_pct < policy["arm_threshold"]:
+            return
         self._precompact_timer = {
             "scheduled_at": datetime.now(timezone.utc).isoformat(),
             "role": self.role,
             "backend": self.backend_type,
             "context_pct": context_pct,
+            **policy,
         }
         self._log(
             "status",
@@ -215,7 +257,12 @@ class AgentSession:
 
     async def _run_precompact_timer(self) -> None:
         try:
-            await asyncio.sleep(self.PRECOMPACT_DELAY_SECONDS)
+            delay = (
+                self._precompact_timer.get("delay_seconds")
+                if self._precompact_timer
+                else self.PRECOMPACT_DELAY_SECONDS
+            )
+            await asyncio.sleep(delay)
             await self._fire_precompact_timer()
         except asyncio.CancelledError:
             pass
@@ -249,8 +296,9 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        if self.backend_type != "claude":
-            state["skip_reason"] = "not_claude"
+        policy = self._precompact_policy()
+        if policy is None or state.get("backend") != self.backend_type:
+            state["skip_reason"] = "backend_changed"
             self._log(
                 "status",
                 f"precompact timer skipped: {self._precompact_payload(state)}",
@@ -258,7 +306,8 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        if self._last_context.get("percentage", 0) < self.PRECOMPACT_CONTEXT_THRESHOLD:
+        threshold = int(state.get("context_threshold", policy["context_threshold"]))
+        if self._last_context.get("percentage", 0) < threshold:
             state["skip_reason"] = "low_context"
             self._log(
                 "status",
@@ -795,7 +844,76 @@ class AgentSession:
                     self._log("error", "interrupt was not acknowledged; disconnecting backend")
                     await self._disconnect_backend()
 
+    async def _compact_codex_context(self) -> dict:
+        if self._compacting:
+            return {"ok": False, "error": "compact already in progress"}
+        if self.status == AgentStatus.RUNNING:
+            return {"ok": False, "error": "cannot compact while agent is running"}
+
+        if self._precompact_timer and not self._precompact_timer.get("fired_at"):
+            self._cancel_precompact_timer("manual_compact")
+        self._compacting = True
+        before_pct = self._last_context.get("percentage", 0)
+        thread_id = self.session_id
+        self._log(
+            "status",
+            f"compact started (native Codex, context {before_pct}%, thread={thread_id})",
+        )
+        try:
+            async with self._lifecycle_lock:
+                backend = await self._ensure_backend()
+                compact_context = getattr(backend, "compact_context", None)
+                if not callable(compact_context):
+                    raise RuntimeError("Codex backend does not support native compact")
+                self._hibernated = False
+                result = await compact_context()
+
+            context_tokens = result.get("context_tokens")
+            max_tokens = result.get("max_tokens")
+            if isinstance(max_tokens, int) and max_tokens > 0:
+                self._last_context["max_tokens"] = max_tokens
+            if isinstance(context_tokens, int) and context_tokens >= 0:
+                self._last_context["total_tokens"] = context_tokens
+                if isinstance(max_tokens, int) and max_tokens > 0:
+                    self._last_context["percentage"] = round(
+                        context_tokens * 100 / max_tokens
+                    )
+
+            after_pct = self._last_context.get("percentage", 0)
+            self._persist()
+            self._log(
+                "status",
+                f"compact done (native Codex): {before_pct}% → {after_pct}%, "
+                f"thread={self.session_id}",
+            )
+            return {
+                "ok": True,
+                "mode": "native",
+                "before_pct": before_pct,
+                "after_pct": after_pct,
+                "thread_id": self.session_id,
+                "context_tokens": context_tokens,
+            }
+        except Exception as exc:
+            self._log("error", f"native Codex compact failed: {exc}")
+            return {
+                "ok": False,
+                "mode": "native",
+                "error": str(exc),
+                "before_pct": before_pct,
+                "thread_id": self.session_id,
+            }
+        finally:
+            self._compacting = False
+            if self._pending_messages:
+                self._spawn_bg(self._flush_pending())
+            elif self.status == AgentStatus.IDLE:
+                self._hibernate.schedule()
+
     async def compact(self) -> dict:
+        if self.backend_type == "codex":
+            return await self._compact_codex_context()
+
         _ORCH_PRESAVE = (
             "BEFORE writing the summary — persist your knowledge to files so it survives compact:\n"
             "1. CLAUDE.md — append key decisions, new rules, patterns discovered this session (section '## Session notes')\n"

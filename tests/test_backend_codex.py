@@ -210,6 +210,56 @@ async def test_send_starts_turn_when_idle():
 
 
 @pytest.mark.asyncio
+async def test_native_compact_preserves_thread_and_waits_for_completion():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-1"
+    backend._request = AsyncMock(return_value={})
+
+    task = asyncio.create_task(backend.compact_context())
+    await asyncio.sleep(0)
+
+    backend._record_token_usage({
+        "tokenUsage": {
+            "last": {"totalTokens": 33_124},
+            "total": {},
+            "modelContextWindow": 258_400,
+        },
+    })
+    backend._complete_compaction_from_notification({
+        "method": "item/completed",
+        "params": {
+            "threadId": "thread-1",
+            "item": {"type": "contextCompaction", "id": "compact-1"},
+        },
+    })
+    result = await asyncio.wait_for(task, timeout=1)
+
+    backend._request.assert_awaited_once_with(
+        "thread/compact/start",
+        {"threadId": "thread-1"},
+    )
+    assert backend.session_id == "thread-1"
+    assert result == {
+        "ok": True,
+        "thread_id": "thread-1",
+        "context_tokens": 33_124,
+        "max_tokens": 258_400,
+    }
+
+
+@pytest.mark.asyncio
+async def test_native_compact_rejects_active_turn():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-1"
+    backend._active_turn_id = "turn-1"
+
+    with pytest.raises(RuntimeError, match="active turn"):
+        await backend.compact_context()
+
+
+@pytest.mark.asyncio
 async def test_silent_active_turn_emits_transient_heartbeat():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     backend._proc = SimpleNamespace(returncode=None)
