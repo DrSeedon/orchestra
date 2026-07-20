@@ -38,6 +38,29 @@ async def test_spawn_base_branch_default_empty(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_spawn_marks_parent_as_initial_task_sender(monkeypatch):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append((method, path, kw.get("json")))
+        return {"ok": True}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.spawn_worker(
+            name="child",
+            task="do it",
+            repo_path="/s",
+            model="claude-opus-4-8[1m]",
+        )
+
+    send_call = next(call for call in calls if call[1] == "/api/sessions/child/send")
+    assert send_call[2]["sender"] == "parent-orchestrator"
+
+
+@pytest.mark.asyncio
 async def test_acquire_test_lock_uses_worker_as_holder(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")

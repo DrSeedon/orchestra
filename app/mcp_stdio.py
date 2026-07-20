@@ -154,7 +154,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     if isinstance(result, dict) and result.get("error"):
         return f"Spawn failed: {result['error']}"
     await _api("POST", f"/api/sessions/{name}/send", json={
-        "message": task, "scope": scope,
+        "message": task, "scope": scope, "sender": WORKER_NAME or ROLE,
     })
     out = f"Worker '{name}' spawned. Model: {model}. Task sent."
     if isinstance(result, dict) and result.get("spawn_warning"):
