@@ -330,6 +330,7 @@ class SessionManager:
                     parent_name=job.get("parent_name", ""),
                     mcp_servers=job.get("mcp_servers"),
                 )
+                session.last_task_sender = job.get("parent_name", "")
                 await session.send(job["task"])
                 update_job(job_id, "succeeded")
                 logger.info(f"Worker '{job['name']}' spawned (job {job_id})")

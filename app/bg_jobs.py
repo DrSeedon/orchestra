@@ -273,6 +273,11 @@ class BgJobManager:
 
     # ── Trigger ──
 
+    @staticmethod
+    def _restore_report_provenance(session) -> None:
+        if not session.last_task_sender and session.parent_name:
+            session.last_task_sender = session.parent_name
+
     async def _trigger(self, job_id: str, message: str,
                        target_name: str, target_scope: str, output: str = "") -> None:
         claimed = bg_claim_trigger(job_id)
@@ -287,6 +292,7 @@ class BgJobManager:
             body = f"[Background job completed] {message}"
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
+            self._restore_report_provenance(session)
             await session.send(body)
             bg_finish_trigger(job_id, output)
             logger.info(f"bg_job {job_id}: triggered → {target_name}")
@@ -316,6 +322,7 @@ class BgJobManager:
             body = f"[Background job TIMED OUT] {err}"
             if output:
                 body += f"\n\nPartial output (last 3000 chars):\n{output[-3000:]}"
+            self._restore_report_provenance(session)
             await session.send(body)
             logger.warning(f"bg_job {job_id}: TIMED OUT after {dur} → notified {target_name}")
         except Exception as e:
@@ -333,6 +340,7 @@ class BgJobManager:
             body = f"[Background job FAILED] {message}\n{error}"
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
+            self._restore_report_provenance(session)
             await session.send(body)
             logger.warning(f"bg_job {job_id}: FAILED → notified {target_name}: {error}")
         except Exception as e:

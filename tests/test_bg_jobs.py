@@ -191,6 +191,31 @@ class TestRunExecOutcome:
         assert "completed" not in sent.lower()
 
     @pytest.mark.asyncio
+    async def test_completed_job_restores_parent_report_provenance(
+        self, db, mgr_mock
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        session.parent_name = "parent-orchestrator"
+        session.last_task_sender = ""
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-parent", datetime.now(timezone.utc)))
+
+        await mgr._trigger(
+            "run-parent",
+            "review done",
+            "w1",
+            "/s",
+            "review output",
+        )
+
+        assert session.last_task_sender == "parent-orchestrator"
+        session.send.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_finishes_when_child_keeps_stdout_open(self, db, mgr_mock):
         from app.bg_jobs import BgJobManager
         from app.db import bg_get_jobs, bg_save_job

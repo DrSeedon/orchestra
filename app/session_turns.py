@@ -92,9 +92,10 @@ class TurnManager:
             return
         if s._pending_messages or s._compacting:
             return
-        # User wrote to worker directly (no sender = dashboard/TG) → user sees the response,
-        # no need to spam the orchestrator with auto-report
-        if not s.last_task_sender:
+        # An unparented worker started directly from dashboard/TG has nobody to report
+        # to. A parented child must still report: parent_name survives service restarts
+        # even when the transient last_task_sender metadata does not.
+        if not s.last_task_sender and not s.parent_name:
             return
         last_texts = s._turn_logs[-5:] if s._turn_logs else []
         stop_reason = s._last_stop_reason

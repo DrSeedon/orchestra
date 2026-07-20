@@ -478,6 +478,38 @@ async def test_auto_report_fires_after_idle_timeout(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_auto_report_fires_for_parented_worker_without_sender_metadata(monkeypatch):
+    s = _mk_session(monkeypatch)
+    fired = []
+
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+        fired.append(name)
+
+    s.on_idle = on_idle
+    s.parent_name = "parent-orchestrator"
+    s.last_task_sender = ""
+    s._turn_logs = ["finished"]
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0.05)
+
+    assert fired == ["w"]
+
+
+@pytest.mark.asyncio
+async def test_auto_report_skips_unparented_direct_worker(monkeypatch):
+    s = _mk_session(monkeypatch)
+    s.on_idle = AsyncMock()
+    s.parent_name = ""
+    s.last_task_sender = ""
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0)
+
+    s.on_idle.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_auto_report_skipped_if_did_report(monkeypatch):
     s = _mk_session(monkeypatch)
     fired = []
