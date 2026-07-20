@@ -2693,6 +2693,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (content && content.startsWith('precompact timer')) return;
         if (/^codex hook .+: (?:running|started|completed)(?: · \d+ms)?$/i.test(content || '')) return;
         if (/^codex mcp .+: (?:starting|ready)$/i.test(content || '')) return;
+        if (/^compact started \(native Codex,/i.test(content || '')) return;
+        const nativeCodexCompact = (content || '').match(
+            /^compact done \(native Codex\):\s*(\d+)%\s*→\s*(\d+)%/i
+        );
         const rl = _parseRateLimitStatus(content);
         const codexReconnect = content.startsWith('codex reconnecting:');
         const codexSteer = content === 'message steered into active Codex turn';
@@ -2721,6 +2725,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
         } else if (codexMcp) {
             badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
             badge.textContent = `🔌 ${content}`;
+        } else if (nativeCodexCompact) {
+            badge.className = 'text-center text-xs py-1 text-amber-300 italic';
+            badge.textContent = `🗜 Codex context compacted natively · ${nativeCodexCompact[1]}% → ${nativeCodexCompact[2]}% · same thread`;
         } else if (codexCompaction) {
             badge.className = 'text-center text-xs py-1 text-amber-300 italic';
             badge.textContent = '🗜 Codex context compacted';

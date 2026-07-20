@@ -223,6 +223,28 @@ def test_codex_successful_mcp_startup_status_is_hidden(
     page.close()
 
 
+def test_native_codex_compact_renders_one_result_badge(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    page.evaluate("""() => {
+        addChatEntry(
+            'status',
+            'compact started (native Codex, context 70%, thread=thread-secret)'
+        );
+        addChatEntry(
+            'status',
+            'compact done (native Codex): 70% → 29%, thread=thread-secret'
+        );
+    }""")
+
+    badges = page.locator("#chat").locator("text=Codex context compacted natively")
+    expect(badges).to_have_count(1)
+    expect(badges).to_contain_text("70% → 29%")
+    expect(page.locator("#chat")).not_to_contain_text("thread-secret")
+    page.close()
+
+
 def test_codex_web_search_renders_queries_without_transport_json(
     dashboard_browser: Browser,
 ):
