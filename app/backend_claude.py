@@ -157,7 +157,10 @@ class ClaudeBackend:
             stderr=self._capture_stderr,
         )
         if self._effort:
-            options.effort = self._effort
+            eff = self._effort
+            if eff == "xhigh" and "claude" in (self.model or ""):
+                eff = "high"
+            options.effort = eff
         if resume_id:
             options.resume = resume_id
         else:
