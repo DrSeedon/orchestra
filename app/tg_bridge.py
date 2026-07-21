@@ -458,7 +458,7 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
 
 # Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
 # Falls back to plain text if the Bot API version doesn't support EXPANDABLE_BLOCKQUOTE.
-async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str):
+async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str, *, important: bool = False):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
     body = body.rstrip()
@@ -467,7 +467,7 @@ async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str)
     offset = _utf16_len(header) + 1
     length = _utf16_len(conv_body)
     entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
-    return await _tg_send_safe(chat_id, text, thread_id, entities=entities)
+    return await _tg_send_safe(chat_id, text, thread_id, entities=entities, important=important)
 
 
 TG_MSG_LIMIT = 4096
@@ -1018,7 +1018,7 @@ async def _update_topic_status(orch_name: str, is_running: bool):
                 raise
 
         return await _tg_call_safe(
-            chat_id, _edit, label="topic_status",
+            chat_id, _edit, label="topic_status", important=True,
         )
 
     thread_id = config["topics"].get(orch_name)

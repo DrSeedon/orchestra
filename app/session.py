@@ -38,6 +38,8 @@ def _is_terminal_subscription_limit(text: str) -> bool:
     return any(marker in lowered for marker in (
         "session limit",
         "hit your session",
+        "hit your usage limit",
+        "usage limit",
         "monthly spend limit",
         "weekly usage limit",
         "weekly limit",
@@ -730,8 +732,8 @@ class AgentSession:
             # rate_limit → single retry-status log (skip raw error to avoid duplicate
             # "model error: rate_limit" + "rate limited — retry" on one event)
             if "rate_limit" in event.content:
-                # Session limit text arrives BEFORE the error event as text "You've hit your session limit"
-                if self._session_limit_hit:
+                # Terminal subscription/usage limits — never retry
+                if self._session_limit_hit or _is_terminal_subscription_limit(event.content):
                     self._log("error", "⏳ subscription limit — ждём сброса квоты. НЕ ретраим")
                     self._session_limit_hit = False
                 elif self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:

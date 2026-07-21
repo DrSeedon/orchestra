@@ -534,3 +534,124 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Codex codex_review runs as bg job (type=run), returns immediately, wakes worker on done — NOT bash. Auto-report on "waiting for codex" was the noise (fixed but needs restart)
 
 ### Active workers: frontend-opus(running, 2 frontend fixes), prompt-engineer/taskmanager/research-proxy/refactor-tg/feat-* (idle)
+
+## Session notes (2026-07-18) — mega research day + infrastructure upgrades
+
+### Subscription changes
+- **Claude Max $200→$100/mo** (downgraded)
+- **Codex Pro $20→$100/mo** (upgraded to 5× tier)
+- Dashboard usage.js updated: $200→$100 display
+- Worker effort: `medium`→`high` in pipeline.yaml for worker role
+- Full-cycle stays `xhigh`, orchestrators stay `medium`
+
+### Major features shipped
+- **Provider-agnostic runtime refactor** — cd3dce1, 27 files, 1318+/382-, app/runtime_registry.py new
+- **Subagent lifecycle correlation** — 41c7dc4, app/backend_claude.py
+- **SSE late subscriber fix** — 4365d06, app/live_broker.py
+- **Precompact timer** — c55c39a + 96b4ce1: T=55min, ctx≥20%, Claude-only, idle-only, re-arm on turn ended. Precompact events hidden from chat (app.js filter)
+- **Codex Pro rate limits on dashboard** — 6c63aa9, app/routes/system.py + usage.js. `codex app-server` → `account/rateLimits/read`
+- **Voice cost tracking** — d6742a4, table `voice_costs` in db.py, $0.0052/min nova-3 multi
+- **Deepgram language=ru→multi** — tg_bridge.py
+- **Usage analytics full history** — all periods: `all:365→9999`, removed `Math.min(days,7)` for agents, sparkline `hours=336→8760`
+- **Tool error tracking + Rule registry** — 72ef1a6, tables `tool_errors` + `improvement_rules` in db.py (data layer only, not yet wired to events)
+- **Codex cache policy on dashboard** — 0a905a3, runtime-derived cache TTL (Claude=3600 exact, Codex=1800 approximate, post-window `unknown`)
+- **TG message delivery fix** — tg_bridge.py: per-chat lock, 3.05s group interval, retry with backoff, post-conversion UTF-16 split, entity fallback. Root cause: 78 msg/min vs TG limit 20/min + lock-free race
+- **Model routing in base.md** — 01450e3, `<model-routing>` decision tree for worker-spawns-worker: Sol=default, Spark=leaf-worker, Opus=research/vision
+- **RAG deployed on VPS** — git pull + uv sync + restart on 158.220.127.161, 4058 file chunks indexed
+
+### Research completed (all in docs/tasks/)
+- **sol-model-comparison** — Sol medium/xhigh optimal, don't switch to Terra/Luna. Ultra=subagents not effort. Luna pilot possible but not default
+- **precompact-timer** — T=55, P(correct)=98.9%, breakeven 4.25% ctx, implemented
+- **codex-orchestration-plugin** — don't integrate Executor/Planner (duplicates Orchestra). Fable Advisor = future pilot
+- **codex-cache-research** — Codex cache TTL≈30min (not 1h like Claude), 96% cache ratio, 10× cold penalty in credits, precompact NOT needed for Codex (kills cache key)
+- **spark-comparison** — Spark=128k text-only latency-first, 2.3× faster than Sol on simple tasks, but no independent quality benchmark. Separate quota. Pilot candidate for leaf-edits only
+- **codex-limits-abuse** — ChatGPT-auth Codex = separate agentic pool, no way to route text-chat quota. Round-robin accounts = high ToS risk. Geographic risk (Russia) is separate and real
+- **tg-message-delivery** — root cause found + fixed (flood control + race + split order)
+- **deepgram-research** — nova-3 multi optimal, ~$0.13-0.50/mo cost, tracking now in DB
+- **self-improve-survey** — arxiv:2607.13104 Schmidhuber paper: Orchestra has scaffold primitives but not closed loop. Priority: evaluation contract → regression evaluator → structured rule registry → memory curator
+
+### Process rules
+- **Worker effort high** — pipeline.yaml worker role effort medium→high (Codex Pro $100 budget allows it)
+- **Model routing in prompts** — base.md now has `<model-routing>` so workers know which model to pick for sub-workers
+- **Self-improvement approach** — Apply + Log + Review (not lab A/B). Orchestrator tracks, user approves when asked
+- **Tool error tracking wired** — data layer ready, not yet connected to event stream (next step)
+
+### VPS state
+- orchestra.seedon.ru updated to commit 41c7dc4 (git pull + uv sync + restart done)
+- RAG: 4058 file chunks indexed, semantic search working
+- TG: telegram-bot-api running, proxychains socks5 12345 (Contabo)
+- SDK updated 0.2.87→0.2.114
+
+### PENDING (next session)
+- **RESTART local Orchestra** — precompact timer, Codex limits, voice cost tracking, TG fix, cache policy, worker effort=high — ALL need restart
+- **Wire tool_errors to event stream** — app/mcp_stdio.py or session_turns.py: on tool error → db.tool_error_add()
+- **Push to GitHub** — many commits since last push
+- **VPS sync again** — VPS is behind after today's changes
+- **status-desync bug** — still unfixed (known, deferred)
+- **Codex CLI upgrade** — upstream added cache_write_input_tokens, Orchestra undercounts Codex cost until CLI updated
+- **Self-improvement Phase 2** — tool error aggregation wired + structured rule registry (data layer done, not yet used by agents)
+
+### Active workers
+- **frontend-opus** (idle, ctx:9%) — system, keep
+- **prompt-engineer** (idle, ctx:6%) — system, keep
+- **research-self-improve** (killed) — merged, research done
+
+## Session notes (2026-07-19 to 2026-07-21)
+
+### Subscription impact analysis
+- **Claude Max $200→$100** (2026-07-18): each turn costs **2× more %** of weekly/5h limits. Measured: 0.142% per turn on $200 → 0.270% per turn on $100 (1.9× ratio, confirmed over 14 days of data)
+- **Codex Pro $20→$100**: separate quota, helps distribute load away from Claude
+- **Combined: $200+$20=$220 → $100+$100=$200** — total spend similar but Claude limits halved
+- User questioning strategy: whether one $200 Claude sub + cheap Codex is better than $100+$100 split. **NEEDS RESEARCH** — user explicitly asked for it
+
+### Bugs found and fixed (NOT YET RESTARTED)
+1. **TG topic icons not updating** — `_update_topic_status` called `_tg_call_safe(important=False)` → silently dropped during busy chat. Fix: `important=True` in tg_bridge.py:1021
+2. **Effort xhigh crash on Claude models** — full-cycle role sets effort=xhigh in pipeline.yaml, but Claude API rejects xhigh without thinking enabled. Fix: backend_claude.py:159 — auto-downgrade xhigh→high when model contains "claude"
+3. **Codex usage limit infinite retry** — "You've hit your usage limit" from Codex not matched by `_is_terminal_subscription_limit()` (only matched "session limit", not "usage limit"). Fix: added "hit your usage limit" and "usage limit" to patterns in session.py:38, PLUS check `_is_terminal_subscription_limit(event.content)` directly in error handler (session.py:734) since Codex doesn't send separate text event before error
+4. **TG expandable tools not showing** — `_send_expandable` used `important=False` → all tool messages dropped during active chat. Fix attempt: changed to `important=True`, BUT THIS CAUSED DEADLOCK — all TG outbound messages stopped. **REVERTED** back to `important=False`. Root cause: important=True on burst of tools → lock contention → all messages queue forever. Needs different strategy (debounce or separate lock)
+5. **seedon-orchestrator on Fable 5** — burning 4× more % than Opus per turn. $7.30 single turn. Needs model change to Opus 4.6
+
+### Sensar-orchestrator model switch saga
+- User asked to switch from Codex Sol → Opus 4.8
+- First attempt: `change_worker_model` failed ("session not loaded")
+- Direct DB update: `UPDATE sessions SET model='claude-opus-4-8[1m]'` — worked in DB
+- After restart: model **reverted** to gpt-5.6-sol (auto_resume saved in-memory model back to DB)
+- Second fix: set model + clear session_id (NULL) for fresh Claude session
+- Still hitting "usage limit" because Codex session_id was still being used
+- **Current state**: DB has `claude-opus-4-8[1m]` with NULL session_id, but needs restart to apply
+- **BUG**: change_worker_model via DB doesn't survive restart if in-memory session overwrites on shutdown → need to investigate auto_resume save logic
+
+### Limit analysis findings
+- **5h window today**: 91% at peak. Main consumers: seedon-orchestrator (Fable 5, ~30% alone), Sensar agents (Opus 4.8, ~20%), Orchestra-orchestrator (Opus 4.6, ~15%)
+- **7d window**: 0→13% today, normal pace
+- **Fable 5 on orchestrator = 4× the cost**: 2× token price × 2× limit reduction = 4× effective cost per turn
+- **Anthropic limit resets**: July 16 global reset, +50% weekly extended to Aug 19, Fable included in Max/Team from Jul 20 at 50% cap
+
+### Pending research (user explicitly asked)
+- **Subscription strategy**: Max $200 + Codex $20 ($220) vs Max $100 + Codex $100 ($200) — which gives more total work capacity? Need to compare: Claude limits at $200 vs $100 (is it linear 2×?), Codex Pro $100 separate quota value, whether heavy workloads can be routed to Codex to compensate Claude limit reduction
+
+### Apple design skill evaluation
+- `/apple-design` skill by Emil Kowalski — 17 principles from WWDC adapted for web
+- Evaluated: 2-3 principles useful for Orchestra dashboard (response, reduced motion), 6-7 for seedon.ru lendnings
+- Decision: NOT embedding into Orchestra specifically. Skill exists globally in `~/.claude/skills/apple-design/`, auto-triggers on relevant frontend tasks
+
+### Files modified (uncommitted)
+- `app/tg_bridge.py` — topic_status important=True (line 1021), expandable important REVERTED to False (line 461)
+- `app/backend_claude.py` — effort xhigh→high for claude models (line 159-162)
+- `app/session.py` — added "hit your usage limit" / "usage limit" to terminal patterns (line 38-44), check in error handler (line 734-736)
+
+### PENDING (next session)
+- **RESEARCH: subscription strategy** — user's last question, needs full-cycle worker. Compare Max $200 solo vs Max $100 + Codex $100
+- **FIX: seedon-orchestrator model** — switch from Fable 5 → Opus 4.6 (DB update + restart)
+- **FIX: Sensar-orchestrator** — DB updated to Opus 4.8 + NULL session_id, needs restart
+- **FIX: TG expandable tools** — reverted important=True (caused deadlock). Need different approach: debounce, separate queue, or rate-limited important
+- **RESTART Orchestra** — 3 code fixes + 2 model changes all need restart
+- **BUG: auto_resume overwrites DB model changes** — investigate why restart reverted Sensar model change
+- **Push to GitHub** — many commits behind
+- **VPS sync** — behind local main
+- **Wire tool_errors** — data layer ready, not connected
+- **Codex CLI upgrade** — cache_write_input_tokens field
+
+### Active workers
+- **frontend-opus** (idle, ctx:9%) — system, keep
+- **prompt-engineer** (idle, ctx:8%) — system, keep

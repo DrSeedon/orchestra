@@ -15,6 +15,20 @@
 - Debug logging added (`c0d73fe`) but no logs appear — `_send_diff_image` may not be called
 - Need to verify after restart with debug logging enabled
 
+### 🔴 TG expandable important=True → deadlock
+- **Reporter:** Orchestra-orchestrator (2026-07-21)
+- Setting `_send_expandable(important=True)` causes ALL outbound TG messages to stop
+- Root cause: `important=True` makes `_tg_call_safe` wait for lock + retry. During tool bursts (10+ tools/sec), lock never frees → infinite queue
+- **REVERTED** to `important=False`. Tools still drop during busy chat, but at least text messages work
+- **Fix needed:** separate queue/lock for expandable, or debounce tool sends, or batch tools into single message
+
+### 🔴 auto_resume overwrites DB model changes on restart
+- **Reporter:** Orchestra-orchestrator (2026-07-21)
+- Manual `UPDATE sessions SET model=...` in DB gets overwritten when Orchestra restarts
+- Likely cause: auto_resume loads in-memory sessions, saves back to DB on shutdown with old model
+- Sensar-orchestrator was changed Sol→Opus 4.8 in DB, reverted after restart
+- **Workaround:** set model + clear session_id to NULL, AND restart immediately before next save
+
 ### 🟢 Codex review unreachable — FIXED
 - **Reporter:** research-runtime (2026-06-05)
 - **Fix:** `_CODEX_BIN` now points to `~/.local/bin/codex` wrapper with `HTTPS_PROXY=http://127.0.0.1:12340` (Ёжик tunnel)
@@ -109,3 +123,23 @@ codex_review(mode=exec, target=block2-armenia.md, output=docs/tasks/payment-rail
 - **Reporter:** research-self-improve
 - **Scope:** /mnt/data/Projects/Python/orchestra
 Worker research-self-improve is running in /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-self-improve, where .codex is a directory. Two codex_review attempts for docs/tasks/self-improve-survey/research.md failed. Retry bg-21a69126b2 error: `Error loading config.toml: Failed to read project hooks config file /mnt/data/Projects/Python/orchestra/.codex/config.toml: Not a directory (os error 20)`. Main checkout `/mnt/data/Projects/Python/orchestra/.codex` is an empty regular file, while caller worktree `.codex` is a directory. This proves codex_review launched with main checkout CWD, not caller worktree. First attempt bg-f34927d112 also exhausted context after 61 web searches and produced no artifact. Expected: resolve session worktree_path and run there; fail loud if CWD differs. No output file was created.
+
+## [2026-07-18 11:04 UTC] codex_review failure notification claims an output artifact that was not written
+- **Reporter:** codex-limits-source
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Task #102, worktree codex-limits-source. codex_review mode=exec started bg-13b31a9b3b with target docs/tasks/codex-limits-source/research.md and output docs/tasks/codex-limits-source/codex-review-research.md. It failed with context-window exhaustion and notification said 'Results in docs/tasks/codex-limits-source/codex-review-research.md', but the file does not exist (wc/rg/sed all ENOENT). Failure path should either write a partial/failure artifact or not claim that it did.
+
+## [2026-07-18 11:13 UTC] merge_worker cannot merge child into checked-out parent feature branch
+- **Reporter:** research-codex-abuse
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Full-cycle worker research-codex-abuse spawned Phase 1 children from its feature branch. After all children committed and became idle, merge_worker(name='codex-limits-official', target='feat/mnt-data-projects-python-orchestra/research-codex-abuse') failed: "target branch ... is checked out in another worktree". The target is necessarily checked out by the parent worker, so worker-spawns-worker cannot complete the documented merge-or-kill lifecycle through MCP without manual git operations. Parent branch commit 0898f32; child commits b7ec797 (official), 22a5366 (source), community reports 2 commits. No manual merge attempted.
+
+## [2026-07-18 11:26 UTC] Auto-switch worker hardcodes refs/heads/main in master-only repository
+- **Reporter:** Sensar-orchestrator
+- **Scope:** /home/maxim/Рабочий стол/Cursor/Sensar
+In repo /home/maxim/Рабочий стол/Cursor/Sensar the default branch is master and no main exists. After successful merge of task-2/mobile-os-strategy into master, send_message failed during auto-switch with reset to refs/heads/main unknown revision. Expected: use merge target/default branch or detect repository default. Workaround: switch_worker_branch(from_ref='refs/heads/master').
+
+## [2026-07-19 09:10 UTC] codex_review reports "done" but writes no output file (task #15)
+- **Reporter:** sensar-client-offer
+- **Scope:** /home/maxim/Рабочий стол/Cursor/Sensar
+codex_review(mode="exec", target="docs/tasks/15/research.md", output="docs/tasks/15/codex-review-research.md") returned bg job bg-1f893386ed which bg_list reported as "Codex exec done. Results in docs/tasks/15/codex-review-resea[...]". But no file was written to docs/tasks/15/ — only research.md exists. Same symptom as the known codex_review CWD/artifact bug. Worker had to re-run. Worktree: home-maxim-cursor-sensar/sensar-client-offer.

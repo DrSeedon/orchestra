@@ -10,6 +10,16 @@
 ## In Progress
 - [ ] **tg_bridge split P5** — refactor-tg worker (Opus 4.8, ctx:12%) has research+plan done, awaiting impl approval. Split into tg_bot/tg_stream/tg_render/tg_topics
 
+## Urgent (needs restart)
+- [ ] **Effort xhigh crash on Claude** — backend_claude.py: auto-downgrade xhigh→high for claude models. Fix written, needs restart
+- [ ] **Codex usage limit infinite retry** — session.py: "hit your usage limit" not in terminal patterns → retried forever. Fix written, needs restart
+- [ ] **TG topic icons not updating** — tg_bridge.py: important=True on topic_status. Fix written, needs restart
+- [ ] **seedon-orchestrator Fable 5 → Opus 4.6** — burning 4× limit, DB update needed + restart
+- [ ] **Sensar-orchestrator Sol → Opus 4.8** — DB updated (model + NULL session_id), needs restart
+- [ ] **TG expandable deadlock** — important=True on expandable caused total TG outbound deadlock. REVERTED. Needs different approach (debounce/separate queue)
+- [ ] **auto_resume overwrites DB model** — restart reverted manual DB model change. Investigate save-on-shutdown logic
+- [ ] **Subscription strategy research** — user asked: Max $200 + Codex $20 vs Max $100 + Codex $100, which gives more total capacity?
+
 ## Next
 - [ ] **send_message auto-switch (#80)** — task_id param for auto switch_branch before delivery. Priority HIGH
 - [ ] **Sound notification on idle (#79)** — Web Audio API + browser Notification when agent finishes

@@ -50,7 +50,7 @@ roles:
     label: Worker
     order: 2
     model: gpt5.6sol
-    effort: medium
+    effort: high
     skills: [codex-debate]
     modules: [git-workflow, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
