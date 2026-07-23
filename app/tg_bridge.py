@@ -442,7 +442,7 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
         MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
         MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
     ] + tool_ents + result_ents
-    await _tg_edit_message_safe(chat_id, msg.message_id, text, entities)
+    await _tg_edit_message_safe(chat_id, msg, text, entities)
 
 
 async def _edit_expandable(msg, chat_id: int, header: str, body: str):
@@ -453,7 +453,7 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
     offset = _utf16_len(header) + 1
     length = _utf16_len(conv_body)
     entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
-    await _tg_edit_message_safe(chat_id, msg.message_id, text, entities)
+    await _tg_edit_message_safe(chat_id, msg, text, entities)
 
 
 # Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
@@ -516,77 +516,157 @@ _TG_IMPORTANT_ATTEMPTS = 3
 _TG_NETWORK_RETRY_DELAY = 1.0
 _TG_RETRY_AFTER_MARGIN = 0.25
 _TG_ENTITY_REJECTED = object()
-_tg_chat_locks: dict[int, asyncio.Lock] = {}
+_tg_call_queues: dict[int, asyncio.PriorityQueue] = {}
+_tg_dispatch_tasks: dict[int, asyncio.Task] = {}
+_tg_queue_loops: dict[int, asyncio.AbstractEventLoop] = {}
+_tg_result_tasks: set[asyncio.Task] = set()
 _tg_flood_until: dict[int, float] = {}
 _tg_last_send: dict[int, float] = {}
+_tg_call_sequence = 0
+
+
+def _clear_tg_chat(chat_id: int) -> None:
+    task = _tg_dispatch_tasks.pop(chat_id, None)
+    if task and not task.done():
+        try:
+            task.cancel()
+        except RuntimeError:
+            pass
+    queue = _tg_call_queues.pop(chat_id, None)
+    if queue:
+        while not queue.empty():
+            try:
+                _, _, _, _, _, future = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            if not future.done():
+                future.cancel()
+            queue.task_done()
+    _tg_queue_loops.pop(chat_id, None)
+    _tg_flood_until.pop(chat_id, None)
+    _tg_last_send.pop(chat_id, None)
 
 
 def _reset_tg_delivery_state() -> None:
-    _tg_chat_locks.clear()
-    _tg_flood_until.clear()
-    _tg_last_send.clear()
+    global _tg_call_sequence
+    for task in list(_tg_result_tasks):
+        task.cancel()
+    _tg_result_tasks.clear()
+    for chat_id in list(_tg_call_queues):
+        _clear_tg_chat(chat_id)
+    _tg_call_sequence = 0
 
 
 def _tg_interval(chat_id: int) -> float:
     return _TG_GROUP_INTERVAL if chat_id < 0 else _TG_PRIVATE_INTERVAL
 
 
-async def _tg_call_safe(chat_id: int, call, *, important: bool = False, label: str = "call"):
-    """Serialize one chat, retry important transient failures, shed low-value bursts."""
+def _track_tg_result(coro) -> asyncio.Task:
+    task = asyncio.create_task(coro)
+    _tg_result_tasks.add(task)
+    task.add_done_callback(_tg_result_tasks.discard)
+    return task
+
+
+def _tg_rate_wait(chat_id: int, now: float) -> float:
+    return max(
+        0,
+        _tg_flood_until.get(chat_id, 0) - now,
+        _tg_interval(chat_id) - (now - _tg_last_send.get(chat_id, 0)),
+    )
+
+
+async def _tg_run_call(chat_id: int, call, important: bool, label: str):
     loop = asyncio.get_running_loop()
-    lock = _tg_chat_locks.setdefault(chat_id, asyncio.Lock())
-    interval = _tg_interval(chat_id)
-    now = loop.time()
-    if not important and (
-        lock.locked()
-        or _tg_flood_until.get(chat_id, 0) > now
-        or now - _tg_last_send.get(chat_id, 0) < interval
-    ):
-        logger.debug(f"TG {label} dropped before queue: chat={chat_id}")
-        return None
-
     attempts = _TG_IMPORTANT_ATTEMPTS if important else 1
-    async with lock:
-        for attempt in range(1, attempts + 1):
-            now = loop.time()
-            flood_wait = _tg_flood_until.get(chat_id, 0) - now
-            interval_wait = interval - (now - _tg_last_send.get(chat_id, 0))
-            wait = max(0, flood_wait, interval_wait)
-            if wait:
-                await asyncio.sleep(wait)
-            # A timeout is ambiguous: Telegram may have accepted the request. Count
-            # every attempt, not only confirmed responses, before any retry.
-            _tg_last_send[chat_id] = loop.time()
-            try:
-                result = await call()
-                return result
-            except TelegramRetryAfter as e:
-                _tg_flood_until[chat_id] = loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN
-                logger.warning(f"TG {label} flood: retry in {e.retry_after}s")
-                if not important or attempt == attempts:
-                    break
-            except (TelegramNetworkError, TelegramServerError) as e:
-                if important and attempt < attempts:
-                    logger.warning(
-                        f"TG {label} ambiguous delivery, retry {attempt + 1}/{attempts}: {e}"
-                    )
-                    await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
-                    continue
-                if important:
-                    logger.warning(f"TG {label} LOST after {attempt} attempts: {e}")
-                else:
-                    logger.warning(f"TG {label} failed: {e}")
-                return None
-            except Exception as e:
-                if important:
-                    logger.warning(f"TG {label} LOST: {e}")
-                else:
-                    logger.warning(f"TG {label} failed: {e}")
-                return None
+    for attempt in range(1, attempts + 1):
+        wait = _tg_rate_wait(chat_id, loop.time())
+        if wait:
+            await asyncio.sleep(wait)
+        _tg_last_send[chat_id] = loop.time()
+        try:
+            return await call()
+        except TelegramRetryAfter as e:
+            _tg_flood_until[chat_id] = loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN
+            logger.warning(f"TG {label} flood: retry in {e.retry_after}s")
+            if not important or attempt == attempts:
+                break
+        except (TelegramNetworkError, TelegramServerError) as e:
+            if important and attempt < attempts:
+                logger.warning(
+                    f"TG {label} ambiguous delivery, retry {attempt + 1}/{attempts}: {e}"
+                )
+                await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
+                continue
+            if important:
+                logger.warning(f"TG {label} LOST after {attempt} attempts: {e}")
+            else:
+                logger.warning(f"TG {label} failed: {e}")
+            return None
+        except Exception as e:
+            if important:
+                logger.warning(f"TG {label} LOST: {e}")
+            else:
+                logger.warning(f"TG {label} failed: {e}")
+            return None
 
-        if important:
-            logger.warning(f"TG {label} LOST after {attempts} flood attempts")
-        return None
+    if important:
+        logger.warning(f"TG {label} LOST after {attempts} flood attempts")
+    return None
+
+
+async def _tg_dispatch_chat(chat_id: int) -> None:
+    queue = _tg_call_queues[chat_id]
+    try:
+        while True:
+            item = await queue.get()
+            _, _, call, important, label, future = item
+            if future.cancelled():
+                queue.task_done()
+                continue
+            wait = _tg_rate_wait(chat_id, asyncio.get_running_loop().time())
+            if wait:
+                queue.put_nowait(item)
+                queue.task_done()
+                await asyncio.sleep(wait)
+                continue
+            try:
+                result = await _tg_run_call(chat_id, call, important, label)
+                if not future.done():
+                    future.set_result(result)
+            except asyncio.CancelledError:
+                if not future.done():
+                    future.cancel()
+                raise
+            except Exception as e:
+                logger.exception(f"TG {label} dispatcher failed: {e}")
+                if not future.done():
+                    future.set_result(None)
+            finally:
+                queue.task_done()
+    finally:
+        current = asyncio.current_task()
+        if _tg_dispatch_tasks.get(chat_id) is current:
+            _tg_dispatch_tasks.pop(chat_id, None)
+
+
+async def _tg_call_safe(chat_id: int, call, *, important: bool = False, label: str = "call"):
+    """Queue one chat, prioritize important calls, and rate-limit delivery."""
+    global _tg_call_sequence
+    loop = asyncio.get_running_loop()
+    if _tg_queue_loops.get(chat_id) not in (None, loop):
+        _clear_tg_chat(chat_id)
+    queue = _tg_call_queues.setdefault(chat_id, asyncio.PriorityQueue())
+    _tg_queue_loops[chat_id] = loop
+    future = loop.create_future()
+    _tg_call_sequence += 1
+    queue.put_nowait((0 if important else 1, _tg_call_sequence, call, important, label, future))
+    task = _tg_dispatch_tasks.get(chat_id)
+    if task is None or task.done():
+        _tg_dispatch_tasks[chat_id] = asyncio.create_task(_tg_dispatch_chat(chat_id))
+    if important:
+        return await future
+    return future
 
 
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
@@ -605,6 +685,25 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
     result = await _tg_call_safe(
         chat_id, _send, important=important, label="send_message",
     )
+    if isinstance(result, asyncio.Future):
+        async def _finish_send():
+            queued_result = await result
+            if queued_result is not _TG_ENTITY_REJECTED:
+                return queued_result
+            logger.warning("TG formatted send rejected; trying without entities")
+
+            async def _send_plain_queued():
+                return await bot.send_message(
+                    chat_id, text, message_thread_id=thread_id,
+                    parse_mode=None, entities=None,
+                )
+
+            plain = await _tg_call_safe(
+                chat_id, _send_plain_queued, label="send_message_plain",
+            )
+            return await plain
+
+        return _track_tg_result(_finish_send())
     if result is not _TG_ENTITY_REJECTED:
         return result
 
@@ -621,8 +720,17 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
     )
 
 
-async def _tg_edit_message_safe(chat_id: int, message_id: int, text: str, entities=None):
+async def _tg_edit_message_safe(chat_id: int, message, text: str, entities=None):
+    async def _message_id():
+        resolved = await message if isinstance(message, asyncio.Future) else message
+        if resolved is None:
+            return None
+        return resolved if isinstance(resolved, int) else resolved.message_id
+
     async def _edit():
+        message_id = await _message_id()
+        if message_id is None:
+            return None
         try:
             return await bot.edit_message_text(
                 text, chat_id=chat_id, message_id=message_id,
@@ -636,10 +744,38 @@ async def _tg_edit_message_safe(chat_id: int, message_id: int, text: str, entiti
             return _TG_ENTITY_REJECTED
 
     result = await _tg_call_safe(chat_id, _edit, label="edit_message")
+    if isinstance(result, asyncio.Future):
+        async def _finish_edit():
+            queued_result = await result
+            if queued_result is not _TG_ENTITY_REJECTED:
+                return queued_result
+
+            async def _edit_plain_queued():
+                message_id = await _message_id()
+                if message_id is None:
+                    return None
+                try:
+                    return await bot.edit_message_text(
+                        text, chat_id=chat_id, message_id=message_id,
+                    )
+                except TelegramBadRequest as e:
+                    if "message is not modified" in str(e).lower():
+                        return True
+                    raise
+
+            plain = await _tg_call_safe(
+                chat_id, _edit_plain_queued, label="edit_message_plain",
+            )
+            return await plain
+
+        return _track_tg_result(_finish_edit())
     if result is not _TG_ENTITY_REJECTED:
         return result
 
     async def _edit_plain():
+        message_id = await _message_id()
+        if message_id is None:
+            return None
         try:
             return await bot.edit_message_text(
                 text, chat_id=chat_id, message_id=message_id,
@@ -1117,15 +1253,24 @@ async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) 
     tmp = os.path.join(tempfile.gettempdir(), f"diff-{uuid.uuid4().hex}.png")
     with open(tmp, "wb") as f:
         f.write(png)
+    delivery = None
     try:
-        await _tg_send_file_safe(
+        delivery = await _tg_send_file_safe(
             chat_id, tmp, None, thread_id, is_photo=True, important=False,
         )
     finally:
-        try:
-            os.unlink(tmp)
-        except Exception as e:
-            logger.warning(f"tmp diff image cleanup failed ({tmp}): {e}")
+        def _cleanup(_=None):
+            try:
+                os.unlink(tmp)
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                logger.warning(f"tmp diff image cleanup failed ({tmp}): {e}")
+
+        if isinstance(delivery, asyncio.Future):
+            delivery.add_done_callback(_cleanup)
+        else:
+            _cleanup()
 
 
 async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, thread_id: int) -> bool:
@@ -1776,12 +1921,12 @@ async def stop_bridge():
     for t in _tasks:
         t.cancel()
     _tasks.clear()
+    _reset_tg_delivery_state()
     if bot:
         await bot.session.close()
     # drop stale refs — a handler racing past the unhook must see inactive state
     bot = None
     _manager = None
-    _reset_tg_delivery_state()
 
 
 if __name__ == "__main__":
