@@ -18,6 +18,9 @@ Generate `.html` files when content benefits from layout, color, diagrams, inter
 - Short replies, code, terminal commands
 - Disposable summaries
 
+**Durable source:** Keep durable facts and editable content in Git-diffable Markdown or JSON. HTML is the presentation layer only, never the sole source of truth.
+**Export-back:** Editor-like artifacts must export changes back to Markdown or JSON so edits remain durable and reviewable.
+
 ## Rules
 1. **Language** — write ALL text content (titles, labels, TL;DR, descriptions) in the SAME language the user is communicating in. User speaks Russian → artifact in Russian. English → English
 2. **Single .html file** — CSS in `<style>`, JS in `<script>`, SVG inline
