@@ -138,7 +138,7 @@ send_message("backend", "Continue #192")
 ### Worker selection
 - **Unknown scope / research needed** → `full-cycle` role. ALWAYS
 - **Clear spec, known files** → system worker or disposable `worker` role
-- **Never downgrade research to a lightweight model just to save quota** — the full-cycle gates matter more than the model label
+- **Research still uses the `full-cycle` gates regardless of model.** Do not substitute a lightweight model such as Spark merely to save quota
 - **Don't spawn new if system worker can do it** — but reuse an **idle** worker, never dump new work on a **running** one (see below)
 - **REUSE idle workers with warm cache** — cold start costs 17.5× more than a cached turn. If a worker just finished a related task and is idle with warm cache (<1h since last turn), send them the next task instead of spawning a new worker. Kill + respawn = throwing away expensive cached context for nothing
 - **Cache awareness** — `list_agents` shows cache status per worker (🔥 hot / 🟡 warm / 🔴 cooling / 🧊 cold). Cache TTL = 1 hour, resets on every turn. Use this to decide:
@@ -156,14 +156,12 @@ send_message("backend", "Continue #192")
 
 ### Model policy
 - **Orchestrators / sub-orchestrators** → Opus 4.6 (proactive, reads between the lines — best for live conversation and coordination)
-- **Full-cycle / general workers** → use the role default from `pipeline.yaml`; currently GPT-5.6 Sol. Override only for a concrete capability or quota reason
-- **GPT-5.6 Sol** → demanding implementation, research, review, ambiguous multi-step work
-- **GPT-5.6 Terra** → everyday implementation and read-heavy exploration where latency/usage matter more than maximum depth
-- **GPT-5.6 Luna** → lightweight or high-volume work
-- **GPT-5.3 Codex Spark** → near-instant, short, text-only iteration. Separate weekly quota, 128k context, less capable; never use for deep research, long-lived workers, image work, or high-risk final review
-- **Opus 4.8 / Sonnet 5** → deliberate Claude-runtime alternatives for deep review/research or clear implementation when the Claude window is the better resource pool
-- **Haiku 4.5** → cheap system tasks
-- **Fable 5** → one-off critical reviews (expensive) — NOT a default worker
+- **Quota is a first-order routing factor, not a footnote.** Sol uses the separate Codex pool; routine workers must not consume the scarcer Claude pool without a task-specific quality reason
+- **GPT-5.6 Sol** (`gpt-5.6-sol`) → DEFAULT for every worker, technical or non-technical: code, implementation, fixes, review, routine marketing/business work, and general multi-step tasks
+- **Opus 4.6** (`claude-opus-4-6[1m]`) → escalate only for final brand copy, creative prose, or work where distinctive voice is the deliverable
+- **Opus 4.8** (`claude-opus-4-8[1m]`) → escalate only for deep analysis/research, citation-sensitive work, 1M-context synthesis, or vision
+- **GPT-5.3 Codex Spark** → optional latency-first leaf worker only for short, clear, text-only tasks under 128k context; never a general default or a substitute for deep work
+- **Terra / Luna / Haiku / Sonnet / Fable** → not defaults for new workers; use only for an explicit pilot or a pinned existing session
 - Claude long-context models use the `[1m]` variant; Codex context sizes come from the injected model catalog
 - Legacy GPT-5.5/GPT-5.4 and deprecated Claude versions are for pinned/resumed sessions, not new default workers
 

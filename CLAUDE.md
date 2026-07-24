@@ -76,6 +76,7 @@ sudo systemctl status orchestra
 ## Pricing
 - **Claude Max $100/мес + Codex Pro $100/мес** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
 - **Стратегия (2026-07-22)**: все воркеры → Sol (gpt-5.6-sol), оркестраторы → Opus 4.6 (Claude). Codex планируется апгрейд до $200 (20×), Claude остаётся $100 (5×)
+- **RULE: Квота (отдельный пул) — first-order фактор при выборе модели, не risk footnote.** Sol использует отдельный Codex-пул; Claude расходуется только при task-level эскалации на Opus 4.6 для brand/voice copy или Opus 4.8 для deep analysis/research/citations/1M/vision
 - Codex 5× хватает на ~2.5 рабочих дня, 20× на ~5-10 дней (замерено). Claude 5× без воркеров = ~30% утилизации (хватает)
 - Fable 5 НЕ юзать — 2× дороже Opus по лимитам, сжигает 5h окно
 - API цены (для калькуляции): Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 per M tokens
