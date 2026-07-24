@@ -190,6 +190,12 @@ class TestDefaultBuildSystemPrompt:
         # и платформенный маркер MCP send_message
         assert "mcp__orchestra__send_message" in out
 
+    def test_all_roles_forbid_acknowledgement_loops(self):
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert "Never send acknowledgement-only messages" in out
+            assert "do not reply and end the turn silently" in out
+
     def test_orchestrator_prompt_contains_role_body_markers(self):
         """Характеризация: ключевые XML-секции тела orchestrator.md на месте."""
         out = P.build_system_prompt(PIPELINE, "orchestrator")

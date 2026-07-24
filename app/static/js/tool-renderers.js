@@ -319,9 +319,13 @@ function renderCodexFileChange(body) {
         const path = document.createElement('span');
         path.textContent = shortPath || 'file';
         path.title = fp;
+        const rawKind = typeof change.kind === 'object' && change.kind
+            ? change.kind.type
+            : change.kind;
+        const changeKind = String(rawKind || 'update');
         const kind = document.createElement('span');
-        kind.className = `codex-change-kind codex-change-${change.kind || 'update'}`;
-        kind.textContent = change.kind || 'update';
+        kind.className = `codex-change-kind codex-change-${changeKind.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`;
+        kind.textContent = changeKind;
         fileEl.append(path, kind);
         block.appendChild(fileEl);
 
