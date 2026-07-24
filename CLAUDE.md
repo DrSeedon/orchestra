@@ -196,7 +196,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 
 ### Process rules
 - **Step 0: Clarify before acting** — added to orchestration.md decision tree
-- **Reply to agents via send_message** — not plain text to user chat
+- **ВСЕГДА send_message(to="worker") для ответа воркеру** — plain text = сообщение юзеру, воркер его НЕ видит. Даже "ок, работай" = send_message. Нарушил 2026-07-23 — написал "Правильный диагноз. Работай." plain text, воркер не получил
 - **repo_path in spawn_worker** — set explicitly when task targets different repo than scope
 - **Hardcoded role=orchestrator** for New Orchestrator modal — hidden dropdown was picking random role
 
