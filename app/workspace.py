@@ -895,7 +895,7 @@ def simulate_conflict(repo_path: str, branch_a: str, branch_b: str) -> dict:
 
 
 def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> dict:
-    """Report uncommitted files + unmerged commit subjects for a worktree (relative to base_ref).
+    """Report uncommitted files, unmerged commits, and diff stats relative to base_ref.
     Returns {"error": ...} if git status or the base_ref comparison fails — never a false 'clean'."""
     wt = Path(worktree_path).resolve()
     dirty = _git_cmd(
@@ -903,7 +903,7 @@ def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> 
     )
     if dirty.returncode != 0:
         return {"error": f"git status failed: {dirty.stderr.strip()}"}
-    uncommitted = [l[3:] for l in dirty.stdout.strip().splitlines()] if dirty.stdout.strip() else []
+    uncommitted = [line[3:] for line in dirty.stdout.splitlines() if line]
     log = _git_cmd(
         ["git", "log", f"{base_ref}..HEAD", "--format=%s"],
         cwd=str(wt), capture_output=True, text=True,
@@ -911,4 +911,40 @@ def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> 
     if log.returncode != 0:
         return {"error": f"base_ref '{base_ref}' not found or comparison failed: {log.stderr.strip()}"}
     unmerged = [l for l in log.stdout.strip().splitlines() if l.strip()]
-    return {"uncommitted": uncommitted, "unmerged_commits": unmerged}
+
+    changed: dict[str, dict] = {}
+    for diff_range in (f"{base_ref}..HEAD", "HEAD"):
+        stat = _git_cmd(
+            ["git", "diff", "--numstat", diff_range],
+            cwd=str(wt), capture_output=True, text=True,
+        )
+        if stat.returncode != 0:
+            return {"error": f"git diff failed for '{diff_range}': {stat.stderr.strip()}"}
+        for line in stat.stdout.splitlines():
+            fields = line.split("\t", 2)
+            if len(fields) != 3:
+                continue
+            added, deleted, path = fields
+            entry = changed.setdefault(
+                path, {"path": path, "insertions": 0, "deletions": 0, "binary": False},
+            )
+            if added == "-" or deleted == "-":
+                entry["binary"] = True
+                continue
+            entry["insertions"] += int(added)
+            entry["deletions"] += int(deleted)
+
+    for path in uncommitted:
+        changed.setdefault(
+            path, {"path": path, "insertions": None, "deletions": None, "binary": False},
+        )
+    changed_files = list(changed.values())
+    insertions = sum(f["insertions"] or 0 for f in changed_files)
+    deletions = sum(f["deletions"] or 0 for f in changed_files)
+    return {
+        "uncommitted": uncommitted,
+        "unmerged_commits": unmerged,
+        "changed_files": changed_files,
+        "insertions": insertions,
+        "deletions": deletions,
+    }

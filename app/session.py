@@ -59,6 +59,19 @@ def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
     return _DB_EXECUTOR
 
 
+_LAST_SUMMARY_MAX_CHARS = 4_000
+
+
+def _bounded_summary(summary: str) -> str:
+    summary = summary.strip()
+    if len(summary) <= _LAST_SUMMARY_MAX_CHARS:
+        return summary
+    marker = "\n\n[… summary truncated …]\n\n"
+    head = (_LAST_SUMMARY_MAX_CHARS - len(marker)) // 2
+    tail = _LAST_SUMMARY_MAX_CHARS - len(marker) - head
+    return summary[:head] + marker + summary[-tail:]
+
+
 @dataclass
 class AgentSession:
     id: str
@@ -88,6 +101,7 @@ class AgentSession:
     backend_type: str = "claude"
     effort: str | None = None
     runtime_handoff: str = ""
+    last_summary: str = ""
     task_id: str = ""
     description: str = ""
     owned_dirs: list = field(default_factory=list, repr=False)
@@ -882,7 +896,11 @@ class AgentSession:
                     )
 
             after_pct = self._last_context.get("percentage", 0)
+            summary = result.get("summary")
+            if summary:
+                self.last_summary = _bounded_summary(summary)
             self._persist()
+            await self._drain_persist()
             self._log(
                 "status",
                 f"compact done (native Codex): {before_pct}% → {after_pct}%, "
@@ -1023,6 +1041,9 @@ class AgentSession:
             if attempt > 1:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
+        self.last_summary = _bounded_summary(summary)
+        self._persist()
+        await self._drain_persist()
         self._log("text", f"📋 **Compact summary:**\n\n{summary}")
 
         preamble = PREAMBLE.format(summary=summary)
@@ -1212,7 +1233,10 @@ class AgentSession:
             or not get_runtime(new_runtime).capabilities.resume_across_models
         )
         if native_session_reset:
-            self.runtime_handoff = await self._build_runtime_handoff()
+            if runtime_changed and self.last_summary:
+                self.runtime_handoff = _bounded_summary(self.last_summary)
+            else:
+                self.runtime_handoff = await self._build_runtime_handoff()
             # Legacy history predates runtime/model metadata. Cross-runtime switching
             # used to be forbidden, so those native IDs belong to the current runtime.
             for entry in self.session_id_history:
@@ -1377,6 +1401,7 @@ class AgentSession:
             "backend_type": self.backend_type,
             "effort": self.effort or "",
             "runtime_handoff": self.runtime_handoff,
+            "last_summary": self.last_summary,
             "task_id": self.task_id,
             "description": self.description,
             "total_turns": self.total_turns,
