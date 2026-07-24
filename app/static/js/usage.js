@@ -132,10 +132,11 @@ function renderUsageBar() {
                 const windowMs = window.window_minutes * 60000;
                 const rpNum = _resetPctNum(window.resets_at, windowMs);
                 const c = _usageColor(window.utilization, rpNum);
+                const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
                 const cd = _resetCountdown(window.resets_at);
                 const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
                 const label = _codexWindowLabel(window.window_minutes);
-                parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+                parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
             }
         }
     }
