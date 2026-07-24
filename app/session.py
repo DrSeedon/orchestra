@@ -897,6 +897,11 @@ class AgentSession:
 
             after_pct = self._last_context.get("percentage", 0)
             summary = result.get("summary")
+            if not summary:
+                try:
+                    summary = await self._build_runtime_handoff()
+                except Exception as exc:
+                    logger.debug(f"[{self.name}] Codex compact handoff snapshot failed: {exc}")
             if summary:
                 self.last_summary = _bounded_summary(summary)
             self._persist()
