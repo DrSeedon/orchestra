@@ -60,6 +60,7 @@ def init_db() -> None:
                 mcp_servers_custom TEXT DEFAULT '',
                 profile TEXT DEFAULT '',
                 runtime_handoff TEXT DEFAULT '',
+                last_summary TEXT DEFAULT '',
                 created_at TEXT NOT NULL,
                 finished_at TEXT,
                 UNIQUE(name, scope)
@@ -498,6 +499,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN effort TEXT DEFAULT ''")
     if "runtime_handoff" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN runtime_handoff TEXT DEFAULT ''")
+    if "last_summary" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN last_summary TEXT DEFAULT ''")
     usage_cols = {row[1] for row in c.execute("PRAGMA table_info(usage_snapshots)").fetchall()}
     if usage_cols and "provider_usage" not in usage_cols:
         c.execute("ALTER TABLE usage_snapshots ADD COLUMN provider_usage TEXT NOT NULL DEFAULT '{}'")
@@ -534,6 +537,7 @@ def save_session(s: dict) -> None:
     s.setdefault("session_id_history", "[]")
     s.setdefault("effort", "")
     s.setdefault("runtime_handoff", "")
+    s.setdefault("last_summary", "")
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
@@ -544,7 +548,8 @@ def save_session(s: dict) -> None:
                 total_turns, total_input_tokens, total_output_tokens,
                 total_cache_read_tokens, total_cache_create_tokens, total_tool_calls,
                 template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline,
-                profile, owned_dirs, tg_topic, session_id_history, effort, runtime_handoff)
+                profile, owned_dirs, tg_topic, session_id_history, effort, runtime_handoff,
+                last_summary)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
@@ -553,7 +558,8 @@ def save_session(s: dict) -> None:
                 :total_turns, :total_input_tokens, :total_output_tokens,
                 :total_cache_read_tokens, :total_cache_create_tokens, :total_tool_calls,
                 :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :pipeline,
-                :profile, :owned_dirs, :tg_topic, :session_id_history, :effort, :runtime_handoff)
+                :profile, :owned_dirs, :tg_topic, :session_id_history, :effort,
+                :runtime_handoff, :last_summary)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 model=excluded.model,
@@ -592,7 +598,8 @@ def save_session(s: dict) -> None:
                 tg_topic=excluded.tg_topic,
                 session_id_history=excluded.session_id_history,
                 effort=excluded.effort,
-                runtime_handoff=excluded.runtime_handoff
+                runtime_handoff=excluded.runtime_handoff,
+                last_summary=excluded.last_summary
         """, s)
 
 

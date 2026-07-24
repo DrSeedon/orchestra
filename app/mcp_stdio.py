@@ -537,6 +537,7 @@ async def worker_wip(name: str, base_ref: str = "refs/heads/main") -> str:
         return f"WIP result: {result}"
     uncommitted = result.get("uncommitted", [])
     unmerged = result.get("unmerged_commits", [])
+    changed_files = result.get("changed_files", [])
     ctx = result.get("context_pct", 0)
     status = result.get("status", "?")
     ctx_str = f" | ctx:{ctx}% | {status}" if ctx else f" | {status}"
@@ -548,6 +549,27 @@ async def worker_wip(name: str, base_ref: str = "refs/heads/main") -> str:
     if unmerged:
         parts.append(f"  Unmerged commits ({len(unmerged)}):")
         parts.extend(f"    - {s}" for s in unmerged[:20])
+    if changed_files:
+        insertions = result.get("insertions", 0)
+        deletions = result.get("deletions", 0)
+        parts.append(f"  Changed files ({len(changed_files)}): +{insertions} -{deletions}")
+        for file in changed_files[:10]:
+            path = file.get("path", "?")
+            if file.get("binary"):
+                suffix = " (binary)"
+            elif file.get("insertions") is None or file.get("deletions") is None:
+                suffix = ""
+            else:
+                suffix = f" (+{file['insertions']} -{file['deletions']})"
+            parts.append(f"    {path}{suffix}")
+        remaining = len(changed_files) - 10
+        if remaining > 0:
+            noun = (
+                "файл" if remaining % 10 == 1 and remaining % 100 != 11
+                else "файла" if 2 <= remaining % 10 <= 4 and not 12 <= remaining % 100 <= 14
+                else "файлов"
+            )
+            parts.append(f"    ...и ещё {remaining} {noun}")
     return "\n".join(parts)
 
 
