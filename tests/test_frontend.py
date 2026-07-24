@@ -5,12 +5,58 @@ Run: pytest tests/test_frontend.py -v
 """
 
 import os
+import re
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Browser, Page, expect, sync_playwright
 
 BASE = os.environ.get("ORCHESTRA_TEST_BASE", "http://localhost:8888")
+HTML_ARTIFACT_CSP = (
+    "sandbox allow-scripts; "
+    "default-src 'unsafe-inline' 'unsafe-eval' data: blob:; "
+    "connect-src 'none'"
+)
+
+
+def test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox():
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    html_branch = source.split("if (/\\.html?$/i.test(path)) {", 1)[1].split(
+        "return;", 1,
+    )[0]
+    match = re.search(r'<iframe[^`]+sandbox="([^"]+)"', html_branch)
+
+    assert match
+    assert "openBtn.href = rawUrl;" in html_branch
+    assert set(match.group(1).split()) == {"allow-scripts"}
+    assert "allow-same-origin" not in match.group(1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("suffix", [".html", ".HTM"])
+async def test_raw_html_response_has_sandbox_csp(tmp_path, monkeypatch, suffix):
+    from app.routes import system
+
+    target = tmp_path / f"artifact{suffix}"
+    target.write_text("<script>document.body.textContent = 'works'</script>")
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+
+    response = await system.get_file_raw(str(target))
+
+    assert response.headers["content-security-policy"] == HTML_ARTIFACT_CSP
+
+
+@pytest.mark.asyncio
+async def test_raw_non_html_response_has_no_artifact_csp(tmp_path, monkeypatch):
+    from app.routes import system
+
+    target = tmp_path / "notes.txt"
+    target.write_text("safe text")
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+
+    response = await system.get_file_raw(str(target))
+
+    assert "content-security-policy" not in response.headers
 
 
 @pytest.fixture(scope="module")
