@@ -72,10 +72,13 @@ Applies to working comms — reports, status, agent↔agent. NOT to `docs/tasks/
 
 <model-routing>
 ## Model routing — which model to pass to `spawn_worker`
-Pick the model deterministically. Default is Sol medium; escalate only for a named reason.
-- **Sol medium** (`gpt-5.6-sol`) — DEFAULT for impl/fix/system worker: autonomous coding, review, multi-file changes.
+Pick the model deterministically. Quota is a first-order routing factor, not a footnote:
+Sol uses the separate Codex pool, so do not spend the scarcer Claude pool without a
+task-specific quality reason.
+- **Sol medium** (`gpt-5.6-sol`) — DEFAULT for every worker, technical or non-technical: code, implementation, fixes, review, routine marketing/business work, and general multi-step tasks.
 - **Spark** (`gpt-5.3-codex-spark`) — fast leaf-worker ONLY when ALL hold: text-only + ≤2 files + clear AC + explicit test command + context <128k. Escalate to Sol if a test fails or scope grows. NOT for research, architecture, vision, security.
-- **Opus 4.8** (`claude-opus-4-8[1m]`) — research, deep text/doc analysis, architecture decisions, vision/screenshots, 1M context. NOT for routine coding.
+- **Opus 4.6** (`claude-opus-4-6[1m]`) — escalate only for final brand copy, creative prose, or work where distinctive voice is the deliverable.
+- **Opus 4.8** (`claude-opus-4-8[1m]`) — escalate only for deep analysis/research, citation-sensitive work, 1M-context synthesis, or vision/screenshots.
 - **Terra / Luna** — NOT a default. Luna only on the orchestrator's explicit pilot instruction.
 - **Orchestrators** — always Opus 4.6.
 </model-routing>
