@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Claude Opus 5 — Orchestra routing decision</title>
+  <style>
+    :root {
+      --bg:#0e0e12; --surface:#16161c; --surface-2:#1c1c24;
+      --border:#2a2a32; --ink:#f1f1f4; --soft:#a8a8b3;
+      --accent:#a78bfa; --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+      --blue:#38bdf8; --orange:#fb923c;
+      --sans:system-ui,-apple-system,sans-serif;
+      --mono:ui-monospace,"SF Mono",Menlo,monospace;
+    }
+    @media (prefers-color-scheme:light) {
+      :root {
+        --bg:#fafaf7; --surface:#fff; --surface-2:#f4f3ef;
+        --border:#e1dfd7; --ink:#1a1a1f; --soft:#5c5c66;
+      }
+    }
+    * { box-sizing:border-box }
+    body {
+      margin:0; color:var(--ink); background:var(--bg);
+      font:15px/1.55 var(--sans);
+    }
+    main { width:min(1180px,calc(100% - 32px)); margin:0 auto; padding:42px 0 64px }
+    h1 { max-width:900px; margin:0 0 8px; font-size:clamp(30px,5vw,54px); line-height:1.03; letter-spacing:-.04em }
+    h2 { margin:42px 0 14px; font-size:22px; letter-spacing:-.02em }
+    h3 { margin:0 0 6px; font-size:16px }
+    p { margin:0 0 12px }
+    .kicker { color:var(--accent); font:600 12px/1 var(--mono); letter-spacing:.09em; text-transform:uppercase }
+    .lede { max-width:850px; color:var(--soft); font-size:18px }
+    .verdict {
+      margin:28px 0; padding:22px 24px; border:1px solid var(--accent);
+      background:var(--surface);
+    }
+    .verdict strong { color:var(--accent) }
+    .critical {
+      margin:18px 0 0; padding:16px 18px; border-left:4px solid var(--danger);
+      background:var(--surface-2);
+    }
+    .critical b { color:var(--danger) }
+    .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px }
+    .metric { padding:16px; border:1px solid var(--border); background:var(--surface) }
+    .metric .value { display:block; margin:7px 0 2px; font-size:28px; font-weight:750; letter-spacing:-.04em }
+    .metric .label { color:var(--soft); font-size:12px }
+    .split { display:grid; grid-template-columns:1fr 1fr; gap:16px }
+    .panel { padding:20px; border:1px solid var(--border); background:var(--surface) }
+    .panel p:last-child { margin-bottom:0 }
+    .yes { color:var(--ok) } .no { color:var(--danger) } .hold { color:var(--warn) }
+    table { width:100%; border-collapse:collapse; background:var(--surface) }
+    th,td { padding:12px 14px; border:1px solid var(--border); text-align:left; vertical-align:top }
+    th { color:var(--soft); font:600 12px/1.25 var(--mono); text-transform:uppercase; letter-spacing:.04em }
+    td.num { text-align:right; font-variant-numeric:tabular-nums }
+    code { color:var(--blue); font:13px var(--mono) }
+    .route { font-weight:700 }
+    .note { color:var(--soft); font-size:13px }
+    .barrow { display:grid; grid-template-columns:150px 1fr 58px; gap:12px; align-items:center; margin:9px 0 }
+    .bar { height:12px; background:var(--surface-2); border:1px solid var(--border) }
+    .fill { height:100%; background:var(--accent) }
+    .fill.sol { background:var(--blue) }
+    .fill.fable { background:var(--orange) }
+    .sources { color:var(--soft); font-size:13px }
+    .sources a { color:var(--blue) }
+    @media (max-width:850px) {
+      .grid { grid-template-columns:1fr 1fr }
+      .split { grid-template-columns:1fr }
+      table { display:block; overflow-x:auto }
+    }
+    @media (max-width:520px) {
+      main { width:min(100% - 20px,1180px); padding-top:26px }
+      .grid { grid-template-columns:1fr }
+      .barrow { grid-template-columns:105px 1fr 48px }
+    }
+    @media print {
+      :root { --bg:#fff; --surface:#fff; --surface-2:#f5f5f5; --border:#ccc; --ink:#111; --soft:#555 }
+      main { width:100%; padding:0 }
+      .metric,.panel,.verdict,table { break-inside:avoid }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <div class="kicker">Orchestra model-routing research · 25 Jul 2026</div>
+  <h1>Canary Opus 5 for Claude roles. Keep Sol as the worker default.</h1>
+  <p class="lede">Opus 5 is a large, same-API-price upgrade over Opus 4.8 and is now live in Claude Code. Its relative Max quota weight is not published, and it does not make the separate Codex pool irrelevant.</p>
+
+  <section class="verdict">
+    <strong>Decision:</strong> canary orchestrators and existing Opus 4.8 specialists on <code>claude-opus-5[1m]</code> at medium effort; promote routes that pass; do not bulk-migrate Sol workers.
+    <div class="critical"><b>Benchmark correction:</b> the DeepSWE 53.8% “max” point is Claude Sonnet 5, not GPT-5.6 Sol. The chart contains no Sol curve. The separate comparison table gives Sol 72.7% versus Opus 5 at 68.8%.</div>
+  </section>
+
+  <section class="grid" aria-label="Key facts">
+    <div class="metric"><span class="label">API / CLI model ID</span><span class="value">opus-5</span><code>claude-opus-5[1m]</code></div>
+    <div class="metric"><span class="label">API price, input / output</span><span class="value">$5 / $25</span><span class="label">per million tokens</span></div>
+    <div class="metric"><span class="label">Effective Orchestra context</span><span class="value">1M</span><span class="label">with the tested [1m] suffix</span></div>
+    <div class="metric"><span class="label">Starting planning scenario</span><span class="value">7–9/day</span><span class="label">conditional on $3–4/task; measure before scaling</span></div>
+  </section>
+
+  <h2>What changes</h2>
+  <div class="split">
+    <section class="panel">
+      <h3 class="yes">Move Claude roles</h3>
+      <p>Opus 5 improves Frontier-Bench by 22.2 points, OSWorld by 14.9, DeepSWE by 9.8, and SWE-bench Pro by 10.0 over Opus 4.8, at the same API price.</p>
+      <p>Anthropic explicitly calls out judgment, multi-agent coordination, verification, long-horizon consistency, and vision—the traits Orchestra uses.</p>
+    </section>
+    <section class="panel">
+      <h3 class="no">Do not replace the Sol fleet</h3>
+      <p>Sol is still better on the supplied DeepSWE comparison (72.7 vs 68.8), is effectively tied on BrowseComp, and consumes a separate Codex subscription pool.</p>
+      <p>Moving routine workers to Opus 5 converts spare Codex capacity into pressure on the already scarcer Claude pool.</p>
+    </section>
+  </div>
+
+  <h2>Selected benchmark comparison</h2>
+  <div class="panel">
+    <div class="barrow"><span>Frontier-Bench</span><div class="bar"><div class="fill" style="width:100%"></div></div><b>43.3</b></div>
+    <div class="barrow"><span>Sol</span><div class="bar"><div class="fill sol" style="width:79.4%"></div></div><b>34.4</b></div>
+    <div class="barrow"><span>DeepSWE Opus 5</span><div class="bar"><div class="fill" style="width:94.6%"></div></div><b>68.8</b></div>
+    <div class="barrow"><span>DeepSWE Sol</span><div class="bar"><div class="fill sol" style="width:100%"></div></div><b>72.7</b></div>
+    <div class="barrow"><span>SWE Pro Opus 5</span><div class="bar"><div class="fill" style="width:99%"></div></div><b>79.2</b></div>
+    <div class="barrow"><span>SWE Pro Fable</span><div class="bar"><div class="fill fable" style="width:100%"></div></div><b>80.0</b></div>
+    <p class="note">Bars are normalized within each comparison pair. The launch screenshots contain inconsistent Frontier-Bench baselines for Opus 4.8 and Sol, so small margins should not be over-read.</p>
+  </div>
+
+  <h2>Concrete routing table</h2>
+  <table>
+    <thead><tr><th>Role / task</th><th>Model</th><th>Effort</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td>Top-level and sub-orchestrators</td><td><code>claude-opus-5[1m]</code></td><td>medium</td><td class="route hold">Canary, then switch</td></tr>
+      <tr><td>Research, citations, deep analysis</td><td><code>claude-opus-5[1m]</code></td><td>medium; high by exception</td><td class="route hold">Canary → switch</td></tr>
+      <tr><td>Prompt engineer / final voice</td><td><code>claude-opus-5[1m]</code></td><td>medium</td><td class="route hold">Canary → switch</td></tr>
+      <tr><td>Frontend vision / UI replication</td><td><code>claude-opus-5[1m]</code></td><td>medium</td><td class="route hold">Canary → switch</td></tr>
+      <tr><td>Routine implementation / known bug</td><td><code>gpt-5.6-sol</code></td><td>current role default</td><td class="route">Keep</td></tr>
+      <tr><td>Bounded text-only leaf task</td><td><code>gpt-5.3-codex-spark</code></td><td>role default</td><td class="route">Keep</td></tr>
+      <tr><td>Vague, failed, vision-heavy or long-horizon task</td><td><code>claude-opus-5[1m]</code></td><td>medium / high</td><td class="route hold">Escalate from Sol</td></tr>
+      <tr><td>Fable 5</td><td><code>claude-fable-5[1m]</code></td><td>high / xhigh</td><td class="route no">Manual last resort</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Quota envelope on Max 5x</h2>
+  <table>
+    <thead><tr><th>Operating envelope</th><th>Medium Opus 5 worker completions</th><th>Interpretation</th></tr></thead>
+    <tbody>
+      <tr><td>100% historical weekly calibration</td><td class="num">~95–125</td><td>No orchestrator usage; conditional on $3–4 per task.</td></tr>
+      <tr><td>After ~30% orchestrator baseline</td><td class="num">~65–90</td><td>Conditional scenario: approximately 9–13 per day.</td></tr>
+      <tr><td>30 points baseline + 20 points reserve</td><td class="num">~50–65</td><td>Starting scenario: 7–9 per day.</td></tr>
+      <tr><td>5-hour starting admission cap</td><td class="num">8 new tasks</td><td>Maximum two concurrent Claude sessions until A/B data exists.</td></tr>
+    </tbody>
+  </table>
+  <p class="note">These are conditional planning scenarios, not Anthropic guarantees or measured Opus 5 capacity. Max publishes multipliers but no absolute token/message allowance. Task size, cache state, context length and concurrency move burn by multiples.</p>
+
+  <h2>Orchestrator canary gate</h2>
+  <div class="split">
+    <section class="panel"><h3>Run</h3><p>20–30 completed user turns on one top-level orchestrator, pinned to <code>claude-opus-5[1m]</code>, medium effort.</p></section>
+    <section class="panel"><h3>Promote only if</h3><p>No tool/stop regressions; median agentic steps ≤ +15%; cost and 5h burn per completion ≤ +25%; no missed mid-turn messages or pipeline-gate violations.</p></section>
+  </div>
+  <p class="note">For specialist workers, run 15–20 representative matched tasks and use the same +15% step and +25% cost/quota thresholds before replacing Opus 4.8 routes.</p>
+
+  <h2>Evidence</h2>
+  <p class="sources">
+    Primary sources:
+    <a href="https://www.anthropic.com/news/claude-opus-5">launch announcement</a>,
+    <a href="https://platform.claude.com/docs/en/about-claude/models/whats-new-opus-5">technical model page</a>,
+    <a href="https://code.claude.com/docs/en/model-config">Claude Code model configuration</a>,
+    <a href="https://support.claude.com/en/articles/11049741-what-is-the-max-plan">Max plan limits</a>.
+    Operational evidence: two live Claude Code 2.1.215 probes, four supplied benchmark screenshots, and Orchestra SQLite usage telemetry.
+    Durable analysis: <code>docs/tasks/opus5-routing/research.md</code>.
+  </p>
+</main>
+</body>
+</html>
