@@ -4,12 +4,13 @@ Requires: Orchestra running on localhost:8888 (no auth).
 Run: pytest tests/test_frontend.py -v
 """
 
+import os
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Browser, Page, expect, sync_playwright
 
-BASE = "http://localhost:8888"
+BASE = os.environ.get("ORCHESTRA_TEST_BASE", "http://localhost:8888")
 
 
 @pytest.fixture(scope="module")
@@ -331,4 +332,89 @@ def test_codex_spawn_worker_renders_task_model_and_completion(
     expect(card).to_contain_text("GPT-5.6 Sol")
     expect(card).to_contain_text("Research an AOSP-first product strategy.")
     assert '"system_prompt"' not in card.inner_text()
+    page.close()
+
+
+def test_codex_file_change_renders_structured_kind(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    page.evaluate("""() => {
+        addChatEntry(
+            'tool',
+            JSON.stringify({
+                changes: [{
+                    path: '/tmp/project/example.js',
+                    kind: {type: 'update', move_path: null},
+                    diff: '@@ -1 +1 @@\\n-old\\n+new\\n',
+                }],
+                _codex_item_id: 'change-1',
+            }).replace(/^/, 'FileChange: '),
+            null,
+            null,
+            {tool_use_id: 'change-1'}
+        );
+    }""")
+
+    card = page.locator("#chat .codex-tool-card")
+    expect(card.locator(".codex-change-kind")).to_have_text("update")
+    expect(card).not_to_contain_text("[object Object]")
+    expect(card).to_contain_text("+new")
+    page.close()
+
+
+def test_codex_view_image_loads_eagerly(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    image_path = str((Path(__file__).parents[1] / "docs/dashboard.png").resolve())
+    requests = 0
+
+    def fail_first_image_request(route):
+        nonlocal requests
+        requests += 1
+        if requests == 1:
+            route.fulfill(status=404)
+        else:
+            route.continue_()
+
+    page.route("**/api/files/raw?**", fail_first_image_request)
+    page.evaluate(
+        """([imagePath]) => {
+            addChatEntry(
+                'tool',
+                `ViewImage: ${JSON.stringify({
+                    file_path: imagePath,
+                    _codex_item_id: 'image-1',
+                })}`,
+                null,
+                null,
+                {tool_use_id: 'image-1'}
+            );
+        }""",
+        [image_path],
+    )
+
+    image = page.locator("#chat .codex-tool-image")
+    expect(image).to_have_attribute("loading", "eager")
+    expect(image).to_have_class("codex-tool-image codex-tool-image-error")
+    page.evaluate(
+        """([imagePath]) => {
+            addChatEntry(
+                'tool_result',
+                JSON.stringify({status: 'viewed', file_path: imagePath}),
+                null,
+                null,
+                {tool_use_id: 'image-1'}
+            );
+        }""",
+        [image_path],
+    )
+
+    page.wait_for_function(
+        "() => document.querySelector('#chat .codex-tool-image')?.naturalWidth > 0"
+    )
+    assert image.evaluate("(img) => img.naturalWidth") == 2800
+    assert requests == 2
+    expect(image).not_to_have_class("codex-tool-image-error")
     page.close()

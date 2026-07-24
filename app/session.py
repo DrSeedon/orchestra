@@ -45,6 +45,33 @@ def _is_terminal_subscription_limit(text: str) -> bool:
         "weekly limit",
     ))
 
+
+def _claude_subscription_limit_active() -> bool:
+    try:
+        from app.routes.system import _usage_cache
+        usage = _usage_cache.get("data") or {}
+    except Exception:
+        return False
+    now = datetime.now(timezone.utc)
+    for name in ("five_hour", "seven_day"):
+        window = usage.get(name) or {}
+        utilization = window.get("utilization")
+        if not isinstance(utilization, (int, float)) or utilization < 100:
+            continue
+        resets_at = window.get("resets_at")
+        if not resets_at:
+            return True
+        try:
+            reset = datetime.fromisoformat(str(resets_at).replace("Z", "+00:00"))
+            if reset.tzinfo is None:
+                reset = reset.replace(tzinfo=timezone.utc)
+            if reset > now:
+                return True
+        except (TypeError, ValueError):
+            return True
+    return False
+
+
 import concurrent.futures
 _DB_EXECUTOR: Optional[concurrent.futures.ThreadPoolExecutor] = None
 
@@ -749,7 +776,6 @@ class AgentSession:
                 # Terminal subscription/usage limits — never retry
                 if self._session_limit_hit or _is_terminal_subscription_limit(event.content):
                     self._log("error", "⏳ subscription limit — ждём сброса квоты. НЕ ретраим")
-                    self._session_limit_hit = False
                 elif self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
                     self._rate_limit_retries += 1
                     delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
@@ -972,10 +998,22 @@ class AgentSession:
             return {"ok": False, "error": "compact already in progress"}
         if self.status == AgentStatus.RUNNING:
             return {"ok": False, "error": "cannot compact while agent is running"}
+        if _claude_subscription_limit_active():
+            error = "Claude subscription limit active; compact postponed until quota reset"
+            self._log("error", error)
+            return {"ok": False, "error": error}
+        self._session_limit_hit = False
         self._compacting = True
         before_pct = self._last_context.get("percentage", 0)
         pre_compact_session_id = self.session_id
         self._log("status", f"compact started (context {before_pct}%, pre_session={pre_compact_session_id})")
+
+        def abort_compact(error: str) -> dict:
+            self.session_id = pre_compact_session_id
+            self._compacting = False
+            if self._pending_messages:
+                self._spawn_bg(self._flush_pending())
+            return {"ok": False, "error": error, "before_pct": before_pct}
 
         if self._listen_task and not self._listen_task.done():
             self._listen_task.cancel()
@@ -1022,8 +1060,7 @@ class AgentSession:
                     self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
                     await asyncio.sleep(COMPACT_RETRY_DELAY * attempt)
                     continue
-                self._compacting = False
-                return {"ok": False, "error": last_error, "before_pct": before_pct}
+                return abort_compact(last_error)
             finally:
                 try:
                     await backend.disconnect()
@@ -1033,35 +1070,40 @@ class AgentSession:
 
             summary = "".join(summary_parts).strip()
 
+            summary_lower = summary.lower()
+            terminal_limit = (
+                len(summary) < COMPACT_MIN_SUMMARY_LEN
+                and summary.count("\n") <= 2
+                and _is_terminal_subscription_limit(summary)
+            )
+            provider_error = (
+                len(summary) < COMPACT_MIN_SUMMARY_LEN
+                and summary.count("\n") <= 2
+                and any(pattern in summary_lower for pattern in _GARBAGE_PATTERNS)
+            )
             if not summary:
                 last_error = "empty summary"
+            elif terminal_limit:
+                last_error = "Claude subscription limit active; compact aborted"
+            elif provider_error:
+                last_error = "provider error returned instead of compact summary"
+            else:
+                last_error = ""
+
+            if last_error:
                 self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES}: {last_error}")
-                if attempt < COMPACT_MAX_RETRIES:
+                self.session_id = pre_compact_session_id
+                if not terminal_limit and attempt < COMPACT_MAX_RETRIES:
                     self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
                     await asyncio.sleep(COMPACT_RETRY_DELAY * attempt)
                     continue
-                self._compacting = False
-                return {"ok": False, "error": last_error, "before_pct": before_pct}
+                return abort_compact(last_error)
 
             if attempt > 1:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
-        self.last_summary = _bounded_summary(summary)
-        self._persist()
-        await self._drain_persist()
-        self._log("text", f"📋 **Compact summary:**\n\n{summary}")
 
         preamble = PREAMBLE.format(summary=summary)
-        if pre_compact_session_id:
-            self.session_id_history.append({
-                "session_id": pre_compact_session_id,
-                "runtime": self.backend_type,
-                "model": self.model,
-                "compacted_at": datetime.now(timezone.utc).isoformat(),
-                "context_pct": before_pct,
-            })
-            MAX_HISTORY = 10
-            self.session_id_history = self.session_id_history[-MAX_HISTORY:]
         self._compact_ack_event = asyncio.Event()
         ack_event = self._compact_ack_event
         try:
@@ -1085,9 +1127,18 @@ class AgentSession:
                 self._log("error", "compact ack turn did not complete (60s)")
                 # stop the still-running ack turn so it can't interleave with the next send
                 await self._disconnect_backend()
+                self.session_id = pre_compact_session_id
                 self.status = AgentStatus.IDLE
                 self._persist()
                 return {"ok": False, "error": "ack turn did not complete", "before_pct": before_pct}
+            if self._session_limit_hit:
+                error = "Claude subscription limit hit during compact acknowledgement"
+                self._log("error", error)
+                await self._disconnect_backend()
+                self.session_id = pre_compact_session_id
+                self.status = AgentStatus.IDLE
+                self._persist()
+                return {"ok": False, "error": error, "before_pct": before_pct}
         finally:
             self._compact_ack_event = None
             self._compact_ack_gen = -1
@@ -1095,6 +1146,19 @@ class AgentSession:
             if self._pending_messages:
                 self._spawn_bg(self._flush_pending())
 
+        self.last_summary = _bounded_summary(summary)
+        if pre_compact_session_id:
+            self.session_id_history.append({
+                "session_id": pre_compact_session_id,
+                "runtime": self.backend_type,
+                "model": self.model,
+                "compacted_at": datetime.now(timezone.utc).isoformat(),
+                "context_pct": before_pct,
+            })
+            self.session_id_history = self.session_id_history[-10:]
+        self._persist()
+        await self._drain_persist()
+        self._log("text", f"📋 **Compact summary:**\n\n{summary}")
         after_pct = self._last_context.get("percentage", 0)
         self._log("status", f"compact done: {before_pct}% → {after_pct}%")
         return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}

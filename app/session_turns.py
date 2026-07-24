@@ -82,7 +82,7 @@ class TurnManager:
         """Send auto-report to parent immediately when worker goes idle.
         Orchestrators don't auto-report — they reply to user directly.
         Skipped if worker already sent explicit send_message, has pending messages,
-        or was interrupted/stopped by user.
+        completed a successful silent turn, or was interrupted/stopped by user.
 
         Without this, silent workers (those that don't call send_message) would
         leave the orchestrator waiting forever for a signal that never comes.
@@ -91,6 +91,8 @@ class TurnManager:
         if s.is_orchestrator or not s.on_idle or s._did_report or s._manually_interrupted:
             return
         if s._pending_messages or s._compacting:
+            return
+        if s._last_turn_ok and not s._turn_logs:
             return
         # An unparented worker started directly from dashboard/TG has nobody to report
         # to. A parented child must still report: parent_name survives service restarts
@@ -121,13 +123,17 @@ class TurnManager:
         ok, sr, nt = s._cost.apply_turn_result(meta)
         s._cost.update_context_from_turn(meta)
         s._spawn_bg(s._refresh_context_from_api())
+        subscription_limited = s._session_limit_hit
 
         if not ok:
             # CLI injects [ede_diagnostic] telemetry on interrupt — cosmetic noise, not real errors
             errors = [e for e in (meta.get("errors") or []) if not str(e).startswith("[ede_diagnostic]")]
-            if errors:
+            if errors and not (
+                subscription_limited
+                and all(str(error).lower() == "rate_limit" for error in errors)
+            ):
                 s._log("error", f"turn FAILED: {'; '.join(str(e) for e in errors)}")
-            else:
+            elif not subscription_limited:
                 s._log("status", f"turn interrupted ({sr})")
 
         # max_turns: SDK hit per-turn ceiling — auto-continue so agent doesn't stop mid-task.
@@ -174,6 +180,7 @@ class TurnManager:
         self.after_turn_idle_actions(
             live_pct,
             allow_auto_report=server_error_retry is None,
+            allow_precompact=not subscription_limited,
         )
         if server_error_retry is not None:
             s._spawn_bg(s._retry_after_server_error(*server_error_retry))
@@ -192,17 +199,20 @@ class TurnManager:
         s._persist()
 
     def after_turn_idle_actions(
-            self, live_pct: int, *, allow_auto_report: bool = True) -> None:
+            self, live_pct: int, *, allow_auto_report: bool = True,
+            allow_precompact: bool = True) -> None:
         """Post-turn actions: compact ack, scope idle, auto-compact, auto-report, flush/hibernate."""
         s = self.s
         if s._compact_ack_event is not None and s._turn_gen == s._compact_ack_gen:
             s._compact_ack_event.set()
 
-        s._schedule_precompact_timer(live_pct)
+        if allow_precompact:
+            s._schedule_precompact_timer(live_pct)
         s._spawn_bg(s._notify_scope_idle())
 
         if (
-            live_pct > 90
+            allow_precompact
+            and live_pct > 90
             and s.backend_type != "codex"
             and not s.is_orchestrator
             and not s._compacting

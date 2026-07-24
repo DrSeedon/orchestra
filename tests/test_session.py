@@ -523,6 +523,19 @@ async def test_auto_report_skipped_if_did_report(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_auto_report_skips_successful_silent_turn(monkeypatch):
+    s = _mk_session(monkeypatch)
+    s.on_idle = AsyncMock()
+    s.last_task_sender = "parent"
+    s._turn_logs = []
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0)
+
+    s.on_idle.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_auto_report_cancelled_by_new_turn(monkeypatch):
     # Живой гейт "есть незавершённая активность" — pending_messages: если у агента
     # есть отложенные сообщения (пришёл новый ход), авто-репорт не стреляет.
@@ -869,6 +882,146 @@ class TestCompactGuards:
         result = await session.compact()
         assert result["ok"] is False
         assert "running" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_compact_blocked_while_claude_subscription_is_exhausted(
+        self, session, monkeypatch
+    ):
+        session._log = MagicMock()
+        session._make_backend = MagicMock()
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active",
+            lambda: True,
+        )
+
+        result = await session.compact()
+
+        assert result["ok"] is False
+        assert "subscription limit active" in result["error"].lower()
+        assert session._compacting is False
+        session._make_backend.assert_not_called()
+        session._log.assert_called_once_with("error", result["error"])
+
+    @pytest.mark.asyncio
+    async def test_compact_rejects_limit_message_and_preserves_session(
+        self, session, monkeypatch
+    ):
+        from app.events import AgentEvent
+
+        class LimitBackend:
+            async def connect(self):
+                return None
+
+            async def send(self, _message):
+                return None
+
+            async def events(self):
+                yield AgentEvent(
+                    type="text",
+                    content=(
+                        "You've hit your monthly spend limit · raise it at "
+                        "claude.ai/settings/usage"
+                    ),
+                )
+                yield AgentEvent(
+                    type="turn_end",
+                    metadata={"session_id": "bad-compact-session"},
+                )
+
+            async def disconnect(self):
+                return None
+
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active",
+            lambda: False,
+        )
+        session.session_id = "original-session"
+        session.last_summary = "previous valid summary"
+        session.session_id_history = []
+        session._log = MagicMock()
+        session._make_backend = MagicMock(return_value=LimitBackend())
+        session._ensure_backend = AsyncMock()
+
+        result = await session.compact()
+
+        assert result["ok"] is False
+        assert result["error"] == "Claude subscription limit active; compact aborted"
+        assert session.session_id == "original-session"
+        assert session.last_summary == "previous valid summary"
+        assert session.session_id_history == []
+        assert session._compacting is False
+        session._ensure_backend.assert_not_awaited()
+        assert not any(
+            call.args[0] == "text" and "Compact summary" in call.args[1]
+            for call in session._log.call_args_list
+        )
+
+    @pytest.mark.asyncio
+    async def test_compact_ack_limit_rolls_back_summary_and_session(
+        self, session, monkeypatch
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        summary = (
+            "INTENT: Preserve the current task across compaction.\n"
+            "DECISIONS: Keep the existing implementation and tests.\n"
+            "FILES: app/session.py contains compaction state.\n"
+            "PENDING: Continue after the fresh session acknowledges this handoff.\n"
+            "RECENT: The user requested a safe compact operation."
+        )
+
+        class CompactBackend:
+            async def connect(self):
+                return None
+
+            async def send(self, _message):
+                return None
+
+            async def events(self):
+                yield AgentEvent(type="text", content=summary)
+                yield AgentEvent(
+                    type="turn_end",
+                    metadata={"session_id": "compact-session"},
+                )
+
+            async def disconnect(self):
+                return None
+
+        backend = CompactBackend()
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active",
+            lambda: False,
+        )
+        session.session_id = "original-session"
+        session.last_summary = "previous valid summary"
+        session.session_id_history = []
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._make_backend = MagicMock(return_value=backend)
+
+        async def fail_ack(force_fresh=False):
+            session._backend = backend
+
+            async def finish():
+                await asyncio.sleep(0)
+                session._session_limit_hit = True
+                session._compact_ack_event.set()
+
+            asyncio.create_task(finish())
+            return backend
+
+        session._ensure_backend = AsyncMock(side_effect=fail_ack)
+
+        result = await session.compact()
+
+        assert result["ok"] is False
+        assert "during compact acknowledgement" in result["error"]
+        assert session.session_id == "original-session"
+        assert session.last_summary == "previous valid summary"
+        assert session.session_id_history == []
+        assert session.status == AgentStatus.IDLE
+        assert session._compacting is False
 
     @pytest.mark.asyncio
     async def test_compact_logs_preamble_as_user_message(self, session, monkeypatch):
@@ -1274,6 +1427,43 @@ class TestRateLimitClassification:
 
         assert session._rate_limit_retries == 0
         assert spawned == []
+
+    @pytest.mark.asyncio
+    async def test_terminal_limit_turn_skips_duplicate_error_and_precompact(
+        self, session, monkeypatch
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        logs = []
+        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._spawn_bg = lambda coro: coro.close()
+        session._schedule_precompact_timer = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        session.status = AgentStatus.RUNNING
+
+        session._handle_event(AgentEvent(
+            type="text",
+            content="You've hit your monthly spend limit · raise it at claude.ai/settings/usage",
+        ))
+        session._handle_event(AgentEvent(type="error", content="rate_limit"))
+        session._handle_event(AgentEvent(
+            type="turn_end",
+            metadata={
+                "ok": False,
+                "stop_reason": "stop_sequence",
+                "num_turns": 1,
+                "model_error": "rate_limit",
+                "errors": ["rate_limit"],
+            },
+        ))
+
+        assert not any("turn FAILED: rate_limit" in content for _, content in logs)
+        assert sum(
+            "subscription limit" in content for _, content in logs
+        ) == 1
+        session._schedule_precompact_timer.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_failed_turn_does_not_reset_transient_retry_budget(self, session, monkeypatch):

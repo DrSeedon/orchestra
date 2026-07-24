@@ -212,6 +212,7 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 .codex-search-detail { color: #64748b; font-size: 10px; }
 .codex-tool-image { display: block; max-width: 100%; max-height: 260px; margin-top: 7px; border: 1px solid #273548; border-radius: 7px; object-fit: contain; cursor: zoom-in; background: #080d14; }
+.codex-tool-image-error { min-height: 44px; padding: 12px; color: #f87171; font-size: 12px; }
 .codex-image-prompt { margin-top: 5px; color: #64748b; font-size: 10px; line-height: 1.4; }
 .codex-turn-diff { border-left-color: #f59e0b; }
 .codex-diff-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

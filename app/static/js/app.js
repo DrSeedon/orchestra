@@ -3352,8 +3352,16 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 header.textContent = `🖼 Viewing ${(path.split('/').pop() || 'image')}`;
                 const img = document.createElement('img');
                 img.src = `/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}`;
-                img.loading = 'lazy';
+                img.loading = 'eager';
                 img.className = 'codex-tool-image';
+                img.alt = path.split('/').pop() || 'Viewed image';
+                img.addEventListener('error', () => {
+                    img.classList.add('codex-tool-image-error');
+                    img.alt = 'Image unavailable';
+                });
+                img.addEventListener('load', () => {
+                    img.classList.remove('codex-tool-image-error');
+                });
                 img.addEventListener('click', () => openImageLightbox(img.src));
                 div.appendChild(img);
             } catch {}
@@ -3587,6 +3595,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
             if (lastTool.dataset.toolRawName === 'ViewImage') {
                 const header = lastTool.querySelector('.flex.items-center');
                 if (header) header.style.color = '#7dd3fc';
+                const img = lastTool.querySelector('.codex-tool-image');
+                if (img && (!img.complete || !img.naturalWidth)) {
+                    img.src = img.src.replace(/([?&])t=\d+/, `$1t=${Date.now()}`);
+                }
                 delete lastTool.dataset.lastTool;
                 addTimestamp(lastTool, ts);
                 return;
