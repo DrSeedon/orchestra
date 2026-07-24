@@ -515,7 +515,7 @@ async function openFilePreview(path) {
         openBtn.classList.remove('hidden');
         contentEl.className = 'flex-1 p-0';
         contentEl.style.cssText = 'overflow:hidden;max-height:calc(80vh - 48px)';
-        contentEl.innerHTML = `<iframe src="${rawUrl}" style="width:100%;height:100%;border:none;border-radius:0 0 12px 12px;min-height:60vh" sandbox="allow-scripts allow-same-origin"></iframe>`;
+        contentEl.innerHTML = `<iframe src="${rawUrl}" style="width:100%;height:100%;border:none;border-radius:0 0 12px 12px;min-height:60vh" sandbox="allow-scripts"></iframe>`;
         return;
     }
     openBtn.classList.add('hidden');

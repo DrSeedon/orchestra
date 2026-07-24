@@ -212,10 +212,17 @@ async def get_file_raw(path: str, download: bool = False):
     target = Path(path)
     if not target.is_file():
         return JSONResponse({"error": "not found"}, status_code=404)
+    headers = {}
+    if target.suffix.lower() in {".html", ".htm"}:
+        headers["Content-Security-Policy"] = (
+            "sandbox allow-scripts; "
+            "default-src 'unsafe-inline' 'unsafe-eval' data: blob:; "
+            "connect-src 'none'"
+        )
     # download=1 forces a save dialog (Content-Disposition: attachment); default lets
-    # the browser render inline (used for HTML preview in a new tab).
+    # the browser render HTML inline under the sandbox CSP.
     filename = target.name if download else None
-    return FileResponse(str(target), filename=filename)
+    return FileResponse(str(target), filename=filename, headers=headers)
 
 
 @router.get("/api/files/content")
