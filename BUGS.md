@@ -143,3 +143,8 @@ In repo /home/maxim/Рабочий стол/Cursor/Sensar the default branch is 
 - **Reporter:** sensar-client-offer
 - **Scope:** /home/maxim/Рабочий стол/Cursor/Sensar
 codex_review(mode="exec", target="docs/tasks/15/research.md", output="docs/tasks/15/codex-review-research.md") returned bg job bg-1f893386ed which bg_list reported as "Codex exec done. Results in docs/tasks/15/codex-review-resea[...]". But no file was written to docs/tasks/15/ — only research.md exists. Same symptom as the known codex_review CWD/artifact bug. Worker had to re-run. Worktree: home-maxim-cursor-sensar/sensar-client-offer.
+
+## [2026-07-24 04:32 UTC] Worker worktree points to wrong Git repository (#148 batch4-food-services)
+- **Reporter:** batch4-food-services
+- **Scope:** /mnt/data/Projects/Python/seedon
+Worker batch4-food-services CWD: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/batch4-food-services, expected Seedon repo. But `git rev-parse --git-common-dir` returns /mnt/data/Projects/Python/orchestra/.git and tracked files are Orchestra app. Sibling sales worktree at ../sales correctly returns /mnt/data/Projects/Python/seedon/.git. Branch is task-148/batch4-food-services. Result: worker cannot create a mergeable Seedon commit in its assigned worktree. Exact check performed 2026-07-24.
