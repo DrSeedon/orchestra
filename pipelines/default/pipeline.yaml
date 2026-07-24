@@ -51,7 +51,7 @@ roles:
     order: 2
     model: gpt5.6sol
     effort: high
-    skills: [codex-debate]
+    skills: [html-artifacts, codex-debate]
     modules: [git-workflow, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: false
@@ -66,7 +66,7 @@ roles:
     order: 3
     model: gpt5.6sol
     effort: xhigh
-    skills: [codex-debate, self-analysis]
+    skills: [html-artifacts, codex-debate, self-analysis]
     modules: [research-method, divergent-thinking, git-workflow, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: false
