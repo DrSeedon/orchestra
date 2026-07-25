@@ -132,7 +132,7 @@ class TestDefaultRolesResolve:
             "git-workflow", "report-format", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
-            "research-method", "divergent-thinking", "git-workflow",
+            "research-method", "git-workflow",
             "report-format", "self-improvement", "memory-search",
         ]
 

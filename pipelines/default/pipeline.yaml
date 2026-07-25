@@ -66,8 +66,8 @@ roles:
     order: 3
     model: gpt5.6sol
     effort: xhigh
-    skills: [html-artifacts, codex-debate, self-analysis]
-    modules: [research-method, divergent-thinking, git-workflow, report-format, self-improvement, memory-search]
+    skills: [html-artifacts, codex-debate]
+    modules: [research-method, git-workflow, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day

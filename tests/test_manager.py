@@ -210,9 +210,9 @@ class TestInjectSkillsRealCopy:
         from app.prompting import inject_skills_to_worktree
         wt = tmp_path / "wt"
         wt.mkdir()
-        # codex-debate + self-analysis are both real files in prompts/skills/
-        inject_skills_to_worktree(["codex-debate", "self-analysis"], str(wt))
-        for name in ("codex-debate", "self-analysis"):
+        # codex-debate + html-artifacts are both real files in prompts/skills/
+        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+        for name in ("codex-debate", "html-artifacts"):
             assert (wt / ".claude" / "skills" / name / "SKILL.md").is_file(), \
                 f"{name} not injected into worktree"
 
