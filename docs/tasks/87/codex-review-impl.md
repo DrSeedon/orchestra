@@ -92,3 +92,36 @@ None.
 **❌ NOT APPROVED.** No new blocking crash/corruption/security issue, but prior P1 #1 remains unresolved and authenticated deployments cannot use the feature.
 
 The timer survives reboot; unfortunately the receipt can precede the package, while the authenticated front door rejects the courier entirely.
+
+## Round (2026-07-25T14:15:45Z)
+
+😏 Authentication has stopped confusing privacy with sabotaging internal work.
+
+## Summary
+
+Auth fix is correct:
+
+- `_get_usage_data()` permits authenticated internal provider refreshes.
+- GET `/api/usage` retains the privacy gate.
+- Provider-specific forced refresh still rejects stale fallback.
+- Auth regression passes; reported full suite: 862 passed, 20 skipped.
+
+## Findings
+
+### blocking
+
+None.
+
+### suggestion
+
+The SQLite-to-SDK crash micro-window is a documented limitation, not an actionable P1. `backend.send()` exposes neither an idempotency key nor transactional acknowledgement, so strict exactly-once delivery is unavailable. Within scope, atomic `replace_key` prevents duplicate jobs from repeated clicks, while durable claimed/delivered tokens and log reconciliation provide reasonable restart recovery.
+
+### question
+
+None.
+
+## Verdict
+
+✅ **APPROVED WITH LIMITATION**
+
+No actionable in-scope defect remains. The only residual risk sits exactly where SQLite hands the parcel to an external transport without requesting a receipt—which, annoyingly, is how reality works.
