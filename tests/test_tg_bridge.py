@@ -29,9 +29,13 @@ def tb(tmp_path, monkeypatch):
     tg_bridge._topic_status = {}
     tg_bridge.bot = None
     tg_bridge._pil_available = None
-    monkeypatch.setattr(tg_bridge, "_tg_chat_locks", {}, raising=False)
-    monkeypatch.setattr(tg_bridge, "_tg_flood_until", {}, raising=False)
-    monkeypatch.setattr(tg_bridge, "_tg_last_send", {}, raising=False)
+    monkeypatch.setattr(tg_bridge, "_tg_call_queues", {})
+    monkeypatch.setattr(tg_bridge, "_tg_dispatch_tasks", {})
+    monkeypatch.setattr(tg_bridge, "_tg_queue_loops", {})
+    monkeypatch.setattr(tg_bridge, "_tg_result_tasks", set())
+    monkeypatch.setattr(tg_bridge, "_tg_flood_until", {})
+    monkeypatch.setattr(tg_bridge, "_tg_last_send", {})
+    monkeypatch.setattr(tg_bridge, "_tg_call_sequence", 0)
     return tg_bridge
 
 
@@ -725,46 +729,175 @@ class TestTgSendSafe:
         assert tb.bot.send_message.await_count == tb._TG_IMPORTANT_ATTEMPTS
         assert "LOST" in caplog.text
 
-    @pytest.mark.asyncio
-    async def test_drops_nonimportant_call_while_chat_busy(self, tb):
-        tb.bot = AsyncMock()
-        lock = asyncio.Lock()
-        await lock.acquire()
-        tb._tg_chat_locks[-100] = lock
-        try:
-            result = await tb._tg_send_safe(-100, "tool", 77, important=False)
-        finally:
-            lock.release()
 
-        assert result is None
-        tb.bot.send_message.assert_not_awaited()
-
+class TestTopicStatusDelivery:
     @pytest.mark.asyncio
-    async def test_drops_nonimportant_call_inside_interval(self, tb, monkeypatch):
+    async def test_slow_topic_status_does_not_block_message_queue(self, tb, monkeypatch):
+        edit_started = asyncio.Event()
+        never_finishes = asyncio.Event()
+
+        async def edit_forum_topic(*args, **kwargs):
+            edit_started.set()
+            await never_finishes.wait()
+
         tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.side_effect = edit_forum_topic
         tb.bot.send_message.return_value = object()
-        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 10)
+        tb.config["topics"] = {"orch": 42}
+        monkeypatch.setattr(tb, "_TG_TOPIC_STATUS_TIMEOUT", 0.01)
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        status_task = asyncio.create_task(tb._update_topic_status("orch", True))
+        await asyncio.wait_for(edit_started.wait(), timeout=0.1)
+
+        message = await asyncio.wait_for(
+            tb._tg_send_safe(tb.config["group_id"], "reply", 42, important=True),
+            timeout=0.1,
+        )
+        await status_task
+
+        assert message is not None
+        tb.bot.send_message.assert_awaited_once()
+        tb.bot.edit_forum_topic.assert_awaited_once()
+        assert tb._topic_status == {}
+
+    @pytest.mark.asyncio
+    async def test_sync_statuses_iterates_session_snapshot(self, tb, monkeypatch):
+        def session(name):
+            return type("Session", (), {
+                "name": name,
+                "role": "orchestrator",
+                "scope": f"/{name}",
+            })()
+
+        manager = type("Manager", (), {
+            "sessions": {"orch-1": session("orch-1"), "orch-2": session("orch-2")},
+        })()
+        tb.bot = object()
+        tb.config["topics"] = {"orch-1": 1, "orch-2": 2, "orch-3": 3}
+        monkeypatch.setattr(tb, "_manager", manager)
+        monkeypatch.setattr(tb, "_any_running_in_scope", lambda scope: False)
+        updated = []
+
+        async def update(name, is_running):
+            updated.append((name, is_running))
+            if name == "orch-1":
+                manager.sessions["orch-3"] = session("orch-3")
+
+        monkeypatch.setattr(tb, "_update_topic_status", update)
+
+        await tb._sync_all_topic_statuses()
+
+        assert updated == [("orch-1", False), ("orch-2", False)]
+
+    @pytest.mark.asyncio
+    async def test_deferred_startup_iterates_topic_snapshot(self, tb, monkeypatch):
+        streamed = []
+
+        async def stream_logs(name, thread_id):
+            streamed.append((name, thread_id))
+
+        async def no_op():
+            pass
+
+        class MutatingTasks(list):
+            def append(self, task):
+                super().append(task)
+                if len(self) == 1:
+                    tb.config["topics"]["orch-3"] = 3
+
+        tasks = MutatingTasks()
+        tb.config["topics"] = {"orch-1": 1, "orch-2": 2}
+        monkeypatch.setattr(tb, "_tasks", tasks)
+        monkeypatch.setattr(tb, "ensure_topics", no_op)
+        monkeypatch.setattr(tb, "_sync_all_topic_statuses", no_op)
+        monkeypatch.setattr(tb, "stream_logs", stream_logs)
+        monkeypatch.setattr(tb, "topic_sync_loop", no_op)
+
+        await tb._deferred_startup()
+        await asyncio.gather(*tasks)
+
+        assert streamed == [("orch-1", 1), ("orch-2", 2)]
+
+
+class TestTgCallQueue:
+    @pytest.mark.asyncio
+    async def test_important_call_overtakes_waiting_nonimportant_call(self, tb, monkeypatch):
+        blocker_started = asyncio.Event()
+        release_blocker = asyncio.Event()
+        calls = []
+
+        async def send_message(chat_id, text, **kwargs):
+            calls.append(text)
+            if text == "blocker":
+                blocker_started.set()
+                await release_blocker.wait()
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        blocker = asyncio.create_task(
+            tb._tg_send_safe(-100, "blocker", 77, important=True),
+        )
+        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        nonimportant = await tb._tg_send_safe(-100, "tool", 77)
+        important = asyncio.create_task(
+            tb._tg_send_safe(-100, "reply", 77, important=True),
+        )
+        await asyncio.sleep(0)
+        release_blocker.set()
+
+        await asyncio.gather(blocker, important, nonimportant)
+
+        assert calls == ["blocker", "reply", "tool"]
+
+    @pytest.mark.asyncio
+    async def test_queued_nonimportant_calls_keep_rate_interval(self, tb, monkeypatch):
+        sent_at = []
+
+        async def send_message(*args, **kwargs):
+            sent_at.append(asyncio.get_running_loop().time())
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.02)
 
         first = await tb._tg_send_safe(-100, "tool-1", 77)
         second = await tb._tg_send_safe(-100, "tool-2", 77)
+        await asyncio.gather(first, second)
 
-        assert first is not None
-        assert second is None
-        tb.bot.send_message.assert_awaited_once()
+        assert len(sent_at) == 2
+        assert sent_at[1] - sent_at[0] >= 0.018
 
     @pytest.mark.asyncio
-    async def test_drops_edit_before_lock_wait(self, tb):
-        tb.bot = AsyncMock()
-        lock = asyncio.Lock()
-        await lock.acquire()
-        tb._tg_chat_locks[-100] = lock
-        try:
-            result = await tb._tg_edit_message_safe(-100, 5, "updated", [object()])
-        finally:
-            lock.release()
+    async def test_queued_edit_does_not_block_caller(self, tb, monkeypatch):
+        blocker_started = asyncio.Event()
+        release_blocker = asyncio.Event()
 
-        assert result is None
+        async def send_message(*args, **kwargs):
+            blocker_started.set()
+            await release_blocker.wait()
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        tb.bot.edit_message_text.return_value = object()
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        blocker = asyncio.create_task(
+            tb._tg_send_safe(-100, "blocker", 77, important=True),
+        )
+        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        edit = await tb._tg_edit_message_safe(-100, 5, "updated")
+
+        assert isinstance(edit, asyncio.Task)
         tb.bot.edit_message_text.assert_not_awaited()
+        release_blocker.set()
+        await asyncio.gather(blocker, edit)
+        tb.bot.edit_message_text.assert_awaited_once()
 
 
 class TestSendFileRetry:
