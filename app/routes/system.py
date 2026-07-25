@@ -673,15 +673,20 @@ def _get_voice_cost_usd() -> float:
     return voice_cost_total_usd()
 
 
-@router.get("/api/usage")
-async def get_usage():
-    if is_auth_enabled():
-        return {"usage": None}
+async def _get_usage_data(
+    *,
+    force_refresh: bool = False,
+    required_provider: str = "",
+) -> dict:
     now = time.time()
 
     anthropic_data = None
     anthropic_fetched = False
-    if _usage_cache["data"] and (now - _usage_cache["ts"]) < _USAGE_CACHE_TTL:
+    if (
+        not force_refresh
+        and _usage_cache["data"]
+        and (now - _usage_cache["ts"]) < _USAGE_CACHE_TTL
+    ):
         anthropic_data = _usage_cache["data"]
     else:
         token, refresh_token, _tier = _read_oauth_credentials()
@@ -712,21 +717,31 @@ async def get_usage():
 
         if anthropic_data is None:
             anthropic_data = _usage_cache["data"]
+        if required_provider == "anthropic" and not anthropic_fetched:
+            raise RuntimeError("fresh Anthropic usage is unavailable")
         if anthropic_fetched:
             _usage_cache["data"] = anthropic_data
             _usage_cache["ts"] = now
             _save_usage_cache()
 
-    if _codex_usage_cache["data"] and (now - _codex_usage_cache["ts"]) < _USAGE_CACHE_TTL:
+    codex_fetched = False
+    if (
+        not force_refresh
+        and _codex_usage_cache["data"]
+        and (now - _codex_usage_cache["ts"]) < _USAGE_CACHE_TTL
+    ):
         codex_data = _codex_usage_cache["data"]
     else:
         try:
             codex_data = await _fetch_codex_usage()
+            codex_fetched = codex_data is not None
             _codex_usage_cache["data"] = codex_data
             _codex_usage_cache["ts"] = now
         except Exception as e:
             logger.warning(f"Codex usage fetch failed: {e}")
             codex_data = _codex_usage_cache["data"]
+    if required_provider in {"codex", "codex_spark"} and not codex_fetched:
+        raise RuntimeError("fresh Codex usage is unavailable")
 
     return {
         "anthropic": anthropic_data,
@@ -734,6 +749,29 @@ async def get_usage():
         "orchestra": _get_agents_cost(),
         "voice_cost_usd": round(_get_voice_cost_usd(), 4),
     }
+
+
+@router.get("/api/usage")
+async def get_usage():
+    if is_auth_enabled():
+        return {"usage": None}
+    return await _get_usage_data()
+
+
+async def current_provider_usage(
+    *,
+    provider: str = "",
+    force_refresh: bool = False,
+) -> dict:
+    """Return the normalized provider windows used by scheduling and wake guards."""
+    usage = await _get_usage_data(
+        force_refresh=force_refresh,
+        required_provider=provider if force_refresh else "",
+    )
+    return _provider_usage_snapshot(
+        usage.get("anthropic"),
+        usage.get("codex"),
+    )
 
 
 SNAPSHOT_INTERVAL = 300
@@ -820,7 +858,18 @@ async def usage_analytics_endpoint(days: int = 7):
     capacity = current if isinstance(current, dict) and any(
         key in current for key in ("anthropic", "codex", "orchestra")
     ) else {}
-    return build_usage_analytics(days=days, capacity=capacity)
+    payload = build_usage_analytics(days=days, capacity=capacity)
+    from app.limit_wake import wake_status
+
+    payload["wake_after_reset"] = wake_status()
+    return payload
+
+
+@router.post("/api/usage/wake-after-reset")
+async def wake_after_reset_endpoint():
+    from app.limit_wake import schedule_wake_after_reset
+
+    return await schedule_wake_after_reset()
 
 
 @router.get("/api/usage/daily/agents")

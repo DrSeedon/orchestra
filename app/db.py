@@ -1072,6 +1072,36 @@ def bg_save_job(job: dict) -> None:
         """, job)
 
 
+def bg_replace_job(job: dict, replace_key: str) -> list[str]:
+    """Atomically cancel an earlier keyed job and insert its replacement."""
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        rows = c.execute(
+            "SELECT id FROM bg_jobs "
+            "WHERE status IN ('active','triggering') "
+            "AND json_extract(config, '$.replace_key')=?",
+            (replace_key,),
+        ).fetchall()
+        replaced_ids = [row["id"] for row in rows]
+        if replaced_ids:
+            placeholders = ",".join("?" for _ in replaced_ids)
+            c.execute(
+                f"UPDATE bg_jobs SET status='cancelled' "
+                f"WHERE id IN ({placeholders})",
+                replaced_ids,
+            )
+        c.execute("""
+            INSERT INTO bg_jobs (id, type, config, message, target_session_id,
+                target_name, target_scope, created_by_name, status, expires_at,
+                trigger_at, created_at, last_output)
+            VALUES (:id, :type, :config, :message, :target_session_id,
+                :target_name, :target_scope, :created_by_name, :status, :expires_at,
+                :trigger_at, :created_at, :last_output)
+        """, job)
+        c.execute("COMMIT")
+        return replaced_ids
+
+
 def bg_cron_should_fire(job_id: str) -> bool:
     now = datetime.now(timezone.utc).isoformat()
     with _conn() as c:
@@ -1163,6 +1193,16 @@ def bg_update_output(job_id: str, output: str) -> None:
         c.execute("UPDATE bg_jobs SET last_output=? WHERE id=?", (output[-3000:], job_id))
 
 
+def bg_update_config(job_id: str, config: dict, output: str = "") -> bool:
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET config=?, last_output=? "
+            "WHERE id=? AND status='triggering'",
+            (json.dumps(config), output[-3000:], job_id),
+        )
+        return cur.rowcount > 0
+
+
 def bg_get_jobs(scope: str | None = None, session_id: str | None = None,
                 active_only: bool = False) -> list[dict]:
     with _conn() as c:
@@ -1208,6 +1248,20 @@ def bg_get_active_all() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def usage_get_latest_provider_usage() -> dict:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT provider_usage FROM usage_snapshots ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    if not row:
+        return {}
+    try:
+        providers = json.loads(row["provider_usage"] or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    return providers if isinstance(providers, dict) else {}
+
+
 def bg_expire_overdue() -> list[str]:
     now = datetime.now(timezone.utc).isoformat()
     with _conn() as c:
@@ -1235,6 +1289,23 @@ def bg_reset_stale_triggering(max_age_seconds: int = 120) -> list[str]:
         if ids:
             placeholders = ",".join("?" * len(ids))
             c.execute(f"UPDATE bg_jobs SET status='active' WHERE id IN ({placeholders})", ids)
+        return ids
+
+
+def bg_reset_wake_triggering() -> list[str]:
+    """Wake batches are safe to replay because each target turn is revalidated."""
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT id FROM bg_jobs WHERE status='triggering' "
+            "AND json_extract(config, '$.action')='wake_subscription_limited'"
+        ).fetchall()
+        ids = [row["id"] for row in rows]
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            c.execute(
+                f"UPDATE bg_jobs SET status='active' WHERE id IN ({placeholders})",
+                ids,
+            )
         return ids
 
 
