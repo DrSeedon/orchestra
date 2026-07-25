@@ -19,11 +19,17 @@ async def test_codex_review_uses_temp_artifact_and_declares_success_contract(tmp
     monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
     monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
 
+    assert "END YOUR TURN NOW" in mcp.codex_review.__doc__
     result = await mcp.codex_review(
         target="research.md", output="docs/review.md", mode="exec",
     )
 
     assert "bg-test" in result
+    assert "END YOUR TURN NOW" in result
+    assert "required, not optional" in result
+    assert "Orchestra will wake you" in result
+    assert "do NOT poll" not in result
+    assert "just wait" not in result
     config = captured["config"]
     output = str(tmp_path / "docs/review.md")
     assert config["success_file"] == output

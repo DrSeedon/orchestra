@@ -196,6 +196,13 @@ class TestDefaultBuildSystemPrompt:
             assert "Never send acknowledgement-only messages" in out
             assert "do not reply and end the turn silently" in out
 
+    def test_all_roles_end_turn_instead_of_waiting_for_external_state(self):
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert "Never sleep or poll for a background job, review, or another agent" in out
+            assert "End the turn; Orchestra resumes you on completion" in out
+            assert "Sleeps inside tests or bounded restart checks are allowed" in out
+
     def test_orchestrator_prompt_contains_role_body_markers(self):
         """Характеризация: ключевые XML-секции тела orchestrator.md на месте."""
         out = P.build_system_prompt(PIPELINE, "orchestrator")

@@ -845,7 +845,8 @@ async def codex_review(
     mode: str = "review",
     resume: bool = False,
 ) -> str:
-    """Run Codex (GPT-5.6 Sol) cross-LLM review in background. Returns immediately, notifies when done.
+    """Run Codex (GPT-5.6 Sol) cross-LLM review in background. Returns immediately.
+    After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
     target: file path for review, or empty for git diff review.
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
         output filename to continue a debate.
@@ -1009,7 +1010,8 @@ async def codex_review(
     resumed_note = f" (resumed session {prev_uuid[:8]})" if is_resume else ""
     return (
         f"Codex {action} started{resumed_note} (bg job {job_id}, 10-min timeout). "
-        f"You WILL be notified on success, timeout, or failure — do NOT poll, just wait. "
+        f"END YOUR TURN NOW — this is required, not optional. Orchestra will wake you "
+        f"when the job succeeds, times out, or fails. "
         f"On success: read {output}. To continue this debate, call codex_review again with the "
         f"SAME output and resume=True. Do not start another codex_review until this one reports back."
     )

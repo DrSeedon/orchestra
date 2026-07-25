@@ -241,9 +241,10 @@ def test_create_request_base_branch_default_empty():
 
 
 @pytest.mark.asyncio
-async def test_merge_endpoint_passes_target(monkeypatch):
+async def test_merge_endpoint_passes_target(db, monkeypatch):
     import app.main as mainmod
     import app.routes.sessions as sessmod
+    import asyncio
     captured = {}
 
     def fake_merge(worktree_path, repo_path, target_branch="main"):
@@ -256,15 +257,163 @@ async def test_merge_endpoint_passes_target(monkeypatch):
         class _S:
             value = "idle"
         status = _S()
+        _lifecycle_lock = asyncio.Lock()
         worktree_path = "/wt"
         scope = "/s"
         id = "sid"
         name = "w"
+        def _persist(self):
+            pass
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: FakeSession())
 
-    import asyncio
     res = await sessmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
     assert captured["target_branch"] == "feature/auth"
+
+
+@pytest.mark.asyncio
+async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
+    import asyncio
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    class Status:
+        value = "running"
+
+    class FakeSession:
+        loaded = True
+        status = Status()
+        _lifecycle_lock = asyncio.Lock()
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "merge-finish"
+        name = "w"
+
+        def _persist(self):
+            pass
+
+    session = FakeSession()
+    merge_called = False
+
+    async def finish_turn(_delay):
+        session.status.value = "idle"
+
+    def fake_merge(*_args, **_kwargs):
+        nonlocal merge_called
+        merge_called = True
+        return {"ok": True, "merged_commits": {}}
+
+    monkeypatch.setattr(sessmod.asyncio, "sleep", finish_turn)
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
+
+    result = await sessmod.merge_session("w", {"scope": "/s"})
+
+    assert result["ok"] is True
+    assert merge_called is True
+
+
+@pytest.mark.asyncio
+async def test_merge_rejects_worker_that_stays_running_without_merging(monkeypatch):
+    import asyncio
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    class Status:
+        value = "running"
+
+    class FakeSession:
+        loaded = True
+        status = Status()
+        _lifecycle_lock = asyncio.Lock()
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "merge-running"
+        name = "w"
+
+    session = FakeSession()
+    merge_called = False
+
+    async def no_wall_clock_wait(_delay):
+        return None
+
+    def fake_merge(*_args, **_kwargs):
+        nonlocal merge_called
+        merge_called = True
+        return {"ok": True, "merged_commits": {}}
+
+    monkeypatch.setattr(sessmod.asyncio, "sleep", no_wall_clock_wait)
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
+
+    response = await sessmod.merge_session("w", {"scope": "/s"})
+
+    assert response.status_code == 400
+    assert merge_called is False
+
+
+@pytest.mark.asyncio
+async def test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup(db, monkeypatch):
+    import asyncio
+    import threading
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    observed = {"persist_locked": []}
+
+    class Status:
+        value = "idle"
+
+    class FakeSession:
+        loaded = True
+        status = Status()
+        _lifecycle_lock = asyncio.Lock()
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "merge-switch-lock"
+        name = "w"
+
+        def _persist(self):
+            observed["persist_locked"].append(self._lifecycle_lock.locked())
+
+    session = FakeSession()
+    loop = asyncio.get_running_loop()
+    wake_attempted = threading.Event()
+    wake_entered = asyncio.Event()
+
+    async def wake_worker():
+        wake_attempted.set()
+        async with session._lifecycle_lock:
+            wake_entered.set()
+
+    def fake_merge(*_args, **_kwargs):
+        observed["merge_locked"] = session._lifecycle_lock.locked()
+        loop.call_soon_threadsafe(lambda: asyncio.create_task(wake_worker()))
+        assert wake_attempted.wait(1)
+        return {"ok": True, "merged_commits": {}}
+
+    def fake_switch(*_args, **_kwargs):
+        observed["switch_locked"] = session._lifecycle_lock.locked()
+        observed["wake_blocked_during_switch"] = not wake_entered.is_set()
+        return {"ok": True, "branch": "task-43/w"}
+
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
+    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
+    monkeypatch.setattr("app.tm.api_update_task", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
+
+    result = await sessmod.merge_session("w", {
+        "scope": "/s",
+        "target": "main",
+        "next_task_id": "43",
+    })
+    await asyncio.wait_for(wake_entered.wait(), timeout=1)
+
+    assert result["switch"]["ok"] is True
+    assert observed["merge_locked"] is True
+    assert observed["switch_locked"] is True
+    assert observed["wake_blocked_during_switch"] is True
+    assert observed["persist_locked"] and all(observed["persist_locked"])
 
 
 class TestPipelines:

@@ -38,6 +38,7 @@ Instead of Monitor or run_in_background (both BLOCKED), use server-side backgrou
 - `bg_list()` — list active jobs
 - `bg_cancel(job_id)` — cancel a job
 Most types are one-shot (trigger once, done) — to repeat, create a new job after trigger. The `cron` type is recurring (fires on schedule until cancelled).
+- Never sleep or poll for a background job, review, or another agent. End the turn; Orchestra resumes you on completion. Sleeps inside tests or bounded restart checks are allowed.
 </background-jobs>
 
 <rules priority="critical">

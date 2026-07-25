@@ -4,6 +4,8 @@ import asyncio
 import logging
 import re
 import sqlite3
+from contextlib import AsyncExitStack
+from math import ceil
 from pathlib import Path
 from typing import Optional
 
@@ -20,6 +22,21 @@ from app.session import AgentStatus
 logger = logging.getLogger("orchestra.sessions")
 
 router = APIRouter()
+
+MERGE_IDLE_GRACE_SECONDS = 2.0
+MERGE_IDLE_POLL_SECONDS = 0.05
+
+
+async def _wait_for_merge_idle(session) -> bool:
+    """Absorb the short DONE-message → turn-end transition before merging."""
+    if not session.loaded or session.status.value != "running":
+        return True
+    attempts = max(1, ceil(MERGE_IDLE_GRACE_SECONDS / MERGE_IDLE_POLL_SECONDS))
+    for _ in range(attempts):
+        await asyncio.sleep(MERGE_IDLE_POLL_SECONDS)
+        if session.status.value != "running":
+            return True
+    return False
 
 
 class CreateSessionRequest(BaseModel):
@@ -628,8 +645,6 @@ async def merge_session(name: str, req: dict):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    if found.loaded and found.status.value == "running":
-        return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
     worktree_path = found.worktree_path
     scope = found.scope or scope
     session_id = found.id
@@ -638,55 +653,62 @@ async def merge_session(name: str, req: dict):
     if not scope:
         return JSONResponse({"error": "session has no scope"}, status_code=400)
     async with manager.get_session_lock(session_id):
-        try:
-            result = await asyncio.to_thread(merge_worktree_to_main, worktree_path, scope, target_branch=target)
-            if result.get("ok"):
-                link_results = {}
-                with _tm._conn() as _lc:
-                    _proj = _tm.get_project_by_scope(_lc, scope)
-                _link_project_id = _proj["id"] if _proj else ""
-                for task_ref, commits in result.pop("merged_commits", {}).items():
-                    try:
-                        link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits, project_id=_link_project_id)
-                    except Exception as link_err:
-                        logger.error("Failed to link commits to %s: %s", task_ref, link_err)
-                        link_results[task_ref] = {"ok": False, "error": str(link_err)}
-                if link_results:
-                    result["linked_tasks"] = link_results
-                # RAG: re-index project's .md + logs now that knowledge is "frozen" into main.
-                # Fire-and-forget — merge must not fail if RAG is off/broken.
-                from app import rag_service
-                if rag_service.is_enabled():
-                    async def _rag_backfill(sc):
+        if not await _wait_for_merge_idle(found):
+            return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
+        async with AsyncExitStack() as stack:
+            if found.loaded:
+                await stack.enter_async_context(found._lifecycle_lock)
+                if found.status.value == "running":
+                    return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
+            try:
+                result = await asyncio.to_thread(merge_worktree_to_main, worktree_path, scope, target_branch=target)
+                if result.get("ok"):
+                    link_results = {}
+                    with _tm._conn() as _lc:
+                        _proj = _tm.get_project_by_scope(_lc, scope)
+                    _link_project_id = _proj["id"] if _proj else ""
+                    for task_ref, commits in result.pop("merged_commits", {}).items():
                         try:
-                            await rag_service.backfill_scope(sc)
-                        except Exception as e:
-                            logger.warning(f"RAG backfill after merge failed for {sc}: {e}")
-                    asyncio.create_task(_rag_backfill(scope))
-                if found.loaded:
-                    found.branch = target
-                    found.task_id = ""
-                    found.needs_switch = True
-                    found._persist()
-                if next_task_id and found.loaded:
-                    from app.workspace import switch_worktree_branch, _normalize_task_id
-                    par = _normalize_task_id(next_task_id)
-                    new_branch = f"task-{par}/{name}"
-                    switch_result = await asyncio.to_thread(
-                        switch_worktree_branch, worktree_path, new_branch, f"refs/heads/{target}", force=True)
-                    if switch_result.get("ok"):
-                        found.branch = switch_result.get("branch", new_branch)
-                        found.task_id = par
-                        found.needs_switch = False
+                            link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits, project_id=_link_project_id)
+                        except Exception as link_err:
+                            logger.error("Failed to link commits to %s: %s", task_ref, link_err)
+                            link_results[task_ref] = {"ok": False, "error": str(link_err)}
+                    if link_results:
+                        result["linked_tasks"] = link_results
+                    # RAG: re-index project's .md + logs now that knowledge is "frozen" into main.
+                    # Fire-and-forget — merge must not fail if RAG is off/broken.
+                    from app import rag_service
+                    if rag_service.is_enabled():
+                        async def _rag_backfill(sc):
+                            try:
+                                await rag_service.backfill_scope(sc)
+                            except Exception as e:
+                                logger.warning(f"RAG backfill after merge failed for {sc}: {e}")
+                        asyncio.create_task(_rag_backfill(scope))
+                    if found.loaded:
+                        found.branch = target
+                        found.task_id = ""
+                        found.needs_switch = True
                         found._persist()
-                        try:
-                            _tm.api_update_task(par, status="in_progress")
-                        except Exception as e:
-                            logger.warning(f"task #{par} → in_progress failed after merge-switch: {e}")
-                    result["switch"] = switch_result
-            return result
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
+                    if next_task_id and found.loaded:
+                        from app.workspace import switch_worktree_branch, _normalize_task_id
+                        par = _normalize_task_id(next_task_id)
+                        new_branch = f"task-{par}/{name}"
+                        switch_result = await asyncio.to_thread(
+                            switch_worktree_branch, worktree_path, new_branch, f"refs/heads/{target}", force=True)
+                        if switch_result.get("ok"):
+                            found.branch = switch_result.get("branch", new_branch)
+                            found.task_id = par
+                            found.needs_switch = False
+                            found._persist()
+                            try:
+                                _tm.api_update_task(par, status="in_progress")
+                            except Exception as e:
+                                logger.warning(f"task #{par} → in_progress failed after merge-switch: {e}")
+                        result["switch"] = switch_result
+                return result
+            except Exception as e:
+                return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @router.post("/api/sessions/{name}/switch-branch")
