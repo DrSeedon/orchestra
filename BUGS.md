@@ -148,3 +148,23 @@ codex_review(mode="exec", target="docs/tasks/15/research.md", output="docs/tasks
 - **Reporter:** batch4-food-services
 - **Scope:** /mnt/data/Projects/Python/seedon
 Worker batch4-food-services CWD: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/batch4-food-services, expected Seedon repo. But `git rev-parse --git-common-dir` returns /mnt/data/Projects/Python/orchestra/.git and tracked files are Orchestra app. Sibling sales worktree at ../sales correctly returns /mnt/data/Projects/Python/seedon/.git. Branch is task-148/batch4-food-services. Result: worker cannot create a mergeable Seedon commit in its assigned worktree. Exact check performed 2026-07-24.
+
+## [2026-07-25 08:00 UTC] auto_resume/live-server overwrites manual DB model changes
+- **Reporter:** Orchestra-orchestrator
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Bulk `UPDATE sessions SET model='claude-opus-5[1m]' WHERE model LIKE 'claude-opus-4%'` reported 52 changed rows, but a follow-up SELECT showed Orchestra-orchestrator, frontend-opus and prompt-engineer still on claude-opus-4-6/4-8. The running server holds model in memory and writes it back over the DB, so DB edits to a loaded session are silently lost while the process is alive. Same class as the earlier Sensar-orchestrator revert. Workaround: repeat the UPDATE and restart; verify after restart. Expected: either a supported model-change path that persists, or the persist layer must not clobber a newer DB value.
+
+## [2026-07-25 08:55 UTC] Cosmetic topic-status calls starved the whole TG outbound pipeline (FIXED a566371)
+- **Reporter:** Orchestra-orchestrator
+- **Scope:** /mnt/data/Projects/Python/orchestra
+User saw only "Orchestra изменил(а) значок темы" events in Telegram and none of the orchestrator's text replies for ~1h. journalctl: `TG topic_status ambiguous delivery, retry 2/3 … 3/3 … LOST after 3 attempts: Request timeout error`. Root cause: single per-chat PriorityQueue dispatcher; `_tg_run_call()` performs up to 3 network retries inside the dispatcher, so an `editForumTopic` marked important=True occupied the chat pipeline for minutes and real messages queued behind it. Fixed by moving topic metadata off the message queue: best-effort, 1 attempt, hard 5s timeout, debug-only failures. Also fixed `dictionary changed size during iteration` in `_sync_all_topic_statuses`/`_deferred_startup` via snapshots. tests/test_tg_bridge.py 56 passed.
+
+## [2026-07-25 09:30 UTC] Our own codex_review wording caused Codex workers to burn wall-clock on sleep (FIXED d19ad34)
+- **Reporter:** research-codex-sleep
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Frozen DB measurement: 74 shell sleeps across 1,579 Codex-marked Bash calls (4.69%, 1,953 requested seconds) vs 0 in 1,506 Claude-shaped calls. 65/74 were adjacent to codex_review pending/completion. Cause: the tool description said "do NOT poll, just wait" while Orchestra already resumes the worker on job completion — Codex complied literally with `sleep`. Fixed: codex_review now says END YOUR TURN NOW; base.md forbids sleeping/polling for external state (test/restart waits still allowed); merge RUNNING→IDLE retry race removed. No global sleep block — bounded restart/test waits stay legal. Evidence: docs/tasks/codex-sleep/.
+
+## [2026-07-25 06:00 UTC] gamedesign-researcher fails to resume every startup — role 'researcher' deleted
+- **Reporter:** Orchestra-orchestrator
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Every Orchestra start logs: `Failed to resume worker gamedesign-researcher: role 'researcher' not resolvable in pipeline 'default': KeyError('researcher')`. The `researcher` role was merged into full-cycle and removed from pipeline.yaml, but this session still references it. The worker is permanently unloadable. Needs role migration or archival.
