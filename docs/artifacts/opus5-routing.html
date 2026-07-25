@@ -83,31 +83,31 @@
 <body>
 <main>
   <div class="kicker">Orchestra model-routing research · 25 Jul 2026</div>
-  <h1>Canary Opus 5 for Claude roles. Keep Sol as the worker default.</h1>
-  <p class="lede">Opus 5 is a large, same-API-price upgrade over Opus 4.8 and is now live in Claude Code. Its relative Max quota weight is not published, and it does not make the separate Codex pool irrelevant.</p>
+  <h1>Keep Sol as default. Use Opus 5 high as the live fallback.</h1>
+  <p class="lede">The refreshed DeepSWE leaderboard makes Opus 5 high statistically tied with Sol max. That changes the fallback confidence, not the quota economics.</p>
 
   <section class="verdict">
-    <strong>Decision:</strong> canary orchestrators and existing Opus 4.8 specialists on <code>claude-opus-5[1m]</code> at medium effort; promote routes that pass; do not bulk-migrate Sol workers.
-    <div class="critical"><b>Benchmark correction:</b> the DeepSWE 53.8% “max” point is Claude Sonnet 5, not GPT-5.6 Sol. The chart contains no Sol curve. The separate comparison table gives Sol 72.7% versus Opus 5 at 68.8%.</div>
+    <strong>Decision:</strong> Opus 5 medium for orchestration, research and vision; Sol high/xhigh for the routine worker fleet; Opus 5 high for blocked coding work during a Codex outage; low only for bounded outage or Claude-only vision leaf tasks.
+    <div class="critical"><b>Leaderboard update:</b> the earlier Anthropic screenshot reported Opus 5 max at 68.8%. A later DataCurve sweep now reports high 72.83%, max 73.65%, and Sol max 72.67%. Their 95% CIs for mean performance across four runs overlap, so this is a quality tie—not a proven Opus lead.</div>
   </section>
 
   <section class="grid" aria-label="Key facts">
     <div class="metric"><span class="label">API / CLI model ID</span><span class="value">opus-5</span><code>claude-opus-5[1m]</code></div>
-    <div class="metric"><span class="label">API price, input / output</span><span class="value">$5 / $25</span><span class="label">per million tokens</span></div>
+    <div class="metric"><span class="label">Live DeepSWE, high / Sol max</span><span class="value">72.83 / 72.67</span><span class="label">statistically unresolved</span></div>
     <div class="metric"><span class="label">Effective Orchestra context</span><span class="value">1M</span><span class="label">with the tested [1m] suffix</span></div>
-    <div class="metric"><span class="label">Starting planning scenario</span><span class="value">7–9/day</span><span class="label">conditional on $3–4/task; measure before scaling</span></div>
+    <div class="metric"><span class="label">Conditional medium scenario</span><span class="value">~8/day</span><span class="label">API-cost arithmetic; measure Max burn</span></div>
   </section>
 
   <h2>What changes</h2>
   <div class="split">
     <section class="panel">
       <h3 class="yes">Move Claude roles</h3>
-      <p>Opus 5 improves Frontier-Bench by 22.2 points, OSWorld by 14.9, DeepSWE by 9.8, and SWE-bench Pro by 10.0 over Opus 4.8, at the same API price.</p>
+      <p>Opus 5 low (58.13%) is already tied with Opus 4.8 max (58.97%) at one-eighth the API-equivalent cost. Medium reaches 68.90%; high reaches 72.83%.</p>
       <p>Anthropic explicitly calls out judgment, multi-agent coordination, verification, long-horizon consistency, and vision—the traits Orchestra uses.</p>
     </section>
     <section class="panel">
       <h3 class="no">Do not replace the Sol fleet</h3>
-      <p>Sol is still better on the supplied DeepSWE comparison (72.7 vs 68.8), is effectively tied on BrowseComp, and consumes a separate Codex subscription pool.</p>
+      <p>Sol max and Opus 5 high are tied on refreshed DeepSWE (72.67 vs 72.83), while Sol consumes a separate, underused Codex subscription pool.</p>
       <p>Moving routine workers to Opus 5 converts spare Codex capacity into pressure on the already scarcer Claude pool.</p>
     </section>
   </div>
@@ -116,46 +116,47 @@
   <div class="panel">
     <div class="barrow"><span>Frontier-Bench</span><div class="bar"><div class="fill" style="width:100%"></div></div><b>43.3</b></div>
     <div class="barrow"><span>Sol</span><div class="bar"><div class="fill sol" style="width:79.4%"></div></div><b>34.4</b></div>
-    <div class="barrow"><span>DeepSWE Opus 5</span><div class="bar"><div class="fill" style="width:94.6%"></div></div><b>68.8</b></div>
-    <div class="barrow"><span>DeepSWE Sol</span><div class="bar"><div class="fill sol" style="width:100%"></div></div><b>72.7</b></div>
-    <div class="barrow"><span>SWE Pro Opus 5</span><div class="bar"><div class="fill" style="width:99%"></div></div><b>79.2</b></div>
-    <div class="barrow"><span>SWE Pro Fable</span><div class="bar"><div class="fill fable" style="width:100%"></div></div><b>80.0</b></div>
-    <p class="note">Bars are normalized within each comparison pair. The launch screenshots contain inconsistent Frontier-Bench baselines for Opus 4.8 and Sol, so small margins should not be over-read.</p>
+    <div class="barrow"><span>Opus 5 max</span><div class="bar"><div class="fill" style="width:100%"></div></div><b>73.65</b></div>
+    <div class="barrow"><span>Opus 5 high</span><div class="bar"><div class="fill" style="width:98.9%"></div></div><b>72.83</b></div>
+    <div class="barrow"><span>Sol max</span><div class="bar"><div class="fill sol" style="width:98.7%"></div></div><b>72.67</b></div>
+    <div class="barrow"><span>Opus 5 medium</span><div class="bar"><div class="fill" style="width:93.6%"></div></div><b>68.90</b></div>
+    <p class="note">Bars use the refreshed July 25 live JSON. Opus high, Opus max and Sol max each have exactly 327 passes; their nominal rank comes only from denominators of 449, 444 and 450 scored attempts. Max vs high differs by 0.82 points and their 95% CIs overlap heavily. High adds a more credible 3.92 points over medium, but costs 1.85× more in API-equivalent dollars.</p>
   </div>
 
   <h2>Concrete routing table</h2>
   <table>
     <thead><tr><th>Role / task</th><th>Model</th><th>Effort</th><th>Action</th></tr></thead>
     <tbody>
-      <tr><td>Top-level and sub-orchestrators</td><td><code>claude-opus-5[1m]</code></td><td>medium</td><td class="route hold">Canary, then switch</td></tr>
-      <tr><td>Research, citations, deep analysis</td><td><code>claude-opus-5[1m]</code></td><td>medium; high by exception</td><td class="route hold">Canary → switch</td></tr>
-      <tr><td>Prompt engineer / final voice</td><td><code>claude-opus-5[1m]</code></td><td>medium</td><td class="route hold">Canary → switch</td></tr>
-      <tr><td>Frontend vision / UI replication</td><td><code>claude-opus-5[1m]</code></td><td>medium</td><td class="route hold">Canary → switch</td></tr>
-      <tr><td>Routine implementation / known bug</td><td><code>gpt-5.6-sol</code></td><td>current role default</td><td class="route">Keep</td></tr>
+      <tr><td>Top-level and sub-orchestrators</td><td><code>claude-opus-5[1m]</code></td><td>medium</td><td class="route yes">Keep</td></tr>
+      <tr><td>Research, citations, prompt engineering</td><td><code>claude-opus-5[1m]</code></td><td>medium; high after failure</td><td class="route yes">Keep</td></tr>
+      <tr><td>Frontend vision / UI replication</td><td><code>claude-opus-5[1m]</code></td><td>medium / high</td><td class="route yes">Keep</td></tr>
+      <tr><td>Routine implementation / known bug</td><td><code>gpt-5.6-sol</code></td><td>high</td><td class="route">Keep default</td></tr>
+      <tr><td>Full-cycle engineering</td><td><code>gpt-5.6-sol</code></td><td>xhigh</td><td class="route">Keep default</td></tr>
       <tr><td>Bounded text-only leaf task</td><td><code>gpt-5.3-codex-spark</code></td><td>role default</td><td class="route">Keep</td></tr>
-      <tr><td>Vague, failed, vision-heavy or long-horizon task</td><td><code>claude-opus-5[1m]</code></td><td>medium / high</td><td class="route hold">Escalate from Sol</td></tr>
-      <tr><td>Fable 5</td><td><code>claude-fable-5[1m]</code></td><td>high / xhigh</td><td class="route no">Manual last resort</td></tr>
+      <tr><td>Codex outage, blocked coding task</td><td><code>claude-opus-5[1m]</code></td><td>high; low for bounded exceptions</td><td class="route hold">Fallback if Claude 5h + weekly &lt;70%*</td></tr>
+      <tr><td>Outage ≤2-file leaf / Claude-only vision extraction</td><td><code>claude-opus-5[1m]</code></td><td>low</td><td class="route hold">Explicit leaf exception</td></tr>
+      <tr><td>Fable 5 / Opus 5 max</td><td>none</td><td>none</td><td class="route no">No default route</td></tr>
     </tbody>
   </table>
 
   <h2>Quota envelope on Max 5x</h2>
   <table>
-    <thead><tr><th>Operating envelope</th><th>Medium Opus 5 worker completions</th><th>Interpretation</th></tr></thead>
+    <thead><tr><th>Operating envelope</th><th>Conditional completions</th><th>Interpretation</th></tr></thead>
     <tbody>
-      <tr><td>100% historical weekly calibration</td><td class="num">~95–125</td><td>No orchestrator usage; conditional on $3–4 per task.</td></tr>
-      <tr><td>After ~30% orchestrator baseline</td><td class="num">~65–90</td><td>Conditional scenario: approximately 9–13 per day.</td></tr>
-      <tr><td>30 points baseline + 20 points reserve</td><td class="num">~50–65</td><td>Starting scenario: 7–9 per day.</td></tr>
-      <tr><td>5-hour starting admission cap</td><td class="num">8 new tasks</td><td>Maximum two concurrent Claude sessions until A/B data exists.</td></tr>
+      <tr><td>Low, $1.66 API equivalent</td><td class="num">~115/week</td><td>Conditional arithmetic only; not a Max allowance.</td></tr>
+      <tr><td>Medium, $3.29</td><td class="num">~58/week</td><td>Current Claude-role default.</td></tr>
+      <tr><td>High, $6.08</td><td class="num">~31/week</td><td>About 4–5/day if plan burn scaled like API cost.</td></tr>
+      <tr><td>Max, $11.84</td><td class="num">~16/week</td><td>Reject: no resolved quality gain over high.</td></tr>
     </tbody>
   </table>
   <p class="note">These are conditional planning scenarios, not Anthropic guarantees or measured Opus 5 capacity. Max publishes multipliers but no absolute token/message allowance. Task size, cache state, context length and concurrency move burn by multiples.</p>
 
-  <h2>Orchestrator canary gate</h2>
+  <h2>Effort ladder</h2>
   <div class="split">
-    <section class="panel"><h3>Run</h3><p>20–30 completed user turns on one top-level orchestrator, pinned to <code>claude-opus-5[1m]</code>, medium effort.</p></section>
-    <section class="panel"><h3>Promote only if</h3><p>No tool/stop regressions; median agentic steps ≤ +15%; cost and 5h burn per completion ≤ +25%; no missed mid-turn messages or pipeline-gate violations.</p></section>
+    <section class="panel"><h3>Medium by default</h3><p>Orchestration, research, citations, prompt work and normal vision. It reaches 68.90% on DeepSWE at roughly half high's API-equivalent cost.</p></section>
+    <section class="panel"><h3>High for coding pressure</h3><p>Codex outage fallback, failed Sol tasks with a quality reason, and ambiguous long-horizon implementation. Never fail over when either Claude 5h or weekly meter is near its limit.</p></section>
   </div>
-  <p class="note">For specialist workers, run 15–20 representative matched tasks and use the same +15% step and +25% cost/quota thresholds before replacing Opus 4.8 routes.</p>
+  <p class="note">With healthy Codex, text/code leaf work stays on Spark/Sol. Opus low is limited to outage fixed-schema extraction, Claude-only screenshot inventory, outage prompt formatting, or an outage ≤2-file patch with an exact test. Max is unused; high vs max is statistical noise. *70% is a proposed guardrail that reserves 30 points in both windows, not a provider threshold.</p>
 
   <h2>Evidence</h2>
   <p class="sources">
@@ -163,8 +164,10 @@
     <a href="https://www.anthropic.com/news/claude-opus-5">launch announcement</a>,
     <a href="https://platform.claude.com/docs/en/about-claude/models/whats-new-opus-5">technical model page</a>,
     <a href="https://code.claude.com/docs/en/model-config">Claude Code model configuration</a>,
-    <a href="https://support.claude.com/en/articles/11049741-what-is-the-max-plan">Max plan limits</a>.
-    Operational evidence: two live Claude Code 2.1.215 probes, four supplied benchmark screenshots, and Orchestra SQLite usage telemetry.
+    <a href="https://deepswe.datacurve.ai/">live DeepSWE leaderboard</a>,
+    <a href="https://deepswe.datacurve.ai/blog/deepswe-v1-1">v1.1 methodology</a>.
+    Operational evidence: the exact live JSON snapshot, four supplied benchmark screenshots, and Orchestra SQLite outage/quota telemetry.
+    Raw selected rows and provenance: <code>docs/tasks/opus5-routing/deepswe-leaderboard-2026-07-25.csv</code> + <code>.meta.json</code>.
     Durable analysis: <code>docs/tasks/opus5-routing/research.md</code>.
   </p>
 </main>
