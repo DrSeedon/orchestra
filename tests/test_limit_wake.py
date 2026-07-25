@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -204,6 +205,132 @@ async def test_replaceable_timer_is_idempotent(wake_db, monkeypatch):
     )
 
     active = bg_get_active_all()
-    assert first["id"] == second["id"]
+    assert first["id"] != second["id"]
     assert len(active) == 1
     assert json.loads(active[0]["config"])["delay_seconds"] == 1200
+
+
+@pytest.mark.asyncio
+async def test_wake_job_stops_before_second_agent_when_limit_closes(
+    wake_db, monkeypatch
+):
+    from app.db import bg_get_jobs, bg_save_job
+    from app.limit_wake import run_wake_job
+    from app.session_state import AgentStatus
+    from app.routes import system
+
+    targets = [
+        {
+            "id": "a",
+            "name": "worker-a",
+            "scope": "/project",
+            "limit_turn_id": 10,
+        },
+        {
+            "id": "b",
+            "name": "worker-b",
+            "scope": "/project",
+            "limit_turn_id": 20,
+        },
+    ]
+    now = datetime.now(timezone.utc)
+    bg_save_job({
+        "id": "wake-job",
+        "type": "timer",
+        "config": json.dumps({
+            "action": "wake_subscription_limited",
+            "provider": "anthropic",
+            "agents": targets,
+        }),
+        "message": "",
+        "target_session_id": "__system__",
+        "target_name": "__system__",
+        "target_scope": "__global__",
+        "created_by_name": "dashboard",
+        "status": "active",
+        "expires_at": (now + timedelta(hours=1)).isoformat(),
+        "trigger_at": now.isoformat(),
+        "created_at": now.isoformat(),
+        "last_output": "",
+    })
+    candidates = [
+        {
+            **_session("a", "worker-a", "claude-opus-5[1m]"),
+            "limit_kind": "timed",
+            "provider": "anthropic",
+            "limit_turn_id": 10,
+        },
+        {
+            **_session("b", "worker-b", "claude-opus-5[1m]"),
+            "limit_kind": "timed",
+            "provider": "anthropic",
+            "limit_turn_id": 20,
+        },
+    ]
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: candidates,
+    )
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(side_effect=[
+            {"anthropic": {"windows": [{"utilization": 0}]}},
+            {"anthropic": {"windows": [{"utilization": 100}]}},
+        ]),
+    )
+    session = MagicMock(status=AgentStatus.IDLE)
+    session.send = AsyncMock()
+    manager = MagicMock()
+    manager.ensure_loaded = AsyncMock(return_value=session)
+
+    await run_wake_job(
+        "wake-job",
+        {
+            "provider": "anthropic",
+            "agents": targets,
+        },
+        manager,
+        stagger_seconds=0,
+    )
+
+    session.send.assert_awaited_once()
+    row = next(job for job in bg_get_jobs() if job["id"] == "wake-job")
+    assert row["status"] == "triggered"
+    assert "limit is still active" in row["last_output"]
+
+
+@pytest.mark.asyncio
+async def test_wake_timer_restores_from_database(wake_db, monkeypatch):
+    from app.bg_jobs import BgJobManager
+
+    creator = BgJobManager()
+    monkeypatch.setattr(creator, "_start_task", lambda *args, **kwargs: None)
+    result = await creator.create(
+        "timer",
+        {
+            "delay_seconds": 3600,
+            "action": "wake_subscription_limited",
+            "provider": "anthropic",
+            "agents": [],
+        },
+        "",
+        "__system__",
+        "__system__",
+        "__global__",
+        "dashboard",
+        replace_key="wake-limit-anthropic",
+    )
+
+    restored = []
+    replacement = BgJobManager()
+    monkeypatch.setattr(
+        replacement,
+        "_start_task",
+        lambda *args, **kwargs: restored.append((args, kwargs)),
+    )
+    await replacement.restore_from_db()
+
+    assert len(restored) == 1
+    assert restored[0][0][0] == result["id"]
+    assert restored[0][0][2]["action"] == "wake_subscription_limited"

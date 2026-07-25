@@ -52,6 +52,12 @@ def _payload():
                 },
             },
         },
+        "wake_after_reset": {
+            "candidate_count": 2,
+            "monthly_agents": [],
+            "manual_action_url": None,
+            "scheduled": [],
+        },
         "summary": {
             "observed_cost_usd": 1156.25,
             "agent_turns": 716,
@@ -236,6 +242,70 @@ def test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch(browser):
     page.locator('[data-analytics-view="agents"]').click()
     expect(page.locator("#analytics-agent-table tr")).to_have_count(2)
     assert len(page.evaluate("analyticsCalls")) == 2
+    page.close()
+
+
+def test_wake_button_schedules_once_and_renders_persisted_state(browser):
+    page = _page(browser)
+    page.evaluate(
+        """() => {
+            const analyticsPayload = structuredClone(window.analyticsFixture || {});
+            const originalApi = window.api;
+            window.api = async (url, options = {}) => {
+                if (url === '/api/usage/wake-after-reset') {
+                    window.analyticsCalls.push(url);
+                    return {
+                        state: {
+                            candidate_count: 2,
+                            monthly_agents: [],
+                            scheduled: [{
+                                provider: 'anthropic',
+                                reset_at: '2026-07-25T08:00:00Z',
+                                agent_count: 2,
+                            }],
+                        },
+                    };
+                }
+                return originalApi(url, options);
+            };
+        }"""
+    )
+    page.evaluate("openAnalyticsModal()")
+
+    page.locator("[data-analytics-wake]").click()
+
+    expect(page.locator("[data-analytics-wake-status]")).to_contain_text("anthropic")
+    assert page.evaluate("analyticsCalls").count("/api/usage/wake-after-reset") == 1
+    page.close()
+
+
+def test_monthly_limit_panel_requires_manual_action(browser):
+    payload = _payload()
+    payload["wake_after_reset"] = {
+        "candidate_count": 1,
+        "monthly_agents": ["monthly-worker"],
+        "manual_action_url": "https://claude.ai/settings/usage",
+        "scheduled": [],
+    }
+    page = _page(browser)
+    page.evaluate(
+        """payload => {
+            window.api = async url => {
+                window.analyticsCalls.push(url);
+                return structuredClone(payload);
+            };
+        }""",
+        payload,
+    )
+
+    page.evaluate("openAnalyticsModal()")
+
+    expect(page.locator("[data-analytics-wake-status]")).to_contain_text(
+        "не сбрасывается по таймеру"
+    )
+    expect(page.locator("[data-analytics-wake-status] a")).to_have_attribute(
+        "href", "https://claude.ai/settings/usage"
+    )
     page.close()
 
 

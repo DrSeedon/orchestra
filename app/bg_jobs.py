@@ -18,13 +18,14 @@ from app.db import (
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
     bg_reset_stale_triggering, bg_cleanup_old,
     bg_cron_should_fire, bg_cron_record_fire,
-    bg_get_jobs, bg_fail_job_if_active,
+    bg_get_jobs, bg_fail_job_if_active, bg_replace_job,
 )
 
 logger = logging.getLogger(__name__)
 
 MAX_JOBS_PER_SCOPE = 50
 MAX_TIMEOUT = 86400
+MAX_TIMER_TIMEOUT = 8 * 86400
 DEFAULT_TIMEOUT = 3600
 OUTPUT_PROGRESS_INTERVAL = 30
 
@@ -130,12 +131,13 @@ class BgJobManager:
 
     async def create(self, job_type: str, config: dict, message: str,
                      target_session_id: str, target_name: str, target_scope: str,
-                     created_by: str, timeout_seconds: int = DEFAULT_TIMEOUT) -> dict:
+                     created_by: str, timeout_seconds: int = DEFAULT_TIMEOUT,
+                     replace_key: str = "") -> dict:
         err = _validate_config(job_type, config)
         if err:
             return {"error": err}
         count = bg_count_active(target_scope)
-        if count >= MAX_JOBS_PER_SCOPE:
+        if not replace_key and count >= MAX_JOBS_PER_SCOPE:
             return {"error": f"too many active jobs ({count}/{MAX_JOBS_PER_SCOPE})"}
 
         now = datetime.now(timezone.utc)
@@ -144,7 +146,13 @@ class BgJobManager:
             config = {**config, "no_expiry": True}
             expires_at = (now + timedelta(days=36500)).isoformat()
         else:
-            timeout_seconds = max(1, min(timeout_seconds, MAX_TIMEOUT))
+            max_timeout = MAX_TIMER_TIMEOUT if job_type == "timer" else MAX_TIMEOUT
+            if job_type == "timer":
+                timeout_seconds = max(
+                    timeout_seconds,
+                    int(config["delay_seconds"]) + 3600,
+                )
+            timeout_seconds = max(1, min(timeout_seconds, max_timeout))
             expires_at = (now + timedelta(seconds=timeout_seconds)).isoformat()
 
         job_id = f"bg-{uuid4().hex[:10]}"
@@ -152,8 +160,9 @@ class BgJobManager:
         if job_type == "timer":
             trigger_at = (now + timedelta(seconds=config["delay_seconds"])).isoformat()
 
+        stored_config = {**config, "replace_key": replace_key} if replace_key else config
         job = {
-            "id": job_id, "type": job_type, "config": json.dumps(config),
+            "id": job_id, "type": job_type, "config": json.dumps(stored_config),
             "message": message, "target_session_id": target_session_id,
             "target_name": target_name, "target_scope": target_scope,
             "created_by_name": created_by, "status": "active",
@@ -161,8 +170,15 @@ class BgJobManager:
             "trigger_at": trigger_at, "created_at": now.isoformat(),
             "last_output": "",
         }
-        bg_save_job(job)
-        self._start_task(job_id, job_type, config, message, target_session_id,
+        if replace_key:
+            replaced_ids = bg_replace_job(job, replace_key)
+            for replaced_id in replaced_ids:
+                previous = self._tasks.pop(replaced_id, None)
+                if previous and not previous.done():
+                    previous.cancel()
+        else:
+            bg_save_job(job)
+        self._start_task(job_id, job_type, stored_config, message, target_session_id,
                          target_name, target_scope, timeout_seconds,
                          trigger_at)
         logger.info(f"bg_job created: {job_id} type={job_type} target={target_name}")
@@ -175,7 +191,10 @@ class BgJobManager:
             if trigger_at:
                 remaining = (datetime.fromisoformat(trigger_at) - datetime.now(timezone.utc)).total_seconds()
                 delay = max(0, remaining)
-            coro = self._run_timer(job_id, delay, message, target_name, target_scope)
+            if config.get("action") == "wake_subscription_limited":
+                coro = self._run_wake_timer(job_id, delay, config)
+            else:
+                coro = self._run_timer(job_id, delay, message, target_name, target_scope)
         elif job_type == "file":
             coro = self._run_file_watch(job_id, config["path"], config["pattern"],
                                         message, target_name, target_scope, timeout)
@@ -200,7 +219,13 @@ class BgJobManager:
             return
         task = asyncio.create_task(coro)
         self._tasks[job_id] = task
-        task.add_done_callback(lambda t: self._tasks.pop(job_id, None))
+        task.add_done_callback(
+            lambda finished: (
+                self._tasks.pop(job_id, None)
+                if self._tasks.get(job_id) is finished
+                else None
+            )
+        )
 
     async def cancel(self, job_id: str) -> dict:
         ok = bg_cancel_job(job_id)
@@ -357,6 +382,17 @@ class BgJobManager:
             await self._trigger(job_id, message, target_name, target_scope)
         except asyncio.CancelledError:
             pass
+
+    async def _run_wake_timer(self, job_id, delay, config):
+        try:
+            await asyncio.sleep(delay)
+            from app.limit_wake import run_wake_job
+
+            await run_wake_job(job_id, config, self._session_manager)
+        except asyncio.CancelledError:
+            pass
+        except Exception as error:
+            bg_fail_job(job_id, str(error)[:500])
 
     async def _run_cron(self, job_id, cron_expr, message, target_name, target_scope, timeout):
         deadline = (time.time() + timeout) if timeout else None
