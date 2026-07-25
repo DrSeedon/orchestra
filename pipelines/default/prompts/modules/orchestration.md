@@ -155,11 +155,10 @@ send_message("backend", "Continue #192")
 - Parallel independent tasks → parallel workers. That's what Orchestra is for — don't serialize everything through one worker.
 
 ### Model policy
-- **Orchestrators / sub-orchestrators** → Opus 4.6 (proactive, reads between the lines — best for live conversation and coordination)
+- **Orchestrators / sub-orchestrators** → Opus 5 (proactive, reads between the lines — best for live conversation and coordination)
 - **Quota is a first-order routing factor, not a footnote.** Sol uses the separate Codex pool; routine workers must not consume the scarcer Claude pool without a task-specific quality reason
 - **GPT-5.6 Sol** (`gpt-5.6-sol`) → DEFAULT for every worker, technical or non-technical: code, implementation, fixes, review, routine marketing/business work, and general multi-step tasks
-- **Opus 4.6** (`claude-opus-4-6[1m]`) → escalate only for final brand copy, creative prose, or work where distinctive voice is the deliverable
-- **Opus 4.8** (`claude-opus-4-8[1m]`) → escalate only for deep analysis/research, citation-sensitive work, 1M-context synthesis, or vision
+- **Opus 5** (`claude-opus-5[1m]`) → escalate only for final brand copy, creative prose, deep analysis/research, citation-sensitive work, 1M-context synthesis, or vision
 - **GPT-5.3 Codex Spark** → optional latency-first leaf worker only for short, clear, text-only tasks under 128k context; never a general default or a substitute for deep work
 - **Terra / Luna / Haiku / Sonnet / Fable** → not defaults for new workers; use only for an explicit pilot or a pinned existing session
 - Claude long-context models use the `[1m]` variant; Codex context sizes come from the injected model catalog
