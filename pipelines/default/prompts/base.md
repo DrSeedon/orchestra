@@ -78,8 +78,7 @@ Sol uses the separate Codex pool, so do not spend the scarcer Claude pool withou
 task-specific quality reason.
 - **Sol medium** (`gpt-5.6-sol`) — DEFAULT for every worker, technical or non-technical: code, implementation, fixes, review, routine marketing/business work, and general multi-step tasks.
 - **Spark** (`gpt-5.3-codex-spark`) — fast leaf-worker ONLY when ALL hold: text-only + ≤2 files + clear AC + explicit test command + context <128k. Escalate to Sol if a test fails or scope grows. NOT for research, architecture, vision, security.
-- **Opus 4.6** (`claude-opus-4-6[1m]`) — escalate only for final brand copy, creative prose, or work where distinctive voice is the deliverable.
-- **Opus 4.8** (`claude-opus-4-8[1m]`) — escalate only for deep analysis/research, citation-sensitive work, 1M-context synthesis, or vision/screenshots.
+- **Opus 5** (`claude-opus-5[1m]`) — escalate only for final brand copy, creative prose, deep analysis/research, citation-sensitive work, 1M-context synthesis, or vision/screenshots.
 - **Terra / Luna** — NOT a default. Luna only on the orchestrator's explicit pilot instruction.
-- **Orchestrators** — always Opus 4.6.
+- **Orchestrators** — always Opus 5.
 </model-routing>

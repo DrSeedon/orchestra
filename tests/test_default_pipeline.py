@@ -97,7 +97,7 @@ class TestDefaultRolesResolve:
         rr = P.get_role(PIPELINE, "orchestrator")
         assert rr is not None
         assert rr.is_orchestrator is True
-        assert rr.model == "opus4.6"
+        assert rr.model == "claude-opus-5[1m]"
 
     def test_worker_and_full_cycle_are_not_orchestrators(self):
         """worker И full-cycle — воркеры (оркестратор спавнит их как исполнителей)."""
@@ -109,12 +109,12 @@ class TestDefaultRolesResolve:
         assert rr is not None
         assert rr.model == "gpt5.6sol"
 
-    def test_sub_orchestrator_is_orchestrator_opus46(self):
-        """sub-orchestrator — kind:orchestrator, opus4.6, can_spawn=['*']."""
+    def test_sub_orchestrator_is_orchestrator_opus5(self):
+        """sub-orchestrator — kind:orchestrator, Opus 5, can_spawn=['*']."""
         rr = P.get_role(PIPELINE, "sub-orchestrator")
         assert rr is not None
         assert rr.is_orchestrator is True
-        assert rr.model == "opus4.6"
+        assert rr.model == "claude-opus-5[1m]"
         assert rr.can_spawn == ["*"]
         assert rr.allow_unrouted_workers is True
 

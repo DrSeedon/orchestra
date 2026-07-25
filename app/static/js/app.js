@@ -2,7 +2,7 @@
 const MAX_CHAT_NODES = 500;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return '$0.00'; if (v < 0.01) return '$' + v.toFixed(4); return '$' + v.toFixed(2); }
 const _MODEL_COLORS = {
-    'claude-opus-4-8[1m]': '#c084fc', 'claude-opus-4-6[1m]': '#a78bfa',
+    'claude-opus-5[1m]': '#d8b4fe', 'claude-opus-4-8[1m]': '#c084fc', 'claude-opus-4-6[1m]': '#a78bfa',
     'claude-sonnet-5[1m]': '#38bdf8', 'claude-haiku-4-5': '#4ade80',
     'claude-fable-5[1m]': '#fb923c', 'gpt-5.5': '#f472b6', 'gpt-5.4': '#f472b6',
 };
@@ -1446,6 +1446,7 @@ fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,..
 
 // Cache timer pill. Claude has an exact 1h policy; Codex exposes a ≈30m reference window.
 function _shortModel(m) {
+    if (m === 'claude-opus-5[1m]') return 'opus-5';
     const meta = _modelMeta(m);
     return meta?.label || m.replace('claude-', '').replace('[1m]', '').replace('-1m', '');
 }

@@ -19,7 +19,7 @@ roles:
     kind: orchestrator
     label: Orchestrator
     order: 0
-    model: opus4.6
+    model: claude-opus-5[1m]
     effort: medium
     skills: [html-artifacts, vps-deploy, codex-debate, grill-me]
     modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement, memory-search]
@@ -34,7 +34,7 @@ roles:
     kind: orchestrator
     label: Sub-Orchestrator
     order: 1
-    model: opus4.6
+    model: claude-opus-5[1m]
     effort: medium
     modules: [git-workflow, orchestration, background-jobs, task-management, self-improvement]
     can_spawn: ["*"]

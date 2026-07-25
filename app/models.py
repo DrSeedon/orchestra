@@ -28,6 +28,7 @@ class ModelSpec:
 
 MODELS = {
     "claude-fable-5[1m]": "Fable 5 (1M)",
+    "claude-opus-5[1m]": "Opus 5 (1M)",
     "claude-opus-4-8[1m]": "Opus 4.8 (1M)",
     "claude-opus-4-6[1m]": "Opus 4.6 (1M)",
     "claude-sonnet-5[1m]": "Sonnet 5 (1M)",
@@ -43,6 +44,7 @@ MODELS = {
 
 CONTEXT_LIMITS = {
     "claude-fable-5[1m]": 1000000,
+    "claude-opus-5[1m]": 1000000,
     "claude-opus-4-8[1m]": 1000000,
     "claude-opus-4-6[1m]": 1000000,
     "claude-sonnet-5[1m]": 1000000,
@@ -66,7 +68,9 @@ ALIASES = {
     "claude-fable-5": "claude-fable-5[1m]",
     "claude-fable-5-1m": "claude-fable-5[1m]",
     "mythos": "claude-fable-5[1m]",
-    "opus": "claude-opus-4-8[1m]",
+    "opus": "claude-opus-5[1m]",
+    "opus5": "claude-opus-5[1m]",
+    "claude-opus-5": "claude-opus-5[1m]",
     "opus4.8": "claude-opus-4-8[1m]",
     "claude-opus-4-8": "claude-opus-4-8[1m]",
     "claude-opus-4-8-1m": "claude-opus-4-8[1m]",
@@ -95,6 +99,7 @@ ALIASES = {
 
 BACKENDS = {
     "claude-fable-5[1m]": "claude",
+    "claude-opus-5[1m]": "claude",
     "claude-opus-4-8[1m]": "claude",
     "claude-opus-4-6[1m]": "claude",
     "claude-sonnet-5[1m]": "claude",
@@ -126,6 +131,7 @@ def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
 # Codex models intentionally absent — their prices live in backend_codex.py
 TOKEN_PRICES = {
     "claude-fable-5[1m]": {"input": 10.0, "output": 50.0},
+    "claude-opus-5[1m]":   {"input": 5.0,  "output": 25.0},
     "claude-opus-4-8[1m]": {"input": 5.0,  "output": 25.0},
     "claude-opus-4-6[1m]": {"input": 5.0,  "output": 25.0},
     "claude-sonnet-5[1m]": {"input": 2.0,  "output": 10.0},
@@ -340,6 +346,7 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
 # Semantic alias patterns: short name → match first model containing substring
 _SEMANTIC_PATTERNS = [
     ("opus", "opus"),
+    ("opus5", "opus-5"),
     ("opus4.8", "opus-4-8"),
     ("sonnet", "sonnet"),
     ("haiku", "haiku"),

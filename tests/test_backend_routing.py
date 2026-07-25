@@ -7,6 +7,7 @@ from app.models import (
     BACKENDS,
     CONTEXT_LIMITS,
     MODELS,
+    TOKEN_PRICES,
     ModelSpec,
     _infer_backend,
     available_models_block,
@@ -15,6 +16,7 @@ from app.models import (
     fetch_models_from_proxy,
     get_model_spec,
     register_model,
+    resolve_model,
     unregister_model,
 )
 from app.backend_opencode import OpenCodeBackend
@@ -39,7 +41,23 @@ def test_spark_is_registered_for_codex_workers():
 
 def test_infer_claude_to_claude():
     assert _infer_backend("claude-sonnet-5[1m]") == "claude"
+    assert _infer_backend("claude-opus-5[1m]") == "claude"
     assert _infer_backend("claude-opus-4-8[1m]") == "claude"
+
+
+def test_opus5_registry_and_aliases():
+    model_id = "claude-opus-5[1m]"
+    spec = get_model_spec(model_id)
+
+    assert MODELS[model_id] == "Opus 5 (1M)"
+    assert spec.runtime == "claude"
+    assert spec.provider == "anthropic"
+    assert spec.context_length == 1_000_000
+    assert TOKEN_PRICES[model_id] == {"input": 5.0, "output": 25.0}
+    assert resolve_model("opus") == model_id
+    assert resolve_model("opus5") == model_id
+    assert resolve_model("claude-opus-5") == model_id
+    assert resolve_model("opus4.8") == "claude-opus-4-8[1m]"
 
 
 def test_infer_others_to_opencode():
