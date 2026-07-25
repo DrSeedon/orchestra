@@ -4,7 +4,251 @@
 **Фаза:** Research + Experiment
 **Задача:** решить, заменять ли Opus 4.6 / Opus 4.8 / Sol / Fable 5 в Orchestra.
 
-## Вердикт
+## Update 2026-07-25 — live DeepSWE refresh
+
+### Что изменилось
+
+Первый вывод **частично superseded новым первичным срезом**, но конечный
+default routing не меняется:
+
+1. Live DeepSWE теперь показывает Opus 5 high **72.83%** и max **73.65%**
+   против Sol max **72.67%** [9][10]. По point estimates Opus 5 действительно
+   догнал Sol.
+2. Это не доказанное лидерство: 95% normal-approximation CIs среднего по
+   четырём whole-benchmark runs перекрываются. Opus 5 high и Sol max
+   различаются всего на **+0.16 pp**, Opus 5 max и Sol max — на **+0.98
+   pp**. Для routing это **quality tie**, не win.
+3. Старые `68.8 / 72.7` были не ошибкой чтения чисел. `68.8%` взято из
+   присланного Anthropic launch screenshot, где точка явно подписана
+   `Claude Opus 5 max`; `72.7%` — Sol max. Новый DataCurve job
+   `20260724-opus-5` закончился **2026-07-25 01:59 UTC**, уже после mtime
+   screenshot (**2026-07-24 17:11 UTC**), и live JSON был сгенерирован
+   **2026-07-25 03:13 UTC** [10]. Следовательно, конкретная причина
+   расхождения — **новый post-launch Opus 5 sweep / обновлённый leaderboard
+   snapshot**, а не подмена medium на max и не ошибка легенды.
+4. Старое исправление легенды остаётся верным: `53.8%` на launch chart —
+   Sonnet 5 max, не Sol. Но прежний тезис «Sol качественно лучше Opus 5 на
+   DeepSWE» больше использовать нельзя.
+5. Orchestra всё равно оставляет Sol default worker: одинаковое качество
+   плюс отдельный недогруженный Codex pool выгоднее, чем перенос нагрузки в
+   дефицитный Claude 5h/7d meter. Новое практическое следствие — Opus 5 high
+   становится **проверенным Claude fallback** при outage Codex, не новым
+   fleet default.
+
+**Updated verdict: keep Sol as the routine/full-cycle default; keep Opus 5
+medium for orchestration/research/vision; use Opus 5 high for Claude coding
+fallback or explicit escalation; use low only for bounded deterministic
+leaf work. Do not route anything to max by default.**
+
+### Raw snapshot
+
+Сырые 20 строк для Opus 5, GPT-5.6 Sol, Fable 5 и Opus 4.8 сохранены без
+округления в
+[`deepswe-leaderboard-2026-07-25.csv`](deepswe-leaderboard-2026-07-25.csv).
+CSV механически извлечён из live JSON и проверен `diff`:
+
+- source:
+  `https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json`;
+- source `generated_at`: `2026-07-25T03:13:49.273952+00:00`;
+- latest job: `20260724-opus-5`, finished
+  `2026-07-25T01:59:45.339374Z`;
+- source scope: 50 configurations, 113 tasks;
+- full JSON SHA-256:
+  `d5fc4531d5b005c6e0040a82ddafe63225b1c172015cd499f2ec866f16f91cf1`;
+- selected CSV SHA-256:
+  `074c2725314944cf247f56060fb5008a5a3e52e789066ccfffd35e2ca6c4a0f6`.
+
+Проверяемая metadata snapshot — job timestamp, HTTP validators, hashes,
+старый screenshot mtime и denominator comparison — сохранена в
+[`deepswe-leaderboard-2026-07-25.meta.json`](deepswe-leaderboard-2026-07-25.meta.json).
+
+Rounded decision view (cost is mean API-equivalent USD per scored attempt;
+`time` is raw mean duration, which DataCurve no longer publishes in the UI):
+
+| Model | Effort | pass@1 ± 95% half-width | Mean $ | Mean time | Mean steps |
+|---|---:|---:|---:|---:|---:|
+| Opus 5 | low | 58.13% ±2.33 | 1.66 | 7.8 min | 35.6 |
+| Opus 5 | medium | 68.90% ±1.17 | 3.29 | 12.7 min | 52.3 |
+| Opus 5 | high | 72.83% ±1.95 | 6.08 | 19.4 min | 72.9 |
+| Opus 5 | xhigh | 73.15% ±3.06 | 9.07 | 26.0 min | 88.7 |
+| Opus 5 | max | 73.65% ±3.87 | 11.84 | 31.9 min | 99.0 |
+| GPT-5.6 Sol | low | 45.35% ±2.39 | 1.07 | 4.4 min | 23.4 |
+| GPT-5.6 Sol | medium | 61.06% ±1.58 | 1.86 | 7.1 min | 30.9 |
+| GPT-5.6 Sol | high | 69.40% ±1.43 | 3.47 | 9.9 min | 36.9 |
+| GPT-5.6 Sol | xhigh | 70.73% ±0.82 | 4.70 | 13.3 min | 44.0 |
+| GPT-5.6 Sol | max | 72.67% ±2.83 | 8.39 | 18.8 min | 61.3 |
+| Fable 5 | low | 59.58% ±2.79 | 3.76 | 10.6 min | 37.8 |
+| Fable 5 | medium | 65.37% ±4.42 | 6.09 | 13.5 min | 48.4 |
+| Fable 5 | high | 68.60% ±1.12 | 9.18 | 17.7 min | 58.7 |
+| Fable 5 | xhigh | 69.91% ±3.24 | 13.41 | 23.5 min | 68.4 |
+| Fable 5 | max | 69.72% ±4.03 | 21.63 | 34.9 min | 88.4 |
+| Opus 4.8 | low | 40.80% ±1.46 | 2.29 | 10.9 min | 54.0 |
+| Opus 4.8 | medium | 48.67% ±2.24 | 3.44 | 14.7 min | 65.6 |
+| Opus 4.8 | high | 51.77% ±4.56 | 4.28 | 17.8 min | 72.5 |
+| Opus 4.8 | xhigh | 54.36% ±3.71 | 8.01 | 36.6 min | 94.6 |
+| Opus 4.8 | max | 58.97% ±1.76 | 13.22 | 58.2 min | 120.0 |
+
+**Time caveat:** v1.1 explicitly removed wall-clock time from the public UI
+because host performance and provider load make it inconsistent [11]. The
+raw JSON still contains duration aggregates, so they are preserved above on
+request but are **not decision-grade**.
+
+### Fact-check of the third-party post
+
+| Claim | Rating | Primary-source result |
+|---|---|---|
+| Opus 5 max = 74%, $11.84 | ✅ TRUE | 73.6486%, $11.8376; normal rounding [10] |
+| Max “beats” Sol max and Fable max | ⚠️ MOSTLY TRUE | Nominally +0.98 pp vs Sol and +3.92 pp vs Fable, but both CIs overlap; rank is not statistically established |
+| High trails max by ~1 pp and costs almost half | ✅ TRUE | −0.82 pp; $6.08 vs $11.84, 48.7% cheaper |
+| High is cheaper than Sol max at the same score | ✅ TRUE with context | +0.16 pp and $6.08 vs $8.39; API-equivalent 27.5% cheaper, statistically a tie |
+| Low ≈ Opus 4.8 max for 1/8 cost | ✅ TRUE with context | −0.85 pp; overlapping CIs; $13.22 / $1.66 = 7.95× |
+| Therefore high should serve most tasks and low simple tasks | 🔶 MIXED | Reasonable for API billing; wrong objective for Orchestra subscriptions and separate quota pools |
+
+### What DeepSWE measures and whether 1 pp matters
+
+DeepSWE v1.1 measures whether a fixed, model-agnostic `mini-swe-agent` with
+only bash can implement 113 original, long-horizon changes across 91
+repositories and five languages. The agent commits a patch; v1.1 applies and
+grades that patch in a clean verifier container with behavioral tests
+[9][11].
+
+The live artifact defines the score precisely [10]:
+
+- `pass@1` = passed scored attempts / all scored attempts;
+- `pass@4` = tasks with at least one passing rollout / tasks attempted;
+- context-window failures and agent timeouts count as failures;
+- provider, verifier and network errors are excluded;
+- efficiency aggregates cover all scored attempts.
+
+Each configuration has **4 repeated whole-benchmark passes**. Most rows have
+roughly 449–452 scored attempts; Opus 5 max has 444, Fable rows 430–452, and
+Opus 4.8 max covers 111 tasks / 429 attempts. The published interval is
+`1.96 × std(four run scores) / sqrt(4)`, not a binomial interval over 450
+independent trials [10]. DataCurve also notes that 73 of Fable's 2,260 trials
+did not complete after access suspension, and computes its pass rate over
+completed trials [11].
+
+For Opus 5 high vs max:
+
+- high = 72.83%, CI `[70.88, 74.77]`;
+- max = 73.65%, CI `[69.78, 77.52]`;
+- difference = **0.82 pp**, with heavy interval overlap.
+
+This is **noise / statistically unresolved**, not evidence that max is
+better. The available artifact does not expose a paired CI for the
+difference, so an exact significance test cannot be reconstructed from the
+aggregates. Medium vs high is more credible: +3.92 pp and their reported 95%
+intervals do not overlap, though only four run-level observations still make
+the estimate fragile.
+
+The nominal ranking also has a denominator effect: Opus 5 high, Opus 5 max
+and Sol max each record exactly **327 passed attempts**, divided by 449, 444
+and 450 scored attempts respectively. Thus the displayed +0.16/+0.98 pp
+comes entirely from excluded/non-scored attempts, not additional passes.
+
+The fixed bash-only harness is also not Orchestra: it excludes Claude Code
+and Codex native edit tools, Orchestra prompts, MCP discipline, mid-turn
+injection and coordination behavior. DeepSWE is a strong coding-capability
+signal, not a direct fleet-throughput measurement.
+
+### API dollars versus Orchestra quota
+
+The `$` column is token-priced inference cost, not subscription quota. For
+these fixed `mini-swe-agent` runs, Pier reads `model_stats.instance_cost`;
+its installer refreshes LiteLLM's model pricing map before execution [12].
+It does not know our Claude 5h/7d utilization or Codex subscription allowance.
+
+Using the earlier Orchestra historical calibration only as a conditional
+scenario—30 quota points reserved for orchestrators, 20 points held as
+safety reserve, leaving the `$191 API-equivalent` historical half-budget—the
+new mean costs would imply:
+
+| Opus 5 effort | Conditional tasks/week | Why this is not a quota promise |
+|---|---:|---|
+| low ($1.66) | ~115 | Model/effort may have different Max weights |
+| medium ($3.29) | ~58 | Close to the earlier 50–65 planning range |
+| high ($6.08) | ~31 (~4–5/day) | No direct high-effort meter A/B exists |
+| max ($11.84) | ~16 | 2× high cost for statistically unresolved gain |
+
+**Confidence: UNCERTAIN.** These figures are arithmetic scenarios in the
+wrong currency; they are useful only for admission-control sizing before a
+real Max-meter A/B.
+
+The decisive resource result is qualitative but measured:
+
+- Sol consumes the separate Codex pool, currently underused relative to
+  Claude;
+- Opus 5 consumes the shared Claude plan meter, already the 5h/7d
+  bottleneck;
+- therefore a DeepSWE quality tie does not justify shifting the default
+  fleet from Sol to Opus 5.
+
+Availability changes the fallback, not the default. Orchestra DB logs on
+2026-07-25 confirm `biscuit_baker_service_me_circuit_open` 503s on three
+distinct `feat-usage-analytics` turns at 09:00, 09:03 and 09:19 UTC, with
+direct probes still failing at 09:36 UTC [13]. A Claude fallback would have
+saved those turns **if Claude had headroom**; the same incident log recorded
+Claude 5h at 97%, so unconditional failover would merely exchange one outage
+for a rate limit.
+
+### Updated routing and effort ladder
+
+| Role / trigger | Primary route | Effort | Fallback / rule |
+|---|---|---:|---|
+| Top-level and sub-orchestrator | Opus 5 | medium | Keep; DeepSWE is not an orchestration eval |
+| Research, citations, prompt engineering | Opus 5 | medium | high only after a failed/insufficient medium turn |
+| Vision inventory / UI analysis | Opus 5 | medium | high for ambiguous replication or multi-screen synthesis |
+| Routine implementation / known bug | Sol | high | **No change** |
+| Full-cycle engineering | Sol | xhigh | **No change** |
+| Codex `circuit_open` or sustained outage, blocked coding task | Opus 5 | high | Unless it qualifies for low below; require Claude 5h **and weekly** <70%; max 2 concurrent |
+| Failed Sol task with a model-specific quality reason | Opus 5 | high | Explicit escalation, not automatic retry of the fleet |
+| Codex outage bounded leaf, or Claude-only vision extraction | Opus 5 | low | Only the explicit low classes below |
+| Fable 5 | none | none | Manual domain-specific experiment only |
+| Any default route | Opus 5 max | none | Do not use: no resolved gain over high |
+
+The `<70%` failover threshold is a proposed conservative guardrail, not a
+DeepSWE or Anthropic-derived constant. Requiring both 5h and weekly meters
+below it leaves at least 30 points in each window for active orchestrators
+and outage variance; production telemetry should tighten it.
+
+Current backend behavior is compatible with the fallback: `worker` is high,
+`full-cycle` is xhigh, and `backend_claude.py:159–165` maps Claude xhigh to
+high. Thus a full-cycle worker moved to Opus during an outage already lands
+on the DeepSWE-supported high tier rather than silently spending max.
+
+#### Where Opus 5 low is enough
+
+Low is **not** a permanent role default. With healthy Codex, text/code leaf
+work stays on Spark/Sol. Opus low is a bounded fallback during Codex outage,
+or for a Claude-only surface such as vision:
+
+1. a Codex-outage leaf implementation touching at most two files, with an
+   explicit patch shape and exact test command;
+2. during Codex outage, extraction after sources are already selected: turn
+   a known page/CSV/log into a fixed schema, with no credibility judgment;
+3. `frontend-opus` read-only screenshot inventory, OCR, color/spacing
+   extraction, or asset classification with explicit expected fields,
+   including when Codex lacks the required vision surface;
+4. during Codex outage, deterministic prompt lint/format conversion, not
+   final voice or prompt architecture.
+
+Do **not** use low for orchestrators, debugging without a known root cause,
+full-cycle work, architecture, security, ambiguous research, final brand
+copy, or multi-screen UI replication. When Codex is healthy, Spark/Sol still
+own the first and fourth classes because they consume the other pool.
+
+**Net change from the original report:** the quality reason for keeping Sol
+is removed; the quota-pool reason survives. Opus 5 high is promoted from a
+generic escalation to the explicit Codex-outage coding fallback. Medium
+remains the Claude default, low gains narrow outage/vision leaf cases, and
+max remains unused.
+
+## Historical snapshot verdict (before the live refresh)
+
+> Audit trail: this section preserves the conclusion based on the supplied
+> launch screenshots. Its DeepSWE `68.8 vs 72.7` quality comparison is
+> superseded by the update above; availability, model ID, context, pricing,
+> Fable and quota-pool findings remain applicable.
 
 1. **Opus 5 уже доступен.** Официальный API ID — `claude-opus-5`. Claude Code
    2.1.215 принял и `claude-opus-5`, и `claude-opus-5[1m]`; обе проверки
@@ -382,6 +626,8 @@ Do not silently alias all Sol routes to Opus 5.
 | Price is the same as Opus 4.8 | ✅ TRUE |
 | Opus 5 gets a separate/larger Max bucket | No evidence; direct meter shows use of the shared plan meter |
 | Opus 5 medium beats Sol max 53.8 | 🚫 FALSE; 53.8 is Sonnet 5 |
+| Live Opus 5 high/max has a meaningful lead over Sol max | ❓ UNRESOLVED; +0.16/+0.98 pp with overlapping 95% run intervals |
+| Live DeepSWE changes the Sol default | ❌ NO; quality tie, separate underused Codex pool remains decisive |
 | Replace Opus 4.8 workers | ✅ Canary first; switch routes that pass |
 | Replace all Sol workers | ❌ NOT SUPPORTED |
 | Fable remains a default | ❌ Not justified by the supplied benchmark deltas; Max burn unmeasured |
@@ -406,3 +652,23 @@ Do not silently alias all Sol routes to Opus 5.
 8. `data/orchestra.db`, direct CLI probe output, and
    `docs/tasks/claude-limit-burn-2026-07-24/analysis.md`.
    **Tier 1: direct operational measurement.**
+9. [DataCurve — live DeepSWE v1.1 leaderboard](https://deepswe.datacurve.ai/),
+   fetched 2026-07-25. **Tier 2: primary live leaderboard.**
+10. [DataCurve — live v1.1 leaderboard JSON](https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json),
+    fetched 2026-07-25; exact selected rows preserved in
+    [`deepswe-leaderboard-2026-07-25.csv`](deepswe-leaderboard-2026-07-25.csv)
+    and provenance in
+    [`deepswe-leaderboard-2026-07-25.meta.json`](deepswe-leaderboard-2026-07-25.meta.json).
+    **Tier 1: direct machine-readable measurement.**
+11. [DataCurve — DeepSWE v1.1 methodology and revision notes](https://deepswe.datacurve.ai/blog/deepswe-v1-1),
+    fetched 2026-07-25. **Tier 2: primary methodology source.**
+12. DataCurve Pier source at commit
+    [`fefa7475`](https://github.com/datacurve-ai/pier/tree/fefa7475a32bb05271abdea378e8083c83eb5c35):
+    [mini-swe-agent cost extraction](https://github.com/datacurve-ai/pier/blob/fefa7475a32bb05271abdea378e8083c83eb5c35/src/pier/agents/installed/mini_swe_agent.py#L300-L328)
+    and
+    [LiteLLM pricing-map refresh](https://github.com/datacurve-ai/pier/blob/fefa7475a32bb05271abdea378e8083c83eb5c35/src/pier/agents/installed/mini_swe_agent.py#L548-L570),
+    fetched 2026-07-25. **Tier 2: primary source code.**
+13. `/mnt/data/Projects/Python/orchestra/data/orchestra.db`, logs between
+    `2026-07-25T08:58Z` and `09:36Z`: three distinct Codex worker turn
+    failures plus repeated direct `circuit_open` probes.
+    **Tier 1: direct operational measurement.**

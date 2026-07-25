@@ -51,3 +51,43 @@
 ## Verdict
 
 **APPROVED.** Оставшиеся замечания касаются точности формулировок, а не арифметики или routing-решения. Квотная модель теперь честно называется условной — калькулятор наконец перестал изображать провайдера.
+
+## Round (2026-07-25T10:31:34Z)
+
+## Summary
+
+🙃 Наконец leaderboard и арифметика смотрят в одну сторону; спорят только оговорки. Все прошлые findings теперь **FIXED**, включая H2 falsifier и Fable quota wording. Текущие score/cost расчёты совпадают с CSV; routing-решение Sol-default + Opus-high fallback обосновано.
+
+## Findings
+
+### blocking
+
+Нет.
+
+### suggestion
+
+1. **Сохранить проверяемое основание хронологии snapshot.**
+   [research.md:20](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-opus5/docs/tasks/opus5-routing/research.md:20) называет обновлённый sweep точной причиной расхождения, но CSV не содержит `generated_at`, job ID или старой строки. Добавьте metadata sidecar/raw JSON либо замените «конкретная причина» на «наиболее вероятная причина».
+
+2. **Точнее назвать confidence intervals.**
+   [research.md:17](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-opus5/docs/tasks/opus5-routing/research.md:17) говорит `run-to-run intervals`, хотя описанная формула `1.96 × std / sqrt(4)` — нормальная аппроксимация CI среднего четырёх run scores, не prediction interval отдельного run. Вывод о неустановленном лидерстве остаётся корректным.
+
+3. **Явно отметить denominator effect.**
+   В CSV Opus high, Opus max и Sol max имеют одинаковые `n_passed=327`, но соответственно 449, 444 и 450 scored attempts ([CSV:14](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-opus5/docs/tasks/opus5-routing/deepswe-leaderboard-2026-07-25.csv:14), [CSV:21](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-opus5/docs/tasks/opus5-routing/deepswe-leaderboard-2026-07-25.csv:21)). Номинальные `+0.16/+0.98 pp` целиком возникают из меньшего знаменателя; это стоит добавить к аргументу `quality tie`.
+
+4. **Проверять weekly headroom при fallback.**
+   [research.md:193](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-opus5/docs/tasks/opus5-routing/research.md:193) ограничивает failover только условием `5h <70%`, хотя bottleneck включает 5h и 7d. После сброса 5h при почти исчерпанном weekly fallback всё равно запустится. Guard должен требовать headroom в обоих meters.
+
+5. **Устранить неоднозначность low/high при Codex outage.**
+   Общая outage-строка назначает Opus high, но ниже bounded leaf implementation назначается low ([research.md:208](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-opus5/docs/tasks/opus5-routing/research.md:208)). В таблице стоит явно указать исключение для определённых low-классов.
+
+6. **Не переносить deterministic extraction в дефицитный Claude pool.**
+   [research.md:214](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-opus5/docs/tasks/opus5-routing/research.md:214) предлагает Opus low для извлечения известной страницы/CSV/log, хотя это bounded text leaf work, а Codex pool недогружен. При здоровом Codex первичным маршрутом здесь должен оставаться Spark/Sol; Opus low оправдан только при outage или несовместимом tool surface.
+
+### question
+
+Нет.
+
+## Verdict
+
+**APPROVED.** Фактической или blocking routing-ошибки нет; замечания уточняют provenance и guardrails. Sol остаётся дефолтом по правильной причине — отдельный пул, а не попытка выиграть гонку одинаковыми 327 финишами.

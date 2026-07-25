@@ -1,0 +1,35 @@
+{
+  "source_url": "https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json",
+  "fetched_http_date": "Sat, 25 Jul 2026 10:19:35 GMT",
+  "source_last_modified": "Sat, 25 Jul 2026 03:50:36 GMT",
+  "source_etag": "\"922e108744b1635a5e5b244e0096c9fa\"",
+  "source_sha256": "d5fc4531d5b005c6e0040a82ddafe63225b1c172015cd499f2ec866f16f91cf1",
+  "source_generated_at": "2026-07-25T03:13:49.273952+00:00",
+  "source_latest_job": {
+    "name": "20260724-opus-5",
+    "finished_at": "2026-07-25T01:59:45.339374Z"
+  },
+  "source_scope": "Every DeepSWE rollout across imported Pier jobs, grouped by configuration (harness + model + reasoning effort)",
+  "source_unit": "pass@1 is attempt pass rate over scored rollout attempts. pass@4 is tasks with at least one passing rollout divided by tasks attempted. Context-window failures and agent timeouts are scored failures; provider/verifier/network errors are excluded. Efficiency aggregates are over every scored attempt.",
+  "source_task_count": 113,
+  "source_row_count": 50,
+  "selected_csv": "deepswe-leaderboard-2026-07-25.csv",
+  "selected_csv_sha256": "074c2725314944cf247f56060fb5008a5a3e52e789066ccfffd35e2ca6c4a0f6",
+  "prior_snapshot": {
+    "path": "/mnt/data/Projects/Python/orchestra/data/uploads/photo_20260724_171140_100508.jpg",
+    "filesystem_mtime": "2026-07-25T00:11:42.666544891+07:00",
+    "figure_label": "DeepSWE v1.1: test-time compute scaling",
+    "claude_opus_5_max_pass_rate": 0.688
+  },
+  "live_comparison": {
+    "claude_opus_5_high_pass_rate": 0.7282850779510023,
+    "claude_opus_5_high_n_passed": 327,
+    "claude_opus_5_high_n_attempted": 449,
+    "claude_opus_5_max_pass_rate": 0.7364864864864865,
+    "claude_opus_5_max_n_passed": 327,
+    "claude_opus_5_max_n_attempted": 444,
+    "gpt_5_6_sol_max_pass_rate": 0.7266666666666667,
+    "gpt_5_6_sol_max_n_passed": 327,
+    "gpt_5_6_sol_max_n_attempted": 450
+  }
+}
