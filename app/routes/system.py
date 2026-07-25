@@ -678,10 +678,6 @@ async def _get_usage_data(
     force_refresh: bool = False,
     required_provider: str = "",
 ) -> dict:
-    if is_auth_enabled():
-        if required_provider:
-            raise RuntimeError("fresh provider usage is unavailable with auth enabled")
-        return {"usage": None}
     now = time.time()
 
     anthropic_data = None
@@ -757,6 +753,8 @@ async def _get_usage_data(
 
 @router.get("/api/usage")
 async def get_usage():
+    if is_auth_enabled():
+        return {"usage": None}
     return await _get_usage_data()
 
 

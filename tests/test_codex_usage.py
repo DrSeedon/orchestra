@@ -376,6 +376,43 @@ async def test_forced_provider_refresh_never_authorizes_stale_capacity(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_internal_provider_refresh_works_when_dashboard_auth_is_enabled(
+    monkeypatch,
+):
+    anthropic = {
+        "five_hour": {
+            "utilization": 0,
+            "resets_at": "2026-07-25T15:00:00Z",
+        }
+    }
+    monkeypatch.setattr(system, "is_auth_enabled", lambda: True)
+    monkeypatch.setattr(
+        system,
+        "_read_oauth_credentials",
+        lambda: ("token", None, None),
+    )
+    monkeypatch.setattr(
+        system,
+        "_fetch_anthropic_usage",
+        AsyncMock(return_value=anthropic),
+    )
+    monkeypatch.setattr(
+        system,
+        "_fetch_codex_usage",
+        AsyncMock(side_effect=RuntimeError("unused provider offline")),
+    )
+    monkeypatch.setattr(system, "_get_agents_cost", lambda: {})
+    monkeypatch.setattr(system, "_get_voice_cost_usd", lambda: 0.0)
+
+    providers = await system.current_provider_usage(
+        provider="anthropic",
+        force_refresh=True,
+    )
+
+    assert providers["anthropic"]["windows"][0]["utilization"] == 0
+
+
+@pytest.mark.asyncio
 async def test_fetch_codex_usage_uses_app_server_protocol(monkeypatch):
     class FakeStdin:
         def __init__(self):
