@@ -21,6 +21,7 @@
 - ALWAYS commit before reporting DONE — `git status` must be clean
 - Commit messages: `#<task-id>: <what you did>` (e.g. `#49: add rate limiting`)
 - WIP commits (when interrupted): `WIP #<task-id>: <what's unfinished and why>`
+- Upstream already killed a turn (503/timeout)? → commit every finished file/unit immediately, not one batch at the end
 - Never amend commits — create new ones
 
 ### Before merge

@@ -52,6 +52,7 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 <before-done>
 ## MANDATORY: Before reporting DONE
 - All changes committed (`git status` must be clean)
+- Touched shared runtime (message delivery, sessions, queues, locks, DB migrations)? → `codex_review` is MANDATORY regardless of diff size, and its findings are fixed before you report DONE
 - Code works — you ran/tested it
 - No leftover debug prints, TODOs, commented-out code
 - If you figured out something non-obvious — written to `docs/` or project files
