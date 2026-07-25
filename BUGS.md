@@ -168,3 +168,13 @@ Frozen DB measurement: 74 shell sleeps across 1,579 Codex-marked Bash calls (4.6
 - **Reporter:** Orchestra-orchestrator
 - **Scope:** /mnt/data/Projects/Python/orchestra
 Every Orchestra start logs: `Failed to resume worker gamedesign-researcher: role 'researcher' not resolvable in pipeline 'default': KeyError('researcher')`. The `researcher` role was merged into full-cycle and removed from pipeline.yaml, but this session still references it. The worker is permanently unloadable. Needs role migration or archival.
+
+## [2026-07-25 13:36 UTC] codex_review plan target timed out after reading unrelated BUGS.md and wrote no artifact
+- **Reporter:** polish-tg
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Worker polish-tg called codex_review(mode=exec, target=docs/tasks/polish-tg/plan.md, output=docs/tasks/polish-tg/codex-review-plan.md). Job bg-a7fa044d22 hit the 10-minute timeout. Partial output consisted of unrelated BUGS.md entries (model persistence, TG incident, codex sleep, deleted researcher role), not a review of plan.md. The promised output file was never created. Worktree/path was correct and plan.md exists (244 lines). Will retry the same output/session with a narrower prompt; no workaround by skipping review because this task requires it.
+
+## [2026-07-25 13:47 UTC] codex_review retry ignored plan and entered Serena onboarding
+- **Reporter:** polish-tg
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Second attempt for polish-tg plan review, bg-6d2189ac4a, again timed out after 10 minutes with no docs/tasks/polish-tg/codex-review-plan.md. Despite prompt forbidding unrelated files, partial output read README architecture/marketing and then called serena.write_memory(project_overview.md), i.e. entered onboarding instead of reviewing the target. This confirms the review runner is not honoring the supplied target/context and may be inheriting an uninitialized Serena project/CWD. One final attempt will use absolute target and explicitly prohibit MCP; then worker must fall back to documented self-review rather than loop.
