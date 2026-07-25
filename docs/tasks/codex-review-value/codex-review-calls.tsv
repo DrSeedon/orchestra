@@ -1,0 +1,99 @@
+log_id	worker	backend	role	scope	ts	output	mode	target	resume	worker_backend
+263279	subscription-analyzer	claude	full-cycle	COG-second-brain	2026-07-18T03:34	docs/tasks/subscription-analyzer/codex-review-research.md	exec	docs/tasks/subscription-analyzer/researc	false	claude
+266784	research-codex-cache	codex	full-cycle	orchestra	2026-07-18T09:15	docs/tasks/codex-cache-research/codex-review-plan.md	exec	docs/tasks/codex-cache-research/plan.md	false	sol
+267022	research-codex-cache	codex	full-cycle	orchestra	2026-07-18T09:19	docs/tasks/codex-cache-research/codex-review-plan.md	review		true	sol
+267127	research-codex-cache	codex	full-cycle	orchestra	2026-07-18T09:21	docs/tasks/codex-cache-research/codex-review-plan.md	review		true	sol
+267390	research-self-improve	codex	full-cycle	orchestra	2026-07-18T09:37	docs/tasks/self-improve-survey/codex-review-research.md	exec	docs/tasks/self-improve-survey/research.	false	sol
+267399	research-codex-cache	codex	full-cycle	orchestra	2026-07-18T09:38	docs/tasks/codex-cache-research/codex-review-impl.md	review		false	sol
+267427	research-self-improve	codex	full-cycle	orchestra	2026-07-18T09:40	docs/tasks/self-improve-survey/codex-review-research.md	exec	docs/tasks/self-improve-survey/research.	false	sol
+269269	codex-limits-official	codex	full-cycle	orchestra	2026-07-18T10:52		review		false	sol
+269497	codex-limits-community	claude	full-cycle	orchestra	2026-07-18T10:54	docs/tasks/codex-limits-community/codex-review-research.md	exec	docs/tasks/codex-limits-community/resear	false	claude
+269674	codex-limits-official	codex	full-cycle	orchestra	2026-07-18T10:56		review		false	sol
+269806	research-spark	codex	full-cycle	orchestra	2026-07-18T10:57	docs/tasks/spark-comparison/codex-review-research.md	exec	docs/tasks/spark-comparison/research.md	false	sol
+270065	codex-limits-source	codex	full-cycle	orchestra	2026-07-18T11:01	docs/tasks/codex-limits-source/codex-review-research.md	exec	docs/tasks/codex-limits-source/research.	false	sol
+270103	research-spark	codex	full-cycle	orchestra	2026-07-18T11:02	docs/tasks/spark-comparison/codex-review-research.md	review		true	sol
+270240	codex-limits-source	codex	full-cycle	orchestra	2026-07-18T11:04	docs/tasks/codex-limits-source/codex-review-research.md	exec	docs/tasks/codex-limits-source/research.	false	sol
+270312	research-codex-abuse	codex	full-cycle	orchestra	2026-07-18T11:05	docs/tasks/codex-limits-abuse/codex-review-research.md	exec	docs/tasks/codex-limits-abuse/research.m	false	sol
+270467	research-codex-abuse	codex	full-cycle	orchestra	2026-07-18T11:09	docs/tasks/codex-limits-abuse/codex-review-research.md	review		true	sol
+270585	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T11:16	docs/tasks/2/codex-review-research.md	exec	docs/tasks/2/research.md	false	sol
+270621	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T11:19	docs/tasks/1/codex-review-research.md	exec	docs/tasks/1/research.md	false	sol
+270668	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T11:21	docs/tasks/2/codex-review-research.md	review		true	sol
+270726	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T11:24	docs/tasks/1/codex-review-research.md	review		true	sol
+270935	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T11:33	docs/tasks/2/codex-review-plan.md	exec	docs/tasks/2/plan.md	false	sol
+270973	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T11:38	docs/tasks/2/codex-review-plan.md	review		true	sol
+271057	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T11:42	docs/tasks/1/codex-review-plan.md	exec	docs/tasks/1/plan.md	false	sol
+271123	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T11:46	docs/tasks/1/codex-review-plan.md	review		true	sol
+271141	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T11:48	docs/tasks/1/codex-review-plan.md	review		true	sol
+271449	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T12:16	docs/tasks/2/reader-test.md	exec	docs/tasks/2/document-source.md	false	sol
+271461	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T12:17	docs/tasks/2/reader-test.md	review		true	sol
+271476	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T12:18	docs/tasks/2/codex-review-impl.md	review		false	sol
+271519	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T12:21	docs/tasks/2/codex-review-impl.md	review		true	sol
+271962	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T13:18	docs/tasks/1/reader-test-main.md	exec	docs/tasks/1/proposal.md	false	sol
+271964	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T13:18	docs/tasks/1/reader-test-memo.md	exec	docs/tasks/1/executive-memo.md	false	sol
+271994	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T13:22	docs/tasks/1/reader-test-memo.md	review		true	sol
+272007	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T13:23	docs/tasks/1/codex-review-document.md	exec	docs/tasks/1/proposal.md	false	sol
+272145	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T13:33	docs/tasks/1/codex-review-impl.md	review		false	sol
+272231	sensar-roadmap	codex	full-cycle	Sensar	2026-07-18T13:40	docs/tasks/1/codex-review-impl.md	review		true	sol
+272470	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T13:53	docs/tasks/2/reader-test.md	exec	docs/tasks/2/document-source.md	false	sol
+272517	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T13:56	docs/tasks/2/codex-review-impl.md	review		false	sol
+272589	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-18T13:58	docs/tasks/2/codex-review-impl.md	review		true	sol
+273338	audit-both-projects	claude	full-cycle	Sensar	2026-07-19T07:10	docs/tasks/11/codex-review-audit.md	exec	docs/tasks/11/verdict.md	false	claude
+273983	sensar-roadmap	codex	full-cycle	Sensar	2026-07-19T07:54	docs/tasks/1/reader-test-audit-fix-main.md	exec	docs/tasks/1/proposal.md	false	sol
+274005	sensar-roadmap	codex	full-cycle	Sensar	2026-07-19T07:55	docs/tasks/1/reader-test-audit-fix-memo.md	exec	docs/tasks/1/executive-memo.md	false	sol
+274051	sensar-roadmap	codex	full-cycle	Sensar	2026-07-19T07:57	docs/tasks/1/reader-test-audit-fix-memo.md	review		true	sol
+274119	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-19T08:01	docs/tasks/2/codex-review-impl-13.md	review		false	sol
+274156	sensar-roadmap	codex	full-cycle	Sensar	2026-07-19T08:03	docs/tasks/1/codex-review-audit-fix.md	review		false	sol
+274164	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-19T08:04	docs/tasks/2/codex-review-impl-13.md	review		true	sol
+274201	mobile-os-strategy	codex	full-cycle	Sensar	2026-07-19T08:06	docs/tasks/2/codex-review-impl-13.md	review		true	sol
+274552	sensar-roadmap	codex	full-cycle	Sensar	2026-07-19T08:38	docs/tasks/1/codex-review-audit-fix.md	review		true	sol
+274751	sensar-client-offer	claude	full-cycle	Sensar	2026-07-19T09:08	docs/tasks/15/codex-review-research.md	exec	docs/tasks/15/research.md	false	claude
+274777	sensar-client-offer	claude	full-cycle	Sensar	2026-07-19T09:10	docs/tasks/15/codex-review-research.md	exec	docs/tasks/15/research.md	false	claude
+274834	sensar-client-offer	claude	full-cycle	Sensar	2026-07-19T09:16	docs/tasks/15/codex-review-plan.md	exec	docs/tasks/15/plan.md	false	claude
+275195	sensar-client-offer	claude	full-cycle	Sensar	2026-07-19T09:44	docs/tasks/15/codex-review-impl.md	exec	docs/tasks/15/sensar-commercial-proposal	false	claude
+275233	sensar-client-offer	claude	full-cycle	Sensar	2026-07-19T09:49	docs/tasks/15/codex-review-impl.md	exec	docs/tasks/15/sensar-stage1-sow.md	true	claude
+275982	sensar-concrete-roadmap	claude	full-cycle	Sensar	2026-07-19T13:55	docs/tasks/16/codex-review-research.md	exec	docs/tasks/16/research.md	false	claude
+275997	sensar-concrete-roadmap	claude	full-cycle	Sensar	2026-07-19T14:05	docs/tasks/16/codex-review-research.md	exec	docs/tasks/16/research.md	true	claude
+276265	sensar-concrete-roadmap	claude	full-cycle	Sensar	2026-07-20T03:32	docs/tasks/16/codex-review-plan.md	exec	docs/tasks/16/plan.md	false	claude
+276449	sensar-concrete-roadmap	claude	full-cycle	Sensar	2026-07-20T03:53	docs/tasks/16/codex-review-impl.md	exec	docs/tasks/16/sow-stage1.md	false	claude
+276635	sensar-concrete-roadmap	claude	full-cycle	Sensar	2026-07-20T04:07	docs/tasks/16/codex-review-impl.md	exec	docs/tasks/16/sow-stage1.md	true	claude
+276877	sensar-product-platform	claude	full-cycle	Sensar	2026-07-20T04:53	docs/tasks/17/codex-review-research.md	exec	docs/tasks/17/research.md	false	claude
+276907	sensar-product-platform	claude	full-cycle	Sensar	2026-07-20T04:54	docs/tasks/17/codex-review-research.md	review		false	claude
+277122	sensar-product-platform	claude	full-cycle	Sensar	2026-07-20T05:49	docs/tasks/17/codex-review-plan.md	exec	docs/tasks/17/plan.md	false	claude
+277389	sensar-product-platform	claude	full-cycle	Sensar	2026-07-20T06:13	docs/tasks/17/codex-review-impl.md	exec	docs/tasks/17/sensar-software-portfolio.	false	claude
+277417	sensar-product-platform	claude	full-cycle	Sensar	2026-07-20T06:24	docs/tasks/17/codex-review-impl.md	review		false	claude
+279940	research-subscription	claude	full-cycle	orchestra	2026-07-21T06:56	docs/tasks/subscription-strategy/codex-review-research.md	exec	docs/tasks/subscription-strategy/researc	false	claude
+280587	feat-outreach-audit	claude	full-cycle	COG-second-brain	2026-07-21T12:38	docs/tasks/outreach-audit/codex-review-research.md	exec	docs/tasks/outreach-audit/research.md	false	claude
+282331	pricing-research	claude	full-cycle	seedon	2026-07-23T10:25	docs/tasks/155/codex-review-research.md	exec	docs/tasks/155/research.md	false	claude
+282368	pricing-research	claude	full-cycle	seedon	2026-07-23T10:33	docs/tasks/155/codex-review-research.md	exec	docs/tasks/155/research.md	true	claude
+284945	research-models	claude	full-cycle	orchestra	2026-07-24T02:57	docs/tasks/non-tech-models/codex-review.md	exec	docs/tasks/non-tech-models/research.md	false	claude
+286612	sales	codex	full-cycle	seedon	2026-07-24T04:34	docs/tasks/148/codex-review-plan.md	exec	docs/tasks/148/plan.md	false	sol
+286747	investigate-restart	codex	full-cycle	kesha-tg-bot	2026-07-24T04:37	docs/tasks/11/codex-review-research.md	exec	/mnt/data/Projects/Python/orchestra/work	false	sol
+286977	sales	codex	full-cycle	seedon	2026-07-24T04:40	docs/tasks/148/codex-review-plan.md	review		true	sol
+287116	investigate-restart	codex	full-cycle	kesha-tg-bot	2026-07-24T04:43	docs/tasks/11/codex-review-research.md	exec	/mnt/data/Projects/Python/orchestra/work	true	sol
+287374	sales	codex	full-cycle	seedon	2026-07-24T04:52	docs/tasks/148/codex-review-impl.md	review		false	sol
+287436	sales	codex	full-cycle	seedon	2026-07-24T04:58	docs/tasks/148/codex-review-impl.md	review		true	sol
+288031	research-html-eff	codex	full-cycle	orchestra	2026-07-24T13:14	docs/tasks/html-effectiveness/codex-review-research.md	exec	docs/tasks/html-effectiveness/research.m	false	sol
+288092	research-html-eff	codex	full-cycle	orchestra	2026-07-24T13:23	docs/tasks/html-effectiveness/codex-review-research.md	review		true	sol
+288518	research-codex-cost	codex	full-cycle	orchestra	2026-07-24T13:53	docs/tasks/codex-cost/codex-review-research.md	exec	docs/tasks/codex-cost/research.md	false	sol
+288610	research-codex-cost	codex	full-cycle	orchestra	2026-07-24T14:07	docs/tasks/codex-cost/codex-review-research.md	review		true	sol
+288664	research-codex-cost	codex	full-cycle	orchestra	2026-07-24T14:16	docs/tasks/codex-cost/codex-review-research.md	review		true	sol
+288919	research-opus5	codex	full-cycle	orchestra	2026-07-24T17:23	docs/tasks/opus5-routing/codex-review-research.md	exec	docs/tasks/opus5-routing/research.md	false	sol
+288965	research-opus5	codex	full-cycle	orchestra	2026-07-24T17:33	docs/tasks/opus5-routing/codex-review-research.md	exec	docs/tasks/opus5-routing/research.md	true	sol
+289010	research-opus5	codex	full-cycle	orchestra	2026-07-24T17:37	docs/tasks/opus5-routing/codex-review-research.md	exec	docs/tasks/opus5-routing/research.md	true	sol
+289467	upgrade-claude5	codex	full-cycle	kesha-tg-bot	2026-07-25T03:54	docs/tasks/12/codex-review-research.md	exec	/mnt/data/Projects/Python/orchestra/work	false	sol
+290047	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T04:19	docs/tasks/codex-sleep/codex-review-research.md	exec	docs/tasks/codex-sleep/research.md	false	sol
+290068	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T04:30	docs/tasks/codex-sleep/codex-review-research.md	exec	docs/tasks/codex-sleep/research.md	true	sol
+290355	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T04:42	docs/tasks/codex-sleep/codex-review-plan.md	exec	docs/tasks/codex-sleep/plan.md	false	sol
+290436	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T04:46	docs/tasks/codex-sleep/codex-review-plan.md	exec	docs/tasks/codex-sleep/plan.md	true	sol
+290446	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T04:48	docs/tasks/codex-sleep/codex-review-plan.md	exec	docs/tasks/codex-sleep/plan.md	true	sol
+290575	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T04:59	docs/tasks/codex-sleep/codex-review-impl.md	review		false	sol
+290605	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T05:00	docs/tasks/codex-sleep/codex-review-impl.md	review		true	sol
+290619	research-codex-sleep	codex	full-cycle	orchestra	2026-07-25T05:11	docs/tasks/codex-sleep/codex-review-impl.md	exec	app/routes/sessions.py	true	sol
+290896	feat-usage-analytics	codex	full-cycle	orchestra	2026-07-25T08:09	docs/tasks/usage-analytics/codex-review-research.md	exec	docs/tasks/usage-analytics/research.md	false	sol
+290910	feat-usage-analytics	codex	full-cycle	orchestra	2026-07-25T08:19	docs/tasks/usage-analytics/codex-review-research.md	exec	docs/tasks/usage-analytics/research.md	true	sol
+291015	feat-usage-analytics	codex	full-cycle	orchestra	2026-07-25T08:30	docs/tasks/usage-analytics/codex-review-plan.md	exec	docs/tasks/usage-analytics/plan.md	false	sol
+291028	feat-usage-analytics	codex	full-cycle	orchestra	2026-07-25T08:41	docs/tasks/usage-analytics/codex-review-plan.md	exec	docs/tasks/usage-analytics/plan.md	true	sol
+291048	feat-usage-analytics	codex	full-cycle	orchestra	2026-07-25T08:44	docs/tasks/usage-analytics/codex-review-plan.md	exec	docs/tasks/usage-analytics/plan.md	true	sol
+291569	feat-usage-analytics	codex	full-cycle	orchestra	2026-07-25T10:15	docs/tasks/usage-analytics/codex-review-impl.md	review		false	sol
+291775	research-opus5	codex	full-cycle	orchestra	2026-07-25T10:28	docs/tasks/opus5-routing/codex-review-research.md	exec	docs/tasks/opus5-routing/research.md	true	sol
+292033	feat-usage-analytics	codex	full-cycle	orchestra	2026-07-25T10:36	docs/tasks/usage-analytics/codex-review-impl.md	review		true	sol
