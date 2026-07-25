@@ -341,6 +341,41 @@ async def test_missing_anthropic_credentials_preserves_codex_capacity(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_forced_provider_refresh_never_authorizes_stale_capacity(monkeypatch):
+    monkeypatch.setattr(system, "is_auth_enabled", lambda: False)
+    monkeypatch.setattr(
+        system,
+        "_usage_cache",
+        {
+            "data": {
+                "five_hour": {
+                    "utilization": 20,
+                    "resets_at": "2026-07-25T15:00:00Z",
+                }
+            },
+            "ts": time.time(),
+            "token": None,
+        },
+    )
+    monkeypatch.setattr(
+        system,
+        "_read_oauth_credentials",
+        lambda: ("token", None, None),
+    )
+    monkeypatch.setattr(
+        system,
+        "_fetch_anthropic_usage",
+        AsyncMock(side_effect=RuntimeError("offline")),
+    )
+
+    with pytest.raises(RuntimeError, match="fresh Anthropic usage"):
+        await system.current_provider_usage(
+            provider="anthropic",
+            force_refresh=True,
+        )
+
+
+@pytest.mark.asyncio
 async def test_fetch_codex_usage_uses_app_server_protocol(monkeypatch):
     class FakeStdin:
         def __init__(self):

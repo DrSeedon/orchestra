@@ -35,21 +35,24 @@ def test_find_limit_stopped_agents_only_returns_latest_limited_turn():
         "limited": [
             _log(1, "status", "turn ended (end_turn, 2 turns)"),
             _log(2, "text", "You've hit your weekly usage limit"),
-            _log(3, "status", "turn ended (stop_sequence, 1 turns)"),
+            _log(3, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+            _log(4, "status", "turn ended (stop_sequence, 1 turns)"),
         ],
         "recovered": [
-            _log(4, "text", "You've hit your weekly usage limit"),
-            _log(5, "status", "turn ended (stop_sequence, 1 turns)"),
-            _log(6, "user_message", "continue"),
-            _log(7, "status", "turn ended (end_turn, 2 turns)"),
+            _log(5, "text", "You've hit your weekly usage limit"),
+            _log(6, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+            _log(7, "status", "turn ended (stop_sequence, 1 turns)"),
+            _log(8, "user_message", "continue"),
+            _log(9, "status", "turn ended (end_turn, 2 turns)"),
         ],
         "ordinary": [
-            _log(8, "text", "done"),
-            _log(9, "status", "turn ended (end_turn, 1 turns)"),
+            _log(10, "text", "done"),
+            _log(11, "status", "turn ended (end_turn, 1 turns)"),
         ],
         "running": [
-            _log(10, "text", "You've hit your usage limit"),
-            _log(11, "status", "turn ended (stop_sequence, 1 turns)"),
+            _log(12, "text", "You've hit your usage limit"),
+            _log(13, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+            _log(14, "status", "turn ended (stop_sequence, 1 turns)"),
         ],
     }
 
@@ -58,7 +61,7 @@ def test_find_limit_stopped_agents_only_returns_latest_limited_turn():
             **sessions[0],
             "limit_kind": "timed",
             "provider": "anthropic",
-            "limit_turn_id": 3,
+            "limit_turn_id": 4,
         }
     ]
 
@@ -83,6 +86,46 @@ def test_find_limit_stopped_agents_preserves_monthly_limit_over_generic_status()
     agents = find_limit_stopped_agents([session], logs)
 
     assert agents[0]["limit_kind"] == "monthly"
+
+
+def test_limit_phrase_in_normal_assistant_text_is_not_terminal_evidence():
+    from app.limit_wake import find_limit_stopped_agents
+
+    session = _session("normal", "normal-worker", "claude-opus-5[1m]")
+    logs = {
+        "normal": [
+            _log(1, "text", "The weekly usage limit is documented here."),
+            _log(2, "status", "turn ended (end_turn, 1 turns)"),
+        ]
+    }
+
+    assert find_limit_stopped_agents([session], logs) == []
+
+
+def test_limit_detection_uses_event_timestamp_when_log_ids_commit_out_of_order():
+    from app.limit_wake import find_limit_stopped_agents
+
+    session = _session("limited", "limited-worker", "claude-opus-5[1m]")
+    logs = {
+        "limited": [
+            {
+                **_log(12, "text", "You've hit your weekly usage limit"),
+                "ts": "2026-07-25T12:00:00.100000+00:00",
+            },
+            {
+                **_log(11, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+                "ts": "2026-07-25T12:00:00.200000+00:00",
+            },
+            {
+                **_log(10, "status", "turn ended (stop_sequence, 1 turns)"),
+                "ts": "2026-07-25T12:00:00.300000+00:00",
+            },
+        ]
+    }
+
+    agents = find_limit_stopped_agents([session], logs)
+
+    assert agents[0]["limit_turn_id"] == 10
 
 
 def test_build_wake_plan_uses_latest_blocking_provider_window():
@@ -298,6 +341,81 @@ async def test_wake_job_stops_before_second_agent_when_limit_closes(
     row = next(job for job in bg_get_jobs() if job["id"] == "wake-job")
     assert row["status"] == "triggered"
     assert "limit is still active" in row["last_output"]
+    config = json.loads(row["config"])
+    assert config["deliveries"]["a"]["state"] == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_wake_job_reconciles_claimed_delivery_without_duplicate_send(
+    wake_db, monkeypatch
+):
+    from app.db import bg_get_jobs, bg_save_job
+    from app.limit_wake import run_wake_job
+    from app.routes import system
+
+    target = {
+        "id": "a",
+        "name": "worker-a",
+        "scope": "/project",
+        "limit_turn_id": 10,
+    }
+    config = {
+        "action": "wake_subscription_limited",
+        "provider": "anthropic",
+        "agents": [target],
+        "deliveries": {
+            "a": {"state": "claimed", "token": "durable-token"},
+        },
+    }
+    now = datetime.now(timezone.utc)
+    bg_save_job({
+        "id": "replayed-wake",
+        "type": "timer",
+        "config": json.dumps(config),
+        "message": "",
+        "target_session_id": "__system__",
+        "target_name": "__system__",
+        "target_scope": "__global__",
+        "created_by_name": "dashboard",
+        "status": "active",
+        "expires_at": (now + timedelta(hours=1)).isoformat(),
+        "trigger_at": now.isoformat(),
+        "created_at": now.isoformat(),
+        "last_output": "",
+    })
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [{
+            **_session("a", "worker-a", "claude-opus-5[1m]"),
+            "limit_kind": "timed",
+            "provider": "anthropic",
+            "limit_turn_id": 10,
+        }],
+    )
+    monkeypatch.setattr(
+        "app.limit_wake._wake_token_seen",
+        lambda session_id, token: token == "durable-token",
+    )
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(return_value={
+            "anthropic": {"windows": [{"utilization": 0}]},
+        }),
+    )
+    manager = MagicMock()
+    manager.ensure_loaded = AsyncMock()
+
+    await run_wake_job(
+        "replayed-wake",
+        config,
+        manager,
+        stagger_seconds=0,
+    )
+
+    manager.ensure_loaded.assert_not_awaited()
+    row = next(job for job in bg_get_jobs() if job["id"] == "replayed-wake")
+    assert json.loads(row["config"])["deliveries"]["a"]["state"] == "delivered"
 
 
 @pytest.mark.asyncio

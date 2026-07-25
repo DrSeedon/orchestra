@@ -673,8 +673,14 @@ def _get_voice_cost_usd() -> float:
     return voice_cost_total_usd()
 
 
-async def _get_usage_data(*, force_refresh: bool = False) -> dict:
+async def _get_usage_data(
+    *,
+    force_refresh: bool = False,
+    required_provider: str = "",
+) -> dict:
     if is_auth_enabled():
+        if required_provider:
+            raise RuntimeError("fresh provider usage is unavailable with auth enabled")
         return {"usage": None}
     now = time.time()
 
@@ -715,11 +721,14 @@ async def _get_usage_data(*, force_refresh: bool = False) -> dict:
 
         if anthropic_data is None:
             anthropic_data = _usage_cache["data"]
+        if required_provider == "anthropic" and not anthropic_fetched:
+            raise RuntimeError("fresh Anthropic usage is unavailable")
         if anthropic_fetched:
             _usage_cache["data"] = anthropic_data
             _usage_cache["ts"] = now
             _save_usage_cache()
 
+    codex_fetched = False
     if (
         not force_refresh
         and _codex_usage_cache["data"]
@@ -729,11 +738,14 @@ async def _get_usage_data(*, force_refresh: bool = False) -> dict:
     else:
         try:
             codex_data = await _fetch_codex_usage()
+            codex_fetched = codex_data is not None
             _codex_usage_cache["data"] = codex_data
             _codex_usage_cache["ts"] = now
         except Exception as e:
             logger.warning(f"Codex usage fetch failed: {e}")
             codex_data = _codex_usage_cache["data"]
+    if required_provider in {"codex", "codex_spark"} and not codex_fetched:
+        raise RuntimeError("fresh Codex usage is unavailable")
 
     return {
         "anthropic": anthropic_data,
@@ -748,9 +760,16 @@ async def get_usage():
     return await _get_usage_data()
 
 
-async def current_provider_usage(*, force_refresh: bool = False) -> dict:
+async def current_provider_usage(
+    *,
+    provider: str = "",
+    force_refresh: bool = False,
+) -> dict:
     """Return the normalized provider windows used by scheduling and wake guards."""
-    usage = await _get_usage_data(force_refresh=force_refresh)
+    usage = await _get_usage_data(
+        force_refresh=force_refresh,
+        required_provider=provider if force_refresh else "",
+    )
     return _provider_usage_snapshot(
         usage.get("anthropic"),
         usage.get("codex"),

@@ -1193,6 +1193,16 @@ def bg_update_output(job_id: str, output: str) -> None:
         c.execute("UPDATE bg_jobs SET last_output=? WHERE id=?", (output[-3000:], job_id))
 
 
+def bg_update_config(job_id: str, config: dict, output: str = "") -> bool:
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE bg_jobs SET config=?, last_output=? "
+            "WHERE id=? AND status='triggering'",
+            (json.dumps(config), output[-3000:], job_id),
+        )
+        return cur.rowcount > 0
+
+
 def bg_get_jobs(scope: str | None = None, session_id: str | None = None,
                 active_only: bool = False) -> list[dict]:
     with _conn() as c:

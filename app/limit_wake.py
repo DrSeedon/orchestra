@@ -4,13 +4,14 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from app.db import (
     _conn,
     bg_finish_trigger,
     bg_get_active_all,
     bg_claim_trigger,
-    bg_update_output,
+    bg_update_config,
     get_all_sessions,
     usage_get_latest_provider_usage,
 )
@@ -24,9 +25,7 @@ WAKE_ACTION = "wake_subscription_limited"
 WAKE_JOB_PREFIX = "wake-limit-"
 WAKE_STAGGER_SECONDS = 30
 MANUAL_ACTION_URL = "https://claude.ai/settings/usage"
-WAKE_MESSAGE = (
-    "[system] Лимит подписки сброшен. Продолжай с того места, где остановился."
-)
+WAKE_MESSAGE_PREFIX = "[system wake:"
 
 
 def _provider_for_model(model: str) -> str:
@@ -38,7 +37,13 @@ def _provider_for_model(model: str) -> str:
 
 
 def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
-    ordered = sorted(logs, key=lambda row: row["id"])
+    use_timestamps = all(row.get("ts") for row in logs)
+    key = (
+        (lambda row: (row["ts"], row["id"]))
+        if use_timestamps
+        else (lambda row: row["id"])
+    )
+    ordered = sorted(logs, key=key)
     turn_ends = [
         row for row in ordered
         if row["type"] == "status" and row["content"].startswith("turn ended")
@@ -46,25 +51,35 @@ def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
     if not turn_ends:
         return None
     latest = turn_ends[-1]
+    latest_key = key(latest)
     if any(
-        row["id"] > latest["id"] and row["type"] == "user_message"
+        key(row) > latest_key
+        and row["type"] == "user_message"
+        and not row["content"].startswith(WAKE_MESSAGE_PREFIX)
         for row in ordered
     ):
         return None
-    previous_id = turn_ends[-2]["id"] if len(turn_ends) > 1 else 0
+    if "stop_sequence" not in latest["content"]:
+        return None
+    previous_key = key(turn_ends[-2]) if len(turn_ends) > 1 else None
     turn_logs = [
         row for row in ordered
-        if previous_id < row["id"] <= latest["id"]
+        if (previous_key is None or key(row) > previous_key)
+        and key(row) <= latest_key
         and row["type"] in {"text", "error", "status"}
     ]
-    kinds = {
-        kind
+    terminal_marker = any(
+        row["type"] in {"error", "status"}
+        and "subscription limit — ждём сброса квоты" in row["content"].lower()
         for row in turn_logs
-        if (kind := _subscription_limit_kind(row["content"]))
-    }
-    if not kinds:
+    )
+    if not terminal_marker:
         return None
-    return ("monthly" if "monthly" in kinds else "timed", latest["id"])
+    monthly = any(
+        _subscription_limit_kind(row["content"]) == "monthly"
+        for row in turn_logs
+    )
+    return ("monthly" if monthly else "timed", latest["id"])
 
 
 def find_limit_stopped_agents(
@@ -172,26 +187,25 @@ def _load_limit_stopped_agents() -> list[dict]:
         rows = connection.execute(
             """
             WITH ranked_ends AS (
-                SELECT session_id, id,
+                SELECT session_id, id, ts,
                     ROW_NUMBER() OVER (
-                        PARTITION BY session_id ORDER BY id DESC
+                        PARTITION BY session_id ORDER BY ts DESC, id DESC
                     ) AS rank
                 FROM logs
                 WHERE type='status' AND content LIKE 'turn ended%'
             ),
             bounds AS (
                 SELECT session_id,
-                    MAX(CASE WHEN rank=1 THEN id END) AS latest_id,
-                    COALESCE(MAX(CASE WHEN rank=2 THEN id END), 0) AS previous_id
+                    MAX(CASE WHEN rank=2 THEN ts END) AS previous_ts
                 FROM ranked_ends
                 WHERE rank <= 2
                 GROUP BY session_id
             )
-            SELECT logs.session_id, logs.id, logs.type, logs.content
+            SELECT logs.session_id, logs.id, logs.ts, logs.type, logs.content
             FROM logs
             JOIN bounds ON bounds.session_id=logs.session_id
-            WHERE logs.id > bounds.previous_id
-            ORDER BY logs.session_id, logs.id
+            WHERE bounds.previous_ts IS NULL OR logs.ts > bounds.previous_ts
+            ORDER BY logs.session_id, logs.ts, logs.id
             """
         ).fetchall()
         for row in rows:
@@ -290,6 +304,27 @@ def provider_is_available(provider_usage: dict, provider: str) -> bool:
     return bool(observed) and all(utilization < 100 for utilization in observed)
 
 
+def _wake_token_seen(session_id: str, token: str) -> bool:
+    with _conn() as connection:
+        row = connection.execute(
+            "SELECT 1 FROM logs WHERE session_id=? AND type='user_message' "
+            "AND content LIKE ? LIMIT 1",
+            (session_id, f"{WAKE_MESSAGE_PREFIX}{token}]%"),
+        ).fetchone()
+    return row is not None
+
+
+def _persist_deliveries(
+    job_id: str,
+    config: dict,
+    deliveries: dict,
+    output: str,
+) -> None:
+    config["deliveries"] = deliveries
+    if not bg_update_config(job_id, config, output):
+        raise RuntimeError("wake job is no longer triggering")
+
+
 async def run_wake_job(
     job_id: str,
     config: dict,
@@ -305,14 +340,22 @@ async def run_wake_job(
         agent["id"]: agent["limit_turn_id"]
         for agent in config.get("agents") or []
     }
-    sent = []
+    deliveries = config.setdefault("deliveries", {})
+    sent = [
+        agent_id
+        for agent_id, delivery in deliveries.items()
+        if delivery.get("state") == "delivered"
+    ]
     outcome = ""
     try:
         targets = config.get("agents") or []
         for index, target in enumerate(targets):
             from app.routes.system import current_provider_usage
 
-            provider_usage = await current_provider_usage(force_refresh=True)
+            provider_usage = await current_provider_usage(
+                provider=provider,
+                force_refresh=True,
+            )
             if not provider_is_available(provider_usage, provider):
                 outcome = f"stopped: {provider} limit is still active"
                 break
@@ -332,6 +375,24 @@ async def run_wake_job(
             if outcome:
                 break
 
+            target_id = target["id"]
+            delivery = deliveries.get(target_id) or {}
+            if delivery.get("state") == "delivered":
+                continue
+            if delivery.get("state") == "claimed":
+                if _wake_token_seen(target_id, delivery["token"]):
+                    delivery["state"] = "delivered"
+                    if target_id not in sent:
+                        sent.append(target_id)
+                    _persist_deliveries(
+                        job_id,
+                        config,
+                        deliveries,
+                        f"woke {len(sent)} agents",
+                    )
+                    continue
+                deliveries.pop(target_id, None)
+
             agent = current.get(target["id"])
             if not agent or agent["limit_turn_id"] != target["limit_turn_id"]:
                 continue
@@ -340,9 +401,37 @@ async def run_wake_job(
             )
             if not session or session.status == AgentStatus.RUNNING:
                 continue
-            await session.send(WAKE_MESSAGE)
-            sent.append(target["id"])
-            bg_update_output(job_id, f"woke {len(sent)} agents")
+            token = uuid4().hex
+            deliveries[target_id] = {"state": "claimed", "token": token}
+            _persist_deliveries(
+                job_id,
+                config,
+                deliveries,
+                f"claiming {target['name']}",
+            )
+            message = (
+                f"{WAKE_MESSAGE_PREFIX}{token}] Лимит подписки сброшен. "
+                "Продолжай с того места, где остановился."
+            )
+            try:
+                await session.send(message)
+            except Exception:
+                deliveries.pop(target_id, None)
+                _persist_deliveries(
+                    job_id,
+                    config,
+                    deliveries,
+                    f"delivery failed for {target['name']}",
+                )
+                raise
+            deliveries[target_id]["state"] = "delivered"
+            sent.append(target_id)
+            _persist_deliveries(
+                job_id,
+                config,
+                deliveries,
+                f"woke {len(sent)} agents",
+            )
             if stagger_seconds and index < len(targets) - 1:
                 await asyncio.sleep(stagger_seconds)
     except Exception as error:
