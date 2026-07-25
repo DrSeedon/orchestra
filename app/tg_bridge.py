@@ -1118,7 +1118,7 @@ async def _on_session_scope_running(s) -> None:
 async def _sync_all_topic_statuses():
     if not _manager or not bot:
         return
-    for s in _manager.sessions.values():
+    for s in list(_manager.sessions.values()):
         if s.role not in ("orchestrator", "sub-orchestrator"):
             continue
         name = s.name
@@ -1132,9 +1132,10 @@ async def _sync_all_topic_statuses():
 # Custom emoji IDs in the target TG group — green dot for running, grey for idle
 _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
+_TG_TOPIC_STATUS_TIMEOUT = 5
 
 
-# Deduplicated topic icon updates with flood-control retry (like _tg_send_safe)
+# Topic metadata is best-effort and stays outside the user-message delivery queue.
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
@@ -1142,20 +1143,20 @@ async def _update_topic_status(orch_name: str, is_running: bool):
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
 
     async def _do_edit(chat_id, thread_id):
-        async def _edit():
-            try:
+        try:
+            async with asyncio.timeout(_TG_TOPIC_STATUS_TIMEOUT):
                 return await bot.edit_forum_topic(
                     chat_id=chat_id, message_thread_id=thread_id,
                     name=short, icon_custom_emoji_id=icon_id,
+                    request_timeout=_TG_TOPIC_STATUS_TIMEOUT,
                 )
-            except TelegramBadRequest as e:
-                if "TOPIC_NOT_MODIFIED" in str(e).upper():
-                    return True
-                raise
-
-        return await _tg_call_safe(
-            chat_id, _edit, label="topic_status", important=True,
-        )
+        except TelegramBadRequest as e:
+            if "TOPIC_NOT_MODIFIED" in str(e).upper():
+                return True
+            logger.debug(f"TG topic_status failed: {e}")
+        except Exception as e:
+            logger.debug(f"TG topic_status failed: {e}")
+        return None
 
     thread_id = config["topics"].get(orch_name)
     primary_updated = False
@@ -1860,7 +1861,7 @@ async def _deferred_startup():
     try:
         await ensure_topics()
         await _sync_all_topic_statuses()
-        for name, thread_id in config["topics"].items():
+        for name, thread_id in list(config["topics"].items()):
             _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
         _tasks.append(asyncio.create_task(topic_sync_loop()))
         logger.info(f"TG deferred startup done | topics={len(config['topics'])}")
