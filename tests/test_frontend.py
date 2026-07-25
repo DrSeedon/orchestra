@@ -247,6 +247,7 @@ def _open_tool_fixture_page(browser: Browser) -> Page:
         "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
     )
     page.evaluate("""() => {
+        selectedAgent = null;
         if (eventSource) {
             eventSource.close();
             eventSource = null;

@@ -4,7 +4,13 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock
+from claude_agent_sdk import (
+    AssistantMessage,
+    ResultMessage,
+    TextBlock,
+    ToolUseBlock,
+)
+from claude_agent_sdk.types import ToolResultBlock, UserMessage
 
 import app.backend_claude as backend_claude
 from app.backend_claude import ClaudeBackend
@@ -165,3 +171,40 @@ def test_server_error_is_carried_into_terminal_turn_result():
     ))[-1]
     assert next_result.metadata["model_error"] == ""
     assert next_result.metadata["errors"] == []
+
+
+def test_result_uuid_is_carried_as_durable_turn_event_id():
+    event = _backend()._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=1,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        uuid="result-uuid-1",
+    ))[-1]
+
+    assert event.metadata["event_id"] == "result-uuid-1"
+
+
+def test_tool_failure_preserves_stable_use_id_and_explicit_error():
+    backend = _backend()
+    started = backend._convert(AssistantMessage(
+        content=[ToolUseBlock(id="tool-1", name="Read", input={"file_path": "/x"})],
+        model="claude-sonnet-5[1m]",
+    ))
+    completed = backend._convert(UserMessage(
+        content=[ToolResultBlock(
+            tool_use_id="tool-1",
+            content="file not found",
+            is_error=True,
+        )],
+    ))
+
+    assert started[0].metadata["tool_use_id"] == "tool-1"
+    assert completed[0].metadata == {
+        "tool_use_id": "tool-1",
+        "is_error": True,
+    }
+    assert completed[0].content == "file not found"

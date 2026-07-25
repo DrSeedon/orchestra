@@ -305,6 +305,42 @@ async def test_codex_failure_does_not_break_anthropic_usage(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_missing_anthropic_credentials_preserves_codex_capacity(monkeypatch):
+    codex = {
+        "plan_type": "pro",
+        "primary": {"utilization": 22, "window_minutes": 10080},
+    }
+    monkeypatch.setattr(system, "is_auth_enabled", lambda: False)
+    monkeypatch.setattr(
+        system,
+        "_usage_cache",
+        {"data": None, "ts": 0.0, "token": None},
+    )
+    monkeypatch.setattr(
+        system,
+        "_codex_usage_cache",
+        {"data": None, "ts": 0.0},
+    )
+    monkeypatch.setattr(
+        system,
+        "_read_oauth_credentials",
+        lambda: (None, None, None),
+    )
+    monkeypatch.setattr(
+        system,
+        "_fetch_codex_usage",
+        AsyncMock(return_value=codex),
+    )
+    monkeypatch.setattr(system, "_get_agents_cost", lambda: {})
+    monkeypatch.setattr(system, "_get_voice_cost_usd", lambda: 0.0)
+
+    response = await system.get_usage()
+
+    assert response["anthropic"] is None
+    assert response["codex"] is codex
+
+
+@pytest.mark.asyncio
 async def test_fetch_codex_usage_uses_app_server_protocol(monkeypatch):
     class FakeStdin:
         def __init__(self):

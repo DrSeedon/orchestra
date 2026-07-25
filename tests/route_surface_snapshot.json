@@ -457,6 +457,12 @@
  ],
  [
   "/api/usage",
+ [
+  "GET"
+  ]
+ ],
+ [
+  "/api/usage/analytics",
   [
    "GET"
   ]

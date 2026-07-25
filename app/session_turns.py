@@ -8,6 +8,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from app.db import turn_usage_add
 from app.events import AgentEvent
 from app.session_state import AgentStatus
 
@@ -121,6 +122,24 @@ class TurnManager:
         meta = event.metadata
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta)
+        event_id = str(meta.get("event_id") or "")
+        if event_id:
+            s._submit_db_write(
+                turn_usage_add,
+                event_id=event_id,
+                session_id=s.id,
+                scope=s.scope,
+                task_id=s.task_id,
+                runtime=s.backend_type,
+                model=s.model,
+                ok=ok,
+                stop_reason=sr,
+                cost_usd=s._turn_cost,
+                input_tokens=meta.get("input_tokens", 0),
+                output_tokens=meta.get("output_tokens", 0),
+                cache_read_tokens=meta.get("cache_read", 0),
+                cache_create_tokens=meta.get("cache_create", 0),
+            )
         s._cost.update_context_from_turn(meta)
         s._spawn_bg(s._refresh_context_from_api())
         subscription_limited = s._session_limit_hit
@@ -174,7 +193,13 @@ class TurnManager:
         def _fc(v):
             return f"{v:.4f}" if v < 0.01 and v > 0 else f"{v:.2f}"
         limits_s = _format_limits()
-        s._log("status", f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, ${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total {ctx_s}){limits_s}")
+        s._log(
+            "status",
+            f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, "
+            f"${_fc(s._context_cost)} ctx, ${_fc(s._session_cost)} session, "
+            f"${_fc(s.cost_usd)} total {ctx_s}){limits_s}",
+            event_id=event_id,
+        )
 
         self.finish_turn_status()
         self.after_turn_idle_actions(
