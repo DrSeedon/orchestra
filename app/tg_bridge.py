@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import time
+from collections import OrderedDict, deque
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -39,6 +40,15 @@ bot = None
 dp = Dispatcher()
 _manager = None
 _tasks = []
+_stream_tasks: dict[tuple[str, int], asyncio.Task] = {}
+_topic_status_tasks: dict[str, asyncio.Task] = {}
+_topic_status_desired: dict[str, bool] = {}
+_topic_create_tasks: dict[str, asyncio.Task] = {}
+_bridge_tasks: dict[str, asyncio.Task] = {}
+_mirror_outboxes: dict[str, asyncio.Queue] = {}
+_mirror_tasks: dict[str, asyncio.Task] = {}
+_mirror_dropped: dict[str, int] = {}
+_mirror_stopping: set[str] = set()
 DEEPGRAM_API_KEY = ""
 
 
@@ -276,6 +286,14 @@ class _BufState:
     phase: _Phase = _Phase.IDLE
     debounce_task: asyncio.Task | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    epoch: object = field(default_factory=object)
+
+
+@dataclass(frozen=True)
+class _MediaToken:
+    sid: str
+    epoch: object
+    reservation: object
 
 
 _buffers: dict[str, _BufState] = {}
@@ -323,6 +341,7 @@ async def _debounce_elapsed(sid: str):
         batch = list(buf.entries)
         buf.entries.clear()
         buf.phase = _Phase.IDLE
+        buf.epoch = object()
 
     await _flush_batch(sid, batch)
 
@@ -330,7 +349,7 @@ async def _debounce_elapsed(sid: str):
 async def _flush_batch(sid: str, batch: list):
     if not batch:
         return
-    valid = [(m, c) for m, c in batch if c is not None]
+    valid = [(m, c) for m, c, _reservation in batch if c is not None]
     if not valid:
         return
     if len(valid) == 1:
@@ -360,41 +379,55 @@ async def _send_to_agent(msg: types.Message, session, content: str):
     sid = session.id
     buf = _get_buf(sid)
     async with buf.lock:
-        buf.entries.append((msg, content))
+        buf.entries.append((msg, content, None))
         await _arm_debounce(sid, buf)
 
 
-# Reserve a slot in the batch before the download completes —
-# slot index is returned so the download goroutine can fill it in via _resolve_media
-async def _register_media(msg: types.Message, session) -> tuple[str, int]:
+# Reserve an identity in the current buffer generation before the download completes.
+async def _register_media(msg: types.Message, session) -> _MediaToken:
     sid = session.id
     buf = _get_buf(sid)
     async with buf.lock:
-        idx = len(buf.entries)
-        buf.entries.append((msg, None))
+        reservation = object()
+        token = _MediaToken(sid, buf.epoch, reservation)
+        buf.entries.append((msg, None, reservation))
         buf.pending_media += 1
         await _arm_debounce(sid, buf)
-    return sid, idx
+    return token
 
 
-async def _resolve_media(sid: str, idx: int, content: str):
-    buf = _get_buf(sid)
+async def _resolve_media(token: _MediaToken, content: str):
+    buf = _buffers.get(token.sid)
+    if buf is None:
+        return
     flush_batch = None
     async with buf.lock:
-        if idx < len(buf.entries):
-            m, _ = buf.entries[idx]
-            buf.entries[idx] = (m, content)
+        if buf.epoch is not token.epoch:
+            return
+        idx = next(
+            (
+                i for i, (_msg, _content, reservation)
+                in enumerate(buf.entries)
+                if reservation is token.reservation
+            ),
+            None,
+        )
+        if idx is None:
+            return
+        m, _, _reservation = buf.entries[idx]
+        buf.entries[idx] = (m, content, None)
         buf.pending_media = max(0, buf.pending_media - 1)
         if buf.pending_media == 0 and buf.phase == _Phase.WAITING_MEDIA:
             batch = list(buf.entries)
             buf.entries.clear()
             buf.phase = _Phase.IDLE
+            buf.epoch = object()
             if buf.debounce_task and not buf.debounce_task.done():
                 buf.debounce_task.cancel()
             buf.debounce_task = None
             flush_batch = batch
     if flush_batch is not None:
-        await _flush_batch(sid, flush_batch)
+        await _flush_batch(token.sid, flush_batch)
 
 
 
@@ -458,7 +491,15 @@ async def _edit_expandable(msg, chat_id: int, header: str, body: str):
 
 # Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
 # Falls back to plain text if the Bot API version doesn't support EXPANDABLE_BLOCKQUOTE.
-async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str, *, important: bool = False):
+async def _send_expandable(
+    chat_id: int,
+    thread_id: int,
+    header: str,
+    body: str,
+    *,
+    important: bool = False,
+    telemetry_key=None,
+):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
     body = body.rstrip()
@@ -467,7 +508,14 @@ async def _send_expandable(chat_id: int, thread_id: int, header: str, body: str,
     offset = _utf16_len(header) + 1
     length = _utf16_len(conv_body)
     entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
-    return await _tg_send_safe(chat_id, text, thread_id, entities=entities, important=important)
+    return await _tg_send_safe(
+        chat_id,
+        text,
+        thread_id,
+        entities=entities,
+        important=important,
+        telemetry_key=telemetry_key,
+    )
 
 
 TG_MSG_LIMIT = 4096
@@ -515,46 +563,209 @@ _TG_PRIVATE_INTERVAL = 1.05
 _TG_IMPORTANT_ATTEMPTS = 3
 _TG_NETWORK_RETRY_DELAY = 1.0
 _TG_RETRY_AFTER_MARGIN = 0.25
+_TG_RELIABLE_QUEUE_MAX = 256
+_TG_RELIABLE_ADMISSION_MAX = 64
+_TG_RELIABLE_ADMISSION_TIMEOUT = 5.0
+_TG_RELIABLE_CALL_TIMEOUT = 30.0
+_TG_RELIABLE_TOTAL_TIMEOUT = 75.0
+_TG_TELEMETRY_MAX_KEYS = 128
+_TG_TELEMETRY_MAX_AGE = 15.0
+_TG_TELEMETRY_CALL_TIMEOUT = 2.0
+_TG_OPTIONAL_QUEUE_MAX = 64
+_TG_IMAGE_QUEUE_MAX = 16
+_TG_MIRROR_OUTBOX_MAX = 64
 _TG_ENTITY_REJECTED = object()
-_tg_call_queues: dict[int, asyncio.PriorityQueue] = {}
+
+
+@dataclass(frozen=True)
+class _TgSendEntityRejected:
+    text: str
+    thread_id: int | None
+
+
+class _TgDeliveryOverloaded(RuntimeError):
+    pass
+
+
+@dataclass
+class _TgCallItem:
+    call_factory: object
+    important: bool
+    label: str
+    future: asyncio.Future
+    enqueued_at: float
+    key: object = None
+    version: int = 1
+    count: int = 1
+    in_flight: bool = False
+    optional_kind: str | None = None
+
+
+@dataclass
+class _TgDeliveryState:
+    loop: asyncio.AbstractEventLoop
+    reliable: deque = field(default_factory=deque)
+    telemetry: OrderedDict = field(default_factory=OrderedDict)
+    optional: deque = field(default_factory=deque)
+    wake: asyncio.Event = field(default_factory=asyncio.Event)
+    space: asyncio.Event = field(default_factory=asyncio.Event)
+    dispatcher: asyncio.Task | None = None
+    in_flight: _TgCallItem | None = None
+    admission_waiters: int = 0
+    admission_tasks: set = field(default_factory=set)
+    reliable_since_telemetry: int = 0
+    telemetry_coalesced: int = 0
+    telemetry_dropped: int = 0
+    optional_images: int = 0
+    optional_dropped: int = 0
+    reliable_overflow: int = 0
+    reliable_retries: int = 0
+    reliable_timeouts: int = 0
+    reliable_total_timeouts: int = 0
+    reliable_lost: int = 0
+    telemetry_timeouts: int = 0
+    telemetry_lost: int = 0
+    optional_timeouts: int = 0
+    optional_lost: int = 0
+    reliable_last_latency: float = 0.0
+    reliable_max_latency: float = 0.0
+    telemetry_last_latency: float = 0.0
+    telemetry_max_latency: float = 0.0
+    optional_last_latency: float = 0.0
+    optional_max_latency: float = 0.0
+    stopped: bool = False
+
+
+_tg_delivery_states: dict[int, _TgDeliveryState] = {}
 _tg_dispatch_tasks: dict[int, asyncio.Task] = {}
 _tg_queue_loops: dict[int, asyncio.AbstractEventLoop] = {}
 _tg_result_tasks: set[asyncio.Task] = set()
+_tg_result_wrappers: dict[asyncio.Future, asyncio.Task] = {}
 _tg_flood_until: dict[int, float] = {}
 _tg_last_send: dict[int, float] = {}
 _tg_call_sequence = 0
 
 
-def _clear_tg_chat(chat_id: int) -> None:
+def _settle_tg_item(item: _TgCallItem | None, result=None) -> None:
+    if item is not None and not item.future.done():
+        item.future.set_result(result)
+
+
+async def _clear_tg_chat(chat_id: int) -> None:
+    state = _tg_delivery_states.get(chat_id)
     task = _tg_dispatch_tasks.pop(chat_id, None)
-    if task and not task.done():
+    if state:
+        state.stopped = True
+        state.wake.set()
+        state.space.set()
+        for item in state.reliable:
+            _settle_tg_item(item)
+        for item in state.telemetry.values():
+            _settle_tg_item(item)
+        for item in state.optional:
+            _settle_tg_item(item)
+        _settle_tg_item(state.in_flight)
+        state.reliable.clear()
+        state.telemetry.clear()
+        state.optional.clear()
+        if state.dispatcher and not state.dispatcher.done():
+            state.dispatcher.cancel()
+        admission_tasks = [
+            waiter for waiter in state.admission_tasks
+            if waiter is not asyncio.current_task()
+        ]
+        if admission_tasks:
+            await asyncio.gather(*admission_tasks, return_exceptions=True)
+        task = state.dispatcher or task
+    if task and task is not asyncio.current_task() and not task.done():
         try:
             task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
         except RuntimeError:
             pass
-    queue = _tg_call_queues.pop(chat_id, None)
-    if queue:
-        while not queue.empty():
-            try:
-                _, _, _, _, _, future = queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-            if not future.done():
-                future.cancel()
-            queue.task_done()
+    if _tg_delivery_states.get(chat_id) is state:
+        _tg_delivery_states.pop(chat_id, None)
     _tg_queue_loops.pop(chat_id, None)
     _tg_flood_until.pop(chat_id, None)
     _tg_last_send.pop(chat_id, None)
 
 
-def _reset_tg_delivery_state() -> None:
+async def _reset_tg_delivery_state() -> None:
     global _tg_call_sequence
-    for task in list(_tg_result_tasks):
-        task.cancel()
+    for chat_id in list(_tg_delivery_states):
+        await _clear_tg_chat(chat_id)
+    if _tg_result_tasks:
+        await asyncio.gather(*list(_tg_result_tasks), return_exceptions=True)
     _tg_result_tasks.clear()
-    for chat_id in list(_tg_call_queues):
-        _clear_tg_chat(chat_id)
+    _tg_result_wrappers.clear()
     _tg_call_sequence = 0
+
+
+def _tg_delivery_snapshot(chat_id: int) -> dict[str, int | float]:
+    state = _tg_delivery_states.get(chat_id)
+    if not state:
+        return {
+            "reliable_queued": 0,
+            "reliable_admission_waiters": 0,
+            "reliable_overflow": 0,
+            "reliable_retries": 0,
+            "reliable_timeouts": 0,
+            "reliable_total_timeouts": 0,
+            "reliable_lost": 0,
+            "reliable_oldest_age": 0.0,
+            "reliable_last_latency": 0.0,
+            "reliable_max_latency": 0.0,
+            "telemetry_pending": 0,
+            "telemetry_coalesced": 0,
+            "telemetry_dropped": 0,
+            "telemetry_timeouts": 0,
+            "telemetry_lost": 0,
+            "telemetry_oldest_age": 0.0,
+            "telemetry_last_latency": 0.0,
+            "telemetry_max_latency": 0.0,
+            "optional_queued": 0,
+            "optional_images": 0,
+            "optional_dropped": 0,
+            "optional_timeouts": 0,
+            "optional_lost": 0,
+            "optional_oldest_age": 0.0,
+            "optional_last_latency": 0.0,
+            "optional_max_latency": 0.0,
+        }
+    now = state.loop.time()
+
+    def oldest_age(items) -> float:
+        enqueued = [item.enqueued_at for item in items]
+        return max(0.0, now - min(enqueued)) if enqueued else 0.0
+
+    return {
+        "reliable_queued": len(state.reliable),
+        "reliable_admission_waiters": state.admission_waiters,
+        "reliable_overflow": state.reliable_overflow,
+        "reliable_retries": state.reliable_retries,
+        "reliable_timeouts": state.reliable_timeouts,
+        "reliable_total_timeouts": state.reliable_total_timeouts,
+        "reliable_lost": state.reliable_lost,
+        "reliable_oldest_age": oldest_age(state.reliable),
+        "reliable_last_latency": state.reliable_last_latency,
+        "reliable_max_latency": state.reliable_max_latency,
+        "telemetry_pending": len(state.telemetry),
+        "telemetry_coalesced": state.telemetry_coalesced,
+        "telemetry_dropped": state.telemetry_dropped,
+        "telemetry_timeouts": state.telemetry_timeouts,
+        "telemetry_lost": state.telemetry_lost,
+        "telemetry_oldest_age": oldest_age(state.telemetry.values()),
+        "telemetry_last_latency": state.telemetry_last_latency,
+        "telemetry_max_latency": state.telemetry_max_latency,
+        "optional_queued": len(state.optional),
+        "optional_images": state.optional_images,
+        "optional_dropped": state.optional_dropped,
+        "optional_timeouts": state.optional_timeouts,
+        "optional_lost": state.optional_lost,
+        "optional_oldest_age": oldest_age(state.optional),
+        "optional_last_latency": state.optional_last_latency,
+        "optional_max_latency": state.optional_max_latency,
+    }
 
 
 def _tg_interval(chat_id: int) -> float:
@@ -576,8 +787,26 @@ def _tg_rate_wait(chat_id: int, now: float) -> float:
     )
 
 
-async def _tg_run_call(chat_id: int, call, important: bool, label: str):
+def _tg_record_latency(
+    state: _TgDeliveryState,
+    traffic_class: str,
+    item: _TgCallItem,
+) -> None:
+    latency = max(0.0, state.loop.time() - item.enqueued_at)
+    setattr(state, f"{traffic_class}_last_latency", latency)
+    maximum = getattr(state, f"{traffic_class}_max_latency")
+    setattr(state, f"{traffic_class}_max_latency", max(maximum, latency))
+
+
+async def _tg_run_attempts(
+    chat_id: int,
+    call,
+    important: bool,
+    label: str,
+    traffic_class: str,
+):
     loop = asyncio.get_running_loop()
+    state = _tg_delivery_states.get(chat_id)
     attempts = _TG_IMPORTANT_ATTEMPTS if important else 1
     for attempt in range(1, attempts + 1):
         wait = _tg_rate_wait(chat_id, loop.time())
@@ -585,138 +814,488 @@ async def _tg_run_call(chat_id: int, call, important: bool, label: str):
             await asyncio.sleep(wait)
         _tg_last_send[chat_id] = loop.time()
         try:
-            return await call()
+            if important:
+                async with asyncio.timeout(_TG_RELIABLE_CALL_TIMEOUT):
+                    return await call()
+            async with asyncio.timeout(_TG_TELEMETRY_CALL_TIMEOUT):
+                return await call()
+        except TimeoutError:
+            if state is not None:
+                setattr(
+                    state,
+                    f"{traffic_class}_timeouts",
+                    getattr(state, f"{traffic_class}_timeouts") + 1,
+                )
+            if important and attempt < attempts:
+                if state is not None:
+                    state.reliable_retries += 1
+                logger.warning(
+                    f"TG {label} attempt timeout, retry {attempt + 1}/{attempts}"
+                )
+                if _TG_NETWORK_RETRY_DELAY:
+                    await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
+                continue
+            if important:
+                if state is not None:
+                    state.reliable_lost += 1
+                logger.warning(f"TG {label} LOST after {attempt} timed out attempts")
+            else:
+                if state is not None:
+                    setattr(
+                        state,
+                        f"{traffic_class}_lost",
+                        getattr(state, f"{traffic_class}_lost") + 1,
+                    )
+                logger.warning(f"TG {label} {traffic_class} timeout")
+            return None
         except TelegramRetryAfter as e:
             _tg_flood_until[chat_id] = loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN
             logger.warning(f"TG {label} flood: retry in {e.retry_after}s")
-            if not important or attempt == attempts:
+            if not important:
+                if state is not None:
+                    setattr(
+                        state,
+                        f"{traffic_class}_lost",
+                        getattr(state, f"{traffic_class}_lost") + 1,
+                    )
+                return None
+            if attempt == attempts:
                 break
+            if state is not None:
+                state.reliable_retries += 1
         except (TelegramNetworkError, TelegramServerError) as e:
             if important and attempt < attempts:
+                if state is not None:
+                    state.reliable_retries += 1
                 logger.warning(
                     f"TG {label} ambiguous delivery, retry {attempt + 1}/{attempts}: {e}"
                 )
                 await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
                 continue
             if important:
+                if state is not None:
+                    state.reliable_lost += 1
                 logger.warning(f"TG {label} LOST after {attempt} attempts: {e}")
             else:
+                if state is not None:
+                    setattr(
+                        state,
+                        f"{traffic_class}_lost",
+                        getattr(state, f"{traffic_class}_lost") + 1,
+                    )
                 logger.warning(f"TG {label} failed: {e}")
             return None
         except Exception as e:
             if important:
+                if state is not None:
+                    state.reliable_lost += 1
                 logger.warning(f"TG {label} LOST: {e}")
             else:
+                if state is not None:
+                    setattr(
+                        state,
+                        f"{traffic_class}_lost",
+                        getattr(state, f"{traffic_class}_lost") + 1,
+                    )
                 logger.warning(f"TG {label} failed: {e}")
             return None
 
     if important:
+        if state is not None:
+            state.reliable_lost += 1
         logger.warning(f"TG {label} LOST after {attempts} flood attempts")
     return None
 
 
-async def _tg_dispatch_chat(chat_id: int) -> None:
-    queue = _tg_call_queues[chat_id]
+async def _tg_run_call(
+    chat_id: int,
+    call,
+    important: bool,
+    label: str,
+    traffic_class: str,
+):
+    if not important:
+        return await _tg_run_attempts(
+            chat_id, call, False, label, traffic_class,
+        )
     try:
-        while True:
-            item = await queue.get()
-            _, _, call, important, label, future = item
-            if future.cancelled():
-                queue.task_done()
+        async with asyncio.timeout(_TG_RELIABLE_TOTAL_TIMEOUT):
+            return await _tg_run_attempts(
+                chat_id, call, True, label, traffic_class,
+            )
+    except TimeoutError:
+        state = _tg_delivery_states.get(chat_id)
+        if state is not None:
+            state.reliable_total_timeouts += 1
+            state.reliable_lost += 1
+        logger.warning(
+            f"TG {label} LOST: reliable total timeout "
+            f"after {_TG_RELIABLE_TOTAL_TIMEOUT}s"
+        )
+        return None
+
+
+def _tg_oldest_telemetry(state: _TgDeliveryState, now: float):
+    eligible = [
+        item for item in state.telemetry.values()
+        if not item.in_flight
+        and now - item.enqueued_at >= _TG_TELEMETRY_MAX_AGE
+    ]
+    return min(eligible, key=lambda item: item.enqueued_at) if eligible else None
+
+
+def _tg_next_telemetry_wait(state: _TgDeliveryState, now: float) -> float | None:
+    waits = [
+        max(0, _TG_TELEMETRY_MAX_AGE - (now - item.enqueued_at))
+        for item in state.telemetry.values()
+        if not item.in_flight
+    ]
+    return min(waits) if waits else None
+
+
+def _tg_pick_next(state: _TgDeliveryState):
+    now = state.loop.time()
+    telemetry = _tg_oldest_telemetry(state, now)
+    if telemetry and (
+        not state.reliable or state.reliable_since_telemetry >= 3
+    ):
+        telemetry.in_flight = True
+        return (
+            "telemetry",
+            telemetry,
+            telemetry.version,
+            telemetry.count,
+            telemetry.call_factory,
+            telemetry.future,
+        )
+    if state.reliable:
+        item = state.reliable.popleft()
+        state.space.set()
+        state.reliable_since_telemetry += 1
+        return ("reliable", item)
+    if state.optional:
+        item = state.optional.popleft()
+        if item.optional_kind == "image":
+            state.optional_images -= 1
+        return ("optional", item)
+    return None
+
+
+async def _tg_dispatch_chat(chat_id: int, state: _TgDeliveryState) -> None:
+    try:
+        while not state.stopped:
+            selected = _tg_pick_next(state)
+            if selected is None:
+                state.wake.clear()
+                timeout = _tg_next_telemetry_wait(state, state.loop.time())
+                try:
+                    if timeout is None:
+                        await state.wake.wait()
+                    else:
+                        await asyncio.wait_for(state.wake.wait(), timeout=timeout)
+                except TimeoutError:
+                    pass
                 continue
-            wait = _tg_rate_wait(chat_id, asyncio.get_running_loop().time())
-            if wait:
-                queue.put_nowait(item)
-                queue.task_done()
-                await asyncio.sleep(wait)
+            kind, item, *snapshot = selected
+            if item.future.cancelled():
+                if kind == "telemetry" and state.telemetry.get(item.key) is item:
+                    state.telemetry.pop(item.key, None)
                 continue
+            state.in_flight = item
             try:
-                result = await _tg_run_call(chat_id, call, important, label)
-                if not future.done():
-                    future.set_result(result)
+                if kind == "reliable":
+                    result = await _tg_run_call(
+                        chat_id,
+                        lambda: item.call_factory(1),
+                        True,
+                        item.label,
+                        kind,
+                    )
+                    _tg_record_latency(state, kind, item)
+                    _settle_tg_item(item, result)
+                elif kind == "telemetry":
+                    version, count, call_factory, future = snapshot
+                    result = await _tg_run_call(
+                        chat_id,
+                        lambda: call_factory(count),
+                        False,
+                        item.label,
+                        kind,
+                    )
+                    _tg_record_latency(state, kind, item)
+                    if not future.done():
+                        future.set_result(result)
+                    current = state.telemetry.get(item.key)
+                    if current is item and current.version == version:
+                        state.telemetry.pop(item.key, None)
+                    elif current is item:
+                        current.in_flight = False
+                    state.reliable_since_telemetry = 0
+                    state.wake.set()
+                else:
+                    result = await _tg_run_call(
+                        chat_id,
+                        lambda: item.call_factory(1),
+                        False,
+                        item.label,
+                        kind,
+                    )
+                    _tg_record_latency(state, kind, item)
+                    _settle_tg_item(item, result)
             except asyncio.CancelledError:
-                if not future.done():
-                    future.cancel()
+                _settle_tg_item(item)
                 raise
             except Exception as e:
-                logger.exception(f"TG {label} dispatcher failed: {e}")
-                if not future.done():
-                    future.set_result(None)
+                logger.exception(f"TG {item.label} dispatcher failed: {e}")
+                _settle_tg_item(item)
             finally:
-                queue.task_done()
+                state.in_flight = None
     finally:
         current = asyncio.current_task()
         if _tg_dispatch_tasks.get(chat_id) is current:
             _tg_dispatch_tasks.pop(chat_id, None)
+        if state.dispatcher is current:
+            state.dispatcher = None
 
 
-async def _tg_call_safe(chat_id: int, call, *, important: bool = False, label: str = "call"):
-    """Queue one chat, prioritize important calls, and rate-limit delivery."""
+def _tg_start_dispatcher(chat_id: int, state: _TgDeliveryState) -> None:
+    if state.dispatcher is None or state.dispatcher.done():
+        state.dispatcher = asyncio.create_task(_tg_dispatch_chat(chat_id, state))
+        _tg_dispatch_tasks[chat_id] = state.dispatcher
+
+
+async def _tg_call_safe(
+    chat_id: int,
+    call,
+    *,
+    important: bool = False,
+    label: str = "call",
+    telemetry_key=None,
+    call_factory=None,
+    best_effort: bool = False,
+    optional_kind: str | None = None,
+):
+    """Submit a bounded reliable or coalesced telemetry call for one chat."""
     global _tg_call_sequence
     loop = asyncio.get_running_loop()
-    if _tg_queue_loops.get(chat_id) not in (None, loop):
-        _clear_tg_chat(chat_id)
-    queue = _tg_call_queues.setdefault(chat_id, asyncio.PriorityQueue())
+    state = _tg_delivery_states.get(chat_id)
+    if state is not None and state.loop is not loop:
+        await _clear_tg_chat(chat_id)
+        state = None
+    if state is None:
+        state = _TgDeliveryState(loop=loop)
+        _tg_delivery_states[chat_id] = state
+    elif state.stopped:
+        return None
     _tg_queue_loops[chat_id] = loop
     future = loop.create_future()
     _tg_call_sequence += 1
-    queue.put_nowait((0 if important else 1, _tg_call_sequence, call, important, label, future))
-    task = _tg_dispatch_tasks.get(chat_id)
-    if task is None or task.done():
-        _tg_dispatch_tasks[chat_id] = asyncio.create_task(_tg_dispatch_chat(chat_id))
+    factory = call_factory or (lambda _count: call())
+
+    if best_effort:
+        image_full = (
+            optional_kind == "image"
+            and state.optional_images >= _TG_IMAGE_QUEUE_MAX
+        )
+        if len(state.optional) >= _TG_OPTIONAL_QUEUE_MAX or image_full:
+            state.optional_dropped += 1
+            logger.warning(f"TG {label} dropped: optional lane full")
+            return None
+        state.optional.append(_TgCallItem(
+            call_factory=factory,
+            important=False,
+            label=label,
+            future=future,
+            enqueued_at=loop.time(),
+            optional_kind=optional_kind,
+        ))
+        if optional_kind == "image":
+            state.optional_images += 1
+        state.wake.set()
+        _tg_start_dispatcher(chat_id, state)
+        return future
+
     if important:
+        if len(state.reliable) >= _TG_RELIABLE_QUEUE_MAX:
+            if state.admission_waiters >= _TG_RELIABLE_ADMISSION_MAX:
+                state.reliable_overflow += 1
+                logger.error(f"TG {label} LOST: reliable admission full")
+                raise _TgDeliveryOverloaded(
+                    f"TG {label} reliable admission full",
+                )
+            state.admission_waiters += 1
+            waiter = asyncio.current_task()
+            if waiter:
+                state.admission_tasks.add(waiter)
+            try:
+                async with asyncio.timeout(_TG_RELIABLE_ADMISSION_TIMEOUT):
+                    while (
+                        not state.stopped
+                        and len(state.reliable) >= _TG_RELIABLE_QUEUE_MAX
+                    ):
+                        state.space.clear()
+                        await state.space.wait()
+            except TimeoutError:
+                state.reliable_overflow += 1
+                logger.error(f"TG {label} LOST: reliable admission timeout")
+                raise _TgDeliveryOverloaded(
+                    f"TG {label} reliable admission timeout",
+                )
+            finally:
+                state.admission_waiters -= 1
+                if waiter:
+                    state.admission_tasks.discard(waiter)
+        if state.stopped:
+            future.set_result(None)
+            return await future
+        state.reliable.append(_TgCallItem(
+            call_factory=factory,
+            important=True,
+            label=label,
+            future=future,
+            enqueued_at=loop.time(),
+        ))
+        state.wake.set()
+        _tg_start_dispatcher(chat_id, state)
         return await future
+
+    key = telemetry_key
+    if key is None:
+        key = ("unique", _tg_call_sequence)
+    current = state.telemetry.get(key)
+    if current is not None:
+        if current.in_flight:
+            current = _TgCallItem(
+                call_factory=factory,
+                important=False,
+                label=label,
+                future=future,
+                enqueued_at=loop.time(),
+                key=key,
+                version=current.version + 1,
+            )
+            state.telemetry[key] = current
+        else:
+            current.call_factory = factory
+            current.label = label
+            current.version += 1
+            current.count += 1
+            future = current.future
+        state.telemetry_coalesced += 1
+    else:
+        if len(state.telemetry) >= _TG_TELEMETRY_MAX_KEYS:
+            state.telemetry_dropped += 1
+            logger.warning(f"TG {label} dropped: telemetry map full")
+            future.set_result(None)
+            return future
+        current = _TgCallItem(
+            call_factory=factory,
+            important=False,
+            label=label,
+            future=future,
+            enqueued_at=loop.time(),
+            key=key,
+        )
+        if not state.telemetry:
+            state.reliable_since_telemetry = 0
+        state.telemetry[key] = current
+    state.wake.set()
+    _tg_start_dispatcher(chat_id, state)
     return future
 
 
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
-                         entities=None, important: bool = False):
-    async def _send():
+                         entities=None, important: bool = False,
+                         telemetry_key=None, best_effort: bool = False):
+    async def _send(coalesced_count: int = 1):
+        payload = text
+        if not important and coalesced_count > 1:
+            payload = f"{text}\n\n⏱ {coalesced_count} events coalesced"
         try:
             return await bot.send_message(
-                chat_id, text, message_thread_id=thread_id,
+                chat_id, payload, message_thread_id=thread_id,
                 parse_mode=None, entities=entities,
             )
         except TelegramBadRequest:
             if not entities:
                 raise
-            return _TG_ENTITY_REJECTED
+            return _TgSendEntityRejected(payload, thread_id)
 
     result = await _tg_call_safe(
-        chat_id, _send, important=important, label="send_message",
+        chat_id,
+        _send,
+        important=important,
+        label="send_message",
+        telemetry_key=(
+            telemetry_key
+            if telemetry_key is not None
+            else (("send_message", thread_id) if not important else None)
+        ),
+        call_factory=_send,
+        best_effort=best_effort,
+        optional_kind="mirror" if best_effort else None,
     )
     if isinstance(result, asyncio.Future):
+        if (
+            result.done()
+            and not isinstance(result.result(), _TgSendEntityRejected)
+        ):
+            return result.result()
+        wrapper = _tg_result_wrappers.get(result)
+        if wrapper is not None:
+            return wrapper
+
         async def _finish_send():
             queued_result = await result
-            if queued_result is not _TG_ENTITY_REJECTED:
+            if not isinstance(queued_result, _TgSendEntityRejected):
                 return queued_result
             logger.warning("TG formatted send rejected; trying without entities")
 
             async def _send_plain_queued():
                 return await bot.send_message(
-                    chat_id, text, message_thread_id=thread_id,
+                    chat_id,
+                    queued_result.text,
+                    message_thread_id=queued_result.thread_id,
                     parse_mode=None, entities=None,
                 )
 
             plain = await _tg_call_safe(
-                chat_id, _send_plain_queued, label="send_message_plain",
+                chat_id,
+                _send_plain_queued,
+                label="send_message_plain",
+                best_effort=best_effort,
+                optional_kind="mirror" if best_effort else None,
+                telemetry_key=(
+                    ("plain", telemetry_key)
+                    if telemetry_key is not None else None
+                ),
             )
-            return await plain
+            return await plain if isinstance(plain, asyncio.Future) else plain
 
-        return _track_tg_result(_finish_send())
-    if result is not _TG_ENTITY_REJECTED:
+        wrapper = _track_tg_result(_finish_send())
+        _tg_result_wrappers[result] = wrapper
+        wrapper.add_done_callback(lambda _task: _tg_result_wrappers.pop(result, None))
+        return wrapper
+    if not isinstance(result, _TgSendEntityRejected):
         return result
 
     logger.warning("TG formatted send rejected; trying without entities")
 
     async def _send_plain():
         return await bot.send_message(
-            chat_id, text, message_thread_id=thread_id,
+            chat_id,
+            result.text,
+            message_thread_id=result.thread_id,
             parse_mode=None, entities=None,
         )
 
     return await _tg_call_safe(
-        chat_id, _send_plain, important=important, label="send_message_plain",
+        chat_id,
+        _send_plain,
+        important=important,
+        label="send_message_plain",
+        best_effort=best_effort,
+        optional_kind="mirror" if best_effort else None,
     )
 
 
@@ -806,7 +1385,12 @@ async def _tg_send_file_safe(
 
     label = "send_photo" if is_photo else "send_document"
     return await _tg_call_safe(
-        chat_id, _send, important=important, label=label,
+        chat_id,
+        _send,
+        important=important,
+        label=label,
+        best_effort=not important,
+        optional_kind=("image" if is_photo else "file") if not important else None,
     )
 
 
@@ -915,6 +1499,69 @@ def _pick_unique_topic_name(orch_name: str) -> str:
     return f"{base}-{i}"
 
 
+def _ensure_owned_task(registry: dict, key, coro_factory) -> asyncio.Task:
+    current = registry.get(key)
+    if current is not None and not current.done():
+        return current
+    task = asyncio.create_task(coro_factory())
+    registry[key] = task
+    _tasks.append(task)
+
+    def _done(_task):
+        if registry.get(key) is _task:
+            registry.pop(key, None)
+        try:
+            _tasks.remove(_task)
+        except ValueError:
+            pass
+
+    task.add_done_callback(_done)
+    return task
+
+
+def _ensure_stream(orch_name: str, thread_id: int) -> asyncio.Task:
+    key = (orch_name, thread_id)
+    return _ensure_owned_task(
+        _stream_tasks,
+        key,
+        lambda: stream_logs(orch_name, thread_id),
+    )
+
+
+async def _cancel_orch_lifecycle(orch_name: str) -> None:
+    tasks = [
+        task
+        for (name, _thread_id), task in list(_stream_tasks.items())
+        if name == orch_name
+    ]
+    status_task = _topic_status_tasks.pop(orch_name, None)
+    if status_task:
+        tasks.append(status_task)
+    create_task = _topic_create_tasks.pop(f"primary:{orch_name}", None)
+    if create_task:
+        tasks.append(create_task)
+    _mirror_stopping.add(orch_name)
+    mirror_task = _mirror_tasks.get(orch_name)
+    if mirror_task:
+        tasks.append(mirror_task)
+    _topic_status_desired.pop(orch_name, None)
+    for key in [
+        key for key in list(_stream_tasks)
+        if key[0] == orch_name
+    ]:
+        _stream_tasks.pop(key, None)
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    if _mirror_tasks.get(orch_name) is mirror_task:
+        _mirror_tasks.pop(orch_name, None)
+    _mirror_outboxes.pop(orch_name, None)
+    _mirror_dropped.pop(orch_name, None)
+    _mirror_stopping.discard(orch_name)
+
+
 async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
     """Удалить TG-топики и записи из ``config['topics']`` для указанных оркестраторов.
 
@@ -932,8 +1579,11 @@ async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
     failed: list[dict] = []
     skipped: list[str] = []
     topic_names = config.setdefault("topic_names", {})
+    uncertain = config.setdefault("topic_create_uncertain", {})
 
     for name in orch_names:
+        await _cancel_orch_lifecycle(name)
+        uncertain.pop(f"primary:{name}", None)
         thread_id = config["topics"].get(name)
         if not thread_id:
             skipped.append(name)
@@ -958,6 +1608,10 @@ async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
 async def rename_orch_topic(old_name: str, new_name: str) -> dict:
     """Переименовать оркестратора в TG config — обновить ключ в topics + topic_names,
     и переименовать сам топик в TG если бот доступен."""
+    mirror_create = _topic_create_tasks.get(f"mirror:{old_name}")
+    if mirror_create is not None and not mirror_create.done():
+        await asyncio.shield(mirror_create)
+    await _cancel_orch_lifecycle(old_name)
     thread_id = config.get("topics", {}).pop(old_name, None)
     if thread_id is None:
         return {"error": f"no topic for '{old_name}'"}
@@ -971,6 +1625,11 @@ async def rename_orch_topic(old_name: str, new_name: str) -> dict:
     if old_name in mirrors:
         mirrors[new_name] = mirrors.pop(old_name)
         config["mirrors"] = mirrors
+    uncertain = config.setdefault("topic_create_uncertain", {})
+    for prefix in ("primary", "mirror"):
+        old_key = f"{prefix}:{old_name}"
+        if old_key in uncertain:
+            uncertain[f"{prefix}:{new_name}"] = uncertain.pop(old_key)
     if old_name in _topic_status:
         _topic_status[new_name] = _topic_status.pop(old_name)
     save_config()
@@ -983,6 +1642,7 @@ async def rename_orch_topic(old_name: str, new_name: str) -> dict:
             )
         except Exception as e:
             logger.warning(f"Failed to rename TG topic {old_name} → {new_name}: {e}")
+    _ensure_stream(new_name, thread_id)
     return {"ok": True, "old_name": old_name, "new_name": new_name, "display": new_display, "thread_id": thread_id}
 
 
@@ -1017,13 +1677,20 @@ def _find_thread_for_scope(scope: str) -> int | None:
 async def _mirror_send_file(orch_name: str, path: str, caption: str, is_photo: bool):
     mirror = config.get("mirrors", {}).get(orch_name)
     if not mirror or not bot:
-        return
+        return False
     chat_id = mirror.get("chat_id")
     topic_id = mirror.get("topic_id")
     if not chat_id:
-        return
-    await _tg_send_file_safe(
-        chat_id, path, caption, topic_id, is_photo=is_photo, important=True,
+        return False
+    return _mirror_submit(
+        orch_name,
+        _MirrorItem(
+            chat_id=chat_id,
+            topic_id=topic_id,
+            path=path,
+            caption=caption,
+            is_photo=is_photo,
+        ),
     )
 
 
@@ -1079,11 +1746,11 @@ def _any_running_in_scope(scope: str) -> bool:
 
 async def check_scope_idle(orch_name: str, scope: str):
     if not _any_running_in_scope(scope):
-        await _update_topic_status(orch_name, False)
+        _schedule_topic_status(orch_name, False)
 
 
 async def notify_scope_running(orch_name: str):
-    await _update_topic_status(orch_name, True)
+    _schedule_topic_status(orch_name, True)
 
 
 # ── Session hook handlers (wired into app.session by start_bridge) ──
@@ -1126,13 +1793,15 @@ async def _sync_all_topic_statuses():
             continue
         is_running = _any_running_in_scope(s.scope)
         _topic_status.pop(name, None)
-        await _update_topic_status(name, is_running)
+        _schedule_topic_status(name, is_running)
+    await asyncio.sleep(0)
 
 
 # Custom emoji IDs in the target TG group — green dot for running, grey for idle
 _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
 _TG_TOPIC_STATUS_TIMEOUT = 5
+_TG_TOPIC_CREATE_TIMEOUT = 5
 
 
 # Topic metadata is best-effort and stays outside the user-message delivery queue.
@@ -1169,18 +1838,217 @@ async def _update_topic_status(orch_name: str, is_running: bool):
         _topic_status[orch_name] = is_running
 
 
+async def _topic_status_worker(orch_name: str) -> None:
+    while orch_name in _topic_status_desired:
+        desired = _topic_status_desired[orch_name]
+        await _update_topic_status(orch_name, desired)
+        if _topic_status_desired.get(orch_name) == desired:
+            return
+
+
+def _schedule_topic_status(orch_name: str, is_running: bool) -> asyncio.Task:
+    _topic_status_desired[orch_name] = is_running
+    return _ensure_owned_task(
+        _topic_status_tasks,
+        orch_name,
+        lambda: _topic_status_worker(orch_name),
+    )
+
+
+@dataclass(frozen=True)
+class _MirrorItem:
+    chat_id: int
+    topic_id: int | None
+    text: str | None = None
+    entities: object = None
+    path: str | None = None
+    caption: str | None = None
+    is_photo: bool = False
+
+
+async def _mirror_worker(orch_name: str, outbox: asyncio.Queue) -> None:
+    while True:
+        item = await outbox.get()
+        try:
+            if item.path is not None:
+                completion = await _tg_send_file_safe(
+                    item.chat_id,
+                    item.path,
+                    item.caption,
+                    item.topic_id,
+                    is_photo=item.is_photo,
+                    important=False,
+                )
+            else:
+                completion = await _tg_send_safe(
+                    item.chat_id,
+                    item.text or "",
+                    item.topic_id,
+                    entities=item.entities,
+                    best_effort=True,
+                )
+            if isinstance(completion, (asyncio.Future, asyncio.Task)):
+                await completion
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.warning(f"TG mirror delivery failed for {orch_name}: {e}")
+        finally:
+            outbox.task_done()
+
+
+def _mirror_submit(orch_name: str, item: _MirrorItem) -> bool:
+    if orch_name in _mirror_stopping:
+        logger.warning(f"TG mirror dropped for {orch_name}: outbox stopping")
+        return False
+    outbox = _mirror_outboxes.get(orch_name)
+    if outbox is None:
+        outbox = asyncio.Queue(maxsize=_TG_MIRROR_OUTBOX_MAX)
+        _mirror_outboxes[orch_name] = outbox
+    try:
+        outbox.put_nowait(item)
+    except asyncio.QueueFull:
+        _mirror_dropped[orch_name] = _mirror_dropped.get(orch_name, 0) + 1
+        logger.warning(f"TG mirror dropped for {orch_name}: outbox full")
+        return False
+    _ensure_owned_task(
+        _mirror_tasks,
+        orch_name,
+        lambda: _mirror_worker(orch_name, outbox),
+    )
+    return True
+
+
+def _mirror_delivery_snapshot(orch_name: str) -> dict[str, int]:
+    outbox = _mirror_outboxes.get(orch_name)
+    return {
+        "queued": outbox.qsize() if outbox is not None else 0,
+        "dropped": _mirror_dropped.get(orch_name, 0),
+    }
+
+
 async def _mirror_send(orch_name: str, text: str, entities=None, *, important: bool = False):
     mirrors = config.get("mirrors", {})
     mirror = mirrors.get(orch_name)
     if not mirror or not bot:
-        return
+        return False
     chat_id = mirror.get("chat_id")
     topic_id = mirror.get("topic_id")
     if not chat_id:
-        return
-    return await _tg_send_safe(
-        chat_id, text, topic_id, entities=entities, important=important,
+        return False
+    return _mirror_submit(
+        orch_name,
+        _MirrorItem(
+            chat_id=chat_id,
+            topic_id=topic_id,
+            text=text,
+            entities=entities,
+        ),
     )
+
+
+def _mark_topic_create_uncertain(key: str) -> None:
+    config.setdefault("topic_create_uncertain", {})[key] = (
+        datetime.now(timezone.utc).isoformat()
+    )
+    save_config()
+
+
+async def _create_primary_topic(name: str) -> None:
+    key = f"primary:{name}"
+    chosen = _pick_unique_topic_name(name)
+    try:
+        async with asyncio.timeout(_TG_TOPIC_CREATE_TIMEOUT):
+            result = await bot.create_forum_topic(
+                chat_id=config["group_id"],
+                name=chosen,
+                icon_custom_emoji_id=_ICON_IDLE,
+                request_timeout=_TG_TOPIC_CREATE_TIMEOUT,
+            )
+    except asyncio.CancelledError:
+        _mark_topic_create_uncertain(key)
+        logger.error(
+            f"TG topic create cancelled with uncertain result for {name}",
+        )
+        raise
+    except (TimeoutError, TelegramNetworkError, TelegramServerError):
+        _mark_topic_create_uncertain(key)
+        logger.error(
+            f"TG topic create uncertain for {name}; automatic retry disabled",
+        )
+        return
+    except Exception as e:
+        logger.error(f"Failed to create topic for {name}: {e}")
+        return
+    config["topics"][name] = result.message_thread_id
+    config.setdefault("topic_names", {})[name] = chosen
+    config.setdefault("topic_create_uncertain", {}).pop(key, None)
+    save_config()
+    logger.info(
+        f"Created topic for {name} as '{chosen}': {result.message_thread_id}",
+    )
+    _ensure_stream(name, result.message_thread_id)
+
+
+async def _ensure_primary_topic(name: str) -> None:
+    if name in config["topics"]:
+        _ensure_stream(name, config["topics"][name])
+        return
+    key = f"primary:{name}"
+    if key in config.setdefault("topic_create_uncertain", {}):
+        return
+    task = _ensure_owned_task(
+        _topic_create_tasks,
+        key,
+        lambda: _create_primary_topic(name),
+    )
+    await asyncio.shield(task)
+
+
+async def _create_mirror_topic(name: str, mirror: dict) -> None:
+    key = f"mirror:{name}"
+    chat_id = mirror.get("chat_id")
+    try:
+        async with asyncio.timeout(_TG_TOPIC_CREATE_TIMEOUT):
+            result = await bot.create_forum_topic(
+                chat_id=chat_id,
+                name=_short_name(name),
+                icon_custom_emoji_id=_ICON_IDLE,
+                request_timeout=_TG_TOPIC_CREATE_TIMEOUT,
+            )
+    except asyncio.CancelledError:
+        _mark_topic_create_uncertain(key)
+        logger.error(
+            f"TG mirror topic create cancelled with uncertain result for {name}",
+        )
+        raise
+    except (TimeoutError, TelegramNetworkError, TelegramServerError):
+        _mark_topic_create_uncertain(key)
+        logger.error(
+            f"TG mirror topic create uncertain for {name}; automatic retry disabled",
+        )
+        return
+    except Exception as e:
+        logger.warning(f"Mirror topic creation failed for {name}: {e}")
+        return
+    mirror["topic_id"] = result.message_thread_id
+    config.setdefault("topic_create_uncertain", {}).pop(key, None)
+    save_config()
+    logger.info(f"Created mirror topic for {name}: {result.message_thread_id}")
+
+
+async def _ensure_mirror_topic(name: str, mirror: dict) -> None:
+    if mirror.get("topic_id") is not None or not mirror.get("chat_id"):
+        return
+    key = f"mirror:{name}"
+    if key in config.setdefault("topic_create_uncertain", {}):
+        return
+    task = _ensure_owned_task(
+        _topic_create_tasks,
+        key,
+        lambda: _create_mirror_topic(name, mirror),
+    )
+    await asyncio.shield(task)
 
 
 async def ensure_topics():
@@ -1192,35 +2060,11 @@ async def ensure_topics():
         return
 
     for o in orchs:
-        name = o["name"]
-        if name in config["topics"]:
-            continue
-        try:
-            chosen = _pick_unique_topic_name(name)
-            result = await bot.create_forum_topic(chat_id=config["group_id"], name=chosen, icon_custom_emoji_id=_ICON_IDLE)
-            config["topics"][name] = result.message_thread_id
-            config.setdefault("topic_names", {})[name] = chosen
-            save_config()
-            logger.info(f"Created topic for {name} as '{chosen}': {result.message_thread_id}")
-            asyncio.create_task(stream_logs(name, result.message_thread_id))
-        except Exception as e:
-            logger.error(f"Failed to create topic for {name}: {e}")
+        await _ensure_primary_topic(o["name"])
 
     mirrors = config.get("mirrors", {})
-    for name, mirror in mirrors.items():
-        if mirror.get("topic_id") is not None:
-            continue
-        chat_id = mirror.get("chat_id")
-        if not chat_id:
-            continue
-        try:
-            short = _short_name(name)
-            result = await bot.create_forum_topic(chat_id=chat_id, name=short, icon_custom_emoji_id=_ICON_IDLE)
-            mirror["topic_id"] = result.message_thread_id
-            save_config()
-            logger.info(f"Created mirror topic for {name}: {result.message_thread_id}")
-        except Exception as e:
-            logger.warning(f"Mirror topic creation failed for {name}: {e}")
+    for name, mirror in list(mirrors.items()):
+        await _ensure_mirror_topic(name, mirror)
 
 
 _pil_available: bool | None = None
@@ -1246,36 +2090,53 @@ def _result_images_enabled() -> bool:
     return os.getenv("TG_RESULT_IMAGES", "true").lower() in ("1", "true", "yes") and _check_pil()
 
 
-async def _send_png_to_tg(png: bytes, chat_id: int, thread_id: int, label: str) -> None:
-    """Send PNG bytes as a photo to TG. Temp file cleaned up after send."""
+@dataclass(frozen=True)
+class _ImageSubmission:
+    accepted: bool
+    completion: asyncio.Future | None = None
+
+    def __bool__(self) -> bool:
+        return self.accepted
+
+
+async def _send_png_to_tg(
+    png: bytes,
+    chat_id: int,
+    thread_id: int,
+    label: str,
+) -> _ImageSubmission:
+    """Queue a bounded optional PNG and clean its temp file on completion."""
     import uuid, tempfile
     if not png or not bot:
-        return
+        return _ImageSubmission(False)
     tmp = os.path.join(tempfile.gettempdir(), f"diff-{uuid.uuid4().hex}.png")
     with open(tmp, "wb") as f:
         f.write(png)
-    delivery = None
+
+    def _cleanup(_=None):
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            logger.warning(f"tmp diff image cleanup failed ({tmp}): {e}")
+
     try:
         delivery = await _tg_send_file_safe(
             chat_id, tmp, None, thread_id, is_photo=True, important=False,
         )
-    finally:
-        def _cleanup(_=None):
-            try:
-                os.unlink(tmp)
-            except FileNotFoundError:
-                pass
-            except Exception as e:
-                logger.warning(f"tmp diff image cleanup failed ({tmp}): {e}")
-
-        if isinstance(delivery, asyncio.Future):
-            delivery.add_done_callback(_cleanup)
-        else:
-            _cleanup()
+    except Exception:
+        _cleanup()
+        raise
+    if not isinstance(delivery, asyncio.Future):
+        _cleanup()
+        return _ImageSubmission(False)
+    delivery.add_done_callback(_cleanup)
+    return _ImageSubmission(True, delivery)
 
 
-async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, thread_id: int) -> bool:
-    """Parse Edit/Write tool call, render diff PNG, send to TG. Returns True if image sent."""
+async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, thread_id: int):
+    """Parse an Edit/Write call and submit an optional diff preview."""
     if not _diff_images_enabled():
         logger.debug("diff images disabled")
         return False
@@ -1292,15 +2153,14 @@ async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, threa
             png = render_edit_diff(params.get("file_path", ""), params.get("old_string", ""), params.get("new_string", ""))
         else:  # Write
             png = render_write_diff(params.get("file_path", ""), params.get("content", ""))
-        await _send_png_to_tg(png, chat_id, thread_id, tool_name)
-        return bool(png)
+        return await _send_png_to_tg(png, chat_id, thread_id, tool_name)
     except Exception as e:
         logger.warning(f"diff image send failed ({tool_name}): {e}")
         return False
 
 
-async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id: int, thread_id: int) -> bool:
-    """Render Read/Grep tool_result as PNG and send to TG. Returns True if image sent."""
+async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id: int, thread_id: int):
+    """Render and submit an optional tool-result preview."""
     if not _result_images_enabled():
         return False
     try:
@@ -1317,7 +2177,7 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                 offset = 0
             from app.diff_image import render_read
             png = render_read(file_path, result, offset)
-            await _send_png_to_tg(png, chat_id, thread_id, "Read")
+            return await _send_png_to_tg(png, chat_id, thread_id, "Read")
 
         elif tool_name == "Grep":
             import json, re as _re
@@ -1355,7 +2215,7 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
 
             from app.diff_image import render_grep
             png = render_grep(pattern, parsed)
-            await _send_png_to_tg(png, chat_id, thread_id, "Grep")
+            return await _send_png_to_tg(png, chat_id, thread_id, "Grep")
 
         elif tool_name == "Bash":
             import json
@@ -1367,7 +2227,7 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                 command = ""
             from app.diff_image import render_bash
             png = render_bash(command, result)
-            await _send_png_to_tg(png, chat_id, thread_id, "Bash")
+            return await _send_png_to_tg(png, chat_id, thread_id, "Bash")
 
         elif tool_name == "Glob":
             import json
@@ -1381,10 +2241,9 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                 return False
             from app.diff_image import render_glob
             png = render_glob(pattern, result)
-            await _send_png_to_tg(png, chat_id, thread_id, "Glob")
+            return await _send_png_to_tg(png, chat_id, thread_id, "Glob")
         else:
             return False
-        return True
     except Exception as e:
         logger.debug(f"result image send failed ({tool_name}): {e}")
         return False
@@ -1417,8 +2276,8 @@ async def stream_logs(orch_name: str, thread_id: int):
     _last_tool_text = ""
     _last_tool_name = ""   # track last tool for result image rendering
     _last_tool_raw = ""    # full raw content of last tool call
-    _last_diff_sent = False  # diff image was sent for Edit/Write — skip text tool_result
     _idle_ticks = 0
+    current_log_previous_id = last_id
 
     try:
         while True:
@@ -1428,10 +2287,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                 for log in logs:
                     if log["id"] <= last_id:
                         continue
+                    current_log_previous_id = last_id
                     last_id = log["id"]
                     t, c = log["type"], log["content"]
                     if t in ("text", "tool"):
-                        await _update_topic_status(orch_name, True)
+                        _schedule_topic_status(orch_name, True)
                     if t == "user_message":
                         c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
                         img_match = re.search(r'(/\S+\.(?:png|jpg|jpeg|gif|webp))', c, re.IGNORECASE)
@@ -1445,10 +2305,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 )
                                 mirror = config.get("mirrors", {}).get(orch_name)
                                 if mirror and mirror.get("chat_id"):
-                                    await _tg_send_file_safe(
-                                        mirror["chat_id"], img_path, caption,
-                                        mirror.get("topic_id"), is_photo=True,
-                                        important=True,
+                                    await _mirror_send_file(
+                                        orch_name, img_path, caption, True,
                                     )
                             except Exception as e:
                                 logger.warning(f"TG send photo failed: {e}")
@@ -1495,15 +2353,15 @@ async def stream_logs(orch_name: str, thread_id: int):
                         _last_tool_text = f"{header}\n{tool_body}"
                         _last_tool_name = tool_name
                         _last_tool_raw = c
-                        # Diff image for Edit/Write — if image sent, skip text expandable
-                        _diff_sent = False
+                        # Images are optional previews; text remains the durable evidence.
                         if tool_name in ("Edit", "Write"):
-                            _diff_sent = await _send_diff_image(tool_name, c, config["group_id"], thread_id)
-                            _last_diff_sent = _diff_sent
+                            await _send_diff_image(
+                                tool_name, c, config["group_id"], thread_id,
+                            )
                         # Special formatting for send_message — render as pretty HTML
                         # send_message tool: render as readable HTML instead of raw JSON expandable —
                         # the recipient name and message body are the useful parts
-                        if not _diff_sent and "send_message" in tool_name:
+                        if "send_message" in tool_name:
                             try:
                                 import json as _json
                                 colon_idx = c.index(":")
@@ -1516,14 +2374,17 @@ async def stream_logs(orch_name: str, thread_id: int):
                                         config["group_id"], chunk, thread_id,
                                         entities=aio_ents, important=True,
                                     )
-                                _last_diff_sent = True
                             except Exception as _e:
                                 logger.debug(f"send_message pretty format failed: {_e}")
-                                _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
-                        elif not _diff_sent:
-                            _skip_expandable = (tool_name in ("Read", "Grep", "Bash", "Glob") and _result_images_enabled())
-                            if not _skip_expandable:
-                                _last_tool_msg = await _send_expandable(config["group_id"], thread_id, header, tool_body)
+                                _last_tool_msg = await _send_expandable(
+                                    config["group_id"], thread_id, header, tool_body,
+                                    telemetry_key=(thread_id, orch_name),
+                                )
+                        else:
+                            _last_tool_msg = await _send_expandable(
+                                config["group_id"], thread_id, header, tool_body,
+                                telemetry_key=(thread_id, orch_name),
+                            )
                         try:
                             m_text, m_ents = md_convert(f"{header}\n{tool_body}")
                             from aiogram.types import MessageEntity as AioEntity
@@ -1549,14 +2410,6 @@ async def stream_logs(orch_name: str, thread_id: int):
                                     continue
                             except Exception as e:
                                 logger.debug(f"worker_info pretty-print failed, falling back to raw: {e}")
-                        # Edit/Write diff image already sent — skip redundant "file updated" text
-                        if _last_diff_sent:
-                            _last_diff_sent = False
-                            _last_tool_msg = None
-                            _last_tool_text = ""
-                            _last_tool_name = ""
-                            _last_tool_raw = ""
-                            continue
                         # Read tool returned an image — send original file instead of base64 spam
                         if _last_tool_name == "Read" and ("'type': 'image'" in c or '"type": "image"' in c or "'type':'image'" in c):
                             try:
@@ -1580,23 +2433,24 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 logger.debug(f"Read image send failed, falling back: {_e}")
                         result_preview = c[:80].replace("\n", " ").strip()
                         result_body = c[:800]
-                        # Result image for Read/Grep/Bash — if sent, skip text
-                        _result_img_sent = False
                         if _last_tool_name in ("Read", "Grep", "Bash", "Glob"):
-                            _result_img_sent = await _send_result_image(_last_tool_name, _last_tool_raw, c, config["group_id"], thread_id)
-                        if not _result_img_sent:
-                            if _last_tool_msg:
-                                await _edit_tool_with_result(
-                                    _last_tool_msg, config["group_id"],
-                                    _last_tool_text, f"📎 {result_preview}", result_body,
-                                )
-                                _last_tool_msg = None
-                                _last_tool_text = ""
-                            else:
-                                await _send_expandable(config["group_id"], thread_id, f"📎 {result_preview}", result_body)
-                        else:
+                            await _send_result_image(
+                                _last_tool_name, _last_tool_raw, c,
+                                config["group_id"], thread_id,
+                            )
+                        if _last_tool_msg:
+                            await _edit_tool_with_result(
+                                _last_tool_msg, config["group_id"],
+                                _last_tool_text, f"📎 {result_preview}", result_body,
+                            )
                             _last_tool_msg = None
                             _last_tool_text = ""
+                        else:
+                            await _send_expandable(
+                                config["group_id"], thread_id,
+                                f"📎 {result_preview}", result_body,
+                                telemetry_key=(thread_id, orch_name),
+                            )
                         try:
                             m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
                             from aiogram.types import MessageEntity as AioEntity
@@ -1612,7 +2466,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         if "turn ended" in c:
                             still_running = _any_running_in_scope(scope)
                             if not still_running:
-                                await _update_topic_status(orch_name, False)
+                                _schedule_topic_status(orch_name, False)
                         text = f"⚡ {c}"
                     elif t == "subagent_end":
                         # Only the FINAL of a sub-agent (start/progress/stream = spam, dropped).
@@ -1633,6 +2487,13 @@ async def stream_logs(orch_name: str, thread_id: int):
                             orch_name, converted, entities=aio_ents,
                             important=is_important,
                         )
+            except _TgDeliveryOverloaded as e:
+                last_id = current_log_previous_id
+                logger.error(
+                    f"Stream backpressure for {orch_name}, retaining cursor "
+                    f"{last_id}: {e}"
+                )
+                _idle_ticks = 0
             except Exception as e:
                 logger.error(f"Stream error for {orch_name}: {e}")
                 _idle_ticks = 0
@@ -1662,11 +2523,11 @@ async def handle_voice(msg: types.Message):
         return
     t_total = time.monotonic()
 
-    sid, idx = await _register_media(msg, session)
+    token = await _register_media(msg, session)
     path = await _download_file(msg.voice.file_id, _media_name("voice", ".oga", msg), msg.voice.file_unique_id)
     tag = _sender_tag(msg)
     if not path:
-        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: file too large]")
+        await _resolve_media(token, f"{tag}{_forward_meta(msg)}[voice: file too large]")
         return
     text, err = await _transcribe_audio(
         path,
@@ -1677,11 +2538,11 @@ async def handle_voice(msg: types.Message):
     total_ms = (time.monotonic() - t_total) * 1000
     logger.info(f"handle_voice total={total_ms:.0f}ms duration={msg.voice.duration}s")
     if text:
-        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path} | {text}]")
+        await _resolve_media(token, f"{tag}{_forward_meta(msg)}[voice: {path} | {text}]")
     elif err:
-        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path} | ❌ {err}]")
+        await _resolve_media(token, f"{tag}{_forward_meta(msg)}[voice: {path} | ❌ {err}]")
     else:
-        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[voice: {path}]")
+        await _resolve_media(token, f"{tag}{_forward_meta(msg)}[voice: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.video_note)
@@ -1690,11 +2551,11 @@ async def handle_video_note(msg: types.Message):
     if not session:
         return
 
-    sid, idx = await _register_media(msg, session)
+    token = await _register_media(msg, session)
     tag = _sender_tag(msg)
     path = await _download_file(msg.video_note.file_id, _media_name("videonote", ".mp4", msg), msg.video_note.file_unique_id)
     if not path:
-        await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: file too large]")
+        await _resolve_media(token, f"{tag}{_forward_meta(msg)}[video_note: file too large]")
         return
     audio_path = path.replace(".mp4", ".oga")
     p = await asyncio.create_subprocess_exec(
@@ -1710,12 +2571,12 @@ async def handle_video_note(msg: types.Message):
             scope=session.scope,
         )
         if text:
-            await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path} | {text}]")
+            await _resolve_media(token, f"{tag}{_forward_meta(msg)}[video_note: {path} | {text}]")
             return
         if err:
-            await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path} | ❌ {err}]")
+            await _resolve_media(token, f"{tag}{_forward_meta(msg)}[video_note: {path} | ❌ {err}]")
             return
-    await _resolve_media(sid, idx, f"{tag}{_forward_meta(msg)}[video_note: {path}]")
+    await _resolve_media(token, f"{tag}{_forward_meta(msg)}[video_note: {path}]")
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.photo)
@@ -1804,7 +2665,7 @@ async def start_bridge(manager):
     global bot, _manager, DEEPGRAM_API_KEY
     from dotenv import load_dotenv
     load_dotenv()
-    _reset_tg_delivery_state()
+    await _reset_tg_delivery_state()
 
     DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 
@@ -1859,11 +2720,16 @@ async def start_bridge(manager):
 
 async def _deferred_startup():
     try:
-        await ensure_topics()
-        await _sync_all_topic_statuses()
         for name, thread_id in list(config["topics"].items()):
-            _tasks.append(asyncio.create_task(stream_logs(name, thread_id)))
-        _tasks.append(asyncio.create_task(topic_sync_loop()))
+            _ensure_stream(name, thread_id)
+        await asyncio.sleep(0)
+        _ensure_owned_task(
+            _bridge_tasks,
+            "topic_sync",
+            topic_sync_loop,
+        )
+        await _sync_all_topic_statuses()
+        await ensure_topics()
         logger.info(f"TG deferred startup done | topics={len(config['topics'])}")
     except Exception as e:
         logger.error(f"TG deferred startup failed: {e}")
@@ -1919,15 +2785,47 @@ async def stop_bridge():
     _session_mod.on_scope_running = None
     if _manager:
         _manager.tg_topics_remover = None
-    for t in _tasks:
-        t.cancel()
+    debounce_tasks = [
+        buf.debounce_task
+        for buf in list(_buffers.values())
+        if buf.debounce_task is not None
+    ]
+    _mirror_stopping.update(config.get("mirrors", {}))
+    owners = set(_tasks)
+    owners.update(_stream_tasks.values())
+    owners.update(_topic_status_tasks.values())
+    owners.update(_topic_create_tasks.values())
+    owners.update(_bridge_tasks.values())
+    owners.update(_mirror_tasks.values())
+    owners.update(debounce_tasks)
+    current = asyncio.current_task()
+    for task in owners:
+        if task is not current and not task.done():
+            task.cancel()
+    await asyncio.gather(
+        *(task for task in owners if task is not current),
+        return_exceptions=True,
+    )
     _tasks.clear()
-    _reset_tg_delivery_state()
-    if bot:
-        await bot.session.close()
-    # drop stale refs — a handler racing past the unhook must see inactive state
-    bot = None
-    _manager = None
+    _stream_tasks.clear()
+    _topic_status_tasks.clear()
+    _topic_status_desired.clear()
+    _topic_status.clear()
+    _topic_create_tasks.clear()
+    _bridge_tasks.clear()
+    _mirror_tasks.clear()
+    _mirror_outboxes.clear()
+    _mirror_dropped.clear()
+    _buffers.clear()
+    await _reset_tg_delivery_state()
+    try:
+        if bot:
+            await bot.session.close()
+    finally:
+        # A handler racing past the unhook must see inactive state even if close fails.
+        bot = None
+        _manager = None
+        _mirror_stopping.clear()
 
 
 if __name__ == "__main__":
