@@ -403,9 +403,20 @@ class ClaudeBackend:
                         inp = str(block.input)
                     short_name = block.name.split('__')[-1] if '__' in block.name else block.name
                     events.append(self._tag_sub(AgentEvent("tool_use", f"{block.name}: {inp}",
-                                             metadata={"tool_name": block.name, "short_name": short_name}), sub_id))
+                                             metadata={
+                                                 "tool_name": block.name,
+                                                 "short_name": short_name,
+                                                 "tool_use_id": block.id,
+                                             }), sub_id))
                 elif isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                    events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
+                    events.append(self._tag_sub(AgentEvent(
+                        "tool_result",
+                        _extract_tool_result(block),
+                        metadata={
+                            "tool_use_id": getattr(block, "tool_use_id", "") or "",
+                            "is_error": bool(getattr(block, "is_error", False)),
+                        },
+                    ), sub_id))
             err = getattr(msg, "error", None)
             if err:
                 self._pending_model_error = str(err)
@@ -422,7 +433,14 @@ class ClaudeBackend:
             if hasattr(msg, 'content') and isinstance(msg.content, list):
                 for block in msg.content:
                     if isinstance(block, (ToolResultBlock, ServerToolResultBlock)):
-                        events.append(self._tag_sub(AgentEvent("tool_result", _extract_tool_result(block)), sub_id))
+                        events.append(self._tag_sub(AgentEvent(
+                            "tool_result",
+                            _extract_tool_result(block),
+                            metadata={
+                                "tool_use_id": getattr(block, "tool_use_id", "") or "",
+                                "is_error": bool(getattr(block, "is_error", False)),
+                            },
+                        ), sub_id))
 
         elif isinstance(msg, TaskStartedMessage):
             desc = getattr(msg, "description", "") or ""
@@ -541,6 +559,7 @@ class ClaudeBackend:
                 logger.info(f"[{self.model}] {len(denials)} permission denial(s) this turn")
 
             events.append(AgentEvent("turn_end", f"stop_reason={sr}, num_turns={nt}", metadata={
+                "event_id": getattr(msg, "uuid", None) or "",
                 "session_id": self._session_id,
                 "ok": not is_err,
                 "is_error": is_err,

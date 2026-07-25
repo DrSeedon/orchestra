@@ -75,7 +75,8 @@ def init_db() -> None:
                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
                 ts TEXT NOT NULL,
                 type TEXT NOT NULL,
-                content TEXT NOT NULL
+                content TEXT NOT NULL,
+                event_id TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
             CREATE INDEX IF NOT EXISTS idx_sessions_scope ON sessions(scope, is_orchestrator, status);
@@ -257,8 +258,30 @@ def init_db() -> None:
                 session_name TEXT,
                 scope TEXT,
                 tool_name TEXT,
-                error_text TEXT
+                error_text TEXT,
+                runtime TEXT NOT NULL DEFAULT 'unknown',
+                tool_use_id TEXT NOT NULL DEFAULT ''
             );
+
+            CREATE TABLE IF NOT EXISTS turn_usage (
+                id INTEGER PRIMARY KEY,
+                event_id TEXT NOT NULL UNIQUE,
+                ts TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL DEFAULT '',
+                task_id TEXT NOT NULL DEFAULT '',
+                runtime TEXT NOT NULL,
+                model TEXT NOT NULL,
+                ok INTEGER NOT NULL,
+                stop_reason TEXT NOT NULL,
+                cost_usd REAL NOT NULL,
+                input_tokens INTEGER NOT NULL,
+                output_tokens INTEGER NOT NULL,
+                cache_read_tokens INTEGER NOT NULL,
+                cache_create_tokens INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_turn_usage_ts ON turn_usage(ts);
+            CREATE INDEX IF NOT EXISTS idx_turn_usage_session ON turn_usage(session_id, ts);
 
             CREATE TABLE IF NOT EXISTS improvement_rules (
                 id INTEGER PRIMARY KEY,
@@ -501,12 +524,58 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN runtime_handoff TEXT DEFAULT ''")
     if "last_summary" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN last_summary TEXT DEFAULT ''")
+    log_cols = {row[1] for row in c.execute("PRAGMA table_info(logs)").fetchall()}
+    if log_cols and "event_id" not in log_cols:
+        c.execute("ALTER TABLE logs ADD COLUMN event_id TEXT NOT NULL DEFAULT ''")
+    c.execute(
+        """CREATE INDEX IF NOT EXISTS idx_logs_event_id
+           ON logs(event_id)
+           WHERE event_id <> ''"""
+    )
     usage_cols = {row[1] for row in c.execute("PRAGMA table_info(usage_snapshots)").fetchall()}
     if usage_cols and "provider_usage" not in usage_cols:
         c.execute("ALTER TABLE usage_snapshots ADD COLUMN provider_usage TEXT NOT NULL DEFAULT '{}'")
+    tool_error_cols = {
+        row[1] for row in c.execute("PRAGMA table_info(tool_errors)").fetchall()
+    }
+    if tool_error_cols and "runtime" not in tool_error_cols:
+        c.execute(
+            "ALTER TABLE tool_errors ADD COLUMN runtime TEXT NOT NULL DEFAULT 'unknown'"
+        )
+    if tool_error_cols and "tool_use_id" not in tool_error_cols:
+        c.execute(
+            "ALTER TABLE tool_errors ADD COLUMN tool_use_id TEXT NOT NULL DEFAULT ''"
+        )
+    c.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS idx_tool_errors_identity
+           ON tool_errors(runtime, tool_use_id)
+           WHERE tool_use_id <> ''"""
+    )
+    turn_usage_cols = {
+        row[1] for row in c.execute("PRAGMA table_info(turn_usage)").fetchall()
+    }
+    if turn_usage_cols and "scope" not in turn_usage_cols:
+        c.execute(
+            "ALTER TABLE turn_usage ADD COLUMN scope TEXT NOT NULL DEFAULT ''"
+        )
+    if turn_usage_cols and "task_id" not in turn_usage_cols:
+        c.execute(
+            "ALTER TABLE turn_usage ADD COLUMN task_id TEXT NOT NULL DEFAULT ''"
+        )
     # Идемпотентный сид профиля 'personal' (config_dir="" → env процесса, как сегодня).
     # INSERT OR IGNORE: повторная миграция не падает и не перетирает существующую строку.
     c.execute("INSERT OR IGNORE INTO profiles (name, config_dir) VALUES ('personal', '')")
+    collector_started_at = datetime.now(timezone.utc).isoformat()
+    c.execute(
+        """INSERT OR IGNORE INTO kv(key, value)
+           VALUES ('tool_error_collector_started_at', ?)""",
+        (collector_started_at,),
+    )
+    c.execute(
+        """INSERT OR IGNORE INTO kv(key, value)
+           VALUES ('turn_usage_collector_started_at', ?)""",
+        (collector_started_at,),
+    )
 
 
 def save_session(s: dict) -> None:
@@ -760,11 +829,18 @@ def archive_session(session_id: str) -> None:
         )
 
 
-def add_log(session_id: str, ts: datetime, type: str, content: str) -> int:
+def add_log(
+    session_id: str,
+    ts: datetime,
+    type: str,
+    content: str,
+    event_id: str = "",
+) -> int:
     with _conn() as c:
         cur = c.execute(
-            "INSERT INTO logs (session_id, ts, type, content) VALUES (?, ?, ?, ?)",
-            (session_id, ts.isoformat(), type, content),
+            """INSERT INTO logs (session_id, ts, type, content, event_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            (session_id, ts.isoformat(), type, content, event_id),
         )
         return cur.lastrowid
 
@@ -1180,14 +1256,31 @@ def bg_cleanup_old(max_age_hours: int = 24) -> int:
         return cur.rowcount
 
 
-def tool_error_add(session_name: str, scope: str, tool_name: str, error_text: str) -> None:
-    """Record one tool execution error."""
+def tool_error_add(
+    session_name: str,
+    scope: str,
+    tool_name: str,
+    error_text: str,
+    *,
+    runtime: str = "unknown",
+    tool_use_id: str = "",
+) -> bool:
+    """Atomically record one bounded tool failure; return false on replay."""
     with _conn() as c:
-        c.execute(
-            """INSERT INTO tool_errors (session_name, scope, tool_name, error_text)
-               VALUES (?, ?, ?, ?)""",
-            (session_name, scope, tool_name, error_text),
+        cursor = c.execute(
+            """INSERT OR IGNORE INTO tool_errors
+               (session_name, scope, tool_name, error_text, runtime, tool_use_id)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                session_name,
+                scope,
+                tool_name or "unknown",
+                str(error_text or "")[:4000],
+                runtime or "unknown",
+                tool_use_id or "",
+            ),
         )
+        return cursor.rowcount == 1
 
 
 def tool_errors_summary(days: int = 7) -> list[dict]:
@@ -1221,6 +1314,55 @@ def tool_errors_recent(limit: int = 50) -> list[dict]:
             (limit,),
         ).fetchall()
         return [dict(row) for row in rows]
+
+
+def turn_usage_add(
+    *,
+    event_id: str,
+    session_id: str,
+    scope: str = "",
+    task_id: str = "",
+    runtime: str,
+    model: str,
+    ok: bool,
+    stop_reason: str,
+    cost_usd: float,
+    input_tokens: int,
+    output_tokens: int,
+    cache_read_tokens: int,
+    cache_create_tokens: int,
+    ts: str | None = None,
+) -> bool:
+    """Persist one provider-identified terminal turn; return false on replay."""
+    if not event_id:
+        return False
+    observed_at = ts or datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        cursor = c.execute(
+            """INSERT OR IGNORE INTO turn_usage
+               (event_id, ts, session_id, scope, task_id,
+                runtime, model, ok, stop_reason,
+                cost_usd, input_tokens, output_tokens,
+                cache_read_tokens, cache_create_tokens)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                event_id,
+                observed_at,
+                session_id,
+                scope,
+                task_id,
+                runtime,
+                model,
+                int(bool(ok)),
+                stop_reason,
+                max(0.0, float(cost_usd or 0)),
+                max(0, int(input_tokens or 0)),
+                max(0, int(output_tokens or 0)),
+                max(0, int(cache_read_tokens or 0)),
+                max(0, int(cache_create_tokens or 0)),
+            ),
+        )
+        return cursor.rowcount == 1
 
 
 def rule_propose(

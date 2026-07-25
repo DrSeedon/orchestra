@@ -464,6 +464,54 @@ def test_file_change_exposes_unified_diff_and_patch_updates():
     assert json.loads(completed[0].content)["status"] == "completed"
 
 
+def test_completed_turn_id_is_carried_as_durable_event_id():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    events = backend._turn_completed({
+        "id": "turn-1",
+        "status": "completed",
+    })
+
+    assert events[-1].metadata["event_id"] == "turn-1"
+
+
+def test_explicit_codex_tool_failures_keep_identity_and_tool_name():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+
+    command = backend._item_completed({
+        "id": "cmd-1",
+        "type": "commandExecution",
+        "command": "false",
+        "aggregatedOutput": "exit 1",
+        "exitCode": 1,
+    })
+    mcp = backend._item_completed({
+        "id": "mcp-1",
+        "type": "mcpToolCall",
+        "server": "orchestra",
+        "tool": "send_message",
+        "arguments": {},
+        "error": {"message": "delivery failed"},
+    })
+    dynamic = backend._item_completed({
+        "id": "dynamic-1",
+        "type": "dynamicToolCall",
+        "tool": "custom",
+        "status": "failed",
+        "success": False,
+    })
+
+    failures = [
+        event
+        for event in command + mcp + dynamic
+        if event.type == "tool_result" and event.metadata.get("is_error")
+    ]
+    assert [(event.metadata["tool_use_id"], event.metadata["tool_name"]) for event in failures] == [
+        ("cmd-1", "Bash"),
+        ("mcp-1", "mcp__orchestra__send_message"),
+        ("dynamic-1", "custom"),
+    ]
+
+
 def test_reasoning_plan_warning_compaction_and_mcp_failure_telemetry():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
 

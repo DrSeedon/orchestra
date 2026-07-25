@@ -877,11 +877,18 @@ class CodexBackend:
             if unseen:
                 events.extend(self._item_started(item))
             output = item.get("aggregatedOutput")
-            if output is not None:
+            exit_code = item.get("exitCode")
+            failed = exit_code is not None and exit_code != 0
+            if output is not None or failed:
                 events.append(AgentEvent(
                     "tool_result",
-                    str(output),
-                    metadata={"exit_code": item.get("exitCode"), "tool_use_id": item_id},
+                    str(output) if output is not None else f"command exited with code {exit_code}",
+                    metadata={
+                        "exit_code": exit_code,
+                        "tool_use_id": item_id,
+                        "tool_name": "Bash",
+                        "is_error": failed,
+                    },
                 ))
         elif item_type == "fileChange":
             if unseen:
@@ -908,32 +915,49 @@ class CodexBackend:
                 events.append(AgentEvent(
                     "tool_result",
                     self._result_text(item["result"]),
-                    metadata={"tool_use_id": item_id},
+                    metadata={
+                        "tool_use_id": item_id,
+                        "tool_name": name,
+                        "is_error": False,
+                    },
                 ))
             if item.get("error"):
                 error = item["error"]
+                error_text = (
+                    error.get("message", str(error))
+                    if isinstance(error, dict)
+                    else str(error)
+                )
+                events.append(AgentEvent(
+                    "tool_result",
+                    error_text,
+                    metadata={
+                        "tool_use_id": item_id,
+                        "tool_name": name,
+                        "is_error": True,
+                    },
+                ))
                 events.append(AgentEvent(
                     "error",
-                    error.get("message", str(error)) if isinstance(error, dict) else str(error),
+                    error_text,
                 ))
         elif item_type == "dynamicToolCall":
             if unseen:
                 events.extend(self._item_started(item))
             content = item.get("contentItems")
-            if content is not None:
+            failed = item.get("success") is False or item.get("status") == "failed"
+            if content is not None or failed:
                 events.append(AgentEvent(
                     "tool_result",
-                    self._result_text(content),
-                    metadata={"tool_use_id": item_id},
-                ))
-            elif item.get("success") is False or item.get("status") == "failed":
-                events.append(AgentEvent(
-                    "tool_result",
-                    json.dumps({
+                    self._result_text(content) if content is not None else json.dumps({
                         "status": item.get("status"),
                         "success": item.get("success"),
                     }),
-                    metadata={"tool_use_id": item_id},
+                    metadata={
+                        "tool_use_id": item_id,
+                        "tool_name": item.get("tool", "tool"),
+                        "is_error": failed,
+                    },
                 ))
         elif item_type == "webSearch":
             if unseen:
@@ -1081,6 +1105,7 @@ class CodexBackend:
         ctx_pct = min(100, int(ctx_tokens * 100 / ctx_window)) if ctx_window else 0
         cost = _codex_cost(self.model, turn_input, turn_cached, turn_output)
         metadata = {
+            "event_id": str(turn.get("id") or ""),
             "session_id": self._thread_id,
             "ok": ok,
             "stop_reason": stop_reason,

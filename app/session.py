@@ -6,6 +6,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
+from functools import partial
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from app.events import AgentEvent
@@ -27,7 +28,7 @@ from app.session_turns import TurnManager
 
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
-from app.db import add_log, get_logs, save_session
+from app.db import add_log, get_logs, save_session, tool_error_add
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,7 @@ class AgentSession:
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
+    _tool_names_by_id: dict = field(default_factory=dict, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
     _template_hash: str = field(default="", repr=False)
@@ -732,6 +734,24 @@ class AgentSession:
                     payload[key] = value
             broker.publish(self.id, payload)
             return
+        tool_use_id = str(event.metadata.get("tool_use_id") or "")
+        if event.type == "tool_use" and tool_use_id:
+            self._tool_names_by_id[tool_use_id] = (
+                event.metadata.get("tool_name") or "unknown"
+            )
+        elif event.type == "tool_result" and tool_use_id:
+            remembered_name = self._tool_names_by_id.pop(tool_use_id, "unknown")
+            tool_name = event.metadata.get("tool_name") or remembered_name
+            if event.metadata.get("is_error"):
+                self._submit_db_write(
+                    tool_error_add,
+                    self.name,
+                    self.scope,
+                    tool_name,
+                    event.content,
+                    runtime=self.backend_type,
+                    tool_use_id=tool_use_id,
+                )
         # Sub-agent tool_use/text/tool_result (tagged with subagent_id) → broker ONLY
         # (ephemeral live nesting under the sub-agent block). NOT persisted — the DB
         # record is subagent_start/end; persisting these too would double-render them
@@ -1412,7 +1432,24 @@ class AgentSession:
         if self._persist_task and not self._persist_task.done():
             await asyncio.gather(self._persist_task, return_exceptions=True)
 
-    def _log(self, type: str, content: str) -> None:
+    def _submit_db_write(self, operation, *args, **kwargs) -> None:
+        """Run non-critical telemetry outside the event loop and surface failures."""
+        future = asyncio.get_running_loop().run_in_executor(
+            _db_executor(),
+            partial(operation, *args, **kwargs),
+        )
+        self._log_futures.add(future)
+
+        def completed(done) -> None:
+            self._log_futures.discard(done)
+            try:
+                done.result()
+            except Exception as error:
+                logger.error(f"[{self.name}] telemetry write failed: {error}")
+
+        future.add_done_callback(completed)
+
+    def _log(self, type: str, content: str, *, event_id: str = "") -> None:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
         future = asyncio.get_event_loop().run_in_executor(
             _db_executor(),
@@ -1421,6 +1458,7 @@ class AgentSession:
             datetime.now(timezone.utc),
             type,
             content,
+            event_id,
         )
         self._log_futures.add(future)
         future.add_done_callback(self._log_futures.discard)

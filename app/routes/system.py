@@ -679,42 +679,43 @@ async def get_usage():
         return {"usage": None}
     now = time.time()
 
+    anthropic_data = None
+    anthropic_fetched = False
     if _usage_cache["data"] and (now - _usage_cache["ts"]) < _USAGE_CACHE_TTL:
         anthropic_data = _usage_cache["data"]
     else:
         token, refresh_token, _tier = _read_oauth_credentials()
-        if not token:
-            return JSONResponse({"error": "no OAuth credentials found"}, status_code=500)
-
-        try:
-            anthropic_data = await _fetch_anthropic_usage(token)
-        except PermissionError:
-            if refresh_token:
-                new_token = await _refresh_oauth_token(refresh_token)
-                if new_token:
-                    try:
-                        anthropic_data = await _fetch_anthropic_usage(new_token)
-                        _usage_cache["token"] = new_token
-                    except Exception as e:
-                        return JSONResponse({"error": f"refresh succeeded but usage fetch failed: {e}"}, status_code=500)
+        if token:
+            try:
+                anthropic_data = await _fetch_anthropic_usage(token)
+                anthropic_fetched = True
+            except PermissionError:
+                if refresh_token:
+                    new_token = await _refresh_oauth_token(refresh_token)
+                    if new_token:
+                        try:
+                            anthropic_data = await _fetch_anthropic_usage(new_token)
+                            anthropic_fetched = True
+                            _usage_cache["token"] = new_token
+                        except Exception as error:
+                            logger.warning(
+                                f"Anthropic usage fetch after refresh failed: {error}"
+                            )
+                    else:
+                        logger.warning("Anthropic token refresh failed")
                 else:
-                    return JSONResponse({"error": "token expired, refresh failed"}, status_code=500)
-            else:
-                return JSONResponse({"error": "token expired, no refresh token"}, status_code=500)
-        except RuntimeError:
-            if _usage_cache["data"]:
-                anthropic_data = _usage_cache["data"]
-            else:
-                return JSONResponse({"error": "rate limited by Anthropic, no cached data"}, status_code=429)
-        except Exception as e:
-            if _usage_cache["data"]:
-                anthropic_data = _usage_cache["data"]
-            else:
-                return JSONResponse({"error": str(e)}, status_code=500)
+                    logger.warning("Anthropic token expired without refresh token")
+            except Exception as error:
+                logger.warning(f"Anthropic usage fetch failed: {error}")
+        else:
+            logger.warning("Anthropic usage unavailable: no OAuth credentials")
 
-        _usage_cache["data"] = anthropic_data
-        _usage_cache["ts"] = now
-        _save_usage_cache()
+        if anthropic_data is None:
+            anthropic_data = _usage_cache["data"]
+        if anthropic_fetched:
+            _usage_cache["data"] = anthropic_data
+            _usage_cache["ts"] = now
+            _save_usage_cache()
 
     if _codex_usage_cache["data"] and (now - _codex_usage_cache["ts"]) < _USAGE_CACHE_TTL:
         codex_data = _codex_usage_cache["data"]
@@ -805,50 +806,21 @@ async def usage_history(hours: int = 24):
 
 @router.get("/api/usage/daily")
 async def usage_daily(days: int = 30):
-    """Daily cost + cache stats from turn-end logs.
+    """Daily cost plus runtime-aware prompt-cache gap metrics."""
+    from app.usage_analytics import daily_usage
+    return daily_usage(days)
 
-    cold_starts/cache_hit_pct per day: a turn is a cold start when >3600s passed
-    since the same agent's previous turn (prompt cache, 1h TTL, evicted → full
-    re-warm ~20× costlier). First turn per agent has no prev → excluded.
-    """
-    from app.db import _conn
-    c = _conn()
-    since = f"-{days} days"
-    cost_rows = c.execute("""
-        SELECT date(l.ts) as day,
-          COUNT(*) as turns,
-          ROUND(SUM(CAST(SUBSTR(l.content, INSTR(l.content, '$') + 1,
-            INSTR(SUBSTR(l.content, INSTR(l.content, '$') + 1), ' ') - 1) AS REAL)), 4) as cost_usd
-        FROM logs l
-        WHERE l.type='status' AND l.content LIKE '%turn ended%'
-          AND date(l.ts) >= date('now', ?)
-        GROUP BY date(l.ts)
-        ORDER BY day
-    """, (since,)).fetchall()
-    cache_rows = c.execute("""
-        WITH turns AS (
-            SELECT ts, date(ts) AS day,
-                   LAG(ts) OVER (PARTITION BY session_id ORDER BY ts) AS prev_ts
-            FROM logs
-            WHERE type='status' AND content LIKE '%turn ended%'
-              AND date(ts) >= date('now', ?)
-        )
-        SELECT day,
-               COUNT(*) FILTER (WHERE prev_ts IS NOT NULL) AS gap_turns,
-               COUNT(*) FILTER (WHERE prev_ts IS NOT NULL
-                   AND (julianday(ts) - julianday(prev_ts)) * 86400 > 3600) AS cold
-        FROM turns GROUP BY day
-    """, (since,)).fetchall()
-    cache_by_day = {r[0]: (r[1] or 0, r[2] or 0) for r in cache_rows}
-    c.close()
-    out = []
-    for r in cost_rows:
-        day = r[0]
-        gap, cold = cache_by_day.get(day, (0, 0))
-        hit_pct = round((gap - cold) / gap * 100) if gap else None
-        out.append({"day": day, "turns": r[1], "cost_usd": r[2],
-                    "cold_starts": cold, "cache_hit_pct": hit_pct})
-    return out
+
+@router.get("/api/usage/analytics")
+async def usage_analytics_endpoint(days: int = 7):
+    """Return one coherent capacity, cost, efficiency and reliability snapshot."""
+    from app.usage_analytics import build_usage_analytics
+
+    current = await get_usage()
+    capacity = current if isinstance(current, dict) and any(
+        key in current for key in ("anthropic", "codex", "orchestra")
+    ) else {}
+    return build_usage_analytics(days=days, capacity=capacity)
 
 
 @router.get("/api/usage/daily/agents")

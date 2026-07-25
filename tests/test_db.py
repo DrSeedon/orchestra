@@ -55,6 +55,18 @@ class TestInitDb:
         init_db()
         init_db()
 
+    def test_telemetry_collector_start_is_durable(self, db):
+        from app.db import init_db, kv_get
+
+        tool_started = kv_get("tool_error_collector_started_at")
+        turn_started = kv_get("turn_usage_collector_started_at")
+        init_db()
+
+        assert tool_started
+        assert turn_started
+        assert kv_get("tool_error_collector_started_at") == tool_started
+        assert kv_get("turn_usage_collector_started_at") == turn_started
+
 
 class TestConnection:
     def test_wal_mode(self, db):
@@ -145,6 +157,71 @@ class TestToolErrors:
                 "top_errors": ["recent"],
             }
         ]
+
+    def test_stable_tool_identity_deduplicates_and_bounds_error_text(self, db):
+        from app.db import _conn, tool_error_add
+
+        assert tool_error_add(
+            "worker",
+            "/scope",
+            "Read",
+            "x" * 10_000,
+            runtime="claude",
+            tool_use_id="tool-1",
+        ) is True
+        assert tool_error_add(
+            "worker",
+            "/scope",
+            "Read",
+            "replayed",
+            runtime="claude",
+            tool_use_id="tool-1",
+        ) is False
+        assert tool_error_add(
+            "worker",
+            "/scope",
+            "Read",
+            "same provider id, separate runtime",
+            runtime="codex",
+            tool_use_id="tool-1",
+        ) is True
+
+        with _conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM tool_errors ORDER BY id"
+            ).fetchall()
+        assert len(rows) == 2
+        assert rows[0]["runtime"] == "claude"
+        assert rows[0]["tool_use_id"] == "tool-1"
+        assert len(rows[0]["error_text"]) == 4000
+
+    def test_migrates_legacy_tool_error_rows(self, tmp_path, monkeypatch):
+        db_path = tmp_path / "legacy-tool-errors.db"
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                """CREATE TABLE tool_errors (
+                    id INTEGER PRIMARY KEY,
+                    ts TEXT DEFAULT CURRENT_TIMESTAMP,
+                    session_name TEXT,
+                    scope TEXT,
+                    tool_name TEXT,
+                    error_text TEXT
+                )"""
+            )
+            conn.execute(
+                """INSERT INTO tool_errors
+                   (session_name, scope, tool_name, error_text)
+                   VALUES ('worker', '/scope', 'Read', 'legacy')"""
+            )
+        monkeypatch.setattr("app.db.DB_PATH", db_path)
+        from app.db import _conn, init_db
+
+        init_db()
+
+        with _conn() as conn:
+            row = conn.execute("SELECT * FROM tool_errors").fetchone()
+        assert row["runtime"] == "unknown"
+        assert row["tool_use_id"] == ""
 
 
 class TestImprovementRules:
@@ -359,6 +436,51 @@ class TestLogs:
         id1 = add_log(sample_session["id"], datetime.now(timezone.utc), "text", "msg1")
         id2 = add_log(sample_session["id"], datetime.now(timezone.utc), "text", "msg2")
         assert id2 > id1
+
+    def test_turn_log_preserves_provider_event_id(self, db, sample_session):
+        from app.db import add_log, get_logs, save_session
+
+        save_session(sample_session)
+        add_log(
+            sample_session["id"],
+            datetime.now(timezone.utc),
+            "status",
+            "turn ended",
+            event_id="result-uuid-1",
+        )
+
+        assert get_logs(sample_session["id"])[0]["event_id"] == "result-uuid-1"
+
+    def test_migrates_legacy_logs_for_provider_event_id(self, tmp_path, monkeypatch):
+        db_path = tmp_path / "legacy-logs.db"
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                """CREATE TABLE logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    ts TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    content TEXT NOT NULL
+                )"""
+            )
+            conn.execute(
+                """INSERT INTO logs (session_id, ts, type, content)
+                   VALUES ('old-worker', '2026-07-01T00:00:00+00:00',
+                           'status', 'turn ended')"""
+            )
+        monkeypatch.setattr("app.db.DB_PATH", db_path)
+        from app.db import _conn, init_db
+
+        init_db()
+
+        with _conn() as conn:
+            row = conn.execute("SELECT event_id FROM logs").fetchone()
+            index = conn.execute(
+                """SELECT name FROM sqlite_master
+                   WHERE type='index' AND name='idx_logs_event_id'"""
+            ).fetchone()
+        assert row["event_id"] == ""
+        assert index["name"] == "idx_logs_event_id"
 
     def test_cursor_pagination(self, db, sample_session):
         from app.db import save_session, add_log, get_logs

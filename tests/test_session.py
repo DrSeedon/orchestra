@@ -27,6 +27,7 @@ def mock_sdk():
 def mock_db(monkeypatch):
     monkeypatch.setattr("app.session.save_session", MagicMock())
     monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+    monkeypatch.setattr("app.bg_jobs.bg_manager", None)
 
 
 @pytest.fixture
@@ -169,6 +170,80 @@ def test_codex_live_activity_is_brokered_without_db_noise(session, monkeypatch):
     assert published[0][1]["activity"] == "reasoning"
     assert published[1][1]["tool_use_id"] == "cmd-1"
     session._log.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_explicit_tool_failure_is_correlated_before_persistence(
+    session, monkeypatch
+):
+    from app.events import AgentEvent
+
+    add_error = MagicMock(return_value=True)
+    monkeypatch.setattr("app.session.tool_error_add", add_error)
+    session._log = MagicMock()
+
+    session._handle_event(AgentEvent(
+        "tool_use",
+        "Read: {}",
+        {"tool_use_id": "tool-1", "tool_name": "Read"},
+    ))
+    session._handle_event(AgentEvent(
+        "tool_result",
+        "file not found",
+        {"tool_use_id": "tool-1", "is_error": True},
+    ))
+    if session._log_futures:
+        await asyncio.gather(*tuple(session._log_futures), return_exceptions=True)
+
+    add_error.assert_called_once_with(
+        "w1",
+        "/test",
+        "Read",
+        "file not found",
+        runtime="claude",
+        tool_use_id="tool-1",
+    )
+
+    add_error.reset_mock()
+    session._handle_event(AgentEvent(
+        "tool_use",
+        "Read: {}",
+        {"tool_use_id": "tool-2", "tool_name": "Read"},
+    ))
+    session._handle_event(AgentEvent(
+        "tool_result",
+        "ok",
+        {"tool_use_id": "tool-2", "is_error": False},
+    ))
+    add_error.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tool_telemetry_failure_does_not_break_event_handling(
+    session, monkeypatch, caplog
+):
+    from app.events import AgentEvent
+
+    monkeypatch.setattr(
+        "app.session.tool_error_add",
+        MagicMock(side_effect=RuntimeError("database locked")),
+    )
+    session._log = MagicMock()
+    session._handle_event(AgentEvent(
+        "tool_use",
+        "Read: {}",
+        {"tool_use_id": "tool-1", "tool_name": "Read"},
+    ))
+
+    session._handle_event(AgentEvent(
+        "tool_result",
+        "file not found",
+        {"tool_use_id": "tool-1", "is_error": True},
+    ))
+    if session._log_futures:
+        await asyncio.gather(*tuple(session._log_futures), return_exceptions=True)
+
+    assert "telemetry write failed: database locked" in caplog.text
 
 
 def test_codex_plan_warning_and_review_are_persisted(session):
@@ -432,7 +507,7 @@ class TestClaudeTurnLifecycle:
 
         backend = DelayedBackend()
         logs = []
-        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
         session._backend = backend
         session.status = AgentStatus.RUNNING
         session._turn_start = asyncio.get_running_loop().time()
@@ -1119,7 +1194,7 @@ class TestPrecompactTimer:
         session._is_orchestrator = False
         session._schedule_precompact_timer = MagicMock()
         session._spawn_bg = capture
-        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
         session._turns.fire_auto_report = MagicMock()
         session._hibernate.schedule = MagicMock()
         session._pending_messages = []
@@ -1297,7 +1372,7 @@ class TestPrecompactTimer:
         from unittest.mock import MagicMock
 
         logs = []
-        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
         session.status = AgentStatus.IDLE
         session._last_context["percentage"] = 55
 
@@ -1333,7 +1408,7 @@ class TestPrecompactTimer:
         from unittest.mock import MagicMock
 
         logs = []
-        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
         session.backend_type = "claude"
         session.status = AgentStatus.WAITING
         session._last_context["percentage"] = 55
@@ -1389,7 +1464,7 @@ class TestPrecompactTimer:
         from unittest.mock import MagicMock
 
         logs = []
-        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
         session.status = AgentStatus.IDLE
         session._last_context["percentage"] = 55
         session.compact = AsyncMock(return_value={"ok": True})
@@ -1437,7 +1512,7 @@ class TestRateLimitClassification:
 
         monkeypatch.setattr("app.bg_jobs.bg_manager", None)
         logs = []
-        session._log = lambda log_type, content: logs.append((log_type, content))
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
         session._spawn_bg = lambda coro: coro.close()
         session._schedule_precompact_timer = MagicMock()
         session._hibernate.schedule = MagicMock()
@@ -1478,6 +1553,82 @@ class TestRateLimitClassification:
         await session._drain_persist()
 
         assert session._rate_limit_retries == 2
+
+    @pytest.mark.asyncio
+    async def test_turn_end_persists_normalized_structured_usage(
+        self, session, monkeypatch
+    ):
+        from app.events import AgentEvent
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        add_usage = MagicMock(return_value=True)
+        monkeypatch.setattr("app.session_turns.turn_usage_add", add_usage)
+        self._capture_coroutines(session)
+        session._hibernate.schedule = MagicMock()
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "event_id": "result-uuid-1",
+            "ok": True,
+            "stop_reason": "end_turn",
+            "num_turns": 1,
+            "cost_usd": 2.5,
+            "cost_is_delta": True,
+            "input_tokens": 100,
+            "output_tokens": 20,
+            "cache_read": 75,
+            "cache_create": 5,
+        }))
+        if session._log_futures:
+            await asyncio.gather(*tuple(session._log_futures), return_exceptions=True)
+        await session._drain_persist()
+
+        add_usage.assert_called_once_with(
+            event_id="result-uuid-1",
+            session_id="test-001",
+            scope="/test",
+            runtime="claude",
+            model="claude-sonnet-5[1m]",
+            task_id="",
+            ok=True,
+            stop_reason="end_turn",
+            cost_usd=2.5,
+            input_tokens=100,
+            output_tokens=20,
+            cache_read_tokens=75,
+            cache_create_tokens=5,
+        )
+
+    @pytest.mark.asyncio
+    async def test_turn_telemetry_failure_does_not_skip_terminal_lifecycle(
+        self, session, monkeypatch, caplog
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        monkeypatch.setattr(
+            "app.session_turns.turn_usage_add",
+            MagicMock(side_effect=RuntimeError("database locked")),
+        )
+        self._capture_coroutines(session)
+        session._hibernate.schedule = MagicMock()
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "event_id": "result-uuid-1",
+            "ok": True,
+            "stop_reason": "end_turn",
+            "num_turns": 1,
+            "cost_usd": 1.0,
+            "cost_is_delta": True,
+        }))
+        if session._log_futures:
+            await asyncio.gather(
+                *tuple(session._log_futures),
+                return_exceptions=True,
+            )
+        await session._drain_persist()
+
+        assert session.status == AgentStatus.IDLE
+        assert "telemetry write failed: database locked" in caplog.text
 
     @pytest.mark.asyncio
     async def test_new_user_message_resets_retry_budget(self, session):

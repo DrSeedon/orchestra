@@ -1,0 +1,1210 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orchestra · Usage Analytics v2</title>
+  <style>
+    :root {
+      --bg: #090c10;
+      --surface: #10151b;
+      --surface-2: #151c24;
+      --surface-3: #1a232d;
+      --border: #26313d;
+      --border-hot: #3d4d5c;
+      --ink: #edf3f7;
+      --ink-soft: #9aa8b5;
+      --muted: #667582;
+      --claude: #58c7f3;
+      --codex: #60d394;
+      --spark: #f5bd55;
+      --ok: #60d394;
+      --warn: #f5bd55;
+      --danger: #ff6b6b;
+      --accent: #a78bfa;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #e9edf0;
+        --surface: #f8fafb;
+        --surface-2: #eef2f4;
+        --surface-3: #e4e9ec;
+        --border: #ccd4da;
+        --border-hot: #9eabb5;
+        --ink: #15202a;
+        --ink-soft: #4c5c68;
+        --muted: #72808a;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+        var(--bg);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 13px;
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .backdrop {
+      min-height: 100vh;
+      padding: 18px;
+      display: grid;
+      place-items: center;
+    }
+
+    .modal {
+      width: min(1580px, calc(100vw - 36px));
+      height: min(940px, calc(100vh - 36px));
+      min-height: 680px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--border-hot);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: 0 24px 80px rgba(0,0,0,.46);
+      animation: arrive .35s ease-out both;
+    }
+
+    @keyframes arrive {
+      from { opacity: 0; transform: translateY(10px) scale(.992); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .modal.closed { display: none; }
+    .reopen {
+      display: none;
+      border: 1px solid var(--border-hot);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 12px 18px;
+      cursor: pointer;
+    }
+    .reopen.visible { display: block; }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr) auto auto;
+      align-items: center;
+      gap: 18px;
+      min-height: 70px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: #0d1217;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .topbar { background: #f4f7f8; }
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .mark {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border-hot);
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-weight: 800;
+      letter-spacing: -.08em;
+      color: var(--accent);
+      background: var(--surface-2);
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 760;
+      letter-spacing: -.02em;
+      line-height: 1.15;
+    }
+    .subtitle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 5px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 0 3px rgba(96,211,148,.12);
+    }
+
+    .segmented, .tabs {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface-2);
+    }
+    .segmented button, .tabs button {
+      border: 0;
+      border-radius: 6px;
+      padding: 7px 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .segmented button:hover, .tabs button:hover { color: var(--ink); }
+    .segmented button.active, .tabs button.active {
+      background: var(--surface-3);
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    .close {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .close:hover { color: var(--ink); background: var(--surface-2); }
+
+    .navrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .quality-note {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--ink-soft);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .quality-note b { color: var(--warn); font-weight: 700; }
+
+    .content {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 14px 16px 18px;
+    }
+    .view { display: none; }
+    .view.active { display: block; animation: fade .2s ease-out both; }
+    @keyframes fade { from { opacity: .35; } to { opacity: 1; } }
+
+    .route-banner {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 13px;
+      align-items: center;
+      border: 1px solid rgba(96,211,148,.35);
+      background: rgba(96,211,148,.065);
+      border-radius: 11px;
+      padding: 11px 13px;
+      margin-bottom: 12px;
+    }
+    .route-kicker {
+      color: var(--codex);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .route-copy { color: var(--ink-soft); }
+    .route-copy strong { color: var(--ink); }
+    .route-chip {
+      border: 1px solid rgba(96,211,148,.35);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--codex);
+      font-family: var(--mono);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .provider-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .provider-card {
+      position: relative;
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--provider);
+      border-radius: 11px;
+      background: var(--surface-2);
+      padding: 13px;
+      cursor: pointer;
+      transition: border-color .16s ease, transform .16s ease;
+    }
+    .provider-card:hover { transform: translateY(-1px); border-color: var(--border-hot); }
+    .provider-card.selected { box-shadow: inset 0 0 0 1px var(--provider); }
+    .provider-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .provider-name { display: flex; align-items: center; gap: 9px; }
+    .provider-glyph {
+      width: 30px;
+      height: 30px;
+      border: 1px solid color-mix(in srgb, var(--provider) 45%, transparent);
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      color: var(--provider);
+      font-family: var(--mono);
+      font-weight: 800;
+    }
+    .provider-title { font-weight: 750; font-size: 14px; }
+    .provider-plan { margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .provider-verdict { text-align: right; }
+    .provider-verdict strong {
+      display: block;
+      color: var(--provider);
+      font: 800 17px/1 var(--mono);
+    }
+    .provider-verdict span { color: var(--muted); font-size: 10px; }
+
+    .window {
+      display: grid;
+      grid-template-columns: 42px 1fr 60px;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 0;
+      border-top: 1px solid var(--border);
+    }
+    .window-label {
+      color: var(--ink-soft);
+      font: 700 11px var(--mono);
+    }
+    .meter {
+      position: relative;
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #232d37;
+    }
+    .meter > span {
+      display: block;
+      width: var(--value);
+      height: 100%;
+      border-radius: inherit;
+      background: var(--provider);
+    }
+    .meter > i {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: var(--pace);
+      width: 1px;
+      background: rgba(255,255,255,.72);
+    }
+    .window-value { text-align: right; font: 750 11px var(--mono); }
+    .window-meta {
+      grid-column: 2 / -1;
+      display: flex;
+      justify-content: space-between;
+      margin-top: -4px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+    .window-meta .healthy { color: var(--ok); }
+    .window-meta .watch { color: var(--warn); }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .kpi {
+      min-height: 86px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 11px;
+    }
+    .kpi-label {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .kpi-value {
+      margin: 7px 0 3px;
+      color: var(--ink);
+      font: 760 21px/1 var(--mono);
+      letter-spacing: -.04em;
+    }
+    .kpi-meta { color: var(--muted); font-size: 10px; }
+    .kpi-meta b { color: var(--ink-soft); font-weight: 650; }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.75fr) minmax(260px, .65fr);
+      gap: 12px;
+    }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title { font-weight: 720; font-size: 12px; }
+    .panel-sub { margin-top: 2px; color: var(--muted); font-size: 9px; }
+    .legend { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 9px; }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .legend i { width: 8px; height: 8px; border-radius: 2px; background: var(--color); }
+
+    .chart-wrap { padding: 16px 14px 10px; min-height: 330px; }
+    .chart {
+      height: 285px;
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-hot);
+    }
+    .chart-day {
+      min-width: 22px;
+      flex: 1;
+      display: grid;
+      grid-template-rows: 1fr 24px;
+      gap: 5px;
+      align-items: end;
+    }
+    .bar-stack {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 2px;
+      padding: 0 min(16px, 18%);
+    }
+    .bar {
+      width: 100%;
+      min-height: 2px;
+      border-radius: 3px 3px 1px 1px;
+      background: var(--color);
+      opacity: .88;
+      transition: height .25s ease, opacity .18s ease;
+    }
+    .bar:hover { opacity: 1; }
+    .day-label {
+      color: var(--muted);
+      text-align: center;
+      font: 9px var(--mono);
+    }
+    .chart-caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 8px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+    .chart-caption strong { color: var(--ink-soft); }
+
+    .signal-list { padding: 4px 12px 8px; }
+    .signal {
+      display: grid;
+      grid-template-columns: 8px 1fr;
+      gap: 9px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .signal:last-child { border-bottom: 0; }
+    .signal-dot {
+      width: 7px;
+      height: 7px;
+      margin-top: 4px;
+      border-radius: 50%;
+      background: var(--signal);
+    }
+    .signal strong { display: block; margin-bottom: 2px; font-size: 11px; }
+    .signal p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(290px, .65fr);
+      gap: 12px;
+    }
+
+    .filters { display: flex; flex-wrap: wrap; gap: 5px; }
+    .filter {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 9px;
+      cursor: pointer;
+    }
+    .filter.active { color: var(--ink); background: var(--surface-3); border-color: var(--border-hot); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 8px 10px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: .05em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+    th.num, td.num { text-align: right; }
+    td {
+      padding: 9px 10px;
+      border-top: 1px solid var(--border);
+      color: var(--ink-soft);
+      font-size: 10px;
+    }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover, tbody tr.active { background: var(--surface-2); }
+    .agent-name { color: var(--ink); font-weight: 680; }
+    .provider-pill, .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--pill) 40%, transparent);
+      border-radius: 999px;
+      padding: 2px 6px;
+      color: var(--pill);
+      font: 700 8px var(--mono);
+      text-transform: uppercase;
+    }
+    .anomaly { color: var(--danger); font-weight: 760; }
+
+    .agent-detail { min-height: 420px; }
+    .detail-body { padding: 14px; }
+    .detail-name { font-size: 16px; font-weight: 760; }
+    .detail-model { margin-top: 4px; color: var(--muted); font: 10px var(--mono); }
+    .detail-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 7px;
+      margin: 14px 0;
+    }
+    .detail-stat {
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    .detail-stat span { display: block; color: var(--muted); font-size: 8px; text-transform: uppercase; }
+    .detail-stat strong { display: block; margin-top: 4px; font: 750 15px var(--mono); }
+    .finding {
+      margin-top: 9px;
+      padding: 9px 10px;
+      border-left: 3px solid var(--finding);
+      background: color-mix(in srgb, var(--finding) 7%, transparent);
+      color: var(--ink-soft);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    .finding b { color: var(--ink); }
+
+    .eff-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+    .span-7 { grid-column: span 7; }
+    .span-5 { grid-column: span 5; }
+    .span-12 { grid-column: span 12; }
+    .panel-body { padding: 13px; }
+
+    .cache-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 70px 70px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cache-row:last-child { border-bottom: 0; }
+    .cache-provider { font-weight: 720; }
+    .cache-provider small { display: block; margin-top: 2px; color: var(--muted); font-weight: 500; }
+    .big-meter { height: 12px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+    .big-meter span { display: block; width: var(--value); height: 100%; background: var(--color); }
+    .cache-number { text-align: right; font: 760 14px var(--mono); }
+    .cache-label { color: var(--muted); font-size: 8px; text-align: right; }
+
+    .mix-row {
+      display: grid;
+      grid-template-columns: minmax(145px, 1fr) 1.4fr 66px;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 0;
+    }
+    .mix-model { color: var(--ink-soft); font: 9px var(--mono); overflow: hidden; text-overflow: ellipsis; }
+    .mix-track { height: 7px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+    .mix-track span { display: block; height: 100%; width: var(--value); background: var(--color); }
+    .mix-value { text-align: right; font: 700 10px var(--mono); }
+
+    .reliability-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .reliability-card {
+      min-height: 150px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--surface);
+    }
+    .reliability-card .eyebrow { color: var(--muted); font: 750 9px var(--mono); text-transform: uppercase; }
+    .reliability-card .value { margin: 11px 0 4px; font: 800 25px/1 var(--mono); }
+    .reliability-card .desc { color: var(--muted); font-size: 9px; line-height: 1.45; }
+    .reliability-card .foot { margin-top: 12px; color: var(--ink-soft); font-size: 9px; }
+
+    .gap-table { display: grid; }
+    .gap-row {
+      display: grid;
+      grid-template-columns: 150px 1.4fr .9fr 92px;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+    }
+    .gap-row:first-child { border-top: 0; }
+    .gap-row .metric { color: var(--ink); font-weight: 680; }
+    .gap-row .source, .gap-row .work { color: var(--muted); }
+    .badge {
+      justify-self: end;
+      border: 1px solid var(--border-hot);
+      border-radius: 999px;
+      padding: 3px 7px;
+      color: var(--ink-soft);
+      font: 700 8px var(--mono);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge.ready { color: var(--ok); border-color: rgba(96,211,148,.35); }
+    .badge.partial { color: var(--warn); border-color: rgba(245,189,85,.35); }
+    .badge.missing { color: var(--danger); border-color: rgba(255,107,107,.35); }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font: 9px var(--mono);
+      background: #0d1217;
+    }
+    @media (prefers-color-scheme: light) { .footer { background: #f4f7f8; } }
+
+    .tip {
+      position: relative;
+      border-bottom: 1px dotted var(--muted);
+      cursor: help;
+    }
+    .tip:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 20;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      width: 240px;
+      transform: translateX(-50%);
+      padding: 8px 9px;
+      border: 1px solid var(--border-hot);
+      border-radius: 7px;
+      background: #0b1015;
+      color: #d9e1e7;
+      font: 10px/1.45 var(--sans);
+      box-shadow: 0 10px 30px rgba(0,0,0,.38);
+    }
+
+    @media (max-width: 980px) {
+      .modal { height: calc(100vh - 20px); width: calc(100vw - 20px); min-height: 0; }
+      .backdrop { padding: 10px; }
+      .topbar { grid-template-columns: 1fr auto; }
+      .topbar .segmented { grid-column: 1 / -1; order: 3; justify-self: stretch; }
+      .topbar .segmented button { flex: 1; }
+      .provider-grid, .overview-grid, .two-col { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .reliability-grid { grid-template-columns: repeat(2, 1fr); }
+      .span-7, .span-5 { grid-column: span 12; }
+      .quality-note { display: none; }
+    }
+
+    @media (max-width: 620px) {
+      .tabs button { padding: 7px; }
+      .route-banner { grid-template-columns: 1fr; }
+      .route-chip { justify-self: start; }
+      .kpi-grid, .reliability-grid { grid-template-columns: 1fr; }
+      .cache-row { grid-template-columns: 82px 1fr 54px; }
+      .cache-label { display: none; }
+      .gap-row { grid-template-columns: 1fr; }
+      .gap-row .badge { justify-self: start; }
+      .footer { display: block; }
+      .footer span { display: block; margin: 3px 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="backdrop">
+    <button id="reopen" class="reopen">Открыть Usage Analytics v2</button>
+    <section id="modal" class="modal" aria-label="Usage Analytics v2">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark">O2</div>
+          <div>
+            <div class="title">Usage Analytics <span style="color:var(--accent)">/ Control Room</span></div>
+            <div class="subtitle"><span class="live-dot"></span> снимок БД · 25 июля, 14:52 KRAT · 297 агентов</div>
+          </div>
+        </div>
+        <div id="periods" class="segmented" aria-label="Период">
+          <button data-period="today">Сегодня</button>
+          <button data-period="7d" class="active">7 дней</button>
+          <button data-period="30d">30 дней</button>
+          <button data-period="all">Всё время</button>
+        </div>
+        <button id="close" class="close" aria-label="Закрыть">×</button>
+      </header>
+
+      <div class="navrow">
+        <nav id="tabs" class="tabs" aria-label="Разделы аналитики">
+          <button data-tab="overview" class="active">Пулы и расходы</button>
+          <button data-tab="agents">Агенты</button>
+          <button data-tab="efficiency">Эффективность</button>
+          <button data-tab="reliability">Надёжность</button>
+        </nav>
+        <div id="quality-note" class="quality-note">
+          <b>Покрытие turn-логов: 8.7 дня</b>
+          <span>· lifetime берётся из счётчиков сессий</span>
+        </div>
+      </div>
+
+      <div class="content">
+        <section id="view-overview" class="view active">
+          <div class="route-banner">
+            <div class="route-kicker">Routing signal</div>
+            <div class="route-copy"><strong>Новые worker-задачи → Codex.</strong> Недельный пул свободнее Claude на 12 п.п.; короткие leaf-задачи → Spark с 99% headroom.</div>
+            <div class="route-chip">CLAUDE ORCH · CODEX WORK</div>
+          </div>
+
+          <div class="provider-grid">
+            <article class="provider-card" data-provider-card="claude" style="--provider:var(--claude)">
+              <div class="provider-head">
+                <div class="provider-name">
+                  <div class="provider-glyph">C</div>
+                  <div>
+                    <div class="provider-title">Claude Max</div>
+                    <div class="provider-plan">$100 / мес · оркестраторы</div>
+                  </div>
+                </div>
+                <div class="provider-verdict"><strong>55%</strong><span>headroom · 7d</span></div>
+              </div>
+              <div class="window">
+                <div class="window-label">5h</div>
+                <div class="meter" style="--provider:var(--claude);--value:68%;--pace:97%"><span></span><i title="Линейный прогресс окна"></i></div>
+                <div class="window-value">68%</div>
+                <div class="window-meta"><span>сброс через 8м</span><span class="healthy">окно почти сброшено</span></div>
+              </div>
+              <div class="window">
+                <div class="window-label">7d</div>
+                <div class="meter" style="--provider:var(--claude);--value:45%;--pace:58%"><span></span><i title="Линейный прогресс окна"></i></div>
+                <div class="window-value">45%</div>
+                <div class="window-meta"><span>сброс через 2д 23ч</span><span class="healthy">−13 п.п. от темпа</span></div>
+              </div>
+            </article>
+
+            <article class="provider-card selected" data-provider-card="codex" style="--provider:var(--codex)">
+              <div class="provider-head">
+                <div class="provider-name">
+                  <div class="provider-glyph">X</div>
+                  <div>
+                    <div class="provider-title">Codex Pro</div>
+                    <div class="provider-plan">$100 / мес · Sol pool + Spark pool</div>
+                  </div>
+                </div>
+                <div class="provider-verdict"><strong>67%</strong><span>headroom · 7d</span></div>
+              </div>
+              <div class="window">
+                <div class="window-label">Sol 7d</div>
+                <div class="meter" style="--provider:var(--codex);--value:33%;--pace:27%"><span></span><i title="Линейный прогресс окна"></i></div>
+                <div class="window-value">33%</div>
+                <div class="window-meta"><span>сброс через 5д 2ч</span><span class="watch">+6 п.п. к темпу</span></div>
+              </div>
+              <div class="window">
+                <div class="window-label">Spark</div>
+                <div class="meter" style="--provider:var(--spark);--value:1%;--pace:11%"><span></span><i title="Линейный прогресс окна"></i></div>
+                <div class="window-value">1%</div>
+                <div class="window-meta"><span>сброс через 6д 6ч</span><span class="healthy">leaf-only резерв</span></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="kpi-grid">
+            <article class="kpi">
+              <div class="kpi-label">Виртуальная стоимость</div>
+              <div id="kpi-cost" class="kpi-value">$1,156</div>
+              <div id="kpi-cost-meta" class="kpi-meta"><b>61%</b> Claude · <b>39%</b> Codex</div>
+            </article>
+            <article class="kpi">
+              <div class="kpi-label">Agent-turns</div>
+              <div id="kpi-turns" class="kpi-value">716</div>
+              <div id="kpi-turns-meta" class="kpi-meta">$1.61 / agent-turn</div>
+            </article>
+            <article class="kpi">
+              <div class="kpi-label">Завершено задач</div>
+              <div id="kpi-tasks" class="kpi-value">17</div>
+              <div class="kpi-meta">Task Manager · done + paid</div>
+            </article>
+            <article class="kpi">
+              <div class="kpi-label">Стоимость / задача</div>
+              <div id="kpi-task-cost" class="kpi-value">$21.62*</div>
+              <div id="kpi-task-cost-meta" class="kpi-meta"><b>12/17</b> задач связаны с сессиями</div>
+            </article>
+            <article class="kpi">
+              <div class="kpi-label">Lifetime</div>
+              <div class="kpi-value">$10,690</div>
+              <div class="kpi-meta">23,217 turns · 25,775 tools</div>
+            </article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Расход по провайдерам</div>
+                  <div class="panel-sub">Реальный разбор строк «turn ended» · клик по пулу фильтрует график</div>
+                </div>
+                <div class="legend"><span><i style="--color:var(--claude)"></i>Claude</span><span><i style="--color:var(--codex)"></i>Codex</span></div>
+              </div>
+              <div class="chart-wrap">
+                <div id="spend-chart" class="chart"></div>
+                <div class="chart-caption">
+                  <span id="chart-range">18–25 июля · UTC</span>
+                  <span>пик: <strong id="chart-peak">$539.56</strong></span>
+                  <span id="chart-total">наблюдаемый расход: <strong>$1,156.25</strong></span>
+                </div>
+              </div>
+            </article>
+
+            <aside class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Сигналы диспетчера</div>
+                  <div class="panel-sub">Что требует решения сейчас</div>
+                </div>
+              </div>
+              <div class="signal-list">
+                <div class="signal" style="--signal:var(--codex)">
+                  <span class="signal-dot"></span>
+                  <div><strong>Маршрут: Sol</strong><p>Codex 7d = 33% против Claude 45%. Пулы независимы, переносим worker-нагрузку.</p></div>
+                </div>
+                <div class="signal" style="--signal:var(--danger)">
+                  <span class="signal-dot"></span>
+                  <div><strong>2 ценовых аномалии</strong><p>sensar-client-offer и research-codex-cache выше 4× медианы $/turn.</p></div>
+                </div>
+                <div class="signal" style="--signal:var(--warn)">
+                  <span class="signal-dot"></span>
+                  <div><strong>Codex cache hit = 71.4%</strong><p>38 cold starts на 133 сравнимых turn при TTL ≈30м.</p></div>
+                </div>
+                <div class="signal" style="--signal:var(--muted)">
+                  <span class="signal-dot"></span>
+                  <div><strong>Tool errors: слепая зона</strong><p>Таблица есть, но collector не вызывается. Ноль строк ≠ ноль ошибок.</p></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-agents" class="view">
+          <div class="two-col">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Агенты · 7 дней</div>
+                  <div class="panel-sub">Стоимость из turn-логов; модель — текущее значение сессии</div>
+                </div>
+                <div id="agent-filters" class="filters">
+                  <button class="filter active" data-agent-filter="all">Все</button>
+                  <button class="filter" data-agent-filter="claude">Claude</button>
+                  <button class="filter" data-agent-filter="codex">Codex</button>
+                  <button class="filter" data-agent-filter="anomaly">Аномалии · 2</button>
+                </div>
+              </div>
+              <div style="max-height:610px;overflow:auto">
+                <table>
+                  <thead>
+                    <tr><th>Агент</th><th>Пул</th><th class="num">Turns</th><th class="num">$/turn</th><th class="num">Расход</th></tr>
+                  </thead>
+                  <tbody id="agent-table"></tbody>
+                </table>
+              </div>
+            </article>
+            <aside class="panel agent-detail">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Drill-down</div>
+                  <div class="panel-sub">Кликните агента в таблице</div>
+                </div>
+              </div>
+              <div id="agent-detail" class="detail-body"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-efficiency" class="view">
+          <div class="eff-grid">
+            <article class="panel span-7">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Cache-эффективность · 7 дней</div>
+                  <div class="panel-sub">Gap-эвристика: Claude ≤1ч, Codex ≤30м; первые turns исключены</div>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="cache-row">
+                  <div class="cache-provider" style="color:var(--claude)">Claude<small>TTL 1h</small></div>
+                  <div class="big-meter"><span style="--value:86.6%;--color:var(--claude)"></span></div>
+                  <div><div class="cache-number">86.6%</div><div class="cache-label">hit rate</div></div>
+                  <div><div class="cache-number">68</div><div class="cache-label">cold starts</div></div>
+                </div>
+                <div class="cache-row">
+                  <div class="cache-provider" style="color:var(--codex)">Codex<small>TTL ≈30m</small></div>
+                  <div class="big-meter"><span style="--value:71.4%;--color:var(--codex)"></span></div>
+                  <div><div class="cache-number">71.4%</div><div class="cache-label">hit rate</div></div>
+                  <div><div class="cache-number">38</div><div class="cache-label">cold starts</div></div>
+                </div>
+                <div class="finding" style="--finding:var(--warn)"><b>Денежный cold-start tax пока не вычисляется.</b> Для него нужны cache read/create tokens и virtual cost на каждый turn, а не только итоговая строка стоимости.</div>
+              </div>
+            </article>
+
+            <article class="panel span-5">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Провайдер-микс</div>
+                  <div class="panel-sub">7d virtual cost share</div>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;align-items:end;margin-bottom:14px">
+                  <div>
+                    <div style="color:var(--muted);font-size:9px">CLAUDE</div>
+                    <div style="font:800 29px var(--mono);color:var(--claude)">60.8%</div>
+                    <div style="color:var(--muted);font-size:9px">$703.56 · 534 turns</div>
+                  </div>
+                  <div>
+                    <div style="color:var(--muted);font-size:9px">CODEX</div>
+                    <div style="font:800 23px var(--mono);color:var(--codex)">39.2%</div>
+                    <div style="color:var(--muted);font-size:9px">$452.69 · 182 turns</div>
+                  </div>
+                </div>
+                <div style="display:flex;height:18px;overflow:hidden;border-radius:5px;background:var(--surface-3)">
+                  <span style="width:60.8%;background:var(--claude)"></span><span style="width:39.2%;background:var(--codex)"></span>
+                </div>
+                <div class="finding" style="--finding:var(--codex)"><b>Codex берёт 25.4% turns, но 39.2% virtual cost.</b> Средний Codex turn = $2.49 против $1.32 у Claude; это сигнал для drill-down, не реальный счёт подписки.</div>
+              </div>
+            </article>
+
+            <article class="panel span-12">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">Модель-микс · 7 дней</div>
+                  <div class="panel-sub">Доля виртуальной стоимости; Spark имеет отдельный capacity pool</div>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="mix-row"><div class="mix-model">claude-opus-5[1m]</div><div class="mix-track"><span style="--value:60.6%;--color:var(--claude)"></span></div><div class="mix-value">$700.87</div></div>
+                <div class="mix-row"><div class="mix-model">gpt-5.6-sol</div><div class="mix-track"><span style="--value:39.2%;--color:var(--codex)"></span></div><div class="mix-value">$452.69</div></div>
+                <div class="mix-row"><div class="mix-model">claude-sonnet-5[1m]</div><div class="mix-track"><span style="--value:.2%;--color:#7dd3fc"></span></div><div class="mix-value">$2.69</div></div>
+                <div class="mix-row"><div class="mix-model">gpt-5.3-codex-spark</div><div class="mix-track"><span style="--value:.4%;--color:var(--spark)"></span></div><div class="mix-value">$0.00*</div></div>
+                <div class="finding" style="--finding:var(--muted)"><b>Ограничение:</b> `sessions.model` хранит текущую модель, поэтому смена модели внутри долгоживущей сессии исторически переатрибутирует её старые turns. Для точного микса нужна модель в turn event.</div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-reliability" class="view">
+          <div class="reliability-grid">
+            <article class="reliability-card">
+              <div class="eyebrow">Claude native subagents · 7d</div>
+              <div class="value" style="color:var(--claude)">221</div>
+              <div class="desc">completed из 246 записей; 19 failed, 5 running, 1 stopped.</div>
+              <div class="foot"><b style="color:var(--warn)">7.9% fail rate</b> среди завершённых исходов</div>
+            </article>
+            <article class="reliability-card">
+              <div class="eyebrow">Tool errors</div>
+              <div class="value" style="color:var(--danger)">N/A</div>
+              <div class="desc">Таблица `tool_errors` пуста, и `tool_error_add()` не вызывается из runtime.</div>
+              <div class="foot">Нужен collector, иначе «0» врёт</div>
+            </article>
+            <article class="reliability-card">
+              <div class="eyebrow">Voice · lifetime</div>
+              <div class="value" style="color:var(--accent)">$0.0167</div>
+              <div class="desc">12 записей · 193.2 секунды · модель Nova-3.</div>
+              <div class="foot">Периодная агрегация требует endpoint</div>
+            </article>
+            <article class="reliability-card">
+              <div class="eyebrow">Task telemetry · 7d</div>
+              <div class="value" style="color:var(--ok)">71%</div>
+              <div class="desc">12 из 17 завершённых задач связаны с сессиями.</div>
+              <div class="foot">$21.62 / linked completed task</div>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Матрица данных</div>
+                <div class="panel-sub">Что можно отрисовать сейчас, а что требует честной телеметрии</div>
+              </div>
+            </div>
+            <div class="gap-table">
+              <div class="gap-row"><div class="metric">Capacity Claude + Codex</div><div class="source">`/api/usage` + `usage_snapshots.provider_usage`</div><div class="work">Нормализация уже есть</div><div class="badge ready">готово</div></div>
+              <div class="gap-row"><div class="metric">Расход по провайдерам</div><div class="source">turn logs + `sessions.backend_type`</div><div class="work">Новая агрегация / endpoint</div><div class="badge partial">частично</div></div>
+              <div class="gap-row"><div class="metric">Cache hit по провайдеру</div><div class="source">turn gaps + runtime TTL policy</div><div class="work">Исправить общий 1h SQL</div><div class="badge partial">частично</div></div>
+              <div class="gap-row"><div class="metric">Cold-start tax в $</div><div class="source">Нет per-turn cache token telemetry</div><div class="work">Собирать токены/стоимость turn</div><div class="badge missing">нет данных</div></div>
+              <div class="gap-row"><div class="metric">Tool errors</div><div class="source">Таблица и helper есть, вызовов нет</div><div class="work">Runtime instrumentation</div><div class="badge missing">нет collector</div></div>
+              <div class="gap-row"><div class="metric">Cost / completed task</div><div class="source">`sessions.task_id` + Task Manager</div><div class="work">Показывать coverage, чинить linkage</div><div class="badge partial">71% · 7d</div></div>
+            </div>
+          </article>
+        </section>
+      </div>
+
+      <footer class="footer">
+        <span>Источник: orchestra.db read-only · snapshot 2026-07-25T07:52Z</span>
+        <span>Все $ — API-equivalent virtual cost, не расход подписки</span>
+        <span>Prototype v2 · production code unchanged</span>
+      </footer>
+    </section>
+  </main>
+
+  <script>
+    const DATA = {
+      periods: {
+        today: { cost: 33.33, turns: 40, tasks: 1, claude: 8.34, codex: 24.99, taskCost: null, coverage: null },
+        "7d": { cost: 1156.25, turns: 716, tasks: 17, claude: 703.56, codex: 452.69, taskCost: 21.62, coverage: "12/17" },
+        "30d": { cost: 1158.63, turns: 719, tasks: 78, claude: 705.94, codex: 452.69, taskCost: null, coverage: null },
+        all: { cost: 1158.63, turns: 719, tasks: 237, claude: 705.94, codex: 452.69, taskCost: 54.06, coverage: "43/237" }
+      },
+      daily: [
+        { day: "17.07", iso: "2026-07-17", claude: 2.38, codex: 0 },
+        { day: "18.07", iso: "2026-07-18", claude: 316.20, codex: 223.36 },
+        { day: "19.07", iso: "2026-07-19", claude: 105.00, codex: 26.01 },
+        { day: "20.07", iso: "2026-07-20", claude: 93.51, codex: 0 },
+        { day: "21.07", iso: "2026-07-21", claude: 84.89, codex: 38.69 },
+        { day: "22.07", iso: "2026-07-22", claude: 11.63, codex: 0 },
+        { day: "23.07", iso: "2026-07-23", claude: 44.82, codex: 35.79 },
+        { day: "24.07", iso: "2026-07-24", claude: 39.17, codex: 103.85 },
+        { day: "25.07", iso: "2026-07-25", claude: 8.34, codex: 24.99 }
+      ],
+      agents: [
+        { name:"Orchestra-orchestrator", model:"claude-opus-5[1m]", provider:"claude", turns:151, cost:263.36, cpt:1.74, last:"25.07 14:52" },
+        { name:"seedon-orchestrator", model:"claude-opus-5[1m]", provider:"claude", turns:130, cost:78.81, cpt:.61, last:"24.07 16:22" },
+        { name:"sensar-client-offer", model:"claude-opus-5[1m]", provider:"claude", turns:4, cost:50.80, cpt:12.70, last:"19.07 17:18", anomaly:true },
+        { name:"sensar-product-platform", model:"claude-opus-5[1m]", provider:"claude", turns:25, cost:50.78, cpt:2.03, last:"21.07 17:22" },
+        { name:"mobile-os-strategy", model:"gpt-5.6-sol", provider:"codex", turns:8, cost:49.22, cpt:6.15, last:"19.07 15:08" },
+        { name:"COG-second-brain-orchestrator", model:"claude-opus-5[1m]", provider:"claude", turns:43, cost:45.71, cpt:1.06, last:"24.07 10:29" },
+        { name:"kesha-tg-bot", model:"gpt-5.6-sol", provider:"codex", turns:49, cost:38.15, cpt:.78, last:"25.07 11:14" },
+        { name:"sales", model:"gpt-5.6-sol", provider:"codex", turns:10, cost:35.41, cpt:3.54, last:"24.07 14:39" },
+        { name:"feat-rag-files", model:"claude-opus-5[1m]", provider:"claude", turns:10, cost:34.88, cpt:3.49, last:"18.07 13:28" },
+        { name:"sensar-roadmap", model:"gpt-5.6-sol", provider:"codex", turns:6, cost:33.76, cpt:5.63, last:"19.07 15:40" },
+        { name:"Sensar-orchestrator", model:"claude-opus-5[1m]", provider:"claude", turns:106, cost:33.20, cpt:.31, last:"21.07 17:32" },
+        { name:"fix-tg-drops", model:"gpt-5.6-sol", provider:"codex", turns:10, cost:24.50, cpt:2.45, last:"24.07 14:01" },
+        { name:"seo-cro", model:"gpt-5.6-sol", provider:"codex", turns:12, cost:23.77, cpt:1.98, last:"24.07 09:48" },
+        { name:"sensar-concrete-roadmap", model:"claude-opus-5[1m]", provider:"claude", turns:12, cost:23.63, cpt:1.97, last:"20.07 12:07" },
+        { name:"research-codex-cache", model:"gpt-5.6-sol", provider:"codex", turns:2, cost:22.21, cpt:11.11, last:"18.07 16:43", anomaly:true }
+      ]
+    };
+
+    let period = "7d";
+    let providerFilter = "all";
+    let agentFilter = "all";
+    let selectedAgent = DATA.agents[0];
+
+    const money = value => "$" + value.toLocaleString("en-US", { maximumFractionDigits: value >= 100 ? 0 : 2, minimumFractionDigits: value < 100 ? 2 : 0 });
+
+    function renderKpis() {
+      const p = DATA.periods[period];
+      const total = p.claude + p.codex;
+      const cShare = total ? Math.round(p.claude / total * 100) : 0;
+      document.getElementById("kpi-cost").textContent = money(p.cost);
+      document.getElementById("kpi-cost-meta").innerHTML = `<b>${cShare}%</b> Claude · <b>${100-cShare}%</b> Codex`;
+      document.getElementById("kpi-turns").textContent = p.turns.toLocaleString("ru-RU");
+      document.getElementById("kpi-turns-meta").textContent = p.turns ? `${money(p.cost / p.turns)} / agent-turn` : "—";
+      document.getElementById("kpi-tasks").textContent = p.tasks.toLocaleString("ru-RU");
+      const tc = document.getElementById("kpi-task-cost");
+      const tm = document.getElementById("kpi-task-cost-meta");
+      tc.textContent = p.taskCost == null ? "N/A" : `${money(p.taskCost)}*`;
+      tm.innerHTML = p.coverage ? `<b>${p.coverage}</b> задач связаны с сессиями` : "нет честной связки для периода";
+      document.getElementById("quality-note").innerHTML =
+        period === "today" || period === "7d"
+          ? `<b>Покрытие turn-логов: полное для периода</b><span>· snapshot до 14:52 KRAT</span>`
+          : `<b>Покрытие turn-логов: только 8.7 дня</b><span>· lifetime берётся из счётчиков сессий</span>`;
+    }
+
+    function filteredDays() {
+      if (period === "today") return DATA.daily.filter(d => d.iso === "2026-07-25");
+      if (period === "7d") return DATA.daily.filter(d => d.iso >= "2026-07-18");
+      return DATA.daily;
+    }
+
+    function renderChart() {
+      const days = filteredDays();
+      const visible = days.map(d => ({
+        ...d,
+        claude: providerFilter === "codex" ? 0 : d.claude,
+        codex: providerFilter === "claude" ? 0 : d.codex
+      }));
+      const max = Math.max(1, ...visible.map(d => d.claude + d.codex));
+      const chart = document.getElementById("spend-chart");
+      chart.innerHTML = visible.map(d => {
+        const ch = d.claude / max * 100;
+        const cx = d.codex / max * 100;
+        return `<div class="chart-day">
+          <div class="bar-stack" title="${d.day}: Claude $${d.claude.toFixed(2)}, Codex $${d.codex.toFixed(2)}">
+            ${d.codex ? `<div class="bar" style="--color:var(--codex);height:${cx}%"></div>` : ""}
+            ${d.claude ? `<div class="bar" style="--color:var(--claude);height:${ch}%"></div>` : ""}
+          </div>
+          <div class="day-label">${d.day.slice(0,5)}</div>
+        </div>`;
+      }).join("");
+      const total = visible.reduce((s,d) => s + d.claude + d.codex, 0);
+      const peak = Math.max(...visible.map(d => d.claude + d.codex));
+      document.getElementById("chart-peak").textContent = money(peak);
+      document.getElementById("chart-total").innerHTML = `наблюдаемый расход: <strong>${money(total)}</strong>`;
+      document.getElementById("chart-range").textContent =
+        days.length === 1 ? `${days[0].day} · UTC` : `${days[0].day}–${days.at(-1).day} · UTC`;
+    }
+
+    function renderAgents() {
+      let rows = DATA.agents;
+      if (agentFilter === "claude" || agentFilter === "codex") rows = rows.filter(a => a.provider === agentFilter);
+      if (agentFilter === "anomaly") rows = rows.filter(a => a.anomaly);
+      const tbody = document.getElementById("agent-table");
+      tbody.innerHTML = rows.map(a => `<tr data-agent="${a.name}" class="${selectedAgent?.name === a.name ? "active" : ""}">
+        <td><div class="agent-name">${a.name}</div><div style="color:var(--muted);font:8px var(--mono);margin-top:2px">${a.model}</div></td>
+        <td><span class="provider-pill" style="--pill:var(--${a.provider})">${a.provider}</span></td>
+        <td class="num">${a.turns}</td>
+        <td class="num ${a.anomaly ? "anomaly" : ""}">${money(a.cpt)}${a.anomaly ? " ↑" : ""}</td>
+        <td class="num" style="color:var(--ink);font-weight:700">${money(a.cost)}</td>
+      </tr>`).join("");
+      tbody.querySelectorAll("tr").forEach(row => row.addEventListener("click", () => {
+        selectedAgent = DATA.agents.find(a => a.name === row.dataset.agent);
+        renderAgents();
+        renderAgentDetail();
+      }));
+    }
+
+    function renderAgentDetail() {
+      const a = selectedAgent;
+      const median = 1.73;
+      const multiple = (a.cpt / median).toFixed(1);
+      const share = (a.cost / DATA.periods["7d"].cost * 100).toFixed(1);
+      document.getElementById("agent-detail").innerHTML = `
+        <div class="detail-name">${a.name}</div>
+        <div class="detail-model">${a.model} · ${a.provider.toUpperCase()}</div>
+        <div class="detail-stat-grid">
+          <div class="detail-stat"><span>7d virtual cost</span><strong>${money(a.cost)}</strong></div>
+          <div class="detail-stat"><span>Agent-turns</span><strong>${a.turns}</strong></div>
+          <div class="detail-stat"><span>Cost / turn</span><strong style="color:${a.anomaly ? "var(--danger)" : "var(--ink)"}">${money(a.cpt)}</strong></div>
+          <div class="detail-stat"><span>Доля флота</span><strong>${share}%</strong></div>
+        </div>
+        <div class="finding" style="--finding:${a.anomaly ? "var(--danger)" : "var(--ok)"}">
+          <b>${a.anomaly ? `Аномалия: ${multiple}× медианы.` : `В пределах диапазона: ${multiple}× медианы.`}</b>
+          ${a.anomaly ? " Проверьте размер контекста, холодные старты и число повторных раундов." : " Эскалация не нужна по одной стоимости turn."}
+        </div>
+        <div class="finding" style="--finding:var(--muted)"><b>Последний turn:</b> ${a.last}. Точная разбивка tokens/cache/tool errors на turn пока не сохраняется в аналитический event.</div>
+      `;
+    }
+
+    document.getElementById("periods").addEventListener("click", e => {
+      const button = e.target.closest("[data-period]");
+      if (!button) return;
+      period = button.dataset.period;
+      document.querySelectorAll("[data-period]").forEach(b => b.classList.toggle("active", b === button));
+      renderKpis();
+      renderChart();
+    });
+
+    document.getElementById("tabs").addEventListener("click", e => {
+      const button = e.target.closest("[data-tab]");
+      if (!button) return;
+      document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("active", b === button));
+      document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === `view-${button.dataset.tab}`));
+    });
+
+    document.querySelectorAll("[data-provider-card]").forEach(card => card.addEventListener("click", () => {
+      const selected = card.dataset.providerCard;
+      providerFilter = providerFilter === selected ? "all" : selected;
+      document.querySelectorAll("[data-provider-card]").forEach(c => c.classList.toggle("selected", providerFilter === "all" || c.dataset.providerCard === providerFilter));
+      renderChart();
+    }));
+
+    document.getElementById("agent-filters").addEventListener("click", e => {
+      const button = e.target.closest("[data-agent-filter]");
+      if (!button) return;
+      agentFilter = button.dataset.agentFilter;
+      document.querySelectorAll("[data-agent-filter]").forEach(b => b.classList.toggle("active", b === button));
+      renderAgents();
+    });
+
+    document.getElementById("close").addEventListener("click", () => {
+      document.getElementById("modal").classList.add("closed");
+      document.getElementById("reopen").classList.add("visible");
+    });
+    document.getElementById("reopen").addEventListener("click", () => {
+      document.getElementById("modal").classList.remove("closed");
+      document.getElementById("reopen").classList.remove("visible");
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") document.getElementById("close").click();
+    });
+
+    renderKpis();
+    renderChart();
+    renderAgents();
+    renderAgentDetail();
+  </script>
+</body>
+</html>

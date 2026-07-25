@@ -177,13 +177,23 @@
 
     <!-- Analytics Modal -->
     <div id="analytics-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" onclick="if(event.target===this)closeAnalyticsModal()">
-      <div class="glass glow rounded-xl p-6 w-[90vw] max-w-3xl max-h-[85vh] flex flex-col">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-sm font-bold text-white">📊 Usage Analytics</h2>
-          <button class="text-slate-400 hover:text-white text-lg" onclick="closeAnalyticsModal()">✕</button>
+      <div class="analytics-shell">
+        <div class="analytics-topbar">
+          <div class="analytics-title">
+            <span class="analytics-title-mark">UA</span>
+            <div>
+              <h2>Usage Analytics</h2>
+              <p>Orchestra control room · virtual API-equivalent cost</p>
+            </div>
+          </div>
+          <div id="analytics-periods" class="analytics-periods" aria-label="Analytics period"></div>
+          <button id="analytics-close" class="analytics-close" type="button" aria-label="Close analytics">✕</button>
         </div>
-        <div id="analytics-tabs" class="flex gap-1 mb-4"></div>
-        <div id="analytics-body" class="flex-1 overflow-auto text-xs text-slate-300"></div>
+        <div class="analytics-navrow">
+          <div id="analytics-view-tabs" class="analytics-view-tabs" role="tablist"></div>
+          <div id="analytics-quality" class="analytics-quality"></div>
+        </div>
+        <div id="analytics-body" class="analytics-body"></div>
       </div>
     </div>
 
@@ -292,6 +302,7 @@
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/tool-renderers.js"></script>
     <script src="/static/js/usage.js"></script>
+    <script src="/static/js/analytics.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>
