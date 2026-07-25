@@ -1446,7 +1446,6 @@ fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,..
 
 // Cache timer pill. Claude has an exact 1h policy; Codex exposes a ≈30m reference window.
 function _shortModel(m) {
-    if (m === 'claude-opus-5[1m]') return 'opus-5';
     const meta = _modelMeta(m);
     return meta?.label || m.replace('claude-', '').replace('[1m]', '').replace('-1m', '');
 }
