@@ -33,18 +33,27 @@ from app.db import add_log, get_logs, save_session, tool_error_add
 logger = logging.getLogger(__name__)
 
 
-def _is_terminal_subscription_limit(text: str) -> bool:
-    """Known non-transient subscription limits that must never enter server retry."""
+def _subscription_limit_kind(text: str) -> str | None:
+    """Classify the canonical non-transient subscription-limit messages."""
     lowered = text.lower()
-    return any(marker in lowered for marker in (
+    if "monthly spend limit" in lowered:
+        return "monthly"
+    if any(marker in lowered for marker in (
         "session limit",
         "hit your session",
         "hit your usage limit",
         "usage limit",
-        "monthly spend limit",
+        "subscription limit — ждём сброса квоты",
         "weekly usage limit",
         "weekly limit",
-    ))
+    )):
+        return "timed"
+    return None
+
+
+def _is_terminal_subscription_limit(text: str) -> bool:
+    """Known non-transient subscription limits that must never enter server retry."""
+    return _subscription_limit_kind(text) is not None
 
 
 def _claude_subscription_limit_active() -> bool:

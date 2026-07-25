@@ -163,6 +163,7 @@ function _analyticsRenderOverview(body) {
         : `покрытие связки ${linkageCoverage}`;
 
     body.innerHTML = `
+        ${_analyticsWakePanel()}
         <section class="analytics-route analytics-route-${routing.tone}">
             <div><span class="analytics-eyebrow">Куда роутить сейчас</span><strong>${routing.title}</strong></div>
             <p>${routing.detail}</p>
@@ -189,7 +190,54 @@ function _analyticsRenderOverview(body) {
                 </div>
             </article>
         </section>`;
+    const wakeButton = body.querySelector('[data-analytics-wake]');
+    if (wakeButton) wakeButton.onclick = () => _analyticsScheduleWake(wakeButton);
     _analyticsRenderChart(data.daily || []);
+}
+
+function _analyticsWakePanel() {
+    const wake = _analyticsPayload.wake_after_reset || {};
+    const scheduled = wake.scheduled || [];
+    const monthly = wake.monthly_agents || [];
+    let detail = 'Нажатие заменит прежний таймер и возьмёт reset из последнего provider snapshot.';
+    let tone = 'neutral';
+    if (monthly.length) {
+        tone = 'danger';
+        detail = `Monthly spend limit не сбрасывается по таймеру. Подними лимит для ${monthly.length} агент${monthly.length === 1 ? 'а' : 'ов'} в <a href="${_analyticsEsc(wake.manual_action_url || 'https://claude.ai/settings/usage')}" target="_blank" rel="noopener">Claude Usage</a>.`;
+    } else if ((wake.unavailable_agents || []).length) {
+        tone = 'danger';
+        detail = `Для ${wake.unavailable_agents.length} агент${wake.unavailable_agents.length === 1 ? 'а' : 'ов'} в последнем provider snapshot нет исчерпанного окна с resets_at. Таймер не создан.`;
+    } else if (scheduled.length) {
+        tone = 'ok';
+        detail = scheduled.map(item =>
+            `${item.provider || 'provider'}: ${_analyticsDateTime(item.reset_at)} · ${_analyticsNumber(item.agent_count)} аг.`
+        ).join(' · ');
+    } else if (!wake.candidate_count) {
+        detail = 'Сейчас нет агентов, чей последний turn завершился по subscription limit.';
+    }
+    return `<section class="analytics-wake analytics-wake-${tone}">
+        <div>
+            <span class="analytics-kicker">Recovery</span>
+            <strong>Разбудить после сброса</strong>
+            <p data-analytics-wake-status>${detail}</p>
+        </div>
+        <button type="button" data-analytics-wake>Разбудить после сброса</button>
+    </section>`;
+}
+
+async function _analyticsScheduleWake(button) {
+    const status = button.closest('.analytics-wake').querySelector('[data-analytics-wake-status]');
+    button.disabled = true;
+    button.textContent = 'Планирую…';
+    try {
+        const result = await api('/api/usage/wake-after-reset', { method: 'POST' });
+        _analyticsPayload.wake_after_reset = result.state || {};
+        _analyticsRender();
+    } catch (error) {
+        status.textContent = error && error.message ? error.message : 'Не удалось поставить таймер.';
+        button.disabled = false;
+        button.textContent = 'Повторить';
+    }
 }
 
 function _analyticsProviderCard(provider, stats) {

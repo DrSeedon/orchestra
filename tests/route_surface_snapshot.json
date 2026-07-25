@@ -486,6 +486,12 @@
   ]
  ],
  [
+  "/api/usage/wake-after-reset",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/webhook/github",
   [
    "POST"
