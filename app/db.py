@@ -1282,6 +1282,23 @@ def bg_reset_stale_triggering(max_age_seconds: int = 120) -> list[str]:
         return ids
 
 
+def bg_reset_wake_triggering() -> list[str]:
+    """Wake batches are safe to replay because each target turn is revalidated."""
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT id FROM bg_jobs WHERE status='triggering' "
+            "AND json_extract(config, '$.action')='wake_subscription_limited'"
+        ).fetchall()
+        ids = [row["id"] for row in rows]
+        if ids:
+            placeholders = ",".join("?" * len(ids))
+            c.execute(
+                f"UPDATE bg_jobs SET status='active' WHERE id IN ({placeholders})",
+                ids,
+            )
+        return ids
+
+
 def bg_count_active(scope: str) -> int:
     with _conn() as c:
         return c.execute(

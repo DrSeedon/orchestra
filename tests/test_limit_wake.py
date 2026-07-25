@@ -334,3 +334,45 @@ async def test_wake_timer_restores_from_database(wake_db, monkeypatch):
     assert len(restored) == 1
     assert restored[0][0][0] == result["id"]
     assert restored[0][0][2]["action"] == "wake_subscription_limited"
+
+
+@pytest.mark.asyncio
+async def test_interrupted_triggering_wake_timer_replays_after_restart(
+    wake_db, monkeypatch
+):
+    from app.bg_jobs import BgJobManager
+    from app.db import bg_save_job
+
+    now = datetime.now(timezone.utc)
+    bg_save_job({
+        "id": "interrupted-wake",
+        "type": "timer",
+        "config": json.dumps({
+            "delay_seconds": 1,
+            "action": "wake_subscription_limited",
+            "provider": "anthropic",
+            "agents": [],
+        }),
+        "message": "",
+        "target_session_id": "__system__",
+        "target_name": "__system__",
+        "target_scope": "__global__",
+        "created_by_name": "dashboard",
+        "status": "triggering",
+        "expires_at": (now + timedelta(hours=1)).isoformat(),
+        "trigger_at": (now - timedelta(seconds=30)).isoformat(),
+        "created_at": (now - timedelta(minutes=1)).isoformat(),
+        "last_output": "woke 1 agents",
+    })
+    restored = []
+    manager = BgJobManager()
+    monkeypatch.setattr(
+        manager,
+        "_start_task",
+        lambda *args, **kwargs: restored.append((args, kwargs)),
+    )
+
+    await manager.restore_from_db()
+
+    assert len(restored) == 1
+    assert restored[0][0][0] == "interrupted-wake"

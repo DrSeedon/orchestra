@@ -19,6 +19,7 @@ from app.db import (
     bg_reset_stale_triggering, bg_cleanup_old,
     bg_cron_should_fire, bg_cron_record_fire,
     bg_get_jobs, bg_fail_job_if_active, bg_replace_job,
+    bg_reset_wake_triggering,
 )
 
 logger = logging.getLogger(__name__)
@@ -257,6 +258,12 @@ class BgJobManager:
         cleaned = bg_cleanup_old(24)
         if cleaned:
             logger.info(f"bg_jobs: cleaned up {cleaned} old terminated jobs")
+        wake_reset_ids = bg_reset_wake_triggering()
+        if wake_reset_ids:
+            logger.info(
+                "bg_jobs: reset %s interrupted wake jobs",
+                len(wake_reset_ids),
+            )
         expired_ids = bg_expire_overdue()
         for jid in expired_ids:
             task = self._tasks.pop(jid, None)
