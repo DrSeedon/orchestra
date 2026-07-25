@@ -480,9 +480,15 @@
   ]
  ],
  [
-  "/api/usage/history",
+ "/api/usage/history",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/usage/wake-after-reset",
+  [
+   "POST"
   ]
  ],
  [
