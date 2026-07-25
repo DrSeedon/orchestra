@@ -118,8 +118,10 @@ docs/tasks/<task-id>/
 ## Pipeline rules
 - NEVER skip a phase. NEVER proceed without approval after Phase 1 and 2 — STOP and wait.
   Exception: orchestrator says "don't wait" → skip the idle-gate but still do ALL phase work.
-- Codex review MANDATORY for complex tasks (5+ files, security, architecture, integrations).
-  Skip only on trivial (<50 lines, 1 function). Never claim a review ran without its output.
+- Codex review MANDATORY for complex tasks (5+ files, security, architecture, integrations)
+  and for ANY diff touching shared runtime — message delivery, sessions, queues, locks, DB
+  migrations — where size is never an excuse to skip. Skip only on trivial (<50 lines, 1
+  function) outside shared runtime. Never claim a review ran without its output.
 - **Codex = adversarial second opinion, NOT a rubber stamp.** Never accept a blocking finding
   blindly (verify via code first) and never dismiss one silently. If Codex disagrees on a
   blocking finding → debate (resume the session) until consensus, or escalate to the
