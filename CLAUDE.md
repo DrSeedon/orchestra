@@ -657,3 +657,50 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 ### Active workers
 - **frontend-opus** (idle, ctx:9%) — system, keep
 - **prompt-engineer** (idle, ctx:8%) — system, keep
+
+## Session notes (2026-07-24 to 2026-07-25) — Opus 5 migration, TG starvation, codex-sleep
+
+### Opus 5 launched and adopted (2026-07-24)
+- **Model exists**: API ID `claude-opus-5`, $5/$25 per MTok (same tier as Opus 4.8), effort ladder low/medium/high/xhigh/max
+- **Orchestra must pin `claude-opus-5[1m]`** — bare `claude-opus-5` reported contextWindow 200000 in Claude Code 2.1.215; the `[1m]` suffix reported 1000000. Verified by direct CLI probe, not docs
+- **No separate Max bucket** — Opus 5 consumes the shared Claude 5h/7d meter. A cold low-effort probe moved 5h 19%→21%
+- **Benchmarks vs Opus 4.8**: Frontier-Bench +22.2pp, ARC-AGI-3 +28.7pp, OSWorld +14.9pp, SWE-bench Pro +10.0pp, DeepSWE +9.8pp. Not marginal
+- **Sol NOT replaced** — the "Opus 5 medium 66.9% beats Sol max 53.8%" claim is FALSE: the 53.8% curve is **Sonnet 5**, Sol isn't on that chart. Real table: Sol 72.7 vs Opus 5 68.8 on DeepSWE. Sol also keeps the separate Codex pool → still the worker default
+- **Fable 5 demoted** — beats Opus 5 by only 0.1–0.9pp on three coding evals at 2× price. Manual escalation only
+- Full research: `docs/tasks/opus5-routing/research.md`, HTML artifact `docs/artifacts/opus5-routing.html`
+
+### Migration executed (user order: "всех опусов на 5 переключай")
+- `app/models.py` — added `claude-opus-5[1m]`, label "Opus 5 (1M)"; `opus` alias moved 4.8 → 5. 4.6/4.8 kept for pinned sessions
+- `pipelines/default/pipeline.yaml` — orchestrator + sub-orchestrator default → Opus 5; worker/full-cycle stay Sol
+- DB: `UPDATE sessions SET model='claude-opus-5[1m]' WHERE model LIKE 'claude-opus-4%'` — 165 rows (52 active)
+- **TRAP**: the running server rewrites `sessions.model` from memory. The first bulk UPDATE was silently reverted for loaded agents. Had to re-run. Verify after every restart
+
+### TG outbound starvation (real user-visible outage)
+- Symptom: user saw only "изменил(а) значок темы" for an hour, zero orchestrator replies
+- Root cause: one per-chat PriorityQueue dispatcher; `_tg_run_call()` retries 3× **inside** the dispatcher. A cosmetic `editForumTopic` with important=True held the pipeline for minutes on request timeouts
+- Fix (a566371): topic metadata off the message queue — best-effort, 1 attempt, hard 5s timeout, debug-only failures. Snapshots for `_manager.sessions.values()` and `config['topics'].items()` fix `dictionary changed size during iteration`
+- **Pattern**: cosmetic calls must never share a retry path with real deliveries
+
+### Codex sleep (we caused it ourselves)
+- Measured: 74 sleeps / 1,579 Codex bash calls (4.69%, 1,953s); **0** in Claude-shaped calls. 65/74 adjacent to codex_review
+- Cause: `codex_review` said "do NOT poll, just wait" — Codex obeyed literally via `sleep`, even though Orchestra already wakes the worker on bg-job completion
+- Fix (d19ad34): tool description now says **END YOUR TURN NOW**; base.md forbids sleeping/polling on external state (bounded test/restart waits still legal); merge RUNNING→IDLE retry race removed. No global `sleep` block — that would break legitimate waits
+- Follow-up: measure 7 days / 30 Sol review jobs before adding any PreToolUse guard
+
+### Other work merged
+- **html-effectiveness research** — `anthropics/html-effectiveness` is a 20-file MIT example gallery, not a skill/library/framework. Verdict PARTIALLY ADOPT (approach only): render-first, standalone, export-back. SKIP vendoring files or touching HTMX/Jinja/SSE. `docs/tasks/html-effectiveness/research.md`
+- **html-artifacts skill delivery (a711164)** — versioned skill was orchestrator-only; now worker + full-cycle too. Added rule: Markdown/JSON = durable Git-diffable source, HTML = presentation layer, editors must export back
+- **Preview sandbox P0 (01afebb)** — agent HTML ran same-origin with `allow-scripts allow-same-origin` (removable sandbox) and a raw Open with no CSP. Now `allow-scripts` only + CSP `sandbox allow-scripts; …; connect-src 'none'` for .html/.htm only
+- **Transaction-safe compact (0b2340a)** — cached 5h/7d=100 blocks compact before the backend call; limit text can't become a summary; failed summary/ack restores old session ID; terminal turns don't double-log or arm precompact
+- **codex-cost research** — codex_review = 9.86% of Sol credits (264.5) vs workers 90.14% (2,418.8). Median review 22.5 credits ≈ 48% of a worker turn. Spark A/B **missed a real double-count bug that Sol caught** → do NOT route final reviews to Spark. `docs/tasks/codex-cost/research.md`
+
+### Process rules learned
+- **Cosmetic vs real delivery must not share a retry path** — one starves the other (TG topic icons)
+- **Prompts that say "wait" cost real money** — if the platform already resumes the agent, say END TURN. "Don't poll, just wait" reads as `sleep` to Codex
+- **Architectural replacement makes tests stale → migrate the contract, don't label failures "pre-existing"** (proposed by fix-tg-topic-lock, approved, applied there — 3 lock tests rewritten onto the current queue, 56 passed)
+- **Verify DB writes against a live server** — an UPDATE that reports N changed rows can be reverted by the running process
+- **Screenshot legends matter** — a whole "Opus 5 replaces Sol" conclusion rested on misreading a green line as Sol when it was Sonnet 5. The worker caught it; the orchestrator had already repeated the wrong claim
+
+### Worker state at compact
+- Killed after merge: fix-tg-drops, research-html-eff, fix-skill-source, fix-preview-sandbox, impl-opus5, research-codex-cost, fix-tg-topic-lock
+- Alive/idle: research-codex-sleep (ctx:63%, merged), research-opus5 (ctx:27%, merged, gate-style), research-models, research-subscription, prompt-engineer, frontend-opus (all Opus 5)
