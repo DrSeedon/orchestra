@@ -7,13 +7,22 @@
 - [ ] **Message disappears on agent switch** — SSE reconnect gap. 300ms delay added (partial fix)
 - [ ] **TG дубли expandable+image** — partially fixed (skip expandable for Read/Grep/Bash/Glob when image sent), but Edit/Write may still duplicate
 - [ ] **RAG-бэкфилл на merge_worker ненадёжен/медленный** — после merge индекс ещё старый: `search_memory` отдаёт предыдущую версию файла как «текущую». Ручной `POST /api/memory/reindex` чинит за ~4 мин. Триггер fire-and-forget → недоказуемо, «не сработал» или «не успел». Проверить: реально ли триггерится и сколько занимает. Найдено при архивации session notes 2026-07-26
+- [ ] **Устаревшие копии скиллов в Claude-worktree** — `.claude/skills/` копируется при СОЗДАНИИ worktree и не обновляется: у `audit-fullcycle` до сих пор лежит `self-analysis`, удалённый 2026-07-26. Та же болезнь, что была с AGENTS.md. Осознанно вынесено за скоуп #89
 - [ ] **`skills_catalog()` мёртвая** — `app/prompting.py:103`, 0 вызовов во всём репо. Глобит `prompts/skills/*.md`, но инжект резолвит скиллы ПО ИМЕНАМ из pipeline.yaml. Решить что из двух: (а) забыли подключить блок «Available skills» в промпт оркестратора → тогда оркестратор не видит доступные скиллы, это баг; (б) пережиток апстрима → удалить. Найдено при чистке divergent-thinking/self-analysis 2026-07-25
 
 ## In Progress
 - [ ] **tg_bridge split P5** — refactor-tg worker (Opus 4.8, ctx:12%) has research+plan done, awaiting impl approval. Split into tg_bot/tg_stream/tg_render/tg_topics
 
+## Ждут решения юзера (2026-07-26)
+- [ ] **Перевод остатка CLAUDE.md на английский** — файл чисто агентский (юзер его не читает), кириллица = 2 байта/символ → двойной запас по 32 KiB-лимиту Codex. Делать ОТДЕЛЬНЫМ шагом после архивации, не смешивая
+- [ ] **R8: orchestration.md (255 строк)** — НЕ резать вслепую по статье Anthropic. Сначала замер следа инструкций, как в fullcycle-audit
+- [ ] **Правило в «Грабли»**: «сузил валидацию на shared runtime → прогони по всем живым sessions.scope из БД, не только по фикстурам» (от fix-repo-path) — ЗАПИСАНО, подтверждение получено постфактум
+- [ ] **Личные скиллы из ~/.claude/skills в пайплайн** — какие реально нужны воркерам? Не все скопом. Задача #89 дала механизм (оглавление), осталось решить состав
+
 ## Urgent (needs restart)
-- [ ] **RESTART ORCHESTRA** — user rejected the sudo prompt 3× on 2026-07-25; all Python changes below are merged to main and inert until `sudo systemctl restart orchestra`: Opus 5 registry, TG topic-lock fix, codex-sleep fix, preview CSP, transaction-safe compact
+- [ ] **RESTART ORCHESTRA** — не перезапускались с 2026-07-25 (юзер отклонил sudo 3×). Всё ниже смержено в main и НЕ РАБОТАЕТ до `sudo systemctl restart orchestra`: Opus 5 registry, TG topic-lock fix, codex-sleep fix, preview CSP, transaction-safe compact, **Usage Analytics v2 + /api/usage/analytics**, **кнопка «Разбудить после сброса» (limit_wake.py)**, **полный ремонт TG (6 багов, тесты 56→97)**, **обновление зеркала AGENTS.md на коннекте**, **оглавление скиллов для Sol (#89)**, **строгая валидация repo_path (#88)**
+- [ ] **После рестарта — проверить 3 бага из BUGS.md**, помеченных restart-marker: TG diff images (с 08.06), TG expandable deadlock (вероятно уже починен 5fba15d), auto_resume model overwrite
+- [ ] **После рестарта — проверить AGENTS.md у Sol-воркеров**: у `frontend` и `prompt-engineer` файла НЕТ ВООБЩЕ (были Claude-воркерами, зеркало не создавалось), у `audit-fullcycle` лежит старая копия 61 643 байта. Должно самовылечиться на реконнекте — ПОДТВЕРДИТЬ
 - [ ] **Effort xhigh crash on Claude** — backend_claude.py: auto-downgrade xhigh→high for claude models. Fix written, needs restart
 - [ ] **Codex usage limit infinite retry** — session.py: "hit your usage limit" not in terminal patterns → retried forever. Fix written, needs restart
 - [ ] **seedon-orchestrator Fable 5 → Opus 5** — burning 4× limit, DB update needed + restart
