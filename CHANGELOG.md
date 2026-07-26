@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.24.2 — 2026-07-26
+
+### Removed
+- 🗑 **`_auto_commit_if_dirty` — спавн больше не коммитит незакоммиченную работу юзера** (`app/manager.py`). Функция делала `git add -A` + `git commit` в рабочем чекауте перед созданием worktree, обосновывая это тем, что «worktree наследует unstaged junk».
+  - **Обоснование было ложным** — проверено экспериментом на чистом репо: `git worktree add <path> HEAD` строит дерево из коммита, unstaged-правки и untracked-файлы источника в него не попадают вообще. Вызывалась функция только при `use_worktree and repo_path`, то есть ровно в единственном случае, где не нужна.
+  - **Triggered case**: оркестратор inscryption-ai обнаружил, что Orchestra закоммитила в `main` чужую папку `.serena/` перед спавном воркера. Это происходило при каждом спавне с dirty-репо, начиная с `1e39c47`.
+  - Убраны 2 мока в `tests/test_manager.py` (функцию саму никто не тестировал).
+
+### Fixed
+- 📁 **Директория и ветка worktree именуются по repo root, а не по `scope` сессии** (`app/workspace.py:285-294`). Было: `wt_dir = WORKTREE_ROOT / _slugify(scope)`, репозиторий при этом брался из `repo_path` — два независимых источника, никем не сверяемых.
+  - **Симптом**: воркеры `impl-deck-search`, `impl-inscryption`, `feat-inscryption-ai` лежали в `worktrees/home-maxim-cursor-cog-second-brain/`, хотя `git-common-dir` = `/mnt/data/Projects/Python/inscryption-ai/.git`. Проявляется, когда родитель живёт в одном проекте, а спавнит воркера в другой. Ветки при этом получали имена вида `feat/home-maxim-cursor-cog-second-brain/<name>` в чужом репо.
+  - **Почему важно**: это источник серии ложных баг-репортов «`repo_path` игнорируется» — оркестраторы читали путь вместо `git-common-dir` и делали вывод о промахе. Расследование `fix-repo-path` тогда сняло обвинение с `repo_path`, но настоящую причину не нашло.
+  - Параметр `scope` удалён из `create_worktree` — после фикса он не использовался. Существующие worktree не затронуты (их пути записаны в БД).
+  - **Tests**: `test_repo_namespaced_path`, `test_branch_namespaced_by_repo`, `test_worktree_belongs_to_requested_repo`, `test_different_repos_no_collision` (заменил `test_different_scopes_no_collision` — свойство «разные scope → разные пути» перестало существовать). 152 зелёных.
+
 ## v2.24.1 — 2026-07-01
 
 ### Added

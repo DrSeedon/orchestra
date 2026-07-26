@@ -344,38 +344,6 @@ class SessionManager:
                 self._spawn_queue.task_done()
 
     @staticmethod
-    def _auto_commit_if_dirty(repo_path: str) -> str:
-        # Worktrees branch from HEAD of the source repo — if it's dirty, the new
-        # worktree inherits unstaged junk. Auto-commit gives the worker a clean base.
-        import subprocess, datetime
-        r = subprocess.run(["git", "status", "--porcelain"], cwd=repo_path, capture_output=True, text=True)
-        if r.returncode != 0:
-            logger.error(f"auto-commit git status failed in {repo_path}: {r.stderr.strip()}")
-            return f"FAILED to check repo status (git status rc={r.returncode}) — spawn proceeds, auto-save NOT run"
-        if not r.stdout.strip():
-            return ""
-        files = [l[3:] for l in r.stdout.strip().splitlines()]
-        cur = subprocess.run(["git", "symbolic-ref", "--short", "HEAD"], cwd=repo_path, capture_output=True, text=True)
-        branch = cur.stdout.strip() or "(detached HEAD)"
-        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-        msg = (f"WIP: auto-saved uncommitted changes before worker spawn ({ts})\n\n"
-               f"Orchestra committed {len(files)} dirty path(s) in the source repo checkout "
-               f"(branch {branch}) to give the new worker a clean base. Review and amend/reset "
-               f"if this buried work-in-progress:\n"
-               + "\n".join(f"- {f}" for f in files))
-        add = subprocess.run(["git", "add", "-A"], cwd=repo_path, capture_output=True, text=True)
-        if add.returncode != 0:
-            logger.error(f"auto-commit git add failed in {repo_path}: {add.stderr.strip()}")
-            return f"FAILED to auto-save dirty source repo (git add rc={add.returncode}) — spawn proceeds on DIRTY base"
-        commit = subprocess.run(["git", "commit", "-m", msg], cwd=repo_path, capture_output=True, text=True)
-        if commit.returncode != 0:
-            logger.error(f"auto-commit failed in {repo_path}: {commit.stderr.strip()}")
-            return (f"FAILED to auto-save dirty source repo (git commit rc={commit.returncode}: "
-                    f"{commit.stderr.strip()[:120]}) — spawn proceeds, changes NOT committed")
-        logger.warning(f"Auto-committed {len(files)} dirty path(s) in {repo_path} (branch {branch}) before spawn")
-        return f"auto-committed {len(files)} dirty file(s) (branch {branch}) before spawn — review the WIP commit"
-
-    @staticmethod
     def _ownership_prompt(owned_dirs: list[str]) -> str:
         if not owned_dirs:
             return ""
@@ -550,9 +518,6 @@ class SessionManager:
 
         try:
             if use_worktree and repo_path:
-                wip_note = await asyncio.to_thread(self._auto_commit_if_dirty, repo_path)
-                if wip_note:
-                    session._spawn_warning = (session._spawn_warning + "; " + wip_note).strip("; ")
                 # Worktree-конфиг из манифеста (симлинки + copies). Нет манифеста
                 # → None → create_worktree использует upstream-fallback (PROJECT_FILES).
                 try:
@@ -560,7 +525,7 @@ class SessionManager:
                 except FileNotFoundError:
                     worktree_cfg = None
                 wt = await asyncio.to_thread(
-                    create_worktree, repo_path, name, scope, task_id, base_branch, worktree_cfg)
+                    create_worktree, repo_path, name, task_id, base_branch, worktree_cfg)
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch

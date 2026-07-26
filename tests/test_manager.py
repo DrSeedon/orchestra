@@ -130,9 +130,7 @@ class TestCreateSession:
             "app.manager.delete_archived_session",
         ) as delete_archived, patch(
             "app.manager.save_session",
-        ) as save, patch.object(
-            mgr, "_auto_commit_if_dirty",
-        ) as auto_commit:
+        ) as save:
             with pytest.raises(ValueError, match="must be the Git repository root"):
                 await mgr.create_session(
                     name="w1", scope="/s", cwd=str(nested), model="m",
@@ -142,7 +140,6 @@ class TestCreateSession:
         validate.assert_called_once_with(str(nested))
         delete_archived.assert_not_called()
         save.assert_not_called()
-        auto_commit.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("repo_path", ["", None])
@@ -153,9 +150,7 @@ class TestCreateSession:
             "app.manager.delete_archived_session",
         ) as delete_archived, patch(
             "app.manager.save_session",
-        ) as save, patch.object(
-            mgr, "_auto_commit_if_dirty",
-        ) as auto_commit:
+        ) as save:
             with pytest.raises(
                 ValueError, match="repo_path required when use_worktree=True",
             ):
@@ -166,7 +161,6 @@ class TestCreateSession:
 
         delete_archived.assert_not_called()
         save.assert_not_called()
-        auto_commit.assert_not_called()
 
 
 class TestWorktreeBaseBranch:

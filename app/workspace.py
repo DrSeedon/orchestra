@@ -274,7 +274,7 @@ def _exclude_claude_dir(wt_path: Path) -> None:
         f.write("".join(f"{p}\n" for p in missing))
 
 
-def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
+def create_worktree(repo_path: str, name: str, task_id: str = "",
                     base_branch: str = "main",
                     worktree_cfg: "WorktreeCfg | None" = None) -> Worktree:
     # Защитный дефолт: пустая строка (sentinel из manager) → main, чтобы git не упал.
@@ -282,8 +282,10 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
         base_branch = "main"
     repo = validate_repo_root(repo_path)
 
-    scope_slug = _slugify(scope)
-    wt_dir = WORKTREE_ROOT / scope_slug
+    # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
+    # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
+    repo_slug = _slugify(str(repo))
+    wt_dir = WORKTREE_ROOT / repo_slug
     _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
     wt_path = wt_dir / name
 
@@ -291,7 +293,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
         par = _normalize_task_id(task_id)
         branch = f"task-{par}/{name}"
     else:
-        branch = f"feat/{scope_slug}/{name}"
+        branch = f"feat/{repo_slug}/{name}"
 
     if wt_path.exists():
         raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")

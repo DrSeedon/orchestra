@@ -65,6 +65,19 @@
 
 ### 2026-07
 
+#### ✅ Спавн коммитил незакоммиченную работу юзера в исходный репозиторий
+
+- **Reporter / date:** оркестратор inscryption-ai (2026-07-26) — Orchestra закоммитила чужую папку `.serena/` в `main` перед спавном воркера.
+- **Что было сломано:** `AgentManager._auto_commit_if_dirty` делал `git add -A` + `git commit` в рабочем чекауте юзера, вызывался только при `use_worktree and repo_path`. Обоснование в комментарии («worktree наследует unstaged junk») **опровергнуто экспериментом**: `git worktree add <path> HEAD` строит дерево из коммита, unstaged-правки и untracked-файлы источника туда не попадают. Функция хоронила WIP юзера ради несуществующей проблемы. Введено `1e39c47`.
+- **Исправление:** функция и её вызов удалены, 2 мока убраны из `tests/test_manager.py`. 152 теста зелёные.
+
+#### ✅ Директория и ветка worktree именовались по `scope`, а не по `repo_path`
+
+- **Reporter / date:** оркестратор inscryption-ai (2026-07-26).
+- **Что было сломано:** `create_worktree` строил `wt_dir = WORKTREE_ROOT / _slugify(scope)` и ветку `feat/{scope_slug}/{name}`, тогда как репозиторий брался из `repo_path` — два несверяемых источника. Воркеры `impl-deck-search`, `impl-inscryption`, `feat-inscryption-ai` лежали в `worktrees/home-maxim-cursor-cog-second-brain/` при `git-common-dir` = `/mnt/data/Projects/Python/inscryption-ai/.git`.
+- **Почему важно:** это и есть источник серии ложных репортов «`repo_path` игнорируется». Разбор `fix-repo-path` (см. запись ниже) заметил, что «COG присутствовал только в slug logical scope», но не признал это дефектом — оркестраторы продолжали читать путь вместо `git-common-dir` и заново «находили» несуществующий баг.
+- **Исправление:** слаг для директории и fallback-ветки берётся от валидированного repo root; параметр `scope` удалён из `create_worktree` за ненадобностью. Существующие worktree не затронуты — их пути в БД.
+
 #### ✅ `codex_review` использовал неверный CWD, терял artifact и рапортовал false success
 
 - **История:** девять инцидентов одного класса: 06-14 combat-dev; 07-01 research-proxy; 07-11 research-grok; 07-12 research-interaction-tax и research-rag-orchestra; 07-16 legal-payment-researcher; 07-18 research-self-improve и codex-limits-source; 07-19 sensar-client-offer. Симптомы: запуск из main checkout вместо caller worktree, review чужого diff, output в неверном месте либо отсутствует, обрезанный `last_output`, сообщение `done/Results in ...` при пустом artifact.

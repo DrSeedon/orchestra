@@ -114,26 +114,27 @@ class TestValidateRepoRoot:
 class TestCreateWorktree:
     def test_success(self, git_repo, wt_root):
         from app.workspace import create_worktree
-        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        wt = create_worktree(str(git_repo), "worker-1")
         assert Path(wt.path).exists()
         assert Path(wt.path).is_dir()
         assert wt.branch.startswith("feat/")
 
-    def test_scope_namespaced_path(self, git_repo, wt_root):
-        from app.workspace import create_worktree
-        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+    def test_repo_namespaced_path(self, git_repo, wt_root):
+        from app.workspace import _slugify, create_worktree
+        wt = create_worktree(str(git_repo), "worker-1")
         assert "worktrees" in wt.path
         assert "worker-1" in wt.path
         assert wt_root in Path(wt.path).parents or Path(wt.path).parent.parent == wt_root
+        assert Path(wt.path).parent.name == _slugify(str(git_repo.resolve()))
 
-    def test_branch_scoped(self, git_repo, wt_root):
-        from app.workspace import create_worktree
-        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
-        assert "/" in wt.branch.removeprefix("feat/")
+    def test_branch_namespaced_by_repo(self, git_repo, wt_root):
+        from app.workspace import _slugify, create_worktree
+        wt = create_worktree(str(git_repo), "worker-1")
+        assert wt.branch == f"feat/{_slugify(str(git_repo.resolve()))}/worker-1"
 
     def test_copies_project_files(self, git_repo, wt_root):
         from app.workspace import create_worktree
-        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        wt = create_worktree(str(git_repo), "worker-1")
         wt_path = Path(wt.path)
         assert (wt_path / "CLAUDE.md").exists()
         assert (wt_path / ".mcp.json").exists()
@@ -144,20 +145,20 @@ class TestCreateWorktree:
         (git_repo / "CLAUDE.md").unlink()
         parent = git_repo.parent
         (parent / "CLAUDE.md").write_text("# parent instructions")
-        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        wt = create_worktree(str(git_repo), "worker-1")
         assert (Path(wt.path) / "CLAUDE.md").read_text() == "# parent instructions"
 
     def test_exists_raises(self, git_repo, wt_root):
         from app.workspace import create_worktree
-        create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        create_worktree(str(git_repo), "worker-1")
         with pytest.raises(ValueError, match="already exists"):
-            create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+            create_worktree(str(git_repo), "worker-1")
 
     def test_injected_claude_dir_not_dirty(self, git_repo, wt_root):
         """create_worktree excludes `.claude/` → injected skills don't dirty the tree
         or block merge (repo has no `.claude/` in .gitignore = external-repo case)."""
         from app.workspace import create_worktree
-        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        wt = create_worktree(str(git_repo), "worker-1")
         wt_path = Path(wt.path)
         (wt_path / ".claude" / "skills" / "foo").mkdir(parents=True)
         (wt_path / ".claude" / "skills" / "foo" / "SKILL.md").write_text("x")
@@ -168,7 +169,7 @@ class TestCreateWorktree:
 
     def test_exclude_claude_dir_idempotent(self, git_repo, wt_root):
         from app.workspace import create_worktree, _exclude_claude_dir
-        wt = create_worktree(str(git_repo), "worker-1", "/mnt/data/Projects/test")
+        wt = create_worktree(str(git_repo), "worker-1")
         _exclude_claude_dir(Path(wt.path))  # second call (create already ran it once)
         common = subprocess.run(
             ["git", "rev-parse", "--git-common-dir"],
@@ -180,14 +181,14 @@ class TestCreateWorktree:
     def test_bad_repo_raises(self, wt_root):
         from app.workspace import create_worktree
         with pytest.raises(ValueError, match="does not exist"):
-            create_worktree("/nonexistent/path", "worker-1", "/scope")
+            create_worktree("/nonexistent/path", "worker-1")
 
     def test_not_git_repo_raises(self, tmp_path, wt_root):
         from app.workspace import create_worktree
         not_git = tmp_path / "not-a-repo"
         not_git.mkdir()
         with pytest.raises(ValueError, match="repo_path is not a Git repository"):
-            create_worktree(str(not_git), "worker-1", "/scope")
+            create_worktree(str(not_git), "worker-1")
 
     def test_nested_repo_path_raises_instead_of_using_parent(self, git_repo, wt_root):
         from app.workspace import create_worktree
@@ -195,12 +196,12 @@ class TestCreateWorktree:
         nested = git_repo / "nested"
         nested.mkdir()
         with pytest.raises(ValueError, match="must be the Git repository root"):
-            create_worktree(str(nested), "worker-1", "/scope")
+            create_worktree(str(nested), "worker-1")
 
-    def test_unregistered_scope_still_uses_requested_repo(self, git_repo, wt_root):
+    def test_worktree_belongs_to_requested_repo(self, git_repo, wt_root):
         from app.workspace import create_worktree
 
-        wt = create_worktree(str(git_repo), "worker-1", "/different/logical/scope")
+        wt = create_worktree(str(git_repo), "worker-1")
         common = subprocess.run(
             ["git", "rev-parse", "--git-common-dir"],
             cwd=wt.path, capture_output=True, text=True, check=True,
@@ -209,9 +210,9 @@ class TestCreateWorktree:
 
     def test_existing_branch_reuses(self, git_repo, wt_root):
         from app.workspace import create_worktree, remove_worktree
-        wt1 = create_worktree(str(git_repo), "worker-1", "/scope")
+        wt1 = create_worktree(str(git_repo), "worker-1")
         remove_worktree(str(git_repo), wt1.path)
-        wt2 = create_worktree(str(git_repo), "worker-1", "/scope")
+        wt2 = create_worktree(str(git_repo), "worker-1")
         assert Path(wt2.path).exists()
         assert wt2.branch == wt1.branch
 
@@ -219,7 +220,7 @@ class TestCreateWorktree:
         # Task #39 Fix 5a: if PROJECT_FILES copy raises after `git worktree add`,
         # the just-created worktree must be rolled back (no orphan on disk/in git).
         import app.workspace as ws
-        from app.workspace import create_worktree
+        from app.workspace import _slugify, create_worktree
 
         real_git_cmd = ws._git_cmd
 
@@ -232,18 +233,28 @@ class TestCreateWorktree:
 
         monkeypatch.setattr(ws, "_git_cmd", fail_copy)
         with pytest.raises(OSError, match="disk full"):
-            create_worktree(str(git_repo), "worker-x", "/scope")
-        wt_path = wt_root / "scope" / "worker-x"
+            create_worktree(str(git_repo), "worker-x")
+        wt_path = wt_root / _slugify(str(git_repo.resolve())) / "worker-x"
         assert not wt_path.exists()
         listing = subprocess.run(
             ["git", "worktree", "list"], cwd=git_repo, capture_output=True, text=True,
         )
         assert "worker-x" not in listing.stdout
 
-    def test_different_scopes_no_collision(self, git_repo, wt_root):
+    def test_different_repos_no_collision(self, tmp_path, git_repo, wt_root):
         from app.workspace import create_worktree
-        wt1 = create_worktree(str(git_repo), "worker-1", "/scope/a")
-        wt2 = create_worktree(str(git_repo), "worker-1", "/scope/b")
+        other = tmp_path / "other-repo"
+        other.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.email", "t@t"], cwd=other, check=True)
+        subprocess.run(["git", "config", "user.name", "t"], cwd=other, check=True)
+        (other / "f.txt").write_text("x")
+        subprocess.run(["git", "add", "-A"], cwd=other, check=True)
+        subprocess.run(["git", "commit", "-qm", "init"], cwd=other, check=True)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=other, check=True)
+
+        wt1 = create_worktree(str(git_repo), "worker-1")
+        wt2 = create_worktree(str(other), "worker-1")
         assert wt1.path != wt2.path
         assert wt1.branch != wt2.branch
         assert Path(wt1.path).exists()
@@ -252,7 +263,7 @@ class TestCreateWorktree:
     def test_base_branch_param(self, git_repo, wt_root):
         from app.workspace import create_worktree
         subprocess.run(["git", "branch", "feature/auth"], cwd=git_repo, capture_output=True, check=True)
-        wt = create_worktree(str(git_repo), "worker-1", "/scope", base_branch="feature/auth")
+        wt = create_worktree(str(git_repo), "worker-1", base_branch="feature/auth")
         head = subprocess.run(
             ["git", "rev-parse", "feature/auth"], cwd=git_repo, capture_output=True, text=True,
         ).stdout.strip()
@@ -273,7 +284,7 @@ class TestCreateWorktreeManifest:
         (git_repo / "docs_work" / "marker.txt").write_text("docs")
         cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")],
                        copies=["CLAUDE.md"])
-        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=cfg)
+        wt = create_worktree(str(git_repo), "worker-1", worktree_cfg=cfg)
         link = Path(wt.path) / "docs_work"
         assert link.is_symlink()
         assert link.resolve() == (git_repo / "docs_work").resolve()
@@ -287,7 +298,7 @@ class TestCreateWorktreeManifest:
         (git_repo / "copied.txt").write_text("yes")   # untracked, в copies
         (git_repo / "extra.txt").write_text("no")     # untracked, НЕ в copies
         cfg = Worktree(symlinks=[], copies=["copied.txt"])
-        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=cfg)
+        wt = create_worktree(str(git_repo), "worker-1", worktree_cfg=cfg)
         wt_path = Path(wt.path)
         assert (wt_path / "copied.txt").read_text() == "yes"
         assert not (wt_path / "extra.txt").exists()
@@ -295,7 +306,7 @@ class TestCreateWorktreeManifest:
     def test_none_cfg_falls_back_to_project_files(self, git_repo, wt_root):
         from app.workspace import create_worktree
         # worktree_cfg=None → старое поведение: весь PROJECT_FILES, симлинков нет
-        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=None)
+        wt = create_worktree(str(git_repo), "worker-1", worktree_cfg=None)
         wt_path = Path(wt.path)
         assert (wt_path / "CLAUDE.md").exists()
         assert (wt_path / ".env").exists()
@@ -308,7 +319,7 @@ class TestCreateWorktreeManifest:
         # source не существует → не падаем, симлинк не создан
         cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")],
                        copies=["CLAUDE.md"])
-        wt = create_worktree(str(git_repo), "worker-1", "/scope", worktree_cfg=cfg)
+        wt = create_worktree(str(git_repo), "worker-1", worktree_cfg=cfg)
         assert not (Path(wt.path) / "docs_work").exists()
         assert (Path(wt.path) / "CLAUDE.md").exists()
 
@@ -336,13 +347,13 @@ class TestCreateWorktreeManifest:
         (evil / "secret.txt").write_text("leak")
         os.symlink(str(evil), str(repo / "docs_work"))   # docs_work → наружу
         cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")], copies=[])
-        wt = create_worktree(str(repo), "w1", "/scope", worktree_cfg=cfg)
+        wt = create_worktree(str(repo), "w1", worktree_cfg=cfg)
         assert not (Path(wt.path) / "docs_work").exists()  # побег отброшен
 
     def test_rollback_on_symlink_failure(self, git_repo, wt_root, monkeypatch):
         import app.workspace as ws
         from app.pipeline import Symlink, Worktree
-        from app.workspace import create_worktree
+        from app.workspace import _slugify, create_worktree
         (git_repo / "docs_work").mkdir()
 
         def boom(*a, **k):
@@ -352,8 +363,8 @@ class TestCreateWorktreeManifest:
         cfg = Worktree(symlinks=[Symlink(source="docs_work", target="docs_work")],
                        copies=["CLAUDE.md"])
         with pytest.raises(OSError, match="symlink failed"):
-            create_worktree(str(git_repo), "worker-x", "/scope", worktree_cfg=cfg)
-        wt_path = wt_root / "scope" / "worker-x"
+            create_worktree(str(git_repo), "worker-x", worktree_cfg=cfg)
+        wt_path = wt_root / _slugify(str(git_repo.resolve())) / "worker-x"
         assert not wt_path.exists()
         listing = subprocess.run(
             ["git", "worktree", "list"], cwd=git_repo, capture_output=True, text=True,
@@ -387,7 +398,7 @@ class TestSwitchWorktreeBranch:
                        capture_output=True, check=True)
 
         # Воркер ответвляется от feature/auth (HEAD воркера == HEAD feature/auth → ancestor feature/auth)
-        wt = create_worktree(str(git_repo), "worker-1", "/scope", base_branch="feature/auth")
+        wt = create_worktree(str(git_repo), "worker-1", base_branch="feature/auth")
 
         # Со старым hardcode refs/heads/main: HEAD воркера — НЕ ancestor main (есть расхождение)
         # → --is-ancestor возвращает 1 → функция вернула бы error "unmerged commits"
@@ -400,7 +411,7 @@ class TestSwitchWorktreeBranch:
 class TestMergeTarget:
     def _wt_with_commit(self, git_repo, wt_root, name, base):
         from app.workspace import create_worktree
-        wt = create_worktree(str(git_repo), name, "/scope", base_branch=base)
+        wt = create_worktree(str(git_repo), name, base_branch=base)
         (Path(wt.path) / "new.txt").write_text("data")
         subprocess.run(["git", "add", "."], cwd=wt.path, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "work"], cwd=wt.path, capture_output=True, check=True)
@@ -465,7 +476,7 @@ class TestMergeTarget:
 class TestRemoveWorktree:
     def test_removes(self, git_repo, wt_root):
         from app.workspace import create_worktree, remove_worktree
-        wt = create_worktree(str(git_repo), "worker-1", "/scope")
+        wt = create_worktree(str(git_repo), "worker-1")
         assert Path(wt.path).exists()
         remove_worktree(str(git_repo), wt.path)
         assert not Path(wt.path).exists()
@@ -477,7 +488,7 @@ class TestRemoveWorktree:
     def test_git_fail_warns(self, git_repo, wt_root, caplog):
         from app.workspace import create_worktree, remove_worktree
         import logging
-        wt = create_worktree(str(git_repo), "worker-1", "/scope")
+        wt = create_worktree(str(git_repo), "worker-1")
         (Path(wt.path) / ".git").unlink()
         with caplog.at_level(logging.WARNING):
             remove_worktree(str(git_repo), wt.path)
@@ -488,7 +499,7 @@ class TestRemoveWorktree:
         import app.workspace as ws
         from app.workspace import create_worktree, remove_worktree
 
-        wt = create_worktree(str(git_repo), "worker-1", "/scope")
+        wt = create_worktree(str(git_repo), "worker-1")
         flocks = []
         monkeypatch.setattr(ws.fcntl, "flock", lambda f, op: flocks.append(op))
         remove_worktree(str(git_repo), wt.path)
@@ -516,8 +527,8 @@ class TestSlugify:
 class TestCleanupStaleWorktrees:
     def test_removes_stale_keeps_alive(self, git_repo, wt_root, monkeypatch):
         from app.workspace import create_worktree, cleanup_stale_worktrees
-        wt_alive = create_worktree(str(git_repo), "alive-worker", "/scope")
-        wt_stale = create_worktree(str(git_repo), "stale-worker", "/scope")
+        wt_alive = create_worktree(str(git_repo), "alive-worker")
+        wt_stale = create_worktree(str(git_repo), "stale-worker")
 
         monkeypatch.setattr("app.db.get_all_sessions", lambda: [
             {"worktree_path": wt_alive.path},
@@ -531,7 +542,7 @@ class TestCleanupStaleWorktrees:
 
     def test_skips_dirty_worktree(self, git_repo, wt_root, monkeypatch):
         from app.workspace import create_worktree, cleanup_stale_worktrees
-        wt = create_worktree(str(git_repo), "dirty-worker", "/scope")
+        wt = create_worktree(str(git_repo), "dirty-worker")
         (Path(wt.path) / "uncommitted.txt").write_text("dirty")
 
         monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
@@ -566,19 +577,19 @@ class TestSyncAgentsMd:
 
     def test_created_on_worktree_creation(self, git_repo, wt_root):
         from app.workspace import create_worktree
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         assert (Path(wt.path) / "AGENTS.md").read_text() == "# instructions"
 
     def test_refreshes_stale_mirror(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
         assert sync_agents_md(wt.path) is True
         assert (Path(wt.path) / "AGENTS.md").read_text() == "# instructions v2"
 
     def test_noop_when_already_in_sync(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         agents = Path(wt.path) / "AGENTS.md"
         before = agents.stat().st_mtime_ns
         assert sync_agents_md(wt.path) is False
@@ -589,13 +600,13 @@ class TestSyncAgentsMd:
         (git_repo / "AGENTS.md").write_text("# the repo's own rules")
         subprocess.run(["git", "add", "AGENTS.md"], cwd=git_repo, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "own agents"], cwd=git_repo, capture_output=True, check=True)
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         assert sync_agents_md(wt.path) is False
         assert (Path(wt.path) / "AGENTS.md").read_text() == "# the repo's own rules"
 
     def test_no_claude_md_no_mirror(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         (Path(wt.path) / "CLAUDE.md").unlink()
         (Path(wt.path) / "AGENTS.md").unlink()
         assert sync_agents_md(wt.path) is False
@@ -603,7 +614,7 @@ class TestSyncAgentsMd:
 
     def test_mirror_does_not_dirty_tree(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
         sync_agents_md(wt.path)
         status = subprocess.run(
@@ -613,7 +624,7 @@ class TestSyncAgentsMd:
 
     def test_symlink_agents_md_untouched(self, git_repo, wt_root, tmp_path):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         outside = tmp_path / "somebody-elses.md"
         outside.write_text("# not ours")
         agents = Path(wt.path) / "AGENTS.md"
@@ -626,7 +637,7 @@ class TestSyncAgentsMd:
     def test_git_failure_does_not_overwrite(self, git_repo, wt_root, monkeypatch):
         from app.workspace import create_worktree, sync_agents_md
         import app.workspace as ws
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
         real = ws._git_cmd
 
@@ -641,7 +652,7 @@ class TestSyncAgentsMd:
 
     def test_noop_still_excludes_old_worktree(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         common = subprocess.run(
             ["git", "rev-parse", "--git-common-dir"], cwd=wt.path, capture_output=True, text=True,
         ).stdout.strip()
@@ -652,14 +663,14 @@ class TestSyncAgentsMd:
 
     def test_no_tmp_file_left_behind(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
         assert sync_agents_md(wt.path) is True
         assert not (Path(wt.path) / "AGENTS.md.tmp").exists()
 
     def test_existing_tmp_name_untouched(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         stray = Path(wt.path) / "AGENTS.md.tmp"
         stray.write_text("# somebody else's temp")
         (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
@@ -669,7 +680,7 @@ class TestSyncAgentsMd:
     def test_tmp_cleaned_up_when_move_fails(self, git_repo, wt_root, monkeypatch):
         from app.workspace import create_worktree, sync_agents_md
         import app.workspace as ws
-        wt = create_worktree(str(git_repo), "w1", "test")
+        wt = create_worktree(str(git_repo), "w1")
         (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
         real = ws._git_cmd
 
