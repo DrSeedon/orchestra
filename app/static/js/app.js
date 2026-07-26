@@ -778,12 +778,16 @@ function _setHiddenTabs(set) {
     localStorage.setItem('orchestra_hidden_tabs', JSON.stringify([...set]));
 }
 
-// Status must be readable by SHAPE, not hue alone — idle(yellow) vs waiting(orange)
-// were indistinguishable at a glance. Single source of truth for both paint sites.
-const _TAB_STATUS = {
-    running: ['#22c55e', '►', 'running — агент выполняет задачу'],
-    waiting: ['#f59e0b', '‖', 'waiting — агент ждёт фоновую задачу или подтверждение'],
-    idle: ['#eab308', '○', 'idle — агент простаивает'],
+// One status vocabulary for the whole dashboard — sidebar badges and orch tabs.
+// Icon carries the state, so it no longer rides on hue alone (idle/waiting were
+// indistinguishable as plain yellow vs orange dots).
+const _STATUS_ICON = {running: '⚡', idle: '☕️', waiting: '⏳'};
+const _STATUS_COLOR = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b'};
+const _STATUS_BG = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)'};
+const _STATUS_TITLE = {
+    running: 'running — агент выполняет задачу',
+    waiting: 'waiting — агент ждёт фоновую задачу или подтверждение',
+    idle: 'idle — агент простаивает',
 };
 
 function _orchState(o) {
@@ -793,10 +797,11 @@ function _orchState(o) {
 }
 
 function _paintStatusDot(dot, o) {
-    const [color, glyph, title] = _TAB_STATUS[_orchState(o)];
-    dot.style.backgroundColor = color;
-    dot.textContent = glyph;
-    dot.title = title;
+    const state = _orchState(o);
+    dot.textContent = _STATUS_ICON[state];
+    dot.style.backgroundColor = _STATUS_BG[state];
+    dot.style.boxShadow = `inset 0 0 0 1px ${_STATUS_COLOR[state]}`;
+    dot.title = _STATUS_TITLE[state];
 }
 
 function renderOrchTabs(sorted) {
@@ -1606,15 +1611,12 @@ function createAgentItem(s) {
     nameEl.className = 'text-xs font-medium truncate';
     nameEl.textContent = s.name;
     const statusEl = document.createElement('span');
-    const statusColors = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b'};
-    const statusBgs = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)'};
-    const statusIcons = {running: '⚡', idle: '☕️', waiting: '⏳'};
     statusEl.className = 'text-xs font-mono font-bold shrink-0';
-    statusEl.style.color = statusColors[s.status] || '#6b7280';
-    statusEl.style.backgroundColor = statusBgs[s.status] || 'rgba(107,114,128,0.1)';
+    statusEl.style.color = _STATUS_COLOR[s.status] || '#6b7280';
+    statusEl.style.backgroundColor = _STATUS_BG[s.status] || 'rgba(107,114,128,0.1)';
     statusEl.style.padding = '1px 6px';
     statusEl.style.borderRadius = '4px';
-    statusEl.textContent = `${statusIcons[s.status] || '●'} ${s.status}`;
+    statusEl.textContent = `${_STATUS_ICON[s.status] || '●'} ${s.status}`;
     nameRow.append(nameEl, statusEl);
 
     const meta = document.createElement('div');
