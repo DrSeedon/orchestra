@@ -157,6 +157,8 @@ spawn_worker(name="feat-skill-index", repo_path="/mnt/data/Projects/Python/orche
 
 Ожидаемо: либо spawn атомарен (не создался — значит не создался), либо ответ честно сообщает "worker created, task NOT sent, resend via send_message".
 
+**Воспроизведён повторно 2026-07-26 ~21:55 UTC** — `spawn_worker(name="audit-worktree", task_id="90")`, тот же текст ошибки, тот же профиль: воркер в `list_agents` (idle, task_id 90), `get_worker_logs` пуст, задача дослана через `send_message`. Значит не разовая гонка, а стабильное поведение после #88. Воспроизводится с первой попытки — repro есть, чинить можно без раскопок.
+
 ## [2026-07-26 09:40 UTC] RAG-бэкфилл на merge_worker не успевает/не срабатывает — память отдаёт устаревший файл
 - **Reporter:** Orchestra-orchestrator (найдено воркером audit-fullcycle при приёмке R1)
 - **Scope:** /mnt/data/Projects/Python/orchestra
