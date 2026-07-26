@@ -178,3 +178,23 @@ Worker polish-tg called codex_review(mode=exec, target=docs/tasks/polish-tg/plan
 - **Reporter:** polish-tg
 - **Scope:** /mnt/data/Projects/Python/orchestra
 Second attempt for polish-tg plan review, bg-6d2189ac4a, again timed out after 10 minutes with no docs/tasks/polish-tg/codex-review-plan.md. Despite prompt forbidding unrelated files, partial output read README architecture/marketing and then called serena.write_memory(project_overview.md), i.e. entered onboarding instead of reviewing the target. This confirms the review runner is not honoring the supplied target/context and may be inheriting an uninitialized Serena project/CWD. One final attempt will use absolute target and explicitly prohibit MCP; then worker must fall back to documented self-review rather than loop.
+
+## [2026-07-25 14:14 UTC] codex_review implementation diff unavailable on both WebSocket and HTTPS
+- **Reporter:** polish-tg
+- **Scope:** /mnt/data/Projects/Python/orchestra
+polish-tg T1 diff review bg-d8a75a53aa failed before producing a review: five WebSocket retries to wss://chatgpt.com/backend-api/codex/responses returned Connection refused, fallback HTTPS also failed five times. This is separate from the earlier target/onboarding misrouting; no implementation findings were produced. Per orchestrator instruction, worker is recording honest self-review, continuing TDD/commits, and will retry codex_review once on the final diff.
+
+## [2026-07-26 07:03 UTC] spawn_worker игнорирует repo_path, если целевой репозиторий не зарегистрирован как проект Orchestra
+- **Reporter:** COG-second-brain-orchestrator
+- **Scope:** /home/maxim/Рабочий стол/Cursor/COG-second-brain
+Вызвал spawn_worker(name="impl-inscryption", repo_path="/mnt/data/Projects/Python/inscryption-ai", task_id="1", role="full-cycle", model="gpt-5.6-sol"). Целевой путь — валидный git-репозиторий (git init выполнен, есть коммит c27c7fe, ветка main).
+
+Ожидалось: worktree воркера создаётся в целевом репозитории, ветка task-1/impl-inscryption ответвляется от его main.
+
+Фактически: воркер получил worktree в репозитории проекта оркестратора — /mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-cog-second-brain/impl-inscryption, ветка task-1/impl-inscryption от COG-second-brain. Параметр repo_path молча проигнорирован, ошибки или предупреждения не было.
+
+Последствие: воркер сразу упёрся в блокер — писать код надо в один репозиторий, а git-workflow (ветка, коммит, merge_worker) привязан к другому. Пришлось выдавать явное разрешение коммитить в main целевого репо, из-за чего merge_worker/worker_wip для этого воркера перестают работать.
+
+Ожидаемое поведение: либо repo_path действительно используется для создания worktree в указанном репозитории, либо spawn_worker падает с явной ошибкой вида "repo_path не зарегистрирован как проект" — вместо тихого отката к дефолтному scope.
+
+Обход: разрешить воркеру коммитить напрямую в main целевого репозитория (безопасно, когда в нём один агент и нет параллельных веток).
