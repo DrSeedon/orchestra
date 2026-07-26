@@ -12,6 +12,12 @@ async def test_spawn_passes_base_branch(monkeypatch):
     async def fake_api(method, path, **kw):
         if path == "/api/sessions":
             captured.update(kw.get("json", {}))
+            return {
+                "worktree_path": "/worktrees/w-step1",
+                "branch": "task-1/w-step1",
+                "repo_path": "/s",
+                "git_common_dir": "/s/.git",
+            }
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
         await m.spawn_worker(name="w-step1", task="do it", repo_path="/s",
@@ -31,6 +37,12 @@ async def test_spawn_base_branch_default_empty(monkeypatch):
     async def fake_api(method, path, **kw):
         if path == "/api/sessions":
             captured.update(kw.get("json", {}))
+            return {
+                "worktree_path": "/worktrees/w",
+                "branch": "task-1/w",
+                "repo_path": "/s",
+                "git_common_dir": "/s/.git",
+            }
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
         await m.spawn_worker(name="w", task="t", repo_path="/s", model="claude-sonnet-5[1m]")
@@ -46,6 +58,13 @@ async def test_spawn_marks_parent_as_initial_task_sender(monkeypatch):
 
     async def fake_api(method, path, **kw):
         calls.append((method, path, kw.get("json")))
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-1/child",
+                "repo_path": "/s",
+                "git_common_dir": "/s/.git",
+            }
         return {"ok": True}
 
     with patch.object(m, "_api", side_effect=fake_api):
@@ -58,6 +77,163 @@ async def test_spawn_marks_parent_as_initial_task_sender(monkeypatch):
 
     send_call = next(call for call in calls if call[1] == "/api/sessions/child/send")
     assert send_call[2]["sender"] == "parent-orchestrator"
+
+
+@pytest.mark.asyncio
+async def test_spawn_reports_exact_repo_mapping_when_scope_differs(monkeypatch, tmp_path):
+    import app.mcp_stdio as m
+
+    repo = tmp_path / "new-project"
+    monkeypatch.setattr(m, "SCOPE", "/logical/orchestrator-project")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append((method, path, kw.get("json")))
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/actual/worktrees/child",
+                "branch": "task-88/child",
+                "repo_path": "/server/canonical/new-project",
+                "git_common_dir": "/server/git/new-project",
+            }
+        return {"ok": True}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.spawn_worker(
+            name="child", task="do it", repo_path=str(repo),
+            model="gpt-5.6-sol", task_id="88",
+        )
+
+    create_body = calls[0][2]
+    assert create_body["scope"] == "/logical/orchestrator-project"
+    assert create_body["cwd"] == str(repo)
+    assert create_body["repo_path"] == str(repo)
+    assert "Worktree: /actual/worktrees/child" in out
+    assert "Repository: /server/canonical/new-project" in out
+    assert "Git common dir: /server/git/new-project" in out
+    assert "Branch: task-88/child" in out
+
+
+@pytest.mark.asyncio
+async def test_spawn_api_error_does_not_send_initial_task(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append(path)
+        return {"error": "repo_path must be the Git repository root"}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.spawn_worker(
+            name="child", task="do it", repo_path="/repo/nested",
+            model="gpt-5.6-sol",
+        )
+
+    assert calls == ["/api/sessions"]
+    assert out == "Spawn failed: repo_path must be the Git repository root"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "response, missing",
+    [
+        ({
+            "branch": "task-88/child",
+            "repo_path": "/repo",
+            "git_common_dir": "/repo/.git",
+        }, "worktree_path"),
+        ({
+            "worktree_path": "/actual/worktrees/child",
+            "repo_path": "/repo",
+            "git_common_dir": "/repo/.git",
+        }, "branch"),
+        ({
+            "worktree_path": "/actual/worktrees/child",
+            "branch": "task-88/child",
+            "git_common_dir": "/repo/.git",
+        }, "repo_path"),
+        ({
+            "worktree_path": "/actual/worktrees/child",
+            "branch": "task-88/child",
+            "repo_path": "/repo",
+        }, "git_common_dir"),
+        ({
+            "worktree_path": 123,
+            "branch": "task-88/child",
+            "repo_path": "/repo",
+            "git_common_dir": "/repo/.git",
+        }, "worktree_path"),
+        ({
+            "worktree_path": "/actual/worktrees/child",
+            "branch": [],
+            "repo_path": "/repo",
+            "git_common_dir": "/repo/.git",
+        }, "branch"),
+        ({
+            "worktree_path": "/actual/worktrees/child",
+            "branch": "task-88/child",
+            "repo_path": " ",
+            "git_common_dir": "/repo/.git",
+        }, "repo_path"),
+    ],
+)
+async def test_spawn_malformed_success_fails_loud_without_task(
+    monkeypatch, response, missing,
+):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append(path)
+        return response
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.spawn_worker(
+            name="child", task="do it", repo_path="/repo",
+            model="gpt-5.6-sol",
+        )
+
+    assert calls == ["/api/sessions"]
+    assert "malformed API response" in out
+    assert missing in out
+    assert "worker may have been created" in out.lower()
+    assert "Worktree:" not in out
+
+
+@pytest.mark.asyncio
+async def test_spawn_task_delivery_error_reports_created_worker(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append(path)
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-88/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        return {"error": "delivery unavailable"}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.spawn_worker(
+            name="child", task="do it", repo_path="/repo",
+            model="gpt-5.6-sol",
+        )
+
+    assert calls == ["/api/sessions", "/api/sessions/child/send"]
+    assert "worker 'child' was created" in out.lower()
+    assert "initial task delivery failed: delivery unavailable" in out
+    assert "Worktree: /worktrees/child" in out
+    assert "Task sent." not in out
 
 
 @pytest.mark.asyncio

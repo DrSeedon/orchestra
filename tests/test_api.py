@@ -563,6 +563,54 @@ async def test_create_session_passes_pipeline_and_profile(monkeypatch):
     await sessmod.create_session(req)
     assert captured["pipeline"] == "default"
     assert captured["profile"] == "work"
+
+
+@pytest.mark.asyncio
+async def test_create_worktree_response_contains_server_repo_metadata(
+    monkeypatch, tmp_path,
+):
+    import subprocess
+
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    import app.routes.system as sysmod
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    repo_root = str(repo.resolve())
+    common_dir = str((repo / ".git").resolve())
+
+    async def fake_create(**kwargs):
+        repo.rename(tmp_path / "repo-moved-after-start")
+
+        class _Sess:
+            _spawn_warning = ""
+            _spawn_repo_path = repo_root
+            _spawn_git_common_dir = common_dir
+
+            def to_dict(self):
+                return {
+                    "name": kwargs["name"],
+                    "worktree_path": "/actual/worktrees/w1",
+                    "branch": "task-88/w1",
+                }
+
+        return _Sess()
+
+    monkeypatch.setattr(mainmod.manager, "create_session", fake_create)
+    monkeypatch.setattr(sysmod, "_is_safe_path", lambda p: True)
+
+    req = sessmod.CreateSessionRequest(
+        name="w1", cwd=str(repo), model="gpt-5.6-sol",
+        use_worktree=True, repo_path=str(repo),
+    )
+    result = await sessmod.create_session(req)
+
+    assert result["repo_path"] == repo_root
+    assert result["git_common_dir"] == common_dir
+
+
 class TestChangeScopeEndpoint:
     def test_success(self, client, tmp_path):
         newdir = tmp_path / "newproj"; newdir.mkdir()

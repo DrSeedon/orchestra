@@ -118,6 +118,59 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
+def validate_repo_root(repo_path: str) -> Path:
+    """Return the exact primary Git repository root or fail before Git discovery can climb."""
+    repo = Path(repo_path).resolve()
+    if not repo.is_dir():
+        raise ValueError(f"repo_path does not exist: {repo_path}")
+
+    bare_check = _git_cmd(
+        ["git", "rev-parse", "--is-bare-repository"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if bare_check.returncode != 0:
+        raise ValueError(f"repo_path is not a Git repository: {repo_path}")
+    if bare_check.stdout.strip() == "true":
+        raise ValueError(
+            f"repo_path is a bare Git repository; a primary working tree is required: {repo_path}"
+        )
+
+    top_check = _git_cmd(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if top_check.returncode != 0:
+        raise ValueError(f"repo_path is not a Git working tree: {repo_path}")
+    discovered_root = Path(top_check.stdout.strip()).resolve()
+    if discovered_root != repo:
+        raise ValueError(
+            f"repo_path must be the Git repository root: {repo_path} "
+            f"(discovered root: {discovered_root})"
+        )
+
+    expected_common = repo / ".git"
+    common_check = _git_cmd(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if common_check.returncode != 0:
+        raise ValueError(f"repo_path is not a Git working tree: {repo_path}")
+    common_dir = Path(common_check.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = repo / common_dir
+    if (
+        not expected_common.is_dir()
+        or expected_common.is_symlink()
+        or common_dir.resolve() != expected_common.resolve()
+    ):
+        raise ValueError(
+            "repo_path must be a primary Git repository root; "
+            "linked worktrees, gitfile repositories, and external Git directories "
+            f"are not supported: {repo_path}"
+        )
+    return repo
+
+
 def _copy_file(src: Path, dst: Path) -> None:
     """Copy through the agent-user command path and fail loudly on errors."""
     result = _git_cmd(
@@ -227,9 +280,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
     # Защитный дефолт: пустая строка (sentinel из manager) → main, чтобы git не упал.
     if not base_branch:
         base_branch = "main"
-    repo = Path(repo_path).resolve()
-    if not repo.is_dir():
-        raise ValueError(f"repo_path does not exist: {repo_path}")
+    repo = validate_repo_root(repo_path)
 
     scope_slug = _slugify(scope)
     wt_dir = WORKTREE_ROOT / scope_slug
