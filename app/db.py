@@ -55,6 +55,8 @@ def init_db() -> None:
                 cost_usd REAL DEFAULT 0.0,
                 worktree_path TEXT,
                 branch TEXT,
+                base_branch TEXT DEFAULT '',
+                needs_switch INTEGER DEFAULT 0,
                 is_orchestrator INTEGER DEFAULT 0,
                 color TEXT DEFAULT '',
                 mcp_servers_custom TEXT DEFAULT '',
@@ -524,6 +526,10 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN runtime_handoff TEXT DEFAULT ''")
     if "last_summary" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN last_summary TEXT DEFAULT ''")
+    if "base_branch" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN base_branch TEXT DEFAULT ''")
+    if "needs_switch" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN needs_switch INTEGER DEFAULT 0")
     log_cols = {row[1] for row in c.execute("PRAGMA table_info(logs)").fetchall()}
     if log_cols and "event_id" not in log_cols:
         c.execute("ALTER TABLE logs ADD COLUMN event_id TEXT NOT NULL DEFAULT ''")
@@ -607,10 +613,13 @@ def save_session(s: dict) -> None:
     s.setdefault("effort", "")
     s.setdefault("runtime_handoff", "")
     s.setdefault("last_summary", "")
+    s.setdefault("base_branch", "")
+    s.setdefault("needs_switch", 0)
     with _conn() as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
-                status, session_id, cost_usd, worktree_path, branch, is_orchestrator,
+                status, session_id, cost_usd, worktree_path, branch, base_branch,
+                needs_switch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
                 progress_pct, progress_status, backend_type, task_id, description,
                 cost_usd_cached, context_cost,
@@ -620,7 +629,8 @@ def save_session(s: dict) -> None:
                 profile, owned_dirs, tg_topic, session_id_history, effort, runtime_handoff,
                 last_summary)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
-                :status, :session_id, :cost_usd, :worktree_path, :branch, :is_orchestrator,
+                :status, :session_id, :cost_usd, :worktree_path, :branch, :base_branch,
+                :needs_switch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
                 :cost_usd_cached, :context_cost,
@@ -640,6 +650,8 @@ def save_session(s: dict) -> None:
                 context_cost=excluded.context_cost,
                 worktree_path=excluded.worktree_path,
                 branch=excluded.branch,
+                base_branch=excluded.base_branch,
+                needs_switch=excluded.needs_switch,
                 cwd=excluded.cwd,
                 color=excluded.color,
                 finished_at=excluded.finished_at,
@@ -670,6 +682,25 @@ def save_session(s: dict) -> None:
                 runtime_handoff=excluded.runtime_handoff,
                 last_summary=excluded.last_summary
         """, s)
+
+
+def update_session_lifecycle(
+    session_id: str,
+    *,
+    branch: str,
+    base_branch: str,
+    task_id: str,
+    needs_switch: bool,
+) -> bool:
+    """Persist the Git lifecycle snapshot for loaded and detached sessions alike."""
+    with _conn() as c:
+        cur = c.execute(
+            """UPDATE sessions
+               SET branch=?, base_branch=?, task_id=?, needs_switch=?
+               WHERE id=? AND status != 'archived'""",
+            (branch, base_branch, task_id, int(needs_switch), session_id),
+        )
+        return cur.rowcount == 1
 
 
 def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) -> dict:

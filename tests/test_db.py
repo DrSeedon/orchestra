@@ -302,6 +302,29 @@ class TestSaveAndGetSession:
 
         assert get_session(sample_session["id"])["runtime_handoff"] == sample_session["runtime_handoff"]
 
+    def test_git_lifecycle_round_trip(self, db, sample_session):
+        from app.db import get_session, save_session, update_session_lifecycle
+
+        sample_session.update(
+            base_branch="master",
+            needs_switch=0,
+            task_id="90",
+        )
+        save_session(sample_session)
+        assert update_session_lifecycle(
+            sample_session["id"],
+            branch="task-90/worker-1",
+            base_branch="master",
+            task_id="",
+            needs_switch=True,
+        )
+
+        row = get_session(sample_session["id"])
+        assert row["branch"] == "task-90/worker-1"
+        assert row["base_branch"] == "master"
+        assert row["task_id"] == ""
+        assert row["needs_switch"] == 1
+
 
 class TestUniqueness:
     def test_same_name_scope_raises(self, db, sample_session):
@@ -737,6 +760,35 @@ class TestPipelineColumn:
         save_session(sample_session)
         row = get_session(sample_session["id"])
         assert row["pipeline"] == ""
+
+
+class TestLifecycleColumns:
+    def test_old_server_insert_uses_additive_defaults(self, db):
+        from app.db import _conn
+
+        with _conn() as c:
+            c.execute(
+                """INSERT INTO sessions
+                   (id, name, scope, cwd, model, status, created_at)
+                   VALUES ('old-server', 'old', '/scope', '/cwd', 'model',
+                           'idle', '2026-07-26T00:00:00+00:00')"""
+            )
+            row = c.execute(
+                "SELECT base_branch, needs_switch FROM sessions WHERE id='old-server'"
+            ).fetchone()
+        assert tuple(row) == ("", 0)
+
+    def test_migration_adds_lifecycle_columns_idempotently(self, db):
+        from app.db import _conn, init_db
+
+        with _conn() as c:
+            c.execute("ALTER TABLE sessions DROP COLUMN base_branch")
+            c.execute("ALTER TABLE sessions DROP COLUMN needs_switch")
+        init_db()
+        init_db()
+        with _conn() as c:
+            cols = {r[1] for r in c.execute("PRAGMA table_info(sessions)").fetchall()}
+        assert {"base_branch", "needs_switch"} <= cols
 
 
 # ── Этап 6, чанк 1: профили Claude (таблица profiles + sessions.profile) ──

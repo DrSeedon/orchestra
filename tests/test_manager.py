@@ -189,6 +189,25 @@ class TestWorktreeBaseBranch:
         base = subprocess.run(["git", "merge-base", session.branch, "feature/auth"], cwd=repo,
                               capture_output=True, text=True).stdout.strip()
         assert base == head
+        assert session.base_branch == "feature/auth"
+
+    @pytest.mark.asyncio
+    async def test_omitted_base_resolves_and_persists_master(self, mgr, tmp_path):
+        import subprocess
+
+        repo = _git_repo(tmp_path)
+        subprocess.run(["git", "branch", "-m", "master"], cwd=repo, check=True)
+
+        from app.db import get_session
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="master-worker", scope="/s", cwd=str(repo), model="m",
+                use_worktree=True, repo_path=str(repo),
+            )
+
+        assert session.base_branch == "master"
+        assert get_session(session.id)["base_branch"] == "master"
 
 
 def _git_repo(tmp_path):
@@ -295,42 +314,137 @@ class TestResolveBaseBranch:
         parent.branch = branch
         mgr.sessions[name] = parent
 
-    def test_strategy_main_returns_main(self, mgr):
+    def test_strategy_main_uses_repository_mainline(self, mgr):
         rr = MagicMock(base_branch_strategy="main")
-        with patch("app.manager.get_role", lambda p, r: rr):
-            out = mgr._resolve_base_branch("", "default", "pm-glava", "", "/s")
-        assert out == "main"
+        with (
+            patch("app.manager.get_role", lambda p, r: rr),
+            patch("app.manager.resolve_git_base_branch", return_value="master") as resolve,
+        ):
+            out = mgr._resolve_base_branch(
+                "", "default", "pm-glava", "", "/s", "/repo",
+            )
+        assert out == "master"
+        resolve.assert_called_once_with("/repo")
 
     def test_strategy_parent_uses_parent_branch(self, mgr):
         rr = MagicMock(base_branch_strategy="parent")
         self._put_parent(mgr, "pm", "/s", "feature/x")
-        with patch("app.manager.get_role", lambda p, r: rr):
-            out = mgr._resolve_base_branch("", "tasks-pm", "coder", "pm", "/s")
+        with (
+            patch("app.manager.get_role", lambda p, r: rr),
+            patch("app.manager.resolve_git_base_branch", return_value="feature/x") as resolve,
+        ):
+            out = mgr._resolve_base_branch(
+                "", "tasks-pm", "coder", "pm", "/s", "/repo",
+            )
         assert out == "feature/x"
+        resolve.assert_called_once_with("/repo", "feature/x")
 
-    def test_strategy_parent_no_branch_falls_back_to_main(self, mgr, caplog):
+    def test_strategy_parent_no_branch_resolves_repository_mainline(self, mgr, caplog):
         import logging
         rr = MagicMock(base_branch_strategy="parent")
         self._put_parent(mgr, "pm", "/s", "")  # у родителя нет ветки
-        with patch("app.manager.get_role", lambda p, r: rr), caplog.at_level(logging.WARNING):
-            out = mgr._resolve_base_branch("", "tasks-pm", "coder", "pm", "/s")
-        assert out == "main"
-        assert any("fallback на main" in rec.message for rec in caplog.records)
+        with (
+            patch("app.manager.get_role", lambda p, r: rr),
+            patch("app.manager.resolve_git_base_branch", return_value="master") as resolve,
+            caplog.at_level(logging.WARNING),
+        ):
+            out = mgr._resolve_base_branch(
+                "", "tasks-pm", "coder", "pm", "/s", "/repo",
+            )
+        assert out == "master"
+        resolve.assert_called_once_with("/repo")
+        assert any("resolving repository mainline" in rec.message for rec in caplog.records)
 
     def test_explicit_branch_overrides_strategy(self, mgr):
         # B3: явная ветка важнее strategy="parent" — get_role даже не зовётся.
         rr = MagicMock(base_branch_strategy="parent")
         self._put_parent(mgr, "pm", "/s", "feature/x")
-        with patch("app.manager.get_role", lambda p, r: rr):
-            out = mgr._resolve_base_branch("dev", "tasks-pm", "coder", "pm", "/s")
+        with patch("app.manager.resolve_git_base_branch", return_value="dev") as resolve:
+            out = mgr._resolve_base_branch(
+                "dev", "tasks-pm", "coder", "pm", "/s", "/repo",
+            )
         assert out == "dev"
+        resolve.assert_called_once_with("/repo", "dev")
 
     def test_no_manifest_returns_main(self, mgr):
         def _raise(p, r):
             raise FileNotFoundError("no manifest")
-        with patch("app.manager.get_role", _raise):
-            out = mgr._resolve_base_branch("", "nope", "coder", "pm", "/s")
-        assert out == "main"
+        with (
+            patch("app.manager.get_role", _raise),
+            patch("app.manager.resolve_git_base_branch", return_value="master") as resolve,
+        ):
+            out = mgr._resolve_base_branch(
+                "", "nope", "coder", "pm", "/s", "/repo",
+            )
+        assert out == "master"
+        resolve.assert_called_once_with("/repo")
+
+
+class TestPersistLifecycle:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("loaded", [False, True])
+    async def test_updates_loaded_and_detached_sessions(self, mgr, loaded):
+        from app.db import get_session, save_session
+
+        save_session({
+            "id": f"life-{loaded}", "name": f"life-{loaded}", "scope": "/s",
+            "cwd": "/tmp", "model": "m", "system_prompt": "", "status": "idle",
+            "session_id": None, "cost_usd": 0.0, "worktree_path": "/tmp/wt",
+            "branch": "task-90/w", "base_branch": "master", "needs_switch": 0,
+            "task_id": "90", "is_orchestrator": False, "color": "",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        })
+        session = mgr.get_by_name(f"life-{loaded}", "/s")
+        session.loaded = loaded
+
+        await mgr.persist_lifecycle(
+            session,
+            branch="task-90/w",
+            base_branch="master",
+            task_id="",
+            needs_switch=True,
+        )
+
+        row = get_session(session.id)
+        assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
+            "task-90/w", "master", "", 1,
+        )
+        assert session.base_branch == "master"
+        assert session.needs_switch is True
+
+    @pytest.mark.asyncio
+    async def test_updates_memory_before_async_db_write(self, mgr, monkeypatch):
+        session = MagicMock(
+            loaded=False,
+            id="life-order",
+            branch="task-1/w",
+            base_branch="main",
+            task_id="1",
+            needs_switch=False,
+            db_row=None,
+        )
+        observed = {}
+
+        def fake_update(_session_id, **_fields):
+            observed["snapshot"] = (
+                session.branch,
+                session.base_branch,
+                session.task_id,
+                session.needs_switch,
+            )
+            return True
+
+        monkeypatch.setattr("app.manager.update_session_lifecycle", fake_update)
+
+        await mgr.persist_lifecycle(
+            session,
+            branch="task-90/w",
+            base_branch="master",
+            task_id="",
+            needs_switch=True,
+        )
+
+        assert observed["snapshot"] == ("task-90/w", "master", "", True)
 
 
 class TestSendAndControl:

@@ -39,6 +39,16 @@ async def _wait_for_merge_idle(session) -> bool:
     return False
 
 
+def _session_base_branch(session, requested: str = "") -> str:
+    """Resolve an explicit or persisted lifecycle base against the actual repository."""
+    from app.workspace import resolve_base_branch
+
+    worktree_path = session.worktree_path
+    if not worktree_path:
+        raise ValueError("session has no worktree")
+    return resolve_base_branch(worktree_path, requested or getattr(session, "base_branch", ""))
+
+
 class CreateSessionRequest(BaseModel):
     name: str
     cwd: str
@@ -369,13 +379,17 @@ async def send_message(name: str, req: SendRequest):
                 adhoc_id = str(int(time.time()))[-6:]
                 new_branch = f"adhoc-{adhoc_id}/{name}"
                 wt = session.worktree_path or session.cwd
+                base_branch = _session_base_branch(session)
                 res = await asyncio.to_thread(
-                    switch_worktree_branch, wt, new_branch, "refs/heads/main", force=True)
+                    switch_worktree_branch, wt, new_branch, base_branch, force=True)
                 if res.get("ok"):
-                    session.branch = res.get("branch", new_branch)
-                    session.task_id = ""
-                    session.needs_switch = False
-                    session._persist()
+                    await manager.persist_lifecycle(
+                        session,
+                        branch=res.get("branch", new_branch),
+                        base_branch=base_branch,
+                        task_id="",
+                        needs_switch=False,
+                    )
                     logger.info(f"auto-switch {name} to {new_branch} on send_message")
                 else:
                     return JSONResponse({"error": f"auto-switch failed: {res}"}, status_code=400)
@@ -619,8 +633,12 @@ async def delete_session(name: str, scope: str, force: bool = False):
             if dirty:
                 files = [l[3:] for l in dirty.splitlines()[:10]]
                 return JSONResponse({"error": f"worker has uncommitted changes: {', '.join(files)}. Commit or discard first (or force=true)"}, status_code=400)
+            try:
+                base_branch = _session_base_branch(found)
+            except ValueError as e:
+                return JSONResponse({"error": str(e)}, status_code=400)
             ahead_proc = await asyncio.create_subprocess_exec(
-                "git", "rev-list", "main..HEAD", "--count", cwd=wt,
+                "git", "rev-list", f"{base_branch}..HEAD", "--count", cwd=wt,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             try:
@@ -643,7 +661,7 @@ async def merge_session(name: str, req: dict):
     from app.workspace import merge_worktree_to_main
     from app import tm as _tm
     scope = req.get("scope", "")
-    target = req.get("target", "main")
+    requested_target = req.get("target", "")
     next_task_id = req.get("next_task_id", "")
     found = manager.get_by_name(name, scope)
     if not found:
@@ -655,6 +673,10 @@ async def merge_session(name: str, req: dict):
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     if not scope:
         return JSONResponse({"error": "session has no scope"}, status_code=400)
+    try:
+        target = _session_base_branch(found, requested_target)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     async with manager.get_session_lock(session_id):
         if not await _wait_for_merge_idle(found):
             return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
@@ -688,22 +710,27 @@ async def merge_session(name: str, req: dict):
                             except Exception as e:
                                 logger.warning(f"RAG backfill after merge failed for {sc}: {e}")
                         asyncio.create_task(_rag_backfill(scope))
-                    if found.loaded:
-                        found.branch = target
-                        found.task_id = ""
-                        found.needs_switch = True
-                        found._persist()
-                    if next_task_id and found.loaded:
+                    await manager.persist_lifecycle(
+                        found,
+                        branch=result.get("branch") or getattr(found, "branch", "") or "",
+                        base_branch=target,
+                        task_id="",
+                        needs_switch=True,
+                    )
+                    if next_task_id:
                         from app.workspace import switch_worktree_branch, _normalize_task_id
                         par = _normalize_task_id(next_task_id)
                         new_branch = f"task-{par}/{name}"
                         switch_result = await asyncio.to_thread(
-                            switch_worktree_branch, worktree_path, new_branch, f"refs/heads/{target}", force=True)
+                            switch_worktree_branch, worktree_path, new_branch, target, force=True)
                         if switch_result.get("ok"):
-                            found.branch = switch_result.get("branch", new_branch)
-                            found.task_id = par
-                            found.needs_switch = False
-                            found._persist()
+                            await manager.persist_lifecycle(
+                                found,
+                                branch=switch_result.get("branch", new_branch),
+                                base_branch=target,
+                                task_id=par,
+                                needs_switch=False,
+                            )
                             try:
                                 _tm.api_update_task(par, status="in_progress")
                             except Exception as e:
@@ -736,16 +763,21 @@ async def switch_branch(name: str, req: dict):
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     new_branch = f"task-{par}/{name}"
-    from_ref = req.get("from_ref", "refs/heads/main")
+    try:
+        from_ref = _session_base_branch(found, req.get("from_ref", ""))
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     async with manager.get_session_lock(session_id):
         try:
             result = await asyncio.to_thread(switch_worktree_branch, worktree_path, new_branch, from_ref=from_ref)
-            if found.loaded:
-                if result.get("ok") or result.get("branch"):
-                    found.branch = result.get("branch", new_branch)
-                    found.task_id = par
-                    found.needs_switch = False
-                    found._persist()
+            if result.get("ok") or result.get("branch"):
+                await manager.persist_lifecycle(
+                    found,
+                    branch=result.get("branch", new_branch),
+                    base_branch=from_ref,
+                    task_id=par,
+                    needs_switch=False,
+                )
             try:
                 _tm.api_update_task(par, status="in_progress")
             except Exception as e:
@@ -756,7 +788,7 @@ async def switch_branch(name: str, req: dict):
 
 
 @router.get("/api/sessions/{name}/wip")
-async def session_wip(name: str, scope: str = "", base_ref: str = "refs/heads/main"):
+async def session_wip(name: str, scope: str = "", base_ref: str = ""):
     from app.workspace import branch_wip_status
     found = manager.get_by_name(name, scope)
     if not found:
@@ -765,6 +797,7 @@ async def session_wip(name: str, scope: str = "", base_ref: str = "refs/heads/ma
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     try:
+        base_ref = _session_base_branch(found, base_ref)
         result = branch_wip_status(worktree_path, base_ref=base_ref)
         d = found.to_dict()
         result["context_pct"] = d.get("context_pct", 0)

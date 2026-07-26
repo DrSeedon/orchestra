@@ -273,6 +273,63 @@ class TestCreateWorktree:
         assert base == head
 
 
+class TestResolveBaseBranch:
+    def test_master_only_repository(self, git_repo):
+        from app.workspace import create_worktree, resolve_base_branch
+
+        subprocess.run(["git", "branch", "-m", "master"], cwd=git_repo, check=True)
+        assert resolve_base_branch(str(git_repo)) == "master"
+        wt = create_worktree(str(git_repo), "master-worker")
+        assert subprocess.run(
+            ["git", "merge-base", wt.branch, "master"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == subprocess.run(
+            ["git", "rev-parse", "master"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+    def test_current_feature_checkout_does_not_override_mainline(self, git_repo):
+        from app.workspace import resolve_base_branch
+
+        subprocess.run(["git", "checkout", "-b", "feature/current"], cwd=git_repo, check=True)
+        assert resolve_base_branch(str(git_repo)) == "main"
+
+    def test_both_well_known_branches_require_explicit_base(self, git_repo):
+        from app.workspace import resolve_base_branch
+
+        subprocess.run(["git", "branch", "master"], cwd=git_repo, check=True)
+        with pytest.raises(ValueError, match="both main and master"):
+            resolve_base_branch(str(git_repo))
+        assert resolve_base_branch(str(git_repo), "refs/heads/master") == "master"
+
+    def test_symbolic_remote_head_disambiguates_main_and_master(self, git_repo):
+        from app.workspace import resolve_base_branch
+
+        subprocess.run(["git", "branch", "master"], cwd=git_repo, check=True)
+        head = subprocess.run(
+            ["git", "rev-parse", "main"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "update-ref", "refs/remotes/origin/main", head],
+            cwd=git_repo, check=True,
+        )
+        subprocess.run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD",
+             "refs/remotes/origin/main"],
+            cwd=git_repo, check=True,
+        )
+        assert resolve_base_branch(str(git_repo)) == "main"
+
+    def test_custom_trunk_requires_explicit_base(self, git_repo):
+        from app.workspace import resolve_base_branch
+
+        subprocess.run(["git", "branch", "-m", "trunk"], cwd=git_repo, check=True)
+        with pytest.raises(ValueError, match="pass base_branch explicitly"):
+            resolve_base_branch(str(git_repo))
+        assert resolve_base_branch(str(git_repo), "trunk") == "trunk"
+
+
 class TestCreateWorktreeManifest:
     """worktree_cfg из манифеста: copies/symlinks вместо хардкода PROJECT_FILES."""
 

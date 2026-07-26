@@ -171,6 +171,73 @@ def validate_repo_root(repo_path: str) -> Path:
     return repo
 
 
+def resolve_base_branch(repo_path: str, requested: str = "") -> str:
+    """Return a verified local base branch without consulting the current checkout."""
+    repo = _resolve_repo(repo_path, repo_path)
+    branch = requested.strip()
+    if branch.startswith("refs/heads/"):
+        branch = branch.removeprefix("refs/heads/")
+    elif branch.startswith("refs/"):
+        raise ValueError(f"base branch must be a local branch, got '{requested}'")
+
+    if branch:
+        valid = _git_cmd(
+            ["git", "check-ref-format", "--branch", branch],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        exists = _git_cmd(
+            ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if valid.returncode != 0 or exists.returncode != 0:
+            raise ValueError(f"local base branch '{branch}' does not exist in {repo}")
+        return branch
+
+    remote_heads = _git_cmd(
+        ["git", "for-each-ref", "--format=%(refname)%09%(symref)", "refs/remotes"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    symbolic_targets: set[str] = set()
+    if remote_heads.returncode == 0:
+        for line in remote_heads.stdout.splitlines():
+            refname, _, symref = line.partition("\t")
+            if not refname.endswith("/HEAD") or not symref:
+                continue
+            prefix = refname.removesuffix("HEAD")
+            if symref.startswith(prefix):
+                symbolic_targets.add(symref.removeprefix(prefix))
+    if symbolic_targets:
+        if len(symbolic_targets) != 1:
+            raise ValueError(
+                "repository has conflicting symbolic remote HEAD branches; "
+                "pass base_branch explicitly"
+            )
+        remote_branch = symbolic_targets.pop()
+        exists = _git_cmd(
+            ["git", "show-ref", "--verify", f"refs/heads/{remote_branch}"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if exists.returncode != 0:
+            raise ValueError(
+                f"symbolic remote HEAD points to '{remote_branch}', but no matching "
+                "local branch exists; pass base_branch explicitly"
+            )
+        return remote_branch
+
+    well_known = []
+    for candidate in ("main", "master"):
+        exists = _git_cmd(
+            ["git", "show-ref", "--verify", f"refs/heads/{candidate}"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if exists.returncode == 0:
+            well_known.append(candidate)
+    if len(well_known) == 1:
+        return well_known[0]
+    detail = "both main and master exist" if well_known else "no main or master branch exists"
+    raise ValueError(f"cannot resolve repository mainline: {detail}; pass base_branch explicitly")
+
+
 def _copy_file(src: Path, dst: Path) -> None:
     """Copy through the agent-user command path and fail loudly on errors."""
     result = _git_cmd(
@@ -275,12 +342,10 @@ def _exclude_claude_dir(wt_path: Path) -> None:
 
 
 def create_worktree(repo_path: str, name: str, task_id: str = "",
-                    base_branch: str = "main",
+                    base_branch: str = "",
                     worktree_cfg: "WorktreeCfg | None" = None) -> Worktree:
-    # Защитный дефолт: пустая строка (sentinel из manager) → main, чтобы git не упал.
-    if not base_branch:
-        base_branch = "main"
     repo = validate_repo_root(repo_path)
+    base_branch = resolve_base_branch(str(repo), base_branch)
 
     # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
     # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
@@ -367,7 +432,7 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
     return Path(fallback_repo).resolve()
 
 
-def _ensure_repo_on_branch(repo: str, target_branch: str = "main") -> tuple[str | None, bool]:
+def _ensure_repo_on_branch(repo: str, target_branch: str) -> tuple[str | None, bool]:
     """Returns (error_or_None, did_stash).
 
     Выполняет stash (если репо грязный) и checkout target_branch.
@@ -518,9 +583,10 @@ def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None
         logger.info(f"_reset_worktree_to_ref: {wt} reset to {ref} ({target_sha[:8]})")
 
 
-def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "main") -> dict:
+def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "") -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
+    target_branch = resolve_base_branch(str(repo), target_branch)
     lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(repo))}.lock"
 
     original_branch = None   # инициализируем ДО try/with — finally видит всегда
@@ -758,10 +824,11 @@ def _is_branch_checked_out_elsewhere(repo: str, branch: str, current_wt: Path) -
 
 
 def switch_worktree_branch(worktree_path: str, new_branch: str,
-                           from_ref: str = "refs/heads/main",
+                           from_ref: str = "",
                            force: bool = False) -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), str(wt))
+    from_ref = resolve_base_branch(str(repo), from_ref)
     lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(repo))}.lock"
 
     status = _git_cmd(
@@ -992,10 +1059,11 @@ def simulate_conflict(repo_path: str, branch_a: str, branch_b: str) -> dict:
     return {"ok": False, "error": (r.stderr.strip() or r.stdout.strip() or "merge-tree failed")}
 
 
-def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> dict:
+def branch_wip_status(worktree_path: str, base_ref: str = "") -> dict:
     """Report uncommitted files, unmerged commits, and diff stats relative to base_ref.
     Returns {"error": ...} if git status or the base_ref comparison fails — never a false 'clean'."""
     wt = Path(worktree_path).resolve()
+    base_ref = resolve_base_branch(str(wt), base_ref)
     dirty = _git_cmd(
         ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
     )
@@ -1040,6 +1108,7 @@ def branch_wip_status(worktree_path: str, base_ref: str = "refs/heads/main") -> 
     insertions = sum(f["insertions"] or 0 for f in changed_files)
     deletions = sum(f["deletions"] or 0 for f in changed_files)
     return {
+        "base_ref": base_ref,
         "uncommitted": uncommitted,
         "unmerged_commits": unmerged,
         "changed_files": changed_files,

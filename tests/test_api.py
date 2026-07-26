@@ -251,6 +251,16 @@ async def test_merge_endpoint_passes_target(db, monkeypatch):
         captured["target_branch"] = target_branch
         return {"ok": True, "commits_merged": 1, "branch": "task-1/w", "merged_commits": {}}
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+    monkeypatch.setattr(
+        sessmod, "_session_base_branch",
+        lambda _session, requested="": requested or "master",
+    )
+
+    async def persist_lifecycle(session, **fields):
+        for key, value in fields.items():
+            setattr(session, key, value)
+
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
 
     class FakeSession:
         loaded = True
@@ -264,10 +274,257 @@ async def test_merge_endpoint_passes_target(db, monkeypatch):
         name = "w"
         def _persist(self):
             pass
-    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: FakeSession())
+    session = FakeSession()
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
 
     res = await sessmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
     assert captured["target_branch"] == "feature/auth"
+    assert session.branch == "task-1/w"
+    assert session.base_branch == "feature/auth"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("loaded", [False, True])
+async def test_merge_persists_actual_branch_and_base_for_loaded_or_detached(
+    db, monkeypatch, loaded,
+):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    from app.db import get_session, save_session
+    from app.manager import SessionManager
+    from datetime import datetime, timezone
+
+    save_session({
+        "id": f"merge-{loaded}", "name": f"merge-{loaded}", "scope": "/s",
+        "cwd": "/wt", "model": "m", "system_prompt": "", "status": "idle",
+        "session_id": None, "cost_usd": 0.0, "worktree_path": "/wt",
+        "branch": "task-90/w", "base_branch": "master", "needs_switch": 0,
+        "task_id": "90", "is_orchestrator": False, "color": "",
+        "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+    })
+    local_manager = SessionManager()
+    found = local_manager.get_by_name(f"merge-{loaded}", "/s")
+    found.loaded = loaded
+
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: found)
+    monkeypatch.setattr(
+        mainmod.manager, "get_session_lock", local_manager.get_session_lock,
+    )
+    monkeypatch.setattr(
+        mainmod.manager, "persist_lifecycle", local_manager.persist_lifecycle,
+    )
+    monkeypatch.setattr(
+        sessmod, "_session_base_branch",
+        lambda _session, requested="": requested or "master",
+    )
+    monkeypatch.setattr(
+        "app.workspace.merge_worktree_to_main",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "commits_merged": 1,
+            "branch": "task-90/w",
+            "merged_commits": {},
+        },
+    )
+    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
+
+    result = await sessmod.merge_session(f"merge-{loaded}", {"scope": "/s"})
+
+    assert result["ok"] is True
+    row = get_session(f"merge-{loaded}")
+    assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
+        "task-90/w", "master", "", 1,
+    )
+    assert found.branch == "task-90/w"
+    assert found.base_branch == "master"
+    assert found.needs_switch is True
+
+
+@pytest.mark.asyncio
+async def test_merge_rejects_ambiguous_legacy_base_before_git(monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    session = type("Session", (), {
+        "id": "legacy",
+        "name": "legacy",
+        "scope": "/s",
+        "worktree_path": "/wt",
+        "base_branch": "",
+    })()
+    merge_called = False
+
+    def fake_merge(*_args, **_kwargs):
+        nonlocal merge_called
+        merge_called = True
+        return {"ok": True}
+
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(
+        sessmod,
+        "_session_base_branch",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ValueError("cannot resolve repository mainline; pass base_branch explicitly")
+        ),
+    )
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+
+    response = await sessmod.merge_session("legacy", {"scope": "/s"})
+
+    assert response.status_code == 400
+    assert merge_called is False
+
+
+@pytest.mark.asyncio
+async def test_wip_uses_persisted_base(monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    session = type("Session", (), {
+        "worktree_path": "/wt",
+        "base_branch": "master",
+        "to_dict": lambda self: {"context_pct": 0, "status": "idle"},
+    })()
+    captured = {}
+
+    def fake_wip(_path, base_ref=""):
+        captured["base_ref"] = base_ref
+        return {"uncommitted": [], "unmerged_commits": []}
+
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+    monkeypatch.setattr("app.workspace.branch_wip_status", fake_wip)
+
+    result = await sessmod.session_wip("w", scope="/s")
+
+    assert captured["base_ref"] == "master"
+    assert not result.get("error")
+
+
+@pytest.mark.asyncio
+async def test_kill_guard_compares_against_persisted_base(tmp_path, monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    from unittest.mock import AsyncMock
+
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    session = type("Session", (), {
+        "id": "sid",
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "scope": "/s",
+        "worktree_path": str(wt),
+        "base_branch": "master",
+    })()
+    calls = []
+
+    class Proc:
+        returncode = 0
+
+        def __init__(self, stdout=b""):
+            self.stdout = stdout
+
+        async def communicate(self):
+            return self.stdout, b""
+
+    async def fake_subprocess(*args, **_kwargs):
+        calls.append(args)
+        return Proc(b"" if args[1] == "status" else b"0\n")
+
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(mainmod.manager, "_live_children", lambda *_args: [])
+    monkeypatch.setattr(mainmod.manager, "remove", AsyncMock())
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+    monkeypatch.setattr(sessmod.asyncio, "create_subprocess_exec", fake_subprocess)
+
+    result = await sessmod.delete_session("w", scope="/s")
+
+    assert result == {"ok": True}
+    assert any("master..HEAD" in call for call in calls)
+
+
+@pytest.mark.asyncio
+async def test_send_auto_switch_uses_and_persists_base(monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    from unittest.mock import AsyncMock
+
+    session = type("Session", (), {
+        "id": "sid",
+        "name": "w",
+        "cwd": "/wt",
+        "worktree_path": "/wt",
+        "branch": "task-90/w",
+        "base_branch": "master",
+        "task_id": "",
+        "needs_switch": True,
+        "parent_name": "orch",
+    })()
+    captured = {}
+
+    def fake_switch(_wt, new_branch, from_ref, force=False):
+        captured.update(new_branch=new_branch, from_ref=from_ref, force=force)
+        return {"ok": True, "branch": new_branch}
+
+    async def persist_lifecycle(found, **fields):
+        for key, value in fields.items():
+            setattr(found, key, value)
+
+    monkeypatch.setattr(mainmod.manager, "ensure_loaded", AsyncMock(return_value=session))
+    monkeypatch.setattr(mainmod.manager, "send", AsyncMock())
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
+
+    result = await sessmod.send_message(
+        "w", sessmod.SendRequest(message="next", scope="/s"),
+    )
+
+    assert result["ok"] is True
+    assert captured["from_ref"] == "master"
+    assert captured["force"] is True
+    assert session.base_branch == "master"
+    assert session.needs_switch is False
+    mainmod.manager.send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    session = type("Session", (), {
+        "id": "sid",
+        "name": "w",
+        "loaded": False,
+        "worktree_path": "/wt",
+        "base_branch": "master",
+    })()
+    captured = {}
+
+    def fake_switch(_wt, new_branch, from_ref=""):
+        captured.update(new_branch=new_branch, from_ref=from_ref)
+        return {"ok": True, "branch": new_branch}
+
+    async def persist_lifecycle(found, **fields):
+        for key, value in fields.items():
+            setattr(found, key, value)
+
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
+    monkeypatch.setattr("app.tm.api_update_task", lambda *_args, **_kwargs: None)
+
+    result = await sessmod.switch_branch(
+        "w", {"scope": "/s", "task_id": "91"},
+    )
+
+    assert result["ok"] is True
+    assert captured["from_ref"] == "master"
+    assert session.base_branch == "master"
+    assert session.branch == "task-91/w"
 
 
 @pytest.mark.asyncio
@@ -305,6 +562,12 @@ async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
     monkeypatch.setattr(sessmod.asyncio, "sleep", finish_turn)
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+
+    async def persist_lifecycle(_session, **_fields):
+        return None
+
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
 
     result = await sessmod.merge_session("w", {"scope": "/s"})
 
@@ -344,6 +607,7 @@ async def test_merge_rejects_worker_that_stays_running_without_merging(monkeypat
     monkeypatch.setattr(sessmod.asyncio, "sleep", no_wall_clock_wait)
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
 
     response = await sessmod.merge_session("w", {"scope": "/s"})
 
@@ -396,11 +660,21 @@ async def test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup(db, mo
         observed["wake_blocked_during_switch"] = not wake_entered.is_set()
         return {"ok": True, "branch": "task-43/w"}
 
+    async def persist_lifecycle(found, **fields):
+        observed["persist_locked"].append(found._lifecycle_lock.locked())
+        for key, value in fields.items():
+            setattr(found, key, value)
+
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
     monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
     monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
     monkeypatch.setattr("app.tm.api_update_task", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
+    monkeypatch.setattr(
+        sessmod, "_session_base_branch",
+        lambda _session, requested="": requested or "master",
+    )
 
     result = await sessmod.merge_session("w", {
         "scope": "/s",

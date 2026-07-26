@@ -677,6 +677,19 @@ class TestPipelineField:
         s = AgentSession(id="i", name="w", scope="/s", cwd="/tmp", pipeline="tasks-pm")
         assert s._to_db_dict()["pipeline"] == "tasks-pm"
 
+    def test_dicts_include_git_lifecycle_fields(self):
+        from app.session import AgentSession
+        s = AgentSession(
+            id="i", name="w", scope="/s", cwd="/tmp",
+            branch="task-90/w", base_branch="master",
+        )
+        s.needs_switch = True
+
+        assert s._to_db_dict()["base_branch"] == "master"
+        assert s._to_db_dict()["needs_switch"] == 1
+        assert s.to_dict()["base_branch"] == "master"
+        assert s.to_dict()["needs_switch"] is True
+
 
 class TestIsOrchestratorStored:
     def test_setter_overrides_role_fallback(self):
