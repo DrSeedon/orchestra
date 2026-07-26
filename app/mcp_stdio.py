@@ -108,13 +108,13 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        mcp_servers: str = "",
                        owned_dirs: str = "",
                        tg_topic: bool = False) -> str:
-    """Spawn a new worker agent in a git worktree. Model is REQUIRED — prefer the role's model from the injected catalog. Common explicit choices: gpt-5.6-sol for demanding Codex work, gpt-5.3-codex-spark for short low-latency text-only work, claude-opus-4-8[1m] for deep Claude research/review.
+    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).
     base_branch — от какой ветки ответвить worktree воркера. Пусто ("") = авто по стратегии пайплайна (parent → от ветки родителя, иначе main); явно указанная ветка переопределяет стратегию.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
-        return "Error: model is required. Use the role default or choose explicitly, e.g. gpt-5.6-sol, gpt-5.3-codex-spark, claude-opus-4-8[1m]"
+        return "Error: model is required. Choose it by the <model-routing> block in your prompt."
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,

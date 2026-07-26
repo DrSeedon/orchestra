@@ -462,3 +462,128 @@ class TestCleanupStaleWorktrees:
         monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
         removed = cleanup_stale_worktrees()
         assert removed == []
+
+
+class TestSyncAgentsMd:
+    """Codex reads AGENTS.md, not CLAUDE.md — the mirror must stay current, and must never
+    overwrite an AGENTS.md the repo itself tracks (Orchestra is public)."""
+
+    def test_created_on_worktree_creation(self, git_repo, wt_root):
+        from app.workspace import create_worktree
+        wt = create_worktree(str(git_repo), "w1", "test")
+        assert (Path(wt.path) / "AGENTS.md").read_text() == "# instructions"
+
+    def test_refreshes_stale_mirror(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
+        assert sync_agents_md(wt.path) is True
+        assert (Path(wt.path) / "AGENTS.md").read_text() == "# instructions v2"
+
+    def test_noop_when_already_in_sync(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        agents = Path(wt.path) / "AGENTS.md"
+        before = agents.stat().st_mtime_ns
+        assert sync_agents_md(wt.path) is False
+        assert agents.stat().st_mtime_ns == before
+
+    def test_tracked_agents_md_untouched(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        (git_repo / "AGENTS.md").write_text("# the repo's own rules")
+        subprocess.run(["git", "add", "AGENTS.md"], cwd=git_repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "own agents"], cwd=git_repo, capture_output=True, check=True)
+        wt = create_worktree(str(git_repo), "w1", "test")
+        assert sync_agents_md(wt.path) is False
+        assert (Path(wt.path) / "AGENTS.md").read_text() == "# the repo's own rules"
+
+    def test_no_claude_md_no_mirror(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        (Path(wt.path) / "CLAUDE.md").unlink()
+        (Path(wt.path) / "AGENTS.md").unlink()
+        assert sync_agents_md(wt.path) is False
+        assert not (Path(wt.path) / "AGENTS.md").exists()
+
+    def test_mirror_does_not_dirty_tree(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
+        sync_agents_md(wt.path)
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt.path, capture_output=True, text=True,
+        ).stdout
+        assert "AGENTS.md" not in status
+
+    def test_symlink_agents_md_untouched(self, git_repo, wt_root, tmp_path):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        outside = tmp_path / "somebody-elses.md"
+        outside.write_text("# not ours")
+        agents = Path(wt.path) / "AGENTS.md"
+        agents.unlink()
+        agents.symlink_to(outside)
+        (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
+        assert sync_agents_md(wt.path) is False
+        assert outside.read_text() == "# not ours"
+
+    def test_git_failure_does_not_overwrite(self, git_repo, wt_root, monkeypatch):
+        from app.workspace import create_worktree, sync_agents_md
+        import app.workspace as ws
+        wt = create_worktree(str(git_repo), "w1", "test")
+        (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
+        real = ws._git_cmd
+
+        def fake(args, **kwargs):
+            if "ls-files" in args:
+                return subprocess.CompletedProcess(args, 128, stdout="", stderr="fatal: not a git repository")
+            return real(args, **kwargs)
+
+        monkeypatch.setattr(ws, "_git_cmd", fake)
+        assert sync_agents_md(wt.path) is False
+        assert (Path(wt.path) / "AGENTS.md").read_text() == "# instructions"
+
+    def test_noop_still_excludes_old_worktree(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        common = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"], cwd=wt.path, capture_output=True, text=True,
+        ).stdout.strip()
+        exclude = Path(common) / "info" / "exclude"
+        exclude.write_text("")  # simulate a worktree created before AGENTS.md joined the list
+        assert sync_agents_md(wt.path) is False  # already in sync
+        assert "AGENTS.md" in exclude.read_text()
+
+    def test_no_tmp_file_left_behind(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
+        assert sync_agents_md(wt.path) is True
+        assert not (Path(wt.path) / "AGENTS.md.tmp").exists()
+
+    def test_existing_tmp_name_untouched(self, git_repo, wt_root):
+        from app.workspace import create_worktree, sync_agents_md
+        wt = create_worktree(str(git_repo), "w1", "test")
+        stray = Path(wt.path) / "AGENTS.md.tmp"
+        stray.write_text("# somebody else's temp")
+        (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
+        assert sync_agents_md(wt.path) is True
+        assert stray.read_text() == "# somebody else's temp"
+
+    def test_tmp_cleaned_up_when_move_fails(self, git_repo, wt_root, monkeypatch):
+        from app.workspace import create_worktree, sync_agents_md
+        import app.workspace as ws
+        wt = create_worktree(str(git_repo), "w1", "test")
+        (Path(wt.path) / "CLAUDE.md").write_text("# instructions v2")
+        real = ws._git_cmd
+
+        def fake(args, **kwargs):
+            if args[0] == "mv":
+                return subprocess.CompletedProcess(args, 1, stdout="", stderr="mv: boom")
+            return real(args, **kwargs)
+
+        monkeypatch.setattr(ws, "_git_cmd", fake)
+        with pytest.raises(OSError):
+            sync_agents_md(wt.path)
+        assert not list(Path(wt.path).glob(".AGENTS.md.*.tmp"))
+        assert (Path(wt.path) / "AGENTS.md").read_text() == "# instructions"
