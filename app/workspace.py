@@ -432,35 +432,59 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
     return Path(fallback_repo).resolve()
 
 
-def _ensure_repo_on_branch(repo: str, target_branch: str) -> tuple[str | None, bool]:
-    """Returns (error_or_None, did_stash).
+def _branch_worktree_path(repo: str, branch: str) -> Path | None:
+    """Return the checkout that owns ``branch`` according to Git's worktree registry."""
+    listed = _git_cmd(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if listed.returncode != 0:
+        detail = listed.stderr.strip() or listed.stdout.strip()
+        raise RuntimeError(f"cannot list repository worktrees: {detail}")
 
-    Выполняет stash (если репо грязный) и checkout target_branch.
-    НЕ делает stash pop — это обязанность вызывающего кода в блоке finally.
-    """
-    did_stash = False
-    repo_status = _git_cmd(
-        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True,
+    wanted = f"refs/heads/{branch}"
+    for record in listed.stdout.strip().split("\n\n"):
+        path: Path | None = None
+        branch_ref: str | None = None
+        prunable: str | None = None
+        for line in record.splitlines():
+            if line.startswith("worktree "):
+                path = Path(line.removeprefix("worktree ")).resolve()
+            elif line.startswith("branch "):
+                branch_ref = line.removeprefix("branch ")
+            elif line == "prunable" or line.startswith("prunable "):
+                prunable = line.removeprefix("prunable").strip()
+        if branch_ref != wanted:
+            continue
+        if path is None:
+            raise RuntimeError(f"target branch '{branch}' has no worktree path")
+        if prunable is not None or not path.is_dir():
+            detail = prunable or "checkout path does not exist"
+            raise RuntimeError(
+                f"target branch '{branch}' belongs to prunable worktree "
+                f"'{path}': {detail}"
+            )
+        return path
+    return None
+
+
+def _clean_worktree_error(path: Path, label: str) -> str | None:
+    status = _git_cmd(
+        ["git", "status", "--porcelain"],
+        cwd=str(path), capture_output=True, text=True,
     )
-    if repo_status.stdout.strip():
-        stash = _git_cmd(
-            ["git", "stash", "--include-untracked"], cwd=repo, capture_output=True, text=True,
-        )
-        if stash.returncode != 0:
-            return f"main repo dirty and stash failed: {stash.stderr.strip()}", False
-        did_stash = True
-        logger.info(f"Auto-stashed dirty repo: {repo}")
-    head = _git_cmd(
-        ["git", "symbolic-ref", "--short", "HEAD"], cwd=repo, capture_output=True, text=True,
+    if status.returncode != 0:
+        detail = status.stderr.strip() or status.stdout.strip()
+        return f"cannot inspect {label} working tree: {detail}"
+    dirty_lines = [line for line in status.stdout.splitlines() if line]
+    if not dirty_lines:
+        return None
+    dirty_files = [line[3:] for line in dirty_lines[:10]]
+    suffix = f", +{len(dirty_lines) - 10} more" if len(dirty_lines) > 10 else ""
+    return (
+        f"{label} working tree is dirty ({len(dirty_lines)} file(s): "
+        f"{', '.join(dirty_files)}{suffix}) — commit or discard first"
     )
-    if head.returncode != 0 or head.stdout.strip() != target_branch:
-        checkout = _git_cmd(
-            ["git", "checkout", target_branch], cwd=repo, capture_output=True, text=True,
-        )
-        if checkout.returncode != 0:
-            # НЕ делаем stash pop здесь — did_stash=True сигнализирует finally в вызывающем коде
-            return f"cannot checkout {target_branch} in repo: {checkout.stderr.strip()}", did_stash
-    return None, did_stash
 
 
 def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
@@ -589,22 +613,12 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
     target_branch = resolve_base_branch(str(repo), target_branch)
     lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(repo))}.lock"
 
-    original_branch = None   # инициализируем ДО try/with — finally видит всегда
-    did_stash = False         # инициализируем ДО try — иначе UnboundLocalError в finally
-    result = None             # инициализируем ДО try — возврат по умолчанию при любом пути
+    original_branch = None
+    result = None
 
     with open(lock_path, "w") as lock_file:
-        # Exclusive lock prevents two concurrent merges from racing on main — git
-        # squash-merge is not atomic and needs the repo HEAD stable throughout
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
-            # Save original branch BEFORE any checkout — needed to restore it in finally
-            original_branch_result = _git_cmd(
-                ["git", "symbolic-ref", "--short", "HEAD"],
-                cwd=str(repo), capture_output=True, text=True,
-            )
-            original_branch = original_branch_result.stdout.strip() if original_branch_result.returncode == 0 else None
-
             branch_result = _git_cmd(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=str(wt), capture_output=True, text=True,
@@ -613,137 +627,243 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                 result = {"ok": False, "error": f"cannot get branch: {branch_result.stderr.strip()}"}
             else:
                 branch = branch_result.stdout.strip()
-
-                status = _git_cmd(
-                    ["git", "status", "--porcelain"],
-                    cwd=str(wt), capture_output=True, text=True,
-                )
-                if status.stdout.strip():
-                    dirty_lines = status.stdout.strip().splitlines()[:10]
-                    dirty_files = [l[3:] for l in dirty_lines]
-                    result = {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
+                child_error = _clean_worktree_error(wt, "worker")
+                if child_error:
+                    result = {"ok": False, "error": child_error}
                 else:
-                    # Edge-case: проверяем target_branch перед checkout
                     ref_verify = _git_cmd(
                         ["git", "show-ref", "--verify", f"refs/heads/{target_branch}"],
                         cwd=str(repo), capture_output=True, text=True,
                     )
                     if ref_verify.returncode != 0:
                         result = {"ok": False, "error": f"target branch '{target_branch}' does not exist"}
-                    elif _is_branch_checked_out_elsewhere(str(repo), target_branch, Path(repo).resolve()):
-                        result = {"ok": False, "error": f"target branch '{target_branch}' is checked out in another worktree"}
                     else:
-                        main_err, did_stash = _ensure_repo_on_branch(str(repo), target_branch)
-                        if main_err:
-                            result = {"ok": False, "error": main_err}
+                        try:
+                            owner = _branch_worktree_path(str(repo), target_branch)
+                        except RuntimeError as e:
+                            result = {"ok": False, "error": str(e)}
                         else:
-                            merge_base = _git_cmd(
-                                ["git", "merge-base", target_branch, branch],
-                                cwd=str(repo), capture_output=True, text=True,
-                            )
-                            unrelated = merge_base.returncode != 0
-
-                            precheck_ok = True
-                            if not unrelated:
-                                precheck = _git_cmd(
-                                    ["git", "merge-tree", "--write-tree", target_branch, branch],
-                                    cwd=str(repo), capture_output=True, text=True,
-                                )
-                                if precheck.returncode != 0:
-                                    conflict_files = []
-                                    for line in precheck.stdout.splitlines():
-                                        if line.startswith("CONFLICT"):
-                                            parts = line.split()
-                                            if parts:
-                                                conflict_files.append(parts[-1])
-                                    if not conflict_files:
-                                        err = precheck.stderr.strip() or precheck.stdout.strip() or f"merge-tree exit code {precheck.returncode}"
-                                        logger.error(f"merge-tree failed: repo={repo} branch={branch} err={err}")
-                                        result = {"ok": False, "error": f"merge precheck failed: {err}"}
-                                    else:
-                                        result = {"ok": False, "conflicts": conflict_files}
-                                    precheck_ok = False
-
-                            if precheck_ok:
-                                old_head_result = _git_cmd(
-                                    ["git", "rev-parse", "HEAD"],
-                                    cwd=str(repo), capture_output=True, text=True,
-                                )
-                                old_head = old_head_result.stdout.strip() if old_head_result.returncode == 0 else ""
-
-                                if unrelated:
-                                    logger.info(f"unrelated histories for {branch} — using cherry-pick")
-                                    result = _cherry_pick_branch(str(repo), branch, old_head)
-                                    if result and result.get("ok"):
-                                        _reset_worktree_to_ref(str(wt), target_branch, str(repo))
+                            target_wt = owner or repo
+                            if target_wt == wt:
+                                result = {
+                                    "ok": False,
+                                    "error": "worker branch cannot be merged into itself",
+                                }
+                            else:
+                                target_error = _clean_worktree_error(target_wt, "target")
+                                if target_error:
+                                    result = {"ok": False, "error": target_error}
                                 else:
-                                    commits_result = _git_cmd(
-                                        ["git", "rev-list", "--count", f"{target_branch}..{branch}"],
-                                        cwd=str(repo), capture_output=True, text=True,
-                                    )
-                                    commits_merged = int(commits_result.stdout.strip() or "0")
+                                    if owner is None:
+                                        original = _git_cmd(
+                                            ["git", "symbolic-ref", "--short", "HEAD"],
+                                            cwd=str(repo), capture_output=True, text=True,
+                                        )
+                                        original_branch = (
+                                            original.stdout.strip()
+                                            if original.returncode == 0 else None
+                                        )
+                                        checkout = _git_cmd(
+                                            ["git", "checkout", target_branch],
+                                            cwd=str(repo), capture_output=True, text=True,
+                                        )
+                                        if checkout.returncode != 0:
+                                            result = {
+                                                "ok": False,
+                                                "error": (
+                                                    f"cannot checkout {target_branch} in repo: "
+                                                    f"{checkout.stderr.strip()}"
+                                                ),
+                                            }
 
-                                    messages = _get_commit_messages(str(repo), branch, target_branch)
-                                    merge = _git_cmd(
-                                        ["git", "merge", "--squash", branch],
-                                        cwd=str(repo), capture_output=True, text=True,
-                                    )
-                                    if merge.returncode != 0:
-                                        _git_cmd(
-                                            ["git", "reset", "--merge"],
-                                            cwd=str(repo), capture_output=True, text=True,
+                                    if result is None:
+                                        merge_cwd = str(target_wt)
+                                        target_head = _git_cmd(
+                                            ["git", "symbolic-ref", "--short", "HEAD"],
+                                            cwd=merge_cwd,
+                                            capture_output=True,
+                                            text=True,
                                         )
-                                        err = merge.stderr.strip() or merge.stdout.strip() or f"git merge exit code {merge.returncode}"
-                                        logger.error(f"merge_worktree squash failed: repo={repo} branch={branch} err={err}")
-                                        result = {"ok": False, "error": err}
-                                    else:
-                                        staged = _git_cmd(
-                                            ["git", "diff", "--cached", "--quiet"],
-                                            cwd=str(repo), capture_output=True, text=True,
+                                        if (
+                                            target_head.returncode != 0
+                                            or target_head.stdout.strip() != target_branch
+                                        ):
+                                            actual = target_head.stdout.strip() or "detached"
+                                            result = {
+                                                "ok": False,
+                                                "error": (
+                                                    f"target checkout moved from "
+                                                    f"'{target_branch}' to '{actual}'"
+                                                ),
+                                            }
+
+                                    if result is None:
+                                        merge_cwd = str(target_wt)
+                                        merge_base = _git_cmd(
+                                            ["git", "merge-base", target_branch, branch],
+                                            cwd=merge_cwd, capture_output=True, text=True,
                                         )
-                                        if staged.returncode != 0:
-                                            commit_msg = _build_squash_message(branch, messages)
-                                            commit = _git_cmd(
-                                                ["git", "commit", "-m", commit_msg],
-                                                cwd=str(repo), capture_output=True, text=True,
+                                        unrelated = merge_base.returncode != 0
+
+                                        precheck_ok = True
+                                        if not unrelated:
+                                            precheck = _git_cmd(
+                                                ["git", "merge-tree", "--write-tree",
+                                                 target_branch, branch],
+                                                cwd=merge_cwd,
+                                                capture_output=True,
+                                                text=True,
                                             )
-                                            if commit.returncode != 0:
-                                                err = commit.stderr.strip() or commit.stdout.strip()
-                                                result = {"ok": False, "error": f"squash commit failed: {err}"}
-                                            else:
-                                                merged_commits = _parse_merged_commits(str(repo), old_head) if old_head else {}
-                                                result = {"ok": True, "commits_merged": commits_merged, "branch": branch, "merged_commits": merged_commits}
-                                        else:
-                                            result = {"ok": True, "commits_merged": 0, "branch": branch, "merged_commits": {}}
+                                            if precheck.returncode != 0:
+                                                conflict_files = []
+                                                for line in precheck.stdout.splitlines():
+                                                    if line.startswith("CONFLICT"):
+                                                        parts = line.split()
+                                                        if parts:
+                                                            conflict_files.append(parts[-1])
+                                                if not conflict_files:
+                                                    err = (
+                                                        precheck.stderr.strip()
+                                                        or precheck.stdout.strip()
+                                                        or f"merge-tree exit code {precheck.returncode}"
+                                                    )
+                                                    logger.error(
+                                                        "merge-tree failed: repo=%s branch=%s err=%s",
+                                                        repo, branch, err,
+                                                    )
+                                                    result = {
+                                                        "ok": False,
+                                                        "error": f"merge precheck failed: {err}",
+                                                    }
+                                                else:
+                                                    result = {
+                                                        "ok": False,
+                                                        "conflicts": conflict_files,
+                                                    }
+                                                precheck_ok = False
 
-                                        if result and result.get("ok"):
-                                            _reset_worktree_to_ref(str(wt), target_branch, str(repo))
+                                        if precheck_ok:
+                                            old_head_result = _git_cmd(
+                                                ["git", "rev-parse", "HEAD"],
+                                                cwd=merge_cwd,
+                                                capture_output=True,
+                                                text=True,
+                                            )
+                                            old_head = (
+                                                old_head_result.stdout.strip()
+                                                if old_head_result.returncode == 0 else ""
+                                            )
+
+                                            if unrelated:
+                                                logger.info(
+                                                    "unrelated histories for %s — using cherry-pick",
+                                                    branch,
+                                                )
+                                                result = _cherry_pick_branch(
+                                                    merge_cwd, branch, old_head,
+                                                )
+                                            else:
+                                                commits_result = _git_cmd(
+                                                    ["git", "rev-list", "--count",
+                                                     f"{target_branch}..{branch}"],
+                                                    cwd=merge_cwd,
+                                                    capture_output=True,
+                                                    text=True,
+                                                )
+                                                commits_merged = int(
+                                                    commits_result.stdout.strip() or "0"
+                                                )
+                                                messages = _get_commit_messages(
+                                                    merge_cwd, branch, target_branch,
+                                                )
+                                                merge = _git_cmd(
+                                                    ["git", "merge", "--squash", branch],
+                                                    cwd=merge_cwd,
+                                                    capture_output=True,
+                                                    text=True,
+                                                )
+                                                if merge.returncode != 0:
+                                                    _git_cmd(
+                                                        ["git", "reset", "--merge"],
+                                                        cwd=merge_cwd,
+                                                        capture_output=True,
+                                                        text=True,
+                                                    )
+                                                    err = (
+                                                        merge.stderr.strip()
+                                                        or merge.stdout.strip()
+                                                        or f"git merge exit code {merge.returncode}"
+                                                    )
+                                                    logger.error(
+                                                        "merge_worktree squash failed: "
+                                                        "repo=%s branch=%s err=%s",
+                                                        repo, branch, err,
+                                                    )
+                                                    result = {"ok": False, "error": err}
+                                                else:
+                                                    staged = _git_cmd(
+                                                        ["git", "diff", "--cached", "--quiet"],
+                                                        cwd=merge_cwd,
+                                                        capture_output=True,
+                                                        text=True,
+                                                    )
+                                                    if staged.returncode != 0:
+                                                        commit_msg = _build_squash_message(
+                                                            branch, messages,
+                                                        )
+                                                        commit = _git_cmd(
+                                                            ["git", "commit", "-m", commit_msg],
+                                                            cwd=merge_cwd,
+                                                            capture_output=True,
+                                                            text=True,
+                                                        )
+                                                        if commit.returncode != 0:
+                                                            err = (
+                                                                commit.stderr.strip()
+                                                                or commit.stdout.strip()
+                                                            )
+                                                            result = {
+                                                                "ok": False,
+                                                                "error": (
+                                                                    "squash commit failed: "
+                                                                    f"{err}"
+                                                                ),
+                                                            }
+                                                        else:
+                                                            merged_commits = (
+                                                                _parse_merged_commits(
+                                                                    merge_cwd, old_head,
+                                                                )
+                                                                if old_head else {}
+                                                            )
+                                                            result = {
+                                                                "ok": True,
+                                                                "commits_merged": commits_merged,
+                                                                "branch": branch,
+                                                                "merged_commits": merged_commits,
+                                                            }
+                                                    else:
+                                                        result = {
+                                                            "ok": True,
+                                                            "commits_merged": 0,
+                                                            "branch": branch,
+                                                            "merged_commits": {},
+                                                        }
+
+                                            if result and result.get("ok"):
+                                                _reset_worktree_to_ref(
+                                                    str(wt), target_branch, str(repo),
+                                                )
         finally:
-            # Order is critical: restore HEAD branch first, then stash pop.
-            # Stash pop on the wrong branch would apply changes to the wrong tree.
-            restore_ok = True
             if original_branch and original_branch != target_branch:
                 restore = _git_cmd(
                     ["git", "checkout", original_branch],
                     cwd=str(repo), capture_output=True, text=True,
                 )
                 if restore.returncode != 0:
-                    restore_ok = False
                     logger.error(f"restore branch failed: {restore.stderr.strip()}")
                     result = {"ok": False, "state": "restore_failed",
                               "error": f"cannot restore branch '{original_branch}': {restore.stderr.strip()}"}
-            # ЕДИНСТВЕННЫЙ stash pop — и ТОЛЬКО после успешного restore
-            if did_stash and restore_ok:
-                pop = _git_cmd(
-                    ["git", "stash", "pop"], cwd=str(repo), capture_output=True, text=True,
-                )
-                if pop.returncode != 0:
-                    logger.error(f"stash pop failed: {pop.stderr.strip()} — repo state may be dirty")
-                    result = {"ok": False, "state": "stash_pop_failed",
-                              "error": f"stash pop failed after merge: {pop.stderr.strip()}"}
-            elif did_stash and not restore_ok:
-                # Better to leave stash intact than pop onto whatever branch we're stuck on
-                logger.error("skipping stash pop: HEAD restore failed; stash kept to avoid wrong-branch apply")
             fcntl.flock(lock_file, fcntl.LOCK_UN)
     return result if result is not None else {"ok": False, "error": "merge produced no result"}
 

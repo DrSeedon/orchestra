@@ -1,5 +1,6 @@
 """TDD tests for workspace.py — git worktree management."""
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -506,28 +507,135 @@ class TestMergeTarget:
                               capture_output=True, text=True).stdout.strip()
         assert head == "main", f"expected main, got {head}"
 
-    def test_stash_pop_error_returned(self, git_repo, wt_root, monkeypatch):
-        """Если stash pop возвращает ошибку — merge_worktree_to_main должен вернуть ok=False."""
+    def test_merge_child_into_checked_out_parent_branch(self, git_repo, wt_root):
+        from app.workspace import create_worktree, merge_worktree_to_main
+
+        parent = create_worktree(str(git_repo), "parent", base_branch="main")
+        child = create_worktree(
+            str(git_repo), "child", task_id="90", base_branch=parent.branch,
+        )
+        (Path(child.path) / "child.txt").write_text("child work")
+        subprocess.run(
+            ["git", "add", "child.txt"], cwd=child.path,
+            capture_output=True, check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "#90: child work"], cwd=child.path,
+            capture_output=True, check=True,
+        )
+
+        result = merge_worktree_to_main(
+            child.path, str(git_repo), target_branch=parent.branch,
+        )
+
+        assert result["ok"] is True
+        assert (Path(parent.path) / "child.txt").read_text() == "child work"
+        assert subprocess.run(
+            ["git", "branch", "--show-current"], cwd=parent.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == parent.branch
+        parent_head = subprocess.run(
+            ["git", "rev-parse", parent.branch], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        child_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        assert child_head == parent_head
+        assert subprocess.run(
+            ["git", "branch", "--show-current"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == child.branch
+        assert not (Path(git_repo) / "child.txt").exists()
+
+    def test_dirty_checked_out_target_is_rejected_without_stash(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, merge_worktree_to_main
+
+        parent = create_worktree(str(git_repo), "parent", base_branch="main")
+        child = create_worktree(
+            str(git_repo), "child", task_id="90", base_branch=parent.branch,
+        )
+        (Path(child.path) / "child.txt").write_text("child work")
+        subprocess.run(["git", "add", "child.txt"], cwd=child.path, check=True)
+        subprocess.run(["git", "commit", "-m", "child work"], cwd=child.path, check=True)
+        parent_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=parent.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        child_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        (Path(parent.path) / "local-wip.txt").write_text("do not touch")
+
+        result = merge_worktree_to_main(
+            child.path, str(git_repo), target_branch=parent.branch,
+        )
+
+        assert result["ok"] is False
+        assert "target working tree is dirty" in result["error"]
+        assert "local-wip.txt" in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=parent.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == parent_head
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == child_head
+        assert (Path(parent.path) / "local-wip.txt").read_text() == "do not touch"
+        assert subprocess.run(
+            ["git", "stash", "list"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
+
+    def test_prunable_target_worktree_is_rejected_without_exception(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, merge_worktree_to_main
+
+        parent = create_worktree(str(git_repo), "parent", base_branch="main")
+        child = create_worktree(
+            str(git_repo), "child", task_id="90", base_branch=parent.branch,
+        )
+        (Path(child.path) / "child.txt").write_text("child work")
+        subprocess.run(["git", "add", "child.txt"], cwd=child.path, check=True)
+        subprocess.run(["git", "commit", "-m", "child work"], cwd=child.path, check=True)
+        child_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        shutil.rmtree(parent.path)
+
+        result = merge_worktree_to_main(
+            child.path, str(git_repo), target_branch=parent.branch,
+        )
+
+        assert result["ok"] is False
+        assert "prunable worktree" in result["error"]
+        assert str(Path(parent.path).resolve()) in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == child_head
+
+    def test_dirty_primary_target_is_rejected_without_stash(self, git_repo, wt_root):
         from app.workspace import merge_worktree_to_main
-        import subprocess as real_subprocess
 
         wt = self._wt_with_commit(git_repo, wt_root, "worker-4", "main")
-        # Делаем main "dirty" — чтобы функция вызвала stash (did_stash=True)
         (Path(git_repo) / "dirty.txt").write_text("dirty")
 
-        original_run = real_subprocess.run
-
-        def patched_run(cmd, **kw):
-            # stash pop — симулируем провал (конфликт при восстановлении)
-            if isinstance(cmd, list) and "stash" in cmd and "pop" in cmd:
-                result = type("R", (), {"returncode": 1, "stdout": "", "stderr": "conflict during pop"})()
-                return result
-            return original_run(cmd, **kw)
-
-        monkeypatch.setattr("app.workspace.subprocess.run", patched_run)
         res = merge_worktree_to_main(wt.path, str(git_repo))
-        assert res.get("ok") is False, f"expected ok=False on stash pop failure, got: {res}"
-        assert res.get("state") in ("stash_pop_failed", "dirty"), f"unexpected state: {res}"
+        assert res.get("ok") is False
+        assert "target working tree is dirty" in res["error"]
+        assert "dirty.txt" in res["error"]
+        assert subprocess.run(
+            ["git", "stash", "list"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
 
 
 class TestRemoveWorktree:
