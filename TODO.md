@@ -6,6 +6,8 @@
 - [ ] **TG media buffer race (P2)** — _resolve_media после timeout-flush может записать в чужой слот. Нужен generation counter
 - [ ] **Message disappears on agent switch** — SSE reconnect gap. 300ms delay added (partial fix)
 - [ ] **TG дубли expandable+image** — partially fixed (skip expandable for Read/Grep/Bash/Glob when image sent), but Edit/Write may still duplicate
+- [ ] **RAG-бэкфилл на merge_worker ненадёжен/медленный** — после merge индекс ещё старый: `search_memory` отдаёт предыдущую версию файла как «текущую». Ручной `POST /api/memory/reindex` чинит за ~4 мин. Триггер fire-and-forget → недоказуемо, «не сработал» или «не успел». Проверить: реально ли триггерится и сколько занимает. Найдено при архивации session notes 2026-07-26
+- [ ] **`skills_catalog()` мёртвая** — `app/prompting.py:103`, 0 вызовов во всём репо. Глобит `prompts/skills/*.md`, но инжект резолвит скиллы ПО ИМЕНАМ из pipeline.yaml. Решить что из двух: (а) забыли подключить блок «Available skills» в промпт оркестратора → тогда оркестратор не видит доступные скиллы, это баг; (б) пережиток апстрима → удалить. Найдено при чистке divergent-thinking/self-analysis 2026-07-25
 
 ## In Progress
 - [ ] **tg_bridge split P5** — refactor-tg worker (Opus 4.8, ctx:12%) has research+plan done, awaiting impl approval. Split into tg_bot/tg_stream/tg_render/tg_topics
