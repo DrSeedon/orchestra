@@ -225,6 +225,35 @@ class TestSchemaValidation:
         with pytest.raises(Exception):
             P.load_pipeline("demo")
 
+    @pytest.mark.parametrize("skill", ["../secret", "/etc/passwd", "nested/name"])
+    def test_unsafe_default_skill_name_rejected(self, pipelines_root, skill):
+        _write_pipeline(pipelines_root, "demo", f"""\
+            name: demo
+            defaults:
+              skills: ["{skill}"]
+            roles:
+              r: {{kind: worker, label: R}}
+        """)
+        with pytest.raises(Exception, match="unsafe skill"):
+            P.load_pipeline("demo")
+
+    @pytest.mark.parametrize("skill", ["../secret", "/etc/passwd", "nested/name"])
+    def test_unsafe_role_skill_name_rejected(self, pipelines_root, skill):
+        _write_pipeline(pipelines_root, "demo", f"""\
+            name: demo
+            roles:
+              r:
+                kind: worker
+                label: R
+                skills: ["{skill}"]
+        """)
+        with pytest.raises(Exception, match="unsafe skill"):
+            P.load_pipeline("demo")
+
+    def test_unsafe_pipeline_lookup_name_rejected(self, pipelines_root):
+        with pytest.raises(ValueError, match="unsafe pipeline"):
+            P.load_pipeline("../outside")
+
     def test_docs_dir_absolute_path_rejected(self, pipelines_root):
         """B2: docs_dir.path абсолютный → отвергнут."""
         _write_pipeline(pipelines_root, "demo", """\

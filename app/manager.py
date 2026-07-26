@@ -569,7 +569,7 @@ class SessionManager:
                     _skills = _rr.skills if _rr else None
                 except FileNotFoundError:
                     _skills = None
-                if _skills and _skills != "all":
+                if bt == "claude" and _skills and _skills != "all":
                     await asyncio.to_thread(inject_skills_to_worktree, _skills, wt.path)
 
             try:

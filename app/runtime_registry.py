@@ -200,14 +200,21 @@ def _claude_factory(context: BackendBuildContext) -> BackendLike:
 def _codex_factory(context: BackendBuildContext) -> BackendLike:
     from app.backend_codex import CodexBackend
     from app.pipeline import get_role
-    from app.prompting import read_skills_content
+    from app.prompting import build_codex_skills_index
 
     try:
         role = get_role(context.pipeline, context.role)
     except FileNotFoundError:
         role = None
-    skills = role.skills if role and isinstance(role.skills, list) else []
-    skills_block = read_skills_content(skills)
+    skills = role.skills if role else []
+    skills_block = build_codex_skills_index(
+        context.pipeline,
+        skills,
+        context.cwd,
+    )
+    system_prompt = context.system_prompt
+    if skills_block:
+        system_prompt += "\n\n" + skills_block
     mcp_env = {
         key: str(value)
         for config in context.mcp_servers.values()
@@ -216,7 +223,7 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
     return CodexBackend(
         model=context.model,
         cwd=context.cwd,
-        system_prompt=context.system_prompt + skills_block,
+        system_prompt=system_prompt,
         resume_thread_id=context.resume_session_id,
         mcp_env=mcp_env,
         mcp_servers=context.mcp_servers,

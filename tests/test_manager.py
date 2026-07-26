@@ -213,9 +213,9 @@ def _git_repo(tmp_path):
 
 
 class TestInjectSkillsGating:
-    """F1: при skills=="all" native-инъекция скиллов пропускается."""
+    """Native skill copies are Claude-only and explicit-list only."""
 
-    async def _run(self, mgr, tmp_path, role_mock):
+    async def _run(self, mgr, tmp_path, role_mock, *, model="opus"):
         from tests.conftest import make_backend_mock
         repo = _git_repo(tmp_path)
         inject = MagicMock()
@@ -223,7 +223,7 @@ class TestInjectSkillsGating:
              patch("app.manager.inject_skills_to_worktree", inject), \
              patch("app.manager.get_role", role_mock):
             await mgr.create_session(
-                name="w1", scope="/s", cwd=str(repo), model="m",
+                name="w1", scope="/s", cwd=str(repo), model=model,
                 use_worktree=True, repo_path=str(repo),
             )
         return inject
@@ -241,6 +241,14 @@ class TestInjectSkillsGating:
         inject.assert_called_once()
         # resolved pipeline skills are passed through, not the role name
         assert inject.call_args.args[0] == ["foo", "bar"]
+
+    @pytest.mark.asyncio
+    async def test_codex_skills_list_does_not_inject(self, mgr, tmp_path):
+        rr = MagicMock(skills=["foo", "bar"], is_orchestrator=False)
+        inject = await self._run(
+            mgr, tmp_path, lambda p, r: rr, model="gpt5.6sol",
+        )
+        inject.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_manifest_raises(self, mgr, tmp_path):
