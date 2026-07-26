@@ -611,6 +611,14 @@ class AgentSession:
             if not force_fresh:
                 return self._backend
             await self._disconnect_backend()
+        if self.worktree_path:
+            # Codex reads AGENTS.md, not CLAUDE.md. Refresh the mirror before the CLI starts,
+            # otherwise a long-lived worker keeps the project rules from its spawn day.
+            try:
+                from app.workspace import sync_agents_md
+                await asyncio.to_thread(sync_agents_md, self.worktree_path)
+            except Exception as e:
+                logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
         self._backend = self._make_backend(force_fresh=force_fresh)
         try:
             await self._backend.connect()

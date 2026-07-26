@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import subprocess
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -138,6 +139,57 @@ def _copy_file(src: Path, dst: Path) -> None:
 _WORKTREE_EXCLUDES = (".claude/", "codex_sessions.json", "*.round", "AGENTS.md")
 
 
+def sync_agents_md(worktree_path: str) -> bool:
+    """Mirror CLAUDE.md → AGENTS.md: Codex CLI reads project instructions from AGENTS.md only.
+
+    Re-runs on every backend (re)connect, not just at worktree creation — a long-lived worker
+    would otherwise keep the CLAUDE.md snapshot from the day it was spawned.
+    A git-TRACKED AGENTS.md belongs to the repo (Orchestra is public — a third-party project
+    may ship one) → left alone. mtime is useless here (the copy is always newer), compare bytes.
+    """
+    wt = Path(worktree_path)
+    claude_md = wt / "CLAUDE.md"
+    agents_md = wt / "AGENTS.md"
+    if not claude_md.is_file():
+        return False
+    tracked = _git_cmd(
+        ["git", "-C", str(wt), "ls-files", "--error-unmatch", "AGENTS.md"],
+        capture_output=True, text=True,
+    )
+    if tracked.returncode == 0:
+        logger.info(f"AGENTS.md is tracked by the repo at {wt} — mirror skipped")
+        return False
+    if tracked.returncode != 1:
+        # 1 = "untracked". Anything else is git failing (not a repo, ownership, broken worktree),
+        # which proves nothing about the file — don't overwrite on a guess.
+        detail = tracked.stderr.strip() or f"exit {tracked.returncode}"
+        logger.warning(f"git ls-files failed in {wt} ({detail}) — AGENTS.md mirror skipped")
+        return False
+    if agents_md.is_symlink():
+        logger.warning(f"AGENTS.md in {wt} is a symlink — mirror skipped (copy would clobber its target)")
+        return False
+    # Old worktrees predate AGENTS.md joining the exclude list — do this even when the mirror is
+    # already current, otherwise it keeps showing up as untracked junk and can block merge.
+    _exclude_claude_dir(wt)
+    if agents_md.exists() and agents_md.read_bytes() == claude_md.read_bytes():
+        return False
+    # Write via tmp + mv: a half-written mirror is exactly the silent truncation this whole
+    # change exists to prevent. mv through _git_cmd for the same agent-user path as cp.
+    # The tmp name is unique per call — a fixed one could hit an existing file (or symlink) in a
+    # third-party repo, and two concurrent syncs would write into the same inode.
+    tmp = wt / f".AGENTS.md.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+    try:
+        _copy_file(claude_md, tmp)
+        moved = _git_cmd(["mv", "-f", str(tmp), str(agents_md)], capture_output=True, text=True)
+        if moved.returncode != 0:
+            detail = moved.stderr.strip() or moved.stdout.strip() or f"exit {moved.returncode}"
+            raise OSError(f"mirror CLAUDE.md -> AGENTS.md failed: {detail}")
+    finally:
+        if tmp.exists():
+            _git_cmd(["rm", "-f", str(tmp)], capture_output=True, text=True)
+    return True
+
+
 def _exclude_claude_dir(wt_path: Path) -> None:
     """Ignore injected/machine-local artifacts via `info/exclude` — untracked, never committed,
     so they can't dirty the tree or block merge_worker. Idempotent. External repos that don't
@@ -237,14 +289,7 @@ def create_worktree(repo_path: str, name: str, scope: str, task_id: str = "",
         if worktree_cfg is not None:
             for sl in worktree_cfg.symlinks:
                 _apply_symlink(repo, wt_path, sl)
-        # Codex CLI reads project instructions from AGENTS.md, not CLAUDE.md. Mirror CLAUDE.md
-        # → AGENTS.md so codex-backend workers get the same project context as claude workers.
-        # Claude workers ignore AGENTS.md (they read CLAUDE.md), so this is harmless for them.
-        # Don't clobber a repo that ships its own AGENTS.md.
-        claude_md = wt_path / "CLAUDE.md"
-        agents_md = wt_path / "AGENTS.md"
-        if claude_md.is_file() and not agents_md.exists():
-            _copy_file(claude_md, agents_md)
+        sync_agents_md(str(wt_path))
     except Exception:
         _git_cmd(
             ["git", "worktree", "remove", str(wt_path), "--force"],

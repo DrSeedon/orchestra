@@ -303,7 +303,7 @@ class TestUpstreamCharacterization:
 
     def test_skill_files_keep_frontmatter(self):
         """skills/*.md портированы С frontmatter (это skill-метаданные name/description,
-        апстрим читает их в _skills_catalog/_inject_skills_to_worktree)."""
+        их читает inject_skills_to_worktree)."""
         for skill in ("html-artifacts", "vps-deploy"):
             text = P.prompt_path(PIPELINE, f"skills/{skill}.md").read_text()
             assert text.lstrip().startswith("---"), f"{skill}.md must keep frontmatter"

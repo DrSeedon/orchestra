@@ -100,21 +100,6 @@ def role_can_spawn(role: str):
     return [str(x) for x in val]
 
 
-def skills_catalog() -> str:
-    """Build catalog of available skills from skills/ directory for orchestrator."""
-    if not _SKILLS_DIR.is_dir():
-        return ""
-    entries = []
-    for f in sorted(_SKILLS_DIR.glob("*.md")):
-        meta, _ = parse_role_frontmatter(f.read_text())
-        name = meta.get("name", f.stem)
-        desc = meta.get("description", "").strip().replace("\n", " ")
-        entries.append(f"- `{name}` — {desc}")
-    if not entries:
-        return ""
-    return "## Available skills (for roles)\nSkills are auto-injected into worker prompts via `skills:` in role frontmatter.\n" + "\n".join(entries)
-
-
 def get_role_icons() -> dict[str, str]:
     roles_dir = _PROMPTS_DIR / "roles"
     icons = {}
