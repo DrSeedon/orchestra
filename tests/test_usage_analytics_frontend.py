@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import pytest
 from playwright.sync_api import Browser, Page, expect, sync_playwright
@@ -6,6 +7,9 @@ from playwright.sync_api import Browser, Page, expect, sync_playwright
 
 ROOT = Path(__file__).parent.parent
 ANALYTICS_JS = ROOT / "app/static/js/analytics.js"
+APP_JS = ROOT / "app/static/js/app.js"
+USAGE_JS = ROOT / "app/static/js/usage.js"
+UTILS_JS = ROOT / "app/static/js/utils.js"
 TEMPLATE = ROOT / "app/templates/dashboard.html"
 
 
@@ -183,7 +187,7 @@ def _page(browser: Browser, width=1600, height=1000) -> Page:
     page = browser.new_page(viewport={"width": width, "height": height})
     page.set_content(
         """
-        <body data-currency="$">
+        <body data-currency="₽">
           <div id="analytics-modal" class="hidden">
             <div class="analytics-shell">
               <div id="analytics-periods"></div>
@@ -198,6 +202,7 @@ def _page(browser: Browser, width=1600, height=1000) -> Page:
     )
     page.evaluate(
         """payload => {
+            window.MODEL_COST_CURRENCY = '$';
             window.analyticsCalls = [];
             window.api = async url => {
                 window.analyticsCalls.push(url);
@@ -223,6 +228,44 @@ def test_template_uses_wide_analytics_shell_and_leaf_script():
         "<!-- Agent activity modal -->", 1
     )[0]
     assert '<script src="/static/js/analytics.js"></script>' in source
+
+
+def test_model_cost_and_task_money_have_separate_currency_sources():
+    utils = UTILS_JS.read_text()
+    analytics = ANALYTICS_JS.read_text()
+    app = APP_JS.read_text()
+    usage = USAGE_JS.read_text()
+    model_modal = app.split("async function _renderClientModal()", 1)[1].split(
+        "async function _refreshModels", 1
+    )[0]
+
+    assert "const CUR = document.body.dataset.currency || '₽';" in utils
+    assert "const MODEL_COST_CURRENCY = '$';" in utils
+    assert "dataset.currency" not in analytics
+    assert "dataset.currency" not in app
+    assert "dataset.currency" not in usage
+    assert "MODEL_COST_CURRENCY" in model_modal
+    assert not re.search(r"\bCUR\b", model_modal)
+    assert "price_rub/1000)+'k '+CUR" in app
+    template = TEMPLATE.read_text()
+    assert template.index("/static/js/utils.js") < template.index(
+        "/static/js/usage.js"
+    ) < template.index("/static/js/analytics.js") < template.index(
+        "/static/js/app.js"
+    )
+
+
+def test_analytics_renders_usd_when_task_currency_is_rubles(browser):
+    page = _page(browser)
+    page.evaluate("openAnalyticsModal()")
+
+    costs = page.locator(
+        ".analytics-provider-head > strong, .analytics-kpi-grid > article:first-child strong"
+    ).all_text_contents()
+    assert costs
+    assert all(value.startswith("$") for value in costs)
+    assert all("₽" not in value for value in costs)
+    page.close()
 
 
 def test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch(browser):

@@ -1,6 +1,8 @@
 /* utils.js — pure helpers, marked setup, autolink. Loaded before app.js. */
 
+// Client task/payment amounts use the configured billing currency; model costs are stored in USD.
 const CUR = document.body.dataset.currency || '₽';
+const MODEL_COST_CURRENCY = '$';
 const $ = (s) => document.querySelector(s);
 const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 

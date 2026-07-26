@@ -102,3 +102,41 @@ Round 2 добавлен в [codex-review-impl.md:23](/mnt/data/Projects/Python/
 **APPROVED** — напрямую вызванных P1/P2 или блокирующих регрессий не найдено. Round 3 добавлен в [codex-review-impl.md](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-usage-analytics/docs/tasks/usage-analytics/codex-review-impl.md).
 
 Теперь неполный чек хотя бы честно называется неполным — революционная бухгалтерия.
+
+## Round 4 re-review
+
+Reviewed follow-up commits `130b8ed..7faca0f`; the uncommitted diff was empty before this review entry.
+
+### Re-review status
+
+- **FIXED** — API-equivalent analytics, usage, agent/session, voice, subscription, and model-price displays use the fixed USD symbol, while task/payment amounts continue to use the configured client billing currency.
+- **FIXED** — `MODEL_COST_CURRENCY` is declared by `utils.js` before `usage.js`, `analytics.js`, and `app.js`, so the classic-script global has no load-order `ReferenceError`.
+
+### New findings
+
+None.
+
+### Verdict
+
+**APPROVED** — no missed USD display, task/payment currency regression, or material P1/P2/blocking issue was found in the follow-up.
+
+## Round (2026-07-26T06:42:47Z)
+
+Ну наконец-то рубль перестал притворяться долларом 😏
+
+### Re-review status
+
+- **FIXED** — analytics/usage API-equivalent costs consistently use `$`.
+- **FIXED** — agent/session stats and model prices in `app.js` use `$`.
+- **FIXED** — `utils.js` loads first; no `ReferenceError`.
+- **FIXED** — task/payment values still use configured `CUR`.
+
+### New findings
+
+None.
+
+### Verdict
+
+**APPROVED** — no material P1/P2 or blocking regressions found. Static inspection only, as requested. Round 4 appended to [codex-review-impl.md:106](/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-usage-analytics/docs/tasks/usage-analytics/codex-review-impl.md:106).
+
+Два валютных ящика подписали разными этикетками — бухгалтерский прорыв века.

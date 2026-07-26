@@ -144,7 +144,7 @@ function renderUsageBar() {
     parts.push('<span style="flex:1"></span>');
 
     if (typeof o.total_cost_usd === 'number') {
-        parts.push(`<span style="color:#22c55e">$${o.total_cost_usd.toFixed(0)}</span>`);
+        parts.push(`<span style="color:#22c55e">${MODEL_COST_CURRENCY}${o.total_cost_usd.toFixed(0)}</span>`);
     }
     if (typeof o.agents_count === 'number') {
         parts.push(`<span style="color:#64748b">${o.agents_count} agents</span>`);
@@ -222,11 +222,11 @@ function renderUsageBar() {
                 h += claudeHtml + codexHtml + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
-                    h += _row('💰 Стоимость', `$${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
+                    h += _row('💰 Стоимость', `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
                     if (typeof _usageData.voice_cost_usd === 'number') {
-                        h += `<div style="font-size:10px">${_row('🎤 Voice', `$${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
+                        h += `<div style="font-size:10px">${_row('🎤 Voice', `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
                     }
-                    h += _row('Подписка', '$100+$100/мес', '#64748b');
+                    h += _row('Подписка', `${MODEL_COST_CURRENCY}100+${MODEL_COST_CURRENCY}100/мес`, '#64748b');
                     h += '</div>';
                 }
                 if (typeof _o.agents_count === 'number') {
