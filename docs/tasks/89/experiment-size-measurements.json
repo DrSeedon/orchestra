@@ -1,0 +1,141 @@
+{
+  "timestamp_utc": "2026-07-26T10:01:21.443259+00:00",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "runtime_mode": "worker (is_orchestrator=False)",
+  "candidate_index": "## Available skills (progressive loading)\n\nThe entries below are an index, not loaded instructions. When a request matches a skill description, you MUST read that skill file completely before acting. Do not read unrelated skill files. Skills apply only to the current request.\n\n- `bobik-generate` — Генерация Бобика — маскота Сидона (seedon.ru) в едином пластилиновом 3D стиле через nano-banana. Триггеры: 'сгенери бобика', 'нарисуй бобика', 'бобик для роли/пилота/секции', 'иконка бобик', 'маскот сидон', 'пластилиновый пёс', 'персонаж для сайта seedon', 'картинка бобик', 'bobik', 'rover'. Использовать ВСЕГДА когда нужна иллюстрация-персонаж для сайта seedon.ru или маркетинга Сидона — чтобы новый Бобик совпадал по стилю с существующими (единый бренд, не рандомный робот). — `/mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md`\n- `direct-banner` — Сборка баннеров-обложек для Яндекс.Директа из маскота Бобика (Сидон/seedon.ru) — зонный шаблон, 3 формата (1080×1080, 1920×1080, 1080×1920). Программная вёрстка (HTML→playwright), чёткий текст Unbounded + зелёный акцент + фон #0d1117. Триггеры: 'баннер для директа', 'директ обложка', 'объявление яндекс директ', 'direct banner', 'рекламный баннер сидон', 'картинки для директа', 'обложка объявления', 'креатив для директа', 'баннер сидон'. Использовать ВСЕГДА когда нужна рекламная обложка для Яндекс.Директа с Бобиком — чтобы не переизобретать вёрстку и не нарушить требования модерации Директа. — `/mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md`\n- `html-artifacts` — Generate interactive HTML artifacts instead of markdown — `/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md`",
+  "candidate_index_chars": 1775,
+  "candidate_index_utf8_bytes": 2524,
+  "cases": {
+    "bobik": {
+      "expected": [
+        "bobik-generate"
+      ],
+      "prompt": "Нужно подготовить нового Бобика для карточки HR на сайте Сидона. Сейчас дай только безопасный план действий, ничего не генерируй и не меняй."
+    },
+    "direct_banner": {
+      "expected": [
+        "direct-banner"
+      ],
+      "prompt": "Нужно собрать баннер для Яндекс.Директа из уже готового Бобика в трёх форматах. Сейчас дай только план сборки, ничего не создавай и не меняй."
+    },
+    "html_report": {
+      "expected": [
+        "html-artifacts"
+      ],
+      "prompt": "Нужно оформить сравнение PostgreSQL и SQLite как интерактивный отчёт, который будут перечитывать. Сейчас дай только план артефакта, файлы не меняй."
+    },
+    "control_python": {
+      "expected": [],
+      "prompt": "Объясни в трёх предложениях разницу между list и tuple в Python."
+    },
+    "control_git": {
+      "expected": [],
+      "prompt": "Назови одну безопасную команду Git, которая показывает текущую ветку."
+    },
+    "control_runtime_read": {
+      "expected": [],
+      "prompt": "Прочитай `/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/app/runtime_registry.py` и кратко объясни, что делает `_opencode_factory`. Ничего не меняй."
+    },
+    "control_test_read": {
+      "expected": [],
+      "prompt": "Прочитай `/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/tests/test_backend_codex.py` и кратко объясни, что проверяет первый тест. Ничего не меняй."
+    }
+  },
+  "size_measurements": {
+    "current_inline": {
+      "chars": 10424,
+      "utf8_bytes": 13741
+    },
+    "pipeline_only_index": {
+      "chars": 1080,
+      "utf8_bytes": 1263,
+      "sources": [
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md",
+          "sha256": "1bd1cda32523268b785f5521e3526b66a93a2ccb12b9b4295c53449055565b7e"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/codex-debate.md",
+          "sha256": "fb268798e8e476d3a001e8d5970c1dd4dfc1cd81b396a03261f01bf76f7728ba"
+        }
+      ]
+    },
+    "seedon_index": {
+      "chars": 3697,
+      "utf8_bytes": 5055,
+      "duplicate_collisions": [
+        {
+          "name": "codex-debate",
+          "winner": {
+            "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/codex-debate.md",
+            "sha256": "fb268798e8e476d3a001e8d5970c1dd4dfc1cd81b396a03261f01bf76f7728ba"
+          },
+          "shadowed": {
+            "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/codex-debate/SKILL.md",
+            "sha256": "24c7a1e40da013aae5ca2b1436948b94888e39ab422f9a593716a04756e21ed5"
+          }
+        },
+        {
+          "name": "html-artifacts",
+          "winner": {
+            "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md",
+            "sha256": "1bd1cda32523268b785f5521e3526b66a93a2ccb12b9b4295c53449055565b7e"
+          },
+          "shadowed": {
+            "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/html-artifacts/SKILL.md",
+            "sha256": "3d02f03c627a8e6c6f2e37496b842c0e0f5ab73091455aebd8cd0dfcb4751b0a"
+          }
+        }
+      ],
+      "sources": [
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md",
+          "sha256": "1bd1cda32523268b785f5521e3526b66a93a2ccb12b9b4295c53449055565b7e"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/codex-debate.md",
+          "sha256": "fb268798e8e476d3a001e8d5970c1dd4dfc1cd81b396a03261f01bf76f7728ba"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/accounting/SKILL.md",
+          "sha256": "26069edee0f4b83d949bbb2b852ff8139545c10d2420adf0f7bbb46c03bf2b27"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/bobik-generate/SKILL.md",
+          "sha256": "bec715753d6a454280aaeacdf1dbb65dfb4a378bd47d3b45d22432818dd64884"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/deploy-client/SKILL.md",
+          "sha256": "acd6b3a0fd01c7793c42da5d2d99cebde4b97a3a759c13a94956dfe10f887f6c"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/direct-banner/SKILL.md",
+          "sha256": "36617e1ff914fcc6b80f7f7a18f6f46d2a61db26f291bb13cf326874bcc4149f"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/sign-document/SKILL.md",
+          "sha256": "35d3f6009d5b8294ab7ba89fcab2ded76c9b979e265558d6d535d5b7cd4aee8f"
+        },
+        {
+          "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales/.claude/skills/vps-deploy/SKILL.md",
+          "sha256": "5fc57e996bc251634908c2e838e197a97e5c08d0a44f49ec2a28e83ac45c101a"
+        }
+      ]
+    }
+  },
+  "metrics_defined_before_run": {
+    "positive_hit": "every expected skill path appeared in a Bash tool command",
+    "control_false_read": "any indexed skill path appeared in a control Bash command",
+    "extra_read": "a skill other than the expected skill was read"
+  },
+  "summary": {
+    "positive_hits": 0,
+    "positive_attempts": 0,
+    "control_false_reads": 0,
+    "control_attempts": 0,
+    "extra_read_attempts": 0,
+    "total_attempts": 0
+  },
+  "trials": []
+}

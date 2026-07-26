@@ -156,3 +156,69 @@ def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monke
     required = ("connect", "send", "events", "interrupt", "disconnect")
     assert all(callable(getattr(backend, name, None)) for name in required)
     assert isinstance(backend, BackendLike)
+
+
+def test_codex_factory_indexes_all_skills_from_active_pipeline(
+    tmp_path, monkeypatch, request,
+):
+    import app.pipeline as pipeline
+
+    root = tmp_path / "pipelines"
+    prompt_root = root / "custom" / "prompts"
+    skills = prompt_root / "skills"
+    skills.mkdir(parents=True)
+    (root / "custom" / "pipeline.yaml").write_text(
+        """\
+name: custom
+defaults:
+  model: gpt5.6sol
+  skills: []
+roles:
+  worker:
+    kind: worker
+    label: Worker
+    skills: all
+""",
+        encoding="utf-8",
+    )
+    (skills / "alpha.md").write_text(
+        "---\nname: alpha\ndescription: Alpha workflow\n---\n"
+        "ALPHA_BODY_MUST_NOT_BE_IN_PROMPT\n",
+        encoding="utf-8",
+    )
+    (skills / "beta.md").write_text(
+        "---\nname: beta\ndescription: Beta workflow\n---\n"
+        "BETA_BODY_MUST_NOT_BE_IN_PROMPT\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(pipeline, "PIPELINES_DIR", root)
+    pipeline.load_pipeline.cache_clear()
+    request.addfinalizer(pipeline.load_pipeline.cache_clear)
+
+    ctx = BackendBuildContext(
+        model="gpt-5.6-sol",
+        provider="openai",
+        cwd=str(tmp_path),
+        system_prompt="BASE",
+        resume_session_id=None,
+        mcp_servers={},
+        is_orchestrator=False,
+        scope=str(tmp_path),
+        pipeline="custom",
+        role="worker",
+        profile="",
+        effort="high",
+        context_limit=258_400,
+    )
+
+    backend = build_backend("codex", ctx)
+
+    assert backend.system_prompt.startswith(
+        "BASE\n\n## Available skills (progressive loading)"
+    )
+    assert "`alpha` — Alpha workflow" in backend.system_prompt
+    assert "`beta` — Beta workflow" in backend.system_prompt
+    assert str((skills / "alpha.md").resolve()) in backend.system_prompt
+    assert str((skills / "beta.md").resolve()) in backend.system_prompt
+    assert "ALPHA_BODY_MUST_NOT_BE_IN_PROMPT" not in backend.system_prompt
+    assert "BETA_BODY_MUST_NOT_BE_IN_PROMPT" not in backend.system_prompt

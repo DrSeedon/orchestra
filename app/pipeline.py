@@ -51,6 +51,26 @@ def _is_safe_rel(p: str) -> bool:
     return ".." not in PurePosixPath(p).parts
 
 
+def _is_safe_component(value: str) -> bool:
+    """True for one portable path component (pipeline/skill identifiers)."""
+    return bool(
+        value
+        and value not in {".", ".."}
+        and "/" not in value
+        and "\\" not in value
+        and "\x00" not in value
+    )
+
+
+def _validate_skill_names(value: AllOrList | None) -> AllOrList | None:
+    if value is None or value == "all":
+        return value
+    for name in value:
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe skill name '{name}'")
+    return value
+
+
 # ── Pydantic-схема манифеста ───────────────────────────────────────────────
 
 class Symlink(BaseModel):
@@ -157,6 +177,11 @@ class Defaults(BaseModel):
                 f"unknown model '{v}'. aliases={sorted(ALIASES)} ids={sorted(MODELS)}")
         return v
 
+    @field_validator("skills")
+    @classmethod
+    def _safe_skills(cls, v: AllOrList) -> AllOrList:
+        return _validate_skill_names(v)
+
 
 class RoleSpec(BaseModel):
     """Сырая роль из манифеста. Опциональные поля (model/skills/...) = None →
@@ -202,6 +227,11 @@ class RoleSpec(BaseModel):
             if not _is_safe_rel(m):
                 raise ValueError(f"unsafe module name '{m}' (abs или '..')")
         return v
+
+    @field_validator("skills")
+    @classmethod
+    def _safe_skills(cls, v: AllOrList | None) -> AllOrList | None:
+        return _validate_skill_names(v)
 
 
 class PipelineConfig(BaseModel):
@@ -270,6 +300,8 @@ def load_pipeline(name: str) -> PipelineConfig:
     :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
         граф can_spawn.
     """
+    if not _is_safe_component(name):
+        raise ValueError(f"unsafe pipeline name '{name}'")
     path = PIPELINES_DIR / name / "pipeline.yaml"
     if not path.is_file():
         raise FileNotFoundError(f"pipeline '{name}' not found at {path}")

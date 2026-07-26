@@ -1,0 +1,335 @@
+{
+  "timestamp_utc": "2026-07-26T09:36:29.966815+00:00",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "candidate_index": "## Available skills (progressive loading)\n\nThe entries below are an index, not loaded instructions. When a request matches a skill description, you MUST read that skill file completely before acting. Do not read unrelated skill files. Skills apply only to the current request.\n\n- `bobik-generate` — Генерация Бобика — маскота Сидона (seedon.ru) в едином пластилиновом 3D стиле через nano-banana. Триггеры: 'сгенери бобика', 'нарисуй бобика', 'бобик для роли/пилота/секции', 'иконка бобик', 'маскот сидон', 'пластилиновый пёс', 'персонаж для сайта seedon', 'картинка бобик', 'bobik', 'rover'. Использовать ВСЕГДА когда нужна иллюстрация-персонаж для сайта seedon.ru или маркетинга Сидона — чтобы новый Бобик совпадал по стилю с существующими (единый бренд, не рандомный робот). — `/mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md`\n- `direct-banner` — Сборка баннеров-обложек для Яндекс.Директа из маскота Бобика (Сидон/seedon.ru) — зонный шаблон, 3 формата (1080×1080, 1920×1080, 1080×1920). Программная вёрстка (HTML→playwright), чёткий текст Unbounded + зелёный акцент + фон #0d1117. Триггеры: 'баннер для директа', 'директ обложка', 'объявление яндекс директ', 'direct banner', 'рекламный баннер сидон', 'картинки для директа', 'обложка объявления', 'креатив для директа', 'баннер сидон'. Использовать ВСЕГДА когда нужна рекламная обложка для Яндекс.Директа с Бобиком — чтобы не переизобретать вёрстку и не нарушить требования модерации Директа. — `/mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md`\n- `html-artifacts` — Generate interactive HTML artifacts instead of markdown — `/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md`",
+  "candidate_index_chars": 1775,
+  "candidate_index_utf8_bytes": 2524,
+  "metrics_defined_before_run": {
+    "positive_hit": "every expected skill path appeared in a Bash tool command",
+    "control_false_read": "any indexed skill path appeared in a control Bash command",
+    "extra_read": "a skill other than the expected skill was read"
+  },
+  "summary": {
+    "positive_hits": 9,
+    "positive_attempts": 9,
+    "control_false_reads": 0,
+    "control_attempts": 6,
+    "extra_read_attempts": 0,
+    "total_attempts": 15
+  },
+  "trials": [
+    {
+      "case": "bobik",
+      "run": 1,
+      "expected": [
+        "bobik-generate"
+      ],
+      "read_skills": [
+        "bobik-generate"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && sed -n '1,240p' /mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && sed -n '1,240p' /mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md\"}], \"_codex_item_id\": \"call_f6C3lzH0maLq8Fz14hJxSWZ5\"}"
+      ],
+      "final_text": "Да уж, даже пластилинового HR можно случайно превратить в корпоративного киборга 🤖 Прочитаю правила `bobik-generate`, чтобы план сохранил фирменный стиль; никаких файлов, генераций и изменений не будет.\nНу да, HR-Бобик тоже требует согласования штата — иначе выйдет пёс с резюме на лбу 🐶\n\nБезопасный план:\n\n1. Только чтением проверить текущую HR-карточку: размеры, фон, композицию и способ подключения изображения.\n2. Перед генерацией визуально свериться с `bobik-MASTER-REF.png`, затем со старым спрайтшитом — новый Бобик должен сохранить каноничное лицо, пропорции, колпак со звездой и не повторять старую позу HR с лупой и резюме.\n3. Подготовить одну концепцию: Бобик по центру активно проводит HR-процесс; голограммы находятся по бокам, добавлены физические рабочие предметы, людей нет. Для других персонажей допустимы только мультяшные животные.\n4. Составить короткий английский промпт с табличкой `ROVER - HR`, используя только большой мастер-референс и модель `nano-banana-2`.\n5. Показать пользователю концепцию и промпт до запуска.\n6. После отдельного явного подтверждения сгенерировать ровно одну квадратную картинку и сразу показать её. Следующую попытку не делать без обратной связи.\n7. Только после утверждения отдельно согласовать конвертацию в WebP, замену изображения в карточке, коммит и деплой.\n\nСейчас ничего не сгенерировано, файлы и сайт не изменялись. Всё чинно: даже пластилиновый пёс пока не прошёл собеседование. 🪄",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 56397,
+        "output_tokens": 1063,
+        "cost_usd": 0.204435
+      }
+    },
+    {
+      "case": "control_python",
+      "run": 2,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "🐍 Да, Python решил, что одной последовательности нам недостаточно.  \n`list` изменяем: элементы можно добавлять, удалять и заменять; `tuple` неизменяем после создания и обычно занимает меньше памяти.  \nСписки пишутся как `[1, 2]`, кортежи — `(1, 2)`: первый — рабочая корзина, второй — корзина, залитая бетоном.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25376,
+        "output_tokens": 128,
+        "cost_usd": 0.13072
+      }
+    },
+    {
+      "case": "html_report",
+      "run": 3,
+      "expected": [
+        "html-artifacts"
+      ],
+      "read_skills": [
+        "html-artifacts"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && sed -n '1,240p' /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md && find docs/tasks -maxdepth 2 -type f -print 2>/dev/null | head -50\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && sed -n '1,240p' /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md && find docs/tasks -maxdepth 2 -type f -print 2>/dev/null | head -50\"}], \"_codex_item_id\": \"call_A7fOMilirCCRJF6UCojDE4Li\"}"
+      ],
+      "final_text": "🧱 Сравнение двух СУБД легко превратить в кладбище таблиц, поэтому использую `html-artifacts`: он задаст структуру именно интерактивного отчёта, а не длинной простыни. Сейчас только изучу правила и соберу план — файлы не трогаю.\n🗃️ Да, ещё одна таблица «фича есть / фичи нет» точно никому не нужна. Файлы не менял; планирую интерактивный отчёт как инструмент выбора под конкретный сценарий.\n\n## План артефакта\n\n1. **Первый экран — решение за 5 секунд**\n   - Заголовок: «PostgreSQL или SQLite»\n   - Краткий вывод: SQLite — для локального и простого хранения; PostgreSQL — для конкурентной серверной нагрузки и роста.\n   - Переключатель сценария: прототип, desktop/mobile, небольшой сервис, SaaS, аналитика.\n   - Рекомендация автоматически меняется вместе с выбранным сценарием.\n\n2. **Интерактивная матрица сравнения**\n   - Критерии: развёртывание, конкурентная запись, масштабирование, типы данных, SQL-возможности, резервное копирование, репликация, эксплуатация, стоимость владения.\n   - Фильтры: «показать различия», «только критичные критерии», «всё».\n   - Короткий вывод в строке и раскрываемое техническое объяснение.\n\n3. **Сценарии вместо абстрактных баллов**\n   - Карточки реальных задач: локальное приложение, embedded-система, API с несколькими инстансами, многопользовательский SaaS.\n   - Для каждой: рекомендация, причины, ограничения и момент, когда решение придётся пересмотреть.\n\n4. **Конструктор решения**\n   - Пользователь задаёт число одновременных записей, необходимость репликации, модель развёртывания и допустимую сложность эксплуатации.\n   - Отчёт выдаёт рекомендацию и показывает, какие ответы оказались решающими.\n   - Никакого псевдоточного «PostgreSQL победил со счётом 87»: только прозрачные правила.\n\n5. **Цена ошибки**\n   - Для SQLite: блокировки записи, усложнение сетевого доступа, пределы горизонтального роста.\n   - Для PostgreSQL: отдельный сервис, администрирование, резервное копирование и обновления.\n   - Отдельный блок «когда миграция уже оправдана».\n\n6. **Источники и долговечность**\n   - Факты — в отдельном Markdown или JSON, пригодном для Git-диффа.\n   - HTML остаётся только презентационным слоем.\n   - У каждого спорного тезиса — ссылка на официальную документацию PostgreSQL или SQLite и дата проверки.\n\n## Формат реализации\n\n- `docs/artifacts/postgresql-vs-sqlite.html` — автономный адаптивный отчёт, работающий офлайн.\n- `docs/artifacts/postgresql-vs-sqlite.md` — редактируемый источник фактов, выводов и ссылок.\n- Тёмная тема по умолчанию, системные шрифты, светлая тема через настройки ОС.\n- Чистый HTML/CSS/JS без сборщика и внешних зависимостей.\n- Состояние фильтров сохраняется в URL, чтобы выбранный сценарий можно было переслать.\n- Клавиатурная навигация, нормальный контраст и печатная версия.\n\n## Критерии готовности\n\n- Основной вывод считывается за 5 секунд.\n- Любая рекомендация объясняется конкретными критериями.\n- Отчёт работает без сети и на мобильном экране.\n- Без JavaScript остаётся доступно полное содержимое.\n- Источники и дата актуальности видимы.\n- Печать и сохранение в PDF не ломают структуру.\n\nИначе отчёт будут «перечитывать» примерно как документацию к блокировкам SQLite — только когда уже всё встало. 😏",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 51834,
+        "output_tokens": 1483,
+        "cost_usd": 0.19422
+      }
+    },
+    {
+      "case": "html_report",
+      "run": 1,
+      "expected": [
+        "html-artifacts"
+      ],
+      "read_skills": [
+        "html-artifacts"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && sed -n '1,240p' pipelines/default/prompts/skills/html-artifacts.md && find docs/tasks -maxdepth 2 -type f 2>/dev/null | head -40\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && sed -n '1,240p' pipelines/default/prompts/skills/html-artifacts.md && find docs/tasks -maxdepth 2 -type f 2>/dev/null | head -40\"}], \"_codex_item_id\": \"exec-577a3fc0-add1-4d57-b035-1428ab909e65\"}",
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"sed -n '1,320p' /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"read\", \"command\": \"sed -n '1,320p' /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md\", \"name\": \"html-artifacts.md\", \"path\": \"/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md\"}], \"_codex_item_id\": \"exec-a26eeceb-b4e4-4b3e-9965-c5b3d94fd298\"}"
+      ],
+      "final_text": "Ну конечно, ещё один PDF, который никто не откроет, тут точно не нужен 😏 Использую `html-artifacts`, потому что задача прямо про интерактивный отчёт; сейчас изучу его правила и верну только структуру артефакта — без изменений файлов.\nЛокальной копии инструкции в этом временном рабочем дереве нет; читаю её из указанного системного пути. Это только чтение, репозиторий остаётся нетронутым.\nНу да, сравнить две СУБД одной таблицей — верный способ получить священную войну вместо решения 😏 План: интерактивный одностраничный отчёт, который помогает выбрать СУБД под конкретный сценарий, а не назначает абстрактного победителя.\n\n1. **Первый экран — вывод за 30 секунд**\n   - PostgreSQL: многопользовательские серверные системы, высокая конкурентность, сложные запросы, рост.\n   - SQLite: локальные и встраиваемые приложения, простое развёртывание, автономность.\n   - Главное ограничение сравнения: выбор зависит от нагрузки, топологии и требований к эксплуатации.\n\n2. **Переключатель сценария**\n   - Прототип.\n   - Мобильное или desktop-приложение.\n   - Небольшой внутренний сервис.\n   - Публичный SaaS/API.\n   - Edge/offline-система.\n   - Система с высокой конкурентностью.\n\n   Выбор сценария перестраивает рекомендации и подсвечивает критичные критерии.\n\n3. **Интерактивная матрица решения**\n   - Конкурентные записи.\n   - Масштабирование.\n   - Транзакции и целостность.\n   - Возможности SQL.\n   - Расширения и типы данных.\n   - Резервное копирование и восстановление.\n   - Репликация и отказоустойчивость.\n   - Простота развёртывания.\n   - Эксплуатационные расходы.\n   - Переносимость данных.\n\n   Пользователь сможет менять веса критериев; итоговый балл сопровождается объяснением, почему рекомендация изменилась.\n\n4. **Сравнение по механике**\n   - Архитектура: серверная СУБД против файла в процессе приложения.\n   - Модель конкурентности.\n   - Блокировки и параллельные записи.\n   - Сетевой доступ.\n   - Хранение, обслуживание и резервирование.\n   - Ограничения, которые проявляются только в production.\n\n5. **Карточки типовых решений**\n   - «Берите SQLite, если…»\n   - «Берите PostgreSQL, если…»\n   - «SQLite пока достаточно, но заложите миграцию, если…»\n   - «PostgreSQL здесь будет лишней эксплуатационной нагрузкой, если…»\n\n6. **Разбор спорных утверждений**\n   - «SQLite не подходит для production».\n   - «PostgreSQL всегда быстрее».\n   - «Из SQLite легко мигрировать в любой момент».\n   - «Один файл означает отсутствие резервного копирования».\n   - «Небольшой проект обязательно останется небольшим».\n\n   Каждый тезис получит короткий вердикт, условия истинности и практическое последствие.\n\n7. **Маршрут миграции**\n   - Какие различия типов, SQL и конкурентности мешают переходу.\n   - Что изолировать в приложении заранее.\n   - Проверочный список SQLite → PostgreSQL.\n   - Красные флаги, при которых миграцию нельзя откладывать.\n\n8. **Финальная рекомендация**\n   - Результат выбранного сценария.\n   - Три главных основания.\n   - Основной риск.\n   - Условия пересмотра решения.\n   - Кнопки печати и экспорта выбранных весов/вывода.\n\n9. **Формат реализации**\n   - Один адаптивный offline HTML с встроенными CSS, JavaScript и SVG.\n   - Тёмная тема по умолчанию, светлая — по системной настройке.\n   - Без декоративных графиков, которые создают ложную точность.\n   - Настройки сохраняются локально, но факты и редактируемый контент хранятся отдельно в Markdown или JSON как источник истины.\n   - На каждом фактическом блоке — версия СУБД, дата проверки и ссылка на первичный источник.\n\nФайлы не менял. Иначе отчёт быстро превратится в ту самую таблицу, где десять зелёных галочек героически скрывают один критичный красный крестик.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 77593,
+        "output_tokens": 1799,
+        "cost_usd": 0.210383
+      }
+    },
+    {
+      "case": "control_git",
+      "run": 2,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Ну да, ветка умеет представиться сама 😏\n\n```bash\ngit branch --show-current\n```\n\nБезопасно: только показывает текущую ветку — как бейджик, но без турникета.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25376,
+        "output_tokens": 82,
+        "cost_usd": 0.12934
+      }
+    },
+    {
+      "case": "direct_banner",
+      "run": 1,
+      "expected": [
+        "direct-banner"
+      ],
+      "read_skills": [
+        "direct-banner"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && if [ -f AGENTS.md ]; then sed -n '1,240p' AGENTS.md; fi && if [ -d docs/tasks ]; then rg --files docs/tasks | head -50; fi && sed -n '1,260p' /mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && if [ -f AGENTS.md ]; then sed -n '1,240p' AGENTS.md; fi && if [ -d docs/tasks ]; then rg --files docs/tasks | head -50; fi && sed -n '1,260p' /mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md\"}], \"_codex_item_id\": \"call_xzjn9HXOerkgUOhc1DjPIOiV\"}",
+        "Bash: {\"command\": \"/usr/bin/zsh -lc 'skill_dir=/mnt/data/Projects/Python/seedon/.claude/skills/direct-banner\\nfind \\\"$skill_dir\\\" -maxdepth 3 -type f -printf '\\\"'%P\\\\\\\\n' | sort\\nsed -n '1,260p' \\\\\\\"\\\"'$skill_dir/scripts/engine_zone.py\\\"\\nsed -n '\\\"'1,220p' \\\\\\\"\\\"'$skill_dir/scripts/render_banner.py\\\"'\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"skill_dir=/mnt/data/Projects/Python/seedon/.claude/skills/direct-banner\\nfind \\\"$skill_dir\\\" -maxdepth 3 -type f -printf '%P\\\\n' | sort\\nsed -n '1,260p' \\\"$skill_dir/scripts/engine_zone.py\\\"\\nsed -n '1,220p' \\\"$skill_dir/scripts/render_banner.py\\\"\"}], \"_codex_item_id\": \"call_tk7dNMxI3OmeYJxsSyN2QD6w\"}"
+      ],
+      "final_text": "Ну да, баннеры сами в три формата не размножатся — геометрия всё ещё упрямая штука 😏 Использую `direct-banner`: он задаёт фирменный шаблон Сидона, безопасные зоны и требования Яндекс.Директа; сейчас только изучу инструкции и верну план, без создания и изменения файлов.\nИнструкция задаёт гибридный конвейер: один готовый PNG Бобика → программная вёрстка → три отдельных рендера. Быстро сверю состав штатного движка и точки вывода, чтобы план опирался на реальные файлы, а не на шаманство по README.\nНу да, один Бобик — три геометрии, потому что Директ любит разнообразие 😏 План такой; сейчас ничего не создано и не изменено.\n\n1. Проверить исходный PNG Бобика: формат 1:1 или 4:5, фон и края `#0d1117`, без текста, достаточная резкость.\n2. Зафиксировать контент: заголовок на 2–4 слова, зелёное акцентное слово и короткий подзаголовок. Текст должен занимать менее 20% площади.\n3. Добавить объявление в конфигурацию штатного движка: тексты, акцент и абсолютный путь к PNG.\n4. Сгенерировать три HTML-макета:\n   - `1080×1080` — текст слева, Бобик справа;\n   - `1920×1080` — текст слева, расширенная композиция;\n   - `1080×1920` — текст сверху, Бобик ниже.\n5. Отрендерить макеты через Playwright в PNG, сохранив фирменные шрифты, фон, зелёную рамку и логотип Сидона.\n6. Визуально проверить каждый формат отдельно: обрезку Бобика, читаемость, пересечения зон, пустоты, чёткость и соответствие модерации Директа.\n7. Проверить точные размеры и вес до 4 МБ, затем положить три итоговых PNG в `resources/brand/direct-ads-final/`.\n\nОдна картинка на три формата — Бобика переодевать не будем, только рассадим по разным креслам. 🐶",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 82822,
+        "output_tokens": 1256,
+        "cost_usd": 0.219086
+      }
+    },
+    {
+      "case": "html_report",
+      "run": 2,
+      "expected": [
+        "html-artifacts"
+      ],
+      "read_skills": [
+        "html-artifacts"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && sed -n '1,240p' /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md && find docs/tasks -maxdepth 2 -type f -print 2>/dev/null | head -50\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && sed -n '1,240p' /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md && find docs/tasks -maxdepth 2 -type f -print 2>/dev/null | head -50\"}], \"_codex_item_id\": \"call_pYwinBHmN5xtoGwd2fc3I4IZ\"}"
+      ],
+      "final_text": "Ну да, обычная таблица тут быстро превратится в кладбище чекбоксов 🪦 Использую `html-artifacts`, чтобы план сразу учитывал интерактивную структуру, навигацию и повторное чтение; никаких файлов менять не буду.\nНу да, сравнение «сервер против файла» особенно прекрасно выглядит в таблице на сорок строк 😏 План: сделать не энциклопедию, а интерактивный инструмент выбора с зафиксированными версиями и источниками.\n\n## План артефакта\n\n1. **Первый экран — вывод за 5 секунд**\n   - Заголовок и область сравнения.\n   - TL;DR: когда выбирать PostgreSQL, когда SQLite.\n   - Переключатель сценария: локальное приложение, мобильное, небольшой веб-сервис, многопользовательская система, высокая нагрузка.\n\n2. **Динамическая рекомендация**\n   - Пользователь задаёт требования: число писателей, объём данных, автономность, сложность запросов, допустимость отдельного сервера.\n   - Артефакт показывает рекомендацию и объясняет, какие требования повлияли на неё.\n   - Никакого фиктивного «PostgreSQL победил 87:63»: только прозрачные правила решения.\n\n3. **Сводное сравнение**\n   - Компактная таблица: архитектура, конкурентная запись, типы данных, SQL-возможности, расширения, резервирование, эксплуатация, масштабирование, стоимость сопровождения.\n   - Фильтры: «только различия», «критично для моего сценария».\n   - Ячейки раскрываются до пояснения, примера и ограничения.\n\n4. **Раздел «Что сломается первым»**\n   - Для каждой СУБД — реальные пределы выбранного сценария.\n   - Отдельно: блокировки записи SQLite, операционная сложность PostgreSQL, сетевые и файловые риски.\n   - Шкала не абсолютная, а привязанная к условиям применения.\n\n5. **Интерактивная матрица решения**\n   - Критериям можно менять вес.\n   - Результат пересчитывается сразу.\n   - Каждый балл сопровождается основанием, чтобы отчёт не превращался в декоративный калькулятор.\n\n6. **Типовые архитектуры**\n   - Небольшие SVG-схемы:\n     - приложение → SQLite;\n     - клиенты → API → PostgreSQL;\n     - локальный SQLite + серверная синхронизация.\n   - По клику показываются преимущества, риски и точки миграции.\n\n7. **Миграция SQLite → PostgreSQL**\n   - Сигналы, что переход уже пора планировать.\n   - Что обычно переносится плохо: типизация, SQL-диалект, конкурентность, автоинкремент, даты, JSON, расширения.\n   - Короткий чеклист оценки стоимости миграции.\n\n8. **Финальный вердикт**\n   - Рекомендация для выбранного сценария.\n   - Причины, противопоказания и условия пересмотра решения.\n   - Кнопка сброса и ссылка с параметрами в URL, чтобы возвращаться к той же конфигурации.\n\n## Что обеспечит повторное чтение\n\n- Видимая дата проверки и версии обеих СУБД.\n- Ссылки на первичные источники возле спорных утверждений.\n- Сохранение выбранного сценария и весов локально.\n- Режим печати без интерактивного шума.\n- Самодостаточный офлайн-HTML с адаптивной тёмной и светлой темой.\n- Факты хранятся отдельно в Markdown или JSON, а HTML остаётся представлением — иначе обновлять такой отчёт будет весело примерно как сверять две СУБД по скриншоту.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 51822,
+        "output_tokens": 1602,
+        "cost_usd": 0.189666
+      }
+    },
+    {
+      "case": "control_git",
+      "run": 3,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Ну да, ветка умеет представиться сама 😏\n\n```bash\ngit branch --show-current\n```\n\nПрямо как бейджик, только без отдела кадров.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25376,
+        "output_tokens": 78,
+        "cost_usd": 0.12922
+      }
+    },
+    {
+      "case": "direct_banner",
+      "run": 3,
+      "expected": [
+        "direct-banner"
+      ],
+      "read_skills": [
+        "direct-banner"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && sed -n '1,260p' /mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && sed -n '1,260p' /mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md\"}], \"_codex_item_id\": \"exec-0a985f3b-f0df-4962-a203-8ed82254954a\"}",
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"if [[ -d docs/tasks ]]; then rg --files docs/tasks | sed -n '1,80p'; fi\\ngit status --short\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"if [[ -d docs/tasks ]]; then rg --files docs/tasks | sed -n '1,80p'; fi\\ngit status --short\"}], \"_codex_item_id\": \"exec-eb80fa3d-2a04-4dab-82ef-13794858e001\"}"
+      ],
+      "final_text": "Ну да, три формата — чтобы один и тот же баннер не пытался героически растянуться во все стороны 😏 Использую skill `direct-banner`: он задаёт готовую зонную сетку, требования Директа и порядок сборки; сейчас только прочитаю инструкции и верну план, без создания и изменения файлов.\nТри формата, а Бобик один — редкий случай, когда клонирование не требуется 😏\n\nПлан сборки:\n\n1. Проверить исходный PNG Бобика: формат 1:1 или 4:5, фон и края `#0d1117`, без текста и лишнего окружения.\n2. Зафиксировать контент: идентификатор объявления, заголовок на 2–4 слова, зелёный акцент и короткий подзаголовок.\n3. Добавить объявление в `scripts/engine_zone.py`, указав абсолютный путь к готовому Бобику.\n4. Сгенерировать три HTML-макета:\n   - квадрат — 1080×1080;\n   - горизонтальный — 1920×1080;\n   - вертикальный — 1080×1920.\n5. Отрендерить HTML через Playwright/system Chrome в три PNG.\n6. Визуально проверить каждый формат отдельно: кадрирование Бобика, границы зон, читаемость текста, отсутствие стыков фона и пересечений.\n7. Проверить требования Директа: PNG до 4 МБ, текст менее 20% площади, без псевдокнопок, QR-кодов и чужих логотипов.\n8. Сохранить итоговые файлы в `resources/brand/direct-ads-final/` с суффиксами `square`, `horizontal` и `vertical`.\n\nНичего не создавал и не менял. Бобика пока только мысленно разложили по трём коробкам 📦",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 80763,
+        "output_tokens": 941,
+        "cost_usd": 0.199341
+      }
+    },
+    {
+      "case": "bobik",
+      "run": 3,
+      "expected": [
+        "bobik-generate"
+      ],
+      "read_skills": [
+        "bobik-generate"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && if [ -f .claude/skills/bobik-generate/SKILL.md ]; then sed -n '1,240p' .claude/skills/bobik-generate/SKILL.md; else sed -n '1,240p' /mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md; fi\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && if [ -f .claude/skills/bobik-generate/SKILL.md ]; then sed -n '1,240p' .claude/skills/bobik-generate/SKILL.md; else sed -n '1,240p' /mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md; fi\"}], \"_codex_item_id\": \"call_iA6BKOEHn96vLBAgNBUTV8s8\"}"
+      ],
+      "final_text": "🦴 Конечно, HR без фирменного пса никак — иначе кандидаты решат, что у компании есть только вакансии. Использую обязательный skill `bobik-generate`, чтобы план учитывал единый пластилиновый стиль Сидона; сейчас только читаю правила и формирую безопасную последовательность, без генерации и изменений.\n🦴 Ну да, HR-Бобик должен нанимать, а не выглядеть как случайный пёс из фотобанка.\n\nБезопасный план:\n\n1. Проверить мастер-референс, спрайт-лист и текущую HR-карточку: формат, композицию и существующую позу с лупой и резюме.\n2. Выбрать новое активное действие, не повторяющее старый HR-образ — например, Бобик проводит собеседование с мультяшным животным-кандидатом.\n3. Подготовить короткий промпт с одним мастер-референсом:\n   - каноничный стройный Бобик по центру;\n   - зелёный колпак со светящейся звездой;\n   - красный ошейник с медальоном;\n   - только животные, без людей;\n   - физические HR-предметы плюс боковые голограммы;\n   - табличка строго `ROVER - HR`, без другого текста.\n4. После отдельного подтверждения сгенерировать ровно один вариант через проверенный `nano-banana-2`.\n5. Сразу показать результат и ничего больше не генерировать до обратной связи.\n6. Проверить сходство, пропорции, читаемость роли, текст таблички и отсутствие лишних персонажей или артефактов.\n7. Только после утверждения подготовить WebP под фактический размер карточки и отдельно согласовать замену файла на сайте.\n\nСейчас ничего не сгенерировано и ни один файл не изменён. Иначе это был бы уже не подбор кандидата, а массовый найм Бобиков без собеседования. 🐕",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 56474,
+        "output_tokens": 1101,
+        "cost_usd": 0.09652
+      }
+    },
+    {
+      "case": "direct_banner",
+      "run": 2,
+      "expected": [
+        "direct-banner"
+      ],
+      "read_skills": [
+        "direct-banner"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && sed -n '1,240p' /mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && sed -n '1,240p' /mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md\"}], \"_codex_item_id\": \"call_UiIj7yaeZnF3jE5xjjWTCMPI\"}"
+      ],
+      "final_text": "🎨 Три размера из одного Бобика — потому что рекламным кабинетам одного прямоугольника всегда мало. Использую `direct-banner`: он задаёт зонный шаблон, размеры и проверку под модерацию; сейчас только изучу правила и верну план, без создания или изменения файлов.\n🎨 Один Бобик, три формата — Яндекс любит разнообразие прямоугольников.\n\nПлан сборки:\n\n1. Проверить исходный PNG Бобика: пропорции 1:1 или 4:5, фон `#0d1117`, ровные края, без текста и лишнего окружения.\n2. Зафиксировать заголовок на 2–4 слова и короткий подзаголовок; выбрать слова для зелёного акцента.\n3. Добавить объявление в `engine_zone.py`, указав тексты и абсолютный путь к Бобику.\n4. Одним запуском сформировать три HTML-макета:\n   - 1080×1080;\n   - 1920×1080;\n   - 1080×1920.\n5. Отрендерить макеты через Playwright в три PNG с брендовой компоновкой: `Unbounded`, зелёный акцент, рамка с Бобиком и логотип Сидона.\n6. Визуально проверить каждый формат отдельно: отсутствие пересечений, обрезки Бобика, фоновых стыков и пустых зон.\n7. Проверить требования Директа: текст менее 20% площади, файл до 4 МБ, никаких псевдокнопок, QR-кодов и чужих логотипов.\n8. Сохранить финальные PNG в `resources/brand/direct-ads-final/` с суффиксами `square`, `horizontal` и `vertical`.\n\nНичего не создано и не изменено. Один маскот действительно покрывает все форматы — хоть здесь троицу не пришлось рисовать заново. 🐕",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 52927,
+        "output_tokens": 744,
+        "cost_usd": 0.177515
+      }
+    },
+    {
+      "case": "control_python",
+      "run": 3,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Ну да, Python решил, что одного вида списка мало 🙃  \n`list` изменяем: можно добавлять, удалять и заменять элементы; `tuple` после создания изменить нельзя.  \nПоэтому `list` — черновик, а `tuple` — тот же перечень, уже заламинированный.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25376,
+        "output_tokens": 108,
+        "cost_usd": 0.122056
+      }
+    },
+    {
+      "case": "control_python",
+      "run": 1,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Python, конечно, не мог обойтись одной последовательностью 😏: `list` изменяем и записывается как `[1, 2]`, а `tuple` неизменяем и обычно записывается как `(1, 2)`.  \nСписок подходит для данных, которые будут добавляться, удаляться или заменяться; кортеж — для фиксированного набора и может быть ключом словаря, если все его элементы хешируемы.  \nИными словами: `list` — редактируемый список покупок, `tuple` — уже напечатанный чек.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25376,
+        "output_tokens": 189,
+        "cost_usd": 0.13255
+      }
+    },
+    {
+      "case": "control_git",
+      "run": 1,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Да, без археологии 😏\n\n```bash\ngit branch --show-current\n```",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25584,
+        "output_tokens": 162,
+        "cost_usd": 0.13278
+      }
+    },
+    {
+      "case": "bobik",
+      "run": 2,
+      "expected": [
+        "bobik-generate"
+      ],
+      "read_skills": [
+        "bobik-generate"
+      ],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [
+        "Bash: {\"command\": \"/usr/bin/zsh -lc \\\"pwd && if [ -d docs/tasks ]; then rg --files docs/tasks | head -50; fi && sed -n '1,260p' /mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md\\\"\", \"cwd\": \"/tmp/orchestra-skill-index-experiment\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"pwd && if [ -d docs/tasks ]; then rg --files docs/tasks | head -50; fi && sed -n '1,260p' /mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md\"}], \"_codex_item_id\": \"exec-dfa4530e-93c8-4016-a217-84f4e30404d3\"}"
+      ],
+      "final_text": "Ну да, HR-карточке точно не нужен случайный пёс из нейросетевого зоопарка 🐕 Сначала сверю обязательный брендовый workflow `bobik-generate`, затем дам только план — без генерации, файловых изменений и внешних действий.\nДаже Бобик проходит HR-отбор до выхода на работу 🙃 Сейчас ничего не генерировал и не менял.\n\n1. Проверить мастер-реф `bobik-MASTER-REF.png`, текущую HR-карточку и общий грид персонажей. Существующую позу HR с лупой и резюме не повторять.\n2. Зафиксировать формат: квадратная карточка 1:1, Бобик по центру, активное HR-действие, деревянная табличка `ROVER - HR`.\n3. Подготовить короткий английский промпт: Ровер проводит дружелюбное собеседование или работает с воронкой кандидатов; экраны находятся сбоку, рядом 1–2 физических HR-предмета, все дополнительные персонажи — мультяшные животные, без людей.\n4. Использовать только большой мастер-реф и `nano-banana-2`. Генерировать строго одну картинку за цикл.\n5. Сразу показать результат и проверить: узнаваемое лицо, стройные пропорции, звезда на колпаке, ровный жёлтый мех, зелёные элементы, читаемая роль, точный текст таблички и отсутствие перекрывающих экранов.\n6. Остановиться и дождаться вашего решения. Исправление — только после явной команды и снова одной картинкой.\n7. После утверждения отдельно конвертировать результат в WebP 400×400 и лишь с вашего разрешения подключить его к HR-карточке и отправить через Git.\n\nИначе получится HR, который нанял первого попавшегося Бобика — классика отдела кадров 🐾",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 56461,
+        "output_tokens": 1430,
+        "cost_usd": 0.215765
+      }
+    }
+  ]
+}

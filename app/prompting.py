@@ -185,24 +185,168 @@ def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> Non
     logger.info(f"Injected {len(skill_names)} skills into {worktree_path}/.claude/skills/")
 
 
-def read_skills_content(skill_names: list[str]) -> str:
-    """Inline skill bodies for backends that can't auto-discover `.claude/skills/`.
+_SKILL_INDEX_HEADER = """## Available skills (progressive loading)
 
-    Claude CLI progressively loads `.claude/skills/<name>/SKILL.md`; Codex discovers skills
-    from `$CODEX_HOME/skills/` (not per-worktree) so injected files are invisible to it.
-    Folding the content into the system prompt (via -c developer_instructions) is the
-    reliable parity path — the skills are small (~13KB for full-cycle's two). Trade-off:
-    no progressive disclosure, always loaded. Returns "" if no skills resolve."""
-    if not skill_names or not _SKILLS_DIR.is_dir():
+The entries below are an index, not loaded instructions. When a request matches a skill description, you MUST read that skill file completely before acting. Do not read unrelated skill files. Skills apply only to the current request."""
+
+
+def _read_skill_index_entry(path: Path) -> tuple[str, str, Path]:
+    text = path.read_text(encoding="utf-8")
+    meta, _ = parse_role_frontmatter(text)
+    name = meta.get("name") if isinstance(meta, dict) else None
+    description = meta.get("description") if isinstance(meta, dict) else None
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("missing frontmatter name")
+    if "\n" in name or "\r" in name:
+        raise ValueError("frontmatter name must be one line")
+    if not isinstance(description, str) or not description.strip():
+        raise ValueError("missing frontmatter description")
+    return name.strip(), " ".join(description.split()), path.resolve()
+
+
+def build_skills_index(
+    required_skill_files: list[Path],
+    optional_skill_files: list[Path],
+) -> str:
+    """Generate a progressive skill catalog from canonical source files.
+
+    Required files are explicit pipeline role configuration and fail backend
+    construction on any read/frontmatter error. Optional project files are ambient:
+    malformed entries are logged and omitted.
+    """
+    entries: list[str] = []
+    seen: set[str] = set()
+    for required, paths in (
+        (True, required_skill_files),
+        (False, optional_skill_files),
+    ):
+        for path in paths:
+            try:
+                name, description, resolved = _read_skill_index_entry(Path(path))
+            except (OSError, UnicodeError, ValueError) as exc:
+                if required:
+                    logger.error("Required skill '%s' is invalid: %s", path, exc)
+                    raise ValueError(f"required skill '{path}' is invalid: {exc}") from exc
+                logger.warning("Skipping optional skill '%s': %s", path, exc)
+                continue
+            if name in seen:
+                continue
+            seen.add(name)
+            entries.append(f"- `{name}` — {description} — `{resolved}`")
+    if not entries:
         return ""
-    blocks = []
-    for sname in skill_names:
-        skill_src = _SKILLS_DIR / f"{sname}.md"
-        if not skill_src.exists():
-            logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
+    return _SKILL_INDEX_HEADER + "\n\n" + "\n".join(entries)
+
+
+def _project_skill_files(worktree_path: str) -> list[Path]:
+    """Return project skills whose live files still match committed HEAD."""
+    try:
+        worktree = Path(worktree_path).resolve()
+        skills_candidate = worktree / ".claude" / "skills"
+        if skills_candidate.is_symlink():
+            logger.warning("Project skill root is a symlink: %s", skills_candidate)
+            return []
+        skills_root = skills_candidate.resolve()
+    except (OSError, RuntimeError) as exc:
+        logger.warning("Project skill root cannot be resolved in %s: %s", worktree_path, exc)
+        return []
+    if not skills_root.is_relative_to(worktree):
+        logger.warning("Project skill root escapes worktree: %s", skills_root)
+        return []
+    try:
+        tracked = subprocess.run(
+            ["git", "ls-files", "-z", "--", ".claude/skills/*/SKILL.md"],
+            cwd=worktree,
+            capture_output=True,
+        )
+    except OSError as exc:
+        logger.warning("Project skill discovery failed in %s: %s", worktree, exc)
+        return []
+    if tracked.returncode != 0:
+        logger.debug("No Git project skills in %s", worktree)
+        return []
+    try:
+        relative_paths = tracked.stdout.decode("utf-8").split("\0")
+    except UnicodeDecodeError as exc:
+        logger.warning("Project skill paths are not UTF-8 in %s: %s", worktree, exc)
+        return []
+
+    result: list[Path] = []
+    for relative in sorted(path for path in relative_paths if path):
+        candidate = worktree / relative
+        if candidate.is_symlink():
+            logger.warning("Skipping project skill symlink: %s", candidate)
             continue
-        blocks.append(f"### Skill: {sname}\n\n{skill_src.read_text().strip()}")
-    if not blocks:
-        return ""
-    return ("\n\n## Skills (loaded — invoke as workflows when the trigger matches)\n\n"
-            + "\n\n---\n\n".join(blocks))
+        try:
+            resolved = candidate.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Skipping missing project skill '%s': %s", candidate, exc)
+            continue
+        if not resolved.is_relative_to(skills_root) or not resolved.is_file():
+            logger.warning("Skipping project skill outside canonical root: %s", resolved)
+            continue
+        try:
+            clean = subprocess.run(
+                ["git", "diff", "--quiet", "HEAD", "--", relative],
+                cwd=worktree,
+                capture_output=True,
+            )
+        except OSError as exc:
+            logger.warning("Skipping project skill '%s': diff failed: %s", candidate, exc)
+            continue
+        if clean.returncode != 0:
+            detail = (
+                "diff failed"
+                if clean.returncode > 1
+                else "working file differs from committed HEAD"
+            )
+            logger.warning("Skipping project skill '%s': %s", candidate, detail)
+            continue
+        result.append(resolved)
+    return result
+
+
+def build_codex_skills_index(
+    pipeline_name: str,
+    skill_names: list[str] | str,
+    worktree_path: str,
+) -> str:
+    """Build the live skill index for a Codex backend.
+
+    Pipeline files are explicit/required. Project discovery is added separately
+    below; keeping the resolver here ensures both sources share one output format.
+    """
+    from app.pipeline import PIPELINES_DIR, _is_safe_component
+
+    if not _is_safe_component(pipeline_name):
+        raise ValueError(f"unsafe pipeline name '{pipeline_name}'")
+    pipelines_root = PIPELINES_DIR.resolve()
+    skills_candidate = pipelines_root / pipeline_name / "prompts" / "skills"
+    if skills_candidate.is_symlink():
+        raise ValueError(f"unsafe pipeline skill root symlink '{skills_candidate}'")
+    skills_root = skills_candidate.resolve()
+    if not skills_root.is_relative_to(pipelines_root):
+        raise ValueError(f"unsafe pipeline skill root '{skills_root}'")
+
+    required: list[Path] = []
+    if skill_names == "all":
+        for candidate in sorted(skills_root.glob("*.md")):
+            if candidate.is_symlink():
+                raise ValueError(f"unsafe pipeline skill path (symlink): '{candidate}'")
+            path = candidate.resolve()
+            if not path.is_relative_to(skills_root):
+                raise ValueError(f"unsafe pipeline skill path '{path}'")
+            required.append(path)
+    else:
+        for name in skill_names:
+            if not _is_safe_component(name):
+                raise ValueError(f"unsafe skill name '{name}'")
+            candidate = skills_root / f"{name}.md"
+            if candidate.is_symlink():
+                raise ValueError(f"unsafe pipeline skill path (symlink): '{candidate}'")
+            path = candidate.resolve()
+            if not path.is_relative_to(skills_root):
+                raise ValueError(f"unsafe pipeline skill path '{path}'")
+            required.append(path)
+
+    return build_skills_index(required, _project_skill_files(worktree_path))

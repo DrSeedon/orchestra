@@ -1,0 +1,125 @@
+{
+  "timestamp_utc": "2026-07-26T09:40:02.250431+00:00",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "candidate_index": "## Available skills (progressive loading)\n\nThe entries below are an index, not loaded instructions. When a request matches a skill description, you MUST read that skill file completely before acting. Do not read unrelated skill files. Skills apply only to the current request.\n\n- `bobik-generate` — Генерация Бобика — маскота Сидона (seedon.ru) в едином пластилиновом 3D стиле через nano-banana. Триггеры: 'сгенери бобика', 'нарисуй бобика', 'бобик для роли/пилота/секции', 'иконка бобик', 'маскот сидон', 'пластилиновый пёс', 'персонаж для сайта seedon', 'картинка бобик', 'bobik', 'rover'. Использовать ВСЕГДА когда нужна иллюстрация-персонаж для сайта seedon.ru или маркетинга Сидона — чтобы новый Бобик совпадал по стилю с существующими (единый бренд, не рандомный робот). — `/mnt/data/Projects/Python/seedon/.claude/skills/bobik-generate/SKILL.md`\n- `direct-banner` — Сборка баннеров-обложек для Яндекс.Директа из маскота Бобика (Сидон/seedon.ru) — зонный шаблон, 3 формата (1080×1080, 1920×1080, 1080×1920). Программная вёрстка (HTML→playwright), чёткий текст Unbounded + зелёный акцент + фон #0d1117. Триггеры: 'баннер для директа', 'директ обложка', 'объявление яндекс директ', 'direct banner', 'рекламный баннер сидон', 'картинки для директа', 'обложка объявления', 'креатив для директа', 'баннер сидон'. Использовать ВСЕГДА когда нужна рекламная обложка для Яндекс.Директа с Бобиком — чтобы не переизобретать вёрстку и не нарушить требования модерации Директа. — `/mnt/data/Projects/Python/seedon/.claude/skills/direct-banner/SKILL.md`\n- `html-artifacts` — Generate interactive HTML artifacts instead of markdown — `/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/feat-skill-index/pipelines/default/prompts/skills/html-artifacts.md`",
+  "candidate_index_chars": 1775,
+  "candidate_index_utf8_bytes": 2524,
+  "metrics_defined_before_run": {
+    "positive_hit": "every expected skill path appeared in a Bash tool command",
+    "control_false_read": "any indexed skill path appeared in a control Bash command",
+    "extra_read": "a skill other than the expected skill was read"
+  },
+  "summary": {
+    "positive_hits": 0,
+    "positive_attempts": 0,
+    "control_false_reads": 0,
+    "control_attempts": 6,
+    "extra_read_attempts": 0,
+    "total_attempts": 6
+  },
+  "trials": [
+    {
+      "case": "control_git",
+      "run": 1,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Ну да, Git любит прятать очевидное 🙃\n\n```bash\ngit branch --show-current\n```\n\nТекущая ветка — без раскопок всего дерева.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25363,
+        "output_tokens": 73,
+        "cost_usd": 0.129005
+      }
+    },
+    {
+      "case": "control_python",
+      "run": 2,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "🐍 Python, конечно, не мог обойтись одной последовательностью. `list` изменяем: элементы можно добавлять, удалять и заменять; `tuple` неизменяем после создания. Поэтому `list` выбирают для меняющихся данных, а `tuple` — для фиксированных: контейнер либо с дверцей, либо заварен наглухо.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25365,
+        "output_tokens": 116,
+        "cost_usd": 0.122241
+      }
+    },
+    {
+      "case": "control_git",
+      "run": 3,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Ну да, Git иногда полезно спросить прямо 😏\n\n```bash\ngit branch --show-current\n```\n\nПокажет текущую ветку без изменений — как бейджик, только для репозитория.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25571,
+        "output_tokens": 91,
+        "cost_usd": 0.130585
+      }
+    },
+    {
+      "case": "control_python",
+      "run": 3,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Ну да, Python понадобились две почти одинаковые скобочки — скучно же иначе 😏  \n`list` (`[]`) изменяем: элементы можно добавлять, удалять и заменять; `tuple` (`()`) неизменяем после создания и при подходящих элементах может быть ключом словаря.  \nКороче, `list` — блокнот с правками, а `tuple` — запись, уже высеченная на камне.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25365,
+        "output_tokens": 133,
+        "cost_usd": 0.130815
+      }
+    },
+    {
+      "case": "control_git",
+      "run": 2,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "Ну да, Git и такое умеет 😏\n\n```bash\ngit branch --show-current\n```\n\nПоказывает текущую ветку и ничего не меняет — редкая минутка спокойствия с Git.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25363,
+        "output_tokens": 84,
+        "cost_usd": 0.019895
+      }
+    },
+    {
+      "case": "control_python",
+      "run": 1,
+      "expected": [],
+      "read_skills": [],
+      "hit": true,
+      "extra_reads": [],
+      "tool_commands": [],
+      "final_text": "🙂 Да, Python решил дать двум почти одинаковым коллекциям разные правила: `list` изменяем, а `tuple` — нет.  \nСписок записывается как `[1, 2]`, кортеж — `(1, 2)`; поэтому список подходит для изменяемых данных, а кортеж — для фиксированных наборов и может быть ключом словаря, если все его элементы хешируемы.  \nКороче, `list` — черновик, а `tuple` — тот же список, уже заламинированный.",
+      "turn": {
+        "ok": true,
+        "stop_reason": "end_turn",
+        "input_tokens": 25365,
+        "output_tokens": 152,
+        "cost_usd": 0.131385
+      }
+    }
+  ]
+}
