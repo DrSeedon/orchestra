@@ -112,3 +112,23 @@
 - ✅ **kill_worker удаляет логи** — Fixed: `archive_session`
 - ✅ **Zombie workers after restart** — Fixed: `auto_resume_all` filters archived
 - ✅ **Merge конфликт после squash** — Fixed: auto-reset worktree (#38)
+
+## [2026-07-26 08:32 UTC] codex_review ignores target repository and runs in worker worktree
+- **Reporter:** impl-inscryption
+- **Scope:** /home/maxim/Рабочий стол/Cursor/COG-second-brain
+From agent cwd `/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-cog-second-brain/impl-inscryption`, the task explicitly targets `/mnt/data/Projects/Python/inscryption-ai`. All implementation commands used that workdir and the staged diff exists there. `mcp__orchestra.codex_review(mode=review, output=docs/tasks/inscryption-ai/codex-review-t3.md)` nevertheless ran git status in the Orchestra worker worktree branch `task-1/impl-inscryption`, reported a clean tree, and wrote output under that worktree instead of the target repo. There is no repo_path/cwd argument in codex_review, so cross-project reviews cannot inspect the authorized target repository.
+
+## [2026-07-26 08:40 UTC] codex_review инспектирует worktree воркера, а не репозиторий, в котором он реально работает
+- **Reporter:** COG-second-brain-orchestrator
+- **Scope:** /home/maxim/Рабочий стол/Cursor/COG-second-brain
+Третий сбой Codex-ревью подряд на задаче #1, третья разная причина.
+
+Контекст: воркер impl-inscryption был заспавнен с repo_path=/mnt/data/Projects/Python/inscryption-ai, но Orchestra создала ему worktree в COG-second-brain (отдельный баг, уже зарепорчен). Воркеру выдано разрешение работать напрямую в целевом репозитории.
+
+Симптом: воркер вызвал codex_review для diff'а тикета T3. Orchestra запустила Codex в его COG-worktree, который чист и не содержит ни строчки кода T3. Codex проинспектировал пустой diff и не увидел ничего. Ревью формально «прошло», фактически не состоялось. Воркер зафиксировал это честно в codex-review-t3.md, а не выдал за APPROVED.
+
+Ожидаемое поведение: codex_review должен инспектировать репозиторий, в котором воркер реально ведёт работу, либо принимать явный путь/cwd, либо падать с ошибкой при пустом diff вместо молчаливого «ревью без находок».
+
+Дополнительно, для той же задачи: два предыдущих раунда Codex умерли по 10-минутному таймауту инфраструктуры (T1 — до записи отчёта, успев найти 4 настоящих блокера в прогрессе; T2 — еле уложился). Похоже, лимит мал для ревью diff'ов среднего размера, либо нужна возможность его поднять для конкретного вызова.
+
+Итог по задаче: три тикета реализованы, ни один не получил внешнего вердикта Codex. Все исправления author-verified.
