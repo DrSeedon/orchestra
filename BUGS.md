@@ -132,3 +132,37 @@ From agent cwd `/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-
 Дополнительно, для той же задачи: два предыдущих раунда Codex умерли по 10-минутному таймауту инфраструктуры (T1 — до записи отчёта, успев найти 4 настоящих блокера в прогрессе; T2 — еле уложился). Похоже, лимит мал для ревью diff'ов среднего размера, либо нужна возможность его поднять для конкретного вызова.
 
 Итог по задаче: три тикета реализованы, ни один не получил внешнего вердикта Codex. Все исправления author-verified.
+
+## [2026-07-26 09:26 UTC] spawn_worker: malformed API response (missing repo_path, git_common_dir) — воркер создан, задача не доставлена
+- **Reporter:** Orchestra-orchestrator
+- **Scope:** /mnt/data/Projects/Python/orchestra
+spawn_worker(name="feat-skill-index", repo_path="/mnt/data/Projects/Python/orchestra", model="gpt-5.6-sol", role="full-cycle", task_id="89") вернул ошибку: "malformed API response after session creation (missing: repo_path, git_common_dir); worker may have been created — inspect list_agents before retrying."
+
+Фактически: воркер СОЗДАН (виден в list_agents, статус idle, task_id 89), но задача НЕ доставлена — get_worker_logs пуст. То есть частичный успех подан как ошибка, и оркестратор должен сам догадаться проверить и дослать task через send_message.
+
+Контекст: случилось сразу после мержа #88 (fix-repo-path), который добавил строгую валидацию repo_path и preflight в manager. Вероятно, ответ теперь формируется до/без заполнения полей repo_path/git_common_dir, либо новый preflight меняет форму ответа. Regression-кандидат к ff6bb73.
+
+Ожидаемо: либо spawn атомарен (не создался — значит не создался), либо ответ честно сообщает "worker created, task NOT sent, resend via send_message".
+
+## [2026-07-26 09:40 UTC] RAG-бэкфилл на merge_worker не успевает/не срабатывает — память отдаёт устаревший файл
+- **Reporter:** Orchestra-orchestrator (найдено воркером audit-fullcycle при приёмке R1)
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Сразу после `merge_worker` семантический индекс ещё СТАРЫЙ: `search_memory` возвращает предыдущую
+версию файла как «текущую». В окне после мержа любой агент получает устаревшую картину и не узнаёт
+об этом. Ручной `POST /api/memory/reindex` чинит за ~4 минуты.
+Триггер переиндексации — fire-and-forget (`app/routes/sessions.py:678-687`), поэтому недоказуемо,
+«не сработал» он или «не успел».
+Воспроизведение: смержить ветку, изменившую CLAUDE.md, и сразу спросить `search_memory` про
+перенесённый фрагмент — вернётся дореформенная версия.
+Что мешает: неясно, нужна ли синхронная переиндексация (4 мин блокировки merge неприемлемы) или
+достаточно статуса/повторной попытки. Нужен замер реального времени и надёжности триггера.
+
+## [2026-07-26 09:45 UTC] `.claude/skills/` в Claude-worktree не обновляется после создания
+- **Reporter:** Orchestra-orchestrator
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Скиллы копируются в worktree воркера при СОЗДАНИИ и больше не синхронизируются. У воркера
+`audit-fullcycle` в `.claude/skills/` до сих пор лежит `self-analysis`, удалённый из пайплайна
+2026-07-26. Тот же класс, что был у зеркала `AGENTS.md` (снимок при рождении).
+Воспроизведение: `ls worktrees/<scope>/<worker>/.claude/skills/` у давно созданного Claude-воркера.
+Что мешает: осознанно вынесено за скоуп задачи #89 (там решался Codex-путь). Нужно решить, где
+синхронизировать — по аналогии с `workspace.sync_agents_md()` на коннекте бэкенда.
