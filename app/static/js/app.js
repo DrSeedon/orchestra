@@ -800,7 +800,6 @@ function _paintStatusDot(dot, o) {
     const state = _orchState(o);
     dot.textContent = _STATUS_ICON[state];
     dot.style.backgroundColor = _STATUS_BG[state];
-    dot.style.boxShadow = `inset 0 0 0 1px ${_STATUS_COLOR[state]}`;
     dot.title = _STATUS_TITLE[state];
 }
 
