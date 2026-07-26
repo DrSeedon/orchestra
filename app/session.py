@@ -197,6 +197,8 @@ class AgentSession:
     _turn_gen: int = field(default=0, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _spawn_warning: str = field(default="", repr=False)
+    _spawn_repo_path: str = field(default="", repr=False)
+    _spawn_git_common_dir: str = field(default="", repr=False)
     _auto_continue_count: int = field(default=0, repr=False)
     _rate_limit_retries: int = field(default=0, repr=False)
     _server_error_retries: int = field(default=0, repr=False)

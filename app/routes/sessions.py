@@ -131,6 +131,9 @@ async def create_session(req: CreateSessionRequest):
             tg_topic=req.tg_topic,
         )
         d = session.to_dict()
+        if req.use_worktree:
+            d["repo_path"] = session._spawn_repo_path
+            d["git_common_dir"] = session._spawn_git_common_dir
         if session._spawn_warning:
             d["spawn_warning"] = session._spawn_warning
         return d

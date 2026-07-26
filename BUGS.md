@@ -9,13 +9,6 @@
 - **Как воспроизвести:** `codex_review(mode="exec", target="docs/tasks/polish-tg/plan.md", output="docs/tasks/polish-tg/codex-review-plan.md")` — jobs `bg-a7fa044d22` и `bg-6d2189ac4a`; transport failure — `bg-d8a75a53aa`.
 - **Что мешает починить:** две причины пока не изолированы: runner теряет фокус на крупной цели, а транспорт отказывает независимо от target routing. Стабильного минимального repro нет; повторять длинные review вслепую нельзя, потому что каждый прогон расходует 10 минут и квоту. До диагностики — узкий prompt/target, максимум одна финальная повторная попытка и честный self-review при отказе.
 
-### 🔴 `spawn_worker` молча игнорирует незарегистрированный `repo_path`
-
-- **Reporters / dates:** batch4-food-services (2026-07-24), COG-second-brain-orchestrator (2026-07-26).
-- **Что сломано:** worker получает branch/worktree репозитория оркестратора вместо переданного целевого Git-репозитория. В Seedon `git rev-parse --git-common-dir` у batch4-food-services указывал на Orchestra; для `/mnt/data/Projects/Python/inscryption-ai` параметр также молча откатился к scope COG-second-brain.
-- **Как воспроизвести:** из зарегистрированного проекта вызвать `spawn_worker(..., repo_path="<валидный, но не зарегистрированный repo>")`, затем сравнить `pwd`, `git rev-parse --git-common-dir` и ожидаемый repo. Ошибки при spawn нет.
-- **Что мешает починить:** API смешивает caller scope, реестр проектов и целевой `repo_path`; нужно либо создавать worktree строго из аргумента, либо fail loud до spawn. Workaround с прямым коммитом в target `main` ломает `merge_worker`/`worker_wip`. Исправление выделено в отдельную работу `fix-repo-path`.
-
 ### 🔴 `merge_worker` не может слить child в checked-out ветку parent
 
 - **Reporter:** research-codex-abuse (2026-07-18).
@@ -77,6 +70,12 @@
 - **История:** девять инцидентов одного класса: 06-14 combat-dev; 07-01 research-proxy; 07-11 research-grok; 07-12 research-interaction-tax и research-rag-orchestra; 07-16 legal-payment-researcher; 07-18 research-self-improve и codex-limits-source; 07-19 sensar-client-offer. Симптомы: запуск из main checkout вместо caller worktree, review чужого diff, output в неверном месте либо отсутствует, обрезанный `last_output`, сообщение `done/Results in ...` при пустом artifact.
 - **Исправление:** `d4c0719` добавил `cwd`/`worktree_path` в session payload и выбор caller worktree; `dfe0930` добавил atomic `.round` finalization, очистку stale temp state, проверку non-empty `success_file`/`## Verdict` и fail notification вместо false success.
 - **Проверка:** свежие непустые artifacts успешно созданы в worktrees audit-fullcycle (`docs/tasks/fullcycle-audit/codex-review-research.md`) и feat-usage-analytics (`docs/tasks/usage-analytics/codex-review-impl.md`, 2026-07-26, с несколькими verdict rounds). Инциденты polish-tg от 25 июля имеют другой профиль и оставлены открытыми отдельно.
+
+#### ✅ `spawn_worker` и `repo_path`: исходный диагноз опровергнут, реальные дефекты закрыты в #88
+
+- **История:** batch4-food-services (2026-07-24) получил Orchestra worktree, потому что caller `sales` сам передал `repo_path=/mnt/data/Projects/Python/orchestra` при logical scope Seedon. У `impl-inscryption` (2026-07-26) Git common dir с самого начала был `/mnt/data/Projects/Python/inscryption-ai/.git`; COG присутствовал только в slug logical scope. Незарегистрированные репозитории уже поддерживались, fallback через project registry в spawn chain отсутствовал.
+- **Реальные дефекты:** вложенный каталог Git-репозитория молча резолвился в родительский root; успешный ответ `spawn_worker` не показывал фактические worktree, repository, common dir и branch, поэтому неверный caller input и scope slug выглядели как игнорирование параметра.
+- **Исправление:** #88 добавил exact-root preflight до spawn side effects с явными ошибками для nested/non-Git/bare/linked/external layouts и возвращает server-validated repository/common-dir mapping в success response. Исходное утверждение «незарегистрированный `repo_path` молча заменяется репозиторием scope» — **REFUTED**.
 
 - ✅ **Cosmetic topic-status calls starved TG outbound pipeline** — `a566371`: topic metadata вынесены из message queue в best-effort вызов с одной попыткой/5s timeout; iteration races закрыты snapshot-ами. `tests/test_tg_bridge.py`: 56 passed.
 - ✅ **Codex workers тратили wall-clock на `sleep` рядом с `codex_review`** — `d19ad34`: tool text теперь требует `END YOUR TURN NOW`, base prompt запрещает polling external state, RUNNING→IDLE retry race удалён. Evidence: `docs/tasks/codex-sleep/`.

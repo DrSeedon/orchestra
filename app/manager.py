@@ -20,7 +20,10 @@ from app.prompting import (
 
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
-from app.workspace import create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap
+from app.workspace import (
+    create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap,
+    validate_repo_root,
+)
 from app.models import (
     CONTEXT_LIMITS,
     available_models_block,
@@ -401,11 +404,20 @@ class SessionManager:
         model = resolve_model(model)
         if not Path(cwd).is_dir():
             raise ValueError(f"cwd does not exist: {cwd}")
+        spawn_repo_path = ""
+        spawn_git_common_dir = ""
         existing = get_session_by_name(name, scope)
         if existing:
             st = existing.get("status", "?")
             ctx = existing.get("context_pct", 0) or 0
             raise ValueError(f"worker '{name}' already exists ({st}, ctx:{ctx}%). Use send_message instead")
+        if use_worktree and not repo_path:
+            raise ValueError("repo_path required when use_worktree=True")
+        if use_worktree:
+            repo_root = validate_repo_root(repo_path)
+            repo_path = str(repo_root)
+            spawn_repo_path = repo_path
+            spawn_git_common_dir = str((repo_root / ".git").resolve())
         # An archived row still holds UNIQUE(name, scope) but get_session_by_name hides it →
         # INSERT would IntegrityError. Free the slot (its logs cascade — it's gone anyway).
         delete_archived_session(name, scope)
@@ -525,6 +537,8 @@ class SessionManager:
         session.is_orchestrator = is_orch
         session._template_hash = prompt_template_hash(role)
         session._spawn_warning = ""
+        session._spawn_repo_path = spawn_repo_path
+        session._spawn_git_common_dir = spawn_git_common_dir
         save_session(session._to_db_dict())
 
         if task_id and not is_orch:

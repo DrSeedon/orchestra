@@ -33,6 +33,84 @@ def wt_root(tmp_path, monkeypatch):
     return root
 
 
+class TestValidateRepoRoot:
+    def test_accepts_primary_git_root(self, git_repo):
+        from app.workspace import validate_repo_root
+
+        assert validate_repo_root(f"{git_repo}/") == git_repo.resolve()
+
+    def test_missing_path_raises(self, tmp_path):
+        from app.workspace import validate_repo_root
+
+        missing = tmp_path / "missing"
+        with pytest.raises(ValueError, match="repo_path does not exist"):
+            validate_repo_root(str(missing))
+
+    def test_standalone_non_git_raises(self, tmp_path):
+        from app.workspace import validate_repo_root
+
+        not_git = tmp_path / "not-git"
+        not_git.mkdir()
+        with pytest.raises(ValueError, match="repo_path is not a Git repository"):
+            validate_repo_root(str(not_git))
+
+    def test_nested_directory_reports_discovered_root(self, git_repo):
+        from app.workspace import validate_repo_root
+
+        nested = git_repo / "src"
+        nested.mkdir()
+        with pytest.raises(ValueError, match="must be the Git repository root") as exc:
+            validate_repo_root(str(nested))
+        assert str(nested) in str(exc.value)
+        assert str(git_repo) in str(exc.value)
+
+    def test_linked_worktree_raises(self, git_repo, tmp_path):
+        from app.workspace import validate_repo_root
+
+        linked = tmp_path / "linked"
+        subprocess.run(
+            ["git", "worktree", "add", "-b", "linked-test", str(linked)],
+            cwd=git_repo, capture_output=True, check=True,
+        )
+        with pytest.raises(ValueError, match="primary Git repository root"):
+            validate_repo_root(str(linked))
+
+    def test_primary_worktree_with_separate_git_dir_is_rejected(self, tmp_path):
+        from app.workspace import validate_repo_root
+
+        repo = tmp_path / "repo"
+        git_dir = tmp_path / "repo-git"
+        subprocess.run(
+            ["git", "init", "--separate-git-dir", str(git_dir), str(repo)],
+            capture_output=True, check=True,
+        )
+
+        with pytest.raises(
+            ValueError, match="primary Git repository root.*gitfile repositories",
+        ):
+            validate_repo_root(str(repo))
+
+    def test_symlinked_git_dir_is_rejected(self, git_repo, tmp_path):
+        from app.workspace import validate_repo_root
+
+        external_git_dir = tmp_path / "external-git-dir"
+        (git_repo / ".git").rename(external_git_dir)
+        (git_repo / ".git").symlink_to(external_git_dir, target_is_directory=True)
+
+        with pytest.raises(
+            ValueError, match="primary Git repository root.*external Git directories",
+        ):
+            validate_repo_root(str(git_repo))
+
+    def test_bare_repository_raises(self, tmp_path):
+        from app.workspace import validate_repo_root
+
+        bare = tmp_path / "bare.git"
+        subprocess.run(["git", "init", "--bare", str(bare)], capture_output=True, check=True)
+        with pytest.raises(ValueError, match="bare Git repository.*primary working tree"):
+            validate_repo_root(str(bare))
+
+
 class TestCreateWorktree:
     def test_success(self, git_repo, wt_root):
         from app.workspace import create_worktree
@@ -108,8 +186,26 @@ class TestCreateWorktree:
         from app.workspace import create_worktree
         not_git = tmp_path / "not-a-repo"
         not_git.mkdir()
-        with pytest.raises(RuntimeError, match="failed"):
+        with pytest.raises(ValueError, match="repo_path is not a Git repository"):
             create_worktree(str(not_git), "worker-1", "/scope")
+
+    def test_nested_repo_path_raises_instead_of_using_parent(self, git_repo, wt_root):
+        from app.workspace import create_worktree
+
+        nested = git_repo / "nested"
+        nested.mkdir()
+        with pytest.raises(ValueError, match="must be the Git repository root"):
+            create_worktree(str(nested), "worker-1", "/scope")
+
+    def test_unregistered_scope_still_uses_requested_repo(self, git_repo, wt_root):
+        from app.workspace import create_worktree
+
+        wt = create_worktree(str(git_repo), "worker-1", "/different/logical/scope")
+        common = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=wt.path, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        assert Path(common).resolve() == (git_repo / ".git").resolve()
 
     def test_existing_branch_reuses(self, git_repo, wt_root):
         from app.workspace import create_worktree, remove_worktree

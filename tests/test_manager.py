@@ -114,6 +114,59 @@ class TestCreateSession:
             )
         assert session.worktree_path is not None
         assert session.branch is not None
+        assert session._spawn_repo_path == str(repo.resolve())
+        assert session._spawn_git_common_dir == str((repo / ".git").resolve())
+
+    @pytest.mark.asyncio
+    async def test_repo_preflight_runs_before_spawn_side_effects(self, mgr, tmp_path):
+        repo = _git_repo(tmp_path)
+        nested = repo / "nested"
+        nested.mkdir()
+
+        with patch(
+            "app.manager.validate_repo_root",
+            side_effect=ValueError("repo_path must be the Git repository root"),
+        ) as validate, patch(
+            "app.manager.delete_archived_session",
+        ) as delete_archived, patch(
+            "app.manager.save_session",
+        ) as save, patch.object(
+            mgr, "_auto_commit_if_dirty",
+        ) as auto_commit:
+            with pytest.raises(ValueError, match="must be the Git repository root"):
+                await mgr.create_session(
+                    name="w1", scope="/s", cwd=str(nested), model="m",
+                    use_worktree=True, repo_path=str(nested),
+                )
+
+        validate.assert_called_once_with(str(nested))
+        delete_archived.assert_not_called()
+        save.assert_not_called()
+        auto_commit.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("repo_path", ["", None])
+    async def test_missing_repo_path_fails_before_spawn_side_effects(
+        self, mgr, repo_path,
+    ):
+        with patch(
+            "app.manager.delete_archived_session",
+        ) as delete_archived, patch(
+            "app.manager.save_session",
+        ) as save, patch.object(
+            mgr, "_auto_commit_if_dirty",
+        ) as auto_commit:
+            with pytest.raises(
+                ValueError, match="repo_path required when use_worktree=True",
+            ):
+                await mgr.create_session(
+                    name="w1", scope="/s", cwd="/tmp", model="m",
+                    use_worktree=True, repo_path=repo_path,
+                )
+
+        delete_archived.assert_not_called()
+        save.assert_not_called()
+        auto_commit.assert_not_called()
 
 
 class TestWorktreeBaseBranch:

@@ -153,10 +153,46 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     result = await _api("POST", "/api/sessions", json=body)
     if isinstance(result, dict) and result.get("error"):
         return f"Spawn failed: {result['error']}"
-    await _api("POST", f"/api/sessions/{name}/send", json={
+    required = ("worktree_path", "branch", "repo_path", "git_common_dir")
+    missing = [
+        field for field in required
+        if (
+            not isinstance(result, dict)
+            or not isinstance(result.get(field), str)
+            or not result[field].strip()
+        )
+    ]
+    if missing:
+        return (
+            "Spawn failed: malformed API response after session creation "
+            f"(missing: {', '.join(missing)}); worker may have been created — "
+            "inspect list_agents before retrying."
+        )
+    mapping = (
+        f"Worktree: {result['worktree_path']}"
+        f"\nRepository: {result['repo_path']}"
+        f"\nGit common dir: {result['git_common_dir']}"
+        f"\nBranch: {result['branch']}"
+    )
+    send_result = await _api("POST", f"/api/sessions/{name}/send", json={
         "message": task, "scope": scope, "sender": WORKER_NAME or ROLE,
     })
+    if (
+        not isinstance(send_result, dict)
+        or send_result.get("ok") is not True
+        or send_result.get("error")
+    ):
+        detail = (
+            send_result.get("error", "malformed API response")
+            if isinstance(send_result, dict)
+            else "malformed API response"
+        )
+        return (
+            f"Worker '{name}' was created, but initial task delivery failed: {detail}.\n"
+            f"{mapping}\nUse send_message to deliver the task before retrying spawn."
+        )
     out = f"Worker '{name}' spawned. Model: {model}. Task sent."
+    out += f"\n{mapping}"
     if isinstance(result, dict) and result.get("spawn_warning"):
         out += f"\n⚠️ {result['spawn_warning']}"
     return out
