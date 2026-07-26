@@ -124,6 +124,7 @@ class AgentSession:
     cost_usd_cached: float = 0.0
     worktree_path: str | None = None
     branch: str | None = None
+    base_branch: str = ""
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     role: str = "worker"
     parent_id: str = ""
@@ -1514,7 +1515,9 @@ class AgentSession:
             "cost_usd": self.cost_usd, "cost_usd_cached": self.cost_usd_cached,
             "context_cost": self._context_cost,
             "worktree_path": self.worktree_path,
-            "branch": self.branch, "is_orchestrator": self.is_orchestrator,
+            "branch": self.branch, "base_branch": self.base_branch,
+            "needs_switch": int(self.needs_switch),
+            "is_orchestrator": self.is_orchestrator,
             "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
             "pipeline": self.pipeline,
             "profile": self.profile,
@@ -1554,6 +1557,8 @@ class AgentSession:
             "cost_usd": round(self.cost_usd, 4),
             "cost_usd_cached": round(self.cost_usd_cached, 4),
             "branch": self.branch,
+            "base_branch": self.base_branch,
+            "needs_switch": self.needs_switch,
             "is_orchestrator": self.is_orchestrator,
             "role": self.role, "parent_id": self.parent_id, "parent_name": self.parent_name,
             "color": self.color,

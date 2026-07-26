@@ -318,6 +318,30 @@ async def test_merge_worker_no_next_task_id(monkeypatch):
     with patch.object(m, "_api", side_effect=fake_api):
         await m.merge_worker(name="coder")
     assert "next_task_id" not in captured["json"]
+    assert captured["json"]["target"] == ""
+
+
+@pytest.mark.asyncio
+async def test_switch_and_wip_defaults_defer_to_persisted_base(monkeypatch):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        if path.endswith("/switch-branch"):
+            return {"ok": True, "branch": "task-91/coder"}
+        return {
+            "uncommitted": [], "unmerged_commits": [], "changed_files": [],
+            "context_pct": 0, "status": "idle",
+        }
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.switch_worker_branch(name="coder", task_id="91")
+        await m.worker_wip(name="coder")
+
+    assert calls[0][2]["json"]["from_ref"] == ""
+    assert calls[1][2]["params"]["base_ref"] == ""
 
 
 @pytest.mark.asyncio

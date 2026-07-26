@@ -109,7 +109,9 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        owned_dirs: str = "",
                        tg_topic: bool = False) -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).
-    base_branch — от какой ветки ответвить worktree воркера. Пусто ("") = авто по стратегии пайплайна (parent → от ветки родителя, иначе main); явно указанная ветка переопределяет стратегию.
+    base_branch — от какой локальной ветки ответвить worktree. Пусто ("") = авто по
+    стратегии пайплайна: parent → ветка родителя, main → проверяемый mainline репозитория.
+    При неоднозначности spawn требует явную ветку.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
@@ -497,8 +499,9 @@ async def change_worker_model(name: str, model: str) -> str:
 
 
 @mcp.tool()
-async def merge_worker(name: str, target: str = "main", next_task_id: str = "") -> str:
-    """Merge a worker's branch into target branch (default main). Always squash — one clean commit per task. Returns commit count or conflict file list. Pass next_task_id to auto-switch to new branch after merge."""
+async def merge_worker(name: str, target: str = "", next_task_id: str = "") -> str:
+    """Squash a worker branch into its persisted base branch.
+    Pass target only to override that base, and next_task_id to auto-switch afterwards."""
     body = {"scope": SCOPE, "target": target, "squash": True}
     if next_task_id:
         body["next_task_id"] = next_task_id
@@ -530,9 +533,9 @@ async def merge_worker(name: str, target: str = "main", next_task_id: str = "") 
 
 
 @mcp.tool()
-async def switch_worker_branch(name: str, task_id: str, from_ref: str = "refs/heads/main") -> str:
+async def switch_worker_branch(name: str, task_id: str, from_ref: str = "") -> str:
     """After merge, switch worker to a new branch for a new task.
-    from_ref — ветка, от которой ответвляется новая (default refs/heads/main; воркер feature-ветки → refs/heads/feature/<...>).
+    from_ref — optional local base override; empty uses the worker's persisted base.
     Worker must be idle with clean working tree."""
     result = await _api("POST", f"/api/sessions/{name}/switch-branch",
                         json={"scope": SCOPE, "task_id": task_id, "from_ref": from_ref})
@@ -541,7 +544,7 @@ async def switch_worker_branch(name: str, task_id: str, from_ref: str = "refs/he
     if isinstance(result, dict) and result.get("ok"):
         return f"Switched to branch {result.get('branch', '?')}"
     if isinstance(result, dict) and result.get("conflicts"):
-        return f"Merge conflict with main on: {', '.join(result['conflicts'])}"
+        return f"Merge conflict with base branch on: {', '.join(result['conflicts'])}"
     return f"Switch result: {result}"
 
 
@@ -562,9 +565,9 @@ async def check_conflict(worker_a: str, worker_b: str) -> str:
 
 
 @mcp.tool()
-async def worker_wip(name: str, base_ref: str = "refs/heads/main") -> str:
+async def worker_wip(name: str, base_ref: str = "") -> str:
     """Show a worker's WIP: uncommitted files + unmerged commits. Call before resuming to see what's left.
-    base_ref default refs/heads/main — pass the worker's actual base branch if it was spawned from a feature branch."""
+    Empty base_ref uses the worker's persisted base branch."""
     result = await _api("GET", f"/api/sessions/{name}/wip",
                         params={"scope": SCOPE, "base_ref": base_ref})
     if isinstance(result, dict) and result.get("error"):
@@ -576,10 +579,11 @@ async def worker_wip(name: str, base_ref: str = "refs/heads/main") -> str:
     changed_files = result.get("changed_files", [])
     ctx = result.get("context_pct", 0)
     status = result.get("status", "?")
+    effective_base = result.get("base_ref") or base_ref or "persisted base"
     ctx_str = f" | ctx:{ctx}% | {status}" if ctx else f" | {status}"
     if not uncommitted and not unmerged:
-        return f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {base_ref})"
-    parts = [f"WIP for '{name}'{ctx_str} (vs {base_ref}):"]
+        return f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {effective_base})"
+    parts = [f"WIP for '{name}'{ctx_str} (vs {effective_base}):"]
     if uncommitted:
         parts.append(f"  Uncommitted ({len(uncommitted)}): " + ", ".join(uncommitted[:20]))
     if unmerged:

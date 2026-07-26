@@ -22,7 +22,7 @@ from app.prompting import (
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import (
     create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap,
-    validate_repo_root,
+    validate_repo_root, resolve_base_branch as resolve_git_base_branch,
 )
 from app.models import (
     CONTEXT_LIMITS,
@@ -45,6 +45,7 @@ from app.pipeline import (
 from app.db import (
     save_session, get_session_by_name, get_all_sessions,
     delete_session, delete_archived_session, archive_session, get_stats,
+    update_session_lifecycle,
 )
 
 logger = logging.getLogger(__name__)
@@ -478,7 +479,10 @@ class SessionManager:
 
         # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
-        base_branch = self._resolve_base_branch(base_branch, pipeline, role, parent_name, scope)
+        if use_worktree and repo_path:
+            base_branch = self._resolve_base_branch(
+                base_branch, pipeline, role, parent_name, scope, repo_path,
+            )
 
         # Root orchestrators get a dedicated TG topic so users can message them
         # directly from Telegram without knowing worker names
@@ -499,6 +503,7 @@ class SessionManager:
             mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name, extra=custom_mcp),
             mcp_servers_custom=custom_mcp,
             backend_type=bt, effort=effort, task_id=task_id, description=description,
+            base_branch=base_branch,
             owned_dirs=owned_dirs,
             tg_topic=tg_topic,
         )
@@ -548,7 +553,7 @@ class SessionManager:
                 session.system_prompt = safe_format_prompt(
                     session.system_prompt,
                     worker_name=name, orchestrator_name=orch_name or "orchestrator",
-                    scope=scope, branch=session.branch or "main",
+                    scope=scope, branch=session.branch or session.base_branch,
                 )
                 session.on_idle = self._make_idle_callback(scope)
 
@@ -782,6 +787,7 @@ class SessionManager:
             _context_cost=row.get("context_cost") or 0.0,
             worktree_path=row.get("worktree_path"),
             branch=row.get("branch"),
+            base_branch=row.get("base_branch") or "",
             created_at=datetime.fromisoformat(row["created_at"]) if row.get("created_at") else datetime.now(timezone.utc),
             role=row.get("role") or "worker",
             parent_id=row.get("parent_id") or "",
@@ -845,6 +851,40 @@ class SessionManager:
                 c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id))
         return found
 
+    async def persist_lifecycle(
+        self,
+        session: AgentSession,
+        *,
+        branch: str,
+        base_branch: str,
+        task_id: str,
+        needs_switch: bool,
+    ) -> None:
+        """Persist one Git lifecycle snapshot for loaded or detached sessions."""
+        if session.loaded:
+            await session._drain_persist()
+        session.branch = branch
+        session.base_branch = base_branch
+        session.task_id = task_id
+        session.needs_switch = needs_switch
+        updated = await asyncio.to_thread(
+            update_session_lifecycle,
+            session.id,
+            branch=branch,
+            base_branch=base_branch,
+            task_id=task_id,
+            needs_switch=needs_switch,
+        )
+        if not updated:
+            raise RuntimeError(f"cannot persist lifecycle for session {session.id}")
+        if session.db_row is not None:
+            session.db_row.update(
+                branch=branch,
+                base_branch=base_branch,
+                task_id=task_id,
+                needs_switch=int(needs_switch),
+            )
+
     def _resolve_role(self, name: str, scope: str) -> str | None:
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
@@ -869,26 +909,20 @@ class SessionManager:
         return (row.get("profile") or "") if row else ""
 
     def _resolve_base_branch(self, base_branch: str, pipeline: str, role: str,
-                             parent_name: str, scope: str) -> str:
+                             parent_name: str, scope: str, repo_path: str) -> str:
         """Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
 
-        Приоритеты:
-        - явно переданная ``base_branch`` важнее стратегии манифеста (B3);
-        - нет манифеста / ``strategy=main`` → ``"main"`` (back-compat с апстримом);
-        - ``strategy=parent`` → ветка рабочего дерева родителя; если её нет —
-          fallback на ``"main"`` с warning (корневой Хаб без worktree и т.п.).
+        Explicit base wins. ``strategy=parent`` uses the parent's actual branch;
+        ``strategy=main`` and missing parents use the repository's verifiable mainline.
         """
-        # B3: явно переданная ветка важнее стратегии манифеста.
         if base_branch:
-            return base_branch
+            return resolve_git_base_branch(repo_path, base_branch)
         try:
             rr = get_role(pipeline, role)
         except FileNotFoundError:
             rr = None
-        # Нет манифеста / стратегия main → от main (back-compat, default 1:1 upstream).
         if rr is None or rr.base_branch_strategy == "main":
-            return "main"
-        # strategy == "parent": ветка рабочего дерева родителя.
+            return resolve_git_base_branch(repo_path)
         parent_branch = ""
         if parent_name:
             ps = self.get_by_name(parent_name, scope)
@@ -896,10 +930,11 @@ class SessionManager:
                 parent_branch = ps.branch or ""
         if not parent_branch:
             logger.warning(
-                "base_branch_strategy=parent, но у родителя '%s' нет ветки — fallback на main",
+                "base_branch_strategy=parent, но у родителя '%s' нет ветки — "
+                "resolving repository mainline",
                 parent_name)
-            return "main"
-        return parent_branch
+            return resolve_git_base_branch(repo_path)
+        return resolve_git_base_branch(repo_path, parent_branch)
 
     @staticmethod
     def _role_is_orchestrator(pipeline: str, role: str) -> bool:
@@ -985,6 +1020,7 @@ class SessionManager:
             cost_usd_cached=db_row.get("cost_usd_cached", 0),
             _context_cost=db_row.get("context_cost", 0),
             worktree_path=wt_path, branch=db_branch,
+            base_branch=db_row.get("base_branch") or "",
             created_at=datetime.fromisoformat(db_row["created_at"]) if db_row.get("created_at") else datetime.now(timezone.utc),
             role=role,
             parent_id=db_row.get("parent_id", ""),
@@ -1010,6 +1046,7 @@ class SessionManager:
         session.total_cache_create_tokens = db_row.get("total_cache_create_tokens") or 0
         session.total_tool_calls = db_row.get("total_tool_calls") or 0
         session.is_orchestrator = is_orch  # R1: восстановить денормализованное поле
+        session.needs_switch = bool(db_row.get("needs_switch") or 0)
         raw_hist = db_row.get("session_id_history") or "[]"
         try:
             session.session_id_history = json.loads(raw_hist) if isinstance(raw_hist, str) else raw_hist
@@ -1025,13 +1062,15 @@ class SessionManager:
             current_prompt = safe_format_prompt(
                 current_prompt,
                 worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
-                scope=db_row["scope"], branch=db_row.get("branch") or "main",
+                scope=db_row["scope"],
+                branch=db_row.get("branch") or db_row.get("base_branch") or "",
             )
         if old_prompt and old_prompt != current_prompt:
             formatted_base = safe_format_prompt(
                 ROLE_SYSTEM_PROMPT(pipeline, role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role),
                 worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
-                scope=db_row["scope"], branch=db_row.get("branch") or "main",
+                scope=db_row["scope"],
+                branch=db_row.get("branch") or db_row.get("base_branch") or "",
             )
             if old_prompt.startswith(formatted_base) and len(old_prompt) > len(formatted_base):
                 custom_part = old_prompt[len(formatted_base):]
