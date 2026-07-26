@@ -108,6 +108,56 @@ def test_header_has_orch_tabs(dashboard_page: Page):
     expect(tabs).to_be_visible()
 
 
+def test_orchestrator_unread_tracks_own_turn_only(dashboard_browser: Browser):
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    assert source.count("_unreadTabs.add(") == 1
+    assert source.count("className = 'tab-unread'") == 1
+    assert "_orchestratorTurnFinished(existing, fo)" in source
+
+    def function_source(name):
+        marker = f"function {name}"
+        return marker + source.split(marker, 1)[1].split("\n}\n", 1)[0] + "\n}"
+
+    page = dashboard_browser.new_page()
+    page.set_content("<div id='tab'></div>")
+    page.add_script_tag(content="\n".join([
+        "const _unreadTabs = new Set();",
+        function_source("_orchestratorTurnFinished"),
+        function_source("_syncUnreadDot"),
+    ]))
+
+    result = page.evaluate("""() => {
+        const workerFinished = _orchestratorTurnFinished(
+            {status: 'idle', any_running: true},
+            {status: 'idle', any_running: false},
+        );
+        const orchestratorFinished = _orchestratorTurnFinished(
+            {status: 'running', any_running: true},
+            {status: 'idle', any_running: true},
+        );
+        const tab = document.getElementById('tab');
+        _syncUnreadDot(tab, '/foreign');
+        const before = tab.querySelectorAll('.tab-unread').length;
+        _unreadTabs.add('/foreign');
+        _syncUnreadDot(tab, '/foreign');
+        _syncUnreadDot(tab, '/foreign');
+        const afterAdd = tab.querySelectorAll('.tab-unread').length;
+        _unreadTabs.delete('/foreign');
+        _syncUnreadDot(tab, '/foreign');
+        const afterDelete = tab.querySelectorAll('.tab-unread').length;
+        return {workerFinished, orchestratorFinished, before, afterAdd, afterDelete};
+    }""")
+    page.close()
+
+    assert result == {
+        "workerFinished": False,
+        "orchestratorFinished": True,
+        "before": 0,
+        "afterAdd": 1,
+        "afterDelete": 0,
+    }
+
+
 def test_left_panel_has_tabs(dashboard_page: Page):
     files_tab = dashboard_page.locator('[data-left-tab="files"]')
     tasks_tab = dashboard_page.locator('[data-left-tab="tasks"]')

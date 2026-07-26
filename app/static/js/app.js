@@ -803,6 +803,22 @@ function _paintStatusDot(dot, o) {
     dot.title = _STATUS_TITLE[state];
 }
 
+function _orchestratorTurnFinished(previous, current) {
+    return previous.status === 'running' && current.status !== 'running';
+}
+
+function _syncUnreadDot(tab, scope) {
+    const existing = tab.querySelector('.tab-unread');
+    if (_unreadTabs.has(scope) && !existing) {
+        const unread = document.createElement('span');
+        unread.className = 'tab-unread';
+        unread.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 4px rgba(239,68,68,0.6)';
+        tab.appendChild(unread);
+    } else if (!_unreadTabs.has(scope) && existing) {
+        existing.remove();
+    }
+}
+
 function renderOrchTabs(sorted) {
     const tabs = $('#orch-tabs');
     tabs.innerHTML = '';
@@ -835,12 +851,7 @@ function renderOrchTabs(sorted) {
         }
         tab.title = o.scope;
         tab.style.position = 'relative';
-        if (_unreadTabs.has(o.scope)) {
-            const unread = document.createElement('span');
-            unread.className = 'tab-unread';
-            unread.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 4px rgba(239,68,68,0.6)';
-            tab.appendChild(unread);
-        }
+        _syncUnreadDot(tab, o.scope);
         tab.addEventListener('click', () => selectOrchestrator(o.name, o.scope));
         tab.addEventListener('dragstart', (e) => {
             dragTab = tab;
@@ -1117,15 +1128,7 @@ function updateOrchTabDots() {
         if (!o) return;
         const dot = tab.querySelector('.tab-dot');
         if (dot) _paintStatusDot(dot, o);
-        const existing = tab.querySelector('.tab-unread');
-        if (_unreadTabs.has(scope) && !existing) {
-            const unread = document.createElement('span');
-            unread.className = 'tab-unread';
-            unread.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 4px rgba(239,68,68,0.6)';
-            tab.appendChild(unread);
-        } else if (!_unreadTabs.has(scope) && existing) {
-            existing.remove();
-        }
+        _syncUnreadDot(tab, scope);
     });
 }
 
@@ -4928,9 +4931,7 @@ async function refreshSessions() {
             for (const fo of freshOrchs) {
                 const existing = orchData.find(o => o.name === fo.name);
                 if (existing) {
-                    const wasRunning = existing.status === 'running' || existing.any_running;
-                    const nowIdle = fo.status !== 'running' && !fo.any_running;
-                    if (wasRunning && nowIdle && fo.scope !== currentScope) {
+                    if (_orchestratorTurnFinished(existing, fo) && fo.scope !== currentScope) {
                         _unreadTabs.add(fo.scope);
                     }
                     existing.status = fo.status; existing.cost_usd = fo.cost_usd; existing.any_running = fo.any_running;
