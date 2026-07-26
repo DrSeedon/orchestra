@@ -778,6 +778,27 @@ function _setHiddenTabs(set) {
     localStorage.setItem('orchestra_hidden_tabs', JSON.stringify([...set]));
 }
 
+// Status must be readable by SHAPE, not hue alone — idle(yellow) vs waiting(orange)
+// were indistinguishable at a glance. Single source of truth for both paint sites.
+const _TAB_STATUS = {
+    running: ['#22c55e', '►', 'running — агент выполняет задачу'],
+    waiting: ['#f59e0b', '‖', 'waiting — агент ждёт фоновую задачу или подтверждение'],
+    idle: ['#eab308', '○', 'idle — агент простаивает'],
+};
+
+function _orchState(o) {
+    if (o.status === 'running' || o.any_running) return 'running';
+    if (o.any_waiting) return 'waiting';
+    return 'idle';
+}
+
+function _paintStatusDot(dot, o) {
+    const [color, glyph, title] = _TAB_STATUS[_orchState(o)];
+    dot.style.backgroundColor = color;
+    dot.textContent = glyph;
+    dot.title = title;
+}
+
 function renderOrchTabs(sorted) {
     const tabs = $('#orch-tabs');
     tabs.innerHTML = '';
@@ -793,7 +814,7 @@ function renderOrchTabs(sorted) {
         tab.draggable = true;
         const dot = document.createElement('span');
         dot.className = 'tab-dot';
-        dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : o.any_waiting ? '#f59e0b' : '#eab308';
+        _paintStatusDot(dot, o);
         const label = document.createElement('span');
         const shortName = o.name.replace(/-orchestrator$/, '');
         label.textContent = shortName;
@@ -1091,7 +1112,7 @@ function updateOrchTabDots() {
         const o = orchData.find(x => x.scope === scope);
         if (!o) return;
         const dot = tab.querySelector('.tab-dot');
-        if (dot) dot.style.backgroundColor = (o.status === 'running' || o.any_running) ? '#22c55e' : o.any_waiting ? '#f59e0b' : '#eab308';
+        if (dot) _paintStatusDot(dot, o);
         const existing = tab.querySelector('.tab-unread');
         if (_unreadTabs.has(scope) && !existing) {
             const unread = document.createElement('span');
