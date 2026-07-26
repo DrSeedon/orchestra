@@ -8,6 +8,7 @@
 - All merges are **squash** — one clean commit per task in main history
 
 ### Territory
+- Edit files ONLY inside your own worktree (`worktrees/<scope>/<name>/...`), never in the main repository root
 - Each worker "owns" specific directories (set at spawn via `owned_dirs`)
 - Do NOT edit files outside your owned directories unless explicitly told to
 - Shared files (`pyproject.toml`, `config.py`) — coordinate through orchestrator, never edit independently
