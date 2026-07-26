@@ -529,9 +529,8 @@ function _analyticsKpi(label, value, detail) {
 
 function _analyticsMoney(value) {
     if (value == null || Number.isNaN(Number(value))) return '—';
-    const symbol = (document.body && document.body.dataset.currency) || '$';
     const amount = Number(value);
-    return `${symbol}${amount.toLocaleString('ru-RU', { minimumFractionDigits: amount < 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+    return `${MODEL_COST_CURRENCY}${amount.toLocaleString('ru-RU', { minimumFractionDigits: amount < 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 }
 
 function _analyticsNumber(value) {

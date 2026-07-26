@@ -32,16 +32,18 @@ The production service was not restarted.
 - Telemetry writes run through the dedicated DB executor and cannot abort a healthy model turn.
 - Out-of-order period responses cannot overwrite the active analytics snapshot.
 - Missing Claude capacity does not hide valid Codex capacity, or vice versa.
+- Frontend money domains are explicit: task/payment values use configured `CUR`; model, turn, voice, subscription, and API-equivalent costs use the fixed USD symbol.
 
 ## Verification
 
 - Focused aggregation/database/session suite: `180 passed`.
 - Related analytics/provider/session/frontend suite: `167 passed`.
-- Final analytics backend + Playwright suite: `21 passed`.
-- Final complete suite: `847 passed, 20 skipped in 82.40s`.
+- Final analytics backend + Playwright suite: `21 passed`; currency-specific frontend suite: `10 passed`.
+- Final complete suite after the currency fix: `849 passed, 20 skipped in 87.20s`.
 - `git diff --check $(git merge-base main HEAD)..HEAD`: clean.
 - Isolated visual checks: desktop `1600x1000` and mobile `390x844`; no document overflow or JavaScript errors.
-- Codex implementation review: Round 3 **APPROVED** after all original findings and the rollout task-cost P2 were fixed. See `codex-review-impl.md`.
+- Live dashboard Playwright check with worktree assets and `data-currency="₽"`: analytics and model pricing rendered `$`, task panel retained `₽`, and page errors were empty.
+- Codex implementation review: Round 4 **APPROVED** after all original findings, the rollout task-cost P2, and the currency-domain follow-up were fixed. See `codex-review-impl.md`.
 
 ## Compatibility and rollout
 

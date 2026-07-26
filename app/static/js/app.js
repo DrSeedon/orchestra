@@ -1,6 +1,6 @@
 // Cap DOM nodes to avoid memory growth during long agent sessions
 const MAX_CHAT_NODES = 500;
-function fmtCost(v) { v = Number(v) || 0; if (v === 0) return '$0.00'; if (v < 0.01) return '$' + v.toFixed(4); return '$' + v.toFixed(2); }
+function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
 const _MODEL_COLORS = {
     'claude-opus-5[1m]': '#d8b4fe', 'claude-opus-4-8[1m]': '#c084fc', 'claude-opus-4-6[1m]': '#a78bfa',
     'claude-sonnet-5[1m]': '#38bdf8', 'claude-haiku-4-5': '#4ade80',
@@ -1312,7 +1312,7 @@ function updateAgentInfo(session) {
     $('#ai-role').textContent = session.role || 'worker';
     // Cost is virtual (API-equivalent), not real spend — subscription model
     $('#ai-cost').textContent = fmtCost(session.cost_usd);
-    $('#ai-cost').title = `$${(session.cost_usd || 0).toFixed(4)} (CLI cost, includes cache)`;
+    $('#ai-cost').title = `${MODEL_COST_CURRENCY}${(session.cost_usd || 0).toFixed(4)} (CLI cost, includes cache)`;
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
     const descEl = $('#ai-desc'); const descLabel = $('#ai-desc-label');
@@ -4012,7 +4012,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     const ctxPct = parsed.context_pct || 0;
                     const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
                     _row('Context', `${ctxPct}%`, ctxColor);
-                    _row('Cost', `$${parsed.cost_usd ?? 0}`, '#22c55e');
+                    _row('Cost', `${MODEL_COST_CURRENCY}${parsed.cost_usd ?? 0}`, '#22c55e');
                     if (parsed.task_id) _row('Task', `#${parsed.task_id}`, '#a78bfa');
                     if (parsed.total_turns) _row('Turns', parsed.total_turns);
                     if (parsed.total_tool_calls) _row('Tool calls', parsed.total_tool_calls);
@@ -4898,7 +4898,7 @@ async function refreshSessions() {
         if (capturedScope !== currentScope) return;
         _onServerOk();
 
-        $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">$${stats.total_cost_usd} (w/o cache)</span>`;
+        $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd} (w/o cache)</span>`;
         renderAgentList(sessions);
 
         try {
@@ -5087,7 +5087,6 @@ async function _renderClientModal() {
         const data = await api('/api/models');
         const models = data.models || [];
         const connected = data.proxy_connected;
-        const currency = document.body.dataset.currency || '$';
         let html = `<div class="flex items-center justify-between p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 mb-3">
             <div class="flex items-center gap-2">
                 <span class="text-xs font-medium ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? '🟢 Connected' : '🔴 Offline'}</span>
@@ -5100,8 +5099,8 @@ async function _renderClientModal() {
             html += `<div class="text-[10px] text-slate-500 mb-2 uppercase tracking-wider font-bold">Models (${models.length})</div>`;
             for (const m of models) {
                 const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k` : '';
-                const priceIn = m.price_input != null ? `${currency}${m.price_input}/M` : '';
-                const priceOut = m.price_output != null ? `${currency}${m.price_output}/M` : '';
+                const priceIn = m.price_input != null ? `${MODEL_COST_CURRENCY}${m.price_input}/M` : '';
+                const priceOut = m.price_output != null ? `${MODEL_COST_CURRENCY}${m.price_output}/M` : '';
                 html += `<div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 mb-2">
                     <div class="flex items-center justify-between">
                         <span class="font-medium text-slate-200 text-xs">${escHtml(m.name)}</span>
