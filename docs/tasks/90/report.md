@@ -75,3 +75,56 @@
 - T7 slug/snapshot hardening.
 
 Сервер не рестартовал; live DB и live worktree не изменялись.
+
+## T2 — Merge in target-owning checkout
+
+Статус: **DONE**, ожидает merge Orchestra-orchestrator.
+
+### Что изменено
+
+- `merge_worktree_to_main()` разрешает владельца target-ветки через
+  `git worktree list --porcelain` и выполняет precheck/squash/commit в этом checkout.
+- Если target-ветка никем не занята, сохранён прежний путь: временный checkout в primary
+  repo с восстановлением исходной ветки.
+- Worker и target обязаны быть чистыми. Ошибка перечисляет изменённые пути; merge больше
+  не делает скрытых `stash`/`stash pop`.
+- После успешного merge child worktree остаётся на своей branch, но его HEAD/index/tree
+  сбрасываются к новому target commit.
+- `prunable`/исчезнувший target checkout даёт явный `{ok: false}` без автоматического
+  `git worktree prune` и без изменения child.
+
+### Проверка
+
+- Реальные Git-тесты:
+  - child → feature-ветка, checked out в parent worktree;
+  - dirty parent и dirty primary отклоняются без stash и без изменения HEAD;
+  - удалённый зарегистрированный checkout воспроизводит `prunable` и отклоняется без
+    исключения.
+- `tests/test_workspace.py`: `66 passed in 6.40s`.
+- Full suite: `1023 passed in 116.84s`; raw log: `/tmp/pytest-90-t2.log`.
+- Read-only live validation:
+  - 80 non-archived sessions;
+  - 24 canonical repositories from union `sessions.scope` + actual `worktree_path`
+    Git common-dir;
+  - 62/62 existing active worktrees resolved to their actual Git owner;
+  - 89/89 non-prunable registry entries resolved; 4/4 prunable entries rejected;
+  - 0 validation errors, 1 pre-existing missing worktree;
+  - 13 legacy `sessions.branch` values differ from actual checkout branch; live DB was
+    not changed, and T2 validation used Git as the source of truth.
+- `git diff --check`: clean.
+
+### Review
+
+- Codex first found that the parser returned a path before reading the record's trailing
+  `prunable` marker. The defect was reproduced in `/tmp`, fixed by complete-record parsing,
+  and covered by a real Git regression.
+- Resume round: **APPROVED**, prior P2 fixed, no new findings. Full record:
+  `docs/tasks/90/codex-review-t2.md`.
+
+### Compatibility / remaining work
+
+- Intentional behavior change: dirty target now fails loud instead of being auto-stashed.
+- Stale worktree metadata is reported but never pruned automatically.
+- Commit/link rollback and honest link result remain T3.
+
+Сервер не рестартовал; live DB и live worktree не изменялись.
