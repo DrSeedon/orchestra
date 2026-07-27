@@ -15,10 +15,12 @@ import pytest
 
 from app.backend_grok import (
     GrokBackend,
+    GrokMcpIsolationError,
     GROK_CONTEXT_LIMITS,
     GROK_COST_TICK_USD,
     GROK_TOKEN_PRICES,
     _grok_cost,
+    ensure_grok_home,
 )
 from app.models import backend_for_model, get_model_spec, resolve_model
 from app.runtime_registry import get_runtime
@@ -202,7 +204,9 @@ def test_in_progress_tool_update_emits_nothing():
 
 
 def test_mcp_failure_is_surfaced_as_warning():
-    b = _backend()
+    # Configured with orchestra, so a healthy orchestra is silent — an unconfigured server
+    # reaching `ready` is a different case and is covered by the isolation tests below.
+    b = _backend(mcp_servers={"orchestra": {"command": "x"}})
     (warn,) = b._convert({"method": "_x.ai/mcp/server_status", "params": {
         "name": "orchestra", "status": "unavailable", "detail": "handshake failed"}})
     assert warn.type == "warning"
@@ -274,6 +278,131 @@ def test_mcp_servers_translate_to_acp_shape_with_env_pairs():
 def test_mcp_server_without_command_or_url_is_skipped():
     b = _backend(mcp_servers={"broken": {}})
     assert b._mcp_server_configs() == []
+
+
+# ── MCP isolation (T2) ──
+#
+# Grok merges servers it discovers itself into every session — passing only `orchestra`
+# still started the user's websearch/pandoc servers and broadcast their env, which is how a
+# live OPENROUTER_API_KEY reached a task artifact. Measured, not assumed:
+#   - session/new.mcpServers MERGES with discovery, it does not replace it
+#   - `[compat.claude] mcps = false` suppresses it, but only from the USER config;
+#     the same key in a project .grok/config.toml is ignored
+# Hence an Orchestra-owned GROK_HOME plus a check on what actually came up.
+
+def test_expected_servers_seeded_from_our_config_only():
+    b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+    assert b._expected_servers == {"orchestra"}
+
+
+def test_isolation_passes_when_only_expected_servers_start():
+    async def scenario():
+        b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+        b._mcp_ready = asyncio.Event()
+        b._mcp_ready.set()
+        b._started_servers = {"orchestra"}
+        await b._verify_mcp_isolation()
+    asyncio.run(scenario())
+
+
+def test_isolation_refuses_connect_on_foreign_server():
+    """A worker with foreign tools — and foreign secrets in their env — must not start."""
+    async def scenario():
+        b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+        b._mcp_ready = asyncio.Event()
+        b._mcp_ready.set()
+        b._started_servers = {"orchestra", "websearch"}
+        await b._verify_mcp_isolation()
+    with pytest.raises(GrokMcpIsolationError, match="websearch"):
+        asyncio.run(scenario())
+
+
+def test_roster_tracked_from_servers_updated_not_only_status():
+    """servers_updated lands before mcp_initialized; server_status can arrive mid-turn.
+
+    Tracking only server_status made the connect-time check pass vacuously.
+    """
+    b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+    b._track_mcp({"method": "_x.ai/mcp/servers_updated", "params": {"mcpServers": [
+        {"name": "websearch", "env": [{"name": "OPENROUTER_API_KEY", "value": "sk-leak"}]},
+    ]}})
+    assert b._started_servers == {"websearch"}
+
+
+def test_roster_ignores_servers_that_never_became_ready():
+    b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+    b._track_mcp({"method": "_x.ai/mcp/server_status",
+                  "params": {"name": "broken", "status": "unavailable"}})
+    assert b._started_servers == set()
+
+
+def test_mcp_initialized_sets_ready_gate():
+    b = _backend()
+    b._mcp_ready = asyncio.Event()
+    b._track_mcp({"method": "_x.ai/mcp_initialized", "params": {"mcpToolCount": 35}})
+    assert b._mcp_ready.is_set()
+
+
+def test_unexpected_ready_server_surfaces_as_error_mid_session():
+    b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+    (event,) = b._convert({"method": "_x.ai/mcp/server_status",
+                           "params": {"name": "websearch", "status": "ready"}})
+    assert event.type == "error"
+    assert "isolation breach" in event.content
+    assert b._convert({"method": "_x.ai/mcp/server_status",
+                       "params": {"name": "orchestra", "status": "ready"}}) == []
+
+
+def test_grok_home_is_isolated_and_disables_claude_compat_mcp(tmp_path, monkeypatch):
+    home = tmp_path / "grok-home"
+    fake_user_home = tmp_path / "user-grok"
+    fake_user_home.mkdir()
+    (fake_user_home / "auth.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr("app.backend_grok.GROK_HOME_DIR", home)
+    monkeypatch.setattr("app.backend_grok.GROK_USER_HOME", fake_user_home)
+
+    result = ensure_grok_home()
+    assert result == home
+    config = (home / "config.toml").read_text(encoding="utf-8")
+    assert "[compat.claude]" in config and "mcps = false" in config
+    # Credentials are shared by symlink so a token refresh does not rot in a private copy.
+    assert (home / "auth.json").is_symlink()
+    assert (home / "auth.json").readlink() == fake_user_home / "auth.json"
+    # Idempotent: a second connect must not fail or duplicate the link.
+    ensure_grok_home()
+    assert (home / "auth.json").is_symlink()
+
+
+def test_grok_home_fails_loud_without_credentials(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.backend_grok.GROK_HOME_DIR", tmp_path / "h")
+    monkeypatch.setattr("app.backend_grok.GROK_USER_HOME", tmp_path / "missing")
+    with pytest.raises(RuntimeError, match="grok login"):
+        ensure_grok_home()
+
+
+def test_build_env_forces_orchestra_grok_home(tmp_path, monkeypatch):
+    home = tmp_path / "grok-home"
+    fake_user_home = tmp_path / "user-grok"
+    fake_user_home.mkdir()
+    (fake_user_home / "auth.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr("app.backend_grok.GROK_HOME_DIR", home)
+    monkeypatch.setattr("app.backend_grok.GROK_USER_HOME", fake_user_home)
+    # An inherited GROK_HOME must not defeat isolation.
+    monkeypatch.setenv("GROK_HOME", "/somewhere/else")
+    assert _backend()._build_env()["GROK_HOME"] == str(home)
+
+
+def test_explicit_grok_bin_env_beats_path_autodiscovery(monkeypatch):
+    """A stray `grok` in PATH must not win over deliberate configuration."""
+    import importlib
+    monkeypatch.setenv("GROK_BIN", "/opt/pinned/grok")
+    monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/grok")
+    module = importlib.reload(importlib.import_module("app.backend_grok"))
+    try:
+        assert module.GROK_BIN == "/opt/pinned/grok"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(module)
 
 
 # ── system prompt delivery ──
