@@ -1,0 +1,715 @@
+"""GrokBackend — wraps the Grok Build CLI (ACP over stdio) for agent sessions."""
+
+import asyncio
+import json
+import logging
+import os
+import shutil
+import tempfile
+from pathlib import Path
+from typing import AsyncIterator, Optional
+
+from app.events import AgentEvent
+
+logger = logging.getLogger(__name__)
+
+GROK_BIN = (
+    shutil.which("grok")
+    or os.environ.get("GROK_BIN")
+    or os.path.expanduser("~/.grok/bin/grok")
+)
+
+# Measured from the runtime, not from docs: initialize/session/new both report
+# totalContextTokens=500000 for grok-4.5. The bundled README's numbers disagree with the
+# runtime elsewhere (see docs/tasks/95/research.md), so the runtime value wins and any
+# per-session value it reports overrides this fallback.
+GROK_CONTEXT_LIMITS = {
+    "grok-4.5": 500000,
+}
+GROK_DEFAULT_CONTEXT = 500000
+
+# Rate card reconciled against the runtime's own costUsdTicks to zero residual across three
+# turns (docs/tasks/95/research.md F7). The published cached rate is $0.50/M; the runtime
+# bills $0.30/M and the arithmetic only closes at $0.30 — the runtime wins.
+GROK_TOKEN_PRICES = {
+    "grok-4.5": {"input": 2.0, "cached": 0.30, "output": 6.0},
+}
+
+# The runtime reports cost in ticks of 1e-10 USD. Confirmed twice: solved from the usage
+# arithmetic, then corroborated by headless JSON emitting total_cost_usd alongside
+# total_cost_usd_ticks at exactly this ratio.
+GROK_COST_TICK_USD = 1e-10
+
+GROK_REASONING_EFFORTS = {"low", "medium", "high"}
+GROK_SILENCE_HEARTBEAT_SECONDS = 30
+
+
+def _grok_cost(model: str, input_tokens: int, cached_tokens: int, output_tokens: int) -> float:
+    prices = GROK_TOKEN_PRICES.get(model)
+    if not prices:
+        return 0.0
+    cached = min(max(0, cached_tokens), max(0, input_tokens))
+    fresh = max(0, input_tokens - cached)
+    return (fresh * prices["input"] + cached * prices["cached"]
+            + max(0, output_tokens) * prices["output"]) / 1_000_000
+
+
+_TOOL_ARGUMENT_LONG_FIELDS = {
+    "content", "context", "description", "message", "prompt", "system_prompt", "task",
+}
+
+
+def _bounded(value, *, field: str = ""):
+    """Keep tool telemetry structured without letting prompts flood the log."""
+    if isinstance(value, dict):
+        return {str(k): _bounded(v, field=str(k)) for k, v in list(value.items())[:50]}
+    if isinstance(value, list):
+        return [_bounded(v, field=field) for v in value[:50]]
+    if isinstance(value, str):
+        limit = 4000 if field in _TOOL_ARGUMENT_LONG_FIELDS else 1500
+        if len(value) > limit:
+            return f"{value[:limit]}… [truncated {len(value) - limit} chars]"
+    return value
+
+
+def _content_text(content) -> str:
+    """Flatten an ACP content block (or list of them) to text."""
+    if isinstance(content, dict):
+        if content.get("type") == "text":
+            return str(content.get("text", ""))
+        return json.dumps(_bounded(content), ensure_ascii=False)
+    if isinstance(content, list):
+        return "\n".join(_content_text(part) for part in content)
+    return str(content) if content is not None else ""
+
+
+class GrokProtocolError(RuntimeError):
+    """JSON-RPC error returned by the Grok ACP agent."""
+
+    def __init__(self, method: str, error: dict):
+        self.method = method
+        self.error = error
+        super().__init__(f"{method}: {error.get('message', 'Grok ACP error')}")
+
+
+class GrokBackend:
+    """Persistent Grok ACP client.
+
+    One `grok agent stdio` process owns one resumable ACP session. Unlike Codex there is no
+    turn steering: a `session/prompt` sent while a turn runs is accepted into the agent's own
+    queue and executed as its OWN turn afterwards (measured). So `send()` never blocks on the
+    running turn, and N sends produce N turn_ends.
+    """
+
+    def __init__(self, model: str, cwd: str, system_prompt: str = "",
+                 resume_session_id: str | None = None,
+                 mcp_env: dict[str, str] | None = None,
+                 mcp_servers: dict | None = None,
+                 reasoning_effort: str = "high",
+                 is_orchestrator: bool = False):
+        self.model = model
+        self.cwd = cwd
+        self.system_prompt = system_prompt
+        self._session_id: str | None = resume_session_id
+        self._mcp_env: dict[str, str] = mcp_env or {}
+        self._mcp_servers: dict = mcp_servers or {}
+        self._is_orchestrator = is_orchestrator
+        self.reasoning_effort = (
+            reasoning_effort if reasoning_effort in GROK_REASONING_EFFORTS else "high"
+        )
+        self._proc: Optional[asyncio.subprocess.Process] = None
+        self._reader_task: Optional[asyncio.Task] = None
+        self._stderr_task: Optional[asyncio.Task] = None
+        self._notifications: asyncio.Queue[dict] = asyncio.Queue()
+        self._pending_requests: dict[int, asyncio.Future] = {}
+        self._request_seq = 0
+        self._write_lock = asyncio.Lock()
+        self._events_active = False
+        self._disconnecting = False
+        self._last_stderr = ""
+        self._profile_path: Path | None = None
+        # Turn bookkeeping. `_active_prompts` counts prompts accepted but not yet completed —
+        # the agent queues extras, so the event loop must not stop at the first completion.
+        self._active_prompts = 0
+        self._queue_depth = 0
+        self._completed_prompts: set[str] = set()
+        self._tool_names: dict[str, str] = {}
+        # turn_completed carries usage; the turn_end is emitted by the prompt completion.
+        self._pending_usage: dict = {}
+        self._model_context_window = GROK_CONTEXT_LIMITS.get(model, GROK_DEFAULT_CONTEXT)
+        self._context_tokens = 0
+
+    @property
+    def session_id(self) -> Optional[str]:
+        return self._session_id
+
+    @property
+    def is_alive(self) -> bool:
+        return self._proc is not None and self._proc.returncode is None
+
+    async def connect(self) -> None:
+        if self.is_alive:
+            return
+        if self._proc is not None:
+            await self.disconnect()
+        self._notifications = asyncio.Queue()
+        self._disconnecting = False
+        self._last_stderr = ""
+        self._active_prompts = 0
+        self._queue_depth = 0
+
+        cmd = [GROK_BIN, "agent"]
+        # The ONLY delivery route for a system prompt. ACP session/new has no such field:
+        # systemPrompt / _meta.systemPrompt / instructions are all accepted and SILENTLY
+        # ignored (measured) — a worker would run with no prompt and nobody would notice.
+        profile = self._write_agent_profile()
+        if profile:
+            cmd += ["--agent-profile", str(profile)]
+        cmd += ["--model", self.model, "--reasoning-effort", self.reasoning_effort]
+        # Managed workers delegate through tracked worktree workers, not invisible native
+        # subagents in their own checkout (matches the Codex features.multi_agent=false rule).
+        if self._is_orchestrator:
+            cmd += ["--no-subagents"]
+        cmd += ["stdio"]
+
+        self._proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=self._build_env(),
+            cwd=self.cwd,
+            # Codex hit asyncio's default 64KB StreamReader cap on long JSONL lines.
+            limit=16 * 1024 * 1024,
+        )
+        self._reader_task = asyncio.create_task(self._read_stdout())
+        self._stderr_task = asyncio.create_task(self._drain_stderr())
+        try:
+            result = await self._request("initialize", {
+                "protocolVersion": 1,
+                "clientCapabilities": {
+                    "fs": {"readTextFile": False, "writeTextFile": False},
+                    "terminal": False,
+                },
+            })
+            self._absorb_model_meta(result.get("_meta") or {})
+            params = {"cwd": self.cwd, "mcpServers": self._mcp_server_configs()}
+            if self._session_id:
+                params["sessionId"] = self._session_id
+                result = await self._request("session/load", params)
+            else:
+                result = await self._request("session/new", params)
+                session_id = result.get("sessionId")
+                if not session_id:
+                    raise RuntimeError("Grok ACP returned no session id")
+                self._session_id = session_id
+            self._absorb_models(result.get("models") or {})
+        except BaseException:
+            await self.disconnect()
+            raise
+
+    async def send(self, message: str) -> None:
+        if not self.is_alive:
+            await self.connect()
+        if not self._session_id:
+            raise RuntimeError("Grok session is not initialized")
+        self._active_prompts += 1
+        # Fire without awaiting: the session/prompt response only resolves when that turn
+        # ENDS, so awaiting here would block the caller for the whole turn.
+        task = asyncio.create_task(self._request("session/prompt", {
+            "sessionId": self._session_id,
+            "prompt": [{"type": "text", "text": message}],
+        }))
+        task.add_done_callback(self._on_prompt_settled)
+
+    def _on_prompt_settled(self, task: asyncio.Task) -> None:
+        """Surface a prompt that failed at the JSON-RPC layer (never silently drop it)."""
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is None:
+            return
+        logger.warning("Grok session/prompt failed: %s", exc)
+        self._notifications.put_nowait({
+            "method": "_prompt/failed",
+            "params": {"message": str(exc)},
+        })
+
+    async def events(self) -> AsyncIterator[AgentEvent]:
+        if not self.is_alive:
+            return
+        self._events_active = True
+        try:
+            while True:
+                try:
+                    message = await asyncio.wait_for(
+                        self._notifications.get(),
+                        timeout=GROK_SILENCE_HEARTBEAT_SECONDS,
+                    )
+                except asyncio.TimeoutError:
+                    if self._active_prompts <= 0:
+                        return
+                    yield AgentEvent(
+                        "thinking_stream",
+                        "Still working · no new events for 30s. Queued messages run after the current turn.",
+                        {"activity": "waiting", "item_id": self._session_id or ""},
+                    )
+                    continue
+                params = message.get("params") or {}
+                session_id = params.get("sessionId")
+                if session_id and self._session_id and session_id != self._session_id:
+                    continue
+                for event in self._convert(message):
+                    yield event
+                if message.get("method") == "_process/exited":
+                    return
+                # Stop only when nothing is running AND nothing is queued behind it —
+                # a queued prompt runs as its own turn and still needs a listener.
+                if self._active_prompts <= 0 and self._queue_depth <= 0:
+                    return
+        finally:
+            self._events_active = False
+
+    async def interrupt(self) -> bool:
+        if not self._session_id or not self.is_alive or self._active_prompts <= 0:
+            return False
+        try:
+            # Verified: cancel lands immediately, the prompt resolves with
+            # stopReason="cancelled" and streaming stops dead.
+            await self._notify("session/cancel", {"sessionId": self._session_id})
+            return True
+        except Exception as exc:
+            logger.warning("Grok session cancel failed: %s", exc)
+            return False
+
+    async def disconnect(self) -> None:
+        proc = self._proc
+        if proc is None:
+            self._cleanup_profile()
+            return
+        self._disconnecting = True
+        if self._active_prompts > 0 and proc.returncode is None:
+            await self.interrupt()
+        if proc.returncode is None:
+            proc.terminate()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+        for task in (self._reader_task, self._stderr_task):
+            if task and not task.done():
+                task.cancel()
+        for future in self._pending_requests.values():
+            if not future.done():
+                future.set_exception(RuntimeError("Grok ACP disconnected"))
+        self._pending_requests.clear()
+        self._proc = None
+        self._reader_task = None
+        self._stderr_task = None
+        self._active_prompts = 0
+        self._queue_depth = 0
+        self._cleanup_profile()
+
+    # ── transport ──
+
+    async def _request(self, method: str, params: dict) -> dict:
+        if not self._proc or not self._proc.stdin or self._proc.returncode is not None:
+            raise RuntimeError("Grok ACP agent is not running")
+        self._request_seq += 1
+        request_id = self._request_seq
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        try:
+            await self._write({"jsonrpc": "2.0", "method": method,
+                               "id": request_id, "params": params})
+            result = await future
+            return result if isinstance(result, dict) else {}
+        finally:
+            self._pending_requests.pop(request_id, None)
+
+    async def _notify(self, method: str, params: dict) -> None:
+        await self._write({"jsonrpc": "2.0", "method": method, "params": params})
+
+    async def _write(self, payload: dict) -> None:
+        if not self._proc or not self._proc.stdin:
+            raise RuntimeError("Grok ACP stdin is unavailable")
+        encoded = (json.dumps(payload, ensure_ascii=False) + "\n").encode()
+        async with self._write_lock:
+            self._proc.stdin.write(encoded)
+            await self._proc.stdin.drain()
+
+    async def _read_stdout(self) -> None:
+        proc = self._proc
+        if not proc or not proc.stdout:
+            return
+        try:
+            while True:
+                raw = await proc.stdout.readline()
+                if not raw:
+                    break
+                try:
+                    message = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    logger.warning("Grok ACP emitted invalid JSONL")
+                    continue
+                request_id = message.get("id")
+                if request_id is not None and message.get("method"):
+                    await self._answer_server_request(request_id, message)
+                    continue
+                if request_id is not None:
+                    future = self._pending_requests.get(request_id)
+                    if future and not future.done():
+                        if "error" in message:
+                            future.set_exception(
+                                GrokProtocolError("request", message.get("error") or {})
+                            )
+                        else:
+                            future.set_result(message.get("result") or {})
+                    # A prompt result carries the authoritative turn end.
+                    if "result" in message:
+                        result = message.get("result") or {}
+                        if "stopReason" in result:
+                            await self._notifications.put({
+                                "method": "_prompt/result",
+                                "params": result,
+                            })
+                    continue
+                if message.get("method"):
+                    await self._notifications.put(message)
+        except asyncio.CancelledError:
+            return
+        except Exception as exc:
+            logger.exception("Grok ACP reader failed: %s", exc)
+        finally:
+            returncode = await proc.wait()
+            error = RuntimeError(f"Grok ACP agent exited with code {returncode}")
+            for future in self._pending_requests.values():
+                if not future.done():
+                    future.set_exception(error)
+            if not self._disconnecting:
+                await self._notifications.put({
+                    "method": "_process/exited",
+                    "params": {"returncode": returncode, "stderr": self._last_stderr},
+                })
+
+    async def _answer_server_request(self, request_id, message: dict) -> None:
+        """Answer agent→client requests. Workers are autonomous: approve tool permissions.
+
+        Anything else is rejected explicitly so a turn fails loudly instead of deadlocking.
+        """
+        method = str(message.get("method") or "")
+        if "permission" in method.lower():
+            await self._write({
+                "jsonrpc": "2.0", "id": request_id,
+                "result": {"outcome": {"outcome": "selected", "optionId": "allow"}},
+            })
+            return
+        await self._write({
+            "jsonrpc": "2.0", "id": request_id,
+            "error": {"code": -32601,
+                      "message": f"Orchestra does not implement client request {method}"},
+        })
+
+    async def _drain_stderr(self) -> None:
+        proc = self._proc
+        if not proc or not proc.stderr:
+            return
+        try:
+            while True:
+                chunk = await proc.stderr.read(4096)
+                if not chunk:
+                    break
+                self._last_stderr = (
+                    self._last_stderr + chunk.decode("utf-8", errors="replace")
+                )[-4000:]
+        except asyncio.CancelledError:
+            return
+
+    # ── event conversion ──
+
+    def _convert(self, message: dict) -> list[AgentEvent]:
+        method = message.get("method", "")
+        params = message.get("params") or {}
+
+        if method == "session/update":
+            return self._session_update(params)
+
+        if method == "_x.ai/queue/changed":
+            entries = params.get("entries")
+            self._queue_depth = len(entries) if isinstance(entries, list) else 0
+            return []
+
+        if method == "_x.ai/session_notification":
+            update = params.get("update") or {}
+            if update.get("sessionUpdate") == "turn_completed":
+                return self._turn_completed(update)
+            return []
+
+        if method == "_x.ai/session/prompt_complete":
+            return self._finish_prompt(params.get("promptId"), params.get("stopReason"))
+
+        if method == "_prompt/result":
+            meta = params.get("_meta") or {}
+            return self._finish_prompt(meta.get("promptId"), params.get("stopReason"), meta)
+
+        if method == "_prompt/failed":
+            self._active_prompts = max(0, self._active_prompts - 1)
+            return [
+                AgentEvent("error", params.get("message", "Grok prompt failed"),
+                           {"model_error": "error"}),
+                self._turn_end_event(False, "error", "error"),
+            ]
+
+        if method == "_x.ai/mcp/server_status":
+            return self._mcp_status(params)
+
+        if method == "_x.ai/mcp_initialized":
+            count = params.get("mcpToolCount")
+            return [AgentEvent("status", f"grok mcp ready · {count} tools")]
+
+        if method == "error":
+            error = params.get("error") or params
+            content = error.get("message") or "Grok error"
+            return [AgentEvent("error", content,
+                               {"model_error": self._classify_error(error)})]
+
+        if method == "_process/exited":
+            self._active_prompts = 0
+            self._queue_depth = 0
+            return [AgentEvent("turn_end", "stop_reason=process_exit", metadata={
+                "session_id": self._session_id,
+                "ok": False,
+                "stop_reason": f"process_exit_{params.get('returncode')}",
+                "returncode": params.get("returncode"),
+                "stderr_tail": params.get("stderr", ""),
+                "model_error": "server_error",
+                "errors": ["server_error"],
+                "cost_usd": 0,
+                "context_pct": 0,
+                "context_tokens": 0,
+                "max_tokens": self._model_context_window,
+            })]
+
+        return []
+
+    def _session_update(self, params: dict) -> list[AgentEvent]:
+        update = params.get("update") or {}
+        kind = update.get("sessionUpdate", "")
+        meta = params.get("_meta") or {}
+        total = meta.get("totalTokens")
+        if isinstance(total, int) and total >= 0:
+            self._context_tokens = total
+
+        if kind == "agent_message_chunk":
+            return [AgentEvent("stream", _content_text(update.get("content")))]
+
+        if kind == "agent_thought_chunk":
+            return [AgentEvent("thinking_stream", _content_text(update.get("content")),
+                               {"activity": "reasoning",
+                                "item_id": str(meta.get("promptId") or "")})]
+
+        if kind == "tool_call":
+            tool_id = str(update.get("toolCallId") or update.get("id") or "")
+            name = str(update.get("title") or update.get("kind") or "tool")
+            self._tool_names[tool_id] = name
+            return [AgentEvent(
+                "tool_use",
+                f"{name}: {json.dumps(_bounded(update.get('rawInput') or {}), ensure_ascii=False)}",
+                metadata={"tool_name": name, "short_name": name, "tool_use_id": tool_id},
+            )]
+
+        if kind == "tool_call_update":
+            return self._tool_call_update(update)
+
+        if kind == "plan":
+            return [AgentEvent("plan", json.dumps(update.get("entries") or [],
+                                                  ensure_ascii=False))]
+        return []
+
+    def _tool_call_update(self, update: dict) -> list[AgentEvent]:
+        tool_id = str(update.get("toolCallId") or update.get("id") or "")
+        status = update.get("status")
+        title = update.get("title")
+        if title and tool_id:
+            # Grok routes MCP tools through a search_tool/use_tool meta-layer; the concrete
+            # name (e.g. orchestra__list_agents) arrives on the update, not the initial call.
+            self._tool_names[tool_id] = str(title)
+        if status not in ("completed", "failed"):
+            return []
+        name = self._tool_names.get(tool_id, "tool")
+        content = update.get("content")
+        text = _content_text(content) if content is not None else json.dumps(
+            {"status": status}, ensure_ascii=False
+        )
+        return [AgentEvent("tool_result", text[:20_000], metadata={
+            "tool_use_id": tool_id,
+            "tool_name": name,
+            "is_error": status == "failed",
+        })]
+
+    def _mcp_status(self, params: dict) -> list[AgentEvent]:
+        name = params.get("name") or "unknown"
+        status = params.get("status") or "unknown"
+        if status in ("ready", "starting"):
+            return []
+        detail = params.get("detail") or params.get("reason") or ""
+        content = f"grok mcp {name}: {status}"
+        if detail:
+            content = f"{content} — {detail}"
+        return [AgentEvent("warning", content)]
+
+    def _finish_prompt(self, prompt_id, stop_reason, meta: dict | None = None
+                       ) -> list[AgentEvent]:
+        """Emit exactly one turn_end per prompt.
+
+        Both `_x.ai/session/prompt_complete` and the `session/prompt` result mark the same
+        turn end; whichever lands first wins and the other is ignored.
+        """
+        key = str(prompt_id or "")
+        if key and key in self._completed_prompts:
+            return []
+        if key:
+            self._completed_prompts.add(key)
+        self._active_prompts = max(0, self._active_prompts - 1)
+        reason = str(stop_reason or "end_turn")
+        ok = reason == "end_turn"
+        model_error = "" if ok else ("interrupted" if reason == "cancelled" else "error")
+        usage = (meta or {}).get("usage") or {}
+        return [self._turn_end_event(ok, reason, model_error, usage)]
+
+    def _turn_completed(self, update: dict) -> list[AgentEvent]:
+        """Record usage; the turn_end itself is emitted by _finish_prompt."""
+        usage = update.get("usage") or {}
+        self._pending_usage = usage
+        return []
+
+    def _turn_end_event(self, ok: bool, stop_reason: str, model_error: str,
+                        usage: dict | None = None) -> AgentEvent:
+        totals: dict = usage or self._pending_usage or {}
+        input_tokens = max(0, int(totals.get("inputTokens") or 0))
+        cached = max(0, int(totals.get("cachedReadTokens") or 0))
+        output_tokens = max(0, int(totals.get("outputTokens") or 0))
+        ticks = totals.get("costUsdTicks")
+        if isinstance(ticks, (int, float)) and ticks >= 0:
+            cost = float(ticks) * GROK_COST_TICK_USD
+        else:
+            cost = _grok_cost(self.model, input_tokens, cached, output_tokens)
+        context_tokens = max(0, int(totals.get("totalTokens") or self._context_tokens))
+        window = self._model_context_window or GROK_DEFAULT_CONTEXT
+        stop_map = {"end_turn": "end_turn", "cancelled": "interrupted",
+                    "max_tokens": "max_tokens", "refusal": "refusal"}
+        self._pending_usage = {}
+        return AgentEvent("turn_end", f"stop_reason={stop_reason}", metadata={
+            "session_id": self._session_id,
+            "ok": ok,
+            "stop_reason": stop_map.get(stop_reason, stop_reason),
+            "cost_usd": cost,
+            "cost_usd_cached": cost,
+            "cost_is_delta": True,
+            "context_pct": min(100, int(context_tokens * 100 / window)) if window else 0,
+            "context_tokens": context_tokens,
+            "context_known": bool(context_tokens),
+            "max_tokens": window,
+            "cache_hit": int(cached * 100 / input_tokens) if input_tokens else 0,
+            "cache_read": cached,
+            "cache_create": 0,
+            "input_tokens": input_tokens,
+            "cached_input_tokens": cached,
+            "output_tokens": output_tokens,
+            "model_error": model_error,
+            "errors": [model_error] if model_error else [],
+        })
+
+    @staticmethod
+    def _classify_error(error: dict) -> str:
+        """Classify structurally; text matching only as a last resort.
+
+        The terminal quota-exhaustion shape is NOT known yet (could not exhaust SuperGrok —
+        see docs/tasks/95/research.md F7). Unknown errors stay "error" and fail loud rather
+        than being guessed into a rate_limit that silently retries.
+        """
+        code = error.get("code")
+        if code in (429,):
+            return "rate_limit"
+        message = str(error.get("message") or "").lower()
+        if any(part in message for part in (
+            "connection refused", "stream disconnected", "network error",
+            "tls", "unexpected eof", "error sending request",
+        )):
+            return "server_error"
+        return "error"
+
+    # ── config ──
+
+    def _absorb_model_meta(self, meta: dict) -> None:
+        state = meta.get("modelState") or {}
+        self._absorb_models(state)
+
+    def _absorb_models(self, models: dict) -> None:
+        for entry in models.get("availableModels") or []:
+            if entry.get("modelId") != self.model:
+                continue
+            window = (entry.get("_meta") or {}).get("totalContextTokens")
+            if isinstance(window, int) and window > 0:
+                self._model_context_window = window
+
+    def _mcp_server_configs(self) -> list[dict]:
+        """Translate Orchestra MCP config into ACP shape.
+
+        ACP wants env as a LIST of {name, value} pairs, not a dict — a silent mistranslation
+        here would start the server without its token.
+        """
+        servers = []
+        for name, cfg in self._mcp_servers.items():
+            command, url = cfg.get("command"), cfg.get("url")
+            if not command and not url:
+                continue
+            if command:
+                env = dict(self._mcp_env)
+                env.update({str(k): str(v) for k, v in (cfg.get("env") or {}).items()})
+                servers.append({
+                    "name": name,
+                    "type": "stdio",
+                    "command": str(command),
+                    "args": [str(a) for a in (cfg.get("args") or [])],
+                    "env": [{"name": k, "value": v} for k, v in env.items()],
+                })
+            else:
+                servers.append({"name": name, "type": "http", "url": str(url)})
+        return servers
+
+    def _write_agent_profile(self) -> Path | None:
+        if not self.system_prompt:
+            return None
+        fd, path = tempfile.mkstemp(prefix="orchestra-grok-", suffix=".md")
+        os.close(fd)
+        profile = Path(path)
+        # `agents_md: true` keeps the project AGENTS.md/CLAUDE.md on top of our prompt.
+        profile.write_text(
+            "---\n"
+            "name: orchestra-worker\n"
+            "description: Orchestra managed agent.\n"
+            "prompt_mode: full\n"
+            "model: inherit\n"
+            "agents_md: true\n"
+            "---\n\n"
+            f"{self.system_prompt}\n",
+            encoding="utf-8",
+        )
+        self._profile_path = profile
+        return profile
+
+    def _cleanup_profile(self) -> None:
+        if self._profile_path is None:
+            return
+        try:
+            self._profile_path.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning("Could not remove Grok agent profile: %s", exc)
+        self._profile_path = None
+
+    def _build_env(self) -> dict:
+        env = dict(os.environ)
+        env.update(self._mcp_env)
+        return env
