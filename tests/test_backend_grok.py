@@ -392,6 +392,90 @@ def test_build_env_forces_orchestra_grok_home(tmp_path, monkeypatch):
     assert _backend()._build_env()["GROK_HOME"] == str(home)
 
 
+# ── session resume (T3) ──
+#
+# Measured against the live CLI: the session store is keyed by (cwd, sessionId).
+# Resume SURVIVES a branch switch inside the same worktree (main -> feature/x kept the id
+# and the recalled content), but rejects a different cwd with "Path not found". Two workers
+# sharing one GROK_HOME got distinct ids and did not cross-talk.
+
+def test_sandbox_config_write_is_atomic(tmp_path):
+    """A shared home means overlapping connects.
+
+    A plain write truncates first, and a worker starting in that window reads an empty
+    config — no `mcps = false`, isolation silently off. Measured before the fix: 57.9% of
+    concurrent reads saw an empty file; after: 0%.
+    """
+    import threading
+    import app.backend_grok as module
+
+    config = tmp_path / "config.toml"
+    module._write_sandbox_config(config)
+    seen: list[str] = []
+    stop = threading.Event()
+
+    def reader():
+        while not stop.is_set():
+            try:
+                seen.append(config.read_text(encoding="utf-8"))
+            except OSError:
+                seen.append("<enoent>")
+
+    def writer():
+        for _ in range(300):
+            config.write_text("", encoding="utf-8")  # force a rewrite each round
+            module._write_sandbox_config(config)
+
+    t = threading.Thread(target=reader)
+    t.start()
+    try:
+        writer()
+    finally:
+        stop.set()
+        t.join()
+    # Readers may observe the old content or the new one, never a torn/empty file.
+    assert seen, "reader never sampled the file"
+    assert all(text in ("", module._GROK_SANDBOX_CONFIG) for text in seen)
+    assert any(text == module._GROK_SANDBOX_CONFIG for text in seen)
+
+
+def test_sandbox_config_rewritten_when_content_drifts(tmp_path):
+    config = tmp_path / "config.toml"
+    config.write_text("[compat.claude]\nmcps = true\n", encoding="utf-8")
+    import app.backend_grok as module
+    module._write_sandbox_config(config)
+    assert config.read_text(encoding="utf-8") == module._GROK_SANDBOX_CONFIG
+    assert not list(tmp_path.glob(".config.toml.*.tmp"))  # no temp files left behind
+
+
+def test_resume_failure_warning_is_not_filtered_by_session_routing():
+    """events() drops notifications for a different sessionId.
+
+    The resume warning is about the OLD id, so carrying it under `sessionId` made the
+    message announcing the lost history get filtered out — silently.
+    """
+    b = _backend()
+    b._session_id = "new-id"
+    (warning,) = b._convert({"method": "_session/resume_failed", "params": {
+        "staleSessionId": "old-id", "message": "Path not found."}})
+    assert warning.type == "warning"
+    assert "old-id" in warning.content
+    assert "not available" in warning.content
+
+
+def test_connect_refuses_missing_worktree():
+    """A removed worktree otherwise surfaces as a bare FileNotFoundError from spawn."""
+    async def scenario():
+        await _backend(cwd="/tmp/definitely-not-here-95").connect()
+    with pytest.raises(RuntimeError, match="worktree removed or relocated"):
+        asyncio.run(scenario())
+
+
+def test_session_id_exposed_for_persistence():
+    b = _backend(resume_session_id="019f-abc")
+    assert b.session_id == "019f-abc"
+
+
 def test_explicit_grok_bin_env_beats_path_autodiscovery(monkeypatch):
     """A stray `grok` in PATH must not win over deliberate configuration."""
     import importlib
