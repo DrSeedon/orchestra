@@ -756,7 +756,13 @@ class GrokBackend:
         return [self._turn_end_event(ok, reason, model_error, usage)]
 
     def _turn_completed(self, update: dict) -> list[AgentEvent]:
-        """Record usage; the turn_end itself is emitted by _finish_prompt."""
+        """Record usage; the turn_end itself is emitted by _finish_prompt.
+
+        This payload is PER TURN, unlike Codex where turn.completed.usage is cumulative for
+        the thread and has to be differenced. Measured over three turns in one session:
+        outputTokens 49 / 22 / 23, not 49 / 71 / 94. So it is consumed as-is — adding delta
+        bookkeeping here would understate, and accumulating would inflate, every session.
+        """
         usage = update.get("usage") or {}
         self._pending_usage = usage
         return []
