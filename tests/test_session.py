@@ -1173,6 +1173,8 @@ class TestCompactGuards:
         # user_message должен быть залогирован
         user_msgs = [(t, c) for t, c in logged if t == "user_message"]
         assert any(summary_text in c for _, c in user_msgs), "preamble должен быть залогирован как user_message"
+        # LOG_COMPACT_SUMMARY off by default → summary не уходит в TG как речь агента
+        assert not [c for t, c in logged if t == "text" and "Compact summary" in c]
 
     @pytest.mark.asyncio
     async def test_compact_ack_bound_to_gen(self, session, monkeypatch):
