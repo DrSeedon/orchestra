@@ -55,7 +55,7 @@ async def test_missing_resume_transcript_falls_back_to_fresh_client():
     fresh.connect = AsyncMock()
     fresh.disconnect = AsyncMock()
     b = ClaudeBackend(
-        model="claude-opus-4-6[1m]",
+        model="claude-opus-5[1m]",
         cwd="/tmp",
         resume_session_id="missing-session",
     )
@@ -79,7 +79,7 @@ async def test_existing_resume_transcript_does_not_hide_connect_failure():
     failed.connect = AsyncMock(side_effect=RuntimeError("upstream unavailable"))
     failed.disconnect = AsyncMock()
     b = ClaudeBackend(
-        model="claude-opus-4-6[1m]",
+        model="claude-opus-5[1m]",
         cwd="/tmp",
         resume_session_id="existing-session",
     )
@@ -138,7 +138,7 @@ def test_server_error_is_carried_into_terminal_turn_result():
 
     error_events = b._convert(AssistantMessage(
         content=[TextBlock("API Error: Response stalled mid-stream.")],
-        model="claude-opus-4-8",
+        model="claude-opus-5",
         error="server_error",
     ))
     result_events = b._convert(ResultMessage(

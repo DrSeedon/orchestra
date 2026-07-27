@@ -57,7 +57,10 @@ def test_opus5_registry_and_aliases():
     assert resolve_model("opus") == model_id
     assert resolve_model("opus5") == model_id
     assert resolve_model("claude-opus-5") == model_id
-    assert resolve_model("opus4.8") == "claude-opus-4-8[1m]"
+    # retired Opus 4.6/4.8 ids remap to Opus 5 — old sessions keep resolving
+    assert resolve_model("claude-opus-4-8[1m]") == model_id
+    assert resolve_model("claude-opus-4-6") == model_id
+    assert "claude-opus-4-8[1m]" not in MODELS
 
 
 def test_infer_others_to_opencode():

@@ -531,7 +531,7 @@ class TestRemoveScope:
         from app.db import save_session
         save_session({
             "id": "orch-x", "name": "orch-x-orchestrator", "scope": "/scope-x",
-            "cwd": "/tmp", "model": "claude-opus-4-8[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "#818cf8",
@@ -557,7 +557,7 @@ class TestRemoveScope:
         from app.db import save_session
         save_session({
             "id": "orch-y", "name": "orch-y-orchestrator", "scope": "/scope-y",
-            "cwd": "/tmp", "model": "claude-opus-4-8[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "#818cf8",
@@ -585,7 +585,7 @@ class TestAutoResume:
         from app.db import save_session
         save_session({
             "id": "orch-1", "name": "orchestrator", "scope": "/tmp",
-            "cwd": "/tmp", "model": "claude-opus-4-8[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": "sdk-123",
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "role": "orchestrator", "pipeline": "default",
@@ -1275,7 +1275,7 @@ class TestChangeOrchestratorScope:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             s = await mgr.create_session(
-                name=name, scope=scope, cwd="/tmp", model="claude-opus-4-8",
+                name=name, scope=scope, cwd="/tmp", model="claude-opus-5",
                 is_orchestrator=True,
             )
         s.session_id = "sdk-resume-token"
@@ -1404,7 +1404,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             orch = await mgr.create_session(
                 name="orch", scope="/old/proj", cwd="/tmp",
-                model="claude-opus-4-8", is_orchestrator=True,
+                model="claude-opus-5", is_orchestrator=True,
             )
         orch.session_id = "sdk-tok"
         orch.status = AgentStatus.IDLE
@@ -1431,7 +1431,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             orch = await mgr.create_session(
                 name="orch", scope="/old/proj", cwd="/tmp",
-                model="claude-opus-4-8", is_orchestrator=True,
+                model="claude-opus-5", is_orchestrator=True,
             )
         orch.session_id = "sdk-tok"
         orch.status = AgentStatus.IDLE

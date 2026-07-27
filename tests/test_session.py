@@ -822,7 +822,7 @@ class TestMakeBackendProfileWiring:
         monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
         from app.session import AgentSession
         defaults = dict(id="i", name="w", scope="/s", cwd="/tmp",
-                        model="claude-opus-4-8[1m]", system_prompt="x", role="worker")
+                        model="claude-opus-5[1m]", system_prompt="x", role="worker")
         defaults.update(kw)
         return AgentSession(**defaults)
 

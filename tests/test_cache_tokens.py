@@ -23,7 +23,7 @@ def db(tmp_path, monkeypatch):
 def _session(**kw):
     base = {
         "id": "s1", "name": "w1", "scope": "/s", "cwd": "/s",
-        "model": "claude-opus-4-8[1m]", "system_prompt": "", "status": "idle",
+        "model": "claude-opus-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": "sid", "cost_usd": 1.0, "worktree_path": "/s", "branch": "main",
         "is_orchestrator": False, "color": "",
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
@@ -135,7 +135,7 @@ class TestPersistRestore:
 
 class TestRecompute:
     def _row(self, **kw):
-        base = dict(name="w", model="claude-opus-4-8[1m]", cost_usd=1.0, cost_usd_cached=0.0,
+        base = dict(name="w", model="claude-opus-5[1m]", cost_usd=1.0, cost_usd_cached=0.0,
                     total_input_tokens=0, total_output_tokens=0,
                     total_cache_read_tokens=0, total_cache_create_tokens=0)
         base.update(kw)
@@ -144,7 +144,7 @@ class TestRecompute:
     def test_new_row_recomputes_from_raw(self):
         from app.routes.system import _cost_cached_for
         from app.models import TOKEN_PRICES
-        p = TOKEN_PRICES["claude-opus-4-8[1m]"]
+        p = TOKEN_PRICES["claude-opus-5[1m]"]
         r = self._row(total_input_tokens=1000, total_output_tokens=500,
                       total_cache_read_tokens=2000, total_cache_create_tokens=100,
                       cost_usd_cached=999.0)  # stored is stale/wrong
@@ -158,7 +158,7 @@ class TestRecompute:
         r = self._row(total_input_tokens=1000, total_output_tokens=500,
                       total_cache_read_tokens=2000, total_cache_create_tokens=100)
         before = _cost_cached_for(r)
-        monkeypatch.setitem(models.TOKEN_PRICES, "claude-opus-4-8[1m]",
+        monkeypatch.setitem(models.TOKEN_PRICES, "claude-opus-5[1m]",
                             {"input": 15.0, "output": 75.0})
         after = _cost_cached_for(r)
         assert after > before  # raw tokens repriced under new prices
