@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.25.0 — 2026-07-27 — #90 lifecycle T1–T3
+
+Аудит жизненного цикла worktree/merge (`docs/tasks/90/audit.md`, 12 подтверждённых дефектов, 19 экспериментов). Реализация идёт вертикальными срезами T1→T7; T4–T7 заморожены до сброса недельной квоты Codex (2 августа).
+
+### Added
+- 🌿 **Persisted base-branch contract** (T1; `app/db.py`, `app/session.py`, `app/workspace.py`, `app/routes/sessions.py`, `app/mcp_stdio.py`). Колонки `base_branch TEXT DEFAULT ''` и `needs_switch INTEGER DEFAULT 0`; база спавна резолвится ОДИН раз (explicit → symbolic remote HEAD → единственная local `main`/`master`) и хранится в сессии. `merge`/`switch`/`wip`/`kill` читают её вместо литерала `main`.
+  - **Почему не «угадать по HEAD»**: после `checkout feature/x` symbolic HEAD равен feature-ветке — mainline задним числом не восстановить. Неоднозначная legacy-строка теперь fails loud до любой Git-операции, а не мержит в случайную ветку.
+  - **Triggered case**: главная ветка ≠ `main` — Aperant живёт на `develop`, VPN-Service держит и `main`, и `master`.
+
+### Changed
+- 🔒 **Merge идёт в checkout-владельца target и отклоняет грязный target** (T2; `app/workspace.py`). Слияние в ветку, вычекаченную в родительском worktree, выполняется там же; auto-stash из merge-пути удалён — незакоммиченные правки возвращаются юзеру списком путей, ни target, ни ветка воркера не трогаются. Prunable worktree metadata больше не даёт 500 (найдено Codex-ревью).
+
+### Fixed
+- ♻️ **Squash-коммит атомарен: отказ хука откатывает target** (T3; `app/workspace.py`). Провал `git commit` (pre-commit hook, related и unrelated пути) теперь возвращает HEAD/index/worktree на исходный `old_head` и верифицирует откат; ветка воркера не меняется. Раньше падение оставляло cherry-pick'нутые коммиты в target и рапортовало ошибку — состояние «наполовину смержено».
+- 🔗 **`merge_worker` больше не печатает `FAILED — unknown` при успешной линковке** (T3; `app/tm.py`, `app/routes/sessions.py`, `app/mcp_stdio.py`). `link_commits_to_task()` возвращал task-row или `None`, а MCP читал тот же объект как `{ok, added, error}` — успех без ключа `ok` рисовался безымянной ошибкой. Теперь функция отдаёт стабильный DTO `{ok, added, task_id | error}`, неизвестная задача даёт явный текст.
+  - **Triggered case**: два мержа подряд отрапортовали провал при реально успешном слиянии; статус задачи ставился руками.
+  - **Tests**: `test_related_commit_failure_rolls_back_target_and_preserves_worker`, `test_unrelated_commit_failure_rolls_back_target_and_preserves_worker`, `test_merge_links_commits_with_normalized_sqlite_results`, `test_merge_worker_formats_normalized_and_legacy_link_results`.
+
+### Known tradeoff
+- До рестарта Orchestra живой FastAPI держит старый код `app/routes/`, а MCP-процессы стартуют заново и берут свежий → `FAILED — unknown` и `target branch '' does not exist` ещё воспроизводятся. Обход: `merge_worker(name, target="main")` явно.
+
 ## v2.24.3 — 2026-07-27
 
 ### Changed
