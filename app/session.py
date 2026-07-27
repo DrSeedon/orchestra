@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
@@ -97,6 +98,11 @@ def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
 
 
 _LAST_SUMMARY_MAX_CHARS = 4_000
+
+# Compact summary is a multi-KB wall of text; logging it as "text" mirrors it to TG
+# as agent speech. Off by default — the summary already lives in the agent's context
+# and in the compact_worker result.
+LOG_COMPACT_SUMMARY = os.getenv("LOG_COMPACT_SUMMARY", "0").strip().lower() in ("1", "true", "yes")
 
 
 def _bounded_summary(summary: str) -> str:
@@ -1198,9 +1204,10 @@ class AgentSession:
             self.session_id_history = self.session_id_history[-10:]
         self._persist()
         await self._drain_persist()
-        self._log("text", f"📋 **Compact summary:**\n\n{summary}")
+        if LOG_COMPACT_SUMMARY:
+            self._log("text", f"📋 **Compact summary:**\n\n{summary}")
         after_pct = self._last_context.get("percentage", 0)
-        self._log("status", f"compact done: {before_pct}% → {after_pct}%")
+        self._log("status", f"compact done: {before_pct}% → {after_pct}% (summary {len(summary)} chars)")
         return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}
 
     async def _notify_scope_idle(self) -> None:
