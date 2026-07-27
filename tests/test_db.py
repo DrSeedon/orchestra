@@ -894,7 +894,7 @@ class TestChangeScope:
     def _orch(self, scope="/old/proj", name="orch", sid="orch-uuid-1"):
         return {
             "id": sid, "name": name, "scope": scope, "cwd": scope,
-            "model": "claude-opus-4-8", "system_prompt": "orch",
+            "model": "claude-opus-5", "system_prompt": "orch",
             "status": "idle", "session_id": "sdk-abc", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": True,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),

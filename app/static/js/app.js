@@ -2,7 +2,7 @@
 const MAX_CHAT_NODES = 500;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
 const _MODEL_COLORS = {
-    'claude-opus-5[1m]': '#d8b4fe', 'claude-opus-4-8[1m]': '#c084fc', 'claude-opus-4-6[1m]': '#a78bfa',
+    'claude-opus-5[1m]': '#d8b4fe',
     'claude-sonnet-5[1m]': '#38bdf8', 'claude-haiku-4-5': '#4ade80',
     'claude-fable-5[1m]': '#fb923c', 'gpt-5.5': '#f472b6', 'gpt-5.4': '#f472b6',
 };

@@ -29,8 +29,6 @@ class ModelSpec:
 MODELS = {
     "claude-fable-5[1m]": "Fable 5 (1M)",
     "claude-opus-5[1m]": "Opus 5 (1M)",
-    "claude-opus-4-8[1m]": "Opus 4.8 (1M)",
-    "claude-opus-4-6[1m]": "Opus 4.6 (1M)",
     "claude-sonnet-5[1m]": "Sonnet 5 (1M)",
     "claude-haiku-4-5": "Haiku 4.5",
     "gpt-5.3-codex-spark": "GPT-5.3 Codex Spark",
@@ -45,8 +43,6 @@ MODELS = {
 CONTEXT_LIMITS = {
     "claude-fable-5[1m]": 1000000,
     "claude-opus-5[1m]": 1000000,
-    "claude-opus-4-8[1m]": 1000000,
-    "claude-opus-4-6[1m]": 1000000,
     "claude-sonnet-5[1m]": 1000000,
     "claude-haiku-4-5": 200000,
     # Effective ChatGPT-auth Codex runtime budget. Public API window is larger, but
@@ -71,12 +67,10 @@ ALIASES = {
     "opus": "claude-opus-5[1m]",
     "opus5": "claude-opus-5[1m]",
     "claude-opus-5": "claude-opus-5[1m]",
-    "opus4.8": "claude-opus-4-8[1m]",
-    "claude-opus-4-8": "claude-opus-4-8[1m]",
-    "claude-opus-4-8-1m": "claude-opus-4-8[1m]",
-    "opus4.6": "claude-opus-4-6[1m]",
-    "claude-opus-4-6": "claude-opus-4-6[1m]",
-    "claude-opus-4-6-1m": "claude-opus-4-6[1m]",
+    "claude-opus-4-8[1m]": "claude-opus-5[1m]",
+    "claude-opus-4-8": "claude-opus-5[1m]",
+    "claude-opus-4-6[1m]": "claude-opus-5[1m]",
+    "claude-opus-4-6": "claude-opus-5[1m]",
     "sonnet": "claude-sonnet-5[1m]",
     "sonnet5": "claude-sonnet-5[1m]",
     "claude-sonnet-5-1m": "claude-sonnet-5[1m]",
@@ -100,8 +94,6 @@ ALIASES = {
 BACKENDS = {
     "claude-fable-5[1m]": "claude",
     "claude-opus-5[1m]": "claude",
-    "claude-opus-4-8[1m]": "claude",
-    "claude-opus-4-6[1m]": "claude",
     "claude-sonnet-5[1m]": "claude",
     "claude-haiku-4-5": "claude",
     "gpt-5.3-codex-spark": "codex",
@@ -132,8 +124,6 @@ def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
 TOKEN_PRICES = {
     "claude-fable-5[1m]": {"input": 10.0, "output": 50.0},
     "claude-opus-5[1m]":   {"input": 5.0,  "output": 25.0},
-    "claude-opus-4-8[1m]": {"input": 5.0,  "output": 25.0},
-    "claude-opus-4-6[1m]": {"input": 5.0,  "output": 25.0},
     "claude-sonnet-5[1m]": {"input": 2.0,  "output": 10.0},
     "claude-haiku-4-5":    {"input": 0.80, "output": 4.0},
 }
@@ -347,7 +337,6 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
 _SEMANTIC_PATTERNS = [
     ("opus", "opus"),
     ("opus5", "opus-5"),
-    ("opus4.8", "opus-4-8"),
     ("sonnet", "sonnet"),
     ("haiku", "haiku"),
     ("fable", "fable"),

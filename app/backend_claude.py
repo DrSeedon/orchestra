@@ -160,8 +160,6 @@ class ClaudeBackend:
             eff = self._effort
             if eff == "xhigh" and "claude" in (self.model or ""):
                 eff = "high"
-            if eff in ("low", "medium") and "opus-4-8" in (self.model or ""):
-                eff = "high"
             options.effort = eff
         if resume_id:
             options.resume = resume_id

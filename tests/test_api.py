@@ -204,7 +204,7 @@ class TestOrchestrators:
 
     def test_list_orchestrators_exposes_runtime_cache_policy(self, client):
         for name, model in (
-            ("claude-orch", "claude-opus-4-8[1m]"),
+            ("claude-orch", "claude-opus-5[1m]"),
             ("codex-orch", "gpt-5.6-sol"),
         ):
             response = client.post("/api/sessions", json={

@@ -72,7 +72,7 @@ async def test_spawn_marks_parent_as_initial_task_sender(monkeypatch):
             name="child",
             task="do it",
             repo_path="/s",
-            model="claude-opus-4-8[1m]",
+            model="claude-opus-5[1m]",
         )
 
     send_call = next(call for call in calls if call[1] == "/api/sessions/child/send")
