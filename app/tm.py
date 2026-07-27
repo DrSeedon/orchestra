@@ -315,17 +315,22 @@ def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
     return str(task["par_number"])
 
 
-def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str = "") -> dict | None:
+def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str = "") -> dict:
     """Link commits to a task by ref (e.g. '192', '#192', or 'PAR-192' legacy).
     commits: list of dicts with at least 'hash' key. Deduplicates by hash.
-    project_id: narrow search to this project to avoid ambiguous matches across projects."""
+    project_id: narrow search to this project to avoid ambiguous matches across projects.
+    Returns a stable result DTO for merge/MCP callers."""
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
             task = resolve_task_ref(conn, task_ref, project_id)
             if not task:
                 conn.rollback()
-                return None
+                return {
+                    "ok": False,
+                    "added": 0,
+                    "error": f"task '{task_ref}' not found",
+                }
             existing = json.loads(task["git_commits"]) if task["git_commits"] else []
             existing_hashes = {c["hash"] if isinstance(c, dict) else c for c in existing}
             new_commits = []
@@ -336,14 +341,18 @@ def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str = "
                     existing_hashes.add(h)
             if not new_commits:
                 conn.rollback()
-                return task
+                return {"ok": True, "added": 0, "task_id": task["id"]}
             all_commits = existing + new_commits
             conn.execute(
                 "UPDATE tm_tasks SET git_commits = ?, updated_at = ?, sync_revision = sync_revision + 1 WHERE id = ?",
                 (json.dumps(all_commits), _now(), task["id"]),
             )
             conn.commit()
-            return get_task_by_id(conn, task["id"])
+            return {
+                "ok": True,
+                "added": len(new_commits),
+                "task_id": task["id"],
+            }
         except Exception:
             conn.rollback()
             raise

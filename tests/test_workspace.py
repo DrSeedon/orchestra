@@ -475,6 +475,11 @@ class TestMergeTarget:
         subprocess.run(["git", "commit", "-m", "work"], cwd=wt.path, capture_output=True, check=True)
         return wt
 
+    def _reject_target_commits(self, git_repo):
+        hook = Path(git_repo) / ".git" / "hooks" / "pre-commit"
+        hook.write_text("#!/bin/sh\necho 'rejecting hook' >&2\nexit 1\n")
+        hook.chmod(0o755)
+
     def test_merge_into_feature_branch(self, git_repo, wt_root):
         from app.workspace import merge_worktree_to_main
         subprocess.run(["git", "branch", "feature/auth"], cwd=git_repo, capture_output=True, check=True)
@@ -636,6 +641,89 @@ class TestMergeTarget:
             ["git", "stash", "list"], cwd=git_repo,
             capture_output=True, text=True, check=True,
         ).stdout == ""
+
+    def test_related_commit_failure_rolls_back_target_and_preserves_worker(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import merge_worktree_to_main
+
+        wt = self._wt_with_commit(git_repo, wt_root, "related-reject", "main")
+        target_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        worker_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        self._reject_target_commits(git_repo)
+
+        result = merge_worktree_to_main(wt.path, str(git_repo), target_branch="main")
+
+        assert result["ok"] is False
+        assert "squash commit failed" in result["error"]
+        assert "rejecting hook" in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == target_head
+        assert subprocess.run(
+            ["git", "status", "--porcelain"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == worker_head
+
+    def test_unrelated_commit_failure_rolls_back_target_and_preserves_worker(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, merge_worktree_to_main
+
+        wt = create_worktree(str(git_repo), "unrelated-reject", base_branch="main")
+        subprocess.run(
+            ["git", "checkout", "--orphan", "unrelated-worker"],
+            cwd=wt.path, capture_output=True, check=True,
+        )
+        subprocess.run(
+            ["git", "rm", "-rf", "."], cwd=wt.path,
+            capture_output=True, check=True,
+        )
+        (Path(wt.path) / "unrelated.txt").write_text("unrelated work")
+        subprocess.run(["git", "add", "unrelated.txt"], cwd=wt.path, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "unrelated work"], cwd=wt.path,
+            capture_output=True, check=True,
+        )
+        target_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        worker_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        self._reject_target_commits(git_repo)
+
+        result = merge_worktree_to_main(wt.path, str(git_repo), target_branch="main")
+
+        assert result["ok"] is False
+        assert result.get("strategy") != "cherry-pick"
+        assert "squash commit failed" in result["error"]
+        assert "rejecting hook" in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == target_head
+        assert subprocess.run(
+            ["git", "status", "--porcelain"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == worker_head
 
 
 class TestRemoveWorktree:

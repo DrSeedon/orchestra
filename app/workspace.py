@@ -530,6 +530,58 @@ def _build_squash_message(branch: str, messages: list[str]) -> str:
     return header
 
 
+def _rollback_merge_target(repo: str, old_head: str, error: str) -> dict:
+    if not old_head:
+        return {
+            "ok": False,
+            "state": "rollback_failed",
+            "error": f"{error}; rollback failed: original target HEAD is unknown",
+        }
+    reset = _git_cmd(
+        ["git", "reset", "--hard", old_head],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if reset.returncode != 0:
+        detail = reset.stderr.strip() or reset.stdout.strip()
+        return {
+            "ok": False,
+            "state": "rollback_failed",
+            "error": f"{error}; rollback failed: {detail}",
+        }
+    head = _git_cmd(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    status = _git_cmd(
+        ["git", "status", "--porcelain"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if (
+        head.returncode != 0
+        or head.stdout.strip() != old_head
+        or status.returncode != 0
+        or status.stdout.strip()
+    ):
+        detail = status.stderr.strip() or status.stdout.strip() or head.stderr.strip()
+        return {
+            "ok": False,
+            "state": "rollback_failed",
+            "error": f"{error}; rollback verification failed: {detail or 'target differs'}",
+        }
+    return {"ok": False, "error": error}
+
+
+def _commit_failure_result(repo: str, old_head: str, commit) -> dict:
+    detail = "\n".join(
+        part for part in (commit.stdout.strip(), commit.stderr.strip()) if part
+    )
+    if not detail:
+        detail = f"git commit exit code {commit.returncode}"
+    return _rollback_merge_target(
+        repo, old_head, f"squash commit failed: {detail}",
+    )
+
+
 def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
     """Cherry-pick all commits from branch onto current HEAD.
 
@@ -571,10 +623,12 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
     )
     if status.returncode != 0:
         commit_msg = _build_squash_message(branch, messages)
-        _git_cmd(
+        commit = _git_cmd(
             ["git", "commit", "-m", commit_msg],
             cwd=repo, capture_output=True, text=True,
         )
+        if commit.returncode != 0:
+            return _commit_failure_result(repo, old_head, commit)
 
     merged_commits = _parse_merged_commits(repo, old_head) if old_head else {}
     return {
@@ -818,17 +872,9 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                                             text=True,
                                                         )
                                                         if commit.returncode != 0:
-                                                            err = (
-                                                                commit.stderr.strip()
-                                                                or commit.stdout.strip()
+                                                            result = _commit_failure_result(
+                                                                merge_cwd, old_head, commit,
                                                             )
-                                                            result = {
-                                                                "ok": False,
-                                                                "error": (
-                                                                    "squash commit failed: "
-                                                                    f"{err}"
-                                                                ),
-                                                            }
                                                         else:
                                                             merged_commits = (
                                                                 _parse_merged_commits(

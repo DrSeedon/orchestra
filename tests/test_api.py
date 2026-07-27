@@ -376,6 +376,69 @@ async def test_merge_rejects_ambiguous_legacy_base_before_git(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_merge_links_commits_with_normalized_sqlite_results(db, monkeypatch):
+    import json
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    from app import tm
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "project", scope="/s")
+        task = tm.create_task(conn, "project", "Link target", par_number=90)
+
+    class FakeSession:
+        loaded = False
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "link-results"
+        name = "worker"
+        branch = "task-90/worker"
+
+    session = FakeSession()
+
+    async def persist_lifecycle(found, **fields):
+        for key, value in fields.items():
+            setattr(found, key, value)
+
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
+    monkeypatch.setattr(
+        "app.workspace.merge_worktree_to_main",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "commits_merged": 1,
+            "branch": "task-90/worker",
+            "merged_commits": {
+                "90": [{"hash": "abc123", "message": "#90: work"}],
+                "999": [{"hash": "def456", "message": "#999: missing"}],
+            },
+        },
+    )
+    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
+
+    result = await sessmod.merge_session("worker", {"scope": "/s"})
+
+    assert result["linked_tasks"]["90"] == {
+        "ok": True,
+        "added": 1,
+        "task_id": task["id"],
+    }
+    assert result["linked_tasks"]["999"] == {
+        "ok": False,
+        "added": 0,
+        "error": "task '999' not found",
+    }
+    with tm._conn() as conn:
+        linked = tm.resolve_task_ref(conn, "90", "project")
+    commits = json.loads(linked["git_commits"])
+    assert [commit["hash"] for commit in commits] == ["abc123"]
+    assert tm.link_commits_to_task(
+        "90", [{"hash": "abc123", "message": "#90: work"}], project_id="project",
+    ) == {"ok": True, "added": 0, "task_id": task["id"]}
+
+
+@pytest.mark.asyncio
 async def test_wip_uses_persisted_base(monkeypatch):
     import app.main as mainmod
     import app.routes.sessions as sessmod

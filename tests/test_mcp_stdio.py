@@ -318,7 +318,36 @@ async def test_merge_worker_no_next_task_id(monkeypatch):
     with patch.object(m, "_api", side_effect=fake_api):
         await m.merge_worker(name="coder")
     assert "next_task_id" not in captured["json"]
-    assert captured["json"]["target"] == ""
+    assert "target" not in captured["json"]
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_formats_normalized_and_legacy_link_results(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+
+    async def fake_api(*_args, **_kwargs):
+        return {
+            "ok": True,
+            "commits_merged": 1,
+            "branch": "task-90/worker",
+            "linked_tasks": {
+                "90": {"ok": True, "added": 2, "task_id": 1},
+                "91": {"id": 2, "par_number": 91, "git_commits": "[]"},
+                "999": {"ok": False, "added": 0, "error": "task '999' not found"},
+                "998": None,
+            },
+        }
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        output = await m.merge_worker(name="worker", target="main")
+
+    assert "→ 90: 2 commits linked" in output
+    assert "→ 91: commits linked" in output
+    assert "⚠️ 999: FAILED — task '999' not found" in output
+    assert "⚠️ 998: FAILED — task not found" in output
+    assert "FAILED — unknown" not in output
 
 
 @pytest.mark.asyncio
