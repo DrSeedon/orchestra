@@ -122,6 +122,85 @@ def test_turn_end_prefers_runtime_cost_over_local_formula():
     assert end.metadata["ok"] is True
 
 
+def test_cached_tier_is_really_cheaper_than_fresh_input():
+    """Pins the tier itself: a future price edit that drops `cached` would land silently.
+
+    Same token totals, all-cached vs all-fresh — the gap is the whole point of the tier.
+    """
+    fresh_only = _grok_cost("grok-4.5", 10_000, 0, 0)
+    all_cached = _grok_cost("grok-4.5", 10_000, 10_000, 0)
+    assert all_cached < fresh_only
+    assert fresh_only == pytest.approx(10_000 * 2.0 / 1e6)
+    assert all_cached == pytest.approx(10_000 * 0.30 / 1e6)
+
+
+def test_cached_tokens_cannot_exceed_input():
+    # A malformed usage payload must not produce negative fresh tokens (i.e. a discount).
+    assert _grok_cost("grok-4.5", 100, 5_000, 0) == pytest.approx(100 * 0.30 / 1e6)
+
+
+def test_unknown_model_costs_zero_rather_than_guessing():
+    assert _grok_cost("grok-unreleased", 1_000, 0, 100) == 0.0
+
+
+def test_reasoning_tokens_are_not_billed_on_top_of_output():
+    """reasoningTokens is a breakdown of outputTokens, not an extra bucket.
+
+    Measured: out=99 with reasoning=93 reconciled against out*6 alone; adding reasoning
+    broke the exact fit. A double-count here inflates every reasoning-heavy turn — and an
+    A/B review once caught exactly this class of bug in only one of two reviewers.
+    """
+    b = _backend()
+    b._active_prompts = 2
+    usage = {"inputTokens": 1_000, "cachedReadTokens": 0, "outputTokens": 100}
+    (without,) = b._finish_prompt("p1", "end_turn", {"usage": usage})
+    (with_reasoning,) = b._finish_prompt(
+        "p2", "end_turn", {"usage": {**usage, "reasoningTokens": 90}}
+    )
+    assert with_reasoning.metadata["cost_usd"] == without.metadata["cost_usd"]
+    assert with_reasoning.metadata["output_tokens"] == 100
+
+
+def test_usage_is_per_turn_not_accumulated_across_turns():
+    """Grok reports usage PER TURN — unlike Codex, where it is cumulative for the thread.
+
+    Measured over three turns in one session: outputTokens went 49 / 22 / 23. Cumulative
+    would have read 49 / 71 / 94, and input stayed flat with nearly all of it cached
+    instead of re-summing prior turns. So each turn_end consumes the payload directly and
+    no delta bookkeeping is needed; accumulating here would inflate every session.
+    """
+    b = _backend()
+    b._active_prompts = 3
+    costs = []
+    for n, out in enumerate(("49", "22", "23"), start=1):
+        (end,) = b._finish_prompt(f"p{n}", "end_turn", {"usage": {
+            "inputTokens": 1_000, "cachedReadTokens": 0, "outputTokens": int(out),
+        }})
+        costs.append(end.metadata["cost_usd"])
+        assert end.metadata["cost_is_delta"] is True
+    # Identical inputs must cost the same regardless of position in the session.
+    assert costs[1] < costs[0]
+    assert costs[2] == pytest.approx((1_000 * 2.0 + 23 * 6.0) / 1e6)
+
+
+def test_grok_prices_stay_out_of_the_shared_token_prices_dict():
+    """Registering grok prices normally would silently inflate historical cost.
+
+    routes/system.py:_cost_cached_for() reprices any model present in TOKEN_PRICES using
+    Claude's cache heuristic (cache_read billed at 10% of input). Grok's cached tier is
+    $0.30 against $2.00 input, i.e. 15% — so the heuristic overstates a real measured turn
+    by +27.6%. Absent from the dict, that function falls back to the stored cost, which the
+    backend computed from the runtime's own figure.
+    """
+    from app.models import TOKEN_PRICES
+    assert "grok-4.5" not in TOKEN_PRICES
+
+    inp, cached, out = 22810, 5376, 99
+    real = _grok_cost("grok-4.5", inp, cached, out)
+    heuristic = (inp * 2.0 + cached * 2.0 * 0.1 + out * 6.0) / 1e6
+    assert heuristic > real * 1.25   # the damage this test exists to prevent
+
+
 def test_turn_end_falls_back_to_formula_without_ticks():
     b = _backend()
     b._active_prompts = 1
@@ -129,6 +208,48 @@ def test_turn_end_falls_back_to_formula_without_ticks():
         "inputTokens": 1000, "cachedReadTokens": 0, "outputTokens": 100,
     }})
     assert end.metadata["cost_usd"] == pytest.approx((1000 * 2.0 + 100 * 6.0) / 1e6)
+
+
+# ── context window: the denominator must come from the runtime (T4) ──
+#
+# A wrong denominator does not crash, it just makes the dashboard lie and the agent compact
+# at the wrong moment — the exact failure already seen when CONTEXT_LIMITS drifted for Opus.
+# Our constant and the runtime currently agree at 500000, which would hide a broken
+# override, so these tests force them apart.
+
+def test_runtime_window_overrides_our_constant():
+    b = _backend()
+    b._model_context_window = 12345
+    b._absorb_models({"availableModels": [
+        {"modelId": "grok-4.5", "_meta": {"totalContextTokens": 500000}},
+    ]})
+    assert b._model_context_window == 500000
+
+
+def test_runtime_window_absorbed_from_initialize_meta():
+    b = _backend()
+    b._model_context_window = 12345
+    b._absorb_model_meta({"modelState": {"availableModels": [
+        {"modelId": "grok-4.5", "_meta": {"totalContextTokens": 777000}},
+    ]}})
+    assert b._model_context_window == 777000
+
+
+def test_window_of_a_different_model_is_ignored():
+    b = _backend()
+    b._absorb_models({"availableModels": [
+        {"modelId": "grok-9-other", "_meta": {"totalContextTokens": 42}},
+    ]})
+    assert b._model_context_window == 500000
+
+
+def test_context_pct_uses_runtime_window_not_the_constant():
+    b = _backend()
+    b._model_context_window = 250000          # runtime said half of our constant
+    b._active_prompts = 1
+    (end,) = b._finish_prompt("p1", "end_turn", {"usage": {"totalTokens": 125000}})
+    assert end.metadata["max_tokens"] == 250000
+    assert end.metadata["context_pct"] == 50   # not 25, which the 500000 constant gives
 
 
 # ── turn bookkeeping: one turn_end per prompt ──
