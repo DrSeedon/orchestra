@@ -502,7 +502,9 @@ async def change_worker_model(name: str, model: str) -> str:
 async def merge_worker(name: str, target: str = "", next_task_id: str = "") -> str:
     """Squash a worker branch into its persisted base branch.
     Pass target only to override that base, and next_task_id to auto-switch afterwards."""
-    body = {"scope": SCOPE, "target": target, "squash": True}
+    body = {"scope": SCOPE, "squash": True}
+    if target:
+        body["target"] = target
     if next_task_id:
         body["next_task_id"] = next_task_id
     result = await _api("POST", f"/api/sessions/{name}/merge", json=body)
@@ -515,8 +517,15 @@ async def merge_worker(name: str, target: str = "", next_task_id: str = "") -> s
         for par, info in result.get("linked_tasks", {}).items():
             if isinstance(info, dict) and info.get("ok"):
                 parts.append(f"  → {par}: {info.get('added', 0)} commits linked")
+            elif isinstance(info, dict) and info.get("id"):
+                parts.append(f"  → {par}: commits linked")
             elif isinstance(info, dict):
-                parts.append(f"  ⚠️ {par}: FAILED — {info.get('error', 'unknown')}")
+                error = info.get("error") or "link failed without error detail"
+                parts.append(f"  ⚠️ {par}: FAILED — {error}")
+            elif info is None:
+                parts.append(f"  ⚠️ {par}: FAILED — task not found")
+            else:
+                parts.append(f"  ⚠️ {par}: FAILED — invalid link result")
         switch = result.get("switch")
         if switch:
             if switch.get("ok"):

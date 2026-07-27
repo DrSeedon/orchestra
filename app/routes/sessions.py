@@ -697,7 +697,11 @@ async def merge_session(name: str, req: dict):
                             link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits, project_id=_link_project_id)
                         except Exception as link_err:
                             logger.error("Failed to link commits to %s: %s", task_ref, link_err)
-                            link_results[task_ref] = {"ok": False, "error": str(link_err)}
+                            link_results[task_ref] = {
+                                "ok": False,
+                                "added": 0,
+                                "error": str(link_err),
+                            }
                     if link_results:
                         result["linked_tasks"] = link_results
                     # RAG: re-index project's .md + logs now that knowledge is "frozen" into main.
