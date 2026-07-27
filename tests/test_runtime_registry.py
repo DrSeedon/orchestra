@@ -123,21 +123,23 @@ def test_builtin_runtime_cannot_be_overwritten_accidentally():
     original = get_runtime("codex")
     with pytest.raises(ValueError, match="already registered"):
         register_runtime(replace(original, factory=lambda _ctx: object()))
-    assert set(BUILTIN_RUNTIMES) == {"claude", "codex", "opencode"}
+    assert set(BUILTIN_RUNTIMES) == {"claude", "codex", "grok", "opencode"}
 
 
-@pytest.mark.parametrize("runtime_id", ["claude", "codex", "opencode"])
+@pytest.mark.parametrize("runtime_id", ["claude", "codex", "grok", "opencode"])
 def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monkeypatch):
     monkeypatch.setattr("app.pipeline.get_role", lambda *_args: None)
     ctx = BackendBuildContext(
         model={
             "claude": "claude-sonnet-5[1m]",
             "codex": "gpt-5.6-sol",
+            "grok": "grok-4.5",
             "opencode": "x-ai/grok-4",
         }[runtime_id],
         provider={
             "claude": "anthropic",
             "codex": "openai",
+            "grok": "x-ai",
             "opencode": "x-ai",
         }[runtime_id],
         cwd=str(tmp_path),

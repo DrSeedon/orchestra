@@ -232,6 +232,45 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
     )
 
 
+def _grok_factory(context: BackendBuildContext) -> BackendLike:
+    from app.backend_grok import GrokBackend
+    from app.db import get_profile
+    from app.pipeline import get_role
+
+    try:
+        role = get_role(context.pipeline, context.role)
+    except FileNotFoundError:
+        role = None
+    config_dir = ""
+    if context.profile:
+        profile = get_profile(context.profile)
+        config_dir = profile["config_dir"] if profile else ""
+    # Grok discovers MCP servers from ~/.claude.json and .mcp.json on its own and broadcasts
+    # their env (a real API key leaked this way during research). Compose the set explicitly
+    # from the same loaders Claude uses so a worker never inherits foreign tools implicitly.
+    servers = dict(context.mcp_servers)
+    for name, cfg in _load_scope_mcp_servers(context.scope).items():
+        servers.setdefault(name, cfg)
+    if role is not None and role.mcp_servers == "all":
+        for name, cfg in _load_user_mcp_servers(config_dir).items():
+            servers.setdefault(name, cfg)
+    mcp_env = {
+        key: str(value)
+        for config in context.mcp_servers.values()
+        for key, value in config.get("env", {}).items()
+    }
+    return GrokBackend(
+        model=context.model,
+        cwd=context.cwd,
+        system_prompt=context.system_prompt,
+        resume_session_id=context.resume_session_id,
+        mcp_env=mcp_env,
+        mcp_servers=servers,
+        reasoning_effort=context.effort or "high",
+        is_orchestrator=context.is_orchestrator,
+    )
+
+
 def _opencode_factory(context: BackendBuildContext) -> BackendLike:
     from app.backend_opencode import OpenCodeBackend
 
@@ -247,7 +286,7 @@ def _opencode_factory(context: BackendBuildContext) -> BackendLike:
     )
 
 
-BUILTIN_RUNTIMES = ("claude", "codex", "opencode")
+BUILTIN_RUNTIMES = ("claude", "codex", "grok", "opencode")
 
 register_runtime(RuntimeDefinition(
     id="claude",
@@ -270,6 +309,20 @@ register_runtime(RuntimeDefinition(
         resume_across_models=False,
     ),
     factory=_codex_factory,
+))
+register_runtime(RuntimeDefinition(
+    id="grok",
+    capabilities=RuntimeCapabilities(
+        event_stream="per_turn",
+        # No steering: a prompt sent mid-turn is queued by the agent and runs as its own
+        # turn afterwards (measured), so this is not Codex-style mid-turn injection.
+        mid_turn_inject=False,
+        reconnect=False,
+        hibernate=False,
+        process_liveness=True,
+        resume_across_models=False,
+    ),
+    factory=_grok_factory,
 ))
 register_runtime(RuntimeDefinition(
     id="opencode",

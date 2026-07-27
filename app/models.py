@@ -38,6 +38,7 @@ MODELS = {
     "gpt-5.5": "GPT-5.5",
     "gpt-5.4": "GPT-5.4",
     "gpt-5.4-mini": "GPT-5.4 Mini",
+    "grok-4.5": "Grok 4.5",
 }
 
 CONTEXT_LIMITS = {
@@ -54,6 +55,9 @@ CONTEXT_LIMITS = {
     "gpt-5.5": 258400,
     "gpt-5.4": 258400,
     "gpt-5.4-mini": 258400,
+    # Reported by the Grok runtime itself (initialize + session/new agree). The bundled
+    # vendor README disagrees with the runtime on other numbers, so the runtime wins.
+    "grok-4.5": 500000,
 }
 
 # Short aliases let agents use "opus", "sonnet" etc. in spawn_worker without
@@ -89,6 +93,9 @@ ALIASES = {
     "gpt5.4": "gpt-5.4",
     "gpt5.4mini": "gpt-5.4-mini",
     "gpt-5.4mini": "gpt-5.4-mini",
+    "grok": "grok-4.5",
+    "grok4.5": "grok-4.5",
+    "grok-build": "grok-4.5",
 }
 
 BACKENDS = {
@@ -103,6 +110,7 @@ BACKENDS = {
     "gpt-5.5": "codex",
     "gpt-5.4": "codex",
     "gpt-5.4-mini": "codex",
+    "grok-4.5": "grok",
 }
 
 
@@ -147,14 +155,16 @@ def _generate_aliases(model_id: str) -> list[str]:
 
 
 def _infer_backend(model_id: str) -> str:
-    # gpt-* → Codex CLI, claude-* → Claude SDK, everything else (gemini, llama,
-    # mistral, …) → the OpenCode daemon. The proxy serves these via provider/model
-    # IDs (e.g. "gemini/gemini-2.5-flash") which start with the provider name,
-    # never "gpt-"/"claude-".
+    # gpt-* → Codex CLI, claude-* → Claude SDK, grok-* → Grok Build CLI, everything else
+    # (gemini, llama, mistral, …) → the OpenCode daemon. The proxy serves these via
+    # provider/model IDs (e.g. "gemini/gemini-2.5-flash") which start with the provider
+    # name, never "gpt-"/"claude-"/"grok-".
     if model_id.startswith("gpt-"):
         return "codex"
     if model_id.startswith("claude-"):
         return "claude"
+    if model_id.startswith("grok-"):
+        return "grok"
     return "opencode"
 
 
@@ -165,6 +175,8 @@ def _infer_provider(model_id: str) -> str:
         return "openai"
     if model_id.startswith("claude-"):
         return "anthropic"
+    if model_id.startswith("grok-"):
+        return "x-ai"
     return "unknown"
 
 
