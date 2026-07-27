@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
@@ -70,6 +71,30 @@ class GrokMcpIsolationError(RuntimeError):
     """A worker session started MCP servers Orchestra did not ask for."""
 
 
+def _write_sandbox_config(config: Path) -> None:
+    """Publish the sandbox config atomically.
+
+    The home is shared by every Grok worker, so connects overlap. A plain write truncates
+    first, and a worker starting inside that window reads an EMPTY config — which means the
+    `mcps = false` toggle is absent and foreign MCP servers load with their secrets, exactly
+    the leak T2 closed. Measured before this fix: 57.9% of concurrent reads saw an empty
+    file. Same tmp+rename shape as workspace.sync_agents_md, and the tmp name is unique per
+    call so two writers cannot share one inode.
+    """
+    try:
+        if config.read_text(encoding="utf-8") == _GROK_SANDBOX_CONFIG:
+            return
+    except (FileNotFoundError, OSError):
+        pass
+    tmp = config.parent / f".config.toml.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+    try:
+        tmp.write_text(_GROK_SANDBOX_CONFIG, encoding="utf-8")
+        tmp.replace(config)  # atomic within the directory
+    finally:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
+
+
 def ensure_grok_home() -> Path:
     """Create/refresh the Orchestra-owned GROK_HOME and return it.
 
@@ -78,7 +103,7 @@ def ensure_grok_home() -> Path:
     """
     home = GROK_HOME_DIR
     home.mkdir(parents=True, exist_ok=True)
-    (home / "config.toml").write_text(_GROK_SANDBOX_CONFIG, encoding="utf-8")
+    _write_sandbox_config(home / "config.toml")
     auth_link = home / "auth.json"
     real_auth = GROK_USER_HOME / "auth.json"
     if not real_auth.exists():
@@ -217,6 +242,14 @@ class GrokBackend:
         self._started_servers = set()
         self._mcp_ready = asyncio.Event()
 
+        if not Path(self.cwd).is_dir():
+            # Otherwise this surfaces as a bare FileNotFoundError from process spawn, which
+            # names the path but not the reason — a worktree that was removed or relocated.
+            raise RuntimeError(
+                f"Grok worker cwd does not exist: {self.cwd} "
+                "(worktree removed or relocated?)"
+            )
+
         cmd = [GROK_BIN, "agent"]
         # The ONLY delivery route for a system prompt. ACP session/new has no such field:
         # systemPrompt / _meta.systemPrompt / instructions are all accepted and SILENTLY
@@ -253,10 +286,30 @@ class GrokBackend:
             })
             self._absorb_model_meta(result.get("_meta") or {})
             params = {"cwd": self.cwd, "mcpServers": self._mcp_server_configs()}
+            result = None
             if self._session_id:
-                params["sessionId"] = self._session_id
-                result = await self._request("session/load", params)
-            else:
+                try:
+                    result = await self._request(
+                        "session/load", {**params, "sessionId": self._session_id}
+                    )
+                except GrokProtocolError as exc:
+                    # A stale id must not brick the worker forever: the store is keyed by
+                    # (cwd, sessionId), so a moved or pruned worktree makes load fail
+                    # permanently. Start fresh — but never quietly, the lost history is
+                    # exactly what someone would otherwise spend an hour looking for.
+                    logger.warning(
+                        "Grok session/load failed for %s (%s) — starting a fresh session",
+                        self._session_id, exc,
+                    )
+                    self._notifications.put_nowait({
+                        "method": "_session/resume_failed",
+                        # NOT "sessionId": events() drops notifications whose sessionId is
+                        # not the current one, and this warning is about the OLD id — it
+                        # would filter out the very message announcing the lost history.
+                        "params": {"staleSessionId": self._session_id, "message": str(exc)},
+                    })
+                    self._session_id = None
+            if result is None:
                 result = await self._request("session/new", params)
                 session_id = result.get("sessionId")
                 if not session_id:
@@ -560,6 +613,14 @@ class GrokBackend:
         if method == "_prompt/result":
             meta = params.get("_meta") or {}
             return self._finish_prompt(meta.get("promptId"), params.get("stopReason"), meta)
+
+        if method == "_session/resume_failed":
+            return [AgentEvent(
+                "warning",
+                f"grok could not resume session {params.get('staleSessionId')} "
+                f"({params.get('message')}) — continuing in a NEW session, "
+                f"previous conversation history is not available",
+            )]
 
         if method == "_prompt/failed":
             self._active_prompts = max(0, self._active_prompts - 1)
