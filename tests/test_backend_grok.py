@@ -9,6 +9,7 @@ the vendor's own bundled README turned out to be wrong:
 """
 
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -362,6 +363,36 @@ def test_context_tokens_tracked_from_chunk_meta():
     assert b._context_tokens == 1234
 
 
+# ── tool approval (T5) ──
+#
+# The agent defines these ids. Measured: `allow-once` / `reject-once`, not the bare `allow`
+# an ACP reading suggests. The invented id matched nothing, the agent read that as no
+# selection, and CANCELLED the turn — every shell command a worker ran finished
+# `interrupted` with the tool output already in hand, and nothing looked like an error.
+
+def test_allow_option_is_read_from_the_offer_not_guessed():
+    options = [
+        {"optionId": "allow-once", "name": "Yes, proceed", "kind": "allow_once"},
+        {"optionId": "reject-once", "name": "No", "kind": "reject_once"},
+    ]
+    assert GrokBackend._pick_allow_option(options) == "allow-once"
+
+
+def test_durable_allow_is_preferred_over_single_use():
+    options = [
+        {"optionId": "allow-once", "kind": "allow_once"},
+        {"optionId": "allow-always", "kind": "allow_always"},
+    ]
+    assert GrokBackend._pick_allow_option(options) == "allow-always"
+
+
+def test_no_allow_option_yields_none_rather_than_an_invented_id():
+    assert GrokBackend._pick_allow_option(
+        [{"optionId": "reject-once", "kind": "reject_once"}]) is None
+    assert GrokBackend._pick_allow_option([]) is None
+    assert GrokBackend._pick_allow_option(["garbage", None]) is None
+
+
 # ── error classification: no invented quota patterns ──
 
 def test_unknown_error_stays_generic():
@@ -373,6 +404,68 @@ def test_unknown_error_stays_generic():
 def test_network_error_classified_as_server_error():
     assert GrokBackend._classify_error(
         {"message": "error sending request"}) == "server_error"
+
+
+def test_raw_error_payload_is_logged_verbatim(caplog):
+    """The terminal quota shape is still unknown; the first real one must leave evidence.
+
+    Our paraphrase is not enough to build a classifier from later.
+    """
+    b = _backend()
+    payload = {"error": {"code": 1234, "message": "something we have never seen",
+                         "vendorDetail": {"kind": "unknown-limit"}}}
+    with caplog.at_level("ERROR"):
+        (event,) = b._convert({"method": "error", "params": payload})
+    assert event.type == "error"
+    assert event.metadata["model_error"] == "error"     # not guessed into rate_limit
+    logged = "\n".join(caplog.messages)
+    assert "vendorDetail" in logged and "unknown-limit" in logged
+
+
+def test_process_death_mid_stream_ends_the_turn_once():
+    """Killed transport: exactly one turn_end, ok=False, and events() stops.
+
+    Measured live — killing the CLI mid-stream returned from events() at once with
+    stop_reason=process_exit_-9 and the already-streamed text preserved.
+    """
+    async def scenario():
+        b = _backend()
+        b._proc = SimpleNamespace(returncode=None)
+        b._active_prompts = 1
+        b._notifications.put_nowait({"method": "session/update", "params": {
+            "update": {"sessionUpdate": "agent_message_chunk",
+                       "content": {"type": "text", "text": "partial answer"}}, "_meta": {}}})
+        b._notifications.put_nowait({"method": "_process/exited",
+                                     "params": {"returncode": -9, "stderr": "killed"}})
+        return [e async for e in b.events()]
+
+    events = asyncio.run(scenario())
+    kinds = [e.type for e in events]
+    assert kinds == ["stream", "turn_end"]          # streamed text is not discarded
+    assert events[0].content == "partial answer"
+    end = events[-1].metadata
+    assert end["ok"] is False
+    assert end["stop_reason"] == "process_exit_-9"
+    assert end["model_error"] == "server_error"
+
+
+def test_failed_prompt_after_streaming_keeps_text_and_reports_failure():
+    """An error arriving after output started must not be reported as success."""
+    async def scenario():
+        b = _backend()
+        b._proc = SimpleNamespace(returncode=None)
+        b._active_prompts = 1
+        b._notifications.put_nowait({"method": "session/update", "params": {
+            "update": {"sessionUpdate": "agent_message_chunk",
+                       "content": {"type": "text", "text": "half an answer"}}, "_meta": {}}})
+        b._notifications.put_nowait({"method": "_prompt/failed",
+                                     "params": {"message": "transport died"}})
+        return [e async for e in b.events()]
+
+    events = asyncio.run(scenario())
+    assert [e.type for e in events] == ["stream", "error", "turn_end"]
+    assert events[0].content == "half an answer"
+    assert events[-1].metadata["ok"] is False
 
 
 # ── MCP config translation ──
@@ -520,44 +613,73 @@ def test_build_env_forces_orchestra_grok_home(tmp_path, monkeypatch):
 # and the recalled content), but rejects a different cwd with "Path not found". Two workers
 # sharing one GROK_HOME got distinct ids and did not cross-talk.
 
-def test_sandbox_config_write_is_atomic(tmp_path):
+def test_config_write_never_exposes_a_partial_file(tmp_path, monkeypatch):
     """A shared home means overlapping connects.
 
-    A plain write truncates first, and a worker starting in that window reads an empty
-    config — no `mcps = false`, isolation silently off. Measured before the fix: 57.9% of
-    concurrent reads saw an empty file; after: 0%.
+    A plain write truncates before it writes, and a worker starting in that window reads an
+    empty config — no `mcps = false`, isolation silently off. Measured on the real code
+    before the fix: 57.9% of concurrent reads saw an empty file; 0% after (the numbers live
+    in CHANGELOG v2.26.2).
+
+    The interleaving is modelled explicitly instead of raced for: the observation happens at
+    the one moment that matters, while the new content is being written. An earlier version
+    of this test span threads and asserted a reader had caught the new content, which made
+    it depend on winning a race and flaked roughly one run in four.
     """
-    import threading
+    import app.backend_grok as module
+
+    config = tmp_path / "config.toml"
+    drifted = "[compat.claude]\nmcps = true\n"
+    config.write_text(drifted, encoding="utf-8")
+
+    seen_during_write: list[str] = []
+    real_write_text = Path.write_text
+
+    def spy_write_text(self, data, *args, **kwargs):
+        result = real_write_text(self, data, *args, **kwargs)
+        if self != config:  # the temp file — destination must still be intact right now
+            seen_during_write.append(config.read_text(encoding="utf-8"))
+        return result
+
+    monkeypatch.setattr(Path, "write_text", spy_write_text)
+    module._write_sandbox_config(config)
+
+    assert seen_during_write == [drifted], "destination was touched before the rename"
+    assert config.read_text(encoding="utf-8") == module._GROK_SANDBOX_CONFIG
+
+
+def test_config_is_published_by_atomic_rename(tmp_path, monkeypatch):
+    """The swap must be a rename, not a write into the live path."""
+    import app.backend_grok as module
+
+    config = tmp_path / "config.toml"
+    config.write_text("[compat.claude]\nmcps = true\n", encoding="utf-8")
+    renames: list[tuple[str, str]] = []
+    real_replace = Path.replace
+
+    def spy_replace(self, target):
+        renames.append((self.name, Path(target).name))
+        return real_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", spy_replace)
+    module._write_sandbox_config(config)
+
+    assert len(renames) == 1
+    source, target = renames[0]
+    assert source.startswith(".config.toml.") and source.endswith(".tmp")
+    assert target == "config.toml"
+
+
+def test_config_write_is_skipped_when_already_current(tmp_path, monkeypatch):
+    """No rewrite means no window at all — the cheapest half of the fix."""
     import app.backend_grok as module
 
     config = tmp_path / "config.toml"
     module._write_sandbox_config(config)
-    seen: list[str] = []
-    stop = threading.Event()
-
-    def reader():
-        while not stop.is_set():
-            try:
-                seen.append(config.read_text(encoding="utf-8"))
-            except OSError:
-                seen.append("<enoent>")
-
-    def writer():
-        for _ in range(300):
-            config.write_text("", encoding="utf-8")  # force a rewrite each round
-            module._write_sandbox_config(config)
-
-    t = threading.Thread(target=reader)
-    t.start()
-    try:
-        writer()
-    finally:
-        stop.set()
-        t.join()
-    # Readers may observe the old content or the new one, never a torn/empty file.
-    assert seen, "reader never sampled the file"
-    assert all(text in ("", module._GROK_SANDBOX_CONFIG) for text in seen)
-    assert any(text == module._GROK_SANDBOX_CONFIG for text in seen)
+    renames: list[str] = []
+    monkeypatch.setattr(Path, "replace", lambda self, target: renames.append(self.name))
+    module._write_sandbox_config(config)
+    assert renames == []
 
 
 def test_sandbox_config_rewritten_when_content_drifts(tmp_path):

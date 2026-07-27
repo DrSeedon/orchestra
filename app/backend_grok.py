@@ -258,6 +258,10 @@ class GrokBackend:
         if profile:
             cmd += ["--agent-profile", str(profile)]
         cmd += ["--model", self.model, "--reasoning-effort", self.reasoning_effort]
+        # Managed workers are autonomous and have no one to answer a prompt. Belt and
+        # braces: this stops most permission requests from being raised at all, and
+        # _pick_allow_option answers correctly the ones that still are.
+        cmd += ["--always-approve"]
         # Managed workers delegate through tracked worktree workers, not invisible native
         # subagents in their own checkout (matches the Codex features.multi_agent=false rule).
         if self._is_orchestrator:
@@ -368,7 +372,13 @@ class GrokBackend:
         exc = task.exception()
         if exc is None:
             return
-        logger.warning("Grok session/prompt failed: %s", exc)
+        if isinstance(exc, GrokProtocolError):
+            logger.error(
+                "Grok session/prompt failed — raw error: %s",
+                json.dumps(exc.error, ensure_ascii=False)[:4000],
+            )
+        else:
+            logger.warning("Grok session/prompt failed: %s", exc)
         self._notifications.put_nowait({
             "method": "_prompt/failed",
             "params": {"message": str(exc)},
@@ -554,6 +564,30 @@ class GrokBackend:
         elif method == "_x.ai/mcp_initialized" and self._mcp_ready is not None:
             self._mcp_ready.set()
 
+    @staticmethod
+    def _pick_allow_option(options: list) -> str | None:
+        """Choose an approval from what the agent actually offered.
+
+        The ids are the agent's to define — measured as `allow-once` / `reject-once`, not
+        the plain `allow` an ACP reading suggests. A hardcoded guess matched nothing, and
+        the agent read that as no selection and CANCELLED the turn: every shell command a
+        worker ran ended `interrupted` with the tool result already in hand. Prefer a
+        durable allow when offered, so long tool runs stop re-asking.
+        """
+        fallback = None
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            kind = str(option.get("kind") or "")
+            option_id = option.get("optionId")
+            if not option_id or not kind.startswith("allow"):
+                continue
+            if kind == "allow_always":
+                return str(option_id)
+            if fallback is None:
+                fallback = str(option_id)
+        return fallback
+
     async def _answer_server_request(self, request_id, message: dict) -> None:
         """Answer agent→client requests. Workers are autonomous: approve tool permissions.
 
@@ -561,9 +595,23 @@ class GrokBackend:
         """
         method = str(message.get("method") or "")
         if "permission" in method.lower():
+            params = message.get("params") or {}
+            option_id = self._pick_allow_option(params.get("options") or [])
+            if option_id is None:
+                # Never invent an id: an unrecognised one is silently treated as "nothing
+                # selected" and the agent cancels the whole turn.
+                logger.error(
+                    "Grok permission request offered no allow option: %s",
+                    json.dumps(params.get("options"), ensure_ascii=False)[:500],
+                )
+                await self._write({
+                    "jsonrpc": "2.0", "id": request_id,
+                    "result": {"outcome": {"outcome": "cancelled"}},
+                })
+                return
             await self._write({
                 "jsonrpc": "2.0", "id": request_id,
-                "result": {"outcome": {"outcome": "selected", "optionId": "allow"}},
+                "result": {"outcome": {"outcome": "selected", "optionId": option_id}},
             })
             return
         await self._write({
@@ -639,6 +687,13 @@ class GrokBackend:
 
         if method == "error":
             error = params.get("error") or params
+            # Verbatim, because the shape of a terminal quota error is still unknown and
+            # guessing it is how a hard limit gets mistaken for a retryable hiccup. The
+            # first real limit must leave the true payload in the log, not our paraphrase.
+            logger.error(
+                "Grok raw error payload: %s",
+                json.dumps(params, ensure_ascii=False)[:4000],
+            )
             content = error.get("message") or "Grok error"
             return [AgentEvent("error", content,
                                {"model_error": self._classify_error(error)})]
