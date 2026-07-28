@@ -1092,7 +1092,13 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
                 cwd=cwd, capture_output=True, text=True,
             )
             if result.returncode != 0:
-                logger.warning(f"worktree remove failed: {result.stderr}")
+                if not wt.exists():
+                    return
+                detail = result.stderr.strip() or result.stdout.strip() or "unknown git error"
+                raise RuntimeError(
+                    f"git worktree remove failed for {wt} "
+                    f"(exit {result.returncode}): {detail}"
+                )
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 
@@ -1109,10 +1115,10 @@ def cleanup_stale_worktrees() -> list[str]:
             alive_paths.add(str(Path(wt).resolve()))
 
     removed: list[str] = []
-    for scope_dir in WORKTREE_ROOT.iterdir():
-        if not scope_dir.is_dir():
+    for repo_dir in WORKTREE_ROOT.iterdir():
+        if not repo_dir.is_dir():
             continue
-        for wt_dir in scope_dir.iterdir():
+        for wt_dir in repo_dir.iterdir():
             if not wt_dir.is_dir():
                 continue
             if str(wt_dir.resolve()) in alive_paths:
@@ -1140,17 +1146,22 @@ def cleanup_stale_worktrees() -> list[str]:
                 logger.warning(f"gitdir resolve failed for stale worktree {wt_dir}: {e}")
             try:
                 remove_worktree(repo_path, str(wt_dir))
+                if wt_dir.exists():
+                    logger.warning(
+                        f"stale worktree cleanup left path in place: {wt_dir}"
+                    )
+                    continue
                 removed.append(str(wt_dir))
                 logger.info(f"stale worktree removed: {wt_dir}")
             except Exception as e:
                 logger.warning(f"stale worktree cleanup failed for {wt_dir}: {e}")
 
-        if scope_dir.is_dir() and not any(scope_dir.iterdir()):
+        if repo_dir.is_dir() and not any(repo_dir.iterdir()):
             try:
-                scope_dir.rmdir()
-                logger.info(f"empty scope dir removed: {scope_dir}")
+                repo_dir.rmdir()
+                logger.info(f"empty repo dir removed: {repo_dir}")
             except Exception as e:
-                logger.warning(f"empty scope dir cleanup failed ({scope_dir}): {e}")
+                logger.warning(f"empty repo dir cleanup failed ({repo_dir}): {e}")
 
     return removed
 

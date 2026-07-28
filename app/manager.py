@@ -43,7 +43,7 @@ from app.pipeline import (
     validate_spawn,
 )
 from app.db import (
-    save_session, get_session_by_name, get_all_sessions,
+    save_session, get_session, get_session_by_name, get_all_sessions,
     delete_session, delete_archived_session, archive_session, get_stats,
     update_session_lifecycle,
 )
@@ -596,17 +596,22 @@ class SessionManager:
     async def remove(self, session_id: str) -> None:
         from app.bg_jobs import bg_manager
         await bg_manager.cancel_by_session(session_id)
-        session = self.sessions.pop(session_id, None)
-        if session:
+        session = self.sessions.get(session_id)
+        if session is None:
+            row = get_session(session_id)
+            if row is None:
+                return
+            session = self._hydrate_row(row)
+        if session.loaded:
             await session._disconnect_backend()
-            if session.worktree_path:
-                try:
-                    await asyncio.to_thread(remove_worktree, session.scope, session.worktree_path)
-                except Exception as e:
-                    logger.warning(
-                        f"worktree cleanup failed on remove ({session.worktree_path}): {e}",
-                        exc_info=True)
+        if session.worktree_path:
+            await asyncio.to_thread(
+                remove_worktree,
+                session.scope,
+                session.worktree_path,
+            )
         archive_session(session_id)
+        self.sessions.pop(session_id, None)
 
     async def change_orchestrator_scope(self, name: str, old_scope: str,
                                          new_scope: str, new_cwd: str) -> dict:
@@ -746,7 +751,7 @@ class SessionManager:
         for s in to_remove:
             await self.remove(s.id)
         for row in get_all_sessions(scope):
-            archive_session(row["id"])
+            await self.remove(row["id"])
 
         tg_result: dict = {}
         if delete_tg_topics and orch_names and self.tg_topics_remover:

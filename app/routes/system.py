@@ -936,7 +936,11 @@ async def list_orchestrators():
 
 @router.delete("/api/orchestrators/{name}")
 async def delete_orchestrator(name: str, scope: str, delete_tg_topics: bool = False):
-    result = await manager.remove_scope(scope, delete_tg_topics=delete_tg_topics)
+    try:
+        result = await manager.remove_scope(scope, delete_tg_topics=delete_tg_topics)
+    except Exception as e:
+        logger.error(f"orchestrator remove failed for {name}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
     return {"ok": True, **result}
 
 

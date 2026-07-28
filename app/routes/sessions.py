@@ -644,7 +644,11 @@ async def delete_session(name: str, scope: str, force: bool = False):
             n = int(ahead)
             if n > 0:
                 return JSONResponse({"error": f"worker has {n} unmerged commit(s). merge_worker first (or force=true)"}, status_code=400)
-    await manager.remove(sid)
+    try:
+        await manager.remove(sid)
+    except Exception as e:
+        logger.error(f"session remove failed for {name}: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
     return {"ok": True}
 
 
