@@ -77,7 +77,11 @@ class TurnManager:
     def bump_turn_gen(self) -> None:
         """Новый ход начался — инвалидируем отложенный авто-репорт прошлого хода."""
         self.s._turn_gen += 1
+        self.s._turn_finished_event.clear()
         self.cancel_auto_report()
+
+    def publish_turn_finished(self) -> None:
+        self.s._turn_finished_event.set()
 
     def fire_auto_report(self) -> None:
         """Send auto-report to parent immediately when worker goes idle.
@@ -222,6 +226,7 @@ class TurnManager:
             s.progress_pct = 0
             s.progress_status = ""
         s._persist()
+        self.publish_turn_finished()
 
     def after_turn_idle_actions(
             self, live_pct: int, *, allow_auto_report: bool = True,

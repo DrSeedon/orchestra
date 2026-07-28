@@ -5,7 +5,6 @@ import logging
 import re
 import sqlite3
 from contextlib import AsyncExitStack
-from math import ceil
 from pathlib import Path
 from typing import Optional
 
@@ -23,20 +22,13 @@ logger = logging.getLogger("orchestra.sessions")
 
 router = APIRouter()
 
-MERGE_IDLE_GRACE_SECONDS = 2.0
-MERGE_IDLE_POLL_SECONDS = 0.05
-
-
 async def _wait_for_merge_idle(session) -> bool:
-    """Absorb the short DONE-message → turn-end transition before merging."""
-    if not session.loaded or session.status.value != "running":
+    """Wait for the current turn's explicit terminal signal; only IDLE is ready."""
+    if session.status.value == "idle":
         return True
-    attempts = max(1, ceil(MERGE_IDLE_GRACE_SECONDS / MERGE_IDLE_POLL_SECONDS))
-    for _ in range(attempts):
-        await asyncio.sleep(MERGE_IDLE_POLL_SECONDS)
-        if session.status.value != "running":
-            return True
-    return False
+    if not session.loaded or session.status.value != "running":
+        return False
+    return await session.wait_for_turn_completion()
 
 
 def _session_base_branch(session, requested: str = "") -> str:
@@ -679,12 +671,24 @@ async def merge_session(name: str, req: dict):
         return JSONResponse({"error": str(e)}, status_code=400)
     async with manager.get_session_lock(session_id):
         if not await _wait_for_merge_idle(found):
-            return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
+            status = found.status.value
+            return JSONResponse(
+                {"error": f"worker is {status} — wait for idle before merge"},
+                status_code=400,
+            )
         async with AsyncExitStack() as stack:
             if found.loaded:
                 await stack.enter_async_context(found._lifecycle_lock)
-                if found.status.value == "running":
-                    return JSONResponse({"error": "worker is running — wait for idle before merge"}, status_code=400)
+                if found.status.value != "idle":
+                    return JSONResponse(
+                        {
+                            "error": (
+                                f"worker is {found.status.value} — "
+                                "wait for idle before merge"
+                            )
+                        },
+                        status_code=400,
+                    )
             try:
                 result = await asyncio.to_thread(merge_worktree_to_main, worktree_path, scope, target_branch=target)
                 if result.get("ok"):
@@ -760,8 +764,6 @@ async def switch_branch(name: str, req: dict):
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
-    if found.loaded and found.status.value == "running":
-        return JSONResponse({"error": "worker is running — wait for idle"}, status_code=400)
     worktree_path = found.worktree_path
     session_id = found.id
     if not worktree_path:
@@ -772,23 +774,46 @@ async def switch_branch(name: str, req: dict):
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     async with manager.get_session_lock(session_id):
-        try:
-            result = await asyncio.to_thread(switch_worktree_branch, worktree_path, new_branch, from_ref=from_ref)
-            if result.get("ok") or result.get("branch"):
-                await manager.persist_lifecycle(
-                    found,
-                    branch=result.get("branch", new_branch),
-                    base_branch=from_ref,
-                    task_id=par,
-                    needs_switch=False,
-                )
+        if not await _wait_for_merge_idle(found):
+            return JSONResponse(
+                {"error": f"worker is {found.status.value} — wait for idle before switch"},
+                status_code=400,
+            )
+        async with AsyncExitStack() as stack:
+            if found.loaded:
+                await stack.enter_async_context(found._lifecycle_lock)
+                if found.status.value != "idle":
+                    return JSONResponse(
+                        {
+                            "error": (
+                                f"worker is {found.status.value} — "
+                                "wait for idle before switch"
+                            )
+                        },
+                        status_code=400,
+                    )
             try:
-                _tm.api_update_task(par, status="in_progress")
+                result = await asyncio.to_thread(
+                    switch_worktree_branch,
+                    worktree_path,
+                    new_branch,
+                    from_ref=from_ref,
+                )
+                if result.get("ok") or result.get("branch"):
+                    await manager.persist_lifecycle(
+                        found,
+                        branch=result.get("branch", new_branch),
+                        base_branch=from_ref,
+                        task_id=par,
+                        needs_switch=False,
+                    )
+                try:
+                    _tm.api_update_task(par, status="in_progress")
+                except Exception as e:
+                    logger.warning(f"task #{par} → in_progress failed after switch-branch: {e}")
+                return result
             except Exception as e:
-                logger.warning(f"task #{par} → in_progress failed after switch-branch: {e}")
-            return result
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
+                return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @router.get("/api/sessions/{name}/wip")
