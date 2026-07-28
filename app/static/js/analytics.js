@@ -198,23 +198,51 @@ function _analyticsRenderOverview(body) {
 function _analyticsWakePanel() {
     const wake = _analyticsPayload.wake_after_reset || {};
     const scheduled = wake.scheduled || [];
-    const monthly = wake.monthly_agents || [];
-    let detail = 'Нажатие заменит прежний таймер и возьмёт reset из последнего provider snapshot.';
+    const manual = wake.manual || [];
+    const unavailable = wake.unavailable || [];
+    const warnings = wake.warnings || [];
+    const lines = [];
     let tone = 'neutral';
-    if (monthly.length) {
+    for (const item of scheduled) {
+        const names = (item.agents || []).map(_analyticsEsc).join(', ');
+        const provider = _analyticsEsc(item.provider || 'provider');
+        if (item.preserved) {
+            const covered = names || 'текущие turn не покрыты';
+            lines.push(`Сохранён прежний таймер ${provider} на ${_analyticsDateTime(item.reset_at)}: ${covered}.`);
+        } else if (item.reason === 'available_now') {
+            lines.push(`Сейчас разбудим ${provider}: ${names || '—'}.`);
+        } else {
+            lines.push(`Запланировано ${provider} на ${_analyticsDateTime(item.reset_at)}: ${names || '—'}.`);
+        }
+    }
+    for (const item of manual) {
+        const names = (item.agents || []).map(_analyticsEsc).join(', ');
+        const url = _analyticsEsc(item.manual_action_url || 'https://claude.ai/settings/usage');
+        lines.push(`Не проснутся сами: ${names || '—'}. Базовая квота не сбрасывается по таймеру; проверь лимит в <a href="${url}" target="_blank" rel="noopener">Claude Usage</a> и нажми кнопку снова.`);
+    }
+    for (const item of unavailable) {
+        const names = (item.agents || []).map(_analyticsEsc).join(', ');
+        lines.push(`Не запланированы: ${names || '—'}. ${_analyticsEsc(item.reason || 'Нет свежих данных о квоте')}.`);
+    }
+    for (const item of warnings) {
+        const names = (item.agents || []).map(_analyticsEsc).join(', ');
+        lines.push(`Предупреждение для ${names || '—'}: ${_analyticsEsc(item.reason || 'план не обновлён')}.`);
+    }
+    if (manual.length || unavailable.length) {
         tone = 'danger';
-        detail = `Monthly spend limit не сбрасывается по таймеру. Подними лимит для ${monthly.length} агент${monthly.length === 1 ? 'а' : 'ов'} в <a href="${_analyticsEsc(wake.manual_action_url || 'https://claude.ai/settings/usage')}" target="_blank" rel="noopener">Claude Usage</a>.`;
-    } else if ((wake.unavailable_agents || []).length) {
+    } else if (warnings.length) {
         tone = 'danger';
-        detail = `Для ${wake.unavailable_agents.length} агент${wake.unavailable_agents.length === 1 ? 'а' : 'ов'} в последнем provider snapshot нет исчерпанного окна с resets_at. Таймер не создан.`;
     } else if (scheduled.length) {
         tone = 'ok';
-        detail = scheduled.map(item =>
-            `${item.provider || 'provider'}: ${_analyticsDateTime(item.reset_at)} · ${_analyticsNumber(item.agent_count)} аг.`
-        ).join(' · ');
-    } else if (!wake.candidate_count) {
-        detail = 'Сейчас нет агентов, чей последний turn завершился по subscription limit.';
     }
+    if (!lines.length) {
+        lines.push(
+            wake.candidate_count
+                ? 'Ничего не запланировано.'
+                : 'Ничего не запланировано: сейчас нет агентов, чей последний turn завершился по subscription limit.'
+        );
+    }
+    const detail = lines.join('<br>');
     return `<section class="analytics-wake analytics-wake-${tone}">
         <div>
             <span class="analytics-kicker">Recovery</span>
@@ -231,7 +259,7 @@ async function _analyticsScheduleWake(button) {
     button.textContent = 'Планирую…';
     try {
         const result = await api('/api/usage/wake-after-reset', { method: 'POST' });
-        _analyticsPayload.wake_after_reset = result.state || {};
+        _analyticsPayload.wake_after_reset = result;
         _analyticsRender();
     } catch (error) {
         status.textContent = error && error.message ? error.message : 'Не удалось поставить таймер.';

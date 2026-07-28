@@ -311,7 +311,7 @@ def test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch(browser):
     page.close()
 
 
-def test_wake_button_schedules_once_and_renders_persisted_state(browser):
+def test_wake_button_schedules_once_and_renders_post_decision(browser):
     page = _page(browser)
     page.evaluate(
         """() => {
@@ -321,15 +321,16 @@ def test_wake_button_schedules_once_and_renders_persisted_state(browser):
                 if (url === '/api/usage/wake-after-reset') {
                     window.analyticsCalls.push(url);
                     return {
-                        state: {
-                            candidate_count: 2,
-                            monthly_agents: [],
-                            scheduled: [{
-                                provider: 'anthropic',
-                                reset_at: '2026-07-25T08:00:00Z',
-                                agent_count: 2,
-                            }],
-                        },
+                        candidate_count: 2,
+                        scheduled: [{
+                            provider: 'anthropic',
+                            reason: 'base_reset',
+                            reset_at: '2026-07-25T08:00:00Z',
+                            agents: ['monthly-worker', 'timed-worker'],
+                        }],
+                        manual: [],
+                        unavailable: [],
+                        warnings: [],
                     };
                 }
                 return originalApi(url, options);
@@ -341,6 +342,12 @@ def test_wake_button_schedules_once_and_renders_persisted_state(browser):
     page.locator("[data-analytics-wake]").click()
 
     expect(page.locator("[data-analytics-wake-status]")).to_contain_text("anthropic")
+    expect(page.locator("[data-analytics-wake-status]")).to_contain_text(
+        "monthly-worker"
+    )
+    expect(page.locator("[data-analytics-wake-status]")).to_contain_text(
+        "timed-worker"
+    )
     assert page.evaluate("analyticsCalls").count("/api/usage/wake-after-reset") == 1
     page.close()
 
@@ -349,9 +356,15 @@ def test_monthly_limit_panel_requires_manual_action(browser):
     payload = _payload()
     payload["wake_after_reset"] = {
         "candidate_count": 1,
-        "monthly_agents": ["monthly-worker"],
-        "manual_action_url": "https://claude.ai/settings/usage",
         "scheduled": [],
+        "manual": [{
+            "provider": "anthropic",
+            "reason": "base capacity has no timed reset",
+            "agents": ["monthly-worker"],
+            "manual_action_url": "https://claude.ai/settings/usage",
+        }],
+        "unavailable": [],
+        "warnings": [],
     }
     page = _page(browser)
     page.evaluate(
@@ -371,6 +384,90 @@ def test_monthly_limit_panel_requires_manual_action(browser):
     )
     expect(page.locator("[data-analytics-wake-status] a")).to_have_attribute(
         "href", "https://claude.ai/settings/usage"
+    )
+    page.close()
+
+
+def test_wake_panel_renders_all_decision_groups_together(browser):
+    payload = _payload()
+    payload["wake_after_reset"] = {
+        "candidate_count": 4,
+        "scheduled": [{
+            "provider": "anthropic",
+            "reason": "available_now",
+            "reset_at": None,
+            "agents": ["wake-now"],
+        }],
+        "manual": [{
+            "provider": "anthropic",
+            "reason": "base capacity has no timed reset",
+            "agents": ["manual-worker"],
+            "manual_action_url": "https://claude.ai/settings/usage",
+        }],
+        "unavailable": [{
+            "provider": "codex",
+            "reason": "fresh usage unavailable",
+            "agents": ["unknown-worker"],
+        }],
+        "warnings": [{
+            "provider": "grok",
+            "reason": "refresh failed; existing timer does not cover current turn",
+            "agents": ["changed-turn-worker"],
+        }],
+    }
+    page = _page(browser)
+    page.evaluate(
+        """payload => {
+            window.api = async url => {
+                window.analyticsCalls.push(url);
+                return structuredClone(payload);
+            };
+        }""",
+        payload,
+    )
+
+    page.evaluate("openAnalyticsModal()")
+
+    status = page.locator("[data-analytics-wake-status]")
+    for name in (
+        "wake-now",
+        "manual-worker",
+        "unknown-worker",
+        "changed-turn-worker",
+    ):
+        expect(status).to_contain_text(name)
+    expect(status.locator("a")).to_have_attribute(
+        "href", "https://claude.ai/settings/usage"
+    )
+    page.close()
+
+
+def test_wake_click_with_no_action_is_explicitly_acknowledged(browser):
+    page = _page(browser)
+    page.evaluate(
+        """() => {
+            const originalApi = window.api;
+            window.api = async (url, options = {}) => {
+                if (url === '/api/usage/wake-after-reset') {
+                    window.analyticsCalls.push(url);
+                    return {
+                        candidate_count: 1,
+                        scheduled: [],
+                        manual: [],
+                        unavailable: [],
+                        warnings: [],
+                    };
+                }
+                return originalApi(url, options);
+            };
+        }"""
+    )
+    page.evaluate("openAnalyticsModal()")
+
+    page.locator("[data-analytics-wake]").click()
+
+    expect(page.locator("[data-analytics-wake-status]")).to_contain_text(
+        "Ничего не запланировано"
     )
     page.close()
 

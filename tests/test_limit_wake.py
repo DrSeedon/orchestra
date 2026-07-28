@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
@@ -20,6 +21,54 @@ def _session(session_id: str, name: str, model: str, status: str = "idle") -> di
 
 def _log(log_id: int, kind: str, content: str) -> dict:
     return {"id": log_id, "type": kind, "content": content}
+
+
+def _candidate(
+    session_id: str,
+    name: str,
+    *,
+    provider: str = "anthropic",
+    limit_kind: str = "timed",
+    limit_turn_id: int = 10,
+) -> dict:
+    model = "claude-opus-5[1m]" if provider == "anthropic" else "gpt-5.6-sol"
+    return {
+        **_session(session_id, name, model),
+        "limit_kind": limit_kind,
+        "provider": provider,
+        "limit_turn_id": limit_turn_id,
+    }
+
+
+def _envelope(provider_usage: dict, *, fresh: bool = True, error=None) -> dict:
+    return {"fresh": fresh, "usage": provider_usage, "error": error}
+
+
+def _anthropic_usage(
+    five_hour: float,
+    seven_day: float,
+    *,
+    five_reset: str | None = None,
+    seven_reset: str | None = None,
+    extra_usage: dict | None = None,
+) -> dict:
+    usage = {
+        "windows": [
+            {
+                "id": "five_hour",
+                "utilization": five_hour,
+                "resets_at": five_reset,
+            },
+            {
+                "id": "seven_day",
+                "utilization": seven_day,
+                "resets_at": seven_reset,
+            },
+        ]
+    }
+    if extra_usage is not None:
+        usage["extra_usage"] = extra_usage
+    return usage
 
 
 def test_find_limit_stopped_agents_only_returns_latest_limited_turn():
@@ -146,7 +195,7 @@ def test_build_wake_plan_uses_latest_blocking_provider_window():
         },
     ]
     provider_usage = {
-        "anthropic": {
+        "anthropic": _envelope({
             "windows": [
                 {
                     "id": "five_hour",
@@ -159,8 +208,8 @@ def test_build_wake_plan_uses_latest_blocking_provider_window():
                     "resets_at": (NOW + timedelta(days=2)).isoformat(),
                 },
             ]
-        },
-        "codex": {
+        }),
+        "codex": _envelope({
             "windows": [
                 {
                     "id": "primary",
@@ -168,7 +217,7 @@ def test_build_wake_plan_uses_latest_blocking_provider_window():
                     "resets_at": (NOW + timedelta(hours=3)).isoformat(),
                 }
             ]
-        },
+        }),
     }
 
     plan = build_wake_plan(agents, provider_usage, now=NOW)
@@ -180,32 +229,164 @@ def test_build_wake_plan_uses_latest_blocking_provider_window():
     ]
 
 
-def test_monthly_spend_limit_never_gets_an_automatic_reset():
+def test_monthly_spend_limit_uses_known_base_reset():
     from app.limit_wake import build_wake_plan
 
-    monthly = {
-        **_session("monthly", "monthly-worker", "claude-opus-5[1m]"),
-        "limit_kind": "monthly",
-        "provider": "anthropic",
-        "limit_turn_id": 10,
-    }
+    monthly = _candidate(
+        "monthly",
+        "monthly-worker",
+        limit_kind="monthly",
+    )
     provider_usage = {
-        "anthropic": {
-            "windows": [
-                {
-                    "id": "five_hour",
-                    "utilization": 100,
-                    "resets_at": (NOW + timedelta(hours=1)).isoformat(),
-                }
-            ]
-        }
+        "anthropic": _envelope(_anthropic_usage(
+            100,
+            8,
+            five_reset=(NOW + timedelta(hours=1)).isoformat(),
+        )),
     }
 
     plan = build_wake_plan([monthly], provider_usage, now=NOW)
 
-    assert plan["schedules"] == []
-    assert plan["manual_agents"] == ["monthly-worker"]
-    assert plan["manual_action_url"] == "https://claude.ai/settings/usage"
+    assert plan["manual_agents"] == []
+    assert plan["schedules"][0]["reason"] == "base_reset"
+    assert plan["schedules"][0]["agents"][0]["name"] == "monthly-worker"
+
+
+def test_monthly_spend_limit_wakes_now_when_complete_base_is_open():
+    from app.limit_wake import build_wake_plan
+
+    monthly = _candidate(
+        "monthly",
+        "monthly-worker",
+        limit_kind="monthly",
+    )
+    provider_usage = {
+        "anthropic": _envelope(_anthropic_usage(
+            0,
+            9,
+            extra_usage={
+                "spend_limit_reached": True,
+                "is_enabled": False,
+                "disabled_reason": "org_level_disabled_until",
+            },
+        )),
+    }
+
+    plan = build_wake_plan([monthly], provider_usage, now=NOW)
+
+    assert plan["schedules"][0]["reason"] == "available_now"
+    assert plan["manual_agents"] == []
+
+
+def test_mixed_anthropic_limit_labels_share_one_base_reset_schedule():
+    from app.limit_wake import build_wake_plan
+
+    agents = [
+        _candidate("monthly", "monthly-worker", limit_kind="monthly"),
+        _candidate("timed", "timed-worker", limit_turn_id=20),
+    ]
+    provider_usage = {
+        "anthropic": _envelope(_anthropic_usage(
+            100,
+            9,
+            five_reset=(NOW + timedelta(hours=1)).isoformat(),
+        )),
+    }
+
+    plan = build_wake_plan(agents, provider_usage, now=NOW)
+
+    assert [agent["name"] for agent in plan["schedules"][0]["agents"]] == [
+        "monthly-worker",
+        "timed-worker",
+    ]
+    assert plan["manual_agents"] == []
+    assert plan["unavailable_agents"] == []
+
+
+@pytest.mark.parametrize("missing_window", ["five_hour", "seven_day"])
+def test_anthropic_readiness_fails_closed_when_base_window_is_missing(
+    missing_window,
+):
+    from app.limit_wake import provider_readiness
+
+    usage = _anthropic_usage(
+        0,
+        0,
+        extra_usage={"spend_limit_reached": False, "is_enabled": True},
+    )
+    usage["windows"] = [
+        window for window in usage["windows"] if window["id"] != missing_window
+    ]
+
+    readiness = provider_readiness(_envelope(usage), "anthropic", now=NOW)
+
+    assert readiness["state"] == "unavailable"
+
+
+def test_anthropic_extra_usage_cannot_authorize_exhausted_base():
+    from app.limit_wake import provider_readiness
+
+    readiness = provider_readiness(
+        _envelope(_anthropic_usage(
+            100,
+            9,
+            five_reset=(NOW + timedelta(hours=1)).isoformat(),
+            extra_usage={
+                "spend_limit_reached": False,
+                "is_enabled": True,
+                "balance": 1000,
+            },
+        )),
+        "anthropic",
+        now=NOW,
+    )
+
+    assert readiness["state"] == "reset"
+
+
+def test_anthropic_reset_requires_every_exhausted_window_to_have_future_reset():
+    from app.limit_wake import provider_readiness
+
+    readiness = provider_readiness(
+        _envelope(_anthropic_usage(
+            100,
+            100,
+            five_reset=(NOW + timedelta(hours=1)).isoformat(),
+        )),
+        "anthropic",
+        now=NOW,
+    )
+
+    assert readiness["state"] == "manual"
+
+
+@pytest.mark.parametrize("provider", ["codex", "grok"])
+def test_non_anthropic_keeps_valid_reset_when_another_exhausted_reset_is_missing(
+    provider,
+):
+    from app.limit_wake import provider_readiness
+
+    readiness = provider_readiness(
+        _envelope({
+            "windows": [
+                {
+                    "id": "primary",
+                    "utilization": 100,
+                    "resets_at": (NOW + timedelta(hours=2)).isoformat(),
+                },
+                {
+                    "id": "secondary",
+                    "utilization": 100,
+                    "resets_at": None,
+                },
+            ]
+        }),
+        provider,
+        now=NOW,
+    )
+
+    assert readiness["state"] == "reset"
+    assert readiness["reset_at"] == (NOW + timedelta(hours=2)).isoformat()
 
 
 @pytest.fixture
@@ -216,6 +397,464 @@ def wake_db(tmp_path, monkeypatch):
 
     init_db()
     return db_path
+
+
+@pytest.mark.asyncio
+async def test_schedule_wake_uses_fresh_base_capacity_and_returns_click_decision(
+    monkeypatch,
+):
+    from app.limit_wake import schedule_wake_after_reset
+    from app.routes import system
+
+    monthly = _candidate(
+        "monthly",
+        "monthly-worker",
+        limit_kind="monthly",
+    )
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [monthly],
+    )
+    monkeypatch.setattr("app.limit_wake._active_wake_jobs", lambda: [])
+    fresh = AsyncMock(return_value={
+        "anthropic": _anthropic_usage(
+            0,
+            8,
+            extra_usage={"spend_limit_reached": True, "is_enabled": False},
+        ),
+    })
+    monkeypatch.setattr(system, "current_provider_usage", fresh)
+    manager = MagicMock()
+    manager.create = AsyncMock(return_value={"id": "wake-now"})
+    manager.cancel = AsyncMock()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    result = await schedule_wake_after_reset()
+
+    fresh.assert_awaited_once_with(
+        provider="anthropic",
+        force_refresh=True,
+    )
+    config = manager.create.await_args.args[1]
+    assert config["reason"] == "available_now"
+    assert config["agents"][0]["limit_turn_id"] == monthly["limit_turn_id"]
+    assert result["scheduled"] == [{
+        "provider": "anthropic",
+        "reason": "available_now",
+        "reset_at": None,
+        "agents": ["monthly-worker"],
+        "preserved": False,
+    }]
+    assert result["manual"] == []
+    assert result["unavailable"] == []
+
+
+@pytest.mark.asyncio
+async def test_refresh_failure_preserves_job_but_not_same_agent_new_turn(
+    monkeypatch,
+):
+    from app.limit_wake import schedule_wake_after_reset
+    from app.routes import system
+
+    current = _candidate(
+        "agent-a",
+        "worker-a",
+        limit_kind="monthly",
+        limit_turn_id=20,
+    )
+    old_config = {
+        "action": "wake_subscription_limited",
+        "provider": "anthropic",
+        "reason": "base_reset",
+        "agents": [{
+            "id": "agent-a",
+            "name": "worker-a",
+            "scope": "/project",
+            "limit_turn_id": 10,
+        }],
+        "replace_key": "wake-limit-anthropic",
+    }
+    old_job = {
+        "id": "old-job",
+        "trigger_at": "2026-07-29T12:00:00+00:00",
+        "config": old_config,
+    }
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [current],
+    )
+    monkeypatch.setattr(
+        "app.limit_wake._active_wake_jobs",
+        lambda: [old_job],
+    )
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(side_effect=RuntimeError("usage refresh failed")),
+    )
+    manager = MagicMock()
+    manager.create = AsyncMock()
+    manager.cancel = AsyncMock()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    result = await schedule_wake_after_reset()
+
+    manager.create.assert_not_awaited()
+    manager.cancel.assert_not_awaited()
+    assert old_job["config"] == old_config
+    assert result["scheduled"][0]["preserved"] is True
+    assert result["scheduled"][0]["agents"] == []
+    assert result["unavailable"][0]["agents"] == ["worker-a"]
+    assert result["warnings"][0]["agents"] == ["worker-a"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_failure_preserved_coverage_matches_turn_pair(monkeypatch):
+    from app.limit_wake import schedule_wake_after_reset
+    from app.routes import system
+
+    current = _candidate(
+        "agent-a",
+        "worker-a",
+        limit_kind="monthly",
+        limit_turn_id=10,
+    )
+    old_job = {
+        "id": "old-job",
+        "trigger_at": "2026-07-29T12:00:00+00:00",
+        "config": {
+            "action": "wake_subscription_limited",
+            "provider": "anthropic",
+            "reason": "base_reset",
+            "agents": [{
+                "id": "agent-a",
+                "name": "worker-a",
+                "scope": "/project",
+                "limit_turn_id": 10,
+            }],
+            "replace_key": "wake-limit-anthropic",
+        },
+    }
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [current],
+    )
+    monkeypatch.setattr(
+        "app.limit_wake._active_wake_jobs",
+        lambda: [old_job],
+    )
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(side_effect=RuntimeError("usage refresh failed")),
+    )
+    manager = MagicMock()
+    manager.create = AsyncMock()
+    manager.cancel = AsyncMock()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    result = await schedule_wake_after_reset()
+
+    assert result["scheduled"][0]["agents"] == ["worker-a"]
+    assert result["unavailable"] == []
+    assert result["warnings"] == []
+
+
+@pytest.mark.asyncio
+async def test_refresh_failure_does_not_report_timer_that_finished_while_awaiting(
+    monkeypatch,
+):
+    from app.limit_wake import schedule_wake_after_reset
+    from app.routes import system
+
+    current = _candidate(
+        "agent-a",
+        "worker-a",
+        limit_kind="monthly",
+        limit_turn_id=10,
+    )
+    old_job = {
+        "id": "old-job",
+        "trigger_at": "2026-07-29T12:00:00+00:00",
+        "config": {
+            "action": "wake_subscription_limited",
+            "provider": "anthropic",
+            "reason": "base_reset",
+            "agents": [current],
+            "replace_key": "wake-limit-anthropic",
+        },
+    }
+    active_reads = 0
+
+    def active_jobs():
+        nonlocal active_reads
+        active_reads += 1
+        return [old_job] if active_reads == 1 else []
+
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [current],
+    )
+    monkeypatch.setattr("app.limit_wake._active_wake_jobs", active_jobs)
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(side_effect=RuntimeError("usage refresh failed")),
+    )
+    manager = MagicMock()
+    manager.create = AsyncMock()
+    manager.cancel = AsyncMock()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    result = await schedule_wake_after_reset()
+
+    assert result["scheduled"] == []
+    assert result["unavailable"][0]["agents"] == ["worker-a"]
+    assert result["state"]["scheduled"] == []
+
+
+@pytest.mark.asyncio
+async def test_provider_refresh_cannot_borrow_another_provider_snapshot(
+    monkeypatch,
+):
+    from app.limit_wake import schedule_wake_after_reset
+    from app.routes import system
+
+    candidate = _candidate("agent-a", "worker-a")
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [candidate],
+    )
+    monkeypatch.setattr("app.limit_wake._active_wake_jobs", lambda: [])
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(return_value={
+            "codex": {
+                "windows": [{
+                    "id": "primary",
+                    "utilization": 0,
+                    "resets_at": None,
+                }]
+            }
+        }),
+    )
+    manager = MagicMock()
+    manager.create = AsyncMock()
+    manager.cancel = AsyncMock()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    result = await schedule_wake_after_reset()
+
+    manager.create.assert_not_awaited()
+    assert result["unavailable"][0]["agents"] == ["worker-a"]
+    assert "missing" in result["unavailable"][0]["reason"]
+
+
+@pytest.mark.asyncio
+async def test_missing_requested_provider_preserves_existing_timer(monkeypatch):
+    from app.limit_wake import schedule_wake_after_reset
+    from app.routes import system
+
+    candidate = _candidate("agent-a", "worker-a")
+    old_job = {
+        "id": "old-job",
+        "trigger_at": "2026-07-29T12:00:00+00:00",
+        "config": {
+            "provider": "anthropic",
+            "reason": "base_reset",
+            "replace_key": "wake-limit-anthropic",
+            "agents": [candidate],
+        },
+    }
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [candidate],
+    )
+    monkeypatch.setattr(
+        "app.limit_wake._active_wake_jobs",
+        lambda: [old_job],
+    )
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(return_value={
+            "codex": {
+                "windows": [{
+                    "id": "primary",
+                    "utilization": 0,
+                    "resets_at": None,
+                }]
+            }
+        }),
+    )
+    manager = MagicMock()
+    manager.create = AsyncMock()
+    manager.cancel = AsyncMock()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    result = await schedule_wake_after_reset()
+
+    manager.create.assert_not_awaited()
+    manager.cancel.assert_not_awaited()
+    assert result["scheduled"][0]["preserved"] is True
+    assert result["scheduled"][0]["agents"] == ["worker-a"]
+    assert result["unavailable"] == []
+
+
+@pytest.mark.asyncio
+async def test_successful_manual_decision_cancels_obsolete_timer(monkeypatch):
+    from app.limit_wake import schedule_wake_after_reset
+    from app.routes import system
+
+    candidate = _candidate(
+        "agent-a",
+        "worker-a",
+        limit_kind="monthly",
+    )
+    old_job = {
+        "id": "old-job",
+        "trigger_at": "2026-07-29T12:00:00+00:00",
+        "config": {
+            "provider": "anthropic",
+            "replace_key": "wake-limit-anthropic",
+            "agents": [candidate],
+        },
+    }
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [candidate],
+    )
+    monkeypatch.setattr(
+        "app.limit_wake._active_wake_jobs",
+        lambda: [old_job],
+    )
+    monkeypatch.setattr(
+        system,
+        "current_provider_usage",
+        AsyncMock(return_value={
+            "anthropic": _anthropic_usage(100, 100),
+        }),
+    )
+    manager = MagicMock()
+    manager.create = AsyncMock()
+    manager.cancel = AsyncMock(return_value={"ok": True})
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    result = await schedule_wake_after_reset()
+
+    manager.create.assert_not_awaited()
+    manager.cancel.assert_awaited_once_with("old-job")
+    assert result["manual"][0]["agents"] == ["worker-a"]
+
+
+@pytest.mark.asyncio
+async def test_concurrent_clicks_cannot_restore_an_older_capacity_decision(
+    monkeypatch,
+):
+    from app import limit_wake
+    from app.routes import system
+
+    candidate = _candidate("agent-a", "worker-a")
+    active_jobs = [{
+        "id": "initial-job",
+        "trigger_at": "2026-07-29T12:00:00+00:00",
+        "config": {
+            "provider": "anthropic",
+            "replace_key": "wake-limit-anthropic",
+            "agents": [candidate],
+        },
+    }]
+    monkeypatch.setattr(
+        limit_wake,
+        "_load_limit_stopped_agents",
+        lambda: [candidate],
+    )
+    monkeypatch.setattr(
+        limit_wake,
+        "_active_wake_jobs",
+        lambda: list(active_jobs),
+    )
+    monkeypatch.setattr(limit_wake, "_schedule_lock", asyncio.Lock())
+
+    first_started = asyncio.Event()
+    release_first = asyncio.Event()
+    fetch_calls = 0
+
+    async def fresh_usage(**_kwargs):
+        nonlocal fetch_calls
+        fetch_calls += 1
+        if fetch_calls == 1:
+            first_started.set()
+            await release_first.wait()
+            return {"anthropic": _anthropic_usage(0, 0)}
+        return {"anthropic": _anthropic_usage(100, 100)}
+
+    async def create(_kind, config, *_args, **kwargs):
+        active_jobs[:] = [{
+            "id": "new-job",
+            "trigger_at": config.get("reset_at"),
+            "config": {
+                **config,
+                "replace_key": kwargs["replace_key"],
+            },
+        }]
+        return {"id": "new-job"}
+
+    async def cancel(job_id):
+        active_jobs[:] = [job for job in active_jobs if job["id"] != job_id]
+        return {"ok": True}
+
+    monkeypatch.setattr(system, "current_provider_usage", fresh_usage)
+    manager = MagicMock()
+    manager.create = AsyncMock(side_effect=create)
+    manager.cancel = AsyncMock(side_effect=cancel)
+    monkeypatch.setattr("app.bg_jobs.bg_manager", manager)
+
+    older = asyncio.create_task(limit_wake.schedule_wake_after_reset())
+    await asyncio.wait_for(first_started.wait(), timeout=1)
+    newer = asyncio.create_task(limit_wake.schedule_wake_after_reset())
+    await asyncio.sleep(0)
+    assert fetch_calls == 1
+    release_first.set()
+    await asyncio.gather(older, newer)
+
+    assert fetch_calls == 2
+    assert active_jobs == []
+    manager.cancel.assert_awaited_once_with("new-job")
+
+
+def test_wake_status_exposes_active_job_names_and_reason(monkeypatch):
+    from app.limit_wake import wake_status
+
+    monkeypatch.setattr(
+        "app.limit_wake._load_limit_stopped_agents",
+        lambda: [_candidate("agent-a", "worker-a", limit_kind="monthly")],
+    )
+    monkeypatch.setattr(
+        "app.limit_wake._active_wake_jobs",
+        lambda: [{
+            "id": "wake-job",
+            "trigger_at": "2026-07-29T12:00:00+00:00",
+            "config": {
+                "provider": "anthropic",
+                "reason": "base_reset",
+                "agents": [{
+                    "id": "agent-a",
+                    "name": "worker-a",
+                    "scope": "/project",
+                    "limit_turn_id": 10,
+                }],
+            },
+        }],
+    )
+
+    status = wake_status()
+
+    assert status["scheduled"][0]["agents"] == ["worker-a"]
+    assert status["scheduled"][0]["reason"] == "base_reset"
+    assert status["manual"] == []
+    assert status["unavailable"] == []
 
 
 @pytest.mark.asyncio
@@ -318,8 +957,8 @@ async def test_wake_job_stops_before_second_agent_when_limit_closes(
         system,
         "current_provider_usage",
         AsyncMock(side_effect=[
-            {"anthropic": {"windows": [{"utilization": 0}]}},
-            {"anthropic": {"windows": [{"utilization": 100}]}},
+            {"anthropic": _anthropic_usage(0, 0)},
+            {"anthropic": _anthropic_usage(100, 0)},
         ]),
     )
     session = MagicMock(status=AgentStatus.IDLE)
@@ -340,7 +979,7 @@ async def test_wake_job_stops_before_second_agent_when_limit_closes(
     session.send.assert_awaited_once()
     row = next(job for job in bg_get_jobs() if job["id"] == "wake-job")
     assert row["status"] == "triggered"
-    assert "limit is still active" in row["last_output"]
+    assert "base capacity has no timed reset" in row["last_output"]
     config = json.loads(row["config"])
     assert config["deliveries"]["a"]["state"] == "delivered"
 
@@ -400,7 +1039,7 @@ async def test_wake_job_reconciles_claimed_delivery_without_duplicate_send(
         system,
         "current_provider_usage",
         AsyncMock(return_value={
-            "anthropic": {"windows": [{"utilization": 0}]},
+            "anthropic": _anthropic_usage(0, 0),
         }),
     )
     manager = MagicMock()
