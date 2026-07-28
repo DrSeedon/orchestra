@@ -142,7 +142,7 @@ function _analyticsRenderOverview(body) {
     const summary = data.summary || {};
     const lifetime = summary.lifetime || {};
     const providers = data.providers || {};
-    const providerCards = ['claude', 'codex']
+    const providerCards = Object.keys(_PROVIDER_META)
         .filter(provider => providers[provider] || _analyticsCapacity(provider))
         .map(provider => _analyticsProviderCard(provider, providers[provider] || {}))
         .join('');
@@ -240,25 +240,41 @@ async function _analyticsScheduleWake(button) {
     }
 }
 
+// One table decides everything per provider: label, tone, and which capacity windows exist.
+// Previously three `isClaude ? … : …` ternaries meant "not Claude" silently rendered as Codex,
+// so a third pool would have been drawn with Codex's title and window shape.
+// xAI publishes no quota snapshot, so Grok declares no windows and the card says so.
+const _PROVIDER_META = {
+    claude: {
+        title: 'Claude Max', runtime: 'Opus · orchestrators', tone: 'violet',
+        windows: c => [['5h', c.five_hour], ['7d', c.seven_day]],
+    },
+    codex: {
+        title: 'Codex Pro', runtime: 'Sol · workers', tone: 'cyan',
+        windows: c => [['Основной', c.primary], ['Вторичный', c.secondary]],
+    },
+    grok: {
+        title: 'SuperGrok', runtime: 'Grok 4.5 · workers', tone: 'slate',
+        windows: () => [],
+    },
+};
+
 function _analyticsProviderCard(provider, stats) {
-    const isClaude = provider === 'claude';
+    const meta = _PROVIDER_META[provider] || {
+        title: provider, runtime: '', tone: 'slate', windows: () => [],
+    };
     const capacity = _analyticsCapacity(provider);
-    const title = isClaude ? 'Claude Max' : 'Codex Pro';
-    const runtime = isClaude ? 'Opus · orchestrators' : 'Sol · workers';
-    const tone = isClaude ? 'violet' : 'cyan';
+    const { title, runtime, tone } = meta;
     const ttl = stats.cache_ttl_seconds
         ? `${Math.round(stats.cache_ttl_seconds / 60)} мин${stats.cache_ttl_approximate ? ' ≈' : ''}`
         : '—';
     let windows = '';
     if (capacity) {
-        const definitions = isClaude
-            ? [['5h', capacity.five_hour], ['7d', capacity.seven_day]]
-            : [['Основной', capacity.primary], ['Вторичный', capacity.secondary]];
-        windows = definitions
+        windows = meta.windows(capacity)
             .filter(([, value]) => value && value.utilization != null)
             .map(([label, value]) => _analyticsWindow(label, value))
             .join('');
-        if (!isClaude && capacity.spark) {
+        if (provider === 'codex' && capacity.spark) {
             const sparkWindows = [capacity.spark.primary, capacity.spark.secondary]
                 .filter(value => value && value.utilization != null);
             if (sparkWindows.length) {
@@ -326,7 +342,7 @@ function _analyticsRenderAgents(body) {
     const allAgents = _analyticsPayload.agents || [];
     const agents = allAgents.filter(agent => {
         if (_analyticsAgentFilter === 'anomaly') return agent.anomaly;
-        if (_analyticsAgentFilter === 'claude' || _analyticsAgentFilter === 'codex') return agent.provider === _analyticsAgentFilter;
+        if (_PROVIDER_META[_analyticsAgentFilter]) return agent.provider === _analyticsAgentFilter;
         return true;
     });
     const selected = _analyticsSelectedAgent
@@ -337,7 +353,7 @@ function _analyticsRenderAgents(body) {
             <div class="analytics-section-head analytics-filter-head">
                 <div><span class="analytics-kicker">Fleet</span><h3>Агенты и стоимость</h3></div>
                 <div class="analytics-filters">
-                    ${[['all', 'Все'], ['claude', 'Claude'], ['codex', 'Codex'], ['anomaly', 'Аномалии']].map(([key, label]) =>
+                    ${[['all', 'Все'], ...Object.entries(_PROVIDER_META).map(([key, meta]) => [key, meta.title]), ['anomaly', 'Аномалии']].map(([key, label]) =>
                         `<button type="button" data-analytics-agent-filter="${key}" class="${key === _analyticsAgentFilter ? 'active' : ''}">${label}</button>`
                     ).join('')}
                 </div>
@@ -395,11 +411,11 @@ function _analyticsRenderEfficiency(body) {
         <section class="analytics-efficiency-grid">
             <article class="analytics-panel">
                 <div class="analytics-section-head"><div><span class="analytics-kicker">Cache</span><h3>Эффективность по runtime</h3></div><span>только сравнимые turns</span></div>
-                <div class="analytics-cache-grid">${['claude', 'codex'].map(provider => {
+                <div class="analytics-cache-grid">${Object.keys(_PROVIDER_META).filter(p => providers[p]).map(provider => {
                     const item = providers[provider] || {};
                     const ttl = item.cache_ttl_seconds ? Math.round(item.cache_ttl_seconds / 60) : null;
                     return `<div class="analytics-cache-card">
-                        <div><strong>${provider === 'claude' ? 'Claude' : 'Codex'}</strong><span>TTL ${ttl == null ? '—' : `${ttl} мин${item.cache_ttl_approximate ? ' ≈' : ''}`}</span></div>
+                        <div><strong>${_PROVIDER_META[provider].title}</strong><span>TTL ${ttl == null ? '—' : `${ttl} мин${item.cache_ttl_approximate ? ' ≈' : ''}`}</span></div>
                         <b>${item.cache_hit_pct == null ? '—' : `${item.cache_hit_pct}%`}</b>
                         <p>${_analyticsNumber(item.comparable_turns)} сравнимых turns · ${_analyticsNumber(item.cold_starts)} cold starts</p>
                     </div>`;
@@ -518,9 +534,14 @@ function _analyticsRenderChart(daily) {
     });
 }
 
+// Explicit map: the old `claude ? anthropic : codex` handed Codex's quota to any other
+// provider, so Grok would have been drawn against a pool it does not use.
+const _PROVIDER_CAPACITY_KEY = { claude: 'anthropic', codex: 'codex' };
+
 function _analyticsCapacity(provider) {
     const capacity = (_analyticsPayload || {}).capacity || {};
-    return provider === 'claude' ? capacity.anthropic : capacity.codex;
+    const key = _PROVIDER_CAPACITY_KEY[provider];
+    return key ? capacity[key] : null;
 }
 
 function _analyticsKpi(label, value, detail) {

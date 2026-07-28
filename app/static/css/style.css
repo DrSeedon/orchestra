@@ -490,7 +490,7 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .analytics-section-head { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
 .analytics-section-head h3 { margin-top: 3px; color: #e9eef6; font-size: 12px; }
 .analytics-section-head > span { color: #64748b; font-family: var(--font-mono); font-size: 8px; white-space: nowrap; }
-.analytics-provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.analytics-provider-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .analytics-provider {
   min-width: 0;
   padding: 13px;
@@ -501,6 +501,8 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 }
 .analytics-provider-violet { border-top-color: #a78bfa; }
 .analytics-provider-cyan { border-top-color: #22d3ee; }
+/* same x-ai colour the model badge uses (_PROVIDER_COLORS in app.js) */
+.analytics-provider-slate { border-top-color: #e2e8f0; }
 .analytics-provider-head, .analytics-provider-head > div { display: flex; align-items: center; }
 .analytics-provider-head { justify-content: space-between; gap: 12px; padding-bottom: 11px; border-bottom: 1px solid #202e41; }
 .analytics-provider-head > div { min-width: 0; gap: 8px; }
