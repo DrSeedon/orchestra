@@ -66,7 +66,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 ### Worker management
 - `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. `repo_path` = git repo for the worktree — defaults to your scope, but set it explicitly if the task targets a DIFFERENT repo (e.g. your scope is `/projects/orchestrator` but the task needs files in `/home/user/game-project`)
 - `merge_worker` / `change_worker_model` — worker must be **idle** (+ clean tree for merge). After merge, just `send_message` — auto-switches to fresh branch
-- `compact_worker` — takes 30-60s; do NOT retry on timeout, check `list_agents` instead
+- `compact_worker` — manual escape hatch only (user asks, or a worker is visibly stuck). Takes 30-60s; do NOT retry on timeout, check `list_agents` instead
 - `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
 - `get_worker_logs` — debugging only, NOT for progress checks (wait for the worker's message)
 - `update_worker_description`, `list_jobs` — as named
@@ -236,7 +236,7 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 - Update tasks — starting work → `task_update(par, status="in_progress")`. Worker DONE → `task_update(par, status="done")`
 - Task language — write title/description in the same language the requester uses
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
-- Context management — when you see `CONTEXT CRITICAL: N%` warning, compact_worker or spawn fresh
+- Worker context is NOT your problem — Codex/Sol workers compact their thread natively. Don't watch their ctx%, don't call `compact_worker` preventively
 - Don't take a worker's "Codex ran / Codex approved" on faith for critical work — the review output lives in `docs/tasks/<id>/codex-review-*.md`. If it matters, have the worker show the file (or check `ps aux | grep codex` to confirm a live run). Opus sometimes hallucinates "I already ran it"
 - **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, codex-review excerpts), not the worker's narration ("I tested it", "I verified"). A beautiful story with no artifact = not accepted
 </rules>
