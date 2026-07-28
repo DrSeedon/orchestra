@@ -1,6 +1,7 @@
 # Orchestra TODO
 
 ## Bugs
+- [ ] **Трекер переиспользует номера задач → коллизия с `docs/tasks/<id>/`** — `task_create` выдал `#96` для нового исследования, хотя `docs/tasks/96/` уже занят завершённой задачей OpenCodeBackend (`3031c42`). Воркер остановился до коммита и спросил — иначе затёр бы чужие research/plan/два Codex-ревью. Обход: класть в `docs/tasks/<id>-<slug>/`. Чинить в `task_create`: проверять существование каталога и не выдавать занятый номер
 - [ ] **Тест-изоляция: test_default_equals_upstream загрязняет 106 тестов** — `load_pipeline.cache_clear()` + monkeypatch `PIPELINES_DIR`. Pre-existing. Deselect в CI
 - [ ] **Pending tm_sync_log без fire в CLI-контексте** — `_fire_sync` пишет pending до schedule; нет loop → запись висит
 - [ ] **TG media buffer race (P2)** — _resolve_media после timeout-flush может записать в чужой слот. Нужен generation counter
