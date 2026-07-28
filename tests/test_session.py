@@ -1238,6 +1238,11 @@ class TestCompactGuards:
         from app.events import AgentEvent
         from app.session import AgentStatus
         monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        # Guard reads the live usage cache: at 100% of the 5h window compact refuses and
+        # this test fails for a reason unrelated to what it checks.
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active", lambda: False,
+        )
 
         logged = []
 
