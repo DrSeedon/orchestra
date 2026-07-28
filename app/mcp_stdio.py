@@ -262,10 +262,9 @@ _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 def _cache_pill(s: dict) -> str:
     """Prompt-cache warmth as a short exact/approximate text pill."""
     from datetime import datetime, timezone
-    from app.models import cache_policy_for_runtime
+    from app.models import cache_policy_for_runtime, runtime_for_record
 
-    runtime = s.get("backend_type") or s.get("runtime") or s.get("backend") or "claude"
-    policy = cache_policy_for_runtime(runtime)
+    policy = cache_policy_for_runtime(runtime_for_record(s))
     raw_ttl = s.get("cache_ttl_seconds")
     raw_ttl = policy["cache_ttl_seconds"] if raw_ttl is None else raw_ttl
     try:

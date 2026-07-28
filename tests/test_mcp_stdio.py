@@ -496,6 +496,7 @@ def test_cache_pill_uses_exact_and_approximate_runtime_policies():
         "cache_ttl_seconds": 0,
         "cache_ttl_approximate": True,
     }) == ""
+    assert m._cache_pill({"status": "running"}) == ""
 
 
 def test_read_only_access_mode_hides_mutating_tools():

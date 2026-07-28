@@ -13,6 +13,35 @@ UTILS_JS = ROOT / "app/static/js/utils.js"
 TEMPLATE = ROOT / "app/templates/dashboard.html"
 
 
+def test_frontend_provider_metadata_is_exhaustive():
+    from app.models import PROVIDER_METADATA
+
+    source = UTILS_JS.read_text()
+    colors_block = source.split("const _PROVIDER_COLORS = {", 1)[1].split("};", 1)[0]
+    color_ids = {
+        quoted or bare
+        for quoted, bare in re.findall(
+            r"(?:'([^']+)'|([a-z][a-z0-9_-]*))\s*:",
+            colors_block,
+        )
+    }
+    block = source.split("const _PROVIDER_META = {", 1)[1].split(
+        "\n};\nconst _PROVIDER_CAPACITY_KEY",
+        1,
+    )[0]
+    frontend_ids = set(re.findall(r"^    ([a-z][a-z0-9_]*): \{$", block, re.MULTILINE))
+
+    assert frontend_ids == set(PROVIDER_METADATA)
+    assert "unknown" in frontend_ids
+    assert "opencode" in frontend_ids
+    model_providers = {
+        provider
+        for metadata in PROVIDER_METADATA.values()
+        for provider in metadata.model_providers
+    }
+    assert model_providers <= color_ids
+
+
 @pytest.fixture(scope="module")
 def browser():
     with sync_playwright() as playwright:

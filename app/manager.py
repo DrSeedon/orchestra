@@ -29,7 +29,9 @@ from app.models import (
     available_models_block,
     backend_for_model,
     cache_policy_for_runtime,
+    get_model_spec,
     resolve_model,
+    runtime_for_record,
 )
 from app.pipeline import (
     DEFAULT_PIPELINE,
@@ -799,7 +801,7 @@ class SessionManager:
             parent_name=row.get("parent_name") or "",
             pipeline=row.get("pipeline") or "",
             profile=row.get("profile") or "",
-            backend_type=row.get("backend_type") or "claude",
+            backend_type=runtime_for_record(row),
             runtime_handoff=row.get("runtime_handoff") or "",
             last_summary=row.get("last_summary") or "",
             task_id=row.get("task_id") or "",
@@ -997,7 +999,7 @@ class SessionManager:
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
         expected_bt = backend_for_model(db_row["model"])
-        stored_bt = db_row.get("backend_type", "claude") or "claude"
+        stored_bt = db_row.get("backend_type") or expected_bt
         if stored_bt != expected_bt:
             logger.warning(f"backend mismatch for {db_row['name']}: stored={stored_bt}, model implies={expected_bt}. Using {expected_bt}.")
             stored_bt = expected_bt
@@ -1060,7 +1062,7 @@ class SessionManager:
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
-            max_t = CONTEXT_LIMITS.get(db_row["model"], 200000)
+            max_t = get_model_spec(db_row["model"]).context_length
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
         orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None
         if not is_orch:
@@ -1151,8 +1153,7 @@ class SessionManager:
         turn_map = get_last_turn_map()
         for r in result:
             r["last_turn_ts"] = turn_map.get(r["id"])
-            runtime = r.get("backend_type") or r.get("runtime") or r.get("backend") or "claude"
-            r.update(cache_policy_for_runtime(runtime))
+            r.update(cache_policy_for_runtime(runtime_for_record(r)))
         return result
 
     def get_session_id(self, name: str, scope: str) -> str | None:

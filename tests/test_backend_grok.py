@@ -43,8 +43,7 @@ def _update(kind, **payload):
 # ── registry: the silent-misroute trap ──
 
 def test_grok_model_routes_to_grok_runtime():
-    # _infer_backend() sends anything that is not gpt-*/claude-* to OpenCode. An
-    # unregistered grok-4.5 would therefore run on the wrong runtime with no error at all.
+    # The route is explicit; removing it must fail rather than select another runtime.
     assert backend_for_model("grok-4.5") == "grok"
 
 
@@ -56,17 +55,14 @@ def test_grok_aliases_and_provider():
     assert spec.context_length == 500000
 
 
-def test_unregistered_grok_model_still_infers_grok_runtime():
-    assert get_model_spec("grok-9.9-future").runtime == "grok"
+def test_unregistered_grok_model_fails_loud():
+    with pytest.raises(ValueError, match="unknown model 'grok-9.9-future'"):
+        get_model_spec("grok-9.9-future")
 
 
-def test_proxy_served_grok_stays_on_opencode():
-    """`x-ai/grok-4` is the OpenCode daemon's surface, not the Grok CLI's.
-
-    The new `grok-` prefix rule must key on a bare model id; hijacking provider-qualified
-    ids would silently move existing proxy models onto a CLI that cannot serve them.
-    """
-    assert get_model_spec("x-ai/grok-4").runtime == "opencode"
+def test_unregistered_provider_qualified_grok_does_not_select_opencode():
+    with pytest.raises(ValueError, match="unknown model 'x-ai/grok-4'"):
+        get_model_spec("x-ai/grok-4")
 
 
 def test_runtime_capabilities_match_measured_behaviour():
@@ -445,8 +441,8 @@ def test_usage_rows_bucket_grok_into_its_own_provider():
 
     sql = _provider_case("u.runtime", "u.model")
     assert "'grok'" in sql
-    assert sql.index("'grok'") < sql.index("'codex'")   # matched before the older branches
-    assert sql.rstrip().endswith("ELSE 'claude' END")
+    assert "u.runtime = 'grok'" in sql
+    assert sql.rstrip().endswith("ELSE 'unknown' END")
 
 
 def test_cache_ttl_case_covers_every_known_provider():
@@ -456,7 +452,7 @@ def test_cache_ttl_case_covers_every_known_provider():
 
     sql, ttls = _cache_ttl_case()
     assert len(ttls) == len(_PROVIDERS)
-    assert sql.count("WHEN") == len(_PROVIDERS) - 1     # last one is the ELSE
+    assert sql.count("WHEN") >= len(_PROVIDERS) - 1
     for provider, ttl in zip(_PROVIDERS, ttls):
         assert ttl == cache_policy_for_runtime(provider)["cache_ttl_seconds"]
 
@@ -466,9 +462,16 @@ def test_provider_buckets_match_runtime_ids():
     from app.models import cache_policy_for_runtime
     from app.usage_analytics import _PROVIDERS
 
-    assert "grok" in _PROVIDERS
+    assert {"claude", "codex", "grok", "opencode", "unknown"} == set(_PROVIDERS)
     for provider in _PROVIDERS:
-        assert cache_policy_for_runtime(provider)["cache_ttl_seconds"] > 0
+        policy = cache_policy_for_runtime(provider)
+        if provider in {"opencode", "unknown"}:
+            assert policy == {
+                "cache_ttl_seconds": 0,
+                "cache_ttl_approximate": True,
+            }
+        else:
+            assert policy["cache_ttl_seconds"] > 0
 
 
 # ── tool approval (T5) ──

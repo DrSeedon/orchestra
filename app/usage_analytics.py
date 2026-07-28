@@ -7,31 +7,45 @@ from datetime import datetime, timedelta, timezone
 from statistics import median
 
 from app.db import _conn
-from app.models import cache_policy_for_runtime
+from app.models import PROVIDER_METADATA, cache_policy_for_runtime
 
 
 # One table drives every provider decision here: bucketing rows AND picking the cache window
 # for cold-start scoring. Both used to be hand-written binaries ending in `ELSE 'claude'`, so
 # a new runtime silently joined the Claude Max pool and was scored against Claude's TTL —
 # which would have hidden the whole point of running Grok on a separate quota.
-# (runtime id, model prefix); anything unmatched falls back to _FALLBACK_PROVIDER.
-_PROVIDER_RULES = (("grok", "grok-"), ("codex", "gpt-"))
-_FALLBACK_PROVIDER = "claude"
-_PROVIDERS = tuple(runtime for runtime, _ in _PROVIDER_RULES) + (_FALLBACK_PROVIDER,)
+# Explicit runtime ids win. Model prefixes are used only for legacy rows whose
+# runtime column is empty; anything else is accounted as unknown.
+_PROVIDERS = tuple(PROVIDER_METADATA)
+_FALLBACK_PROVIDER = "unknown"
 
 
 def _provider_case(runtime_col: str, model_col: str) -> str:
     """SQL that buckets a usage row by runtime — one decision, two call sites."""
-    branches = " ".join(
-        f"WHEN {runtime_col} = '{runtime}' OR {model_col} LIKE '{prefix}%' THEN '{runtime}'"
-        for runtime, prefix in _PROVIDER_RULES
+    runtime_branches = " ".join(
+        f"WHEN {runtime_col} = '{provider}' THEN '{provider}'"
+        for provider in _PROVIDERS
+        if provider != _FALLBACK_PROVIDER
     )
-    return f"CASE {branches} ELSE '{_FALLBACK_PROVIDER}' END"
+    legacy_branches = " ".join(
+        f"WHEN COALESCE({runtime_col}, '') = '' "
+        f"AND {model_col} LIKE '{prefix}%' THEN '{provider}'"
+        for provider, metadata in PROVIDER_METADATA.items()
+        for prefix in metadata.legacy_model_prefixes
+    )
+    return (
+        f"CASE {runtime_branches} {legacy_branches} "
+        f"ELSE '{_FALLBACK_PROVIDER}' END"
+    )
 
 
 def _cache_ttl_case() -> tuple[str, tuple[int, ...]]:
     """SQL CASE + bound TTLs for cold-start scoring, in _PROVIDERS order."""
-    branches = " ".join(f"WHEN provider = '{p}' THEN ?" for p in _PROVIDERS[:-1])
+    branches = " ".join(
+        f"WHEN provider = '{p}' THEN ?"
+        for p in _PROVIDERS
+        if p != _FALLBACK_PROVIDER
+    )
     ttls = tuple(
         int(cache_policy_for_runtime(p)["cache_ttl_seconds"]) for p in _PROVIDERS
     )
