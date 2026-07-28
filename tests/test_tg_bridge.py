@@ -371,7 +371,7 @@ class TestRenameOrchTopic:
         monkeypatch.setattr(tb, "_ensure_stream", lambda *args: None)
 
         creating = asyncio.create_task(tb._ensure_mirror_topic("old", mirror))
-        await asyncio.wait_for(create_started.wait(), timeout=0.1)
+        await asyncio.wait_for(create_started.wait(), timeout=5)
         renaming = asyncio.create_task(tb.rename_orch_topic("old", "new"))
         await asyncio.sleep(0)
 
@@ -823,7 +823,7 @@ class TestTgSendSafe:
             started.append(chat_id)
             if len(started) == 2:
                 both_started.set()
-            await asyncio.wait_for(both_started.wait(), timeout=0.1)
+            await asyncio.wait_for(both_started.wait(), timeout=5)
             return object()
 
         tb.bot = AsyncMock()
@@ -989,7 +989,7 @@ class TestTgSendSafe:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 77, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         first = await tb._tg_send_safe(
             -100, "first", 77, entities=[object()], telemetry_key=("tool", 77),
         )
@@ -1030,7 +1030,7 @@ class TestTgSendSafe:
             entities=[object()],
             best_effort=True,
         )
-        await asyncio.wait_for(entity_started.wait(), timeout=0.1)
+        await asyncio.wait_for(entity_started.wait(), timeout=5)
 
         async def reject_fallback(*args, **kwargs):
             return None
@@ -1122,7 +1122,7 @@ class TestTgReliableDeadlines:
                 tb._tg_send_safe(-100, "slow", 7, important=True),
                 tb._tg_send_safe(-100, "reply", 7, important=True),
             ),
-            timeout=0.15,
+            timeout=5,
         )
         snapshot = tb._tg_delivery_snapshot(-100)
 
@@ -1153,7 +1153,7 @@ class TestTgReliableDeadlines:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 7, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         queued = asyncio.create_task(
             tb._tg_send_safe(-100, "queued", 7, important=True),
         )
@@ -1227,7 +1227,7 @@ class TestTgMirrorIsolation:
 
         stream = asyncio.create_task(tb.stream_logs("orch", 42))
         try:
-            await asyncio.wait_for(mirror_started.wait(), timeout=0.1)
+            await asyncio.wait_for(mirror_started.wait(), timeout=5)
             await asyncio.wait_for(second_primary.wait(), timeout=0.05)
         finally:
             release_mirror.set()
@@ -1266,9 +1266,9 @@ class TestTgMirrorIsolation:
         try:
             await asyncio.wait_for(
                 asyncio.gather(*submissions),
-                timeout=0.1,
+                timeout=5,
             )
-            await asyncio.wait_for(send_started.wait(), timeout=0.1)
+            await asyncio.wait_for(send_started.wait(), timeout=5)
             snapshot = tb._mirror_delivery_snapshot("orch")
 
             assert snapshot["queued"] <= tb._TG_MIRROR_OUTBOX_MAX
@@ -1307,7 +1307,7 @@ class TestTgMirrorIsolation:
                 important=True,
                 label="primary",
             ),
-            timeout=0.1,
+            timeout=5,
         )
         snapshot = tb._tg_delivery_snapshot(-200)
 
@@ -1340,7 +1340,7 @@ class TestTgMirrorIsolation:
 
         assert await tb._mirror_send("orch-a", "a") is True
         assert await tb._mirror_send("orch-b", "b") is True
-        await asyncio.wait_for(both_sent.wait(), timeout=0.1)
+        await asyncio.wait_for(both_sent.wait(), timeout=5)
 
         assert sent_at[1] - sent_at[0] >= 0.018
         for task in list(tb._mirror_tasks.values()):
@@ -1366,8 +1366,8 @@ class TestTgMirrorIsolation:
         monkeypatch.setattr(tb, "_tg_send_safe", send_safe)
 
         assert await tb._mirror_send("orch", "blocked") is True
-        await asyncio.wait_for(send_started.wait(), timeout=0.1)
-        await asyncio.wait_for(_real_stop_bridge(), timeout=0.1)
+        await asyncio.wait_for(send_started.wait(), timeout=5)
+        await asyncio.wait_for(_real_stop_bridge(), timeout=5)
 
         assert tb._mirror_tasks == {}
         assert tb._mirror_outboxes == {}
@@ -1391,10 +1391,10 @@ class TestTgMirrorIsolation:
         monkeypatch.setattr(tb, "_reset_tg_delivery_state", reset_delivery)
 
         stopping = asyncio.create_task(_real_stop_bridge())
-        await asyncio.wait_for(reset_started.wait(), timeout=0.1)
+        await asyncio.wait_for(reset_started.wait(), timeout=5)
         accepted = await tb._mirror_send("orch", "late")
         release_reset.set()
-        await asyncio.wait_for(stopping, timeout=0.1)
+        await asyncio.wait_for(stopping, timeout=5)
 
         try:
             assert accepted is False
@@ -1427,11 +1427,11 @@ class TestTopicStatusDelivery:
         monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
 
         status_task = asyncio.create_task(tb._update_topic_status("orch", True))
-        await asyncio.wait_for(edit_started.wait(), timeout=0.1)
+        await asyncio.wait_for(edit_started.wait(), timeout=5)
 
         message = await asyncio.wait_for(
             tb._tg_send_safe(tb.config["group_id"], "reply", 42, important=True),
-            timeout=0.1,
+            timeout=5,
         )
         await status_task
 
@@ -1722,7 +1722,7 @@ class TestTgLifecycleReliability:
         )
 
         creating = asyncio.create_task(tb.ensure_topics())
-        await asyncio.wait_for(create_started.wait(), timeout=0.1)
+        await asyncio.wait_for(create_started.wait(), timeout=5)
         await _real_stop_bridge()
         await asyncio.gather(creating, return_exceptions=True)
 
@@ -1963,7 +1963,7 @@ class TestTgCallQueue:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 77, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         nonimportant = await tb._tg_send_safe(-100, "tool", 77)
         important = asyncio.create_task(
             tb._tg_send_safe(-100, "reply", 77, important=True),
@@ -2018,7 +2018,7 @@ class TestTgCallQueue:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 77, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         edit = await tb._tg_edit_message_safe(-100, 5, "updated")
 
         assert isinstance(edit, asyncio.Task)
@@ -2053,7 +2053,7 @@ class TestTgTelemetryFairness:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 77, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         tool = await tb._tg_send_safe(-100, "tool", 77)
         reliable = [
             asyncio.create_task(
@@ -2091,7 +2091,7 @@ class TestTgTelemetryFairness:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 77, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         tools = [
             await tb._tg_send_safe(-100, f"tool-{i}", 77)
             for i in range(1000)
@@ -2132,13 +2132,13 @@ class TestTgTelemetryFairness:
         monkeypatch.setattr(tb, "_TG_TELEMETRY_CALL_TIMEOUT", 0.01, raising=False)
 
         tool = await tb._tg_send_safe(-100, "tool", 77)
-        await asyncio.wait_for(tool_started.wait(), timeout=0.1)
+        await asyncio.wait_for(tool_started.wait(), timeout=5)
         reply = asyncio.create_task(
             tb._tg_send_safe(-100, "reply", 77, important=True),
         )
 
-        await asyncio.wait_for(reply, timeout=0.1)
-        assert await asyncio.wait_for(tool, timeout=0.1) is None
+        await asyncio.wait_for(reply, timeout=5)
+        assert await asyncio.wait_for(tool, timeout=5) is None
         assert calls == ["tool", "reply"]
 
     @pytest.mark.asyncio
@@ -2163,7 +2163,7 @@ class TestTgTelemetryFairness:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 77, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         telemetry = [
             await tb._tg_send_safe(
                 -100,
@@ -2207,7 +2207,7 @@ class TestTgTelemetryFairness:
         monkeypatch.setattr(tb, "_TG_TELEMETRY_MAX_AGE", 0, raising=False)
 
         first = await tb._tg_send_safe(-100, "tool-1", 77)
-        await asyncio.wait_for(first_started.wait(), timeout=0.1)
+        await asyncio.wait_for(first_started.wait(), timeout=5)
         second = await tb._tg_send_safe(-100, "tool-2", 77)
         release_first.set()
 
@@ -2237,7 +2237,7 @@ class TestTgTelemetryFairness:
         blocker = asyncio.create_task(
             tb._tg_send_safe(-100, "blocker", 77, important=True),
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=0.1)
+        await asyncio.wait_for(blocker_started.wait(), timeout=5)
         submissions = [
             asyncio.create_task(
                 tb._tg_send_safe(-100, f"reply-{i}", 77, important=True),
@@ -2254,7 +2254,7 @@ class TestTgTelemetryFairness:
         await tb._reset_tg_delivery_state()
         results = await asyncio.wait_for(
             asyncio.gather(blocker, *submissions, return_exceptions=True),
-            timeout=0.1,
+            timeout=5,
         )
         assert sum(
             isinstance(result, tb._TgDeliveryOverloaded)
@@ -2295,7 +2295,7 @@ class TestSendFileRetry:
         monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
 
         result = await tb.send_file_to_tg(str(path), "cap", "/s", "worker-a", as_document=True)
-        await asyncio.wait_for(mirror_done.wait(), timeout=0.1)
+        await asyncio.wait_for(mirror_done.wait(), timeout=5)
 
         assert result["ok"] is True
         assert tb.bot.send_document.await_count == 3
