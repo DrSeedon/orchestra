@@ -1316,6 +1316,218 @@ class TestCompactGuards:
 
 
 class TestPrecompactTimer:
+    @pytest.mark.parametrize(
+        ("now_utc", "allowed"),
+        [
+            (datetime(2026, 7, 28, 14, 0, tzinfo=timezone.utc), True),
+            (datetime(2026, 7, 28, 22, 59, tzinfo=timezone.utc), True),
+            (datetime(2026, 7, 28, 23, 0, tzinfo=timezone.utc), False),
+            (datetime(2026, 7, 28, 5, 0, tzinfo=timezone.utc), False),
+        ],
+    )
+    def test_auto_compact_window_uses_explicit_timezone(
+        self, session, now_utc, allowed, monkeypatch,
+    ):
+        monkeypatch.delenv("AUTO_COMPACT_WINDOW_START", raising=False)
+        monkeypatch.delenv("AUTO_COMPACT_WINDOW_END", raising=False)
+        monkeypatch.delenv("AUTO_COMPACT_TIMEZONE", raising=False)
+        session.AUTO_COMPACT_WINDOW_START = "21:00"
+        session.AUTO_COMPACT_WINDOW_END = "06:00"
+        session.AUTO_COMPACT_TIMEZONE = "Asia/Krasnoyarsk"
+
+        state = session._auto_compact_window_state(now_utc)
+
+        assert state["allowed"] is allowed
+        assert state["timezone"] == "Asia/Krasnoyarsk"
+        assert state["window"] == "21:00-06:00"
+
+    def test_auto_compact_window_rejects_invalid_timezone(
+        self, session, monkeypatch,
+    ):
+        monkeypatch.delenv("AUTO_COMPACT_WINDOW_START", raising=False)
+        monkeypatch.delenv("AUTO_COMPACT_WINDOW_END", raising=False)
+        monkeypatch.delenv("AUTO_COMPACT_TIMEZONE", raising=False)
+        session.AUTO_COMPACT_TIMEZONE = "UTC+7"
+
+        with pytest.raises(RuntimeError, match="AUTO_COMPACT_TIMEZONE"):
+            session._auto_compact_window_state(
+                datetime(2026, 7, 28, 14, 0, tzinfo=timezone.utc)
+            )
+
+    def test_startup_validation_rejects_invalid_window(self, monkeypatch):
+        from app.session import validate_auto_compact_window_config
+
+        monkeypatch.setenv("AUTO_COMPACT_WINDOW_START", "25:00")
+
+        with pytest.raises(RuntimeError, match="AUTO_COMPACT_WINDOW_START"):
+            validate_auto_compact_window_config()
+
+    def test_auto_compact_window_reads_environment_at_runtime(
+        self, session, monkeypatch,
+    ):
+        monkeypatch.setenv("AUTO_COMPACT_WINDOW_START", "22:00")
+        monkeypatch.setenv("AUTO_COMPACT_WINDOW_END", "05:00")
+        monkeypatch.setenv("AUTO_COMPACT_TIMEZONE", "Europe/Berlin")
+
+        state = session._auto_compact_window_state(
+            datetime(2026, 7, 28, 20, 0, tzinfo=timezone.utc)
+        )
+
+        assert state["allowed"] is True
+        assert state["window"] == "22:00-05:00"
+        assert state["timezone"] == "Europe/Berlin"
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_precompact_is_blocked_outside_window(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        logs = []
+        session.is_orchestrator = True
+        session.backend_type = "claude"
+        session.status = AgentStatus.IDLE
+        session._last_context["percentage"] = 60
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
+        session.compact = AsyncMock(return_value={"ok": True})
+        session._auto_compact_window_state = MagicMock(return_value={
+            "allowed": False,
+            "local_time": "2026-07-28T15:35+07:00",
+            "timezone": "Asia/Krasnoyarsk",
+            "window": "21:00-06:00",
+        })
+        session._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "backend": "claude",
+            "context_threshold": 20,
+        }
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: False),
+        )
+
+        await session._fire_precompact_timer()
+
+        session.compact.assert_not_awaited()
+        assert session._precompact_timer is None
+        blocked = [
+            content for log_type, content in logs
+            if log_type == "status" and content.startswith("auto-compact blocked")
+        ]
+        assert blocked
+        assert "21:00-06:00 Asia/Krasnoyarsk" in blocked[0]
+        assert "manual compact remains available" in blocked[0]
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_precompact_runs_inside_window(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        session.is_orchestrator = True
+        session.backend_type = "claude"
+        session.status = AgentStatus.IDLE
+        session._last_context["percentage"] = 60
+        session._log = MagicMock()
+        session.compact = AsyncMock(return_value={"ok": True})
+        session._auto_compact_window_state = MagicMock(return_value={
+            "allowed": True,
+            "local_time": "2026-07-28T22:00+07:00",
+            "timezone": "Asia/Krasnoyarsk",
+            "window": "21:00-06:00",
+        })
+        session._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "backend": "claude",
+            "context_threshold": 20,
+        }
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: False),
+        )
+
+        await session._fire_precompact_timer()
+
+        session.compact.assert_awaited_once_with()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("role", ["worker", "full-cycle", "researcher"])
+    async def test_worker_precompact_ignores_orchestrator_window(
+        self, session, monkeypatch, role,
+    ):
+        from app.session import AgentStatus
+
+        session.role = role
+        session._is_orchestrator = None
+        assert session.is_orchestrator is False
+        session.backend_type = "claude"
+        session.status = AgentStatus.IDLE
+        session._last_context["percentage"] = 60
+        session._log = MagicMock()
+        session.compact = AsyncMock(return_value={"ok": True})
+        session._auto_compact_window_state = MagicMock(side_effect=AssertionError)
+        session._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "backend": "claude",
+            "context_threshold": 20,
+        }
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: False),
+        )
+
+        await session._fire_precompact_timer()
+
+        session.compact.assert_awaited_once_with()
+
+    @pytest.mark.asyncio
+    async def test_critical_orchestrator_context_warns_once_outside_window(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        logs = []
+        launched = []
+        session.is_orchestrator = True
+        session.backend_type = "claude"
+        session.status = AgentStatus.IDLE
+        session._last_context["percentage"] = 95
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
+        session.compact = AsyncMock(return_value={"ok": True})
+        session._auto_compact_window_state = MagicMock(return_value={
+            "allowed": False,
+            "local_time": "2026-07-28T15:35+07:00",
+            "timezone": "Asia/Krasnoyarsk",
+            "window": "21:00-06:00",
+        })
+
+        def capture(coro):
+            launched.append(coro)
+            coro.close()
+            return MagicMock(done=lambda: False)
+
+        session._spawn_bg = capture
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: False),
+        )
+
+        session._schedule_precompact_timer(95)
+        await session._fire_precompact_timer()
+
+        assert len(launched) == 1
+        warnings = [
+            content for log_type, content in logs
+            if log_type == "status" and content.startswith("auto-compact deferred")
+        ]
+        assert len(warnings) == 1
+        assert "context 95%" in warnings[0]
+        assert not [
+            content for log_type, content in logs
+            if log_type == "status" and content.startswith("auto-compact blocked")
+        ]
+        session.compact.assert_not_awaited()
+
     def test_codex_post_turn_schedules_native_precompact_without_generic_handoff(self, session):
         spawned = []
         logs = []
@@ -1414,7 +1626,7 @@ class TestPrecompactTimer:
         assert session._precompact_timer["compact_result"]["mode"] == "native"
 
     @pytest.mark.asyncio
-    async def test_codex_manual_compact_uses_native_backend_and_preserves_session(
+    async def test_codex_manual_compact_ignores_orchestrator_window(
         self, session
     ):
         from app.session import AgentStatus
@@ -1427,6 +1639,8 @@ class TestPrecompactTimer:
             "max_tokens": 258_400,
         })
         session.backend_type = "codex"
+        session.is_orchestrator = True
+        session._auto_compact_window_state = MagicMock(side_effect=AssertionError)
         session.session_id = "thread-1"
         session.status = AgentStatus.IDLE
         session._last_context = {

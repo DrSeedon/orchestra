@@ -21,6 +21,8 @@ logger = logging.getLogger("orchestra")
 async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
+    from app.session import validate_auto_compact_window_config
+    validate_auto_compact_window_config()
     # Load admin-selected provider adapters only after .env is available. Plugins fail
     # loudly here and may register both runtimes and models before model discovery.
     from app.runtime_registry import load_runtime_plugins
