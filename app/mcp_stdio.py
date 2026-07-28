@@ -459,12 +459,15 @@ async def list_jobs() -> str:
 async def send_file(path: str, caption: str = "", as_document: bool = False) -> str:
     """Send a file to the user via Telegram. Path must be absolute. Images are sent as inline photos by default; set as_document=True to force file attachment."""
     try:
+        # Delivery goes through the reliable TG queue, which waits out flood control
+        # (429 retry_after is routinely 20-30s) — 30s here timed out mid-retry.
         result = await _api("POST", "/api/tg/send_file", json={
             "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
             "as_document": as_document,
-        })
+        }, timeout=180)
     except Exception as e:
-        return f"Send failed: network error: {e}"
+        # httpx timeouts stringify to "" — without the class name the report says nothing.
+        return f"Send failed: network error: {type(e).__name__}: {e}"
     if not isinstance(result, dict):
         return f"Send failed: unexpected response type={type(result).__name__} value={result!r}"
     if result.get("error"):
