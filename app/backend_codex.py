@@ -224,6 +224,7 @@ class CodexBackend:
         self._last_call_usage: dict[str, int] | None = None
         self._model_context_window = CODEX_CONTEXT_LIMITS.get(model, 258400)
         self._compact_future: asyncio.Future | None = None
+        self._compact_notifications: asyncio.Queue[dict] | None = None
         self._compact_context_tokens: int | None = None
 
     @property
@@ -339,6 +340,7 @@ class CodexBackend:
     async def events(self) -> AsyncIterator[AgentEvent]:
         if not self.is_alive:
             return
+        expected_turn_id = self._active_turn_id
         self._events_active = True
         try:
             while True:
@@ -361,12 +363,33 @@ class CodexBackend:
                 thread_id = params.get("threadId")
                 if thread_id and self._thread_id and thread_id != self._thread_id:
                     continue
+                if not self._lifecycle_belongs_to_turn(message, expected_turn_id):
+                    continue
                 for event in self._convert_notification(message):
                     yield event
                 if method in ("turn/completed", "_process/exited"):
                     return
         finally:
             self._events_active = False
+
+    @staticmethod
+    def _lifecycle_belongs_to_turn(message: dict, expected_turn_id: str | None) -> bool:
+        method = message.get("method", "")
+        if method not in ("turn/started", "turn/completed"):
+            return True
+        received_turn_id = str(
+            (((message.get("params") or {}).get("turn") or {}).get("id")) or ""
+        )
+        if received_turn_id == expected_turn_id:
+            return True
+        logger.debug(
+            "Codex ignored lifecycle event for another turn: "
+            "method=%s received_turn_id=%s expected_turn_id=%s",
+            method,
+            received_turn_id,
+            expected_turn_id,
+        )
+        return False
 
     async def interrupt(self) -> bool:
         if not self._active_turn_id or not self._thread_id or not self.is_alive:
@@ -393,20 +416,21 @@ class CodexBackend:
             raise RuntimeError("Codex context compact already in progress")
 
         future = asyncio.get_running_loop().create_future()
+        compact_notifications: asyncio.Queue[dict] = asyncio.Queue()
         self._compact_future = future
+        self._compact_notifications = compact_notifications
         self._compact_context_tokens = None
         try:
-            await self._request(
-                "thread/compact/start",
-                {"threadId": self._thread_id},
-            )
-            result = await asyncio.wait_for(
-                future,
-                timeout=CODEX_COMPACT_TIMEOUT_SECONDS,
-            )
-            # The usage notification normally precedes contextCompaction completion,
-            # but yield once for app-server versions that emit it immediately after.
-            await asyncio.sleep(0)
+            async with asyncio.timeout(CODEX_COMPACT_TIMEOUT_SECONDS):
+                await self._request(
+                    "thread/compact/start",
+                    {"threadId": self._thread_id},
+                )
+                result = await future
+                await self._drain_compact_lifecycle(compact_notifications)
+                # The usage notification normally precedes contextCompaction completion,
+                # but yield once for app-server versions that emit it immediately after.
+                await asyncio.sleep(0)
             context_tokens = self._compact_context_tokens
             if context_tokens is None:
                 runtime_context = self._runtime_context()
@@ -421,10 +445,33 @@ class CodexBackend:
         finally:
             if self._compact_future is future:
                 self._compact_future = None
+            if self._compact_notifications is compact_notifications:
+                self._compact_notifications = None
             if not future.done():
                 future.cancel()
             elif not future.cancelled():
                 future.exception()
+
+    async def _drain_compact_lifecycle(
+        self,
+        notifications: asyncio.Queue[dict],
+    ) -> None:
+        compact_turn_id: str | None = None
+        while True:
+            message = await notifications.get()
+            method = message.get("method", "")
+            turn_id = str(
+                (((message.get("params") or {}).get("turn") or {}).get("id")) or ""
+            )
+            if method == "turn/started":
+                compact_turn_id = turn_id
+            elif method == "turn/completed":
+                if compact_turn_id is None:
+                    raise RuntimeError(
+                        "Codex compact completed without a preceding turn/started"
+                    )
+                if self._lifecycle_belongs_to_turn(message, compact_turn_id):
+                    return
 
     async def disconnect(self) -> None:
         proc = self._proc
@@ -525,7 +572,10 @@ class CodexBackend:
                     if message["method"] == "thread/tokenUsage/updated":
                         self._record_token_usage(message.get("params") or {})
                     self._complete_compaction_from_notification(message)
-                    await self._notifications.put(message)
+                    notifications = self._compact_notifications
+                    if notifications is None:
+                        notifications = self._notifications
+                    await notifications.put(message)
         except asyncio.CancelledError:
             return
         except Exception as exc:
