@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from functools import partial
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.events import AgentEvent
 from app.models import backend_for_model, get_model_spec
@@ -103,6 +104,68 @@ _LAST_SUMMARY_MAX_CHARS = 4_000
 # as agent speech. Off by default — the summary already lives in the agent's context
 # and in the compact_worker result.
 LOG_COMPACT_SUMMARY = os.getenv("LOG_COMPACT_SUMMARY", "0").strip().lower() in ("1", "true", "yes")
+_AUTO_COMPACT_WINDOW_START_DEFAULT = "21:00"
+_AUTO_COMPACT_WINDOW_END_DEFAULT = "06:00"
+_AUTO_COMPACT_TIMEZONE_DEFAULT = "Asia/Krasnoyarsk"
+
+
+def _configured_auto_compact_window_state(
+        now_utc: datetime, start_raw: str, end_raw: str,
+        timezone_name: str) -> dict:
+    if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", start_raw):
+        raise RuntimeError(
+            "AUTO_COMPACT_WINDOW_START must use HH:MM (24-hour time)"
+        )
+    if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", end_raw):
+        raise RuntimeError(
+            "AUTO_COMPACT_WINDOW_END must use HH:MM (24-hour time)"
+        )
+    start = datetime.strptime(start_raw, "%H:%M").time()
+    end = datetime.strptime(end_raw, "%H:%M").time()
+    if start == end:
+        raise RuntimeError(
+            "AUTO_COMPACT_WINDOW_START and AUTO_COMPACT_WINDOW_END must differ"
+        )
+    try:
+        configured_tz = ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise RuntimeError(
+            f"AUTO_COMPACT_TIMEZONE must be an IANA timezone, "
+            f"got {timezone_name!r}"
+        ) from exc
+    if now_utc.tzinfo is None:
+        raise RuntimeError("auto-compact window requires an aware datetime")
+
+    local_now = now_utc.astimezone(configured_tz)
+    local_clock = local_now.time().replace(tzinfo=None)
+    if start < end:
+        allowed = start <= local_clock < end
+    else:
+        allowed = local_clock >= start or local_clock < end
+    return {
+        "allowed": allowed,
+        "local_time": local_now.isoformat(timespec="minutes"),
+        "timezone": timezone_name,
+        "window": f"{start_raw}-{end_raw}",
+    }
+
+
+def validate_auto_compact_window_config() -> None:
+    _configured_auto_compact_window_state(
+        datetime.now(timezone.utc),
+        os.getenv(
+            "AUTO_COMPACT_WINDOW_START",
+            _AUTO_COMPACT_WINDOW_START_DEFAULT,
+        ).strip(),
+        os.getenv(
+            "AUTO_COMPACT_WINDOW_END",
+            _AUTO_COMPACT_WINDOW_END_DEFAULT,
+        ).strip(),
+        os.getenv(
+            "AUTO_COMPACT_TIMEZONE",
+            _AUTO_COMPACT_TIMEZONE_DEFAULT,
+        ).strip(),
+    )
 
 
 def _bounded_summary(summary: str) -> str:
@@ -228,6 +291,9 @@ class AgentSession:
     # ChatGPT-auth Codex publishes no contractual cache TTL. Keep a five-minute
     # safety margin before the observed/documented ~30-minute reference window.
     CODEX_CACHE_WINDOW_SECONDS = 30 * 60
+    AUTO_COMPACT_WINDOW_START = _AUTO_COMPACT_WINDOW_START_DEFAULT
+    AUTO_COMPACT_WINDOW_END = _AUTO_COMPACT_WINDOW_END_DEFAULT
+    AUTO_COMPACT_TIMEZONE = _AUTO_COMPACT_TIMEZONE_DEFAULT
 
     def _precompact_payload(self, payload: dict) -> str:
         return json.dumps(payload, ensure_ascii=False)
@@ -250,6 +316,46 @@ class AgentSession:
                 "compact_mode": "native",
             }
         return None
+
+    def _auto_compact_window_state(
+            self, now_utc: datetime | None = None) -> dict:
+        return _configured_auto_compact_window_state(
+            now_utc or datetime.now(timezone.utc),
+            os.getenv(
+                "AUTO_COMPACT_WINDOW_START", self.AUTO_COMPACT_WINDOW_START,
+            ).strip(),
+            os.getenv(
+                "AUTO_COMPACT_WINDOW_END", self.AUTO_COMPACT_WINDOW_END,
+            ).strip(),
+            os.getenv(
+                "AUTO_COMPACT_TIMEZONE", self.AUTO_COMPACT_TIMEZONE,
+            ).strip(),
+        )
+
+    def _auto_compact_window_blocked(
+            self, context_pct: int, now_utc: datetime | None = None,
+            *, log_status: bool = True, deferred: bool = False) -> bool:
+        if not self.is_orchestrator:
+            return False
+        state = self._auto_compact_window_state(now_utc)
+        if state["allowed"]:
+            return False
+        if not log_status:
+            return True
+        risk = (
+            "; context is critically high and may hit the runtime limit"
+            if context_pct > 90
+            else ""
+        )
+        outcome = "deferred" if deferred else "blocked"
+        self._log(
+            "status",
+            f"auto-compact {outcome} outside configured window: "
+            f"context {context_pct}%, local {state['local_time']}, "
+            f"window {state['window']} {state['timezone']}{risk}; "
+            "manual compact remains available",
+        )
+        return True
 
     def _cancel_precompact_timer(self, reason: str = "activity") -> None:
         if self._precompact_timer_task and not self._precompact_timer_task.done():
@@ -306,11 +412,17 @@ class AgentSession:
         policy = self._precompact_policy()
         if policy is None or context_pct < policy["arm_threshold"]:
             return
+        window_warning_logged = False
+        if context_pct > 90:
+            window_warning_logged = self._auto_compact_window_blocked(
+                context_pct, deferred=True,
+            )
         self._precompact_timer = {
             "scheduled_at": datetime.now(timezone.utc).isoformat(),
             "role": self.role,
             "backend": self.backend_type,
             "context_pct": context_pct,
+            "window_warning_logged": window_warning_logged,
             **policy,
         }
         self._log(
@@ -377,6 +489,13 @@ class AgentSession:
                 "status",
                 f"precompact timer skipped: {self._precompact_payload(state)}",
             )
+            self._precompact_timer = None
+            return
+
+        if self._auto_compact_window_blocked(
+                self._last_context.get("percentage", 0), fired_at,
+                log_status=not state.get("window_warning_logged", False)):
+            state["skip_reason"] = "outside_auto_compact_window"
             self._precompact_timer = None
             return
 
