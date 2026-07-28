@@ -13,7 +13,6 @@ from app.db import (
     bg_claim_trigger,
     bg_update_config,
     get_all_sessions,
-    usage_get_latest_provider_usage,
 )
 from app.models import backend_for_model
 from app.session import _subscription_limit_kind
@@ -26,6 +25,8 @@ WAKE_JOB_PREFIX = "wake-limit-"
 WAKE_STAGGER_SECONDS = 30
 MANUAL_ACTION_URL = "https://claude.ai/settings/usage"
 WAKE_MESSAGE_PREFIX = "[system wake:"
+ANTHROPIC_BASE_WINDOWS = ("five_hour", "seven_day")
+_schedule_lock = asyncio.Lock()
 
 
 def _provider_for_model(model: str) -> str:
@@ -116,67 +117,175 @@ def _parse_reset(value: object) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-def build_wake_plan(
-    agents: list[dict],
-    provider_usage: dict,
+def provider_readiness(
+    provider_envelope: dict,
+    provider: str,
     *,
     now: datetime | None = None,
 ) -> dict:
-    """Map stopped agents to the latest reset among their exhausted windows."""
+    """Return the single capacity decision used by planning and delivery."""
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    manual_agents = sorted(
-        agent["name"] for agent in agents if agent["limit_kind"] == "monthly"
-    )
-    schedules = []
-    unavailable_agents = []
-    providers = sorted({
-        agent["provider"]
-        for agent in agents
-        if agent["limit_kind"] == "timed"
-        and not (
-            agent["provider"] == "anthropic"
-            and manual_agents
-        )
-    })
-    for provider in providers:
-        provider_agents = [
-            agent for agent in agents
-            if agent["provider"] == provider and agent["limit_kind"] == "timed"
-        ]
-        windows = (provider_usage.get(provider) or {}).get("windows") or []
-        exhausted = []
-        for window in windows:
-            utilization = window.get("utilization")
-            reset = _parse_reset(window.get("resets_at"))
-            if (
-                isinstance(utilization, (int, float))
-                and utilization >= 100
-                and reset
-                and reset > now
+    if not provider_envelope.get("fresh"):
+        return {
+            "state": "unavailable",
+            "reason": provider_envelope.get("error")
+            or "fresh provider usage unavailable",
+        }
+
+    usage = provider_envelope.get("usage")
+    if not isinstance(usage, dict):
+        return {"state": "unavailable", "reason": "provider usage missing"}
+    windows = usage.get("windows")
+    if not isinstance(windows, list):
+        return {"state": "unavailable", "reason": "usage windows missing"}
+
+    if provider == "anthropic":
+        by_id = {
+            window.get("id"): window
+            for window in windows
+            if isinstance(window, dict)
+        }
+        required = []
+        for window_id in ANTHROPIC_BASE_WINDOWS:
+            window = by_id.get(window_id)
+            if not isinstance(window, dict) or not isinstance(
+                window.get("utilization"), (int, float)
             ):
-                exhausted.append((reset, window))
-        if not exhausted:
-            unavailable_agents.extend(agent["name"] for agent in provider_agents)
-            continue
-        reset, _window = max(exhausted, key=lambda item: item[0])
-        schedules.append({
-            "provider": provider,
-            "reset_at": reset.isoformat(),
-            "agents": [
-                {
-                    "id": agent["id"],
-                    "name": agent["name"],
-                    "scope": agent["scope"],
-                    "limit_turn_id": agent["limit_turn_id"],
+                return {
+                    "state": "unavailable",
+                    "reason": f"required {window_id} usage is incomplete",
                 }
-                for agent in provider_agents
-            ],
-        })
+            required.append(window)
+
+        exhausted = [
+            window for window in required if window["utilization"] >= 100
+        ]
+        if not exhausted:
+            return {"state": "available", "reason": "base capacity is open"}
+
+        resets = [_parse_reset(window.get("resets_at")) for window in exhausted]
+        if any(reset is None or reset <= now for reset in resets):
+            return {
+                "state": "manual",
+                "reason": "base capacity has no timed reset",
+            }
+        return {
+            "state": "reset",
+            "reason": "base capacity is exhausted",
+            "reset_at": max(resets).isoformat(),
+        }
+
+    observed = [
+        window
+        for window in windows
+        if isinstance(window, dict)
+        and isinstance(window.get("utilization"), (int, float))
+    ]
+    if not observed:
+        return {
+            "state": "unavailable",
+            "reason": "provider usage windows are incomplete",
+        }
+    exhausted = [
+        window for window in observed if window["utilization"] >= 100
+    ]
+    if not exhausted:
+        return {"state": "available", "reason": "provider capacity is open"}
+    resets = [
+        reset
+        for reset in (
+            _parse_reset(window.get("resets_at")) for window in exhausted
+        )
+        if reset is not None and reset > now
+    ]
+    if not resets:
+        return {
+            "state": "unavailable",
+            "reason": "exhausted windows have no future reset",
+        }
+    return {
+        "state": "reset",
+        "reason": "provider capacity is exhausted",
+        "reset_at": max(resets).isoformat(),
+    }
+
+
+def build_wake_plan(
+    agents: list[dict],
+    provider_envelopes: dict,
+    *,
+    now: datetime | None = None,
+) -> dict:
+    """Classify every stopped agent from current provider capacity."""
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    schedules = []
+    manual = []
+    unavailable = []
+    for provider in sorted({agent["provider"] for agent in agents}):
+        provider_agents = sorted(
+            (agent for agent in agents if agent["provider"] == provider),
+            key=lambda agent: agent["name"],
+        )
+        readiness = provider_readiness(
+            provider_envelopes.get(provider) or {
+                "fresh": False,
+                "usage": None,
+                "error": "fresh provider usage unavailable",
+            },
+            provider,
+            now=now,
+        )
+        agent_targets = [
+            {
+                "id": agent["id"],
+                "name": agent["name"],
+                "scope": agent["scope"],
+                "limit_turn_id": agent["limit_turn_id"],
+            }
+            for agent in provider_agents
+        ]
+        names = [agent["name"] for agent in provider_agents]
+        if readiness["state"] in {"available", "reset"}:
+            schedules.append({
+                "provider": provider,
+                "reason": (
+                    "available_now"
+                    if readiness["state"] == "available"
+                    else "base_reset"
+                ),
+                "reset_at": readiness.get("reset_at"),
+                "agents": agent_targets,
+            })
+        elif readiness["state"] == "manual":
+            manual.append({
+                "provider": provider,
+                "reason": readiness["reason"],
+                "agents": names,
+                "manual_action_url": (
+                    MANUAL_ACTION_URL if provider == "anthropic" else None
+                ),
+            })
+        else:
+            unavailable.append({
+                "provider": provider,
+                "reason": readiness["reason"],
+                "agents": names,
+            })
+
+    manual_agents = sorted(
+        name for group in manual for name in group["agents"]
+    )
+    unavailable_agents = sorted(
+        name for group in unavailable for name in group["agents"]
+    )
     return {
         "schedules": schedules,
+        "manual": manual,
+        "unavailable": unavailable,
+        "warnings": [],
         "manual_agents": manual_agents,
         "manual_action_url": MANUAL_ACTION_URL if manual_agents else None,
-        "unavailable_agents": sorted(unavailable_agents),
+        "unavailable_agents": unavailable_agents,
     }
 
 
@@ -232,76 +341,202 @@ def wake_status() -> dict:
     monthly = sorted(
         agent["name"] for agent in agents if agent["limit_kind"] == "monthly"
     )
+    scheduled = []
+    for job in jobs:
+        config = job["config"]
+        targets = config.get("agents") or []
+        scheduled.append({
+            "provider": config.get("provider"),
+            "reason": config.get("reason") or "base_reset",
+            "reset_at": job.get("trigger_at"),
+            "agents": [target.get("name") for target in targets if target.get("name")],
+            "agent_count": len(targets),
+            "preserved": False,
+        })
     return {
         "candidate_count": len(agents),
         "monthly_agents": monthly,
         "manual_action_url": MANUAL_ACTION_URL if monthly else None,
-        "scheduled": [
-            {
-                "provider": job["config"].get("provider"),
-                "reset_at": job.get("trigger_at"),
-                "agent_count": len(job["config"].get("agents") or []),
-            }
-            for job in jobs
-        ],
+        "scheduled": scheduled,
+        "manual": [],
+        "unavailable": [],
+        "warnings": [],
     }
 
 
 async def schedule_wake_after_reset() -> dict:
-    """Replace provider wake timers using the latest persisted usage snapshot."""
+    """Freshly classify candidates and atomically replace provider wake timers."""
     from app.bg_jobs import bg_manager
+    from app.routes.system import current_provider_usage
 
-    agents = _load_limit_stopped_agents()
-    plan = build_wake_plan(agents, usage_get_latest_provider_usage())
-    planned_keys = set()
-    now = datetime.now(timezone.utc)
-    for schedule in plan["schedules"]:
-        provider = schedule["provider"]
-        replace_key = f"{WAKE_JOB_PREFIX}{provider}"
-        planned_keys.add(replace_key)
-        reset = _parse_reset(schedule["reset_at"])
-        delay = max(0.1, (reset - now).total_seconds())
-        result = await bg_manager.create(
-            "timer",
-            {
-                "delay_seconds": delay,
-                "action": WAKE_ACTION,
+    async with _schedule_lock:
+        agents = _load_limit_stopped_agents()
+        existing_jobs = _active_wake_jobs()
+        existing_by_provider = {
+            job["config"].get("provider"): job
+            for job in existing_jobs
+            if job["config"].get("provider")
+        }
+        providers = sorted({agent["provider"] for agent in agents})
+        envelopes = {}
+        for provider in providers:
+            try:
+                snapshot = await current_provider_usage(
+                    provider=provider,
+                    force_refresh=True,
+                )
+                provider_usage = snapshot.get(provider)
+                if not isinstance(provider_usage, dict):
+                    raise ValueError(
+                        f"fresh {provider} usage payload is missing"
+                    )
+            except Exception as error:
+                logger.warning("wake usage refresh failed for %s: %s", provider, error)
+                envelopes[provider] = {
+                    "fresh": False,
+                    "usage": None,
+                    "error": str(error) or type(error).__name__,
+                }
+            else:
+                envelopes[provider] = {
+                    "fresh": True,
+                    "usage": provider_usage,
+                    "error": None,
+                }
+
+        now = datetime.now(timezone.utc)
+        plan = build_wake_plan(agents, envelopes, now=now)
+        scheduled = []
+        planned_providers = set()
+        for schedule in plan["schedules"]:
+            provider = schedule["provider"]
+            planned_providers.add(provider)
+            reset = _parse_reset(schedule.get("reset_at"))
+            delay = (
+                0.1
+                if schedule["reason"] == "available_now"
+                else max(0.1, (reset - now).total_seconds())
+            )
+            result = await bg_manager.create(
+                "timer",
+                {
+                    "delay_seconds": delay,
+                    "action": WAKE_ACTION,
+                    "provider": provider,
+                    "reason": schedule["reason"],
+                    "reset_at": schedule.get("reset_at"),
+                    "agents": schedule["agents"],
+                },
+                "",
+                "__system__",
+                "__system__",
+                "__global__",
+                "dashboard",
+                replace_key=f"{WAKE_JOB_PREFIX}{provider}",
+            )
+            if result.get("error"):
+                raise RuntimeError(result["error"])
+            scheduled.append({
                 "provider": provider,
-                "agents": schedule["agents"],
-            },
-            "",
-            "__system__",
-            "__system__",
-            "__global__",
-            "dashboard",
-            replace_key=replace_key,
+                "reason": schedule["reason"],
+                "reset_at": schedule.get("reset_at"),
+                "agents": [agent["name"] for agent in schedule["agents"]],
+                "preserved": False,
+            })
+
+        unavailable = [
+            {**group, "agents": list(group["agents"])}
+            for group in plan["unavailable"]
+        ]
+        warnings = list(plan["warnings"])
+        failed_providers = {
+            provider
+            for provider, envelope in envelopes.items()
+            if not envelope["fresh"]
+        }
+        active_after_refresh = {}
+        if failed_providers:
+            active_after_refresh = {
+                job["id"]: job for job in _active_wake_jobs()
+            }
+        for provider in failed_providers:
+            old_job = existing_by_provider.get(provider)
+            if not old_job or old_job["id"] not in active_after_refresh:
+                continue
+            old_job = active_after_refresh[old_job["id"]]
+            old_targets = old_job["config"].get("agents") or []
+            old_pairs = {
+                (target.get("id"), target.get("limit_turn_id"))
+                for target in old_targets
+            }
+            current_targets = [
+                agent for agent in agents if agent["provider"] == provider
+            ]
+            covered = [
+                agent["name"]
+                for agent in current_targets
+                if (agent["id"], agent["limit_turn_id"]) in old_pairs
+            ]
+            uncovered = [
+                agent["name"]
+                for agent in current_targets
+                if (agent["id"], agent["limit_turn_id"]) not in old_pairs
+            ]
+            for group in list(unavailable):
+                if group["provider"] != provider:
+                    continue
+                group["agents"] = uncovered
+                if not uncovered:
+                    unavailable.remove(group)
+                break
+            scheduled.append({
+                "provider": provider,
+                "reason": old_job["config"].get("reason") or "base_reset",
+                "reset_at": old_job.get("trigger_at"),
+                "agents": covered,
+                "stored_agents": [
+                    target.get("name")
+                    for target in old_targets
+                    if target.get("name")
+                ],
+                "preserved": True,
+            })
+            if uncovered:
+                warnings.append({
+                    "provider": provider,
+                    "reason": (
+                        "usage refresh failed; existing timer does not cover "
+                        "the current limited turn"
+                    ),
+                    "agents": uncovered,
+                })
+
+        for job in existing_jobs:
+            provider = job["config"].get("provider")
+            if provider in failed_providers:
+                continue
+            if provider not in planned_providers:
+                await bg_manager.cancel(job["id"])
+
+        manual_agents = sorted(
+            name for group in plan["manual"] for name in group["agents"]
         )
-        if result.get("error"):
-            raise RuntimeError(result["error"])
-
-    for job in _active_wake_jobs():
-        replace_key = job["config"].get("replace_key")
-        if replace_key not in planned_keys:
-            await bg_manager.cancel(job["id"])
-
-    state = wake_status()
-    state["unavailable_agents"] = plan["unavailable_agents"]
-    return {
-        **plan,
-        "candidate_count": len(agents),
-        "scheduled_count": len(plan["schedules"]),
-        "state": state,
-    }
-
-
-def provider_is_available(provider_usage: dict, provider: str) -> bool:
-    windows = (provider_usage.get(provider) or {}).get("windows") or []
-    observed = [
-        window["utilization"]
-        for window in windows
-        if isinstance(window.get("utilization"), (int, float))
-    ]
-    return bool(observed) and all(utilization < 100 for utilization in observed)
+        unavailable_agents = sorted(
+            name for group in unavailable for name in group["agents"]
+        )
+        decision = {
+            "candidate_count": len(agents),
+            "scheduled_count": len(scheduled),
+            "scheduled": scheduled,
+            "manual": plan["manual"],
+            "unavailable": unavailable,
+            "warnings": warnings,
+            "manual_agents": manual_agents,
+            "manual_action_url": MANUAL_ACTION_URL if manual_agents else None,
+            "unavailable_agents": unavailable_agents,
+        }
+        decision["state"] = wake_status()
+        return decision
 
 
 def _wake_token_seen(session_id: str, token: str) -> bool:
@@ -352,12 +587,32 @@ async def run_wake_job(
         for index, target in enumerate(targets):
             from app.routes.system import current_provider_usage
 
-            provider_usage = await current_provider_usage(
-                provider=provider,
-                force_refresh=True,
-            )
-            if not provider_is_available(provider_usage, provider):
-                outcome = f"stopped: {provider} limit is still active"
+            try:
+                provider_usage = await current_provider_usage(
+                    provider=provider,
+                    force_refresh=True,
+                )
+                provider_snapshot = provider_usage.get(provider)
+            except Exception as error:
+                readiness = provider_readiness(
+                    {
+                        "fresh": False,
+                        "usage": None,
+                        "error": str(error) or type(error).__name__,
+                    },
+                    provider,
+                )
+            else:
+                readiness = provider_readiness(
+                    {
+                        "fresh": True,
+                        "usage": provider_snapshot,
+                        "error": None,
+                    },
+                    provider,
+                )
+            if readiness["state"] != "available":
+                outcome = f"stopped: {provider}: {readiness['reason']}"
                 break
 
             current = {
