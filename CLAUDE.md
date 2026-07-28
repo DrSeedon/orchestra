@@ -159,7 +159,15 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Sol не видит проектные скиллы (`.claude/skills/` — механизм Claude) → в промпт Codex идёт СГЕНЕРИРОВАННОЕ оглавление (имя/описание/путь), тело читает сам. Замер: 9/9 нужных чтений, 0/8 посторонних, промпт −90% (10 424 → 1 080 симв.)
 - Переключил воркера Claude→Sol — он «не знает проект» → зеркало `AGENTS.md` и скиллы создаются при КОННЕКТЕ бэкенда; до реконнекта у бывшего Claude-воркера их нет вовсе
 
+**Grok** (full guide + unverified-registry: `docs/grok-field-guide.md`)
+- Worker drops tasks with no error, `turn_end ok=False stop=interrupted` while `tool_result` already arrived → tool approval, not the model: option ids come from the offer (`allow-once`); an invented `allow` reads as "nothing selected" and cancels the turn
+- Worker sounds sane but ignores project rules → system prompt lands ONLY via the `--agent-profile` file; ACP `systemPrompt`/`instructions` are accepted and silently ignored
+- Grok never complains about unknown fields/flags → verify every value taken "by analogy with Codex" (`grok agent` has no `--no-subagents` → process won't start; use `GROK_SUBAGENTS=0`)
+- New runtime's spend landed in someone else's pool → an `ELSE 'claude'` tail is always a bug; the same binary lived in 3 SQL spots and 3 frontend ternaries — hunt the SECOND copy
+- Runtime prices with a cached tier must NOT go into shared `TOKEN_PRICES` → `_cost_cached_for()` reprices history with Claude's cache heuristic (+27.6% on a measured turn)
+
 **Агенты и оркестрация**
+- A new runtime widens the CONTRACT of shared code, not just adds a file → the factory started calling `get_role(pipeline, role)`; legacy sessions have empty `pipeline` → `ValueError` slipping past `except FileNotFoundError` → `send` died for 34 sessions. Verify new calls against REAL values from the live DB (read-only copy), not fixtures: `pipeline` empty in 27/330, `profile` 316/330, `base_branch` 330/330, `cwd` set but directory gone in 248/330
 - Воркер игнорирует твой ответ → plain text в чате = сообщение ЮЗЕРУ, воркер его не видит → даже «ок, работай» слать через `send_message(to="worker")`
 - Воркер после merge «залипает» → сработал `needs_switch` guard → `merge_worker(next_task_id=...)` одним вызовом
 - Убил воркера — потерял фазу → full-cycle на гейте ЖИВОЙ и ждёт продолжения → kill только одноразовых
