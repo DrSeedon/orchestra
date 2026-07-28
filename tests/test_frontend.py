@@ -158,6 +158,135 @@ def test_orchestrator_unread_tracks_own_turn_only(dashboard_browser: Browser):
     }
 
 
+def test_chat_drop_handles_files_tree_paths_and_upload_errors(
+    dashboard_browser: Browser,
+):
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    assert "function initChatDrop()" in source
+    assert source.index("initChatDrop();") < source.index("loadOrchestrators();")
+    assert "fileDropReady" not in source
+    drop_code = "let _dropDragCounter = 0;" + source.split(
+        "let _dropDragCounter = 0;", 1,
+    )[1].split("function initTabContextMenu", 1)[0]
+
+    page = dashboard_browser.new_page()
+    page.set_content("""
+        <base href="http://orchestra.test/">
+        <div id="input-shell">
+            <div id="input-row">
+                <textarea id="chat-input" placeholder="Message..."></textarea>
+            </div>
+        </div>
+    """)
+
+    def upload(route):
+        body = route.request.post_data or ""
+        match = re.search(r'filename="([^"]+)"', body)
+        name = match.group(1) if match else "unknown"
+        if name == "blocked.py":
+            route.fulfill(
+                status=400,
+                content_type="application/json",
+                body='{"error":"file type .py not allowed"}',
+            )
+            return
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=f'{{"path":"/tmp/{name}","url":"/uploads/{name}"}}',
+        )
+
+    page.route("**/api/upload", upload)
+    page.add_script_tag(content=f"""
+        const $ = selector => document.querySelector(selector);
+        let pastedImages = [];
+        const previewPaths = [];
+        function showImagePreview(url, path) {{ previewPaths.push({{url, path}}); }}
+        {drop_code}
+        initChatDrop();
+        window.testDrop = async (names, path = '') => {{
+            const input = $('#chat-input');
+            input.value = '';
+            const dt = new DataTransfer();
+            for (const name of names) {{
+                dt.items.add(new File([`body:${{name}}`], name, {{type: 'text/plain'}}));
+            }}
+            if (path) dt.setData('text/plain', path);
+            input.dispatchEvent(new DragEvent(
+                'dragenter',
+                {{bubbles: true, cancelable: true, dataTransfer: dt}},
+            ));
+            const hinted = input.placeholder;
+            const over = new DragEvent(
+                'dragover',
+                {{bubbles: true, cancelable: true, dataTransfer: dt}},
+            );
+            input.dispatchEvent(over);
+            const drop = new DragEvent(
+                'drop',
+                {{bubbles: true, cancelable: true, dataTransfer: dt}},
+            );
+            input.dispatchEvent(drop);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            return {{
+                value: input.value,
+                hinted,
+                overPrevented: over.defaultPrevented,
+                dropPrevented: drop.defaultPrevented,
+                error: document.querySelector('#chat-drop-error')?.textContent || '',
+            }};
+        }};
+    """)
+
+    outside = page.evaluate("""() => {
+        const dt = new DataTransfer();
+        dt.items.add(new File(['body'], 'outside.txt', {type: 'text/plain'}));
+        document.body.dispatchEvent(new DragEvent(
+            'dragenter',
+            {bubbles: true, cancelable: true, dataTransfer: dt},
+        ));
+        const over = new DragEvent(
+            'dragover',
+            {bubbles: true, cancelable: true, dataTransfer: dt},
+        );
+        document.body.dispatchEvent(over);
+        const drop = new DragEvent(
+            'drop',
+            {bubbles: true, cancelable: true, dataTransfer: dt},
+        );
+        document.body.dispatchEvent(drop);
+        return {
+            placeholder: document.querySelector('#chat-input').placeholder,
+            overPrevented: over.defaultPrevented,
+            dropPrevented: drop.defaultPrevented,
+        };
+    }""")
+    single = page.evaluate("() => testDrop(['one.txt'])")
+    multi = page.evaluate("() => testDrop(['first.txt', 'second.txt'])")
+    tree = page.evaluate("() => testDrop([], '/project/from-tree.md')")
+    partial_failure = page.evaluate(
+        "() => testDrop(['ok.txt', 'blocked.py', 'tail.txt'])",
+    )
+    page.close()
+
+    assert outside == {
+        "placeholder": "Message...",
+        "overPrevented": True,
+        "dropPrevented": True,
+    }
+    assert single == {
+        "value": "/tmp/one.txt",
+        "hinted": "📎 Drop files here",
+        "overPrevented": True,
+        "dropPrevented": True,
+        "error": "",
+    }
+    assert multi["value"] == "/tmp/first.txt\n/tmp/second.txt"
+    assert tree["value"] == "/project/from-tree.md"
+    assert partial_failure["value"] == "/tmp/ok.txt\n/tmp/tail.txt"
+    assert "blocked.py: file type .py not allowed" in partial_failure["error"]
+
+
 def test_left_panel_has_tabs(dashboard_page: Page):
     files_tab = dashboard_page.locator('[data-left-tab="files"]')
     tasks_tab = dashboard_page.locator('[data-left-tab="tasks"]')
