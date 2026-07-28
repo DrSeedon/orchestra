@@ -10,10 +10,36 @@ from app.db import _conn
 from app.models import cache_policy_for_runtime
 
 
-_PROVIDER_SQL = (
-    "CASE WHEN COALESCE(s.backend_type, '') = 'codex' "
-    "OR s.model LIKE 'gpt-%' THEN 'codex' ELSE 'claude' END"
-)
+# One table drives every provider decision here: bucketing rows AND picking the cache window
+# for cold-start scoring. Both used to be hand-written binaries ending in `ELSE 'claude'`, so
+# a new runtime silently joined the Claude Max pool and was scored against Claude's TTL —
+# which would have hidden the whole point of running Grok on a separate quota.
+# (runtime id, model prefix); anything unmatched falls back to _FALLBACK_PROVIDER.
+_PROVIDER_RULES = (("grok", "grok-"), ("codex", "gpt-"))
+_FALLBACK_PROVIDER = "claude"
+_PROVIDERS = tuple(runtime for runtime, _ in _PROVIDER_RULES) + (_FALLBACK_PROVIDER,)
+
+
+def _provider_case(runtime_col: str, model_col: str) -> str:
+    """SQL that buckets a usage row by runtime — one decision, two call sites."""
+    branches = " ".join(
+        f"WHEN {runtime_col} = '{runtime}' OR {model_col} LIKE '{prefix}%' THEN '{runtime}'"
+        for runtime, prefix in _PROVIDER_RULES
+    )
+    return f"CASE {branches} ELSE '{_FALLBACK_PROVIDER}' END"
+
+
+def _cache_ttl_case() -> tuple[str, tuple[int, ...]]:
+    """SQL CASE + bound TTLs for cold-start scoring, in _PROVIDERS order."""
+    branches = " ".join(f"WHEN provider = '{p}' THEN ?" for p in _PROVIDERS[:-1])
+    ttls = tuple(
+        int(cache_policy_for_runtime(p)["cache_ttl_seconds"]) for p in _PROVIDERS
+    )
+    return f"CASE {branches} ELSE ? END", ttls
+
+
+_PROVIDER_SQL = _provider_case("COALESCE(s.backend_type, '')", "s.model")
+_PROVIDER_SQL_USAGE = _provider_case("u.runtime", "u.model")
 
 _OBSERVED_TURNS_CTE = f"""
 WITH observed_turns AS (
@@ -22,8 +48,7 @@ WITH observed_turns AS (
            COALESCE(s.name, u.session_id) AS name,
            COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope,
            COALESCE(NULLIF(u.model, ''), s.model, 'unknown') AS model,
-           CASE WHEN u.runtime = 'codex' OR u.model LIKE 'gpt-%'
-                THEN 'codex' ELSE 'claude' END AS provider,
+           {_PROVIDER_SQL_USAGE} AS provider,
            u.cost_usd
     FROM turn_usage u
     LEFT JOIN sessions s ON s.id = u.session_id
@@ -108,11 +133,10 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
         (since, since),
     ).fetchall()
 
-    claude_policy = cache_policy_for_runtime("claude")
-    codex_policy = cache_policy_for_runtime("codex")
+    ttl_case, ttl_params = _cache_ttl_case()
     cache_rows = conn.execute(
         _OBSERVED_TURNS_CTE
-        + """
+        + f"""
         , turns AS (
             SELECT ts, date(ts) AS day, provider,
                    LAG(ts) OVER (
@@ -124,19 +148,13 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
                COUNT(*) FILTER (WHERE prev_ts IS NOT NULL) AS comparable,
                COUNT(*) FILTER (
                    WHERE prev_ts IS NOT NULL
-                     AND (julianday(ts) - julianday(prev_ts)) * 86400 >
-                         CASE WHEN provider = 'codex' THEN ? ELSE ? END
+                     AND (julianday(ts) - julianday(prev_ts)) * 86400 > {ttl_case}
                ) AS cold
         FROM turns
         GROUP BY day, provider
         ORDER BY day, provider
         """,
-        (
-            since,
-            since,
-            codex_policy["cache_ttl_seconds"],
-            claude_policy["cache_ttl_seconds"],
-        ),
+        (since, since) + ttl_params,
     ).fetchall()
 
     by_day: dict[str, dict] = {}
@@ -157,7 +175,9 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
         )
         turns = int(row["turns"] or 0)
         cost = float(row["cost_usd"] or 0)
-        policy = codex_policy if provider == "codex" else claude_policy
+        # Provider ids are runtime ids, so ask the registry instead of branching per
+        # provider — a fourth runtime would otherwise inherit Claude's window again.
+        policy = cache_policy_for_runtime(provider)
         entry["turns"] += turns
         entry["cost_usd"] += cost
         entry["providers"][provider] = {

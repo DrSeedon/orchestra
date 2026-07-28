@@ -121,6 +121,15 @@ def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
             "cache_ttl_seconds": 1800,
             "cache_ttl_approximate": True,
         }
+    if runtime == "grok":
+        # xAI documents no cache TTL and the runtime reports none, so the window below is
+        # a reference figure, not a guarantee — flagged approximate so the dashboard says
+        # "≈" instead of promising a precision nobody measured. The default branch would
+        # otherwise claim an exact hour for a runtime we have never timed.
+        return {
+            "cache_ttl_seconds": 3600,
+            "cache_ttl_approximate": True,
+        }
     return {
         "cache_ttl_seconds": 3600,
         "cache_ttl_approximate": False,

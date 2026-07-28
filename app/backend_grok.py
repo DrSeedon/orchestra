@@ -262,10 +262,6 @@ class GrokBackend:
         # braces: this stops most permission requests from being raised at all, and
         # _pick_allow_option answers correctly the ones that still are.
         cmd += ["--always-approve"]
-        # Managed workers delegate through tracked worktree workers, not invisible native
-        # subagents in their own checkout (matches the Codex features.multi_agent=false rule).
-        if self._is_orchestrator:
-            cmd += ["--no-subagents"]
         cmd += ["stdio"]
 
         self._proc = await asyncio.create_subprocess_exec(
@@ -953,4 +949,11 @@ class GrokBackend:
         # Point the CLI at Orchestra's config dir so it cannot pick up the user's
         # Claude-compat MCP servers. Set last: nothing inherited may override isolation.
         env["GROK_HOME"] = str(ensure_grok_home())
+        if self._is_orchestrator:
+            # An orchestrator delegates through tracked worktree workers, not invisible
+            # native subagents in its own checkout (same rule as Codex multi_agent=false).
+            # Env var, not `--no-subagents`: that flag exists on the top-level `grok`
+            # command only, and `grok agent` rejects it outright — the process would not
+            # start at all. Never exercised before because no orchestrator ran on Grok.
+            env["GROK_SUBAGENTS"] = "0"
         return env

@@ -363,6 +363,57 @@ def test_context_tokens_tracked_from_chunk_meta():
     assert b._context_tokens == 1234
 
 
+# ── dashboard consistency (T6) ──
+
+def test_grok_cache_policy_is_flagged_approximate():
+    """The default branch claimed an exact hour for every non-Codex runtime.
+
+    xAI documents no cache TTL and the runtime reports none, so promising precision would
+    be an invented fact; the dashboard must render "≈" instead.
+    """
+    from app.models import cache_policy_for_runtime
+    grok = cache_policy_for_runtime("grok")
+    assert grok["cache_ttl_approximate"] is True
+    assert cache_policy_for_runtime("claude")["cache_ttl_approximate"] is False
+
+
+def test_usage_rows_bucket_grok_into_its_own_provider():
+    """`ELSE 'claude'` used to swallow every non-Codex runtime.
+
+    A Grok turn counted against the Claude Max pool would hide the entire reason for
+    running Grok — a separate quota looking like Claude burn — and score its cache with
+    Claude's TTL.
+    """
+    from app.usage_analytics import _provider_case
+
+    sql = _provider_case("u.runtime", "u.model")
+    assert "'grok'" in sql
+    assert sql.index("'grok'") < sql.index("'codex'")   # matched before the older branches
+    assert sql.rstrip().endswith("ELSE 'claude' END")
+
+
+def test_cache_ttl_case_covers_every_known_provider():
+    """The cold-start threshold was a second binary; a new runtime inherited Claude's TTL."""
+    from app.models import cache_policy_for_runtime
+    from app.usage_analytics import _PROVIDERS, _cache_ttl_case
+
+    sql, ttls = _cache_ttl_case()
+    assert len(ttls) == len(_PROVIDERS)
+    assert sql.count("WHEN") == len(_PROVIDERS) - 1     # last one is the ELSE
+    for provider, ttl in zip(_PROVIDERS, ttls):
+        assert ttl == cache_policy_for_runtime(provider)["cache_ttl_seconds"]
+
+
+def test_provider_buckets_match_runtime_ids():
+    """Provider ids are runtime ids — that is what lets the registry supply the policy."""
+    from app.models import cache_policy_for_runtime
+    from app.usage_analytics import _PROVIDERS
+
+    assert "grok" in _PROVIDERS
+    for provider in _PROVIDERS:
+        assert cache_policy_for_runtime(provider)["cache_ttl_seconds"] > 0
+
+
 # ── tool approval (T5) ──
 #
 # The agent defines these ids. Measured: `allow-once` / `reject-once`, not the bare `allow`
