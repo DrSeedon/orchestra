@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.26.8 — 2026-07-28 — #98 task numbers vs docs/tasks
+
+### Fixed
+- 🔢 **`task_create` больше не выдаёт номер, чей каталог `docs/tasks/<n>/` уже есть** (`app/tm.py` `_next_par`). Раньше брался только `MAX(par_number)+1` из БД: после удаления задачи номер возвращался в пул, а артефакты на диске оставались — и новый research получал чужой `#96`.
+  - После DB-max цикл `while (scope/docs/tasks/<n>).is_dir(): n += 1`. Корень — `tm_projects.scope` (как у проекта), не хардкод.
+  - Явный `par_number=` (импорт/миграции) не трогаем.
+  - **Triggered case**: `task_create` выдал `#96` при живом `docs/tasks/96/` от OpenCodeBackend (`3031c42`); воркер остановился до записи. Тесты: `tests/test_tm.py` (RED→GREEN).
+
 ## v2.26.7 — 2026-07-28
 
 ### Fixed
