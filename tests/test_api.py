@@ -296,7 +296,7 @@ async def test_merge_persists_actual_branch_and_base_for_loaded_or_detached(
 
     save_session({
         "id": f"merge-{loaded}", "name": f"merge-{loaded}", "scope": "/s",
-        "cwd": "/wt", "model": "m", "system_prompt": "", "status": "idle",
+        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "/wt",
         "branch": "task-90/w", "base_branch": "master", "needs_switch": 0,
         "task_id": "90", "is_orchestrator": False, "color": "",

@@ -26,6 +26,8 @@ from app.models import (
     cache_policy_for_runtime,
     get_model_spec,
     is_proxy_connected,
+    provider_metadata_payload,
+    runtime_for_record,
 )
 from app.pipeline import list_pipelines
 from app.runtime_registry import get_runtime
@@ -371,7 +373,11 @@ async def list_models():
         if spec.price_output is not None:
             entry["price_output"] = spec.price_output
         models.append(entry)
-    return {"models": models, "proxy_connected": is_proxy_connected()}
+    return {
+        "models": models,
+        "provider_metadata": provider_metadata_payload(),
+        "proxy_connected": is_proxy_connected(),
+    }
 
 
 @router.post("/api/models/refresh")
@@ -1049,8 +1055,7 @@ async def list_orchestrators():
         o["any_waiting"] = o.get("scope", "") in waiting_scopes
         if not o.get("last_turn_ts"):
             o["last_turn_ts"] = turn_map.get(o["id"])
-        runtime = o.get("backend_type") or o.get("runtime") or o.get("backend") or "claude"
-        o.update(cache_policy_for_runtime(runtime))
+        o.update(cache_policy_for_runtime(runtime_for_record(o)))
     return result
 
 

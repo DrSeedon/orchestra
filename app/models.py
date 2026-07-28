@@ -26,6 +26,20 @@ class ModelSpec:
     price_input: float | None = None
     price_output: float | None = None
 
+
+@dataclass(frozen=True)
+class ProviderMetadata:
+    """Accounting/cache/UI metadata keyed by runtime bucket."""
+
+    id: str
+    title: str
+    ui_provider: str
+    cache_ttl_seconds: int
+    cache_ttl_approximate: bool
+    legacy_model_prefixes: tuple[str, ...] = ()
+    model_providers: tuple[str, ...] = ()
+
+
 MODELS = {
     "claude-fable-5[1m]": "Fable 5 (1M)",
     "claude-opus-5[1m]": "Opus 5 (1M)",
@@ -113,26 +127,77 @@ BACKENDS = {
     "grok-4.5": "grok",
 }
 
+MODEL_PROVIDERS = {
+    "claude-fable-5[1m]": "anthropic",
+    "claude-opus-5[1m]": "anthropic",
+    "claude-sonnet-5[1m]": "anthropic",
+    "claude-haiku-4-5": "anthropic",
+    "gpt-5.3-codex-spark": "openai",
+    "gpt-5.6-sol": "openai",
+    "gpt-5.6-terra": "openai",
+    "gpt-5.6-luna": "openai",
+    "gpt-5.5": "openai",
+    "gpt-5.4": "openai",
+    "gpt-5.4-mini": "openai",
+    "grok-4.5": "x-ai",
+}
+
+# Runtime ids double as the accounting buckets emitted by usage analytics. The
+# explicit `unknown` bucket is intentionally conservative: absence of evidence
+# about a cache window must never acquire Claude's exact one-hour policy.
+PROVIDER_METADATA: dict[str, ProviderMetadata] = {
+    "claude": ProviderMetadata(
+        id="claude",
+        title="Claude Max",
+        ui_provider="anthropic",
+        cache_ttl_seconds=3600,
+        cache_ttl_approximate=False,
+        legacy_model_prefixes=("claude-",),
+        model_providers=("anthropic",),
+    ),
+    "codex": ProviderMetadata(
+        id="codex",
+        title="Codex Pro",
+        ui_provider="openai",
+        cache_ttl_seconds=1800,
+        cache_ttl_approximate=True,
+        legacy_model_prefixes=("gpt-",),
+        model_providers=("openai",),
+    ),
+    "grok": ProviderMetadata(
+        id="grok",
+        title="Grok",
+        ui_provider="x-ai",
+        cache_ttl_seconds=3600,
+        cache_ttl_approximate=True,
+        legacy_model_prefixes=("grok-",),
+        model_providers=("x-ai",),
+    ),
+    "opencode": ProviderMetadata(
+        id="opencode",
+        title="OpenCode",
+        ui_provider="openrouter",
+        cache_ttl_seconds=0,
+        cache_ttl_approximate=True,
+        model_providers=("openrouter", "deepseek", "x-ai", "opencode"),
+    ),
+    "unknown": ProviderMetadata(
+        id="unknown",
+        title="Unknown",
+        ui_provider="unknown",
+        cache_ttl_seconds=0,
+        cache_ttl_approximate=True,
+        model_providers=("unknown",),
+    ),
+}
+
 
 def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
     """Return cache-window metadata exposed to dashboard and MCP consumers."""
-    if runtime == "codex":
-        return {
-            "cache_ttl_seconds": 1800,
-            "cache_ttl_approximate": True,
-        }
-    if runtime == "grok":
-        # xAI documents no cache TTL and the runtime reports none, so the window below is
-        # a reference figure, not a guarantee — flagged approximate so the dashboard says
-        # "≈" instead of promising a precision nobody measured. The default branch would
-        # otherwise claim an exact hour for a runtime we have never timed.
-        return {
-            "cache_ttl_seconds": 3600,
-            "cache_ttl_approximate": True,
-        }
+    metadata = PROVIDER_METADATA.get(runtime, PROVIDER_METADATA["unknown"])
     return {
-        "cache_ttl_seconds": 3600,
-        "cache_ttl_approximate": False,
+        "cache_ttl_seconds": metadata.cache_ttl_seconds,
+        "cache_ttl_approximate": metadata.cache_ttl_approximate,
     }
 
 
@@ -147,6 +212,72 @@ TOKEN_PRICES = {
 
 DEFAULT_MODEL = "claude-sonnet-5[1m]"
 MODEL_SPECS: dict[str, ModelSpec] = {}
+
+# These exact ids occur in persisted sessions but are no longer selectable.
+# Keeping them outside MODELS prevents retired models from returning to the UI
+# while making resume deterministic without any prefix inference.
+COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
+    "claude-sonnet-4-6": ModelSpec(
+        id="claude-sonnet-4-6",
+        name="Sonnet 4.6 (legacy)",
+        runtime="claude",
+        provider="anthropic",
+        context_length=200000,
+        price_input=3.0,
+        price_output=15.0,
+    ),
+    "claude-sonnet-4-5": ModelSpec(
+        id="claude-sonnet-4-5",
+        name="Sonnet 4.5 (legacy)",
+        runtime="claude",
+        provider="anthropic",
+        context_length=200000,
+    ),
+    "claude-opus-4-8[1m]": ModelSpec(
+        id="claude-opus-4-8[1m]",
+        name="Opus 4.8 (legacy, 1M)",
+        runtime="claude",
+        provider="anthropic",
+        context_length=1000000,
+        price_input=15.0,
+        price_output=75.0,
+    ),
+    "claude-opus-4-8": ModelSpec(
+        id="claude-opus-4-8",
+        name="Opus 4.8 (legacy)",
+        runtime="claude",
+        provider="anthropic",
+        context_length=1000000,
+    ),
+    "claude-opus-4-6[1m]": ModelSpec(
+        id="claude-opus-4-6[1m]",
+        name="Opus 4.6 (legacy, 1M)",
+        runtime="claude",
+        provider="anthropic",
+        context_length=1000000,
+        price_input=15.0,
+        price_output=75.0,
+    ),
+    "claude-opus-4-6": ModelSpec(
+        id="claude-opus-4-6",
+        name="Opus 4.6 (legacy)",
+        runtime="claude",
+        provider="anthropic",
+        context_length=1000000,
+    ),
+}
+
+# The only proxy models observed on a registered deployment that omit both
+# runtime and provider. Exact ids make this a reviewed compatibility contract,
+# not another family-wide catch-all.
+_REVIEWED_PROXY_ROUTES: dict[str, tuple[str, str]] = {
+    **{
+        model_id: (BACKENDS[model_id], MODEL_PROVIDERS[model_id])
+        for model_id in MODELS
+    },
+    "deepseek/deepseek-v4-flash": ("opencode", "deepseek"),
+    "deepseek/deepseek-v4-pro": ("opencode", "deepseek"),
+}
 
 _VERSION_RE = re.compile(r"[-.]v?\d[\d.]*$")
 
@@ -163,36 +294,37 @@ def _generate_aliases(model_id: str) -> list[str]:
     return aliases
 
 
-def _infer_backend(model_id: str) -> str:
-    # gpt-* → Codex CLI, claude-* → Claude SDK, grok-* → Grok Build CLI, everything else
-    # (gemini, llama, mistral, …) → the OpenCode daemon. The proxy serves these via
-    # provider/model IDs (e.g. "gemini/gemini-2.5-flash") which start with the provider
-    # name, never "gpt-"/"claude-"/"grok-".
-    if model_id.startswith("gpt-"):
-        return "codex"
-    if model_id.startswith("claude-"):
-        return "claude"
-    if model_id.startswith("grok-"):
-        return "grok"
-    return "opencode"
-
-
-def _infer_provider(model_id: str) -> str:
-    if "/" in model_id:
-        return model_id.split("/", 1)[0]
-    if model_id.startswith("gpt-"):
-        return "openai"
-    if model_id.startswith("claude-"):
-        return "anthropic"
-    if model_id.startswith("grok-"):
-        return "x-ai"
-    return "unknown"
+def register_provider_metadata(
+    metadata: ProviderMetadata,
+    *,
+    replace: bool = False,
+) -> None:
+    """Register accounting/cache/UI metadata for a plugin runtime."""
+    if not metadata.id or metadata.id == "unknown":
+        raise ValueError("provider metadata id must be non-empty and not 'unknown'")
+    if metadata.id in PROVIDER_METADATA and not replace:
+        raise ValueError(f"provider metadata '{metadata.id}' is already registered")
+    PROVIDER_METADATA[metadata.id] = metadata
 
 
 def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
     """Register one explicit provider/model/runtime route and legacy lookup views."""
     if not spec.id:
         raise ValueError("model id must not be empty")
+    if not spec.provider or spec.provider == "unknown":
+        raise ValueError(f"model '{spec.id}' must declare an explicit provider")
+    from app.runtime_registry import get_runtime
+    get_runtime(spec.runtime)
+    if spec.runtime not in PROVIDER_METADATA:
+        raise ValueError(
+            f"model '{spec.id}' uses runtime '{spec.runtime}' without provider metadata"
+        )
+    if spec.provider not in PROVIDER_METADATA[spec.runtime].model_providers:
+        allowed = ", ".join(PROVIDER_METADATA[spec.runtime].model_providers) or "(none)"
+        raise ValueError(
+            f"model '{spec.id}' provider '{spec.provider}' is not registered for "
+            f"runtime '{spec.runtime}'; registered providers: {allowed}"
+        )
     if spec.id in MODEL_SPECS and not replace:
         raise ValueError(f"model '{spec.id}' is already registered")
     MODEL_SPECS[spec.id] = spec
@@ -215,18 +347,16 @@ def unregister_model(model_id: str) -> None:
 
 
 def get_model_spec(model_id: str) -> ModelSpec:
-    """Return an explicit route; synthesize a compatibility spec at the boundary."""
+    """Return an explicit selectable or persisted-session compatibility route."""
     if model_id in MODEL_SPECS:
         return MODEL_SPECS[model_id]
-    prices = TOKEN_PRICES.get(model_id, {})
-    return ModelSpec(
-        id=model_id,
-        name=MODELS.get(model_id, model_id),
-        runtime=BACKENDS.get(model_id, _infer_backend(model_id)),
-        provider=_infer_provider(model_id),
-        context_length=CONTEXT_LIMITS.get(model_id, 200000),
-        price_input=prices.get("input"),
-        price_output=prices.get("output"),
+    if model_id in COMPAT_MODEL_SPECS:
+        return COMPAT_MODEL_SPECS[model_id]
+    registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+    compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+    raise ValueError(
+        f"unknown model '{model_id}'; registered models: {registered}; "
+        f"persisted-session compatibility routes: {compatibility}"
     )
 
 
@@ -237,7 +367,7 @@ def _seed_model_specs() -> None:
             id=model_id,
             name=name,
             runtime=BACKENDS[model_id],
-            provider=_infer_provider(model_id),
+            provider=MODEL_PROVIDERS[model_id],
             context_length=CONTEXT_LIMITS[model_id],
             price_input=prices.get("input"),
             price_output=prices.get("output"),
@@ -247,8 +377,136 @@ def _seed_model_specs() -> None:
 _seed_model_specs()
 
 
+def validate_model_registry() -> None:
+    """Fail if model, runtime, provider, or legacy lookup views disagree."""
+    from app.runtime_registry import get_runtime
+
+    errors: list[str] = []
+    for model_id, spec in {**COMPAT_MODEL_SPECS, **MODEL_SPECS}.items():
+        if spec.id != model_id:
+            errors.append(f"{model_id}: spec.id is '{spec.id}'")
+        try:
+            get_runtime(spec.runtime)
+        except ValueError as exc:
+            errors.append(f"{model_id}: {exc}")
+        if spec.runtime not in PROVIDER_METADATA:
+            errors.append(
+                f"{model_id}: runtime '{spec.runtime}' has no provider metadata"
+            )
+        if not spec.provider or spec.provider == "unknown":
+            errors.append(f"{model_id}: provider must be explicit")
+        elif (
+            spec.runtime in PROVIDER_METADATA
+            and spec.provider not in PROVIDER_METADATA[spec.runtime].model_providers
+        ):
+            errors.append(
+                f"{model_id}: provider '{spec.provider}' is not registered for "
+                f"runtime '{spec.runtime}'"
+            )
+        if spec.context_length <= 0:
+            errors.append(f"{model_id}: context_length must be positive")
+
+    for model_id, spec in MODEL_SPECS.items():
+        if MODELS.get(model_id) != spec.name:
+            errors.append(f"{model_id}: MODELS view differs from ModelSpec")
+        if BACKENDS.get(model_id) != spec.runtime:
+            errors.append(f"{model_id}: BACKENDS view differs from ModelSpec")
+        if CONTEXT_LIMITS.get(model_id) != spec.context_length:
+            errors.append(f"{model_id}: CONTEXT_LIMITS view differs from ModelSpec")
+
+    for provider_id, metadata in PROVIDER_METADATA.items():
+        if provider_id != metadata.id:
+            errors.append(
+                f"provider metadata key '{provider_id}' differs from id '{metadata.id}'"
+            )
+
+    if errors:
+        raise ValueError("invalid model/runtime/provider registry:\n- " + "\n- ".join(errors))
+
+
+def provider_metadata_payload() -> dict[str, dict]:
+    return {
+        provider_id: {
+            "id": metadata.id,
+            "title": metadata.title,
+            "ui_provider": metadata.ui_provider,
+            "cache_ttl_seconds": metadata.cache_ttl_seconds,
+            "cache_ttl_approximate": metadata.cache_ttl_approximate,
+            "model_providers": list(metadata.model_providers),
+        }
+        for provider_id, metadata in PROVIDER_METADATA.items()
+    }
+
+
 def is_proxy_connected() -> bool:
     return _proxy_connected
+
+
+def _clear_selectable_models() -> None:
+    MODELS.clear()
+    CONTEXT_LIMITS.clear()
+    TOKEN_PRICES.clear()
+    BACKENDS.clear()
+    MODEL_SPECS.clear()
+    ALIASES.clear()
+
+
+def _proxy_model_spec(raw: dict) -> ModelSpec | None:
+    model_id = str(raw.get("id") or "").strip()
+    if not model_id:
+        return None
+
+    reviewed = _REVIEWED_PROXY_ROUTES.get(model_id)
+    runtime = str(raw.get("runtime") or raw.get("backend") or "").strip()
+    provider = str(raw.get("provider") or "").strip()
+    if not runtime and reviewed:
+        runtime = reviewed[0]
+    if not provider and reviewed:
+        provider = reviewed[1]
+    if not runtime:
+        raise ValueError(
+            f"proxy model '{model_id}' must declare runtime/backend or have a "
+            "reviewed exact route"
+        )
+    if not provider:
+        raise ValueError(
+            f"proxy model '{model_id}' must declare provider or have a reviewed exact route"
+        )
+
+    from app.runtime_registry import get_runtime
+    get_runtime(runtime)
+    if runtime not in PROVIDER_METADATA:
+        raise ValueError(
+            f"proxy model '{model_id}' uses runtime '{runtime}' without provider metadata"
+        )
+    if provider not in PROVIDER_METADATA[runtime].model_providers:
+        allowed = ", ".join(PROVIDER_METADATA[runtime].model_providers) or "(none)"
+        raise ValueError(
+            f"proxy model '{model_id}' provider '{provider}' is not registered for "
+            f"runtime '{runtime}'; registered providers: {allowed}"
+        )
+
+    context_length = int(raw.get("context_length") or 200000)
+    if context_length <= 0:
+        raise ValueError(
+            f"proxy model '{model_id}' has invalid context_length={context_length}"
+        )
+    pricing = raw.get("pricing") or {}
+    prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
+    completion_price = float(pricing.get("completion", "0")) * 1_000_000
+    if "/" in model_id:
+        default_name = model_id.rsplit("/", 1)[1].replace("-", " ").title()
+    else:
+        default_name = model_id.replace("-", " ").title()
+    return ModelSpec(
+        id=model_id,
+        name=str(raw.get("name") or default_name),
+        runtime=runtime,
+        provider=provider,
+        context_length=context_length,
+        price_input=round(prompt_price, 4) if prompt_price else None,
+        price_output=round(completion_price, 4) if completion_price else None,
+    )
 
 
 async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
@@ -274,12 +532,7 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
         logger.warning(f"fetch_models_from_proxy failed: {e}")
         _proxy_connected = False
         if enterprise_mode:
-            MODELS.clear()
-            CONTEXT_LIMITS.clear()
-            TOKEN_PRICES.clear()
-            BACKENDS.clear()
-            MODEL_SPECS.clear()
-            ALIASES.clear()
+            _clear_selectable_models()
         return False
 
     models_list = data.get("data", [])
@@ -287,70 +540,38 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
         logger.warning("fetch_models_from_proxy: empty model list")
         _proxy_connected = False
         if enterprise_mode:
-            MODELS.clear()
-            CONTEXT_LIMITS.clear()
-            TOKEN_PRICES.clear()
-            BACKENDS.clear()
-            MODEL_SPECS.clear()
-            ALIASES.clear()
+            _clear_selectable_models()
         return False
 
+    try:
+        discovered = [
+            spec for raw in models_list
+            if (spec := _proxy_model_spec(raw)) is not None
+        ]
+    except (TypeError, ValueError, OverflowError) as exc:
+        _proxy_connected = False
+        raise ValueError(f"invalid proxy model registry: {exc}") from exc
+    if not discovered:
+        _proxy_connected = False
+        raise ValueError("invalid proxy model registry: no model has a non-empty id")
+
     if enterprise_mode:
-        MODELS.clear()
-        CONTEXT_LIMITS.clear()
-        TOKEN_PRICES.clear()
-        BACKENDS.clear()
-        MODEL_SPECS.clear()
-        ALIASES.clear()
+        _clear_selectable_models()
 
     added = 0
-    for m in models_list:
-        mid = m.get("id", "")
-        if not mid:
-            continue
-
-        if "/" in mid:
-            label = mid.rsplit("/", 1)[1].replace("-", " ").title()
-        else:
-            label = mid.replace("-", " ").title()
-
-        ctx = m.get("context_length") or 200000
-
-        pricing = m.get("pricing", {})
-        prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
-        completion_price = float(pricing.get("completion", "0")) * 1_000_000
-
-        backend = str(m.get("runtime") or m.get("backend") or _infer_backend(mid))
-        provider = str(m.get("provider") or _infer_provider(mid))
-
-        if mid not in MODELS:
-            MODELS[mid] = label
+    for spec in discovered:
+        if spec.id not in MODEL_SPECS:
+            register_model(spec)
             added += 1
-        if mid not in CONTEXT_LIMITS:
-            CONTEXT_LIMITS[mid] = ctx
-        if mid not in TOKEN_PRICES and (prompt_price or completion_price):
-            TOKEN_PRICES[mid] = {"input": round(prompt_price, 4), "output": round(completion_price, 4)}
-        if mid not in BACKENDS:
-            BACKENDS[mid] = backend
-        if mid not in MODEL_SPECS:
-            MODEL_SPECS[mid] = ModelSpec(
-                id=mid,
-                name=MODELS[mid],
-                runtime=BACKENDS[mid],
-                provider=provider,
-                context_length=CONTEXT_LIMITS[mid],
-                price_input=TOKEN_PRICES.get(mid, {}).get("input"),
-                price_output=TOKEN_PRICES.get(mid, {}).get("output"),
-            )
-
-        for alias in _generate_aliases(mid):
-            if alias not in ALIASES and alias != mid:
-                ALIASES[alias] = mid
+        for alias in _generate_aliases(spec.id):
+            if alias not in ALIASES and alias != spec.id:
+                ALIASES[alias] = spec.id
 
     _generate_semantic_aliases()
+    validate_model_registry()
     _proxy_connected = True
     mode_label = "enterprise (proxy-only)" if enterprise_mode else "dev (merged)"
-    logger.info(f"Loaded {len(models_list)} models from proxy ({added} new, {mode_label})")
+    logger.info(f"Loaded {len(discovered)} models from proxy ({added} new, {mode_label})")
     return True
 
 
@@ -386,6 +607,7 @@ async def refresh_models() -> None:
     enterprise = is_auth_enabled()
     has_proxy = bool(os.environ.get("HTTPS_PROXY") or os.environ.get("ANTHROPIC_BASE_URL"))
     if not has_proxy:
+        validate_model_registry()
         logger.info(f"No proxy configured, using {len(MODELS)} hardcoded models")
         return
     ok = await fetch_models_from_proxy(enterprise_mode=enterprise)
@@ -396,23 +618,37 @@ async def refresh_models() -> None:
             logger.warning(f"Proxy unreachable in enterprise mode — 0 models available")
         else:
             logger.warning(f"Proxy unreachable, using {len(MODELS)} hardcoded models")
+    validate_model_registry()
 
 
 def resolve_model(model: str) -> str:
     m = model.lower().strip()
     if m in ALIASES:
-        return ALIASES[m]
+        resolved = ALIASES[m]
+        if resolved in MODEL_SPECS:
+            return resolved
     if m in MODELS:
         return m
-    if MODELS:
-        first = next(iter(MODELS))
-        logger.warning(f"resolve_model: '{model}' not found in {len(MODELS)} models, fallback → '{first}'")
-        return first
-    return model
+    registered = ", ".join(sorted(MODELS)) or "(none)"
+    raise ValueError(f"unknown model '{model}'; registered models: {registered}")
 
 
 def backend_for_model(model: str) -> str:
     return get_model_spec(model).runtime
+
+
+def runtime_for_record(record: dict) -> str:
+    """Resolve legacy rows without treating missing or invalid data as Claude."""
+    runtime = record.get("backend_type") or record.get("runtime") or record.get("backend")
+    if runtime:
+        return str(runtime)
+    model = record.get("model")
+    if model:
+        try:
+            return backend_for_model(str(model))
+        except ValueError:
+            pass
+    return "unknown"
 
 
 def available_models_block() -> str:

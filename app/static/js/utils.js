@@ -8,7 +8,8 @@ const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
 const _PROVIDER_COLORS = {
     anthropic: '#fb923c', openai: '#22c55e', 'x-ai': '#e2e8f0',
-    openrouter: '#a78bfa', unknown: '#94a3b8',
+    openrouter: '#a78bfa', deepseek: '#60a5fa', opencode: '#a78bfa',
+    unknown: '#94a3b8',
 };
 
 // One table owns provider labels, capacity routing and window shapes for every usage view.
@@ -33,6 +34,20 @@ const _PROVIDER_META = {
         tone: 'slate', windowAccent: '#cbd5e1',
         historyProviders: ['grok'],
         windows: c => [['7d', c.primary]],
+    },
+    opencode: {
+        title: 'OpenCode', usageTitle: 'OpenCode',
+        runtime: 'Explicit proxy models', provider: 'openrouter', capacityKey: null,
+        tone: 'violet', windowAccent: '#a78bfa',
+        historyProviders: ['openrouter', 'deepseek'],
+        windows: () => [],
+    },
+    unknown: {
+        title: 'Unknown', usageTitle: 'Unknown runtime',
+        runtime: 'Unclassified historical rows', provider: 'unknown', capacityKey: null,
+        tone: 'slate', windowAccent: '#94a3b8',
+        historyProviders: ['unknown'],
+        windows: () => [],
     },
 };
 const _PROVIDER_CAPACITY_KEY = Object.fromEntries(

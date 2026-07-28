@@ -1,4 +1,4 @@
-"""Task #96 Phase 2 — backend routing: non-Claude/non-GPT models → opencode."""
+"""Exhaustive model/runtime/provider routing."""
 
 import pytest
 
@@ -7,9 +7,9 @@ from app.models import (
     BACKENDS,
     CONTEXT_LIMITS,
     MODELS,
+    PROVIDER_METADATA,
     TOKEN_PRICES,
     ModelSpec,
-    _infer_backend,
     available_models_block,
     backend_for_model,
     cache_policy_for_runtime,
@@ -18,15 +18,26 @@ from app.models import (
     register_model,
     resolve_model,
     unregister_model,
+    validate_model_registry,
 )
 from app.backend_opencode import OpenCodeBackend
 
 
-# ── _infer_backend prefix routing ──
+@pytest.fixture
+def isolated_model_registry(monkeypatch):
+    import app.models as registry
 
-def test_infer_gpt_to_codex():
-    assert _infer_backend("gpt-5.5") == "codex"
-    assert _infer_backend("gpt-5.4-mini") == "codex"
+    for name in (
+        "MODELS",
+        "CONTEXT_LIMITS",
+        "ALIASES",
+        "BACKENDS",
+        "TOKEN_PRICES",
+        "MODEL_SPECS",
+    ):
+        monkeypatch.setattr(registry, name, dict(getattr(registry, name)))
+    monkeypatch.setattr(registry, "_proxy_connected", False)
+    return registry
 
 
 def test_spark_is_registered_for_codex_workers():
@@ -37,12 +48,6 @@ def test_spark_is_registered_for_codex_workers():
     assert ALIASES["spark"] == model_id
     assert backend_for_model(model_id) == "codex"
     assert "`gpt-5.3-codex-spark` — GPT-5.3 Codex Spark, 128k context" in available_models_block()
-
-
-def test_infer_claude_to_claude():
-    assert _infer_backend("claude-sonnet-5[1m]") == "claude"
-    assert _infer_backend("claude-opus-5[1m]") == "claude"
-    assert _infer_backend("claude-opus-4-8[1m]") == "claude"
 
 
 def test_opus5_registry_and_aliases():
@@ -57,35 +62,30 @@ def test_opus5_registry_and_aliases():
     assert resolve_model("opus") == model_id
     assert resolve_model("opus5") == model_id
     assert resolve_model("claude-opus-5") == model_id
-    # retired Opus 4.6/4.8 ids remap to Opus 5 — old sessions keep resolving
+    # New requests upgrade aliases; persisted rows keep exact compatibility specs.
     assert resolve_model("claude-opus-4-8[1m]") == model_id
     assert resolve_model("claude-opus-4-6") == model_id
     assert "claude-opus-4-8[1m]" not in MODELS
+    assert get_model_spec("claude-opus-4-8[1m]").runtime == "claude"
 
-
-def test_infer_others_to_opencode():
-    assert _infer_backend("deepseek/deepseek-v4-flash") == "opencode"
-    assert _infer_backend("gemini-2.5-flash") == "opencode"
-    assert _infer_backend("meta-llama/llama-4") == "opencode"
-    assert _infer_backend("mistral-large") == "opencode"
-    assert _infer_backend("qwen/qwen-3") == "opencode"
-
-
-# ── backend_for_model: registered wins, unregistered infers ──
 
 def test_backend_for_model_registered_wins():
-    # claude-sonnet-5[1m] is in the hardcoded BACKENDS dict
     assert "claude-sonnet-5[1m]" in BACKENDS
     assert backend_for_model("claude-sonnet-5[1m]") == "claude"
 
 
-def test_backend_for_model_unregistered_infers_opencode():
-    assert "deepseek/deepseek-v4-flash" not in BACKENDS
-    assert backend_for_model("deepseek/deepseek-v4-flash") == "opencode"
-
-
-def test_backend_for_model_unregistered_gpt_infers_codex():
-    assert backend_for_model("gpt-9-future") == "codex"
+@pytest.mark.parametrize("model_id", [
+    "deepseek/deepseek-v5-future",
+    "gpt-9-future",
+    "grok-9.9-future",
+    "x-ai/grok-4",
+])
+def test_unknown_model_fails_loud_instead_of_inferring(model_id):
+    with pytest.raises(ValueError, match="unknown model") as exc:
+        backend_for_model(model_id)
+    assert "registered models:" in str(exc.value)
+    with pytest.raises(ValueError, match="unknown model"):
+        resolve_model(model_id)
 
 
 def test_registered_model_spec_wins_over_name_prefix():
@@ -105,13 +105,41 @@ def test_registered_model_spec_wins_over_name_prefix():
         unregister_model(model_id)
 
 
-def test_unknown_grok_gets_explicit_opencode_spec():
-    spec = get_model_spec("x-ai/grok-4")
-    assert spec.runtime == "opencode"
-    assert spec.provider == "x-ai"
+def test_model_registration_rejects_unknown_runtime_and_provider():
+    with pytest.raises(ValueError, match="unknown agent runtime"):
+        register_model(ModelSpec(
+            id="vendor/model",
+            name="Missing runtime",
+            runtime="not-registered",
+            provider="vendor",
+        ))
+    with pytest.raises(ValueError, match="provider 'vendor'.*not registered"):
+        register_model(ModelSpec(
+            id="vendor/model",
+            name="Missing provider metadata",
+            runtime="opencode",
+            provider="vendor",
+        ))
 
 
-def test_cache_policy_is_exact_for_claude_and_approximate_for_codex():
+def test_persisted_legacy_sonnet_has_exact_compatibility_route():
+    spec = get_model_spec("claude-sonnet-4-6")
+    assert spec.runtime == "claude"
+    assert spec.provider == "anthropic"
+    assert spec.context_length == 200000
+    assert "claude-sonnet-4-6" not in MODELS
+
+
+def test_registry_validator_covers_every_selectable_model():
+    validate_model_registry()
+    assert set(MODELS) == set(BACKENDS)
+    for model_id in MODELS:
+        spec = get_model_spec(model_id)
+        assert spec.runtime in PROVIDER_METADATA
+        assert spec.provider != "unknown"
+
+
+def test_cache_policy_is_explicit_and_unknown_is_conservative():
     assert cache_policy_for_runtime("claude") == {
         "cache_ttl_seconds": 3600,
         "cache_ttl_approximate": False,
@@ -121,8 +149,12 @@ def test_cache_policy_is_exact_for_claude_and_approximate_for_codex():
         "cache_ttl_approximate": True,
     }
     assert cache_policy_for_runtime("opencode") == {
-        "cache_ttl_seconds": 3600,
-        "cache_ttl_approximate": False,
+        "cache_ttl_seconds": 0,
+        "cache_ttl_approximate": True,
+    }
+    assert cache_policy_for_runtime("not-registered") == {
+        "cache_ttl_seconds": 0,
+        "cache_ttl_approximate": True,
     }
 
 
@@ -139,6 +171,8 @@ async def test_models_api_exposes_runtime_provider_and_capabilities():
     assert spark["runtime"] == "codex"
     assert spark["provider"] == "openai"
     assert spark["context_length"] == 128000
+    assert set(response["provider_metadata"]) == set(PROVIDER_METADATA)
+    assert response["provider_metadata"]["unknown"]["cache_ttl_seconds"] == 0
 
 
 @pytest.mark.asyncio
@@ -172,6 +206,132 @@ async def test_proxy_model_fetch_omits_empty_authorization_header(monkeypatch):
 
     assert await fetch_models_from_proxy() is True
     assert captured["headers"] == {}
+
+
+@pytest.mark.asyncio
+async def test_observed_proxy_models_use_reviewed_exact_opencode_routes(
+    monkeypatch,
+    isolated_model_registry,
+):
+    payload = {"data": [
+        {
+            "id": "deepseek/deepseek-v4-flash",
+            "context_length": 1048576,
+            "pricing": {"prompt": "0.000000098", "completion": "0.000000196"},
+        },
+        {
+            "id": "deepseek/deepseek-v4-pro",
+            "context_length": 1048576,
+            "pricing": {"prompt": "0.000000435", "completion": "0.000000870"},
+        },
+    ]}
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return payload
+
+    class _Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url, headers):
+            return _Response()
+
+    monkeypatch.setattr("app.models.httpx.AsyncClient", _Client)
+
+    assert await isolated_model_registry.fetch_models_from_proxy(
+        enterprise_mode=True
+    ) is True
+    assert set(isolated_model_registry.MODELS) == {
+        "deepseek/deepseek-v4-flash",
+        "deepseek/deepseek-v4-pro",
+    }
+    for model_id in isolated_model_registry.MODELS:
+        spec = isolated_model_registry.get_model_spec(model_id)
+        assert spec.runtime == "opencode"
+        assert spec.provider == "deepseek"
+        assert spec.context_length == 1048576
+
+
+@pytest.mark.asyncio
+async def test_unreviewed_proxy_model_without_route_fails_before_mutation(
+    monkeypatch,
+    isolated_model_registry,
+):
+    before = dict(isolated_model_registry.MODEL_SPECS)
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{"id": "meta/new-model", "context_length": 1000}]}
+
+    class _Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url, headers):
+            return _Response()
+
+    monkeypatch.setattr("app.models.httpx.AsyncClient", _Client)
+
+    with pytest.raises(ValueError, match="meta/new-model.*runtime/backend"):
+        await isolated_model_registry.fetch_models_from_proxy(enterprise_mode=True)
+    assert isolated_model_registry.MODEL_SPECS == before
+
+
+@pytest.mark.asyncio
+async def test_proxy_model_with_explicit_runtime_and_provider_is_accepted(
+    monkeypatch,
+    isolated_model_registry,
+):
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": [{
+                "id": "x-ai/grok-4",
+                "runtime": "opencode",
+                "provider": "x-ai",
+                "context_length": 256000,
+            }]}
+
+    class _Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, _url, headers):
+            return _Response()
+
+    monkeypatch.setattr("app.models.httpx.AsyncClient", _Client)
+
+    assert await isolated_model_registry.fetch_models_from_proxy(
+        enterprise_mode=True
+    ) is True
+    assert isolated_model_registry.backend_for_model("x-ai/grok-4") == "opencode"
 
 
 # ── provider/model split for proxy IDs ──
