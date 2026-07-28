@@ -84,6 +84,23 @@ function _codexWindowLabel(windowMinutes) {
     return `${windowMinutes}m`;
 }
 
+function _usageProviderAccent(providerId) {
+    const meta = _PROVIDER_META[providerId] || {};
+    return meta.usageAccent || _PROVIDER_COLORS[meta.provider] || _PROVIDER_COLORS.unknown;
+}
+
+function _usageProviderWindows(providerId, capacity) {
+    const meta = _PROVIDER_META[providerId];
+    return meta.windows(capacity || {})
+        .filter(([, window]) => window)
+        .map(([label, window, defaultMinutes]) => ({
+            label,
+            window: defaultMinutes && !window.window_minutes
+                ? {...window, window_minutes:defaultMinutes}
+                : window,
+        }));
+}
+
 function renderUsageBar() {
     const bar = document.getElementById('usage-bar');
     if (!bar) return;
@@ -96,6 +113,7 @@ function renderUsageBar() {
 
     const a = _usageData.anthropic || {};
     const cx = _usageData.codex || {};
+    const gx = _usageData.grok || null;
     const o = _usageData.orchestra || {};
     const parts = [];
 
@@ -120,15 +138,22 @@ function renderUsageBar() {
         parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
     }
 
-    const codexProviders = [
-        {label:'Codex', color:'#22c55e', windows:[cx.primary, cx.secondary].filter(Boolean)},
-        {label:'Spark', color:'#f59e0b', windows:[cx.spark?.primary, cx.spark?.secondary].filter(Boolean)},
-    ].filter(provider => provider.windows.length);
-    if (codexProviders.length) {
+    const compactProviders = [
+        {id:'codex', windows:_usageProviderWindows('codex', cx)},
+        {id:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
+    ].filter(provider => provider.windows.length || provider.showUnavailable);
+    if (compactProviders.length) {
         parts.push('<span style="height:14px;border-left:1px solid rgba(71,85,105,0.6)"></span>');
-        for (const provider of codexProviders) {
-            parts.push(`<span style="color:${provider.color};font-weight:600">${provider.label}</span>`);
-            for (const window of provider.windows) {
+        for (const provider of compactProviders) {
+            const meta = _PROVIDER_META[provider.id];
+            const color = _usageProviderAccent(provider.id);
+            parts.push(`<span style="color:${color};font-weight:600">${meta.compactTitle || meta.title}</span>`);
+            if (!provider.windows.length) {
+                parts.push('<span style="color:#64748b">: нет данных</span>');
+                continue;
+            }
+            for (const item of provider.windows) {
+                const window = item.window;
                 const windowMs = window.window_minutes * 60000;
                 const rpNum = _resetPctNum(window.resets_at, windowMs);
                 const c = _usageColor(window.utilization, rpNum);
@@ -174,9 +199,8 @@ function renderUsageBar() {
                 if (tip) return;
                 const _a = _usageData?.anthropic || {};
                 const _c = _usageData?.codex || {};
+                const _g = _usageData?.grok || null;
                 const _o = _usageData?.orchestra || {};
-                const fh = _a.five_hour;
-                const sd = _a.seven_day;
                 const _row = (label, val, color) => `<div style="display:flex;justify-content:space-between"><span>${label}</span><span style="color:${color || '#cbd5e1'}">${val}</span></div>`;
                 const _windowBlock = (window, label, accent) => {
                     const windowMs = window.window_minutes * 60000;
@@ -192,21 +216,20 @@ function renderUsageBar() {
                     if (eta) html += _row('Лимит через', eta, null);
                     return html + '</div>';
                 };
-                let claudeHtml = '<section style="min-width:0;padding-right:2px">';
-                claudeHtml += '<div style="color:#38bdf8;font-weight:700;margin-bottom:7px">☕ Claude Max</div>';
-                if (fh) {
-                    claudeHtml += _windowBlock({...fh, window_minutes:300}, '5h', '#38bdf8');
+                const claudeMeta = _PROVIDER_META.claude;
+                let claudeHtml = '<section data-usage-provider="claude" style="min-width:0;padding-right:2px">';
+                claudeHtml += `<div style="color:${_usageProviderAccent('claude')};font-weight:700;margin-bottom:7px">${claudeMeta.usageTitle}</div>`;
+                for (const item of _usageProviderWindows('claude', _a)) {
+                    claudeHtml += _windowBlock(item.window, item.label, claudeMeta.windowAccent);
                 }
-                if (sd) {
-                    claudeHtml += _windowBlock({...sd, window_minutes:10080}, '7d', '#38bdf8');
-                }
-                claudeHtml += '<div data-usage-history="anthropic"></div></section>';
+                claudeHtml += `<div data-usage-history="${claudeMeta.historyProviders.join(',')}"></div></section>`;
 
+                const codexMeta = _PROVIDER_META.codex;
                 const codexProviders = [
-                    {title:'✦ Codex Pro', accent:'#22c55e', windowAccent:'#86efac', windows:[_c.primary, _c.secondary].filter(Boolean)},
-                    {title:'⚡ GPT-5.3-Codex-Spark', accent:'#f59e0b', windowAccent:'#fcd34d', windows:[_c.spark?.primary, _c.spark?.secondary].filter(Boolean)},
+                    {title:codexMeta.usageTitle, accent:_usageProviderAccent('codex'), windowAccent:codexMeta.windowAccent, windows:_usageProviderWindows('codex', _c).map(item => item.window)},
+                    {title:'⚡ GPT-5.3-Codex-Spark', accent:'#f59e0b', windowAccent:'#fcd34d', windows:_usageProviderWindows('codex', _c.spark).map(item => item.window)},
                 ].filter(provider => provider.windows.length);
-                let codexHtml = '<section style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
+                let codexHtml = '<section data-usage-provider="codex" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
                 for (const provider of codexProviders) {
                     codexHtml += '<div style="border-bottom:1px solid rgba(51,65,85,0.45);padding-bottom:4px;margin-bottom:7px">';
                     codexHtml += `<div style="color:${provider.accent};font-weight:700;margin-bottom:5px">${provider.title}</div>`;
@@ -215,11 +238,25 @@ function renderUsageBar() {
                     }
                     codexHtml += '</div>';
                 }
-                codexHtml += '<div data-usage-history="codex,codex_spark"></div></section>';
+                codexHtml += `<div data-usage-history="${codexMeta.historyProviders.join(',')}"></div></section>`;
+
+                const grokMeta = _PROVIDER_META.grok;
+                const grokWindows = _usageProviderWindows('grok', _g);
+                let grokHtml = '<section data-usage-provider="grok" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
+                grokHtml += `<div style="color:${_usageProviderAccent('grok')};font-weight:700;margin-bottom:7px">${grokMeta.usageTitle}</div>`;
+                if (grokWindows.length) {
+                    for (const item of grokWindows) {
+                        grokHtml += _windowBlock(item.window, _codexWindowLabel(item.window.window_minutes), grokMeta.windowAccent);
+                    }
+                    grokHtml += `<div data-usage-history="${grokMeta.historyProviders.join(',')}"></div>`;
+                } else {
+                    grokHtml += '<div style="color:#64748b;font-style:italic">Данные лимита недоступны</div>';
+                }
+                grokHtml += '</section>';
 
                 let h = '<div style="color:#e2e8f0;font-weight:700;margin-bottom:10px">📊 Usage control</div>';
-                h += '<div id="usage-sparkline-slot" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px">';
-                h += claudeHtml + codexHtml + '</div>';
+                h += '<div id="usage-sparkline-slot" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">';
+                h += claudeHtml + codexHtml + grokHtml + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость', `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
@@ -233,7 +270,7 @@ function renderUsageBar() {
                     h += `<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">📈 Агенты: <span style="color:#cbd5e1">${_o.agents_count}</span></div>`;
                 }
                 tip = document.createElement('div');
-                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 52px);overflow:auto;overscroll-behavior:contain;backdrop-filter:blur(12px);box-shadow:0 12px 36px rgba(0,0,0,0.5);font-size:12px;line-height:1.6;color:#94a3b8';
+                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;width:min(940px,calc(100vw - 24px));max-height:calc(100vh - 52px);overflow:auto;overscroll-behavior:contain;backdrop-filter:blur(12px);box-shadow:0 12px 36px rgba(0,0,0,0.5);font-size:12px;line-height:1.6;color:#94a3b8';
                 tip.innerHTML = h;
                 const rect = infoBtn.getBoundingClientRect();
                 tip.style.right = '12px';
@@ -333,7 +370,7 @@ function _usagePeriods(series) {
         if (!latest?.resets_at) return period;
         const start = new Date(latest.resets_at).getTime() - latest.window_minutes * 60000;
         return period.filter(point => new Date(point.ts).getTime() >= start);
-    }).filter(period => period.length);
+    }).filter(period => period.length >= 2);
 }
 
 function _seriesPointsForPeriod(series, anchorPeriod) {
@@ -355,6 +392,7 @@ function _renderSparklines(slot, providerFilter = null) {
         anthropic: ['#38bdf8', '#f97316'],
         codex: ['#22c55e', '#a3e635'],
         codex_spark: ['#f59e0b', '#fcd34d'],
+        grok: [_PROVIDER_COLORS['x-ai'], '#94a3b8'],
     };
 
     const mkSvg = (pts, idealPts, color, guides) => {
@@ -430,6 +468,7 @@ function _renderSparklines(slot, providerFilter = null) {
             series.points[0]?.window_minutes > longest.points[0]?.window_minutes ? series : longest
         );
         const periods = _usagePeriods(anchorSeries);
+        if (!periods.length) continue;
         const periodIdx = Math.max(0, Math.min(_sparkPeriodIdx[anchorSeries.key] || 0, periods.length - 1));
         _sparkPeriodIdx[anchorSeries.key] = periodIdx;
         const anchorPeriod = periods[periods.length - 1 - periodIdx];

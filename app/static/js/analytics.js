@@ -240,25 +240,6 @@ async function _analyticsScheduleWake(button) {
     }
 }
 
-// One table decides everything per provider: label, tone, and which capacity windows exist.
-// Previously three `isClaude ? … : …` ternaries meant "not Claude" silently rendered as Codex,
-// so a third pool would have been drawn with Codex's title and window shape.
-// xAI publishes no quota snapshot, so Grok declares no windows and the card says so.
-const _PROVIDER_META = {
-    claude: {
-        title: 'Claude Max', runtime: 'Opus · orchestrators', tone: 'violet',
-        windows: c => [['5h', c.five_hour], ['7d', c.seven_day]],
-    },
-    codex: {
-        title: 'Codex Pro', runtime: 'Sol · workers', tone: 'cyan',
-        windows: c => [['Основной', c.primary], ['Вторичный', c.secondary]],
-    },
-    grok: {
-        title: 'SuperGrok', runtime: 'Grok 4.5 · workers', tone: 'slate',
-        windows: () => [],
-    },
-};
-
 function _analyticsProviderCard(provider, stats) {
     const meta = _PROVIDER_META[provider] || {
         title: provider, runtime: '', tone: 'slate', windows: () => [],
@@ -533,10 +514,6 @@ function _analyticsRenderChart(daily) {
         },
     });
 }
-
-// Explicit map: the old `claude ? anthropic : codex` handed Codex's quota to any other
-// provider, so Grok would have been drawn against a pool it does not use.
-const _PROVIDER_CAPACITY_KEY = { claude: 'anthropic', codex: 'codex' };
 
 function _analyticsCapacity(provider) {
     const capacity = (_analyticsPayload || {}).capacity || {};

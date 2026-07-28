@@ -6,10 +6,6 @@ const _MODEL_COLORS = {
     'claude-sonnet-5[1m]': '#38bdf8', 'claude-haiku-4-5': '#4ade80',
     'claude-fable-5[1m]': '#fb923c', 'gpt-5.5': '#f472b6', 'gpt-5.4': '#f472b6',
 };
-const _PROVIDER_COLORS = {
-    anthropic: '#fb923c', openai: '#22c55e', 'x-ai': '#e2e8f0',
-    openrouter: '#a78bfa', unknown: '#94a3b8',
-};
 function _modelMeta(id) {
     return _MODELS.find(m => m.id === id) || null;
 }

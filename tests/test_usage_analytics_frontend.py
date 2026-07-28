@@ -55,6 +55,13 @@ def _payload():
                     },
                 },
             },
+            "grok": {
+                "primary": {
+                    "utilization": 10,
+                    "window_minutes": 10080,
+                    "resets_at": "2026-08-01T18:49:05Z",
+                },
+            },
         },
         "wake_after_reset": {
             "candidate_count": 2,
@@ -96,6 +103,15 @@ def _payload():
                 "cache_hit_pct": 71.4,
                 "cache_ttl_seconds": 1800,
                 "cache_ttl_approximate": True,
+            },
+            "grok": {
+                "turns": 12,
+                "cost_usd": 4.5,
+                "comparable_turns": 8,
+                "cold_starts": 2,
+                "cache_hit_pct": 75,
+                "cache_ttl_seconds": 1800,
+                "cache_ttl_approximate": False,
             },
         },
         "daily": [
@@ -202,6 +218,11 @@ def _page(browser: Browser, width=1600, height=1000) -> Page:
     )
     page.evaluate(
         """payload => {
+            window.marked = {
+                setOptions() {},
+                parse(value) { return value; },
+            };
+            window.DOMPurify = { addHook() {} };
             window.MODEL_COST_CURRENCY = '$';
             window.analyticsCalls = [];
             window.api = async url => {
@@ -216,6 +237,7 @@ def _page(browser: Browser, width=1600, height=1000) -> Page:
         _payload(),
     )
     page.add_style_tag(path=str(ROOT / "app/static/css/style.css"))
+    page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(ANALYTICS_JS))
     return page
 
@@ -272,7 +294,8 @@ def test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch(browser):
     page = _page(browser)
 
     page.evaluate("openAnalyticsModal()")
-    expect(page.locator("[data-analytics-provider]")).to_have_count(2)
+    expect(page.locator("[data-analytics-provider]")).to_have_count(3)
+    expect(page.locator('[data-analytics-provider="grok"]')).to_contain_text("10%")
     assert page.evaluate("analyticsCalls") == ["/api/usage/analytics?days=7"]
 
     page.locator('[data-analytics-period="month"]').click()

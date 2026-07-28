@@ -391,8 +391,10 @@ async def stats(scope: Optional[str] = None):
 _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.json"
 _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
 _codex_usage_cache: dict = {"data": None, "ts": 0.0}
+_grok_usage_cache: dict = {"data": None, "ts": 0.0}
 _USAGE_CACHE_TTL = 300
 _CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
+_GROK_CREDENTIALS_PATH = Path.home() / ".grok" / "auth.json"
 
 
 def _load_usage_cache():
@@ -424,6 +426,22 @@ def _read_oauth_credentials() -> tuple[str | None, str | None, str | None]:
         return oauth.get("accessToken"), oauth.get("refreshToken"), oauth.get("rateLimitTier")
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         return None, None, None
+
+
+def _read_grok_token() -> str | None:
+    """Read the freshest Grok CLI bearer without persisting its short-lived token."""
+    try:
+        credentials = json.loads(_GROK_CREDENTIALS_PATH.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    candidates = [
+        value for value in credentials.values()
+        if isinstance(value, dict) and isinstance(value.get("key"), str) and value["key"]
+    ]
+    if not candidates:
+        return None
+    latest = max(candidates, key=lambda value: str(value.get("expires_at") or ""))
+    return latest["key"]
 
 
 async def _fetch_anthropic_usage(token: str) -> dict:
@@ -492,6 +510,61 @@ def _normalize_codex_usage(result: dict) -> dict:
     return usage
 
 
+def _normalize_grok_usage(result: dict) -> dict | None:
+    config = result.get("config")
+    if not isinstance(config, dict):
+        return None
+    period = config.get("currentPeriod")
+    used = config.get("creditUsagePercent")
+    if (
+        not isinstance(period, dict)
+        or period.get("type") != "USAGE_PERIOD_TYPE_WEEKLY"
+        or not isinstance(used, (int, float))
+        or isinstance(used, bool)
+    ):
+        return None
+    try:
+        start = datetime.fromisoformat(str(period["start"]).replace("Z", "+00:00"))
+        end = datetime.fromisoformat(str(period["end"]).replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if start.tzinfo is None or end.tzinfo is None:
+        return None
+    duration_seconds = (end - start).total_seconds()
+    if duration_seconds <= 0 or duration_seconds % 60:
+        return None
+    utilization = max(0, min(100, used))
+    reset_iso = end.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return {
+        "plan_type": result.get("subscription_tier"),
+        "primary": {
+            "utilization": int(utilization) if float(utilization).is_integer() else utilization,
+            "window_minutes": int(duration_seconds // 60),
+            "resets_at": reset_iso,
+        },
+        "secondary": None,
+    }
+
+
+async def _fetch_grok_usage(token: str) -> dict | None:
+    """Read the weekly credits view exposed by the Grok CLI billing backend."""
+    import httpx
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://cli-chat-proxy.grok.com/v1/billing",
+            params={"format": "credits"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+            },
+        )
+        if resp.status_code == 401:
+            raise PermissionError("token_expired")
+        resp.raise_for_status()
+        return _normalize_grok_usage(resp.json())
+
+
 def _usage_window_label(window_minutes: int) -> str:
     if window_minutes % 1440 == 0:
         return f"{window_minutes // 1440}d"
@@ -500,7 +573,11 @@ def _usage_window_label(window_minutes: int) -> str:
     return f"{window_minutes}m"
 
 
-def _provider_usage_snapshot(anthropic: dict | None, codex: dict | None) -> dict:
+def _provider_usage_snapshot(
+    anthropic: dict | None,
+    codex: dict | None,
+    grok: dict | None = None,
+) -> dict:
     """Normalize provider-specific limits into one history/chart contract."""
     providers = {}
     anthropic_windows = []
@@ -524,6 +601,7 @@ def _provider_usage_snapshot(anthropic: dict | None, codex: dict | None) -> dict
     for provider_id, label, usage in (
         ("codex", "Codex", codex),
         ("codex_spark", "Codex Spark", (codex or {}).get("spark")),
+        ("grok", "Grok", grok),
     ):
         windows = []
         for window_id in ("primary", "secondary"):
@@ -743,9 +821,39 @@ async def _get_usage_data(
     if required_provider in {"codex", "codex_spark"} and not codex_fetched:
         raise RuntimeError("fresh Codex usage is unavailable")
 
+    grok_data = None
+    grok_fetched = False
+    if (
+        not force_refresh
+        and _grok_usage_cache["data"]
+        and (now - _grok_usage_cache["ts"]) < _USAGE_CACHE_TTL
+    ):
+        grok_data = _grok_usage_cache["data"]
+    else:
+        token = _read_grok_token()
+        if token:
+            try:
+                grok_data = await _fetch_grok_usage(token)
+                grok_fetched = grok_data is not None
+            except PermissionError:
+                logger.warning("Grok usage unavailable: OAuth token expired")
+            except Exception as error:
+                logger.warning(f"Grok usage fetch failed: {error}")
+        else:
+            logger.warning("Grok usage unavailable: no OAuth credentials")
+        if grok_fetched:
+            _grok_usage_cache["data"] = grok_data
+            _grok_usage_cache["ts"] = now
+        else:
+            _grok_usage_cache["data"] = None
+            _grok_usage_cache["ts"] = 0.0
+    if required_provider == "grok" and not grok_fetched:
+        raise RuntimeError("fresh Grok usage is unavailable")
+
     return {
         "anthropic": anthropic_data,
         "codex": codex_data,
+        "grok": grok_data,
         "orchestra": _get_agents_cost(),
         "voice_cost_usd": round(_get_voice_cost_usd(), 4),
     }
@@ -771,6 +879,7 @@ async def current_provider_usage(
     return _provider_usage_snapshot(
         usage.get("anthropic"),
         usage.get("codex"),
+        usage.get("grok"),
     )
 
 
@@ -804,9 +913,20 @@ async def _collect_usage_snapshot() -> None:
         _codex_usage_cache["data"] = codex_data
         _codex_usage_cache["ts"] = time.time()
 
+    grok_data = None
+    token = _read_grok_token()
+    if token:
+        try:
+            grok_data = await _fetch_grok_usage(token)
+        except Exception:
+            grok_data = None
+    if grok_data:
+        _grok_usage_cache["data"] = grok_data
+        _grok_usage_cache["ts"] = time.time()
+
     snapshot_anthropic = anthropic_data or _usage_cache.get("data")
     snapshot_codex = codex_data or _codex_usage_cache.get("data")
-    providers = _provider_usage_snapshot(snapshot_anthropic, snapshot_codex)
+    providers = _provider_usage_snapshot(snapshot_anthropic, snapshot_codex, grok_data)
     if not providers:
         return
 
