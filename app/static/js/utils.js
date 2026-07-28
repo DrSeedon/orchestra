@@ -6,6 +6,39 @@ const MODEL_COST_CURRENCY = '$';
 const $ = (s) => document.querySelector(s);
 const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
+const _PROVIDER_COLORS = {
+    anthropic: '#fb923c', openai: '#22c55e', 'x-ai': '#e2e8f0',
+    openrouter: '#a78bfa', unknown: '#94a3b8',
+};
+
+// One table owns provider labels, capacity routing and window shapes for every usage view.
+const _PROVIDER_META = {
+    claude: {
+        title: 'Claude Max', usageTitle: '☕ Claude Max', runtime: 'Opus · orchestrators',
+        provider: 'anthropic', capacityKey: 'anthropic', tone: 'violet',
+        usageAccent: '#38bdf8', windowAccent: '#38bdf8',
+        historyProviders: ['anthropic'],
+        windows: c => [['5h', c.five_hour, 300], ['7d', c.seven_day, 10080]],
+    },
+    codex: {
+        title: 'Codex Pro', usageTitle: '✦ Codex Pro', compactTitle: 'Codex',
+        runtime: 'Sol · workers', provider: 'openai', capacityKey: 'codex',
+        tone: 'cyan', windowAccent: '#86efac',
+        historyProviders: ['codex', 'codex_spark'],
+        windows: c => [['Основной', c.primary], ['Вторичный', c.secondary]],
+    },
+    grok: {
+        title: 'Grok', usageTitle: '𝕏 Grok', compactTitle: 'Grok',
+        runtime: 'Grok 4.5 · workers', provider: 'x-ai', capacityKey: 'grok',
+        tone: 'slate', windowAccent: '#cbd5e1',
+        historyProviders: ['grok'],
+        windows: c => [['7d', c.primary]],
+    },
+};
+const _PROVIDER_CAPACITY_KEY = Object.fromEntries(
+    Object.entries(_PROVIDER_META).map(([id, meta]) => [id, meta.capacityKey])
+);
+
 function _escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 // DOM-based escaping is safer than regex — handles all edge cases without a lookup table
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }

@@ -9,6 +9,12 @@ import pytest
 from app.routes import system
 
 
+@pytest.fixture(autouse=True)
+def _no_live_grok_credentials(monkeypatch, tmp_path):
+    monkeypatch.setattr(system, "_GROK_CREDENTIALS_PATH", tmp_path / "missing-grok-auth.json")
+    monkeypatch.setattr(system, "_grok_usage_cache", {"data": None, "ts": 0.0})
+
+
 def test_normalize_codex_usage_prefers_codex_bucket():
     result = {
         "rateLimits": {"planType": "plus", "primary": None},
@@ -81,7 +87,7 @@ def test_normalize_codex_usage_exposes_separate_spark_bucket():
     }
 
 
-def test_provider_usage_snapshot_unifies_anthropic_and_codex_windows():
+def test_provider_usage_snapshot_unifies_provider_windows():
     anthropic = {
         "five_hour": {"utilization": 9, "resets_at": "2026-07-18T11:20:00Z"},
         "seven_day": {"utilization": 67, "resets_at": "2026-07-21T07:00:00Z"},
@@ -105,8 +111,17 @@ def test_provider_usage_snapshot_unifies_anthropic_and_codex_windows():
             "secondary": None,
         },
     }
+    grok = {
+        "plan_type": "X Premium+",
+        "primary": {
+            "utilization": 10,
+            "window_minutes": 10080,
+            "resets_at": "2026-08-01T18:49:05.891405Z",
+        },
+        "secondary": None,
+    }
 
-    providers = system._provider_usage_snapshot(anthropic, codex)
+    providers = system._provider_usage_snapshot(anthropic, codex, grok)
 
     assert providers == {
         "anthropic": {
@@ -154,7 +169,143 @@ def test_provider_usage_snapshot_unifies_anthropic_and_codex_windows():
                 },
             ],
         },
+        "grok": {
+            "label": "Grok",
+            "plan_type": "X Premium+",
+            "windows": [
+                {
+                    "id": "primary",
+                    "label": "7d",
+                    "utilization": 10,
+                    "window_minutes": 10080,
+                    "resets_at": "2026-08-01T18:49:05.891405Z",
+                },
+            ],
+        },
     }
+
+
+def test_normalize_grok_usage_requires_verified_weekly_shape():
+    result = {
+        "config": {
+            "currentPeriod": {
+                "type": "USAGE_PERIOD_TYPE_WEEKLY",
+                "start": "2026-07-25T18:49:05.891405+00:00",
+                "end": "2026-08-01T18:49:05.891405+00:00",
+            },
+            "creditUsagePercent": 10.0,
+        },
+        "subscription_tier": "X Premium+",
+    }
+
+    assert system._normalize_grok_usage(result) == {
+        "plan_type": "X Premium+",
+        "primary": {
+            "utilization": 10,
+            "window_minutes": 10080,
+            "resets_at": "2026-08-01T18:49:05.891405Z",
+        },
+        "secondary": None,
+    }
+
+    result["config"]["currentPeriod"]["type"] = "USAGE_PERIOD_TYPE_MONTHLY"
+    assert system._normalize_grok_usage(result) is None
+    result["config"]["currentPeriod"]["type"] = "USAGE_PERIOD_TYPE_WEEKLY"
+    result["config"]["creditUsagePercent"] = None
+    assert system._normalize_grok_usage(result) is None
+
+
+def test_read_grok_token_prefers_latest_credential(tmp_path, monkeypatch):
+    auth = tmp_path / "auth.json"
+    auth.write_text(json.dumps({
+        "https://auth.x.ai::old": {
+            "key": "old-token",
+            "expires_at": "2026-07-28T01:00:00Z",
+        },
+        "https://auth.x.ai::fresh": {
+            "key": "fresh-token",
+            "expires_at": "2026-07-29T01:00:00Z",
+        },
+    }))
+    monkeypatch.setattr(system, "_GROK_CREDENTIALS_PATH", auth)
+
+    assert system._read_grok_token() == "fresh-token"
+
+
+@pytest.mark.asyncio
+async def test_fetch_grok_usage_uses_credit_format_and_treats_401_as_missing(monkeypatch):
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "config": {
+                    "currentPeriod": {
+                        "type": "USAGE_PERIOD_TYPE_WEEKLY",
+                        "start": "2026-07-25T18:49:05.891405+00:00",
+                        "end": "2026-08-01T18:49:05.891405+00:00",
+                    },
+                    "creditUsagePercent": 10,
+                },
+            }
+
+    class FakeClient:
+        request = None
+
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            pass
+
+        async def get(self, url, **kwargs):
+            FakeClient.request = (url, kwargs)
+            return FakeResponse()
+
+    monkeypatch.setattr("httpx.AsyncClient", FakeClient)
+
+    usage = await system._fetch_grok_usage("secret")
+
+    url, kwargs = FakeClient.request
+    assert url == "https://cli-chat-proxy.grok.com/v1/billing"
+    assert kwargs["params"] == {"format": "credits"}
+    assert kwargs["headers"]["Authorization"] == "Bearer secret"
+    assert usage["primary"]["utilization"] == 10
+
+    FakeResponse.status_code = 401
+    with pytest.raises(PermissionError, match="token_expired"):
+        await system._fetch_grok_usage("expired")
+
+
+@pytest.mark.asyncio
+async def test_grok_401_returns_no_data_instead_of_zero_or_stale(monkeypatch):
+    monkeypatch.setattr(system, "_read_grok_token", lambda: "expired")
+    monkeypatch.setattr(
+        system,
+        "_grok_usage_cache",
+        {"data": {"primary": {"utilization": 73}}, "ts": 0.0},
+    )
+    monkeypatch.setattr(
+        system,
+        "_fetch_grok_usage",
+        AsyncMock(side_effect=PermissionError("token_expired")),
+    )
+    monkeypatch.setattr(system, "_usage_cache", {"data": None, "ts": 0.0, "token": None})
+    monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
+    monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(side_effect=RuntimeError("offline")))
+    monkeypatch.setattr(system, "_get_agents_cost", lambda: {})
+    monkeypatch.setattr(system, "_get_voice_cost_usd", lambda: 0.0)
+
+    response = await system._get_usage_data()
+
+    assert response["grok"] is None
+    assert system._grok_usage_cache["data"] is None
 
 
 def test_usage_history_round_trips_universal_provider_windows(tmp_path, monkeypatch):
