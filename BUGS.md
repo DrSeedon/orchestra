@@ -247,3 +247,8 @@ spawn_worker(name="feat-skill-index", repo_path="/mnt/data/Projects/Python/orche
 
 Варианты: report_bug коммитит свою запись сам; либо BUGS.md выносится из рабочего дерева
 (отдельный файл/БД). Решение отложено до конца #90.
+
+## [2026-07-28 12:38 UTC] bg_create(command) не поддерживает заявленный recurring/no-expiry режим
+- **Reporter:** intent-hunter
+- **Scope:** /mnt/data/Projects/Python/seedon
+В task #174 нужен вечный command-job каждые 900 секунд. MCP description говорит: recurring, timeout_seconds=0 = no expiry. Фактический код app/bg_jobs.py:145 делает no_expiry только для job_type == "cron"; для command timeout_seconds=0 превращается в 1 секунду, MAX_TIMEOUT=86400. Кроме того, _run_command_watch() после первого regex match вызывает _trigger() и return, то есть command-job прекращается после первого алерта. Это делает заявленный recurring command monitor невозможным без ежедневного перевзведения или обхода через прямую отправку API.
