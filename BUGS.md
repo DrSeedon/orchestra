@@ -252,3 +252,8 @@ spawn_worker(name="feat-skill-index", repo_path="/mnt/data/Projects/Python/orche
 - **Reporter:** intent-hunter
 - **Scope:** /mnt/data/Projects/Python/seedon
 В task #174 нужен вечный command-job каждые 900 секунд. MCP description говорит: recurring, timeout_seconds=0 = no expiry. Фактический код app/bg_jobs.py:145 делает no_expiry только для job_type == "cron"; для command timeout_seconds=0 превращается в 1 секунду, MAX_TIMEOUT=86400. Кроме того, _run_command_watch() после первого regex match вызывает _trigger() и return, то есть command-job прекращается после первого алерта. Это делает заявленный recurring command monitor невозможным без ежедневного перевзведения или обхода через прямую отправку API.
+
+## [2026-07-28 13:42 UTC] kwin session_start/session_stop hang for isolated Godot capture
+- **Reporter:** terrain-dev
+- **Scope:** /home/maxim/polus
+Worker terrain-dev called kwin/session_start with an isolated 1920x1080 session and a finite Godot capture command. session_start hung until the MCP 300s timeout; no output file/process remained. Subsequent kwin/session_stop also hung for 300s. Live session had been disconnected first. This blocks hidden GUI captures and caused two 5-minute stalls.
