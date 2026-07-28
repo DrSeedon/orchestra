@@ -300,6 +300,10 @@ def load_pipeline(name: str) -> PipelineConfig:
     :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
         граф can_spawn.
     """
+    # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+    # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+    if not name:
+        raise FileNotFoundError("pipeline name is empty")
     if not _is_safe_component(name):
         raise ValueError(f"unsafe pipeline name '{name}'")
     path = PIPELINES_DIR / name / "pipeline.yaml"

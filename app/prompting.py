@@ -318,6 +318,10 @@ def build_codex_skills_index(
     """
     from app.pipeline import PIPELINES_DIR, _is_safe_component
 
+    # Empty pipeline (legacy sessions, ad-hoc workers) → no pipeline skills.
+    # Project discovery below still runs. Don't fail the whole send.
+    if not pipeline_name:
+        pipeline_name = "default"
     if not _is_safe_component(pipeline_name):
         raise ValueError(f"unsafe pipeline name '{pipeline_name}'")
     pipelines_root = PIPELINES_DIR.resolve()
