@@ -210,35 +210,125 @@ async def test_send_starts_turn_when_idle():
 
 
 @pytest.mark.asyncio
-async def test_native_compact_preserves_thread_and_waits_for_completion():
+async def test_events_reject_stale_lifecycle_without_losing_current_turn(caplog):
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     backend._proc = SimpleNamespace(returncode=None)
     backend._thread_id = "thread-1"
-    backend._request = AsyncMock(return_value={})
+    backend._active_turn_id = "task-turn"
 
-    task = asyncio.create_task(backend.compact_context())
-    await asyncio.sleep(0)
-
-    backend._record_token_usage({
-        "tokenUsage": {
-            "last": {"totalTokens": 33_124},
-            "total": {},
-            "modelContextWindow": 258_400,
-        },
+    for method, turn_id in (
+        ("turn/started", "compact-turn"),
+        ("turn/completed", "compact-turn"),
+        ("turn/started", "task-turn"),
+    ):
+        await backend._notifications.put({
+            "method": method,
+            "params": {"threadId": "thread-1", "turn": {"id": turn_id}},
+        })
+    await backend._notifications.put({
+        "method": "item/agentMessage/delta",
+        "params": {"threadId": "thread-1", "delta": "FIRST_PROCESSED"},
     })
-    backend._complete_compaction_from_notification({
-        "method": "item/completed",
+    await backend._notifications.put({
+        "method": "turn/completed",
         "params": {
             "threadId": "thread-1",
-            "item": {"type": "contextCompaction", "id": "compact-1"},
+            "turn": {"id": "task-turn", "status": "completed"},
         },
     })
-    result = await asyncio.wait_for(task, timeout=1)
+
+    with caplog.at_level("DEBUG", logger="app.backend_codex"):
+        events = [event async for event in backend.events()]
+
+    assert any(event.type == "stream" and event.content == "FIRST_PROCESSED"
+               for event in events)
+    assert [event.type for event in events].count("turn_end") == 1
+    assert "compact-turn" in caplog.text
+    assert "task-turn" in caplog.text
+    assert "turn/started" in caplog.text
+    assert "turn/completed" in caplog.text
+    assert backend._active_turn_id is None
+
+
+@pytest.mark.asyncio
+async def test_native_compact_drains_terminal_before_returning():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._thread_id = "thread-1"
+    stdout = asyncio.StreamReader()
+    backend._proc = SimpleNamespace(
+        returncode=None,
+        stdout=stdout,
+        wait=AsyncMock(return_value=0),
+    )
+    backend._reader_task = asyncio.create_task(backend._read_stdout())
+    request_started = asyncio.Event()
+    compact_queue_was_attached = []
+
+    def feed(message):
+        stdout.feed_data((json.dumps(message) + "\n").encode())
+
+    async def request(method, params):
+        compact_queue_was_attached.append(
+            getattr(backend, "_compact_notifications", None) is not None
+        )
+        feed({
+            "method": "turn/started",
+            "params": {
+                "threadId": "thread-1",
+                "turn": {"id": "compact-turn"},
+            },
+        })
+        feed({
+            "method": "thread/tokenUsage/updated",
+            "params": {
+                "threadId": "thread-1",
+                "tokenUsage": {
+                    "last": {"totalTokens": 33_124},
+                    "total": {},
+                    "modelContextWindow": 258_400,
+                },
+            },
+        })
+        feed({
+            "method": "item/completed",
+            "params": {
+                "threadId": "thread-1",
+                "item": {"type": "contextCompaction", "id": "compact-1"},
+            },
+        })
+        request_started.set()
+        return {}
+
+    backend._request = AsyncMock(side_effect=request)
+    task = asyncio.create_task(backend.compact_context())
+    try:
+        await asyncio.wait_for(request_started.wait(), timeout=0.5)
+        done, _ = await asyncio.wait({task}, timeout=0.05)
+        assert task not in done
+
+        feed({
+            "method": "turn/completed",
+            "params": {
+                "threadId": "thread-1",
+                "turn": {"id": "compact-turn", "status": "completed"},
+            },
+        })
+        result = await asyncio.wait_for(task, timeout=0.5)
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        backend._disconnecting = True
+        stdout.feed_eof()
+        await asyncio.wait_for(backend._reader_task, timeout=0.5)
 
     backend._request.assert_awaited_once_with(
         "thread/compact/start",
         {"threadId": "thread-1"},
     )
+    assert compact_queue_was_attached == [True]
+    assert backend._notifications.empty()
+    assert backend._compact_notifications is None
     assert backend.session_id == "thread-1"
     assert result == {
         "ok": True,
@@ -246,6 +336,52 @@ async def test_native_compact_preserves_thread_and_waits_for_completion():
         "context_tokens": 33_124,
         "max_tokens": 258_400,
     }
+
+
+@pytest.mark.asyncio
+async def test_native_compact_missing_terminal_times_out_and_detaches(monkeypatch):
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._thread_id = "thread-1"
+    stdout = asyncio.StreamReader()
+    backend._proc = SimpleNamespace(
+        returncode=None,
+        stdout=stdout,
+        wait=AsyncMock(return_value=0),
+    )
+    backend._reader_task = asyncio.create_task(backend._read_stdout())
+    monkeypatch.setattr("app.backend_codex.CODEX_COMPACT_TIMEOUT_SECONDS", 0.03)
+
+    async def request(_method, _params):
+        for message in (
+            {
+                "method": "turn/started",
+                "params": {
+                    "threadId": "thread-1",
+                    "turn": {"id": "compact-turn"},
+                },
+            },
+            {
+                "method": "item/completed",
+                "params": {
+                    "threadId": "thread-1",
+                    "item": {"type": "contextCompaction", "id": "compact-1"},
+                },
+            },
+        ):
+            stdout.feed_data((json.dumps(message) + "\n").encode())
+        return {}
+
+    backend._request = AsyncMock(side_effect=request)
+    try:
+        with pytest.raises(TimeoutError):
+            await backend.compact_context()
+    finally:
+        backend._disconnecting = True
+        stdout.feed_eof()
+        await asyncio.wait_for(backend._reader_task, timeout=0.5)
+
+    assert backend._compact_notifications is None
+    assert backend._notifications.empty()
 
 
 @pytest.mark.asyncio

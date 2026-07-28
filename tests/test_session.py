@@ -1,7 +1,9 @@
 """TDD tests for session.py — AgentSession."""
 
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -2130,6 +2132,201 @@ class TestEnsureBackendForceFresh:
 
 
 class TestCodexTurnLifecycle:
+    @pytest.mark.asyncio
+    async def test_stale_compact_lifecycle_cannot_false_idle_current_turn(
+        self, session, monkeypatch
+    ):
+        from app.backend_codex import CodexBackend
+        from app.live_broker import broker
+        from app.session import AgentStatus
+
+        published = []
+        monkeypatch.setattr(
+            broker,
+            "publish",
+            lambda _session_id, payload: published.append(payload),
+        )
+        session._hibernate.schedule = MagicMock()
+
+        backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+        backend._proc = MagicMock(returncode=None)
+        backend._thread_id = "thread-1"
+        backend._active_turn_id = "task-turn"
+        session.backend_type = "codex"
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+
+        for method in ("turn/started", "turn/completed"):
+            await backend._notifications.put({
+                "method": method,
+                "params": {
+                    "threadId": "thread-1",
+                    "turn": {"id": "compact-turn"},
+                },
+            })
+
+        listener = asyncio.create_task(session._turn_event_loop())
+        await asyncio.sleep(0.01)
+
+        assert listener.done() is False
+        assert session.status == AgentStatus.RUNNING
+        assert backend._active_turn_id == "task-turn"
+
+        for message in (
+            {
+                "method": "turn/started",
+                "params": {
+                    "threadId": "thread-1",
+                    "turn": {"id": "task-turn"},
+                },
+            },
+            {
+                "method": "item/agentMessage/delta",
+                "params": {
+                    "threadId": "thread-1",
+                    "delta": "FIRST_PROCESSED",
+                },
+            },
+            {
+                "method": "turn/completed",
+                "params": {
+                    "threadId": "thread-1",
+                    "turn": {"id": "task-turn", "status": "completed"},
+                },
+            },
+        ):
+            await backend._notifications.put(message)
+
+        await asyncio.wait_for(listener, timeout=0.5)
+        assert session.status == AgentStatus.IDLE
+        assert any(
+            payload.get("type") == "stream"
+            and payload.get("content") == "FIRST_PROCESSED"
+            for payload in published
+        )
+
+    @pytest.mark.asyncio
+    async def test_native_compact_cannot_leak_lifecycle_into_next_listener(
+        self, session, monkeypatch
+    ):
+        from app.backend_codex import CodexBackend
+        from app.live_broker import broker
+        from app.session import AgentStatus
+
+        published = []
+        monkeypatch.setattr(
+            broker,
+            "publish",
+            lambda _session_id, payload: published.append(payload),
+        )
+        session._hibernate.schedule = MagicMock()
+
+        backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+        backend._thread_id = "thread-1"
+        stdout = asyncio.StreamReader()
+        backend._proc = SimpleNamespace(
+            returncode=None,
+            stdout=stdout,
+            wait=AsyncMock(return_value=0),
+        )
+        backend._reader_task = asyncio.create_task(backend._read_stdout())
+
+        def feed(message):
+            stdout.feed_data((json.dumps(message) + "\n").encode())
+
+        compact_completion_emitted = asyncio.Event()
+
+        async def request(method, _params):
+            if method == "thread/compact/start":
+                for message in (
+                    {
+                        "method": "turn/started",
+                        "params": {
+                            "threadId": "thread-1",
+                            "turn": {"id": "compact-turn"},
+                        },
+                    },
+                    {
+                        "method": "item/completed",
+                        "params": {
+                            "threadId": "thread-1",
+                            "item": {
+                                "type": "contextCompaction",
+                                "id": "compact-1",
+                            },
+                        },
+                    },
+                ):
+                    feed(message)
+                compact_completion_emitted.set()
+                return {}
+            if method == "turn/start":
+                return {"turn": {"id": "task-turn"}}
+            raise AssertionError(f"unexpected request: {method}")
+
+        backend._request = AsyncMock(side_effect=request)
+        try:
+            compact_task = asyncio.create_task(backend.compact_context())
+            await asyncio.wait_for(compact_completion_emitted.wait(), timeout=0.5)
+            done, _ = await asyncio.wait({compact_task}, timeout=0.05)
+            assert compact_task not in done
+            feed({
+                "method": "turn/completed",
+                "params": {
+                    "threadId": "thread-1",
+                    "turn": {
+                        "id": "compact-turn",
+                        "status": "completed",
+                    },
+                },
+            })
+            await asyncio.wait_for(compact_task, timeout=0.5)
+            assert backend._notifications.empty()
+
+            session.backend_type = "codex"
+            session._backend = backend
+            session.status = AgentStatus.IDLE
+            await session.send("FIRST")
+
+            for message in (
+                {
+                    "method": "turn/started",
+                    "params": {
+                        "threadId": "thread-1",
+                        "turn": {"id": "task-turn"},
+                    },
+                },
+                {
+                    "method": "item/agentMessage/delta",
+                    "params": {
+                        "threadId": "thread-1",
+                        "delta": "FIRST_PROCESSED",
+                    },
+                },
+                {
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": "thread-1",
+                        "turn": {"id": "task-turn", "status": "completed"},
+                    },
+                },
+            ):
+                feed(message)
+
+            await asyncio.wait_for(session._listen_task, timeout=0.5)
+        finally:
+            backend._disconnecting = True
+            stdout.feed_eof()
+            await asyncio.wait_for(backend._reader_task, timeout=0.5)
+
+        assert session.status == AgentStatus.IDLE
+        assert backend._notifications.empty()
+        assert any(
+            payload.get("type") == "stream"
+            and payload.get("content") == "FIRST_PROCESSED"
+            for payload in published
+        )
+
     @pytest.mark.asyncio
     async def test_active_turn_is_not_killed_by_total_wall_clock_timeout(self, session, monkeypatch):
         from app.events import AgentEvent
