@@ -309,6 +309,125 @@ class TestSend:
 
 
 class TestTurn:
+    @pytest.mark.parametrize("runtime_id", ("claude", "codex", "grok", "opencode"))
+    @pytest.mark.asyncio
+    async def test_turn_completion_signal_follows_persist_for_every_runtime(
+        self, session, monkeypatch, runtime_id,
+    ):
+        from app.events import AgentEvent
+        from app.runtime_registry import get_runtime
+        from app.session import AgentStatus
+
+        class OneTurnBackend:
+            async def events(self):
+                yield AgentEvent(
+                    type="turn_end",
+                    metadata={
+                        "ok": True,
+                        "stop_reason": "end_turn",
+                        "num_turns": 1,
+                        "cost_usd": 0,
+                    },
+                )
+
+        observed = []
+        runtime = get_runtime(runtime_id)
+        session.backend_type = runtime_id
+        session._backend = OneTurnBackend()
+        session._log = lambda *_args, **_kwargs: None
+        session._turns.bump_turn_gen()
+        session.status = AgentStatus.RUNNING
+        monkeypatch.setattr(
+            session,
+            "_persist",
+            lambda: observed.append(
+                (session.status, session._turn_finished_event.is_set())
+            ),
+        )
+        monkeypatch.setattr(
+            session._turns,
+            "after_turn_idle_actions",
+            lambda *_args, **_kwargs: None,
+        )
+
+        def discard_background(coroutine):
+            coroutine.close()
+
+        monkeypatch.setattr(session, "_spawn_bg", discard_background)
+
+        waiter = asyncio.create_task(session.wait_for_turn_completion())
+        await asyncio.sleep(0)
+        assert waiter.done() is False
+
+        if runtime.capabilities.event_stream == "persistent":
+            await session._persistent_event_loop()
+        else:
+            await session._turn_event_loop()
+
+        assert observed == [(AgentStatus.IDLE, False)]
+        assert await asyncio.wait_for(waiter, timeout=0.2) is True
+        assert session._turn_finished_event.is_set() is True
+
+    @pytest.mark.asyncio
+    async def test_waiting_status_finishes_turn_but_is_not_merge_ready(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        class ActiveJobs:
+            def has_active_jobs(self, _session_id):
+                return True
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", ActiveJobs())
+        session._log = lambda *_args, **_kwargs: None
+        session._turns.bump_turn_gen()
+        session.status = AgentStatus.RUNNING
+        monkeypatch.setattr(session, "_persist", lambda: None)
+
+        waiter = asyncio.create_task(session.wait_for_turn_completion())
+        await asyncio.sleep(0)
+        session._turns.finish_turn_status()
+
+        assert await asyncio.wait_for(waiter, timeout=0.2) is False
+        assert session.status is AgentStatus.WAITING
+
+    @pytest.mark.asyncio
+    async def test_auto_continue_segment_does_not_publish_terminal_signal(
+        self, session, monkeypatch,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        session.backend_type = "codex"
+        session._log = lambda *_args, **_kwargs: None
+        session._turns.bump_turn_gen()
+        session.status = AgentStatus.RUNNING
+        monkeypatch.setattr(session, "_persist", lambda: None)
+
+        def discard_background(coroutine):
+            coroutine.close()
+
+        monkeypatch.setattr(session, "_spawn_bg", discard_background)
+        waiter = asyncio.create_task(session.wait_for_turn_completion())
+        await asyncio.sleep(0)
+
+        session._handle_event(AgentEvent(
+            type="turn_end",
+            metadata={
+                "ok": True,
+                "stop_reason": "max_turns",
+                "num_turns": 5,
+                "cost_usd": 0,
+            },
+        ))
+
+        assert session.status is AgentStatus.RUNNING
+        assert session._turn_finished_event.is_set() is False
+        assert waiter.done() is False
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+
     @pytest.mark.asyncio
     async def test_turn_end_returns_to_idle(self, session):
         """После turn_end event статус возвращается в IDLE."""

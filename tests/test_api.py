@@ -388,6 +388,7 @@ async def test_merge_links_commits_with_normalized_sqlite_results(db, monkeypatc
 
     class FakeSession:
         loaded = False
+        status = type("Status", (), {"value": "idle"})()
         worktree_path = "/wt"
         scope = "/s"
         id = "link-results"
@@ -561,6 +562,7 @@ async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch):
         "id": "sid",
         "name": "w",
         "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
         "worktree_path": "/wt",
         "base_branch": "master",
     })()
@@ -608,21 +610,24 @@ async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
         id = "merge-finish"
         name = "w"
 
-        def _persist(self):
-            pass
+        async def wait_for_turn_completion(self):
+            wait_started.set()
+            await turn_finished.wait()
+            return self.status.value == "idle"
+
+        async def interrupt(self):
+            raise AssertionError("merge must not interrupt the worker")
 
     session = FakeSession()
     merge_called = False
-
-    async def finish_turn(_delay):
-        session.status.value = "idle"
+    wait_started = asyncio.Event()
+    turn_finished = asyncio.Event()
 
     def fake_merge(*_args, **_kwargs):
         nonlocal merge_called
         merge_called = True
         return {"ok": True, "merged_commits": {}}
 
-    monkeypatch.setattr(sessmod.asyncio, "sleep", finish_turn)
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
@@ -632,20 +637,29 @@ async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
 
     monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
 
-    result = await sessmod.merge_session("w", {"scope": "/s"})
+    merge_task = asyncio.create_task(
+        sessmod.merge_session("w", {"scope": "/s"}),
+    )
+    await asyncio.wait_for(wait_started.wait(), timeout=0.2)
+    assert merge_called is False
+    assert merge_task.done() is False
+
+    session.status.value = "idle"
+    turn_finished.set()
+    result = await asyncio.wait_for(merge_task, timeout=0.2)
 
     assert result["ok"] is True
     assert merge_called is True
 
 
 @pytest.mark.asyncio
-async def test_merge_rejects_worker_that_stays_running_without_merging(monkeypatch):
+async def test_merge_rejects_waiting_worker_without_merging(monkeypatch):
     import asyncio
     import app.main as mainmod
     import app.routes.sessions as sessmod
 
     class Status:
-        value = "running"
+        value = "waiting"
 
     class FakeSession:
         loaded = True
@@ -659,15 +673,11 @@ async def test_merge_rejects_worker_that_stays_running_without_merging(monkeypat
     session = FakeSession()
     merge_called = False
 
-    async def no_wall_clock_wait(_delay):
-        return None
-
     def fake_merge(*_args, **_kwargs):
         nonlocal merge_called
         merge_called = True
         return {"ok": True, "merged_commits": {}}
 
-    monkeypatch.setattr(sessmod.asyncio, "sleep", no_wall_clock_wait)
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
@@ -675,7 +685,86 @@ async def test_merge_rejects_worker_that_stays_running_without_merging(monkeypat
     response = await sessmod.merge_session("w", {"scope": "/s"})
 
     assert response.status_code == 400
+    assert "waiting" in response.body.decode()
     assert merge_called is False
+
+
+@pytest.mark.asyncio
+async def test_switch_waits_for_running_worker_to_finish_turn(db, monkeypatch):
+    import asyncio
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    class Status:
+        value = "running"
+
+    class FakeSession:
+        loaded = True
+        status = Status()
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "switch-finish"
+        name = "w"
+        base_branch = "main"
+        _lifecycle_lock = asyncio.Lock()
+
+        async def wait_for_turn_completion(self):
+            wait_started.set()
+            await turn_finished.wait()
+            return self.status.value == "idle"
+
+        async def interrupt(self):
+            raise AssertionError("switch must not interrupt the worker")
+
+    session = FakeSession()
+    wait_started = asyncio.Event()
+    turn_finished = asyncio.Event()
+    switch_called = False
+
+    def fake_switch(*_args, **_kwargs):
+        nonlocal switch_called
+        switch_called = True
+        return {"ok": True, "branch": "task-91/w"}
+
+    async def persist_lifecycle(found, **fields):
+        for key, value in fields.items():
+            setattr(found, key, value)
+
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
+    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
+    monkeypatch.setattr("app.tm.api_update_task", lambda *_args, **_kwargs: None)
+
+    switch_task = asyncio.create_task(
+        sessmod.switch_branch("w", {"scope": "/s", "task_id": "91"}),
+    )
+    await asyncio.wait_for(wait_started.wait(), timeout=0.2)
+    assert switch_called is False
+    assert switch_task.done() is False
+
+    interrupt_status_published = asyncio.Event()
+    interrupt_ack = asyncio.Event()
+
+    async def finish_interrupt():
+        async with session._lifecycle_lock:
+            session.status.value = "idle"
+            turn_finished.set()
+            interrupt_status_published.set()
+            await interrupt_ack.wait()
+
+    interrupt_task = asyncio.create_task(finish_interrupt())
+    await asyncio.wait_for(interrupt_status_published.wait(), timeout=0.2)
+    await asyncio.sleep(0)
+    assert switch_called is False
+    assert switch_task.done() is False
+
+    interrupt_ack.set()
+    await asyncio.wait_for(interrupt_task, timeout=0.2)
+    result = await asyncio.wait_for(switch_task, timeout=0.2)
+
+    assert result["ok"] is True
+    assert switch_called is True
 
 
 @pytest.mark.asyncio

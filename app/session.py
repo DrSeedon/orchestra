@@ -202,6 +202,7 @@ class AgentSession:
     _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _persist_dirty: bool = field(default=False, repr=False)
     _turn_gen: int = field(default=0, repr=False)
+    _turn_finished_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _spawn_warning: str = field(default="", repr=False)
     _spawn_repo_path: str = field(default="", repr=False)
@@ -447,6 +448,12 @@ class AgentSession:
             self.status = AgentStatus.IDLE
             self._persist()
 
+    async def wait_for_turn_completion(self) -> bool:
+        """Wait for the active logical turn to publish its terminal status."""
+        while self.status == AgentStatus.RUNNING:
+            await self._turn_finished_event.wait()
+        return self.status == AgentStatus.IDLE
+
     async def send(self, message: str) -> None:
         original_user_message = message
         # Retry budgets belong to one logical request. A real new message resets both;
@@ -544,6 +551,7 @@ class AgentSession:
             except Exception:
                 self.status = AgentStatus.IDLE
                 self._persist()
+                self._turns.publish_turn_finished()
                 raise
 
             # Claude transcripts are local files. A DB row can outlive that file (old
@@ -597,6 +605,7 @@ class AgentSession:
                 if self.status == AgentStatus.RUNNING:
                     self.status = AgentStatus.IDLE
                     self._persist()
+                    self._turns.publish_turn_finished()
                 raise
             if pending_handoff and self.runtime_handoff == pending_handoff:
                 self.runtime_handoff = ""
@@ -686,6 +695,7 @@ class AgentSession:
                 if self.status == AgentStatus.RUNNING:
                     self.status = AgentStatus.IDLE
                     self._persist()
+                    self._turns.publish_turn_finished()
                 return
 
             try:
@@ -704,6 +714,7 @@ class AgentSession:
                 if self.status == AgentStatus.RUNNING:
                     self.status = AgentStatus.IDLE
                     self._persist()
+                    self._turns.publish_turn_finished()
                 return
 
     async def _turn_event_loop(self) -> None:
@@ -887,6 +898,7 @@ class AgentSession:
             self._pending_messages[0:0] = msgs
             self.status = AgentStatus.IDLE
             self._persist()
+            self._turns.publish_turn_finished()
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
@@ -909,6 +921,8 @@ class AgentSession:
                 self._turn_start = 0
                 self.status = AgentStatus.IDLE
                 self._persist()
+        if self.status != AgentStatus.RUNNING and self._auto_continue_count == 0:
+            self._turns.publish_turn_finished()
 
     # ── Session operations ──
 
@@ -925,6 +939,7 @@ class AgentSession:
             self.status = AgentStatus.IDLE
             self._log("status", "interrupted")
             self._persist()
+            self._turns.publish_turn_finished()
 
             if backend:
                 acknowledged = await backend.interrupt()
@@ -1176,6 +1191,7 @@ class AgentSession:
                 self.session_id = pre_compact_session_id
                 self.status = AgentStatus.IDLE
                 self._persist()
+                self._turns.publish_turn_finished()
                 return {"ok": False, "error": "ack turn did not complete", "before_pct": before_pct}
             if self._session_limit_hit:
                 error = "Claude subscription limit hit during compact acknowledgement"
@@ -1184,6 +1200,7 @@ class AgentSession:
                 self.session_id = pre_compact_session_id
                 self.status = AgentStatus.IDLE
                 self._persist()
+                self._turns.publish_turn_finished()
                 return {"ok": False, "error": error, "before_pct": before_pct}
         finally:
             self._compact_ack_event = None
@@ -1236,6 +1253,7 @@ class AgentSession:
             logger.warning(f"[{self.name}] rate-limit retry failed: {e}")
             self.status = AgentStatus.IDLE
             self._persist()
+            self._turns.publish_turn_finished()
 
     async def _retry_after_server_error(self, delay: int, expected_turn_gen: int) -> None:
         """Resume through a fresh SDK transport after an upstream stream failure."""
@@ -1257,6 +1275,7 @@ class AgentSession:
             logger.warning(f"[{self.name}] server-error retry failed: {e}")
             self.status = AgentStatus.IDLE
             self._persist()
+            self._turns.publish_turn_finished()
 
     async def _auto_continue(self) -> None:
         await asyncio.sleep(1)
@@ -1267,6 +1286,7 @@ class AgentSession:
             logger.warning(f"[{self.name}] auto-continue failed: {e}")
             self.status = AgentStatus.IDLE
             self._persist()
+            self._turns.publish_turn_finished()
 
     async def _refresh_context_from_api(self) -> None:
         if not self._backend or not hasattr(self._backend, 'context_usage'):
@@ -1428,6 +1448,7 @@ class AgentSession:
         self._hibernated = False
         self.status = AgentStatus.IDLE
         self._persist()
+        self._turns.publish_turn_finished()
 
     def _persist(self) -> None:
         # Coalesce rapid successive calls: mark dirty, let one active task drain them all —
