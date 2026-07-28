@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#browse-btn')?.addEventListener('click', showProjectPicker);
     initTabContextMenu();
     initHiddenTabsBtn();
-    initDropHint();
+    initChatDrop();
     $('#restart-btn').addEventListener('click', restartServer);
     // Client modal (available with auth)
     const clientBtn = document.getElementById('client-btn');
@@ -899,29 +899,111 @@ function _hideDropHint() {
     _dropDragCounter = 0;
     const input = $('#chat-input');
     if (!input) return;
-    if (input.dataset.origPlaceholder) {
+    if ('origPlaceholder' in input.dataset) {
         input.placeholder = input.dataset.origPlaceholder;
         delete input.dataset.origPlaceholder;
     }
     input.classList.remove('border-indigo-400');
 }
-function initDropHint() {
-    document.addEventListener('dragenter', (e) => {
-        if (!e.dataTransfer?.types?.includes('Files')) return;
-        _dropDragCounter++;
-        const input = $('#chat-input');
-        if (input) {
-            if (!input.dataset.origPlaceholder) input.dataset.origPlaceholder = input.placeholder;
-            input.placeholder = '📎 Drop files here';
-            input.classList.add('border-indigo-400');
+
+function _showDropHint(input) {
+    if (!('origPlaceholder' in input.dataset)) input.dataset.origPlaceholder = input.placeholder;
+    input.placeholder = '📎 Drop files here';
+    input.classList.add('border-indigo-400');
+}
+
+function _showChatDropError(message) {
+    const existing = $('#chat-drop-error');
+    if (!message) {
+        existing?.remove();
+        return;
+    }
+    const error = existing || document.createElement('div');
+    if (!existing) {
+        error.id = 'chat-drop-error';
+        error.className = 'text-xs text-red-400 px-1 pb-1';
+        error.setAttribute('role', 'alert');
+        const inputRow = $('#chat-input').parentElement;
+        inputRow.parentElement.insertBefore(error, inputRow);
+    }
+    error.textContent = message;
+}
+
+function _appendDroppedPath(input, path, url) {
+    input.value += (input.value ? '\n' : '') + path;
+    input.focus();
+    pastedImages.push(url);
+    showImagePreview(url, path);
+}
+
+async function _handleChatDrop(input, dataTransfer) {
+    _showChatDropError('');
+    const files = [...(dataTransfer?.files || [])];
+    if (files.length) {
+        const failures = [];
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('file', file, file.name);
+            try {
+                const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = resp.headers.get('content-type')?.includes('application/json')
+                    ? await resp.json() : {};
+                if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+                if (!data.path) throw new Error('server returned no file path');
+                _appendDroppedPath(input, data.path, data.url || data.path);
+            } catch (error) {
+                failures.push(`${file.name}: ${error.message}`);
+            }
         }
+        if (failures.length) _showChatDropError(`Upload failed — ${failures.join('; ')}`);
+        input.focus();
+        return;
+    }
+    const path = dataTransfer?.getData('text/plain');
+    if (!path) return;
+    const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)
+        ? `/api/files/raw?path=${encodeURIComponent(path)}` : path;
+    _appendDroppedPath(input, path, url);
+}
+
+function _hasDropType(dataTransfer, type) {
+    return [...(dataTransfer?.types || [])].includes(type);
+}
+
+function _isChatDrop(dataTransfer) {
+    return _hasDropType(dataTransfer, 'Files') || _hasDropType(dataTransfer, 'text/plain');
+}
+
+function initChatDrop() {
+    document.addEventListener('dragenter', (e) => {
+        const input = e.target.closest?.('#chat-input');
+        if (!input || !_isChatDrop(e.dataTransfer)) return;
+        _dropDragCounter++;
+        _showDropHint(input);
     });
     document.addEventListener('dragleave', (e) => {
-        if (!e.dataTransfer?.types?.includes('Files')) return;
+        if (!e.target.closest?.('#chat-input')) return;
         _dropDragCounter--;
         if (_dropDragCounter <= 0) _hideDropHint();
     });
-    document.addEventListener('drop', () => _hideDropHint());
+    document.addEventListener('dragover', (e) => {
+        const input = e.target.closest?.('#chat-input');
+        if (input && _isChatDrop(e.dataTransfer)) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        } else if (_hasDropType(e.dataTransfer, 'Files')) {
+            e.preventDefault();
+        }
+    });
+    document.addEventListener('drop', (e) => {
+        const input = e.target.closest?.('#chat-input');
+        if (_hasDropType(e.dataTransfer, 'Files')) e.preventDefault();
+        _hideDropHint();
+        if (!input || !_isChatDrop(e.dataTransfer)) return;
+        e.preventDefault();
+        _handleChatDrop(input, e.dataTransfer)
+            .catch(error => _showChatDropError(`Drop failed — ${error.message}`));
+    });
 }
 
 function initTabContextMenu() {
@@ -4854,44 +4936,6 @@ let _fileRefreshInterval = null;
 
 function initFilePanel() {
     const tree = $('#file-tree');
-
-    const chatInput = $('#chat-input');
-    if (!chatInput.dataset.fileDropReady) {
-        chatInput.dataset.fileDropReady = '1';
-        chatInput.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
-        chatInput.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            _hideDropHint();
-            if (e.dataTransfer?.files?.length) {
-                for (const file of e.dataTransfer.files) {
-                    const formData = new FormData();
-                    formData.append('file', file, file.name);
-                    try {
-                        const resp = await fetch('/api/upload', { method: 'POST', body: formData });
-                        const data = await resp.json();
-                        if (data.path) {
-                            chatInput.value += (chatInput.value ? '\n' : '') + data.path;
-                            pastedImages.push(data.url);
-                            showImagePreview(data.url, data.path);
-                        }
-                    } catch {}
-                }
-                chatInput.focus();
-                return;
-            }
-            const path = e.dataTransfer.getData('text/plain');
-            if (path) {
-                chatInput.value += (chatInput.value ? '\n' : '') + path;
-                chatInput.focus();
-                const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)
-                    ? `/api/files/raw?path=${encodeURIComponent(path)}` : path;
-                pastedImages.push(url);
-                showImagePreview(url, path);
-            }
-        });
-    }
 
     if (currentScope) {
         loadFileTree(currentScope, tree);
