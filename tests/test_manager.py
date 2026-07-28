@@ -483,6 +483,121 @@ class TestSendAndControl:
         row = get_session(session.id)
         assert row is not None and row["status"] == "archived"
 
+    @pytest.mark.asyncio
+    async def test_loaded_remove_failure_keeps_session_unarchived(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        from app.db import get_session, save_session
+        from tests.conftest import make_backend_mock
+
+        with patch(
+            "app.session.AgentSession._make_backend",
+            return_value=make_backend_mock(),
+        ):
+            session = await mgr.create_session(
+                name="loaded-stuck",
+                scope=str(tmp_path),
+                cwd=str(tmp_path),
+                model="m",
+            )
+        wt = tmp_path / "loaded-stuck-worktree"
+        wt.mkdir()
+        session.worktree_path = str(wt)
+        save_session(session._to_db_dict())
+
+        def fail_remove(*_args):
+            raise RuntimeError("simulated git worktree remove failure")
+
+        monkeypatch.setattr("app.manager.remove_worktree", fail_remove)
+
+        with pytest.raises(RuntimeError, match="simulated git"):
+            await mgr.remove(session.id)
+
+        assert mgr.get(session.id) is session
+        assert get_session(session.id)["status"] != "archived"
+
+    @pytest.mark.asyncio
+    async def test_detached_remove_deletes_worktree_before_archive(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        from app.db import get_session, save_session
+
+        wt = tmp_path / "detached-worktree"
+        wt.mkdir()
+        save_session({
+            "id": "detached", "name": "detached", "scope": str(tmp_path),
+            "cwd": str(wt), "model": "claude-sonnet-5[1m]",
+            "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": str(wt), "branch": "task-92/detached",
+            "is_orchestrator": False, "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+        observed = []
+
+        def fake_remove(_repo_path, worktree_path):
+            observed.append(get_session("detached")["status"])
+            Path(worktree_path).rmdir()
+
+        monkeypatch.setattr("app.manager.remove_worktree", fake_remove)
+
+        await mgr.remove("detached")
+
+        assert observed == ["idle"]
+        assert not wt.exists()
+        assert get_session("detached")["status"] == "archived"
+
+    @pytest.mark.asyncio
+    async def test_detached_remove_failure_does_not_archive(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        from app.db import get_session, save_session
+
+        wt = tmp_path / "stuck-worktree"
+        wt.mkdir()
+        save_session({
+            "id": "stuck", "name": "stuck", "scope": str(tmp_path),
+            "cwd": str(wt), "model": "claude-sonnet-5[1m]",
+            "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": str(wt), "branch": "task-92/stuck",
+            "is_orchestrator": False, "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+
+        def fail_remove(*_args):
+            raise RuntimeError("simulated git worktree remove failure")
+
+        monkeypatch.setattr("app.manager.remove_worktree", fail_remove)
+
+        with pytest.raises(RuntimeError, match="simulated git"):
+            await mgr.remove("stuck")
+
+        assert wt.exists()
+        assert get_session("stuck")["status"] == "idle"
+
+    @pytest.mark.asyncio
+    async def test_detached_missing_worktree_archives_idempotently(
+        self, mgr, tmp_path,
+    ):
+        from app.db import get_session, save_session
+
+        missing_wt = tmp_path / "already-gone"
+        save_session({
+            "id": "gone", "name": "gone", "scope": str(tmp_path),
+            "cwd": str(missing_wt), "model": "claude-sonnet-5[1m]",
+            "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": str(missing_wt),
+            "branch": "task-92/gone", "is_orchestrator": False,
+            "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+
+        await mgr.remove("gone")
+
+        assert get_session("gone")["status"] == "archived"
+
 
 class TestListSessions:
     @pytest.mark.asyncio
@@ -577,6 +692,38 @@ class TestRemoveScope:
 
         assert called["hit"] is False
         assert result["tg"] == {}
+
+    @pytest.mark.asyncio
+    async def test_removes_detached_worktree_before_scope_archive(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        from app.db import get_session, save_session
+
+        wt = tmp_path / "scope-detached"
+        wt.mkdir()
+        save_session({
+            "id": "scope-detached", "name": "scope-detached",
+            "scope": "/scope-detached", "cwd": str(wt),
+            "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "status": "idle", "session_id": None, "cost_usd": 0.0,
+            "worktree_path": str(wt), "branch": "task-92/scope-detached",
+            "is_orchestrator": False, "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+        removed = []
+
+        def fake_remove(_repo_path, worktree_path):
+            removed.append(worktree_path)
+            Path(worktree_path).rmdir()
+
+        monkeypatch.setattr("app.manager.remove_worktree", fake_remove)
+
+        await mgr.remove_scope("/scope-detached")
+
+        assert removed == [str(wt)]
+        assert not wt.exists()
+        assert get_session("scope-detached")["status"] == "archived"
 
 
 class TestAutoResume:

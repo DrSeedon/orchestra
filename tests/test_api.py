@@ -509,6 +509,43 @@ async def test_kill_guard_compares_against_persisted_base(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_kill_reports_worktree_remove_failure(monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    from unittest.mock import AsyncMock
+
+    session = type("Session", (), {"id": "sid"})()
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(
+        mainmod.manager,
+        "remove",
+        AsyncMock(side_effect=RuntimeError("git worktree remove failed: locked")),
+    )
+
+    response = await sessmod.delete_session("w", scope="/s", force=True)
+
+    assert response.status_code == 500
+    assert "git worktree remove failed: locked" in response.body.decode()
+
+
+@pytest.mark.asyncio
+async def test_delete_orchestrator_reports_worktree_remove_failure(monkeypatch):
+    import app.routes.system as sysmod
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr(
+        sysmod.manager,
+        "remove_scope",
+        AsyncMock(side_effect=RuntimeError("git worktree remove failed: locked")),
+    )
+
+    response = await sysmod.delete_orchestrator("orch", scope="/s")
+
+    assert response.status_code == 500
+    assert "git worktree remove failed: locked" in response.body.decode()
+
+
+@pytest.mark.asyncio
 async def test_send_auto_switch_uses_and_persists_base(monkeypatch):
     import app.main as mainmod
     import app.routes.sessions as sessmod

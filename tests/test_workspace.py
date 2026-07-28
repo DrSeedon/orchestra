@@ -738,13 +738,18 @@ class TestRemoveWorktree:
         from app.workspace import remove_worktree
         remove_worktree(str(git_repo), "/nonexistent/path")
 
-    def test_git_fail_warns(self, git_repo, wt_root, caplog):
+    def test_locked_git_failure_raises_and_keeps_worktree(self, git_repo, wt_root):
         from app.workspace import create_worktree, remove_worktree
-        import logging
         wt = create_worktree(str(git_repo), "worker-1")
-        (Path(wt.path) / ".git").unlink()
-        with caplog.at_level(logging.WARNING):
+        subprocess.run(
+            ["git", "worktree", "lock", wt.path],
+            cwd=git_repo, check=True,
+        )
+
+        with pytest.raises(RuntimeError, match="cannot remove a locked working tree"):
             remove_worktree(str(git_repo), wt.path)
+
+        assert Path(wt.path).exists()
 
     def test_acquires_merge_lock(self, git_repo, wt_root, monkeypatch):
         # Task #39 Fix 4: remove_worktree must hold .git/orchestra-merge.lock
@@ -802,6 +807,21 @@ class TestCleanupStaleWorktrees:
 
         removed = cleanup_stale_worktrees()
         assert len(removed) == 0
+        assert Path(wt.path).exists()
+
+    def test_failed_removal_is_not_reported(self, git_repo, wt_root, monkeypatch):
+        from app.workspace import create_worktree, cleanup_stale_worktrees
+
+        wt = create_worktree(str(git_repo), "locked-worker")
+        subprocess.run(
+            ["git", "worktree", "lock", wt.path],
+            cwd=git_repo, check=True,
+        )
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+
+        removed = cleanup_stale_worktrees()
+
+        assert removed == []
         assert Path(wt.path).exists()
 
     def test_skips_non_worktree_dirs(self, wt_root, monkeypatch):
