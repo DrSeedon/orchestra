@@ -188,6 +188,32 @@ def test_result_uuid_is_carried_as_durable_turn_event_id():
     assert event.metadata["event_id"] == "result-uuid-1"
 
 
+def test_result_uses_deferred_context_without_losing_aggregate_usage():
+    from app.usage_contract import DeferredContext
+
+    event = _backend()._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=2,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage={
+            "input_tokens": 12_000,
+            "output_tokens": 500,
+            "cache_read_input_tokens": 8_000,
+            "cache_creation_input_tokens": 1_000,
+        },
+    ))[-1]
+
+    assert event.usage.aggregate.input_tokens == 12_000
+    assert event.usage.aggregate.model_calls == 2
+    assert isinstance(event.usage.current, DeferredContext)
+    assert event.metadata["context_deferred"] is True
+    assert event.metadata["context_known"] is False
+
+
 def test_tool_failure_preserves_stable_use_id_and_explicit_error():
     backend = _backend()
     started = backend._convert(AssistantMessage(

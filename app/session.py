@@ -27,6 +27,7 @@ from app.session_state import (  # noqa: F401 — re-exported: importers use app
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
 )
 from app.session_turns import TurnManager
+from app.usage_contract import KnownContext, current_context
 
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
@@ -406,6 +407,14 @@ class AgentSession:
             )
             self._precompact_timer = None
 
+    def _context_is_known(self) -> bool:
+        if "known" in self._last_context:
+            return bool(self._last_context["known"])
+        return bool(
+            self._last_context.get("percentage", 0)
+            or self._last_context.get("total_tokens", 0)
+        )
+
     def _schedule_precompact_timer(self, context_pct: int) -> None:
         if self._precompact_timer is not None:
             return
@@ -475,6 +484,15 @@ class AgentSession:
         policy = self._precompact_policy()
         if policy is None or state.get("backend") != self.backend_type:
             state["skip_reason"] = "backend_changed"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
+        if not self._context_is_known():
+            state["skip_reason"] = "unknown_context"
             self._log(
                 "status",
                 f"precompact timer skipped: {self._precompact_payload(state)}",
@@ -1407,21 +1425,46 @@ class AgentSession:
             self._persist()
             self._turns.publish_turn_finished()
 
-    async def _refresh_context_from_api(self) -> None:
+    async def _refresh_context_from_api(
+        self, *, schedule_compaction_on_success: bool = False,
+    ) -> None:
         if not self._backend or not hasattr(self._backend, 'context_usage'):
             return
         try:
             usage = await asyncio.wait_for(self._backend.context_usage(), timeout=5)
             if usage and usage.get("percentage") is not None:
-                old_pct = self._last_context.get("percentage", 0)
-                self._last_context["percentage"] = usage["percentage"]
-                self._last_context["total_tokens"] = usage.get("total_tokens", 0)
                 raw_max = usage.get("raw_max_tokens") or usage.get("max_tokens")
-                if raw_max:
-                    self._last_context["max_tokens"] = raw_max
-                if abs(old_pct - usage["percentage"]) > 30:
-                    logger.info(f"[{self.name}] context corrected: {old_pct}% → {usage['percentage']}%")
+                context = current_context(
+                    usage.get("total_tokens"),
+                    raw_max,
+                    percentage=usage.get("percentage"),
+                    unknown_reason="context API omitted a current-context value",
+                )
+                if not isinstance(context, KnownContext):
+                    self._last_context["percentage"] = 0
+                    self._last_context["total_tokens"] = 0
+                    self._last_context["known"] = False
+                    self._log(
+                        "status",
+                        f"context unknown ({context.reason}); "
+                        "automatic compaction skipped",
+                    )
+                    self._cancel_precompact_timer("context_unknown")
+                    self._persist()
+                    return
+                old_pct = self._last_context.get("percentage", 0)
+                self._last_context["percentage"] = context.percentage
+                self._last_context["total_tokens"] = context.tokens
+                self._last_context["max_tokens"] = context.max_tokens
+                self._last_context["known"] = True
+                if abs(old_pct - context.percentage) > 30:
+                    logger.info(
+                        f"[{self.name}] context corrected: "
+                        f"{old_pct}% → {context.percentage}%"
+                    )
                 self._persist()
+                if schedule_compaction_on_success:
+                    self._turns.schedule_context_compaction(context.percentage)
         except asyncio.TimeoutError:
             logger.debug(f"[{self.name}] context refresh timeout (5s)")
         except Exception as e:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import AsyncIterator, Optional
 
 from app.events import AgentEvent
+from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
 logger = logging.getLogger(__name__)
 
@@ -817,6 +818,14 @@ class CodexBackend:
 
         if method == "_process/exited":
             self._active_turn_id = None
+            normalized_usage = TurnUsage(
+                AggregateUsage.normalized(),
+                current_context(
+                    None,
+                    self._model_context_window,
+                    unknown_reason="Codex exited before reporting current context",
+                ),
+            )
             return [AgentEvent("turn_end", "stop_reason=process_exit", metadata={
                 "session_id": self._thread_id,
                 "ok": False,
@@ -826,10 +835,8 @@ class CodexBackend:
                 "model_error": "server_error",
                 "errors": ["server_error"],
                 "cost_usd": 0,
-                "context_pct": 0,
-                "context_tokens": 0,
-                "max_tokens": self._model_context_window,
-            })]
+                **normalized_usage.metadata(),
+            }, usage=normalized_usage)]
 
         return []
 
@@ -1137,22 +1144,32 @@ class CodexBackend:
         }.get(status, status)
 
         totals = self._thread_usage_total or self._runtime_totals() or {}
-        turn_usage = _usage_delta(totals, self._usage_baseline)
-        turn_input = turn_usage["input_tokens"]
-        turn_cached = turn_usage["cached_input_tokens"]
-        turn_output = turn_usage["output_tokens"]
+        delta = _usage_delta(totals, self._usage_baseline)
+        turn_input = delta["input_tokens"]
+        turn_cached = delta["cached_input_tokens"]
+        turn_output = delta["output_tokens"]
         context = self._last_call_usage or self._runtime_context()
         if context:
             ctx_tokens = int(context.get("input_tokens") or 0)
             ctx_window = int(
                 context.get("model_context_window") or self._model_context_window
             )
-            context_known = True
         else:
-            ctx_tokens = 0
+            ctx_tokens = None
             ctx_window = self._model_context_window
-            context_known = False
-        ctx_pct = min(100, int(ctx_tokens * 100 / ctx_window)) if ctx_window else 0
+        normalized_usage = TurnUsage(
+            AggregateUsage.normalized(
+                input_tokens=turn_input,
+                output_tokens=turn_output,
+                cache_read_tokens=turn_cached,
+            ),
+            current_context(
+                ctx_tokens,
+                ctx_window,
+                semantics_known=context is not None,
+                unknown_reason="Codex did not report last-call context",
+            ),
+        )
         cost = _codex_cost(self.model, turn_input, turn_cached, turn_output)
         metadata = {
             "event_id": str(turn.get("id") or ""),
@@ -1162,23 +1179,20 @@ class CodexBackend:
             "cost_usd": cost,
             "cost_usd_cached": cost,
             "cost_is_delta": True,
-            "context_pct": ctx_pct,
-            "context_tokens": ctx_tokens,
-            "context_known": context_known,
-            "max_tokens": ctx_window,
             "cache_hit": int(turn_cached * 100 / turn_input) if turn_input else 0,
-            "cache_read": turn_cached,
-            "cache_create": 0,
-            "input_tokens": turn_input,
-            "cached_input_tokens": turn_cached,
-            "output_tokens": turn_output,
+            **normalized_usage.metadata(),
             "model_error": model_error,
             "errors": [model_error] if model_error else [],
         }
         events = []
         if not ok and error.get("message"):
             events.append(AgentEvent("error", error["message"], {"model_error": model_error}))
-        events.append(AgentEvent("turn_end", f"stop_reason={stop_reason}", metadata=metadata))
+        events.append(AgentEvent(
+            "turn_end",
+            f"stop_reason={stop_reason}",
+            metadata=metadata,
+            usage=normalized_usage,
+        ))
         self._last_turn_error = {}
         return events
 

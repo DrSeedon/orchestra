@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import AsyncIterator, Optional
 
 from app.events import AgentEvent
+from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +241,7 @@ class GrokBackend:
         # turn_completed carries usage; the turn_end is emitted by the prompt completion.
         self._pending_usage: dict = {}
         self._model_context_window = GROK_CONTEXT_LIMITS.get(model, GROK_DEFAULT_CONTEXT)
-        self._context_tokens = 0
+        self._context_tokens: int | None = None
         # A matching name is insufficient: a repository can define another command under it.
         expected_configs = self._mcp_server_configs()
         self._expected_server_identities = {
@@ -804,6 +805,14 @@ class GrokBackend:
         if method == "_process/exited":
             self._active_prompts = 0
             self._queue_depth = 0
+            turn_usage = TurnUsage(
+                AggregateUsage.normalized(),
+                current_context(
+                    None,
+                    self._model_context_window,
+                    unknown_reason="Grok exited before reporting current context",
+                ),
+            )
             return [AgentEvent("turn_end", "stop_reason=process_exit", metadata={
                 "session_id": self._session_id,
                 "ok": False,
@@ -813,10 +822,8 @@ class GrokBackend:
                 "model_error": "server_error",
                 "errors": ["server_error"],
                 "cost_usd": 0,
-                "context_pct": 0,
-                "context_tokens": 0,
-                "max_tokens": self._model_context_window,
-            })]
+                **turn_usage.metadata(),
+            }, usage=turn_usage)]
 
         return []
 
@@ -936,11 +943,27 @@ class GrokBackend:
             cost = float(ticks) * GROK_COST_TICK_USD
         else:
             cost = _grok_cost(self.model, input_tokens, cached, output_tokens)
-        context_tokens = max(0, int(totals.get("totalTokens") or self._context_tokens))
         window = self._model_context_window or GROK_DEFAULT_CONTEXT
+        turn_usage = TurnUsage(
+            AggregateUsage.normalized(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cache_read_tokens=cached,
+                model_calls=totals.get("modelCalls"),
+            ),
+            current_context(
+                self._context_tokens,
+                window,
+                unknown_reason=(
+                    "Grok ACP emitted no per-call current-context value; "
+                    "turn usage totals are aggregate"
+                ),
+            ),
+        )
         stop_map = {"end_turn": "end_turn", "cancelled": "interrupted",
                     "max_tokens": "max_tokens", "refusal": "refusal"}
         self._pending_usage = {}
+        self._context_tokens = None
         return AgentEvent("turn_end", f"stop_reason={stop_reason}", metadata={
             "session_id": self._session_id,
             "ok": ok,
@@ -948,19 +971,11 @@ class GrokBackend:
             "cost_usd": cost,
             "cost_usd_cached": cost,
             "cost_is_delta": True,
-            "context_pct": min(100, int(context_tokens * 100 / window)) if window else 0,
-            "context_tokens": context_tokens,
-            "context_known": bool(context_tokens),
-            "max_tokens": window,
             "cache_hit": int(cached * 100 / input_tokens) if input_tokens else 0,
-            "cache_read": cached,
-            "cache_create": 0,
-            "input_tokens": input_tokens,
-            "cached_input_tokens": cached,
-            "output_tokens": output_tokens,
+            **turn_usage.metadata(),
             "model_error": model_error,
             "errors": [model_error] if model_error else [],
-        })
+        }, usage=turn_usage)
 
     @staticmethod
     def _classify_error(error: dict) -> str:

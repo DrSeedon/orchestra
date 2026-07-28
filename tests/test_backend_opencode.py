@@ -226,6 +226,21 @@ def test_turn_end_uses_registry_context_limit():
     assert event.metadata["max_tokens"] == 256_000
 
 
+def test_turn_end_has_typed_known_context():
+    from app.usage_contract import KnownContext
+
+    event = _b()._turn_end({"info": {
+        "cost": 0,
+        "finish": "stop",
+        "error": None,
+        "tokens": {"input": 1_000, "output": 25},
+    }})
+
+    assert event.usage.aggregate.input_tokens == 1_000
+    assert isinstance(event.usage.current, KnownContext)
+    assert event.metadata["context_known"] is True
+
+
 # ── MCP translation ──
 
 def test_to_opencode_mcp_translates_orchestra_shape():

@@ -98,7 +98,8 @@ def test_delta_cost_is_added_directly_across_resume(session):
 
 
 def test_context_update(session):
-    _update_ctx(session, {"context_pct": 42, "context_tokens": 84000,
+    _update_ctx(session, {"context_known": True,
+                          "context_pct": 42, "context_tokens": 84000,
                           "max_tokens": 200000, "cache_hit": 1,
                           "cache_read": 1000, "cache_create": 50})
     assert session._last_context["percentage"] == 42
@@ -107,8 +108,18 @@ def test_context_update(session):
     assert session._last_context["cache_hit"] == 1
 
 
-def test_context_zero_pct_keeps_previous(session):
-    _update_ctx(session, {"context_pct": 42, "context_tokens": 84000})
-    _update_ctx(session, {"context_pct": 0, "context_tokens": 0})
-    # zero pct means "no data this turn" — previous percentage survives
-    assert session._last_context["percentage"] == 42
+def test_explicit_unknown_context_clears_previous(session):
+    _update_ctx(session, {"context_known": True, "context_pct": 42,
+                          "context_tokens": 84000, "max_tokens": 200000})
+    known, reason = _update_ctx(session, {
+        "context_known": False,
+        "context_pct": 0,
+        "context_tokens": 0,
+        "max_tokens": 200000,
+        "context_unknown_reason": "missing current context",
+    })
+
+    assert known is False
+    assert reason == "missing current context"
+    assert session._last_context["percentage"] == 0
+    assert session._last_context["known"] is False

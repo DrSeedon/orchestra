@@ -1323,6 +1323,319 @@ class TestCompactGuards:
 
 
 class TestPrecompactTimer:
+    @staticmethod
+    def _capture_background(session):
+        spawned = []
+
+        def capture(coro):
+            spawned.append(coro.cr_code.co_name)
+            coro.close()
+            return MagicMock()
+
+        session._spawn_bg = capture
+        return spawned
+
+    @pytest.mark.parametrize(
+        ("current_tokens", "reason_fragment"),
+        [
+            (None, "aggregate totals"),
+            (-1, "negative"),
+            (500_001, "exceeds maximum"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_unknown_context_skips_both_compaction_paths_and_window_gate(
+        self, session, monkeypatch, current_tokens, reason_fragment,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+        from app.usage_contract import AggregateUsage, TurnUsage, current_context
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        logs = []
+        session.backend_type = "grok"
+        session.status = AgentStatus.RUNNING
+        session._last_context = {
+            "percentage": 100,
+            "total_tokens": 1_678_471,
+            "max_tokens": 500_000,
+            "known": True,
+        }
+        session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+        session._schedule_precompact_timer = MagicMock()
+        session._auto_compact_window_state = MagicMock(side_effect=AssertionError)
+        session._hibernate.schedule = MagicMock()
+        spawned = self._capture_background(session)
+        usage = TurnUsage(
+            AggregateUsage.normalized(
+                input_tokens=1_665_949,
+                output_tokens=12_522,
+                cache_read_tokens=1_581_056,
+                model_calls=25,
+            ),
+            current_context(
+                current_tokens,
+                500_000,
+                unknown_reason="aggregate totals are not current context",
+            ),
+        )
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={
+                "ok": True,
+                "stop_reason": "end_turn",
+                "num_turns": 1,
+                "cost_usd": 0,
+                **usage.metadata(),
+            },
+            usage=usage,
+        ))
+        await session._drain_persist()
+
+        assert session._last_context["known"] is False
+        assert session._last_context["percentage"] == 0
+        session._schedule_precompact_timer.assert_not_called()
+        assert "_auto_compact" not in spawned
+        session._auto_compact_window_state.assert_not_called()
+        assert any(
+            "context unknown" in content
+            and reason_fragment in content
+            and "automatic compaction skipped" in content
+            for _, content in logs
+        )
+
+    @pytest.mark.asyncio
+    async def test_claude_deferred_context_preserves_known_compaction_behavior(
+        self, session, monkeypatch,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+        from app.usage_contract import (
+            AggregateUsage,
+            TurnUsage,
+            deferred_context,
+        )
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        session.backend_type = "claude"
+        session.status = AgentStatus.RUNNING
+        session._last_context = {
+            "percentage": 95,
+            "total_tokens": 190_000,
+            "max_tokens": 200_000,
+            "known": True,
+        }
+        session._log = MagicMock()
+        session._schedule_precompact_timer = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        spawned = self._capture_background(session)
+        usage = TurnUsage(
+            AggregateUsage.normalized(input_tokens=10_000, model_calls=1),
+            deferred_context(200_000, "claude_context_usage"),
+        )
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={
+                "ok": True,
+                "stop_reason": "end_turn",
+                "num_turns": 1,
+                "cost_usd": 0,
+                **usage.metadata(),
+            },
+            usage=usage,
+        ))
+        await session._drain_persist()
+
+        session._schedule_precompact_timer.assert_called_once_with(95)
+        assert "_auto_compact" in spawned
+
+    @pytest.mark.asyncio
+    async def test_codex_known_context_keeps_native_precompact_behavior(
+        self, session, monkeypatch,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+        from app.usage_contract import AggregateUsage, TurnUsage, current_context
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._log = MagicMock()
+        session._schedule_precompact_timer = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        spawned = self._capture_background(session)
+        usage = TurnUsage(
+            AggregateUsage.normalized(input_tokens=60_000),
+            current_context(180_880, 258_400),
+        )
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={
+                "ok": True,
+                "stop_reason": "end_turn",
+                "num_turns": 1,
+                "cost_usd": 0,
+                **usage.metadata(),
+            },
+            usage=usage,
+        ))
+        await session._drain_persist()
+
+        session._schedule_precompact_timer.assert_called_once_with(70)
+        assert "_auto_compact" not in spawned
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("schedule_on_success", "expected_calls"),
+        [(True, 1), (False, 0)],
+    )
+    async def test_claude_context_refresh_reenters_shared_compaction_gate_once(
+        self, session, schedule_on_success, expected_calls,
+    ):
+        backend = MagicMock()
+        backend.context_usage = AsyncMock(return_value={
+            "percentage": 95,
+            "total_tokens": 190_000,
+            "max_tokens": 200_000,
+        })
+        session._backend = backend
+        session._turns.schedule_context_compaction = MagicMock()
+        session._log = MagicMock()
+
+        await session._refresh_context_from_api(
+            schedule_compaction_on_success=schedule_on_success,
+        )
+        await session._drain_persist()
+
+        assert session._last_context["known"] is True
+        assert session._last_context["percentage"] == 95
+        assert (
+            session._turns.schedule_context_compaction.call_count
+            == expected_calls
+        )
+        if schedule_on_success:
+            session._turns.schedule_context_compaction.assert_called_once_with(95)
+
+    @pytest.mark.asyncio
+    async def test_invalid_context_refresh_cannot_reenter_compaction_gate(
+        self, session,
+    ):
+        backend = MagicMock()
+        backend.context_usage = AsyncMock(return_value={
+            "percentage": 100,
+            "total_tokens": 500_001,
+            "max_tokens": 500_000,
+        })
+        session._backend = backend
+        session._turns.schedule_context_compaction = MagicMock()
+        session._cancel_precompact_timer = MagicMock()
+        session._log = MagicMock()
+
+        await session._refresh_context_from_api(
+            schedule_compaction_on_success=True,
+        )
+        await session._drain_persist()
+
+        assert session._last_context["known"] is False
+        session._turns.schedule_context_compaction.assert_not_called()
+        session._cancel_precompact_timer.assert_called_once_with("context_unknown")
+
+    @pytest.mark.parametrize(
+        ("subscription_limited", "stop_reason"),
+        [(True, "end_turn"), (False, "max_turns")],
+    )
+    @pytest.mark.asyncio
+    async def test_deferred_refresh_preserves_full_turn_compaction_gate(
+        self, session, monkeypatch, subscription_limited, stop_reason,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+        from app.usage_contract import (
+            AggregateUsage,
+            TurnUsage,
+            deferred_context,
+        )
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        flags = []
+
+        def refresh(*, schedule_compaction_on_success):
+            flags.append(schedule_compaction_on_success)
+
+            async def done():
+                return None
+
+            return done()
+
+        session.backend_type = "claude"
+        session.status = AgentStatus.RUNNING
+        session._session_limit_hit = subscription_limited
+        session._refresh_context_from_api = refresh
+        session._schedule_precompact_timer = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        session._log = MagicMock()
+        self._capture_background(session)
+        usage = TurnUsage(
+            AggregateUsage.normalized(input_tokens=10_000),
+            deferred_context(200_000, "claude_context_usage"),
+        )
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={
+                "ok": True,
+                "stop_reason": stop_reason,
+                "num_turns": 1,
+                "cost_usd": 0,
+                **usage.metadata(),
+            },
+            usage=usage,
+        ))
+        await session._drain_persist()
+
+        assert flags == [False]
+        session._schedule_precompact_timer.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_pending_precompact_rechecks_known_context_before_window(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        session.backend_type = "claude"
+        session.status = AgentStatus.IDLE
+        session._last_context = {
+            "percentage": 95,
+            "total_tokens": 0,
+            "max_tokens": 200_000,
+            "known": False,
+        }
+        session._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "backend": "claude",
+            "context_threshold": 20,
+        }
+        session._log = MagicMock()
+        session.compact = AsyncMock()
+        session._auto_compact_window_state = MagicMock(side_effect=AssertionError)
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: False),
+        )
+
+        await session._fire_precompact_timer()
+
+        session.compact.assert_not_awaited()
+        session._auto_compact_window_state.assert_not_called()
+        assert session._precompact_timer is None
+        assert any(
+            '"skip_reason": "unknown_context"' in call.args[1]
+            for call in session._log.call_args_list
+        )
+
     @pytest.mark.parametrize(
         ("now_utc", "allowed"),
         [
