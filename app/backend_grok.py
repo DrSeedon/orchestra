@@ -68,7 +68,7 @@ GROK_MCP_INIT_TIMEOUT_SECONDS = 20
 
 
 class GrokMcpIsolationError(RuntimeError):
-    """A worker session started MCP servers Orchestra did not ask for."""
+    """A worker session's MCP roster does not match Orchestra's launch plan."""
 
 
 def _write_sandbox_config(config: Path) -> None:
@@ -160,6 +160,32 @@ def _content_text(content) -> str:
     return str(content) if content is not None else ""
 
 
+def _mcp_server_identity(server: dict) -> tuple:
+    """Canonical identity for an ACP MCP config, excluding discovery metadata."""
+    raw_env = server.get("env") or []
+    if isinstance(raw_env, dict):
+        env = tuple(sorted((str(k), str(v)) for k, v in raw_env.items()))
+    else:
+        env = tuple(sorted(
+            (str(item.get("name")), str(item.get("value", "")))
+            for item in raw_env
+            if isinstance(item, dict) and item.get("name") is not None
+        ))
+    command = str(server.get("command") or "")
+    url = str(server.get("url") or "")
+    transport = str(
+        server.get("type")
+        or ("stdio" if command else "http" if url else "")
+    )
+    return (
+        transport,
+        command,
+        tuple(str(arg) for arg in (server.get("args") or [])),
+        url,
+        env,
+    )
+
+
 class GrokProtocolError(RuntimeError):
     """JSON-RPC error returned by the Grok ACP agent."""
 
@@ -215,10 +241,20 @@ class GrokBackend:
         self._pending_usage: dict = {}
         self._model_context_window = GROK_CONTEXT_LIMITS.get(model, GROK_DEFAULT_CONTEXT)
         self._context_tokens = 0
-        # MCP isolation: only servers Orchestra passed in may run.
-        self._expected_servers: set[str] = set(self._mcp_servers)
+        # A matching name is insufficient: a repository can define another command under it.
+        expected_configs = self._mcp_server_configs()
+        self._expected_server_identities = {
+            str(server["name"]): _mcp_server_identity(server)
+            for server in expected_configs
+        }
+        self._expected_servers: set[str] = set(self._expected_server_identities)
         self._started_servers: set[str] = set()
+        self._started_server_identities: dict[str, set[tuple]] = {}
+        self._ready_servers: set[str] = set()
+        self._failed_servers: set[str] = set()
+        self._mcp_tool_count: int | None = None
         self._mcp_ready: asyncio.Event | None = None
+        self._mcp_status_changed: asyncio.Event | None = None
 
     @property
     def session_id(self) -> Optional[str]:
@@ -238,9 +274,19 @@ class GrokBackend:
         self._last_stderr = ""
         self._active_prompts = 0
         self._queue_depth = 0
-        self._expected_servers = set(self._mcp_servers)
+        expected_configs = self._mcp_server_configs()
+        self._expected_server_identities = {
+            str(server["name"]): _mcp_server_identity(server)
+            for server in expected_configs
+        }
+        self._expected_servers = set(self._expected_server_identities)
         self._started_servers = set()
+        self._started_server_identities = {}
+        self._ready_servers = set()
+        self._failed_servers = set()
+        self._mcp_tool_count = None
         self._mcp_ready = asyncio.Event()
+        self._mcp_status_changed = asyncio.Event()
 
         if not Path(self.cwd).is_dir():
             # Otherwise this surfaces as a bare FileNotFoundError from process spawn, which
@@ -322,29 +368,72 @@ class GrokBackend:
             raise
 
     async def _verify_mcp_isolation(self) -> None:
-        """Fail the connect if the session started servers Orchestra did not pass in.
+        """Fail connect unless the observed MCP roster exactly matches the launch plan.
 
         The GROK_HOME sandbox suppresses Claude-compat discovery, and a repo `.mcp.json` is
         additionally gated behind folder trust. Neither guarantee is ours to enforce, so the
-        actual server set is checked rather than assumed: a worker with foreign tools (and
-        foreign secrets in their env) must not start at all.
+        actual server identities are checked rather than assumed.
         """
-        if self._mcp_ready is not None and self._expected_servers:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + GROK_MCP_INIT_TIMEOUT_SECONDS
+        if self._mcp_ready is not None:
             try:
                 await asyncio.wait_for(
-                    self._mcp_ready.wait(), timeout=GROK_MCP_INIT_TIMEOUT_SECONDS
+                    self._mcp_ready.wait(),
+                    timeout=max(0, deadline - loop.time()),
                 )
             except asyncio.TimeoutError:
                 logger.warning(
                     "Grok MCP init did not report completion in %ss; verifying what started",
                     GROK_MCP_INIT_TIMEOUT_SECONDS,
                 )
+        while (
+            self._mcp_status_changed is not None
+            and self._expected_servers - self._ready_servers
+            and not (self._expected_servers & self._failed_servers)
+        ):
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                break
+            self._mcp_status_changed.clear()
+            if not (self._expected_servers - self._ready_servers):
+                break
+            try:
+                await asyncio.wait_for(
+                    self._mcp_status_changed.wait(), timeout=remaining
+                )
+            except asyncio.TimeoutError:
+                break
+        missing = self._expected_servers - self._started_servers
         unexpected = self._started_servers - self._expected_servers
-        if unexpected:
+        mismatched = {
+            name
+            for name in self._expected_servers & self._started_servers
+            if self._started_server_identities.get(name)
+            != {self._expected_server_identities[name]}
+        }
+        unready = self._expected_servers - self._ready_servers
+        no_tools = bool(self._expected_servers) and (
+            self._mcp_tool_count is None or self._mcp_tool_count <= 0
+        )
+        if missing or unexpected or mismatched or unready or no_tools:
+            failures = []
+            if missing:
+                failures.append(f"missing required servers {sorted(missing)}")
+            if unexpected:
+                failures.append(f"unexpected servers {sorted(unexpected)}")
+            if mismatched:
+                failures.append(
+                    f"servers with unexpected identity {sorted(mismatched)}"
+                )
+            if unready:
+                failures.append(f"required servers not ready {sorted(unready)}")
+            if no_tools:
+                failures.append("required MCP launch reported no tools")
             raise GrokMcpIsolationError(
-                "Grok session started MCP servers Orchestra did not configure: "
-                f"{sorted(unexpected)}. Expected only {sorted(self._expected_servers)}. "
-                "Refusing to run a worker with foreign tools."
+                "Grok MCP conformance failed: "
+                + "; ".join(failures)
+                + ". Refusing to run a worker without the exact Orchestra launch plan."
             )
 
     async def send(self, message: str) -> None:
@@ -552,12 +641,30 @@ class GrokBackend:
             for server in params.get("mcpServers") or []:
                 name = server.get("name")
                 if name:
-                    self._started_servers.add(str(name))
+                    normalized_name = str(name)
+                    self._started_servers.add(normalized_name)
+                    self._started_server_identities.setdefault(
+                        normalized_name, set()
+                    ).add(_mcp_server_identity(server))
         elif method == "_x.ai/mcp/server_status":
             name = params.get("name")
-            if name and params.get("status") == "ready":
-                self._started_servers.add(str(name))
+            status = params.get("status")
+            if name:
+                normalized_name = str(name)
+                if status == "ready":
+                    self._started_servers.add(normalized_name)
+                    self._ready_servers.add(normalized_name)
+                    self._failed_servers.discard(normalized_name)
+                elif status not in (None, "starting"):
+                    self._ready_servers.discard(normalized_name)
+                    self._failed_servers.add(normalized_name)
+                if self._mcp_status_changed is not None:
+                    self._mcp_status_changed.set()
         elif method == "_x.ai/mcp_initialized" and self._mcp_ready is not None:
+            try:
+                self._mcp_tool_count = int(params.get("mcpToolCount"))
+            except (TypeError, ValueError):
+                self._mcp_tool_count = None
             self._mcp_ready.set()
 
     @staticmethod

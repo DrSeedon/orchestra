@@ -545,7 +545,7 @@ def test_mcp_server_without_command_or_url_is_skipped():
     assert b._mcp_server_configs() == []
 
 
-# ── MCP isolation (T2) ──
+# ── MCP isolation (#98 T1) ──
 #
 # Grok merges servers it discovers itself into every session — passing only `orchestra`
 # still started the user's websearch/pandoc servers and broadcast their env, which is how a
@@ -558,16 +558,130 @@ def test_mcp_server_without_command_or_url_is_skipped():
 def test_expected_servers_seeded_from_our_config_only():
     b = _backend(mcp_servers={"orchestra": {"command": "x"}})
     assert b._expected_servers == {"orchestra"}
+    assert set(b._expected_server_identities) == {"orchestra"}
 
 
-def test_isolation_passes_when_only_expected_servers_start():
+def _record_mcp_roster(
+    b, *servers, tool_count=None, ready_names=None, failed_names=()
+):
+    b._track_mcp({
+        "method": "_x.ai/mcp/servers_updated",
+        "params": {"mcpServers": list(servers)},
+    })
+    if ready_names is None:
+        ready_names = [server["name"] for server in servers]
+    for name in ready_names:
+        b._track_mcp({
+            "method": "_x.ai/mcp/server_status",
+            "params": {"name": name, "status": "ready"},
+        })
+    for name in failed_names:
+        b._track_mcp({
+            "method": "_x.ai/mcp/server_status",
+            "params": {"name": name, "status": "unavailable"},
+        })
+    b._track_mcp({
+        "method": "_x.ai/mcp_initialized",
+        "params": {
+            "mcpToolCount": len(servers) if tool_count is None else tool_count
+        },
+    })
+
+
+@pytest.mark.parametrize(
+    ("required_started", "foreign_started", "expected_error"),
+    [
+        pytest.param(False, False, "missing required servers", id="missing-only"),
+        pytest.param(
+            False, True, "missing required servers", id="missing-and-unexpected"
+        ),
+        pytest.param(True, False, None, id="exact-roster"),
+        pytest.param(True, True, "unexpected servers", id="unexpected-only"),
+    ],
+)
+def test_mcp_conformance_observable_roster_matrix(
+    required_started, foreign_started, expected_error
+):
+    """Backend sees the roster outcome, not Grok's unproved folder-trust decision."""
     async def scenario():
         b = _backend(mcp_servers={"orchestra": {"command": "x"}})
         b._mcp_ready = asyncio.Event()
-        b._mcp_ready.set()
-        b._started_servers = {"orchestra"}
-        await b._verify_mcp_isolation()
-    asyncio.run(scenario())
+        servers = []
+        if required_started:
+            servers.extend(b._mcp_server_configs())
+        if foreign_started:
+            servers.append({
+                "name": "websearch",
+                "type": "stdio",
+                "command": "foreign-mcp",
+                "args": [],
+                "env": [],
+            })
+        _record_mcp_roster(b, *servers)
+        if expected_error is None:
+            await b._verify_mcp_isolation()
+            return ""
+        with pytest.raises(GrokMcpIsolationError) as exc:
+            await b._verify_mcp_isolation()
+        return str(exc.value)
+
+    error = asyncio.run(scenario())
+    if expected_error:
+        assert expected_error in error
+    if required_started and foreign_started:
+        assert "missing required servers" not in error
+    if not required_started and foreign_started:
+        assert "unexpected servers" in error
+
+
+def test_isolation_rejects_same_name_with_different_identity_without_secret_leak():
+    expected_secret = "expected-env-sentinel"
+    foreign_secret = "foreign-env-sentinel"
+
+    async def scenario():
+        b = _backend(
+            mcp_servers={"orchestra": {
+                "command": "orchestra-mcp",
+                "env": {"PRIVATE_VALUE": expected_secret},
+            }}
+        )
+        b._mcp_ready = asyncio.Event()
+        _record_mcp_roster(b, {
+            "name": "orchestra",
+            "type": "stdio",
+            "command": "repo-mcp",
+            "args": [],
+            "env": [{"name": "PRIVATE_VALUE", "value": foreign_secret}],
+        })
+        with pytest.raises(GrokMcpIsolationError) as exc:
+            await b._verify_mcp_isolation()
+        return str(exc.value)
+
+    error = asyncio.run(scenario())
+    assert "unexpected identity" in error
+    assert "orchestra" in error
+    assert expected_secret not in error
+    assert foreign_secret not in error
+
+
+def test_empty_launch_plan_waits_for_roster_and_rejects_foreign_server():
+    async def scenario():
+        b = _backend(mcp_servers={})
+        b._mcp_ready = asyncio.Event()
+        verification = asyncio.create_task(b._verify_mcp_isolation())
+        await asyncio.sleep(0)
+        assert not verification.done()
+        _record_mcp_roster(b, {
+            "name": "websearch",
+            "type": "stdio",
+            "command": "foreign-mcp",
+            "args": [],
+            "env": [],
+        })
+        await verification
+
+    with pytest.raises(GrokMcpIsolationError, match="unexpected servers.*websearch"):
+        asyncio.run(scenario())
 
 
 def test_isolation_refuses_connect_on_foreign_server():
@@ -575,10 +689,62 @@ def test_isolation_refuses_connect_on_foreign_server():
     async def scenario():
         b = _backend(mcp_servers={"orchestra": {"command": "x"}})
         b._mcp_ready = asyncio.Event()
-        b._mcp_ready.set()
-        b._started_servers = {"orchestra", "websearch"}
+        _record_mcp_roster(
+            b,
+            *b._mcp_server_configs(),
+            {
+                "name": "websearch",
+                "type": "stdio",
+                "command": "foreign-mcp",
+                "args": [],
+                "env": [],
+            },
+        )
         await b._verify_mcp_isolation()
-    with pytest.raises(GrokMcpIsolationError, match="websearch"):
+
+    with pytest.raises(GrokMcpIsolationError, match="unexpected servers.*websearch"):
+        asyncio.run(scenario())
+
+
+def test_isolation_passes_when_only_expected_server_identity_starts():
+    async def scenario():
+        b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+        b._mcp_ready = asyncio.Event()
+        _record_mcp_roster(b, *b._mcp_server_configs())
+        await b._verify_mcp_isolation()
+
+    asyncio.run(scenario())
+
+
+def test_isolation_rejects_required_server_roster_with_zero_tools():
+    async def scenario():
+        b = _backend(mcp_servers={"orchestra": {"command": "x"}})
+        b._mcp_ready = asyncio.Event()
+        _record_mcp_roster(b, *b._mcp_server_configs(), tool_count=0)
+        await b._verify_mcp_isolation()
+
+    with pytest.raises(GrokMcpIsolationError, match="reported no tools"):
+        asyncio.run(scenario())
+
+
+def test_isolation_rejects_failed_orchestra_when_another_expected_server_has_tools():
+    async def scenario():
+        b = _backend(mcp_servers={
+            "orchestra": {"command": "orchestra-mcp"},
+            "scope-tools": {"command": "scope-mcp"},
+        })
+        b._mcp_ready = asyncio.Event()
+        b._mcp_status_changed = asyncio.Event()
+        _record_mcp_roster(
+            b,
+            *b._mcp_server_configs(),
+            tool_count=3,
+            ready_names=["scope-tools"],
+            failed_names=["orchestra"],
+        )
+        await b._verify_mcp_isolation()
+
+    with pytest.raises(GrokMcpIsolationError, match="not ready.*orchestra"):
         asyncio.run(scenario())
 
 
@@ -589,9 +755,10 @@ def test_roster_tracked_from_servers_updated_not_only_status():
     """
     b = _backend(mcp_servers={"orchestra": {"command": "x"}})
     b._track_mcp({"method": "_x.ai/mcp/servers_updated", "params": {"mcpServers": [
-        {"name": "websearch", "env": [{"name": "OPENROUTER_API_KEY", "value": "sk-leak"}]},
+        {"name": "websearch", "env": [{"name": "FOREIGN_KEY", "value": "<redacted>"}]},
     ]}})
     assert b._started_servers == {"websearch"}
+    assert set(b._started_server_identities) == {"websearch"}
 
 
 def test_roster_ignores_servers_that_never_became_ready():
@@ -599,6 +766,7 @@ def test_roster_ignores_servers_that_never_became_ready():
     b._track_mcp({"method": "_x.ai/mcp/server_status",
                   "params": {"name": "broken", "status": "unavailable"}})
     assert b._started_servers == set()
+    assert b._failed_servers == {"broken"}
 
 
 def test_mcp_initialized_sets_ready_gate():
@@ -606,6 +774,7 @@ def test_mcp_initialized_sets_ready_gate():
     b._mcp_ready = asyncio.Event()
     b._track_mcp({"method": "_x.ai/mcp_initialized", "params": {"mcpToolCount": 35}})
     assert b._mcp_ready.is_set()
+    assert b._mcp_tool_count == 35
 
 
 def test_unexpected_ready_server_surfaces_as_error_mid_session():
