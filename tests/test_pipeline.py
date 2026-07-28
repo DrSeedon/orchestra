@@ -813,3 +813,25 @@ class TestCanonicalTasksPm:
         assert P.validate_spawn("tasks-pm", "pm-glava", "pm-fichi") is None
         with pytest.raises(ValueError):
             P.validate_spawn("tasks-pm", "pm-glava", "coder")
+
+
+def test_shipped_pipelines_reference_existing_skills():
+    """Every skill named in a real pipeline.yaml must exist as a file.
+
+    grill-me sat in default/pipeline.yaml for a month with no .md behind it: the
+    orchestrator's send only reached the required-skill check once empty-pipeline
+    sessions started resolving to `default`, and then every send 500'd.
+    """
+    import app.pipeline as real
+    for pipeline_dir in sorted(real.PIPELINES_DIR.iterdir()):
+        if not (pipeline_dir / "pipeline.yaml").is_file():
+            continue
+        cfg = real.load_pipeline(pipeline_dir.name)
+        skills_dir = pipeline_dir / "prompts" / "skills"
+        named = set()
+        for holder in (cfg.defaults, *cfg.roles.values()):
+            skills = getattr(holder, "skills", None)
+            if isinstance(skills, list):
+                named.update(skills)
+        missing = sorted(s for s in named if not (skills_dir / f"{s}.md").is_file())
+        assert not missing, f"{pipeline_dir.name}: skills without files: {missing}"
