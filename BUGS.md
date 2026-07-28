@@ -2,6 +2,14 @@
 
 ## Open
 
+### 🔴 MCP Orchestra не доходит до Grok-воркера — корневая причина НЕ установлена
+
+- **Reporter / date:** Orchestra-orchestrator (2026-07-28, первый боевой прогон Grok, задача #98).
+- **Что сломано:** воркер `grok-test` не смог вызвать ни один тул Orchestra (`orchestra__send_message` → `Tool not found`), отчитался обходным путём через HTTP `/api/sessions/.../send`, разобрав `mcp_stdio.py`. Дополнительно видел сервер `tasks` (оказался встроенным планировщиком Grok, не чужим сервером).
+- **Что УЖЕ починено (`#98 T1`, `6356f23`):** `_verify_mcp_isolation` был fail-open в одну сторону — сравнивал `started - expected`, поэтому набор `expected={orchestra}, started={}` проходил. Теперь падает и на недостающих, и на лишних, и на same-name/different-identity, и на серверах с нулём тулов.
+- **Что НЕ установлено:** почему при том запуске MCP не поднялся. Исторический roster пуст, восстановить задним числом нечем — воркер честно оставил UNCERTAIN. Кандидат: закоммиченный `.mcp.json` в корне репо (`085c463`, scope `/mnt/data/Projects/Python/test-project`, роль `claude-code-test`) попадает в каждый worktree; worktree при этом untrusted.
+- **Что делать:** повторить боевой прогон Grok после рестарта — теперь неполный запуск MCP роняет коннект явной ошибкой, и причина проявится сразу.
+
 ### 🔴 Тест-лок не протухает и переживает смерть держателя — 26 дней блокировал фулл-сьют всему проекту
 
 - **Reporter / date:** Orchestra-orchestrator (2026-07-27, обнаружено воркером `grok-backend` при попытке взять лок).
@@ -16,33 +24,12 @@
 - **Механизм:** endpoint вычисляет `BUGS.md` относительно `app/routes/system.py` живого systemd checkout и делает обычный append. Platform bug storage тем самым разделяет target worktree с Git lifecycle, хотя их транзакции независимы.
 - **Варианты после #90:** либо `report_bug` сам коммитит только собственную атомарную запись с явной сериализацией конкурентных report/merge, либо bug inbox хранится вне рабочего дерева (DB/отдельный runtime-файл), а `BUGS.md` генерируется или синхронизируется отдельно. До решения автоматический commit не добавлять: он сам меняет target history и может захватить чужие правки в том же файле.
 
-### 🔴 `merge_worker` сразу после DONE всё ещё получает `worker is running`
-
-- **Reporter / date:** Orchestra-orchestrator (2026-07-26; рабочий workaround используется многократно ежедневно).
-- **Что сломано:** родитель получает явный DONE-репорт раньше, чем turn воркера переходит из `running` в `idle`; вызов merge приходится предварять `stop_worker`, а затем делать `kill_worker`.
-- **Предварительный механизм:** введённый в `fe9a9b5` server-side grace ограничен 2 секундами. Read-only замер логов за 2026-07-26: 46 финальных worker-репортов без последующих tool-вызовов завершили turn через 3.434–43.820 с, среднее 14.426 с; 46/46 превысили 2 секунды.
-- **Что нужно проверить/починить:** заменить угаданный timeout на явную синхронизацию с окончанием turn либо другой атомарный lifecycle-контракт; merge не должен требовать ручного interrupt нормального DONE-пути.
-
 ### 🔴 `codex_review` нестабилен на крупных целях и при отказе транспорта
 
 - **Reporters / dates:** polish-tg (2026-07-25 13:36, 13:47, 14:14 UTC).
 - **Что сломано:** это не старый CWD/output-баг. На плане из 244 строк два запуска ушли вместо заданной цели в `BUGS.md`, README и Serena onboarding, истекли по 10-минутному timeout и не создали artifact. Отдельный review diff не стартовал: пять WebSocket-попыток получили `Connection refused`, затем пять раз отказал HTTPS fallback.
 - **Как воспроизвести:** `codex_review(mode="exec", target="docs/tasks/polish-tg/plan.md", output="docs/tasks/polish-tg/codex-review-plan.md")` — jobs `bg-a7fa044d22` и `bg-6d2189ac4a`; transport failure — `bg-d8a75a53aa`.
 - **Что мешает починить:** две причины пока не изолированы: runner теряет фокус на крупной цели, а транспорт отказывает независимо от target routing. Стабильного минимального repro нет; повторять длинные review вслепую нельзя, потому что каждый прогон расходует 10 минут и квоту. До диагностики — узкий prompt/target, максимум одна финальная повторная попытка и честный self-review при отказе.
-
-### 🔴 `merge_worker` не может слить child в checked-out ветку parent
-
-- **Reporter:** research-codex-abuse (2026-07-18).
-- **Что сломано:** full-cycle parent спавнит child от своей feature branch, но `merge_worker(..., target="<parent feature>")` отклоняет merge: target branch уже checked out в worktree parent. Это неизбежно для документированного worker-spawns-worker workflow.
-- **Как воспроизвести:** parent на feature branch спавнит child, child коммитит, затем parent вызывает merge в собственную branch. Подтверждено на parent `0898f32` и child commits `b7ec797`, `22a5366`.
-- **Что мешает починить:** `app/workspace.py` всё ещё явно запрещает target, checked out в другом worktree. Нужен merge без checkout target в canonical repo либо безопасная parent-side операция; ручной Git обходит lifecycle и потому не считается исправлением.
-
-### 🔴 auto-switch hardcodes `refs/heads/main`
-
-- **Reporter:** Sensar-orchestrator (2026-07-18).
-- **Что сломано:** после успешного merge в `master` автоматический switch сбрасывает worker от несуществующего `refs/heads/main`.
-- **Как воспроизвести:** в master-only repo вызвать `merge_worker(..., target="master", next_task_id=...)`; merge проходит, auto-switch падает с unknown revision. Workaround: отдельный `switch_worker_branch(from_ref="refs/heads/master")`.
-- **Что мешает починить:** defaults в `app/mcp_stdio.py` и `app/routes/sessions.py` по-прежнему зашиты на `refs/heads/main`; надо протянуть фактический merge target либо определить default branch, сохранив совместимость существующих main-репозиториев.
 
 ### 🔴 `auto_resume`/live server перезаписывает ручную смену модели в DB
 
@@ -71,9 +58,9 @@
 ### 🟡 Session status показывает `idle`, пока worker работает
 
 - **Reporter:** Orchestra-orchestrator (2026-07-03).
-- **Что сломано:** dashboard/listing иногда показывает `idle`, хотя turn ещё выполняется; предполагалась гонка WAITING/status persist/SSE.
-- **Как воспроизвести:** запустить долгий turn с background-job wakeup и сопоставить status из API/dashboard с turn/log lifecycle. Стабильный сценарий и исходные job IDs не сохранились.
-- **Что мешает починить:** **нужна проверка, детали утеряны**. Поздние lifecycle-фиксы закрывали противоположный stuck-running симптом, но доказательства для idle-while-running нет; сначала нужен новый trace с временными метками status transitions.
+- **Что сломано:** dashboard/listing иногда показывает `idle`, хотя turn ещё выполняется.
+- **Вероятно закрыто #97 (`ab81338`, 2026-07-28):** найден и починен механизм — native Codex compact оставлял свои `turn/started` + `turn/completed` в общей очереди нотификаций, первый post-compact listener съедал stale terminal → ложный IDLE, listener выходил, настоящий ход продолжался в буфере. Симптом снаружи: воркер idle с недоставленным сообщением, всё «прогружается» только после следующего сообщения. Доказано 8 инцидентами из живой БД + rollout с разными turn-id.
+- **Что осталось:** ПОДТВЕРДИТЬ на живой системе после рестарта. Если симптом воспроизведётся — искать вторую причину, не связанную с компактом.
 
 ### 🟡 Session со старой ролью `researcher` не resume-ится
 
