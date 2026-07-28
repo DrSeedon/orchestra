@@ -28,6 +28,7 @@ from typing import AsyncIterator, Optional
 import httpx
 
 from app.events import AgentEvent
+from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
 logger = logging.getLogger(__name__)
 
@@ -547,6 +548,16 @@ class OpenCodeBackend:
         cost = float(info.get("cost", 0) or 0)
         err = info.get("error")
         stop_reason = info.get("finish", "end_turn") if err is None else "error"
+        turn_usage = TurnUsage(
+            AggregateUsage.normalized(
+                input_tokens=input_t,
+                output_tokens=output_t,
+                cache_read_tokens=cache_read,
+                cache_create_tokens=cache_create,
+                model_calls=1,
+            ),
+            current_context(input_t, max_tokens),
+        )
         return AgentEvent("turn_end", f"stop_reason={stop_reason}", metadata={
             "session_id": self._session_id,
             "ok": err is None,
@@ -554,37 +565,32 @@ class OpenCodeBackend:
             "num_turns": 1,
             "cost_usd": cost,
             "cost_usd_cached": cost,
-            "context_pct": min(100, int(input_t * 100 / max_tokens)) if max_tokens else 0,
-            "context_tokens": input_t,
-            "max_tokens": max_tokens,
             "cache_hit": int(cache_read * 100 / cache_total) if cache_total else 0,
-            "cache_read": cache_read,
-            "cache_create": cache_create,
-            "input_tokens": input_t,
-            "output_tokens": output_t,
-            "cached_input_tokens": cache_read,
-        })
+            **turn_usage.metadata(),
+        }, usage=turn_usage)
 
     def _error_turn_end(self, reason: str) -> AgentEvent:
+        max_tokens = (
+            self._context_limit
+            or OPENCODE_CONTEXT_LIMITS.get(self.model, DEFAULT_CONTEXT)
+        )
+        turn_usage = TurnUsage(
+            AggregateUsage.normalized(),
+            current_context(
+                None,
+                max_tokens,
+                unknown_reason="OpenCode turn failed before reporting current context",
+            ),
+        )
         return AgentEvent("turn_end", f"stop_reason={reason}", metadata={
             "session_id": self._session_id,
             "ok": False,
             "stop_reason": reason,
             "cost_usd": 0,
             "cost_usd_cached": 0,
-            "context_pct": 0,
-            "context_tokens": 0,
-            "max_tokens": (
-                self._context_limit
-                or OPENCODE_CONTEXT_LIMITS.get(self.model, DEFAULT_CONTEXT)
-            ),
             "cache_hit": 0,
-            "cache_read": 0,
-            "cache_create": 0,
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "cached_input_tokens": 0,
-        })
+            **turn_usage.metadata(),
+        }, usage=turn_usage)
 
     # ── teardown ──
 

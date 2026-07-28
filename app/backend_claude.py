@@ -29,6 +29,7 @@ from claude_agent_sdk.types import (
 )
 
 from app.events import AgentEvent
+from app.usage_contract import AggregateUsage, TurnUsage, deferred_context
 
 logger = logging.getLogger(__name__)
 
@@ -556,6 +557,16 @@ class ClaudeBackend:
             if denials:
                 logger.info(f"[{self.model}] {len(denials)} permission denial(s) this turn")
 
+            turn_usage = TurnUsage(
+                AggregateUsage.normalized(
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cache_read_tokens=cache_read,
+                    cache_create_tokens=cache_create,
+                    model_calls=nt or None,
+                ),
+                deferred_context(max_tokens, "claude_context_usage"),
+            )
             events.append(AgentEvent("turn_end", f"stop_reason={sr}, num_turns={nt}", metadata={
                 "event_id": getattr(msg, "uuid", None) or "",
                 "session_id": self._session_id,
@@ -567,15 +578,9 @@ class ClaudeBackend:
                 "num_turns": nt,
                 "cost_usd": cost,
                 "cost_usd_cached": round(cost_cached, 6),
-                "context_pct": 0,
-                "context_tokens": 0,
-                "max_tokens": max_tokens,
                 "cache_hit": cache_hit,
-                "cache_read": cache_read,
-                "cache_create": cache_create,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-            }))
+                **turn_usage.metadata(),
+            }, usage=turn_usage))
 
         if (isinstance(msg, SystemMessage)
                 and not isinstance(msg, (TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage))

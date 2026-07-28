@@ -8,6 +8,15 @@ non-goal (behavior-preserving refactor).
 
 from typing import TYPE_CHECKING
 
+from app.usage_contract import (
+    DeferredContext,
+    KnownContext,
+    TurnUsage,
+    UnknownContext,
+    current_context,
+    deferred_context,
+)
+
 if TYPE_CHECKING:
     from app.session import AgentSession
 
@@ -16,7 +25,9 @@ class CostTracker:
     def __init__(self, s: "AgentSession") -> None:
         self.s = s
 
-    def apply_turn_result(self, meta: dict) -> tuple[bool, str, int]:
+    def apply_turn_result(
+        self, meta: dict, usage: TurnUsage | None = None,
+    ) -> tuple[bool, str, int]:
         """Update session_id, costs, token totals from turn metadata."""
         s = self.s
         ok = meta.get("ok", True)
@@ -51,25 +62,74 @@ class CostTracker:
             s.cost_usd_cached += max(0, new_cost_cached - s._last_cost_cached)
             s._last_cost_cached = new_cost_cached
         s.total_turns += nt
-        s.total_input_tokens += meta.get("input_tokens", 0)
-        s.total_output_tokens += meta.get("output_tokens", 0)
-        s.total_cache_read_tokens += meta.get("cache_read", 0)
-        s.total_cache_create_tokens += meta.get("cache_create", 0)
+        aggregate = usage.aggregate if usage is not None else None
+        s.total_input_tokens += (
+            aggregate.input_tokens if aggregate else meta.get("input_tokens", 0)
+        )
+        s.total_output_tokens += (
+            aggregate.output_tokens if aggregate else meta.get("output_tokens", 0)
+        )
+        s.total_cache_read_tokens += (
+            aggregate.cache_read_tokens if aggregate else meta.get("cache_read", 0)
+        )
+        s.total_cache_create_tokens += (
+            aggregate.cache_create_tokens if aggregate else meta.get("cache_create", 0)
+        )
         return ok, sr, nt
 
-    def update_context_from_turn(self, meta: dict) -> None:
-        """Update context window stats from turn metadata."""
+    def update_context_from_turn(
+        self, meta: dict, usage: TurnUsage | None = None,
+    ) -> tuple[bool, str | None]:
+        """Update context stats and return whether compaction has valid input."""
         s = self.s
-        ctx_pct = meta.get("context_pct", 0)
-        ctx_tokens = meta.get("context_tokens", 0)
-        if meta.get("context_known") is False:
-            # Explicit fail-soft signal from a backend: clear stale dashboard data.
+        if usage is not None:
+            context = usage.current
+        elif meta.get("context_deferred"):
+            context = deferred_context(
+                meta.get("max_tokens"),
+                str(meta.get("context_source") or "external"),
+            )
+        elif meta.get("context_known") is True:
+            context = current_context(
+                meta.get("context_tokens"),
+                meta.get("max_tokens"),
+                percentage=meta.get("context_pct"),
+            )
+        else:
+            try:
+                max_tokens = max(0, int(meta.get("max_tokens") or 0))
+            except (TypeError, ValueError, OverflowError):
+                max_tokens = 0
+            context = UnknownContext(
+                max_tokens,
+                str(
+                    meta.get("context_unknown_reason")
+                    or "turn_end omitted a valid typed current context"
+                ),
+            )
+
+        if isinstance(context, KnownContext):
+            s._last_context["percentage"] = context.percentage
+            s._last_context["total_tokens"] = context.tokens
+            s._last_context["max_tokens"] = context.max_tokens
+            s._last_context["known"] = True
+            known = True
+            reason = None
+        elif isinstance(context, DeferredContext):
+            if context.max_tokens:
+                s._last_context["max_tokens"] = context.max_tokens
+            known = s._context_is_known()
+            reason = None
+        else:
             s._last_context["percentage"] = 0
             s._last_context["total_tokens"] = 0
-        elif ctx_pct:
-            s._last_context["percentage"] = ctx_pct
-            s._last_context["total_tokens"] = ctx_tokens
-        s._last_context["max_tokens"] = meta.get("max_tokens", 200000)
+            if context.max_tokens:
+                s._last_context["max_tokens"] = context.max_tokens
+            s._last_context["known"] = False
+            known = False
+            reason = context.reason
+
         s._last_context["cache_hit"] = meta.get("cache_hit", 0)
         s._last_context["cache_read"] = meta.get("cache_read", 0)
         s._last_context["cache_create"] = meta.get("cache_create", 0)
+        return known, reason

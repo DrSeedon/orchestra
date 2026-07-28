@@ -610,6 +610,36 @@ def test_completed_turn_id_is_carried_as_durable_event_id():
     assert events[-1].metadata["event_id"] == "turn-1"
 
 
+def test_turn_usage_keeps_codex_delta_and_last_call_context_distinct():
+    from app.usage_contract import KnownContext
+
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._thread_usage_total = {
+        "input_tokens": 100_000,
+        "cached_input_tokens": 80_000,
+        "output_tokens": 2_000,
+    }
+    backend._usage_baseline = {
+        "input_tokens": 40_000,
+        "cached_input_tokens": 30_000,
+        "output_tokens": 500,
+    }
+    backend._last_call_usage = {
+        "input_tokens": 33_124,
+        "model_context_window": 258_400,
+    }
+
+    end = backend._turn_completed({
+        "id": "turn-usage",
+        "status": "completed",
+    })[-1]
+
+    assert end.usage.aggregate.input_tokens == 60_000
+    assert isinstance(end.usage.current, KnownContext)
+    assert end.metadata["context_tokens"] == 33_124
+    assert end.metadata["context_known"] is True
+
+
 def test_explicit_codex_tool_failures_keep_identity_and_tool_name():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
 

@@ -109,6 +109,7 @@ def test_context_limit_is_runtime_reported():
 def test_turn_end_prefers_runtime_cost_over_local_formula():
     b = _backend()
     b._active_prompts = 1
+    b._context_tokens = 22909
     events = b._finish_prompt("p1", "end_turn", {"usage": {
         "inputTokens": 22810, "cachedReadTokens": 5376,
         "outputTokens": 99, "totalTokens": 22909, "costUsdTicks": 370748000,
@@ -247,6 +248,7 @@ def test_window_of_a_different_model_is_ignored():
 def test_context_pct_uses_runtime_window_not_the_constant():
     b = _backend()
     b._model_context_window = 250000          # runtime said half of our constant
+    b._context_tokens = 125000
     b._active_prompts = 1
     (end,) = b._finish_prompt("p1", "end_turn", {"usage": {"totalTokens": 125000}})
     assert end.metadata["max_tokens"] == 250000
@@ -361,6 +363,61 @@ def test_context_tokens_tracked_from_chunk_meta():
                    "content": {"type": "text", "text": "x"}},
         "_meta": {"totalTokens": 1234}}})
     assert b._context_tokens == 1234
+
+
+def test_aggregate_turn_totals_do_not_become_current_context():
+    from app.usage_contract import UnknownContext
+
+    b = _backend()
+    b._active_prompts = 1
+    (end,) = b._finish_prompt("p1", "end_turn", {"usage": {
+        "inputTokens": 1_665_949,
+        "outputTokens": 12_522,
+        "cachedReadTokens": 1_581_056,
+        "totalTokens": 1_678_471,
+        "modelCalls": 25,
+    }})
+
+    assert end.metadata["input_tokens"] == 1_665_949
+    assert end.metadata["model_calls"] == 25
+    assert end.metadata["context_known"] is False
+    assert end.metadata["context_pct"] == 0
+    assert isinstance(end.usage.current, UnknownContext)
+
+
+def test_chunk_context_is_distinct_from_aggregate_turn_totals():
+    from app.usage_contract import KnownContext
+
+    b = _backend()
+    b._context_tokens = 84_482
+    b._active_prompts = 1
+    (end,) = b._finish_prompt("p1", "end_turn", {"usage": {
+        "inputTokens": 1_665_949,
+        "totalTokens": 1_678_471,
+        "modelCalls": 25,
+    }})
+
+    assert end.metadata["context_tokens"] == 84_482
+    assert end.metadata["context_pct"] == 16
+    assert end.metadata["context_known"] is True
+    assert isinstance(end.usage.current, KnownContext)
+
+
+def test_impossible_chunk_context_is_fail_soft():
+    from app.usage_contract import UnknownContext
+
+    b = _backend()
+    b._context_tokens = 500_001
+    b._active_prompts = 1
+    (end,) = b._finish_prompt("p1", "end_turn", {"usage": {
+        "inputTokens": 123,
+        "totalTokens": 456,
+    }})
+
+    assert end.metadata["input_tokens"] == 123
+    assert end.metadata["context_known"] is False
+    assert "exceeds maximum" in end.metadata["context_unknown_reason"]
+    assert isinstance(end.usage.current, UnknownContext)
 
 
 # ── dashboard consistency (T6) ──

@@ -2,12 +2,15 @@
 
 from dataclasses import dataclass, field
 
+from app.usage_contract import TurnUsage
+
 
 @dataclass
 class AgentEvent:
     type: str
     content: str = ""
     metadata: dict = field(default_factory=dict)
+    usage: TurnUsage | None = None
 
 # type values:
 # "text"              — agent text output

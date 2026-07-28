@@ -125,7 +125,7 @@ class TurnManager:
         s = self.s
         meta = event.metadata
         s._turn_start = 0
-        ok, sr, nt = s._cost.apply_turn_result(meta)
+        ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
         if event_id:
             s._submit_db_write(
@@ -144,9 +144,32 @@ class TurnManager:
                 cache_read_tokens=meta.get("cache_read", 0),
                 cache_create_tokens=meta.get("cache_create", 0),
             )
-        s._cost.update_context_from_turn(meta)
-        s._spawn_bg(s._refresh_context_from_api())
+        context_known, context_reason = s._cost.update_context_from_turn(
+            meta, event.usage,
+        )
+        if context_reason:
+            s._log(
+                "status",
+                f"context unknown ({context_reason}); automatic compaction skipped",
+            )
+        if not context_known:
+            s._cancel_precompact_timer("context_unknown")
         subscription_limited = s._session_limit_hit
+        will_auto_continue = (
+            sr in ("error_max_turns", "max_turns")
+            and ok
+            and s._auto_continue_count < s.AUTO_CONTINUE_MAX
+        )
+        allow_context_compaction = (
+            not subscription_limited and not will_auto_continue
+        )
+        s._spawn_bg(
+            s._refresh_context_from_api(
+                schedule_compaction_on_success=(
+                    allow_context_compaction and not context_known
+                ),
+            )
+        )
 
         if not ok:
             # CLI injects [ede_diagnostic] telemetry on interrupt — cosmetic noise, not real errors
@@ -209,7 +232,7 @@ class TurnManager:
         self.after_turn_idle_actions(
             live_pct,
             allow_auto_report=server_error_retry is None,
-            allow_precompact=not subscription_limited,
+            allow_precompact=allow_context_compaction and context_known,
         )
         if server_error_retry is not None:
             s._spawn_bg(s._retry_after_server_error(*server_error_retry))
@@ -237,22 +260,8 @@ class TurnManager:
             s._compact_ack_event.set()
 
         if allow_precompact:
-            s._schedule_precompact_timer(live_pct)
+            self.schedule_context_compaction(live_pct)
         s._spawn_bg(s._notify_scope_idle())
-
-        if (
-            allow_precompact
-            and live_pct > 90
-            and s.backend_type != "codex"
-            and not s.is_orchestrator
-            and not s._compacting
-        ):
-            # Workers auto-compact to stay operational; orchestrators are left for
-            # the user to compact manually since they hold long-running session state.
-            # Codex app-server compacts the current thread natively; replacing that
-            # thread with Orchestra's generic handoff loses native thread continuity.
-            s._log("status", f"auto-compact triggered ({live_pct}%)")
-            s._spawn_bg(s._auto_compact())
 
         # Don't auto-report mid-flight: WAITING means a bg job (e.g. codex_review) is
         # still running and will wake the worker with its result — the turn isn't
@@ -265,3 +274,20 @@ class TurnManager:
             return
 
         s._hibernate.schedule()
+
+    def schedule_context_compaction(self, live_pct: int) -> None:
+        """Run both automatic compaction decisions from one validated context."""
+        s = self.s
+        s._schedule_precompact_timer(live_pct)
+        if (
+            live_pct > 90
+            and s.backend_type != "codex"
+            and not s.is_orchestrator
+            and not s._compacting
+        ):
+            # Workers auto-compact to stay operational; orchestrators are left for
+            # the user to compact manually since they hold long-running session state.
+            # Codex app-server compacts the current thread natively; replacing that
+            # thread with Orchestra's generic handoff loses native thread continuity.
+            s._log("status", f"auto-compact triggered ({live_pct}%)")
+            s._spawn_bg(s._auto_compact())
