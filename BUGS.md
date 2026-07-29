@@ -2,6 +2,15 @@
 
 ## Open
 
+### 🔴 Фантомный оркестратор `w-sp3` в боевой БД — тестовые данные пережили прогон
+
+- **Reporter / date:** Orchestra-orchestrator (2026-07-28, замечен юзером в дашборде).
+- **Симптом:** в списке оркестраторов висел `w-sp3` на `claude-fable-5[1m]` со своим TG-топиком, `scope=/s`, `cwd=/tmp`, 0 ходов / 0 токенов / нет worktree. Отдавался `/api/orchestrators` наравне с настоящими — то есть жил и в памяти сервера (поднят `auto_resume`), и в БД.
+- **Происхождение:** имя+scope+cwd+`system_prompt=ROLE_BASE` в точности совпадают с `tests/test_manager.py::TestSystemPromptAppend::test_orchestrator_no_custom_prompt_uses_role_base`. Запись создана 09:29 UTC; `POST /api/sessions` в журнале за эту секунду НЕТ — то есть писал не API, а процесс с боевым `DB_PATH`.
+- **Корневая причина НЕ установлена.** Проверено и НЕ подтвердилось: (1) 3 полных прогона `tests/test_manager.py` (104 теста) не утекли ни разу — фикстура `db` патчит `app.db.DB_PATH`, а `_conn()` читает его как глобал модуля, патч ловится; (2) гипотеза про переживающий тесты пул `_DB_EXECUTOR` (`app/session.py:92`) — обе async-записи `save_session` под `await`, до конца теста успевают; (3) worktree-воркеры пишут в свою `data/orchestra.db` — `_DEFAULT_DB_PATH` резолвится от `__file__`, не от cwd. Улика против «это просто тест»: `w-sp1`/`w-sp2` из соседних тестов НЕ утекли, а модель в записи `fable-5`, хотя тест создаёт `sonnet-5` — значит строку после создания перезаписал живой сервер (те же грабли, что с `sessions.model` при auto_resume).
+- **Сделано:** `DELETE /api/sessions/w-sp3` (убрал из памяти + `status='archived'`), затем строка удалена из БД вручную (339 → 338 сессий). Из `/api/orchestrators` пропал. NB: DELETE — это АРХИВАЦИЯ by design (`manager.remove` → `db.archive_session`), строка остаётся намеренно, это не баг; для мусорной записи нужен именно ручной DELETE.
+- **Что делать:** фоновая запись `_persist_loop` (`app/session.py:1632`) и `_submit_db_write` — fire-and-forget, тесты их не дренируют. Сделать в conftest autouse-фикстуру, которая дожидается пула и ФЕЙЛИТ тест при любой записи вне tmp-БД — тогда следующая такая утечка проявится в CI, а не в дашборде через месяц.
+
 ### 🔴 MCP Orchestra не доходит до Grok-воркера — корневая причина НЕ установлена
 
 - **Reporter / date:** Orchestra-orchestrator (2026-07-28, первый боевой прогон Grok, задача #98).

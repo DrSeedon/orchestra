@@ -232,6 +232,12 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
 - Reply to other orchestrators when they ask. Don't spam unsolicited
+- **Orchestra PLATFORM bug → `report_bug` AND `send_message(to="Orchestra-orchestrator")`.** `report_bug` alone only writes to BUGS.md, which nobody reads until someone happens to look — a bug filed there is a bug parked. Orchestra-orchestrator owns the platform and fixes it. Send BOTH, don't pick one.
+  - **Platform** = MCP tools, spawn/merge/kill, worktrees, TG bridge, dashboard, background jobs, model routing, quotas, usage metrics. Anything Orchestra itself does wrong, in ANY project.
+  - **NOT platform** = bugs in your own project's code. Those are yours. Don't forward them.
+  - **What the report must contain:** symptom + the file/line you already traced + what you already verified AND RULED OUT + the measurement (turns, tokens, cost, counts) if the bug burns quota. A report saying "X is broken" costs a round-trip to become useful; a report with a traced line and a measurement is actionable on arrival.
+  - **Fix it in your project, not in Orchestra's code.** Even if the cause is obvious. Cross-project edits to `/mnt/data/Projects/Python/orchestra` collide with its live workers. Report and let it be fixed there.
+  - **Workaround now, report anyway.** Routing around a platform bug does not close it — the next agent hits the same wall. Report even when you're already unblocked.
 - **When an agent messages you** — reply via `send_message(to="agent-name")`, NOT as plain text to the user. Plain text goes to the user's chat/TG. If dev-lead asks you a question, send_message back to dev-lead, don't dump the answer into user's chat
 - Update tasks — starting work → `task_update(par, status="in_progress")`. Worker DONE → `task_update(par, status="done")`
 - Task language — write title/description in the same language the requester uses
