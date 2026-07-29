@@ -45,6 +45,12 @@ async def serve_upload(filename: str):
     return FileResponse(path, headers={"Content-Disposition": f'attachment; filename="{path.name}"'})
 
 
+@router.get("/api/tg/delivery-stats")
+async def tg_delivery_stats():
+    from app.tg_bridge import _tg_delivery_snapshots
+    return _tg_delivery_snapshots()
+
+
 @router.post("/api/tg/send_file")
 async def tg_send_file(req: dict):
     from app.routes.system import _is_safe_path

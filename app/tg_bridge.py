@@ -573,6 +573,7 @@ _TG_TELEMETRY_MAX_AGE = 15.0
 _TG_TELEMETRY_CALL_TIMEOUT = 2.0
 _TG_OPTIONAL_QUEUE_MAX = 64
 _TG_IMAGE_QUEUE_MAX = 16
+_TG_IMAGE_CALL_TIMEOUT = 30.0
 _TG_MIRROR_OUTBOX_MAX = 64
 _TG_ENTITY_REJECTED = object()
 
@@ -599,6 +600,12 @@ class _TgCallItem:
     count: int = 1
     in_flight: bool = False
     optional_kind: str | None = None
+    traffic_class: str | None = None
+    call_timeout: float | None = None
+    count_lost: bool = True
+    reservation: object = None
+    sequence: int = 0
+    ordered: bool = False
 
 
 @dataclass
@@ -607,10 +614,17 @@ class _TgDeliveryState:
     reliable: deque = field(default_factory=deque)
     telemetry: OrderedDict = field(default_factory=OrderedDict)
     optional: deque = field(default_factory=deque)
+    images: deque = field(default_factory=deque)
     wake: asyncio.Event = field(default_factory=asyncio.Event)
+    image_wake: asyncio.Event = field(default_factory=asyncio.Event)
     space: asyncio.Event = field(default_factory=asyncio.Event)
+    rate_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     dispatcher: asyncio.Task | None = None
+    image_dispatcher: asyncio.Task | None = None
     in_flight: _TgCallItem | None = None
+    image_in_flight: _TgCallItem | None = None
+    image_reservations: set = field(default_factory=set)
+    ordered_admissions: set[int] = field(default_factory=set)
     admission_waiters: int = 0
     admission_tasks: set = field(default_factory=set)
     reliable_since_telemetry: int = 0
@@ -627,12 +641,17 @@ class _TgDeliveryState:
     telemetry_lost: int = 0
     optional_timeouts: int = 0
     optional_lost: int = 0
+    image_dropped: int = 0
+    image_timeouts: int = 0
+    image_lost: int = 0
     reliable_last_latency: float = 0.0
     reliable_max_latency: float = 0.0
     telemetry_last_latency: float = 0.0
     telemetry_max_latency: float = 0.0
     optional_last_latency: float = 0.0
     optional_max_latency: float = 0.0
+    image_last_latency: float = 0.0
+    image_max_latency: float = 0.0
     stopped: bool = False
 
 
@@ -651,12 +670,21 @@ def _settle_tg_item(item: _TgCallItem | None, result=None) -> None:
         item.future.set_result(result)
 
 
-async def _clear_tg_chat(chat_id: int) -> None:
+async def _clear_tg_chat(
+    chat_id: int,
+    expected_state: _TgDeliveryState | None = None,
+) -> None:
     state = _tg_delivery_states.get(chat_id)
-    task = _tg_dispatch_tasks.pop(chat_id, None)
+    if expected_state is not None and state is not expected_state:
+        return
+    registered_task = _tg_dispatch_tasks.get(chat_id)
+    if state is None or registered_task is state.dispatcher:
+        _tg_dispatch_tasks.pop(chat_id, None)
+    owned_tasks = []
     if state:
         state.stopped = True
         state.wake.set()
+        state.image_wake.set()
         state.space.set()
         for item in state.reliable:
             _settle_tg_item(item)
@@ -664,20 +692,31 @@ async def _clear_tg_chat(chat_id: int) -> None:
             _settle_tg_item(item)
         for item in state.optional:
             _settle_tg_item(item)
+        for item in state.images:
+            _settle_tg_item(item)
         _settle_tg_item(state.in_flight)
+        _settle_tg_item(state.image_in_flight)
         state.reliable.clear()
         state.telemetry.clear()
         state.optional.clear()
-        if state.dispatcher and not state.dispatcher.done():
-            state.dispatcher.cancel()
+        state.images.clear()
+        state.image_reservations.clear()
+        state.ordered_admissions.clear()
+        for task in (state.dispatcher, state.image_dispatcher, registered_task):
+            if task is not None and task not in owned_tasks:
+                owned_tasks.append(task)
         admission_tasks = [
             waiter for waiter in state.admission_tasks
             if waiter is not asyncio.current_task()
         ]
         if admission_tasks:
             await asyncio.gather(*admission_tasks, return_exceptions=True)
-        task = state.dispatcher or task
-    if task and task is not asyncio.current_task() and not task.done():
+    elif registered_task is not None:
+        owned_tasks.append(registered_task)
+    current = asyncio.current_task()
+    for task in owned_tasks:
+        if task is current or task.done():
+            continue
         try:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
@@ -685,9 +724,9 @@ async def _clear_tg_chat(chat_id: int) -> None:
             pass
     if _tg_delivery_states.get(chat_id) is state:
         _tg_delivery_states.pop(chat_id, None)
-    _tg_queue_loops.pop(chat_id, None)
-    _tg_flood_until.pop(chat_id, None)
-    _tg_last_send.pop(chat_id, None)
+        _tg_queue_loops.pop(chat_id, None)
+        _tg_flood_until.pop(chat_id, None)
+        _tg_last_send.pop(chat_id, None)
 
 
 async def _reset_tg_delivery_state() -> None:
@@ -731,6 +770,15 @@ def _tg_delivery_snapshot(chat_id: int) -> dict[str, int | float]:
             "optional_oldest_age": 0.0,
             "optional_last_latency": 0.0,
             "optional_max_latency": 0.0,
+            "image_reserved": 0,
+            "image_queued": 0,
+            "image_in_flight": 0,
+            "image_dropped": 0,
+            "image_timeouts": 0,
+            "image_lost": 0,
+            "image_oldest_age": 0.0,
+            "image_last_latency": 0.0,
+            "image_max_latency": 0.0,
         }
     now = state.loop.time()
 
@@ -765,11 +813,44 @@ def _tg_delivery_snapshot(chat_id: int) -> dict[str, int | float]:
         "optional_oldest_age": oldest_age(state.optional),
         "optional_last_latency": state.optional_last_latency,
         "optional_max_latency": state.optional_max_latency,
+        "image_reserved": len(state.image_reservations),
+        "image_queued": len(state.images),
+        "image_in_flight": int(state.image_in_flight is not None),
+        "image_dropped": state.image_dropped,
+        "image_timeouts": state.image_timeouts,
+        "image_lost": state.image_lost,
+        "image_oldest_age": oldest_age(state.images),
+        "image_last_latency": state.image_last_latency,
+        "image_max_latency": state.image_max_latency,
+    }
+
+
+def _tg_delivery_snapshots() -> dict[str, list[dict[str, int | float]]]:
+    return {
+        "chats": [
+            {"chat_id": chat_id, **_tg_delivery_snapshot(chat_id)}
+            for chat_id in sorted(_tg_delivery_states)
+        ],
     }
 
 
 def _tg_interval(chat_id: int) -> float:
     return _TG_GROUP_INTERVAL if chat_id < 0 else _TG_PRIVATE_INTERVAL
+
+
+async def _tg_delivery_state_for(chat_id: int) -> _TgDeliveryState:
+    loop = asyncio.get_running_loop()
+    while True:
+        state = _tg_delivery_states.get(chat_id)
+        if state is None:
+            state = _TgDeliveryState(loop=loop)
+            _tg_delivery_states[chat_id] = state
+            _tg_queue_loops[chat_id] = loop
+            return state
+        if state.loop is loop and not state.stopped:
+            _tg_queue_loops[chat_id] = loop
+            return state
+        await _clear_tg_chat(chat_id, state)
 
 
 def _track_tg_result(coro) -> asyncio.Task:
@@ -787,6 +868,20 @@ def _tg_rate_wait(chat_id: int, now: float) -> float:
     )
 
 
+async def _tg_reserve_rate_slot(
+    chat_id: int,
+    state: _TgDeliveryState,
+) -> bool:
+    async with state.rate_lock:
+        while not state.stopped:
+            wait = _tg_rate_wait(chat_id, state.loop.time())
+            if not wait:
+                _tg_last_send[chat_id] = state.loop.time()
+                return True
+            await asyncio.sleep(wait)
+        return False
+
+
 def _tg_record_latency(
     state: _TgDeliveryState,
     traffic_class: str,
@@ -800,35 +895,35 @@ def _tg_record_latency(
 
 async def _tg_run_attempts(
     chat_id: int,
+    state: _TgDeliveryState,
     call,
     important: bool,
     label: str,
     traffic_class: str,
+    *,
+    call_timeout: float | None = None,
+    count_lost: bool = True,
 ):
-    loop = asyncio.get_running_loop()
-    state = _tg_delivery_states.get(chat_id)
+    loop = state.loop
     attempts = _TG_IMPORTANT_ATTEMPTS if important else 1
     for attempt in range(1, attempts + 1):
-        wait = _tg_rate_wait(chat_id, loop.time())
-        if wait:
-            await asyncio.sleep(wait)
-        _tg_last_send[chat_id] = loop.time()
+        if not await _tg_reserve_rate_slot(chat_id, state):
+            return None
         try:
-            if important:
-                async with asyncio.timeout(_TG_RELIABLE_CALL_TIMEOUT):
-                    return await call()
-            async with asyncio.timeout(_TG_TELEMETRY_CALL_TIMEOUT):
+            timeout = call_timeout or (
+                _TG_RELIABLE_CALL_TIMEOUT
+                if important else _TG_TELEMETRY_CALL_TIMEOUT
+            )
+            async with asyncio.timeout(timeout):
                 return await call()
         except TimeoutError:
-            if state is not None:
-                setattr(
-                    state,
-                    f"{traffic_class}_timeouts",
-                    getattr(state, f"{traffic_class}_timeouts") + 1,
-                )
+            setattr(
+                state,
+                f"{traffic_class}_timeouts",
+                getattr(state, f"{traffic_class}_timeouts") + 1,
+            )
             if important and attempt < attempts:
-                if state is not None:
-                    state.reliable_retries += 1
+                state.reliable_retries += 1
                 logger.warning(
                     f"TG {label} attempt timeout, retry {attempt + 1}/{attempts}"
                 )
@@ -836,11 +931,11 @@ async def _tg_run_attempts(
                     await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
                 continue
             if important:
-                if state is not None:
+                if count_lost:
                     state.reliable_lost += 1
                 logger.warning(f"TG {label} LOST after {attempt} timed out attempts")
             else:
-                if state is not None:
+                if count_lost:
                     setattr(
                         state,
                         f"{traffic_class}_lost",
@@ -852,7 +947,7 @@ async def _tg_run_attempts(
             _tg_flood_until[chat_id] = loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN
             logger.warning(f"TG {label} flood: retry in {e.retry_after}s")
             if not important:
-                if state is not None:
+                if count_lost:
                     setattr(
                         state,
                         f"{traffic_class}_lost",
@@ -861,23 +956,21 @@ async def _tg_run_attempts(
                 return None
             if attempt == attempts:
                 break
-            if state is not None:
-                state.reliable_retries += 1
+            state.reliable_retries += 1
         except (TelegramNetworkError, TelegramServerError) as e:
             if important and attempt < attempts:
-                if state is not None:
-                    state.reliable_retries += 1
+                state.reliable_retries += 1
                 logger.warning(
                     f"TG {label} ambiguous delivery, retry {attempt + 1}/{attempts}: {e}"
                 )
                 await asyncio.sleep(_TG_NETWORK_RETRY_DELAY * attempt)
                 continue
             if important:
-                if state is not None:
+                if count_lost:
                     state.reliable_lost += 1
                 logger.warning(f"TG {label} LOST after {attempt} attempts: {e}")
             else:
-                if state is not None:
+                if count_lost:
                     setattr(
                         state,
                         f"{traffic_class}_lost",
@@ -887,11 +980,11 @@ async def _tg_run_attempts(
             return None
         except Exception as e:
             if important:
-                if state is not None:
+                if count_lost:
                     state.reliable_lost += 1
                 logger.warning(f"TG {label} LOST: {e}")
             else:
-                if state is not None:
+                if count_lost:
                     setattr(
                         state,
                         f"{traffic_class}_lost",
@@ -901,7 +994,7 @@ async def _tg_run_attempts(
             return None
 
     if important:
-        if state is not None:
+        if count_lost:
             state.reliable_lost += 1
         logger.warning(f"TG {label} LOST after {attempts} flood attempts")
     return None
@@ -909,23 +1002,40 @@ async def _tg_run_attempts(
 
 async def _tg_run_call(
     chat_id: int,
+    state: _TgDeliveryState,
     call,
     important: bool,
     label: str,
     traffic_class: str,
+    *,
+    call_timeout: float | None = None,
+    count_lost: bool = True,
 ):
     if not important:
         return await _tg_run_attempts(
-            chat_id, call, False, label, traffic_class,
+            chat_id,
+            state,
+            call,
+            False,
+            label,
+            traffic_class,
+            call_timeout=call_timeout,
+            count_lost=count_lost,
         )
     try:
         async with asyncio.timeout(_TG_RELIABLE_TOTAL_TIMEOUT):
             return await _tg_run_attempts(
-                chat_id, call, True, label, traffic_class,
+                chat_id,
+                state,
+                call,
+                True,
+                label,
+                traffic_class,
+                call_timeout=call_timeout,
+                count_lost=count_lost,
             )
     except TimeoutError:
-        state = _tg_delivery_states.get(chat_id)
-        if state is not None:
+        if count_lost:
             state.reliable_total_timeouts += 1
             state.reliable_lost += 1
         logger.warning(
@@ -935,20 +1045,41 @@ async def _tg_run_call(
         return None
 
 
+def _tg_ordered_sequences(state: _TgDeliveryState) -> list[int]:
+    sequences = [
+        item.sequence
+        for item in state.reliable
+        if item.ordered and not item.future.cancelled()
+    ]
+    if state.in_flight is not None and state.in_flight.ordered:
+        sequences.append(state.in_flight.sequence)
+    sequences.extend(state.ordered_admissions)
+    return sequences
+
+
+def _tg_first_ordered_sequence(state: _TgDeliveryState) -> int | None:
+    sequences = _tg_ordered_sequences(state)
+    return min(sequences) if sequences else None
+
+
 def _tg_oldest_telemetry(state: _TgDeliveryState, now: float):
+    barrier = _tg_first_ordered_sequence(state)
     eligible = [
         item for item in state.telemetry.values()
         if not item.in_flight
         and now - item.enqueued_at >= _TG_TELEMETRY_MAX_AGE
+        and (barrier is None or item.sequence < barrier)
     ]
     return min(eligible, key=lambda item: item.enqueued_at) if eligible else None
 
 
 def _tg_next_telemetry_wait(state: _TgDeliveryState, now: float) -> float | None:
+    barrier = _tg_first_ordered_sequence(state)
     waits = [
         max(0, _TG_TELEMETRY_MAX_AGE - (now - item.enqueued_at))
         for item in state.telemetry.values()
         if not item.in_flight
+        and (barrier is None or item.sequence < barrier)
     ]
     return min(waits) if waits else None
 
@@ -956,8 +1087,23 @@ def _tg_next_telemetry_wait(state: _TgDeliveryState, now: float) -> float | None
 def _tg_pick_next(state: _TgDeliveryState):
     now = state.loop.time()
     telemetry = _tg_oldest_telemetry(state, now)
+    preceding_marker = False
+    marker_sequence = _tg_first_ordered_sequence(state)
+    if (
+        state.reliable
+        and state.reliable[0].ordered
+        and marker_sequence == state.reliable[0].sequence
+    ):
+        preceding = [
+            item for item in state.telemetry.values()
+            if not item.in_flight and item.sequence < marker_sequence
+        ]
+        telemetry = min(preceding, key=lambda item: item.sequence) if preceding else None
+        preceding_marker = telemetry is not None
     if telemetry and (
-        not state.reliable or state.reliable_since_telemetry >= 3
+        not state.reliable
+        or preceding_marker
+        or state.reliable_since_telemetry >= 3
     ):
         telemetry.in_flight = True
         return (
@@ -1004,19 +1150,24 @@ async def _tg_dispatch_chat(chat_id: int, state: _TgDeliveryState) -> None:
             state.in_flight = item
             try:
                 if kind == "reliable":
+                    traffic_class = item.traffic_class or kind
                     result = await _tg_run_call(
                         chat_id,
+                        state,
                         lambda: item.call_factory(1),
-                        True,
+                        item.important,
                         item.label,
-                        kind,
+                        traffic_class,
+                        call_timeout=item.call_timeout,
+                        count_lost=item.count_lost,
                     )
-                    _tg_record_latency(state, kind, item)
+                    _tg_record_latency(state, traffic_class, item)
                     _settle_tg_item(item, result)
                 elif kind == "telemetry":
                     version, count, call_factory, future = snapshot
                     result = await _tg_run_call(
                         chat_id,
+                        state,
                         lambda: call_factory(count),
                         False,
                         item.label,
@@ -1035,6 +1186,7 @@ async def _tg_dispatch_chat(chat_id: int, state: _TgDeliveryState) -> None:
                 else:
                     result = await _tg_run_call(
                         chat_id,
+                        state,
                         lambda: item.call_factory(1),
                         False,
                         item.label,
@@ -1058,10 +1210,60 @@ async def _tg_dispatch_chat(chat_id: int, state: _TgDeliveryState) -> None:
             state.dispatcher = None
 
 
+async def _tg_dispatch_images(chat_id: int, state: _TgDeliveryState) -> None:
+    try:
+        while not state.stopped:
+            if not state.images:
+                state.image_wake.clear()
+                await state.image_wake.wait()
+                continue
+            item = state.images.popleft()
+            if item.future.cancelled():
+                state.image_reservations.discard(item.reservation)
+                continue
+            state.image_in_flight = item
+            try:
+                result = await _tg_run_call(
+                    chat_id,
+                    state,
+                    lambda: item.call_factory(1),
+                    False,
+                    item.label,
+                    "image",
+                    call_timeout=item.call_timeout,
+                )
+                _tg_record_latency(state, "image", item)
+                _settle_tg_item(item, result)
+            except asyncio.CancelledError:
+                _settle_tg_item(item)
+                raise
+            except Exception as e:
+                logger.exception(f"TG {item.label} image dispatcher failed: {e}")
+                _settle_tg_item(item)
+            finally:
+                state.image_reservations.discard(item.reservation)
+                if state.image_in_flight is item:
+                    state.image_in_flight = None
+    finally:
+        current = asyncio.current_task()
+        if state.image_dispatcher is current:
+            state.image_dispatcher = None
+
+
 def _tg_start_dispatcher(chat_id: int, state: _TgDeliveryState) -> None:
     if state.dispatcher is None or state.dispatcher.done():
         state.dispatcher = asyncio.create_task(_tg_dispatch_chat(chat_id, state))
         _tg_dispatch_tasks[chat_id] = state.dispatcher
+
+
+def _tg_start_image_dispatcher(
+    chat_id: int,
+    state: _TgDeliveryState,
+) -> None:
+    if state.image_dispatcher is None or state.image_dispatcher.done():
+        state.image_dispatcher = asyncio.create_task(
+            _tg_dispatch_images(chat_id, state),
+        )
 
 
 async def _tg_call_safe(
@@ -1074,22 +1276,20 @@ async def _tg_call_safe(
     call_factory=None,
     best_effort: bool = False,
     optional_kind: str | None = None,
+    ordered: bool = False,
+    traffic_class: str | None = None,
+    call_timeout: float | None = None,
+    count_lost: bool = True,
 ):
-    """Submit a bounded reliable or coalesced telemetry call for one chat."""
+    """Submit a bounded ordered, optional, or coalesced call for one chat."""
     global _tg_call_sequence
     loop = asyncio.get_running_loop()
-    state = _tg_delivery_states.get(chat_id)
-    if state is not None and state.loop is not loop:
-        await _clear_tg_chat(chat_id)
-        state = None
-    if state is None:
-        state = _TgDeliveryState(loop=loop)
-        _tg_delivery_states[chat_id] = state
-    elif state.stopped:
+    state = await _tg_delivery_state_for(chat_id)
+    if state.stopped:
         return None
-    _tg_queue_loops[chat_id] = loop
     future = loop.create_future()
     _tg_call_sequence += 1
+    sequence = _tg_call_sequence
     factory = call_factory or (lambda _count: call())
 
     if best_effort:
@@ -1115,54 +1315,80 @@ async def _tg_call_safe(
         _tg_start_dispatcher(chat_id, state)
         return future
 
-    if important:
-        if len(state.reliable) >= _TG_RELIABLE_QUEUE_MAX:
-            if state.admission_waiters >= _TG_RELIABLE_ADMISSION_MAX:
-                state.reliable_overflow += 1
-                logger.error(f"TG {label} LOST: reliable admission full")
-                raise _TgDeliveryOverloaded(
-                    f"TG {label} reliable admission full",
-                )
-            state.admission_waiters += 1
-            waiter = asyncio.current_task()
-            if waiter:
-                state.admission_tasks.add(waiter)
-            try:
-                async with asyncio.timeout(_TG_RELIABLE_ADMISSION_TIMEOUT):
-                    while (
-                        not state.stopped
-                        and len(state.reliable) >= _TG_RELIABLE_QUEUE_MAX
-                    ):
-                        state.space.clear()
-                        await state.space.wait()
-            except TimeoutError:
-                state.reliable_overflow += 1
-                logger.error(f"TG {label} LOST: reliable admission timeout")
-                raise _TgDeliveryOverloaded(
-                    f"TG {label} reliable admission timeout",
-                )
-            finally:
-                state.admission_waiters -= 1
+    if important or ordered:
+        if ordered:
+            state.ordered_admissions.add(sequence)
+        try:
+            if len(state.reliable) >= _TG_RELIABLE_QUEUE_MAX:
+                if state.admission_waiters >= _TG_RELIABLE_ADMISSION_MAX:
+                    state.reliable_overflow += 1
+                    logger.error(f"TG {label} LOST: reliable admission full")
+                    raise _TgDeliveryOverloaded(
+                        f"TG {label} reliable admission full",
+                    )
+                state.admission_waiters += 1
+                waiter = asyncio.current_task()
                 if waiter:
-                    state.admission_tasks.discard(waiter)
-        if state.stopped:
-            future.set_result(None)
+                    state.admission_tasks.add(waiter)
+                try:
+                    async with asyncio.timeout(_TG_RELIABLE_ADMISSION_TIMEOUT):
+                        while (
+                            not state.stopped
+                            and len(state.reliable) >= _TG_RELIABLE_QUEUE_MAX
+                        ):
+                            state.space.clear()
+                            await state.space.wait()
+                except TimeoutError:
+                    state.reliable_overflow += 1
+                    logger.error(f"TG {label} LOST: reliable admission timeout")
+                    raise _TgDeliveryOverloaded(
+                        f"TG {label} reliable admission timeout",
+                    )
+                finally:
+                    state.admission_waiters -= 1
+                    if waiter:
+                        state.admission_tasks.discard(waiter)
+            if state.stopped:
+                future.set_result(None)
+                return await future
+            state.reliable.append(_TgCallItem(
+                call_factory=factory,
+                important=important,
+                label=label,
+                future=future,
+                enqueued_at=loop.time(),
+                traffic_class=traffic_class,
+                call_timeout=call_timeout,
+                count_lost=count_lost,
+                sequence=sequence,
+                ordered=ordered,
+            ))
+            if ordered:
+                state.ordered_admissions.discard(sequence)
+            state.wake.set()
+            _tg_start_dispatcher(chat_id, state)
             return await future
-        state.reliable.append(_TgCallItem(
-            call_factory=factory,
-            important=True,
-            label=label,
-            future=future,
-            enqueued_at=loop.time(),
-        ))
-        state.wake.set()
-        _tg_start_dispatcher(chat_id, state)
-        return await future
+        finally:
+            if ordered:
+                state.ordered_admissions.discard(sequence)
+                state.wake.set()
 
     key = telemetry_key
     if key is None:
         key = ("unique", _tg_call_sequence)
     current = state.telemetry.get(key)
+    if (
+        current is not None
+        and not current.in_flight
+        and any(
+            current.sequence < barrier < sequence
+            for barrier in _tg_ordered_sequences(state)
+        )
+    ):
+        state.telemetry.pop(key)
+        current.key = ("before_ordered", key, current.sequence)
+        state.telemetry[current.key] = current
+        current = None
     if current is not None:
         if current.in_flight:
             current = _TgCallItem(
@@ -1173,6 +1399,7 @@ async def _tg_call_safe(
                 enqueued_at=loop.time(),
                 key=key,
                 version=current.version + 1,
+                sequence=sequence,
             )
             state.telemetry[key] = current
         else:
@@ -1195,6 +1422,7 @@ async def _tg_call_safe(
             future=future,
             enqueued_at=loop.time(),
             key=key,
+            sequence=sequence,
         )
         if not state.telemetry:
             state.reliable_since_telemetry = 0
@@ -1367,10 +1595,141 @@ async def _tg_edit_message_safe(chat_id: int, message, text: str, entities=None)
     return await _tg_call_safe(chat_id, _edit_plain, label="edit_message_plain")
 
 
+async def _tg_send_optional_photo(
+    chat_id: int,
+    path: str,
+    caption: str | None,
+    thread_id: int | None,
+    placeholder_text: str | None,
+):
+    import shutil
+    import tempfile
+    import uuid
+    from aiogram.types import FSInputFile, InputMediaPhoto
+
+    state = await _tg_delivery_state_for(chat_id)
+    if state.stopped:
+        return None
+    if len(state.image_reservations) >= _TG_IMAGE_QUEUE_MAX:
+        state.image_dropped += 1
+        logger.warning("TG send_photo dropped: image lane full")
+        return None
+
+    reservation = object()
+    state.image_reservations.add(reservation)
+    suffix = Path(path).suffix or ".png"
+    owned_path = Path(tempfile.gettempdir()) / (
+        f"tg-image-{uuid.uuid4().hex}{suffix}"
+    )
+
+    def _cleanup(_future=None):
+        try:
+            owned_path.unlink()
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            logger.warning(f"TG image snapshot cleanup failed ({owned_path}): {e}")
+
+    try:
+        shutil.copyfile(path, owned_path)
+    except Exception as e:
+        state.image_reservations.discard(reservation)
+        state.image_lost += 1
+        _cleanup()
+        logger.warning(f"TG send_photo snapshot failed: {e}")
+        return None
+
+    async def _send_marker():
+        return await bot.send_message(
+            chat_id,
+            placeholder_text or caption or "🖼 Image",
+            message_thread_id=thread_id,
+            parse_mode=None,
+        )
+
+    try:
+        marker = await _tg_call_safe(
+            chat_id,
+            _send_marker,
+            label="send_photo_marker",
+            ordered=True,
+            traffic_class="image",
+            call_timeout=_TG_TELEMETRY_CALL_TIMEOUT,
+            count_lost=False,
+        )
+    except _TgDeliveryOverloaded as e:
+        state.image_reservations.discard(reservation)
+        state.image_lost += 1
+        _cleanup()
+        logger.error(f"TG send_photo marker rejected: {e}")
+        return None
+    except asyncio.CancelledError:
+        state.image_reservations.discard(reservation)
+        _cleanup()
+        raise
+    except Exception as e:
+        state.image_reservations.discard(reservation)
+        state.image_lost += 1
+        _cleanup()
+        logger.exception(f"TG send_photo marker failed: {e}")
+        return None
+
+    message_id = getattr(marker, "message_id", None)
+    if (
+        message_id is None
+        or state.stopped
+        or _tg_delivery_states.get(chat_id) is not state
+    ):
+        if not state.stopped and _tg_delivery_states.get(chat_id) is state:
+            state.image_lost += 1
+        state.image_reservations.discard(reservation)
+        _cleanup()
+        logger.warning("TG send_photo marker result unavailable")
+        return None
+
+    async def _edit(_count=1):
+        media = InputMediaPhoto(
+            media=FSInputFile(owned_path, filename=Path(path).name),
+            caption=caption,
+            parse_mode=None,
+        )
+        return await bot.edit_message_media(
+            chat_id=chat_id,
+            message_id=message_id,
+            media=media,
+            request_timeout=_TG_IMAGE_CALL_TIMEOUT,
+        )
+
+    completion = state.loop.create_future()
+    state.images.append(_TgCallItem(
+        call_factory=_edit,
+        important=False,
+        label="edit_message_media",
+        future=completion,
+        enqueued_at=state.loop.time(),
+        traffic_class="image",
+        call_timeout=_TG_IMAGE_CALL_TIMEOUT,
+        reservation=reservation,
+    ))
+    state.image_wake.set()
+    _tg_start_image_dispatcher(chat_id, state)
+    completion.add_done_callback(_cleanup)
+    return asyncio.shield(completion)
+
+
 async def _tg_send_file_safe(
     chat_id: int, path: str, caption: str | None, thread_id: int | None,
-    *, is_photo: bool, important: bool,
+    *, is_photo: bool, important: bool, placeholder_text: str | None = None,
 ):
+    if is_photo and not important:
+        return await _tg_send_optional_photo(
+            chat_id,
+            path,
+            caption,
+            thread_id,
+            placeholder_text,
+        )
+
     from aiogram.types import FSInputFile
 
     async def _send():
@@ -2122,8 +2481,17 @@ async def _send_png_to_tg(
 
     try:
         delivery = await _tg_send_file_safe(
-            chat_id, tmp, None, thread_id, is_photo=True, important=False,
+            chat_id,
+            tmp,
+            None,
+            thread_id,
+            is_photo=True,
+            important=False,
+            placeholder_text=f"🖼 {label}",
         )
+    except asyncio.CancelledError:
+        _cleanup()
+        raise
     except Exception:
         _cleanup()
         raise
@@ -2417,17 +2785,18 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 _read_params = _json.loads(_last_tool_raw[_colon + 1:].strip())
                                 _img_path = _read_params.get("file_path", "")
                                 if _img_path and Path(_img_path).is_file():
-                                    await _tg_send_file_safe(
+                                    delivery = await _tg_send_file_safe(
                                         config["group_id"], _img_path,
                                         f"📷 {Path(_img_path).name}", thread_id,
                                         is_photo=True, important=False,
                                     )
-                                    if _last_tool_msg:
-                                        _last_tool_msg = None
-                                        _last_tool_text = ""
-                                    _last_tool_name = ""
-                                    _last_tool_raw = ""
-                                    continue
+                                    if isinstance(delivery, asyncio.Future):
+                                        if _last_tool_msg:
+                                            _last_tool_msg = None
+                                            _last_tool_text = ""
+                                        _last_tool_name = ""
+                                        _last_tool_raw = ""
+                                        continue
                             except Exception as _e:
                                 logger.debug(f"Read image send failed, falling back: {_e}")
                         result_preview = c[:80].replace("\n", " ").strip()
