@@ -773,7 +773,10 @@ async def bg_create(type: str, message: str = "", target: str = "",
     - cron: periodically wakes the target agent on a cron schedule (cron_expr, 5-field, UTC).
             Recurring — stays active across firings. timeout_seconds=0 = no expiry (forever
             until cancelled). Missed fires during downtime are skipped (no backfill).
-    target: agent name (default: you). timeout_seconds: max lifetime (default 1h, max 24h)."""
+    - cron_command: runs command on cron_expr and wakes only when completed stdout/stderr
+            matches pattern. Recurring, UTC, no backfill.
+    target: agent name (default: you). timeout_seconds: max lifetime (default 1h,
+            max 24h); 0 = no expiry for file/command/ssh/cron/cron_command."""
     config = {}
     if type == "timer":
         config = {"delay_seconds": delay_seconds}
@@ -787,6 +790,12 @@ async def bg_create(type: str, message: str = "", target: str = "",
         config = {"command": command, "host": host} if host else {"command": command}
     elif type == "cron":
         config = {"cron_expr": cron_expr}
+    elif type == "cron_command":
+        config = {
+            "cron_expr": cron_expr,
+            "command": command,
+            "pattern": pattern,
+        }
     target_name = target or WORKER_NAME
     result = await _api("POST", "/api/bg/jobs", json={
         "type": type, "config": config, "message": message,
@@ -806,7 +815,10 @@ async def bg_list() -> str:
         return f"Error: {jobs}"
     if not jobs:
         return "No background jobs"
-    icons = {"timer": "⏰", "file": "📄", "command": "🖥️", "ssh": "🔗", "run": "🚀", "cron": "🔁"}
+    icons = {
+        "timer": "⏰", "file": "📄", "command": "🖥️", "ssh": "🔗",
+        "run": "🚀", "cron": "🔁", "cron_command": "🔎",
+    }
     lines = []
     for j in jobs:
         icon = icons.get(j["type"], "❓")

@@ -2305,3 +2305,76 @@ class TestSendFileRetry:
             call.kwargs["message_thread_id"]
             for call in tb.bot.send_document.await_args_list
         ] == [555, 555, 666]
+
+
+class TestCronCommandTopicBoundary99:
+    @pytest.mark.asyncio
+    async def test_no_match_is_silent_but_match_reaches_topic_status(
+        self, tb, monkeypatch,
+    ):
+        import app.bg_jobs as module
+
+        tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.return_value = object()
+        tb.config["topics"] = {"orch": 42}
+
+        session = type("Session", (), {
+            "parent_name": "orch",
+            "last_task_sender": "orch",
+        })()
+
+        async def send(_message):
+            await tb.notify_scope_running("orch")
+
+        session.send = AsyncMock(side_effect=send)
+        session_manager = type("Manager", (), {
+            "ensure_loaded": AsyncMock(return_value=session),
+        })()
+        manager = module.BgJobManager()
+        manager.set_session_manager(session_manager)
+        monkeypatch.setattr(module, "bg_cron_should_fire", lambda _job_id: True)
+        monkeypatch.setattr(module, "bg_update_output", lambda *_args: None)
+        monkeypatch.setattr(module, "bg_cron_record_fire", lambda _job_id: None)
+        outputs = [b"empty-1", b"empty-2", b"empty-3", b"empty-4", b"FOUND: 42"]
+
+        async def create_process(*_args, **_kwargs):
+            return type("Process", (), {
+                "pid": 12345,
+                "returncode": 0,
+                "output": outputs.pop(0),
+                "error": b"",
+            })()
+
+        async def communicate(process):
+            return process.output, process.error
+
+        monkeypatch.setattr(
+            module.asyncio, "create_subprocess_shell", create_process,
+        )
+        monkeypatch.setattr(module, "_communicate_cron_command", communicate)
+
+        for _ in range(4):
+            await manager._fire_cron_command(
+                "monitor",
+                "python monitor.py",
+                "^FOUND:",
+                "new intent found",
+                "intent-hunter",
+                "/scope",
+            )
+
+        session.send.assert_not_awaited()
+        tb.bot.edit_forum_topic.assert_not_awaited()
+
+        await manager._fire_cron_command(
+            "monitor",
+            "python monitor.py",
+            "^FOUND:",
+            "new intent found",
+            "intent-hunter",
+            "/scope",
+        )
+        await asyncio.gather(*tb._topic_status_tasks.values())
+
+        session.send.assert_awaited_once()
+        tb.bot.edit_forum_topic.assert_awaited_once()

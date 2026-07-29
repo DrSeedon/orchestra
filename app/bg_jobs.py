@@ -29,6 +29,8 @@ MAX_TIMEOUT = 86400
 MAX_TIMER_TIMEOUT = 8 * 86400
 DEFAULT_TIMEOUT = 3600
 OUTPUT_PROGRESS_INTERVAL = 30
+_CRON_COMMAND_TIMEOUT_SECONDS = 30
+_NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
 
 _SSH_OPTS = [
     "-o", "BatchMode=yes",
@@ -88,12 +90,22 @@ def _validate_config(job_type: str, config: dict) -> str | None:
                 re.compile(success_pattern)
             except re.error as e:
                 return f"invalid success_pattern: {e}"
-    elif job_type == "cron":
+    elif job_type in ("cron", "cron_command"):
         expr = config.get("cron_expr", "")
         if not expr:
             return "cron_expr is required"
         if not croniter.is_valid(expr):
             return f"invalid cron expression: {expr!r}"
+        if job_type == "cron_command":
+            if not config.get("command"):
+                return "command is required"
+            pattern = config.get("pattern", "")
+            if not pattern:
+                return "pattern is required"
+            try:
+                re.compile(pattern)
+            except re.error as e:
+                return f"invalid regex pattern: {e}"
     else:
         return f"unknown job type: {job_type}"
     return None
@@ -121,6 +133,15 @@ async def _kill_proc(proc: asyncio.subprocess.Process) -> None:
             pass
 
 
+async def _communicate_cron_command(
+    proc: asyncio.subprocess.Process,
+) -> tuple[bytes, bytes]:
+    return await asyncio.wait_for(
+        proc.communicate(),
+        timeout=_CRON_COMMAND_TIMEOUT_SECONDS,
+    )
+
+
 class BgJobManager:
     def __init__(self):
         self._tasks: dict[str, asyncio.Task] = {}
@@ -142,7 +163,7 @@ class BgJobManager:
             return {"error": f"too many active jobs ({count}/{MAX_JOBS_PER_SCOPE})"}
 
         now = datetime.now(timezone.utc)
-        no_expiry = (job_type == "cron" and timeout_seconds <= 0)
+        no_expiry = job_type in _NO_EXPIRY_TYPES and timeout_seconds <= 0
         if no_expiry:
             config = {**config, "no_expiry": True}
             expires_at = (now + timedelta(days=36500)).isoformat()
@@ -187,6 +208,7 @@ class BgJobManager:
 
     def _start_task(self, job_id, job_type, config, message, target_session_id,
                     target_name, target_scope, timeout, trigger_at=None):
+        watch_timeout = None if config.get("no_expiry") else timeout
         if job_type == "timer":
             delay = config["delay_seconds"]
             if trigger_at:
@@ -198,14 +220,16 @@ class BgJobManager:
                 coro = self._run_timer(job_id, delay, message, target_name, target_scope)
         elif job_type == "file":
             coro = self._run_file_watch(job_id, config["path"], config["pattern"],
-                                        message, target_name, target_scope, timeout)
+                                        message, target_name, target_scope, watch_timeout)
         elif job_type == "command":
             interval = max(5, config.get("interval_seconds", 60))
             coro = self._run_command_watch(job_id, config["command"], config["pattern"],
-                                          interval, message, target_name, target_scope, timeout)
+                                          interval, message, target_name, target_scope,
+                                          watch_timeout)
         elif job_type == "ssh":
             coro = self._run_ssh_watch(job_id, config["host"], config["command"],
-                                       config["pattern"], message, target_name, target_scope, timeout)
+                                       config["pattern"], message, target_name, target_scope,
+                                       watch_timeout)
         elif job_type == "run":
             host = config.get("host")
             coro = self._run_exec(job_id, config["command"], message, target_name,
@@ -213,9 +237,14 @@ class BgJobManager:
                                   success_file=config.get("success_file"),
                                   success_pattern=config.get("success_pattern", ""))
         elif job_type == "cron":
-            cron_timeout = None if config.get("no_expiry") else timeout
             coro = self._run_cron(job_id, config["cron_expr"], message,
-                                  target_name, target_scope, cron_timeout)
+                                  target_name, target_scope, watch_timeout)
+        elif job_type == "cron_command":
+            coro = self._run_cron(
+                job_id, config["cron_expr"], message,
+                target_name, target_scope, watch_timeout,
+                command=config["command"], pattern=config["pattern"],
+            )
         else:
             return
         task = asyncio.create_task(coro)
@@ -401,7 +430,10 @@ class BgJobManager:
         except Exception as error:
             bg_fail_job(job_id, str(error)[:500])
 
-    async def _run_cron(self, job_id, cron_expr, message, target_name, target_scope, timeout):
+    async def _run_cron(
+        self, job_id, cron_expr, message, target_name, target_scope, timeout,
+        command="", pattern="",
+    ):
         deadline = (time.time() + timeout) if timeout else None
         try:
             while True:
@@ -412,7 +444,15 @@ class BgJobManager:
                     await asyncio.sleep(max(0, deadline - time.time()))
                     break
                 await asyncio.sleep(sleep_s)
-                await self._fire_cron(job_id, message, target_name, target_scope)
+                if command:
+                    await self._fire_cron_command(
+                        job_id, command, pattern, message,
+                        target_name, target_scope,
+                    )
+                else:
+                    await self._fire_cron(
+                        job_id, message, target_name, target_scope,
+                    )
             self._expire(job_id)
         except asyncio.CancelledError:
             pass
@@ -432,6 +472,81 @@ class BgJobManager:
             logger.info(f"cron {job_id}: fired → {target_name}")
         except Exception as e:
             logger.error(f"cron {job_id}: fire failed (continuing schedule): {e}")
+
+    async def _fire_cron_command(
+        self, job_id, command, pattern, message, target_name, target_scope,
+    ):
+        if not bg_cron_should_fire(job_id):
+            return
+        proc = None
+        output = ""
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                preexec_fn=os.setsid,
+            )
+            self._procs[job_id] = proc
+            try:
+                stdout, stderr = await _communicate_cron_command(proc)
+            except asyncio.TimeoutError:
+                output = (
+                    f"[command timed out after "
+                    f"{_CRON_COMMAND_TIMEOUT_SECONDS} seconds]"
+                )
+                bg_update_output(job_id, output)
+                logger.warning(
+                    "cron_command %s: command timed out after %ss",
+                    job_id,
+                    _CRON_COMMAND_TIMEOUT_SECONDS,
+                )
+                return
+
+            raw_output = (
+                stdout.decode(errors="replace")
+                + stderr.decode(errors="replace")
+            )
+            output = raw_output
+            if proc.returncode:
+                output += f"\n[exit code {proc.returncode}]"
+            output = output.strip()
+            bg_update_output(job_id, output)
+            if not raw_output or re.search(pattern, raw_output) is None:
+                return
+            if not bg_cron_should_fire(job_id):
+                return
+            session = await self._session_manager.ensure_loaded(
+                target_name, target_scope,
+            )
+            if not session:
+                logger.warning(
+                    "cron_command %s: target %s not found, skipping match",
+                    job_id,
+                    target_name,
+                )
+                return
+            self._restore_report_provenance(session)
+            body = f"[Cron command matched] {message}"
+            if output:
+                body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
+            await session.send(body)
+            bg_cron_record_fire(job_id)
+            bg_update_output(job_id, output)
+            logger.info("cron_command %s: matched → %s", job_id, target_name)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error(
+                "cron_command %s: fire failed (continuing schedule): %s",
+                job_id,
+                e,
+            )
+        finally:
+            if self._procs.get(job_id) is proc:
+                self._procs.pop(job_id, None)
+            if proc:
+                await _kill_proc(proc)
 
     async def _run_file_watch(self, job_id, path, pattern, message,
                               target_name, target_scope, timeout):
@@ -463,9 +578,9 @@ class BgJobManager:
 
     async def _run_command_watch(self, job_id, command, pattern, interval,
                                  message, target_name, target_scope, timeout):
-        deadline = time.time() + timeout
+        deadline = (time.time() + timeout) if timeout is not None else None
         try:
-            while time.time() < deadline:
+            while deadline is None or time.time() < deadline:
                 proc = await asyncio.create_subprocess_shell(
                     command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
                     preexec_fn=os.setsid,
@@ -483,7 +598,8 @@ class BgJobManager:
                     await self._trigger(job_id, message, target_name, target_scope, output.strip())
                     return
                 await asyncio.sleep(interval)
-            self._expire(job_id)
+            if deadline is not None:
+                self._expire(job_id)
         except asyncio.CancelledError:
             pass
         except Exception as e:
