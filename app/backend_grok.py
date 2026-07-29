@@ -1067,6 +1067,12 @@ class GrokBackend:
 
     def _build_env(self) -> dict:
         env = dict(os.environ)
+        # auth.x.ai sits behind Cloudflare bot protection that 403s datacenter IPs, so
+        # Orchestra's VPS proxies break Grok auth outright. Grok must ride the host's own
+        # tun-VPN like a browser session — mirrors the proxy-free `grok()` shell wrapper.
+        for var in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy",
+                    "ALL_PROXY", "all_proxy"):
+            env.pop(var, None)
         env.update(self._mcp_env)
         # Point the CLI at Orchestra's config dir so it cannot pick up the user's
         # Claude-compat MCP servers. Set last: nothing inherited may override isolation.
