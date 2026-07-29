@@ -2231,6 +2231,15 @@ class TestRateLimitClassification:
         monkeypatch.setattr("app.bg_jobs.bg_manager", None)
         add_usage = MagicMock(return_value=True)
         monkeypatch.setattr("app.session_turns.turn_usage_add", add_usage)
+        monkeypatch.setattr(
+            "app.session_turns._cached_quota_state",
+            lambda runtime, model: {
+                "quota_five_hour_pct": 12.5,
+                "quota_seven_day_pct": 41,
+                "quota_primary_pct": None,
+                "quota_sampled_at": "2026-07-29T08:00:00+00:00",
+            },
+        )
         self._capture_coroutines(session)
         session._hibernate.schedule = MagicMock()
 
@@ -2264,6 +2273,10 @@ class TestRateLimitClassification:
             output_tokens=20,
             cache_read_tokens=75,
             cache_create_tokens=5,
+            quota_five_hour_pct=12.5,
+            quota_seven_day_pct=41,
+            quota_primary_pct=None,
+            quota_sampled_at="2026-07-29T08:00:00+00:00",
         )
 
     @pytest.mark.asyncio

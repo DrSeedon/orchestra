@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -280,7 +281,11 @@ def init_db() -> None:
                 input_tokens INTEGER NOT NULL,
                 output_tokens INTEGER NOT NULL,
                 cache_read_tokens INTEGER NOT NULL,
-                cache_create_tokens INTEGER NOT NULL
+                cache_create_tokens INTEGER NOT NULL,
+                quota_five_hour_pct REAL,
+                quota_seven_day_pct REAL,
+                quota_primary_pct REAL,
+                quota_sampled_at TEXT
             );
             CREATE INDEX IF NOT EXISTS idx_turn_usage_ts ON turn_usage(ts);
             CREATE INDEX IF NOT EXISTS idx_turn_usage_session ON turn_usage(session_id, ts);
@@ -568,6 +573,14 @@ def _migrate(c) -> None:
         c.execute(
             "ALTER TABLE turn_usage ADD COLUMN task_id TEXT NOT NULL DEFAULT ''"
         )
+    if turn_usage_cols and "quota_five_hour_pct" not in turn_usage_cols:
+        c.execute("ALTER TABLE turn_usage ADD COLUMN quota_five_hour_pct REAL")
+    if turn_usage_cols and "quota_seven_day_pct" not in turn_usage_cols:
+        c.execute("ALTER TABLE turn_usage ADD COLUMN quota_seven_day_pct REAL")
+    if turn_usage_cols and "quota_primary_pct" not in turn_usage_cols:
+        c.execute("ALTER TABLE turn_usage ADD COLUMN quota_primary_pct REAL")
+    if turn_usage_cols and "quota_sampled_at" not in turn_usage_cols:
+        c.execute("ALTER TABLE turn_usage ADD COLUMN quota_sampled_at TEXT")
     # Идемпотентный сид профиля 'personal' (config_dir="" → env процесса, как сегодня).
     # INSERT OR IGNORE: повторная миграция не падает и не перетирает существующую строку.
     c.execute("INSERT OR IGNORE INTO profiles (name, config_dir) VALUES ('personal', '')")
@@ -1433,11 +1446,33 @@ def turn_usage_add(
     output_tokens: int,
     cache_read_tokens: int,
     cache_create_tokens: int,
+    quota_five_hour_pct: float | None = None,
+    quota_seven_day_pct: float | None = None,
+    quota_primary_pct: float | None = None,
+    quota_sampled_at: str | None = None,
     ts: str | None = None,
 ) -> bool:
     """Persist one provider-identified terminal turn; return false on replay."""
     if not event_id:
         return False
+    quota_pcts = (
+        quota_five_hour_pct,
+        quota_seven_day_pct,
+        quota_primary_pct,
+    )
+    if any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or not 0 <= value <= 100
+        for value in quota_pcts
+        if value is not None
+    ):
+        raise ValueError("quota percentages must be finite numbers from 0 to 100")
+    if any(value is not None for value in quota_pcts) and not quota_sampled_at:
+        raise ValueError("quota_sampled_at is required with quota percentages")
+    if all(value is None for value in quota_pcts):
+        quota_sampled_at = None
     observed_at = ts or datetime.now(timezone.utc).isoformat()
     with _conn() as c:
         cursor = c.execute(
@@ -1445,8 +1480,10 @@ def turn_usage_add(
                (event_id, ts, session_id, scope, task_id,
                 runtime, model, ok, stop_reason,
                 cost_usd, input_tokens, output_tokens,
-                cache_read_tokens, cache_create_tokens)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                cache_read_tokens, cache_create_tokens,
+                quota_five_hour_pct, quota_seven_day_pct,
+                quota_primary_pct, quota_sampled_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 observed_at,
@@ -1462,6 +1499,10 @@ def turn_usage_add(
                 max(0, int(output_tokens or 0)),
                 max(0, int(cache_read_tokens or 0)),
                 max(0, int(cache_create_tokens or 0)),
+                quota_five_hour_pct,
+                quota_seven_day_pct,
+                quota_primary_pct,
+                quota_sampled_at,
             ),
         )
         return cursor.rowcount == 1

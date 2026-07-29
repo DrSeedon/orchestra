@@ -6,6 +6,9 @@ All state stays on the session (persistence and event loop read it directly).
 
 import asyncio
 import logging
+import math
+import time
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.db import turn_usage_add
@@ -62,6 +65,84 @@ def _format_limits() -> str:
         return ""
 
 logger = logging.getLogger("app.session")
+
+
+def _unknown_quota_state() -> dict:
+    return {
+        "quota_five_hour_pct": None,
+        "quota_seven_day_pct": None,
+        "quota_primary_pct": None,
+        "quota_sampled_at": None,
+    }
+
+
+def _cached_quota_state(
+    runtime: str,
+    model: str,
+    *,
+    now: float | None = None,
+) -> dict:
+    from app.routes import system
+
+    if runtime in {"claude", "anthropic"}:
+        cache = system._usage_cache
+        data = cache.get("data")
+        windows = {
+            "quota_five_hour_pct": (data or {}).get("five_hour"),
+            "quota_seven_day_pct": (data or {}).get("seven_day"),
+            "quota_primary_pct": None,
+        }
+    elif runtime in {"codex", "codex_spark"}:
+        cache = system._codex_usage_cache
+        data = cache.get("data")
+        if runtime == "codex_spark" or model == "gpt-5.3-codex-spark":
+            data = (data or {}).get("spark")
+        windows = {
+            "quota_five_hour_pct": None,
+            "quota_seven_day_pct": None,
+            "quota_primary_pct": (data or {}).get("primary"),
+        }
+    elif runtime == "grok":
+        cache = system._grok_usage_cache
+        data = cache.get("data")
+        windows = {
+            "quota_five_hour_pct": None,
+            "quota_seven_day_pct": None,
+            "quota_primary_pct": (data or {}).get("primary"),
+        }
+    else:
+        return _unknown_quota_state()
+
+    sampled_ts = cache.get("ts")
+    if (
+        isinstance(sampled_ts, bool)
+        or not isinstance(sampled_ts, (int, float))
+        or not math.isfinite(sampled_ts)
+    ):
+        return _unknown_quota_state()
+    age = (time.time() if now is None else now) - sampled_ts
+    if not math.isfinite(age) or age < 0 or age >= system._USAGE_CACHE_TTL:
+        return _unknown_quota_state()
+
+    state = _unknown_quota_state()
+    for column, window in windows.items():
+        value = window.get("utilization") if isinstance(window, dict) else None
+        if (
+            not isinstance(value, bool)
+            and isinstance(value, (int, float))
+            and math.isfinite(value)
+            and 0 <= value <= 100
+        ):
+            state[column] = value
+    if all(value is None for key, value in state.items() if key != "quota_sampled_at"):
+        return _unknown_quota_state()
+    try:
+        state["quota_sampled_at"] = datetime.fromtimestamp(
+            sampled_ts, timezone.utc,
+        ).isoformat()
+    except (OSError, OverflowError, ValueError):
+        return _unknown_quota_state()
+    return state
 
 
 class TurnManager:
@@ -128,6 +209,14 @@ class TurnManager:
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
         if event_id:
+            try:
+                quota_state = _cached_quota_state(s.backend_type, s.model)
+            except Exception as error:
+                logger.warning(
+                    f"[{s.name}] quota cache read failed: "
+                    f"{type(error).__name__}: {error}"
+                )
+                quota_state = _unknown_quota_state()
             s._submit_db_write(
                 turn_usage_add,
                 event_id=event_id,
@@ -143,6 +232,7 @@ class TurnManager:
                 output_tokens=meta.get("output_tokens", 0),
                 cache_read_tokens=meta.get("cache_read", 0),
                 cache_create_tokens=meta.get("cache_create", 0),
+                **quota_state,
             )
         context_known, context_reason = s._cost.update_context_from_turn(
             meta, event.usage,
