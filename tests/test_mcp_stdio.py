@@ -522,3 +522,41 @@ def test_unknown_access_mode_is_rejected():
 
     with pytest.raises(ValueError, match="ORCHESTRA_ACCESS_MODE"):
         m._tool_names_for_access_mode({"list_agents", "spawn_worker"}, "typo")
+
+
+@pytest.mark.asyncio
+async def test_bg_create_cron_command_sends_fail_closed_type(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    monkeypatch.setattr(m, "WORKER_NAME", "intent-hunter")
+    captured = {}
+
+    async def fake_api(method, path, **kwargs):
+        captured.update(kwargs["json"])
+        return {"id": "bg-monitor", "type": "cron_command", "status": "active"}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        result = await m.bg_create(
+            type="cron_command",
+            message="new intent found",
+            cron_expr="*/15 * * * *",
+            command="python3 monitor.py",
+            pattern="^FOUND:",
+            timeout_seconds=0,
+        )
+
+    assert captured == {
+        "type": "cron_command",
+        "config": {
+            "cron_expr": "*/15 * * * *",
+            "command": "python3 monitor.py",
+            "pattern": "^FOUND:",
+        },
+        "message": "new intent found",
+        "target_name": "intent-hunter",
+        "target_scope": "/scope",
+        "timeout_seconds": 0,
+        "created_by": "intent-hunter",
+    }
+    assert "type=cron_command" in result
