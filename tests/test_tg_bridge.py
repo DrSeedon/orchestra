@@ -10,6 +10,7 @@
 import asyncio
 import json
 import time
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -609,56 +610,755 @@ class TestSendDiffImage:
 
 class TestTgImageLane:
     @pytest.mark.asyncio
-    async def test_image_ingress_is_bounded_and_reset_cleans_temp_files(
+    async def test_slow_photo_edit_keeps_order_without_holding_later_text(
         self, tb, tmp_path, monkeypatch,
     ):
         import tempfile
 
+        source = tmp_path / "source.png"
+        source.write_bytes(b"original")
+        positions = []
+        edit_started = asyncio.Event()
+        release_edit = asyncio.Event()
+
         tb.bot = AsyncMock()
-        tb.bot.send_photo.return_value = object()
+
+        async def send_message(_chat_id, text, **_kwargs):
+            message = SimpleNamespace(message_id=len(positions) + 1)
+            positions.append({"id": message.message_id, "kind": text})
+            return message
+
+        async def edit_message_media(*, message_id, **_kwargs):
+            edit_started.set()
+            await release_edit.wait()
+            positions[message_id - 1]["kind"] = "PHOTO"
+            return SimpleNamespace(message_id=message_id)
+
+        tb.bot.send_message.side_effect = send_message
+        tb.bot.edit_message_media.side_effect = edit_message_media
         monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
         monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
-        monkeypatch.setattr(tb, "_TG_OPTIONAL_QUEUE_MAX", 3, raising=False)
-        monkeypatch.setattr(tb, "_TG_IMAGE_QUEUE_MAX", 2, raising=False)
 
-        submissions = [
-            await tb._send_png_to_tg(b"\x89PNG...", -100, 42, f"img-{i}")
-            for i in range(10)
+        first_text = await tb._tg_send_safe(
+            -100,
+            "TEXT-1",
+            42,
+            telemetry_key=("test", 1),
+        )
+        completion = await tb._tg_send_file_safe(
+            -100,
+            str(source),
+            "photo",
+            42,
+            is_photo=True,
+            important=False,
+            placeholder_text="IMAGE-POSITION",
+        )
+        await asyncio.wait_for(edit_started.wait(), timeout=5)
+        assert await first_text is not None
+        monkeypatch.setattr(tb, "_TG_TELEMETRY_MAX_AGE", 0)
+        later_text = await tb._tg_send_safe(
+            -100,
+            "TEXT-2",
+            42,
+            telemetry_key=("test", 2),
+        )
+        assert await later_text is not None
+
+        assert [item["kind"] for item in positions] == [
+            "TEXT-1",
+            "IMAGE-POSITION",
+            "TEXT-2",
         ]
+        assert not completion.done()
 
-        snapshot = tb._tg_delivery_snapshot(-100)
-        assert snapshot["optional_images"] == 2
-        assert snapshot["optional_dropped"] == 8
-        assert sum(submission.accepted for submission in submissions) == 2
-        assert len(list(tmp_path.glob("diff-*.png"))) == 2
-
-        await tb._reset_tg_delivery_state()
+        release_edit.set()
+        assert await asyncio.wait_for(completion, timeout=5) is not None
         await asyncio.sleep(0)
-        assert not list(tmp_path.glob("diff-*.png"))
+        assert [item["kind"] for item in positions] == [
+            "TEXT-1",
+            "PHOTO",
+            "TEXT-2",
+        ]
+        assert not list(tmp_path.glob("tg-image-*"))
 
     @pytest.mark.asyncio
-    async def test_image_completion_reports_delivery_failure_and_cleans_file(
+    async def test_failed_photo_edit_leaves_marker_and_counts_loss(
         self, tb, tmp_path, monkeypatch,
     ):
         import tempfile
 
+        source = tmp_path / "failed.png"
+        source.write_bytes(b"image")
         method = SendMessage(chat_id=-100, text="image placeholder")
         tb.bot = AsyncMock()
-        tb.bot.send_photo.side_effect = TelegramNetworkError(
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.side_effect = TelegramNetworkError(
             method=method,
             message="timeout",
         )
         monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
         monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
 
-        submission = await tb._send_png_to_tg(
-            b"\x89PNG...", -100, 42, "failed",
+        completion = await tb._tg_send_file_safe(
+            -100,
+            str(source),
+            "failed",
+            42,
+            is_photo=True,
+            important=False,
         )
 
-        assert submission.accepted is True
-        assert await submission.completion is None
+        assert isinstance(completion, asyncio.Future)
+        assert await completion is None
+        snapshot = tb._tg_delivery_snapshot(-100)
+        assert snapshot["image_lost"] == 1
+        assert snapshot["image_reserved"] == 0
+        assert tb.bot.send_message.await_count == 1
         await asyncio.sleep(0)
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_image_capacity_rejects_before_third_marker(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "bounded.png"
+        source.write_bytes(b"image")
+        release_edit = asyncio.Event()
+        edit_started = asyncio.Event()
+        marker_count = 0
+        tb.bot = AsyncMock()
+
+        async def send_message(*_args, **_kwargs):
+            nonlocal marker_count
+            marker_count += 1
+            return SimpleNamespace(message_id=marker_count)
+
+        async def edit_message_media(**_kwargs):
+            edit_started.set()
+            await release_edit.wait()
+            return object()
+
+        tb.bot.send_message.side_effect = send_message
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_IMAGE_QUEUE_MAX", 2)
+
+        first = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False, placeholder_text="first",
+        )
+        await asyncio.wait_for(edit_started.wait(), timeout=5)
+        second = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False, placeholder_text="second",
+        )
+        third = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False, placeholder_text="third",
+        )
+
+        snapshot = tb._tg_delivery_snapshot(-100)
+        assert third is None
+        assert marker_count == 2
+        assert snapshot["image_reserved"] == 2
+        assert snapshot["image_in_flight"] == 1
+        assert snapshot["image_queued"] == 1
+        assert snapshot["image_dropped"] == 1
+
+        release_edit.set()
+        await asyncio.gather(first, second)
+        await asyncio.sleep(0)
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_marker_admission_failure_is_unaccepted_and_lost_once(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "overloaded.png"
+        source.write_bytes(b"image")
+        tb.bot = AsyncMock()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_RELIABLE_QUEUE_MAX", 0)
+        monkeypatch.setattr(tb, "_TG_RELIABLE_ADMISSION_MAX", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+
+        snapshot = tb._tg_delivery_snapshot(-100)
+        assert completion is None
+        assert snapshot["image_reserved"] == 0
+        assert snapshot["image_lost"] == 1
+        assert snapshot["image_dropped"] == 0
+        tb.bot.send_message.assert_not_awaited()
+        tb.bot.edit_message_media.assert_not_awaited()
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_ambiguous_marker_is_not_retried(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "ambiguous.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image placeholder")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = TelegramNetworkError(
+            method=method,
+            message="response lost",
+        )
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+
+        snapshot = tb._tg_delivery_snapshot(-100)
+        assert completion is None
+        assert tb.bot.send_message.await_count == 1
+        assert snapshot["image_lost"] == 1
+        assert snapshot["image_reserved"] == 0
+        tb.bot.edit_message_media.assert_not_awaited()
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_read_source_is_snapshotted_before_async_edit(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "mutable.png"
+        source.write_bytes(b"before")
+        release_edit = asyncio.Event()
+        uploaded = []
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+
+        async def edit_message_media(*, media, **_kwargs):
+            await release_edit.wait()
+            uploaded.append(media.media.path.read_bytes())
+            return object()
+
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+        source.write_bytes(b"after")
+        release_edit.set()
+
+        assert await completion is not None
+        assert uploaded == [b"before"]
+        await asyncio.sleep(0)
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_old_marker_continuation_cannot_mutate_replacement_state(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "identity.png"
+        source.write_bytes(b"image")
+        old_marker_started = asyncio.Event()
+        old_marker_result = asyncio.get_running_loop().create_future()
+        release_new_edit = asyncio.Event()
+        real_call_safe = tb._tg_call_safe
+        ordered_calls = 0
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=2)
+
+        async def edit_message_media(**_kwargs):
+            await release_new_edit.wait()
+            return object()
+
+        async def call_safe(*args, **kwargs):
+            nonlocal ordered_calls
+            if kwargs.get("ordered"):
+                ordered_calls += 1
+                if ordered_calls == 1:
+                    old_marker_started.set()
+                    return await old_marker_result
+            return await real_call_safe(*args, **kwargs)
+
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tb, "_tg_call_safe", call_safe)
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        old_submission = asyncio.create_task(
+            tb._tg_send_file_safe(
+                -100, str(source), None, 42,
+                is_photo=True, important=False, placeholder_text="old",
+            ),
+        )
+        await asyncio.wait_for(old_marker_started.wait(), timeout=5)
+        await tb._reset_tg_delivery_state()
+
+        new_completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False, placeholder_text="new",
+        )
+        replacement = tb._tg_delivery_states[-100]
+        assert len(replacement.image_reservations) == 1
+
+        old_marker_result.set_result(None)
+        assert await old_submission is None
+        assert tb._tg_delivery_states[-100] is replacement
+        assert len(replacement.image_reservations) == 1
+        assert replacement.image_lost == 0
+
+        release_new_edit.set()
+        await new_completion
+        await asyncio.sleep(0)
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_cross_worker_rate_slots_are_atomic_without_wall_clock(
+        self, tb, monkeypatch,
+    ):
+        class FakeLoop:
+            now = 100.0
+
+            def time(self):
+                return self.now
+
+        fake_loop = FakeLoop()
+        state = tb._TgDeliveryState(loop=fake_loop)
+        second_waiting = asyncio.Event()
+        release_second = asyncio.Event()
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+            second_waiting.set()
+            await release_second.wait()
+            fake_loop.now += delay
+
+        monkeypatch.setattr(tb.asyncio, "sleep", fake_sleep)
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 1.0)
+        tb._tg_last_send.pop(-100, None)
+
+        first = asyncio.create_task(tb._tg_reserve_rate_slot(-100, state))
+        second = asyncio.create_task(tb._tg_reserve_rate_slot(-100, state))
+        await first
+        await asyncio.wait_for(second_waiting.wait(), timeout=5)
+
+        assert not second.done()
+        assert sleeps == [1.0]
+        release_second.set()
+        await second
+
+    @pytest.mark.asyncio
+    async def test_cancelled_consumer_does_not_delete_in_flight_snapshot(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "cancelled.png"
+        source.write_bytes(b"image")
+        edit_started = asyncio.Event()
+        release_edit = asyncio.Event()
+        snapshot_path = None
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+
+        async def edit_message_media(*, media, **_kwargs):
+            nonlocal snapshot_path
+            snapshot_path = media.media.path
+            edit_started.set()
+            await release_edit.wait()
+            assert snapshot_path.exists()
+            return object()
+
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+        await asyncio.wait_for(edit_started.wait(), timeout=5)
+        completion.cancel()
+        await asyncio.gather(completion, return_exceptions=True)
+
+        assert snapshot_path.exists()
+        release_edit.set()
+        while tb._tg_delivery_snapshot(-100)["image_in_flight"]:
+            await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert not snapshot_path.exists()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_stale_state_replacement_is_singleton(self, tb):
+        release_clear = asyncio.Event()
+
+        async def admission_waiter():
+            await release_clear.wait()
+
+        waiter = asyncio.create_task(admission_waiter())
+        await asyncio.sleep(0)
+        stale = tb._TgDeliveryState(loop=object())
+        stale.admission_tasks.add(waiter)
+        tb._tg_delivery_states[-100] = stale
+
+        first = asyncio.create_task(tb._tg_delivery_state_for(-100))
+        second = asyncio.create_task(tb._tg_delivery_state_for(-100))
+        await asyncio.sleep(0)
+        assert stale.stopped
+
+        release_clear.set()
+        first_state, second_state = await asyncio.gather(first, second)
+
+        assert first_state is second_state
+        assert tb._tg_delivery_states[-100] is first_state
+        assert first_state.loop is asyncio.get_running_loop()
+
+    @pytest.mark.asyncio
+    async def test_later_telemetry_cannot_pass_queued_marker(
+        self, tb, monkeypatch,
+    ):
+        loop = asyncio.get_running_loop()
+        state = tb._TgDeliveryState(loop=loop)
+        monkeypatch.setattr(tb, "_TG_TELEMETRY_MAX_AGE", 0)
+
+        def item(label, sequence, *, ordered=False):
+            return tb._TgCallItem(
+                call_factory=None,
+                important=True,
+                label=label,
+                future=loop.create_future(),
+                enqueued_at=loop.time(),
+                sequence=sequence,
+                ordered=ordered,
+            )
+
+        state.reliable.extend([
+            item("R1", 1),
+            item("R2", 2),
+            item("R3", 3),
+            item("R4", 4),
+            item("MARKER", 5, ordered=True),
+        ])
+        later = item("TEXT-2", 6)
+        later.important = False
+        later.key = "later"
+        state.telemetry[later.key] = later
+
+        selected = [tb._tg_pick_next(state)[1].label for _ in range(5)]
+
+        assert selected == ["R1", "R2", "R3", "R4", "MARKER"]
+
+    @pytest.mark.asyncio
+    async def test_cancelled_queued_marker_does_not_block_fairness(
+        self, tb, monkeypatch,
+    ):
+        loop = asyncio.get_running_loop()
+        state = tb._TgDeliveryState(loop=loop)
+        monkeypatch.setattr(tb, "_TG_TELEMETRY_MAX_AGE", 0)
+
+        def item(label, sequence, *, ordered=False, important=True):
+            return tb._TgCallItem(
+                call_factory=None,
+                important=important,
+                label=label,
+                future=loop.create_future(),
+                enqueued_at=loop.time(),
+                key=label,
+                sequence=sequence,
+                ordered=ordered,
+            )
+
+        marker = item("CANCELLED-MARKER", 5, ordered=True)
+        marker.future.cancel()
+        text = item("TEXT", 6, important=False)
+        state.reliable.extend([
+            item("R1", 1),
+            item("R2", 2),
+            item("R3", 3),
+            item("R4", 4),
+            marker,
+        ])
+        state.telemetry[text.key] = text
+
+        selected = [tb._tg_pick_next(state)[1].label for _ in range(4)]
+
+        assert selected == ["R1", "R2", "R3", "TEXT"]
+        state.in_flight = marker
+        assert tb._tg_first_ordered_sequence(state) == 5
+
+    @pytest.mark.asyncio
+    async def test_pending_marker_splits_and_blocks_later_telemetry(
+        self, tb, monkeypatch,
+    ):
+        loop = asyncio.get_running_loop()
+        state = tb._TgDeliveryState(loop=loop)
+        tb._tg_delivery_states[-100] = state
+        tb._tg_call_sequence = 1
+        monkeypatch.setattr(tb, "_TG_RELIABLE_QUEUE_MAX", 1)
+        monkeypatch.setattr(tb, "_TG_TELEMETRY_MAX_AGE", 0)
+        monkeypatch.setattr(tb, "_tg_start_dispatcher", lambda *_args: None)
+
+        async def noop(_count=1):
+            return object()
+
+        backlog = tb._TgCallItem(
+            call_factory=noop,
+            important=True,
+            label="backlog",
+            future=loop.create_future(),
+            enqueued_at=loop.time(),
+            sequence=0,
+        )
+        earlier = tb._TgCallItem(
+            call_factory=noop,
+            important=False,
+            label="TEXT-1",
+            future=loop.create_future(),
+            enqueued_at=loop.time(),
+            key="same",
+            sequence=1,
+        )
+        state.reliable.append(backlog)
+        state.telemetry["same"] = earlier
+
+        marker = asyncio.create_task(
+            tb._tg_call_safe(
+                -100,
+                noop,
+                ordered=True,
+                label="MARKER",
+            ),
+        )
+        await asyncio.sleep(0)
+        assert state.ordered_admissions == {2}
+
+        later_future = await tb._tg_call_safe(
+            -100,
+            noop,
+            telemetry_key="same",
+            call_factory=noop,
+        )
+        telemetry = sorted(state.telemetry.values(), key=lambda queued: queued.sequence)
+
+        assert [queued.sequence for queued in telemetry] == [1, 3]
+        assert [queued.count for queued in telemetry] == [1, 1]
+
+        state.reliable.clear()
+        tb._settle_tg_item(backlog)
+        state.telemetry.pop(earlier.key)
+        tb._settle_tg_item(earlier)
+        assert tb._tg_pick_next(state) is None
+        assert tb._tg_next_telemetry_wait(state, loop.time()) is None
+
+        marker.cancel()
+        await asyncio.gather(marker, return_exceptions=True)
+        assert not state.ordered_admissions
+        tb._settle_tg_item(telemetry[1])
+        assert await later_future is None
+
+    @pytest.mark.asyncio
+    async def test_completed_marker_releases_barrier_before_next_marker(
+        self, tb, monkeypatch,
+    ):
+        first_started = asyncio.Event()
+        release_first = asyncio.Event()
+        calls = []
+
+        async def first_marker(_count=1):
+            calls.append("MARKER-1")
+            first_started.set()
+            await release_first.wait()
+            return object()
+
+        async def text(_count=1):
+            calls.append("TEXT")
+            return object()
+
+        async def second_marker(_count=1):
+            calls.append("MARKER-2")
+            return object()
+
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        first = asyncio.create_task(
+            tb._tg_call_safe(
+                -100,
+                first_marker,
+                call_factory=first_marker,
+                ordered=True,
+                label="MARKER-1",
+            ),
+        )
+        await first_started.wait()
+        text_result = await tb._tg_call_safe(
+            -100,
+            text,
+            telemetry_key="between",
+            call_factory=text,
+        )
+        second = asyncio.create_task(
+            tb._tg_call_safe(
+                -100,
+                second_marker,
+                call_factory=second_marker,
+                ordered=True,
+                label="MARKER-2",
+            ),
+        )
+        await asyncio.sleep(0)
+
+        release_first.set()
+        await asyncio.gather(first, text_result, second)
+
+        assert calls == ["MARKER-1", "TEXT", "MARKER-2"]
+
+    @pytest.mark.asyncio
+    async def test_cancelled_png_admission_cleans_rendered_file(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        admission_started = asyncio.Event()
+        hold_admission = asyncio.Event()
+        tb.bot = AsyncMock()
+
+        async def send_file(*_args, **_kwargs):
+            admission_started.set()
+            await hold_admission.wait()
+
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
+
+        submission = asyncio.create_task(
+            tb._send_png_to_tg(b"png", -100, 42, "Edit"),
+        )
+        await asyncio.wait_for(admission_started.wait(), timeout=5)
+        assert list(tmp_path.glob("diff-*.png"))
+
+        submission.cancel()
+        await asyncio.gather(submission, return_exceptions=True)
+
         assert not list(tmp_path.glob("diff-*.png"))
+
+
+class TestTgDeliveryStats:
+    @pytest.mark.asyncio
+    async def test_endpoint_returns_empty_chat_list(self, tb):
+        from app.routes import tg as tg_routes
+
+        assert await tg_routes.tg_delivery_stats() == {"chats": []}
+
+    @pytest.mark.asyncio
+    async def test_endpoint_returns_sorted_complete_read_only_snapshots(self, tb):
+        from app.routes import tg as tg_routes
+
+        class FakeLoop:
+            def time(self):
+                return 10.0
+
+        running_loop = asyncio.get_running_loop()
+        first = tb._TgDeliveryState(loop=FakeLoop())
+        second = tb._TgDeliveryState(loop=FakeLoop())
+        first.optional_dropped = 7
+        first.reliable_lost = 2
+        first.image_dropped = 3
+        first.image_timeouts = 4
+        first.image_lost = 5
+        first.image_last_latency = 6.0
+        first.image_max_latency = 7.0
+        first.image_reservations.update({object(), object()})
+        first.optional.append(tb._TgCallItem(
+            call_factory=None,
+            important=False,
+            label="optional",
+            future=running_loop.create_future(),
+            enqueued_at=5.0,
+        ))
+        first.images.append(tb._TgCallItem(
+            call_factory=None,
+            important=False,
+            label="image",
+            future=running_loop.create_future(),
+            enqueued_at=3.0,
+        ))
+        first.image_in_flight = tb._TgCallItem(
+            call_factory=None,
+            important=False,
+            label="in-flight",
+            future=running_loop.create_future(),
+            enqueued_at=2.0,
+        )
+        tb._tg_delivery_states[-100] = first
+        tb._tg_delivery_states[-200] = second
+
+        payload = await tg_routes.tg_delivery_stats()
+
+        assert [chat["chat_id"] for chat in payload["chats"]] == [-200, -100]
+        by_chat = {chat["chat_id"]: chat for chat in payload["chats"]}
+        assert by_chat[-100]["optional_dropped"] == 7
+        assert by_chat[-100]["reliable_lost"] == 2
+        assert by_chat[-100]["optional_oldest_age"] == 5.0
+        expected_keys = {
+            "chat_id",
+            "reliable_queued",
+            "reliable_admission_waiters",
+            "reliable_overflow",
+            "reliable_retries",
+            "reliable_timeouts",
+            "reliable_total_timeouts",
+            "reliable_lost",
+            "reliable_oldest_age",
+            "reliable_last_latency",
+            "reliable_max_latency",
+            "telemetry_pending",
+            "telemetry_coalesced",
+            "telemetry_dropped",
+            "telemetry_timeouts",
+            "telemetry_lost",
+            "telemetry_oldest_age",
+            "telemetry_last_latency",
+            "telemetry_max_latency",
+            "optional_queued",
+            "optional_images",
+            "optional_dropped",
+            "optional_timeouts",
+            "optional_lost",
+            "optional_oldest_age",
+            "optional_last_latency",
+            "optional_max_latency",
+            "image_reserved",
+            "image_queued",
+            "image_in_flight",
+            "image_dropped",
+            "image_timeouts",
+            "image_lost",
+            "image_oldest_age",
+            "image_last_latency",
+            "image_max_latency",
+        }
+        assert set(by_chat[-100]) == expected_keys
+        assert by_chat[-100]["image_reserved"] == 2
+        assert by_chat[-100]["image_queued"] == 1
+        assert by_chat[-100]["image_in_flight"] == 1
+        assert by_chat[-100]["image_oldest_age"] == 7.0
+        assert first.dispatcher is None
+        assert first.image_dispatcher is None
+        assert first.image_dropped == 3
 
 
 # ── _bot_api_health_loop ───────────────────────────────────────────────────
