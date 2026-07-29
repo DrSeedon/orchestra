@@ -42,7 +42,7 @@ _manager = None
 _tasks = []
 _stream_tasks: dict[tuple[str, int], asyncio.Task] = {}
 _topic_status_tasks: dict[str, asyncio.Task] = {}
-_topic_status_desired: dict[str, bool] = {}
+_topic_status_desired: dict[str, tuple[bool, bool]] = {}
 _topic_create_tasks: dict[str, asyncio.Task] = {}
 _bridge_tasks: dict[str, asyncio.Task] = {}
 _mirror_outboxes: dict[str, asyncio.Queue] = {}
@@ -2144,15 +2144,23 @@ async def _sync_all_topic_statuses():
     if not _manager or not bot:
         return
     for s in list(_manager.sessions.values()):
-        if s.role not in ("orchestrator", "sub-orchestrator"):
+        if not s.is_orchestrator:
             continue
         name = s.name
         if name not in config["topics"]:
             continue
         is_running = _any_running_in_scope(s.scope)
-        _topic_status.pop(name, None)
-        _schedule_topic_status(name, is_running)
-    await asyncio.sleep(0)
+        task = _schedule_topic_status(
+            name,
+            is_running,
+            delay_idle=False,
+        )
+        try:
+            await task
+        except asyncio.CancelledError:
+            current = asyncio.current_task()
+            if current is not None and current.cancelling():
+                raise
 
 
 # Custom emoji IDs in the target TG group — green dot for running, grey for idle
@@ -2160,6 +2168,7 @@ _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
 _TG_TOPIC_STATUS_TIMEOUT = 5
 _TG_TOPIC_CREATE_TIMEOUT = 5
+_TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS = 5 * 60
 
 
 # Topic metadata is best-effort and stays outside the user-message delivery queue.
@@ -2180,9 +2189,13 @@ async def _update_topic_status(orch_name: str, is_running: bool):
         except TelegramBadRequest as e:
             if "TOPIC_NOT_MODIFIED" in str(e).upper():
                 return True
-            logger.debug(f"TG topic_status failed: {e}")
+            logger.warning(
+                f"TG topic_status failed: {type(e).__name__}: {e}",
+            )
         except Exception as e:
-            logger.debug(f"TG topic_status failed: {e}")
+            logger.warning(
+                f"TG topic_status failed: {type(e).__name__}: {e}",
+            )
         return None
 
     thread_id = config["topics"].get(orch_name)
@@ -2196,21 +2209,69 @@ async def _update_topic_status(orch_name: str, is_running: bool):
         _topic_status[orch_name] = is_running
 
 
+async def _wait_for_topic_status_idle_fade() -> None:
+    await asyncio.sleep(_TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS)
+
+
+def _topic_status_scope(orch_name: str) -> str | None:
+    if not _manager:
+        return None
+    for session in _manager.sessions.values():
+        if session.name == orch_name and session.is_orchestrator:
+            return session.scope
+    return None
+
+
 async def _topic_status_worker(orch_name: str) -> None:
+    task = asyncio.current_task()
     while orch_name in _topic_status_desired:
         desired = _topic_status_desired[orch_name]
-        await _update_topic_status(orch_name, desired)
+        is_running, delay_idle = desired
+        if not is_running and delay_idle:
+            if task is not None:
+                task._topic_status_waiting_for_idle = True
+            try:
+                await _wait_for_topic_status_idle_fade()
+            finally:
+                if task is not None:
+                    task._topic_status_waiting_for_idle = False
+            if _topic_status_desired.get(orch_name) != desired:
+                continue
+            scope = _topic_status_scope(orch_name)
+            if not scope or _any_running_in_scope(scope):
+                return
+        await _update_topic_status(orch_name, is_running)
         if _topic_status_desired.get(orch_name) == desired:
             return
 
 
-def _schedule_topic_status(orch_name: str, is_running: bool) -> asyncio.Task:
-    _topic_status_desired[orch_name] = is_running
-    return _ensure_owned_task(
+def _schedule_topic_status(
+    orch_name: str,
+    is_running: bool,
+    *,
+    delay_idle: bool = True,
+) -> asyncio.Task:
+    is_running = bool(is_running)
+    desired = (is_running, bool(delay_idle))
+    current = _topic_status_tasks.get(orch_name)
+    _topic_status_desired[orch_name] = desired
+    if (
+        current is not None
+        and not current.done()
+        and getattr(current, "_topic_status_waiting_for_idle", False)
+        and (is_running or not delay_idle)
+    ):
+        current.cancel()
+        if _topic_status_tasks.get(orch_name) is current:
+            _topic_status_tasks.pop(orch_name, None)
+    task = _ensure_owned_task(
         _topic_status_tasks,
         orch_name,
         lambda: _topic_status_worker(orch_name),
     )
+    if task is not current:
+        task._topic_status_waiting_for_idle = not is_running and delay_idle
+    return task
 
 
 @dataclass(frozen=True)
