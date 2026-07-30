@@ -1242,6 +1242,7 @@ async function onOrchestratorChange() {
     streamBubble = null;
     streamContent = '';
     streamPending = '';
+    _streamDeferredFinal = null;
     _resetCodexActivityState();
     selectedAgent = opt?.dataset?.name || null;
     if (currentScope && selectedAgent) {
@@ -1273,6 +1274,7 @@ async function selectAgent(name) {
     streamBubble = null;
     streamContent = '';
     streamPending = '';
+    _streamDeferredFinal = null;
     _resetCodexActivityState();
     $('#chat').innerHTML = '';
     chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
@@ -2049,12 +2051,55 @@ let streamContent = '';
 let streamPending = '';
 let _streamRafId = null;
 let _streamLastParse = 0;
+let _streamDeferredFinal = null;
 const _STREAM_BASE_CPS = 12;  // chars per frame at 60fps (~720 chars/sec)
 const _STREAM_PARSE_INTERVAL = 50;  // ms between marked.parse calls
+
+function _selectionTouchesStream() {
+    if (!streamBubble?.isConnected) return false;
+    const selection = window.getSelection();
+    return !!selection && !selection.isCollapsed && selection.rangeCount > 0
+        && selection.getRangeAt(0).intersectsNode(streamBubble);
+}
+
+function _finalizeStreamBubble(finalText, ts) {
+    streamBubble.classList.remove('streaming');
+    streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(finalText));
+    addCopyBtn(streamBubble, finalText);
+    addTimestamp(streamBubble, ts);
+    streamBubble = null;
+    streamContent = '';
+    streamPending = '';
+    _streamDeferredFinal = null;
+}
+
+function _completeStreamBubble(content, ts) {
+    _streamFlush();
+    const finalText = content || streamContent;
+    if (_selectionTouchesStream()) {
+        _streamDeferredFinal = { finalText, ts };
+        return;
+    }
+    _finalizeStreamBubble(finalText, ts);
+}
+
+function _resumeStreamAfterSelection() {
+    if (_selectionTouchesStream()) return;
+    if (_streamDeferredFinal) {
+        const deferred = _streamDeferredFinal;
+        _streamDeferredFinal = null;
+        _finalizeStreamBubble(deferred.finalText, deferred.ts);
+    } else if (streamPending && !_streamRafId) {
+        _streamRafId = requestAnimationFrame(_streamRenderTick);
+    }
+}
+
+document.addEventListener('selectionchange', _resumeStreamAfterSelection);
 
 function _streamRenderTick() {
     _streamRafId = null;
     if (!streamBubble || !streamPending) return;
+    if (_selectionTouchesStream()) return;
     // Adaptive speed: if buffer is growing, accelerate to not fall behind
     const chunkSize = Math.max(_STREAM_BASE_CPS, Math.floor(streamPending.length / 8));
     const chunk = streamPending.slice(0, chunkSize);
@@ -2740,15 +2785,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     // 'text' event signals streaming finished — flush typewriter buffer,
     // replace with authoritative DB content, finalize with copy/timestamp.
     if (type === 'text' && streamBubble) {
-        _streamFlush();
-        streamBubble.classList.remove('streaming');
-        const finalText = content || streamContent;
-        streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(finalText));
-        addCopyBtn(streamBubble, finalText);
-        addTimestamp(streamBubble, ts);
-        streamBubble = null;
-        streamContent = '';
-        streamPending = '';
+        _completeStreamBubble(content, ts);
         return;
     }
 
