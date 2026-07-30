@@ -849,6 +849,64 @@ class TestSendDiffImage:
         assert captured["isolated_preview"] is True
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("content", "marked"),
+    [
+        ('câ{"cmd":"pwd"}</parameter>\n</invoke>', True),
+        ("The invoke helper receives a parameter and returns normally.", False),
+        (
+            "Documentation example:\n```xml\n<function_calls>\n"
+            '<invoke name="Bash"><parameter name="cmd">pwd</parameter></invoke>\n'
+            "```",
+            False,
+        ),
+    ],
+)
+async def test_text_tool_call_marker_reaches_topic_and_mirror(
+    tb, monkeypatch, content, marked,
+):
+    log_calls = 0
+
+    class FakeConn:
+        def close(self):
+            pass
+
+    def get_logs(session_id, after_id=0, conn=None):
+        nonlocal log_calls
+        log_calls += 1
+        if log_calls == 1:
+            return []
+        if log_calls == 2:
+            return [{"id": 1, "type": "text", "content": content}]
+        raise asyncio.CancelledError
+
+    send_safe = AsyncMock(return_value=object())
+    mirror_send = AsyncMock(return_value=True)
+    monkeypatch.setattr(
+        "app.db.get_all_sessions",
+        lambda: [{"name": "orch", "scope": "/scope"}],
+    )
+    monkeypatch.setattr(
+        "app.db.get_session_by_name",
+        lambda name, scope: {"id": "sid"},
+    )
+    monkeypatch.setattr("app.db.get_logs", get_logs)
+    monkeypatch.setattr("app.db._conn", FakeConn)
+    monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
+    monkeypatch.setattr(tb, "_tg_send_safe", send_safe)
+    monkeypatch.setattr(tb, "_mirror_send", mirror_send)
+
+    with pytest.raises(asyncio.CancelledError):
+        await tb.stream_logs("orch", 42)
+
+    topic_text = send_safe.await_args.args[1]
+    mirror_text = mirror_send.await_args.args[1]
+    assert ("НЕ ВЫПОЛНЕНО" in topic_text) is marked
+    assert ("НЕ ВЫПОЛНЕНО" in mirror_text) is marked
+    assert topic_text == mirror_text
+
+
 class TestTgImageLane:
     @pytest.mark.asyncio
     async def test_slow_photo_edit_keeps_order_without_holding_later_text(

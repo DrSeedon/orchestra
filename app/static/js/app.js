@@ -2055,6 +2055,42 @@ let _streamDeferredFinal = null;
 const _STREAM_BASE_CPS = 12;  // chars per frame at 60fps (~720 chars/sec)
 const _STREAM_PARSE_INTERVAL = 50;  // ms between marked.parse calls
 
+const _UNEXECUTED_TOOL_CALL_WARNING = 'НЕ ВЫПОЛНЕНО — похоже на вызов инструмента, напечатанный текстом';
+
+// Cross-runtime duplicate of app/tool_call_guard.py: browser JS cannot import the Python helper.
+function _looksLikeUnexecutedToolCall(text) {
+    const prose = String(text || '')
+        .replace(/(```|~~~)[\s\S]*?(?:\1|$)/g, '')
+        .replace(/`[^`\n]*`/g, '');
+    const signals = [
+        /<invoke\s+name\s*=/i,
+        /<\/invoke\s*>/i,
+        /<parameter\s+name\s*=/i,
+        /<\/parameter\s*>/i,
+        /<function_calls(?:\s[^>]*)?>/i,
+    ];
+    return signals.filter(pattern => pattern.test(prose)).length >= 2;
+}
+
+function _unexecutedToolCallWarningHtml(content) {
+    if (!_looksLikeUnexecutedToolCall(content)) return '';
+    return `<div class="codex-warning unexecuted-tool-call-warning"><span class="codex-warning-icon">⚠</span><span>${_UNEXECUTED_TOOL_CALL_WARNING}</span></div>`;
+}
+
+function _markUnexecutedToolCall(container, content) {
+    const oldWarning = container.querySelector(':scope > .unexecuted-tool-call-warning');
+    if (!_looksLikeUnexecutedToolCall(content)) {
+        if (oldWarning) oldWarning.remove();
+        return;
+    }
+    if (oldWarning) return;
+    const warning = document.createElement('div');
+    warning.className = 'codex-warning unexecuted-tool-call-warning';
+    warning.innerHTML = '<span class="codex-warning-icon">⚠</span><span></span>';
+    warning.lastChild.textContent = _UNEXECUTED_TOOL_CALL_WARNING;
+    container.prepend(warning);
+}
+
 function _selectionTouchesStream() {
     if (!streamBubble?.isConnected) return false;
     const selection = window.getSelection();
@@ -2065,6 +2101,7 @@ function _selectionTouchesStream() {
 function _finalizeStreamBubble(finalText, ts) {
     streamBubble.classList.remove('streaming');
     streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(finalText));
+    _markUnexecutedToolCall(streamBubble, finalText);
     addCopyBtn(streamBubble, finalText);
     addTimestamp(streamBubble, ts);
     streamBubble = null;
@@ -2111,6 +2148,7 @@ function _streamRenderTick() {
         _streamLastParse = now;
         streamBubble.innerHTML = DOMPurify.sanitize(marked.parse(streamContent));
     }
+    _markUnexecutedToolCall(streamBubble, streamContent);
     // Typing cursor — remove stale one before adding
     const oldCur = streamBubble.querySelector('.typing-cursor');
     if (oldCur) oldCur.remove();
@@ -4817,6 +4855,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     }
     else {
         div.innerHTML = DOMPurify.sanitize(marked.parse(content));
+        _markUnexecutedToolCall(div, content);
         const agentColor = agentColors[selectedAgent];
         if (agentColor) div.style.borderLeft = `3px solid ${agentColor}`;
         renderImages(div, content);
@@ -5543,16 +5582,29 @@ function _renderTranscriptMsg(m) {
 
     if (typeof c === 'string') {
         if (!c.trim()) return '';
+        const warning = role === 'assistant'
+            ? _unexecutedToolCallWarningHtml(c)
+            : '';
         push(role === 'user' ? '🔧 tool result' : '🤖 субагент',
-             role === 'user' ? '#38bdf8' : '#a78bfa', _saCollapsible(c));
+             role === 'user' ? '#38bdf8' : '#a78bfa', warning + _saCollapsible(c));
     } else if (Array.isArray(c)) {
+        let textWarning = role === 'assistant'
+            ? _unexecutedToolCallWarningHtml(
+                c.filter(block => block?.type === 'text')
+                    .map(block => block.text || '')
+                    .join('\n')
+            )
+            : '';
         for (const block of c) {
             if (!block || typeof block !== 'object') {
                 const t = String(block); if (t.trim()) push('•', '#64748b', _saCollapsible(t));
                 continue;
             }
             if (block.type === 'text') {
-                if ((block.text || '').trim()) push('🤖 субагент', '#a78bfa', _saCollapsible(block.text));
+                if ((block.text || '').trim()) {
+                    push('🤖 субагент', '#a78bfa', textWarning + _saCollapsible(block.text));
+                    textWarning = '';
+                }
             } else if (block.type === 'tool_use') {
                 const name = block.name || 'tool';
                 const isNested = /^(Task|Agent)$/i.test(name);
