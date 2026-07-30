@@ -2,6 +2,24 @@
 
 ## Open
 
+### 🔴 Исчерпанная квота Codex = пустое падение без причины (два оркестратора потеряли по 15+ минут)
+
+- **Reporters / date:** Orchestra-orchestrator + COG-second-brain-orchestrator (2026-07-30, независимо друг от друга).
+- **Симптом:** воркер отдаёт `[auto-report] (stop_reason=error) Turn failed before an explicit report. Last output: (no output)`. Ни в чате, ни в journal Orchestra нет ни слова про лимит.
+- **Измерения COG:** `feat-mccfr-scale` — 4 сбоя подряд, `total_input_tokens` НЕ двигается (151935793 на всех попытках), `total_tool_calls` 893 неизменно. `impl-mlp-run` — свежий спавн, всё по нулям (`input=0, output=0, tool_calls=0, cost=0.0`). Оба падают ДО запроса к модели.
+- **Что оба исключили впустую:** MemAvailable 3.73 GiB, load 1.05, `/tmp` 5.6 GiB, диск 380 GiB, процессы `openai/codex` живы, `rate_limit` в тексте ошибки НЕТ (Codex не шлёт text-event перед error). Я дополнительно проверял journal, прокси-туннель и живой вызов `api.anthropic.com` (отвечал 401 = связь есть).
+- **Правду сказал только `GET /api/usage`:** `codex primary utilization = 100%`, `resets_at = 2026-08-05T04:15:11Z`.
+- **Побочный ущерб:** воркер в этом состоянии не может даже ЗАКОММИТИТЬ готовую работу. У меня двое зависли с зелёными тестами — коммитил за них руками (`7354633` #107, `1cee6e5` #103).
+- **Что чинить:** ловить терминальный лимит в error handler и писать явное «квота Codex исчерпана, сброс <дата>» вместо пустого error. У нас уже записано в граблях, что Codex не шлёт отдельный text-event — значит проверять надо в самом обработчике ошибки, а не парсить текст.
+
+### 🟡 Стенд #106 (A/B compact-промптов) теряет текст ошибки — прогон падает молча
+
+- **Reporter / date:** Orchestra-orchestrator (2026-07-30).
+- **Симптом:** два прогона `docs/tasks/106/run_evaluation.py primary` дали 17 успешных партий против 100 упавших. Причина НЕ УСТАНОВЛЕНА: в `results/primary-run.log` пишется только счётчик `{"job_id":..., "fixture":..., "failed": 5}`, а `stderr`/`stdout`/`parse_error` из `invoke_claude` (строки 100-116) в сводку не попадают.
+- **Что исключено:** одиночный вызов теми же флагами воспроизведён вручную — РАБОТАЕТ (`ok: True`, `rc: 0`, пустой stderr). Флаги `--safe-mode`, `--effort`, `--tools`, `--no-session-persistence`, `--dangerously-skip-permissions` все существуют в CLI (проверено `claude --help`). Квота Codex ни при чём — стенд ходит через CLI `claude`, а не через Codex.
+- **Цена вслепую:** ~117 генераций × ~$0.16 ≈ $19 (замер живого вызова: `total_cost_usd 0.0408`), около 5% недельного окна Claude. Третий прогон без починки логирования снова даст счётчик без объяснения.
+- **Что чинить:** сохранять полный результат неудачной генерации (returncode + stderr + stdout + parse_error) в лог. Только потом прогонять.
+
 ### 🔴 Фантомный оркестратор `w-sp3` в боевой БД — тестовые данные пережили прогон
 
 - **Reporter / date:** Orchestra-orchestrator (2026-07-28, замечен юзером в дашборде).
@@ -281,3 +299,23 @@ Worker terrain-dev called kwin/session_start with an isolated 1920x1080 session 
 - **Reporter:** fix-tg-speed
 - **Scope:** /mnt/data/Projects/Python/orchestra
 Task #102 implementation review failed 3/3 on 2026-07-29. Attempts: bg-a5bb446286 (1651-line app+tests diff), bg-bdb9d0eb26 resume same session, bg-a6d30ef5c6 (reduced 771-line runtime-only diff). Each Codex child read the target and exited its command successfully, then responses transport failed after WebSocket/HTTPS reconnects (`Connection refused`, `error decoding response body`, `error sending request`). `docs/tasks/102/codex-review-impl.md` was never created, so no verdict/findings are recoverable. The review wrapper reports job exit 1 although child payload includes exit_code=0/status=completed.
+
+## [2026-07-30 12:59 UTC] Codex-воркеры падают с stop_reason=error до первого действия (0 токенов, 0 tool calls)
+- **Reporter:** COG-second-brain-orchestrator
+- **Scope:** /home/maxim/Рабочий стол/Cursor/COG-second-brain
+СИМПТОМ: любой турн Codex-воркера (gpt-5.6-sol) завершается `stop_reason=error` с пустым выводом, не выполнив ни одного действия.
+
+ИЗМЕРЕНИЯ:
+- `feat-mccfr-scale` — 4 подряд сбоя. `total_input_tokens` НЕ изменился между попытками: 151935793 → 151935793 → 151935793 → 151935793. `total_tool_calls` 893 неизменно. То есть турн падает ДО первого запроса к модели.
+- `impl-mlp-run` — свежеспавненный воркер, чистая сессия. Первый же турн упал. `total_input_tokens=0`, `total_output_tokens=0`, `total_tool_calls=0`, `context_pct=0`, `cost_usd=0.0`. Ни одного действия.
+
+ЧТО ИСКЛЮЧЕНО (проверено):
+- НЕ ресурсы машины: MemAvailable 3,73 GiB, load average 1,05, `/tmp` (tmpfs) 5,6 GiB свободно из 7,7, диск `/mnt/data` 380 GiB свободно.
+- НЕ сломанная сессия конкретного воркера: свежий воркер с нулевым контекстом падает так же.
+- НЕ размер задачи: падает и на коротком сообщении, и на длинном.
+- НЕ квота по тексту ошибки: сообщения `rate_limit` нет, вывод пустой.
+- Процессы `openai/codex` в системе присутствуют (5 штук), то есть runtime жив.
+
+КОНТЕКСТ: ранее в этой же сессии те же воркеры работали нормально десятки турнов. Сбои начались после того, как один из воркеров прошёл серверный компакт (context_pct упал 81% → 48%), но новый воркер компакта не проходил и всё равно падает.
+
+ВЛИЯНИЕ: полностью блокирует делегирование Codex-воркерам. Пришлось запускать вычислительные прогоны вручную из оркестратора, что дало 4 ошибки в CLI и потерю ~2 часов.
