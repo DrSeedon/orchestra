@@ -370,7 +370,24 @@ async def test_switch_and_wip_defaults_defer_to_persisted_base(monkeypatch):
         await m.worker_wip(name="coder")
 
     assert calls[0][2]["json"]["from_ref"] == ""
+    assert calls[0][2]["json"]["force"] is False
     assert calls[1][2]["params"]["base_ref"] == ""
+
+
+@pytest.mark.asyncio
+async def test_switch_worker_branch_forwards_explicit_force(monkeypatch):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    captured = {}
+
+    async def fake_api(_method, _path, **kwargs):
+        captured.update(kwargs["json"])
+        return {"ok": True, "branch": "task-91/coder"}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.switch_worker_branch(name="coder", task_id="91", force=True)
+
+    assert captured["force"] is True
 
 
 @pytest.mark.asyncio

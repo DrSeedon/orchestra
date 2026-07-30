@@ -1,5 +1,6 @@
 """TDD tests for main.py — HTTP API endpoints."""
 
+import subprocess
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -481,7 +482,7 @@ async def test_kill_guard_compares_against_persisted_base(tmp_path, monkeypatch)
         "worktree_path": str(wt),
         "base_branch": "master",
     })()
-    calls = []
+    captured = {}
 
     class Proc:
         returncode = 0
@@ -493,19 +494,174 @@ async def test_kill_guard_compares_against_persisted_base(tmp_path, monkeypatch)
             return self.stdout, b""
 
     async def fake_subprocess(*args, **_kwargs):
-        calls.append(args)
-        return Proc(b"" if args[1] == "status" else b"0\n")
+        return Proc(b"")
+
+    def fake_content_status(path, base_ref):
+        captured.update(path=path, base_ref=base_ref)
+        return {
+            "base_ref": base_ref,
+            "commits_ahead": 0,
+            "content_merged": True,
+            "reason": "ancestor",
+        }
 
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
     monkeypatch.setattr(mainmod.manager, "_live_children", lambda *_args: [])
     monkeypatch.setattr(mainmod.manager, "remove", AsyncMock())
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
     monkeypatch.setattr(sessmod.asyncio, "create_subprocess_exec", fake_subprocess)
+    monkeypatch.setattr("app.workspace.branch_content_status", fake_content_status)
 
     result = await sessmod.delete_session("w", scope="/s")
 
     assert result == {"ok": True}
-    assert any("master..HEAD" in call for call in calls)
+    assert captured == {"path": str(wt), "base_ref": "master"}
+
+
+def _create_delete_guard_repo(tmp_path, name):
+    repo = tmp_path / name
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+    (repo / "base.txt").write_text("base\n")
+    subprocess.run(["git", "add", "base.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=repo, check=True)
+    wt = tmp_path / f"{name}-wt"
+    branch = f"{name}-worker"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", branch, str(wt), "main"],
+        cwd=repo,
+        check=True,
+    )
+    return repo, wt, branch
+
+
+@pytest.mark.asyncio
+async def test_kill_allows_squash_merged_content_after_base_advances(
+    tmp_path, monkeypatch,
+):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    repo, wt, branch = _create_delete_guard_repo(tmp_path, "squash-delete")
+    (wt / "one.txt").write_text("one\n")
+    subprocess.run(["git", "add", "one.txt"], cwd=wt, check=True)
+    subprocess.run(["git", "commit", "-m", "worker one"], cwd=wt, check=True)
+    (wt / "two.txt").write_text("two\n")
+    subprocess.run(["git", "add", "two.txt"], cwd=wt, check=True)
+    subprocess.run(["git", "commit", "-m", "worker two"], cwd=wt, check=True)
+    subprocess.run(["git", "merge", "--squash", branch], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "squash worker"], cwd=repo, check=True)
+    (repo / "base-only.txt").write_text("later\n")
+    subprocess.run(["git", "add", "base-only.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "advance base"], cwd=repo, check=True)
+
+    session = type("Session", (), {
+        "id": "sid",
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "scope": "/s",
+        "worktree_path": str(wt),
+        "base_branch": "main",
+    })()
+    remove = AsyncMock()
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(mainmod.manager, "_live_children", lambda *_args: [])
+    monkeypatch.setattr(mainmod.manager, "remove", remove)
+
+    result = await sessmod.delete_session("w", scope="/s")
+
+    assert result == {"ok": True}
+    remove.assert_awaited_once_with("sid")
+
+
+@pytest.mark.asyncio
+async def test_kill_blocks_real_unmerged_content(tmp_path, monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    _repo, wt, _branch = _create_delete_guard_repo(tmp_path, "unmerged-delete")
+    (wt / "worker-only.txt").write_text("must survive\n")
+    subprocess.run(["git", "add", "worker-only.txt"], cwd=wt, check=True)
+    subprocess.run(["git", "commit", "-m", "worker only"], cwd=wt, check=True)
+    head_before = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=wt,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    session = type("Session", (), {
+        "id": "sid",
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "scope": "/s",
+        "worktree_path": str(wt),
+        "base_branch": "main",
+    })()
+    remove = AsyncMock()
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(mainmod.manager, "_live_children", lambda *_args: [])
+    monkeypatch.setattr(mainmod.manager, "remove", remove)
+
+    response = await sessmod.delete_session("w", scope="/s")
+
+    assert response.status_code == 400
+    assert "content-change" in response.body.decode()
+    remove.assert_not_awaited()
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=wt,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip() == head_before
+
+
+@pytest.mark.asyncio
+async def test_kill_blocks_content_detector_error(tmp_path, monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    session = type("Session", (), {
+        "id": "sid",
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "scope": "/s",
+        "worktree_path": str(wt),
+        "base_branch": "main",
+    })()
+
+    class Proc:
+        returncode = 0
+
+        async def communicate(self):
+            return b"", b""
+
+    async def clean_status(*_args, **_kwargs):
+        return Proc()
+
+    remove = AsyncMock()
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: session)
+    monkeypatch.setattr(mainmod.manager, "_live_children", lambda *_args: [])
+    monkeypatch.setattr(mainmod.manager, "remove", remove)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
+    monkeypatch.setattr(sessmod.asyncio, "create_subprocess_exec", clean_status)
+    monkeypatch.setattr(
+        "app.workspace.branch_content_status",
+        lambda *_args: {"error": "detector exploded"},
+    )
+
+    response = await sessmod.delete_session("w", scope="/s")
+
+    assert response.status_code == 400
+    assert "detector exploded" in response.body.decode()
+    remove.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -591,7 +747,8 @@ async def test_send_auto_switch_uses_and_persists_base(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch):
+@pytest.mark.parametrize("force", [False, True])
+async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch, force):
     import app.main as mainmod
     import app.routes.sessions as sessmod
 
@@ -605,8 +762,8 @@ async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch):
     })()
     captured = {}
 
-    def fake_switch(_wt, new_branch, from_ref=""):
-        captured.update(new_branch=new_branch, from_ref=from_ref)
+    def fake_switch(_wt, new_branch, from_ref="", force=False):
+        captured.update(new_branch=new_branch, from_ref=from_ref, force=force)
         return {"ok": True, "branch": new_branch}
 
     async def persist_lifecycle(found, **fields):
@@ -620,13 +777,26 @@ async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch):
     monkeypatch.setattr("app.tm.api_update_task", lambda *_args, **_kwargs: None)
 
     result = await sessmod.switch_branch(
-        "w", {"scope": "/s", "task_id": "91"},
+        "w", {"scope": "/s", "task_id": "91", "force": force},
     )
 
     assert result["ok"] is True
     assert captured["from_ref"] == "master"
+    assert captured["force"] is force
     assert session.base_branch == "master"
     assert session.branch == "task-91/w"
+
+
+@pytest.mark.asyncio
+async def test_switch_rejects_non_boolean_force():
+    import app.routes.sessions as sessmod
+
+    response = await sessmod.switch_branch(
+        "w", {"scope": "/s", "task_id": "91", "force": "true"},
+    )
+
+    assert response.status_code == 400
+    assert "force must be a boolean" in response.body.decode()
 
 
 @pytest.mark.asyncio
