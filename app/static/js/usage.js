@@ -105,8 +105,13 @@ function renderUsageBar() {
     const bar = document.getElementById('usage-bar');
     if (!bar) return;
     if (!_usageData) {
-        bar.innerHTML = '';
-        bar.style.display = 'none';
+        if (_usageError) {
+            bar.style.cssText = 'display:flex;align-items:center;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#eab308;flex-shrink:0';
+            bar.textContent = '⚠ Usage unavailable';
+        } else {
+            bar.innerHTML = '';
+            bar.style.display = 'none';
+        }
         return;
     }
     bar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
@@ -516,8 +521,12 @@ async function fetchUsage() {
     try {
         _usageData = await api('/api/usage');
         _usageError = false;
-    } catch {
+    } catch (error) {
         _usageError = true;
+        const detail = error instanceof Error
+            ? `${error.name}: ${error.message || '(no message)'}`
+            : String(error);
+        console.error(`Usage fetch failed: ${detail}`);
     }
     renderUsageBar();
 }

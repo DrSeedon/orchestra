@@ -103,6 +103,103 @@ def test_usage_bar_visible(dashboard_page: Page):
     expect(usage_bar).to_be_attached()
 
 
+def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    stream_code = source.split("let streamBubble = null;", 1)[1].split(
+        "function _renderJsonGrid", 1,
+    )[0]
+    page = dashboard_browser.new_page()
+    page.set_content(
+        '<div id="chat"><div id="stream"><p>Streaming text to copy</p>'
+        '<span class="typing-cursor">▍</span></div></div>'
+    )
+    page.add_script_tag(
+        content=f"""
+            const $ = selector => document.querySelector(selector);
+            const DOMPurify = {{sanitize: value => value}};
+            const marked = {{parse: value => `<p>${{value}}</p>`}};
+            function addCopyBtn() {{}}
+            function addTimestamp() {{}}
+            let streamBubble = null;
+            {stream_code}
+        """
+    )
+
+    page.evaluate(
+        """() => {
+            streamBubble = document.querySelector('#stream');
+            streamContent = 'Streaming text to copy';
+            streamPending = ' plus update';
+        }"""
+    )
+    page.locator("#stream p").dblclick(position={"x": 25, "y": 8})
+    selected = page.evaluate("() => window.getSelection().toString()")
+    assert selected
+
+    before = page.evaluate(
+        """() => {
+            const selection = window.getSelection();
+            _streamRenderTick();
+            return {
+                selectedAfterUpdate: selection.toString(),
+                pending: streamPending,
+            };
+        }"""
+    )
+
+    assert before == {
+        "selectedAfterUpdate": selected,
+        "pending": " plus update",
+    }
+
+    page.evaluate(
+        """() => {
+            window.getSelection().removeAllRanges();
+            document.dispatchEvent(new Event('selectionchange'));
+        }"""
+    )
+    page.wait_for_function("() => streamPending === ''")
+    expect(page.locator("#stream")).to_contain_text("plus update")
+
+    deferred = page.evaluate(
+        """() => {
+            const chat = document.querySelector('#chat');
+            chat.innerHTML = '<div id="stream"><p>Final text to copy</p></div>';
+            streamBubble = document.querySelector('#stream');
+            streamContent = 'Final text to copy';
+            streamPending = ' plus buffered';
+            const node = streamBubble.querySelector('p').firstChild;
+            const range = document.createRange();
+            range.setStart(node, 0);
+            range.setEnd(node, 10);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            _completeStreamBubble('', '2026-07-30T00:00:00Z');
+            return {
+                selected: selection.toString(),
+                deferred: _streamDeferredFinal !== null,
+                bubbleStillLive: streamBubble !== null,
+            };
+        }"""
+    )
+
+    assert deferred == {
+        "selected": "Final text",
+        "deferred": True,
+        "bubbleStillLive": True,
+    }
+    page.evaluate(
+        """() => {
+            window.getSelection().removeAllRanges();
+            document.dispatchEvent(new Event('selectionchange'));
+        }"""
+    )
+    page.wait_for_function("() => streamBubble === null")
+    expect(page.locator("#chat")).to_contain_text("Final text to copy plus buffered")
+    page.close()
+
+
 def test_header_has_orch_tabs(dashboard_page: Page):
     tabs = dashboard_page.locator("#orch-tabs")
     expect(tabs).to_be_visible()

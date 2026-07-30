@@ -45,9 +45,9 @@ def _page(browser: Browser, grok):
                         primary: {utilization: 7, window_minutes: 10080, resets_at: reset},
                     },
                 },
-                grok: grok && {
+                grok: grok ? {
                     primary: {utilization: 10, window_minutes: 10080, resets_at: reset},
-                },
+                } : null,
                 orchestra: {},
             };
             renderUsageBar();
@@ -85,6 +85,34 @@ def test_missing_grok_data_is_visible_and_never_rendered_as_zero(browser):
     grok = page.locator('[data-usage-provider="grok"]')
     expect(grok).to_contain_text("Данные лимита недоступны")
     expect(grok).not_to_contain_text("0%")
+    page.close()
+
+
+def test_usage_fetch_failure_stays_visible_and_logs_exception(browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    errors = []
+    page.on(
+        "console",
+        lambda message: errors.append(message.text) if message.type == "error" else None,
+    )
+    page.set_content('<body><div id="usage-bar"></div></body>')
+    page.evaluate(
+        """() => {
+            window.marked = {setOptions() {}, parse(value) { return value; }};
+            window.DOMPurify = {addHook() {}};
+            window.api = async () => {
+                throw new DOMException('signal timed out', 'TimeoutError');
+            };
+        }"""
+    )
+    page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(USAGE_JS))
+
+    page.evaluate("() => fetchUsage()")
+
+    expect(page.locator("#usage-bar")).to_be_visible()
+    expect(page.locator("#usage-bar")).to_contain_text("Usage unavailable")
+    assert errors == ["Usage fetch failed: TimeoutError: signal timed out"]
     page.close()
 
 
