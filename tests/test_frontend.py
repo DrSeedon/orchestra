@@ -200,6 +200,118 @@ def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
     page.close()
 
 
+def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarms(
+    dashboard_browser: Browser,
+):
+    from app.tool_call_guard import looks_like_unexecuted_tool_call
+
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    guard_code = (
+        "const _UNEXECUTED_TOOL_CALL_WARNING"
+        + source.split("const _UNEXECUTED_TOOL_CALL_WARNING", 1)[1].split(
+            "function _selectionTouchesStream", 1,
+        )[0]
+    )
+    cases = [
+        (
+            '<function_calls><invoke name="Bash"><parameter name="cmd">'
+            "pwd</parameter></invoke>",
+            True,
+        ),
+        ('câ{"cmd":"pwd"}</parameter>\n</invoke>', True),
+        ("The invoke helper receives a parameter and returns normally.", False),
+        ("The malformed output contained one </invoke> tag.", False),
+        (
+            "The docs use `<invoke name=\"Bash\">` and `</invoke>` as examples.",
+            False,
+        ),
+        (
+            "Documentation example:\n```xml\n<function_calls>\n"
+            '<invoke name="Bash"><parameter name="cmd">pwd</parameter></invoke>\n'
+            "```",
+            False,
+        ),
+    ]
+
+    page = dashboard_browser.new_page()
+    page.set_content('<div id="message"></div>')
+    page.add_style_tag(
+        path=str(
+            Path(__file__).parent.parent / "app/static/css/style.css"
+        )
+    )
+    page.add_script_tag(content=guard_code)
+    transcript_code = (
+        "function _saCollapsible"
+        + source.split("function _saCollapsible", 1)[1].split(
+            "function renderTasksPanel", 1,
+        )[0]
+    )
+    page.add_script_tag(
+        content="""
+            function _escHtml(text) {
+                const node = document.createElement('div');
+                node.textContent = text;
+                return node.innerHTML;
+            }
+        """ + transcript_code
+    )
+    browser_results = page.evaluate(
+        "(cases) => cases.map(([text]) => _looksLikeUnexecutedToolCall(text))",
+        cases,
+    )
+
+    assert browser_results == [expected for _, expected in cases]
+    assert browser_results == [
+        looks_like_unexecuted_tool_call(text) for text, _ in cases
+    ]
+
+    page.evaluate(
+        """text => {
+            const message = document.querySelector('#message');
+            message.textContent = text;
+            _markUnexecutedToolCall(message, text);
+            _markUnexecutedToolCall(message, text);
+        }""",
+        cases[1][0],
+    )
+    warning = page.locator(".unexecuted-tool-call-warning")
+    expect(warning).to_have_count(1)
+    expect(warning).to_contain_text("НЕ ВЫПОЛНЕНО")
+    expect(warning).to_contain_text("напечатанный текстом")
+    assert warning.evaluate(
+        "(el) => getComputedStyle(el).borderLeftWidth"
+    ) == "3px"
+
+    page.evaluate(
+        """text => {
+            const message = document.querySelector('#message');
+            _markUnexecutedToolCall(message, text);
+        }""",
+        cases[2][0],
+    )
+    expect(warning).to_have_count(0)
+
+    page.evaluate(
+        """() => {
+            document.querySelector('#message').innerHTML = _renderTranscriptMsg({
+                type: 'assistant',
+                content: [
+                    {type: 'text', text: 'câ</parameter>'},
+                    {type: 'text', text: '</invoke>'},
+                ],
+            });
+        }"""
+    )
+    expect(warning).to_have_count(1)
+
+    assert "_markUnexecutedToolCall(streamBubble, streamContent);" in source
+    assert "_markUnexecutedToolCall(streamBubble, finalText);" in source
+    assert "_markUnexecutedToolCall(div, content);" in source
+    assert "c.filter(block => block?.type === 'text')" in source
+    page.close()
+
+
 def test_header_has_orch_tabs(dashboard_page: Page):
     tabs = dashboard_page.locator("#orch-tabs")
     expect(tabs).to_be_visible()

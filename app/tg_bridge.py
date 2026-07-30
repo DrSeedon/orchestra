@@ -2928,8 +2928,10 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "text":
                         # @mention пользователя — только в речи агента (text), чтобы уведы
                         # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
+                        from app.tool_call_guard import mark_unexecuted_tool_call
+
                         head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
-                        raw_text = f"{head}\n{c}"
+                        raw_text = f"{head}\n{mark_unexecuted_tool_call(c)}"
                         for converted, aio_ents in _formatted_chunks(raw_text):
                             await _tg_send_safe(
                                 config["group_id"], converted, thread_id,
