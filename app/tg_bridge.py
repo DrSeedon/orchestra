@@ -3048,12 +3048,16 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 logger.debug(f"Read image send failed, falling back: {_e}")
                         result_preview = c[:80].replace("\n", " ").strip()
                         result_body = c[:800]
+                        image_submission = False
                         if _last_tool_name in ("Read", "Grep", "Bash", "Glob"):
-                            await _send_result_image(
+                            image_submission = await _send_result_image(
                                 _last_tool_name, _last_tool_raw, c,
                                 config["group_id"], thread_id,
                             )
-                        if _last_tool_msg:
+                        if image_submission:
+                            _last_tool_msg = None
+                            _last_tool_text = ""
+                        elif _last_tool_msg:
                             await _edit_tool_with_result(
                                 _last_tool_msg, config["group_id"],
                                 _last_tool_text, f"📎 {result_preview}", result_body,
