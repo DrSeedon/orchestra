@@ -995,7 +995,12 @@ async def _tg_run_attempts(
                 logger.warning(f"TG {label} {traffic_class} timeout")
             return None
         except TelegramRetryAfter as e:
-            _tg_flood_until[chat_id] = loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN
+            # max(): concurrent 429s must never shorten an already longer barrier —
+            # a smaller retry_after arriving second would let us knock early and re-ban
+            _tg_flood_until[chat_id] = max(
+                _tg_flood_until.get(chat_id, 0),
+                loop.time() + e.retry_after + _TG_RETRY_AFTER_MARGIN,
+            )
             logger.warning(f"TG {label} flood: retry in {e.retry_after}s")
             if not important:
                 if count_lost:
