@@ -550,6 +550,29 @@ class TestSendDiffImage:
         assert await tb._send_diff_image("Edit", raw, -100, 42) is False
 
     @pytest.mark.asyncio
+    async def test_diff_preview_admission_overload_is_not_swallowed(
+        self, tb, monkeypatch,
+    ):
+        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
+        monkeypatch.setattr(
+            "app.diff_image.render_edit_diff",
+            lambda *args: b"\x89PNG...",
+        )
+        monkeypatch.setattr(
+            tb,
+            "_send_png_to_tg",
+            AsyncMock(side_effect=tb._TgDeliveryOverloaded("full")),
+        )
+
+        with pytest.raises(tb._TgDeliveryOverloaded):
+            await tb._send_diff_image(
+                "Edit",
+                'Edit: {"file_path":"x","old_string":"a","new_string":"b"}',
+                -100,
+                42,
+            )
+
+    @pytest.mark.asyncio
     async def test_truthy_image_submission_never_suppresses_tool_text(
         self, tb, monkeypatch,
     ):
@@ -606,6 +629,133 @@ class TestSendDiffImage:
         finally:
             stream.cancel()
             await asyncio.gather(stream, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_send_message_tool_text_uses_cosmetic_lane(
+        self, tb, monkeypatch,
+    ):
+        sent = asyncio.Event()
+        calls = []
+        log_calls = 0
+
+        class FakeConn:
+            def close(self):
+                pass
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal log_calls
+            log_calls += 1
+            if log_calls == 1:
+                return []
+            if log_calls == 2:
+                return [{
+                    "id": 1,
+                    "type": "tool",
+                    "content": (
+                        'mcp__orchestra__send_message: '
+                        '{"to":"worker","message":"hello"}'
+                    ),
+                }]
+            return []
+
+        async def send_safe(*args, **kwargs):
+            calls.append(kwargs)
+            sent.set()
+            return object()
+
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "scope": "/scope"}],
+        )
+        monkeypatch.setattr(
+            "app.db.get_session_by_name",
+            lambda name, scope: {"id": "sid"},
+        )
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
+        monkeypatch.setattr(tb, "_tg_send_safe", send_safe)
+        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
+
+        stream = asyncio.create_task(tb.stream_logs("orch", 42))
+        try:
+            await asyncio.wait_for(sent.wait(), timeout=5)
+        finally:
+            stream.cancel()
+            await asyncio.gather(stream, return_exceptions=True)
+
+        assert calls[0].get("important", False) is False
+        assert calls[0]["telemetry_key"] == (
+            42, "orch", "send_message", 0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_read_image_uses_important_isolated_preview(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        image = tmp_path / "read.png"
+        image.write_bytes(b"image")
+        sent = asyncio.Event()
+        captured = {}
+        log_calls = 0
+
+        class FakeConn:
+            def close(self):
+                pass
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal log_calls
+            log_calls += 1
+            if log_calls == 1:
+                return []
+            if log_calls == 2:
+                return [
+                    {
+                        "id": 1,
+                        "type": "tool",
+                        "content": (
+                            f'Read: {{"file_path":"{image}"}}'
+                        ),
+                    },
+                    {
+                        "id": 2,
+                        "type": "tool_result",
+                        "content": '{"type": "image"}',
+                    },
+                ]
+            return []
+
+        async def send_file(*args, **kwargs):
+            captured.update(kwargs)
+            done = asyncio.get_running_loop().create_future()
+            done.set_result(object())
+            sent.set()
+            return done
+
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "scope": "/scope"}],
+        )
+        monkeypatch.setattr(
+            "app.db.get_session_by_name",
+            lambda name, scope: {"id": "sid"},
+        )
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
+        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
+        monkeypatch.setattr(tb, "_send_expandable", AsyncMock(return_value=object()))
+        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
+
+        stream = asyncio.create_task(tb.stream_logs("orch", 42))
+        try:
+            await asyncio.wait_for(sent.wait(), timeout=5)
+        finally:
+            stream.cancel()
+            await asyncio.gather(stream, return_exceptions=True)
+
+        assert captured["important"] is True
+        assert captured["isolated_preview"] is True
 
 
 class TestTgImageLane:
@@ -772,6 +922,241 @@ class TestTgImageLane:
         release_edit.set()
         await asyncio.gather(first, second)
         await asyncio.sleep(0)
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_important_preview_handoff_does_not_wait_for_marker_or_edit(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "important.png"
+        source.write_bytes(b"image")
+        marker_started = asyncio.Event()
+        release_marker = asyncio.Event()
+        edit_started = asyncio.Event()
+        release_edit = asyncio.Event()
+        reply_sent = asyncio.Event()
+        tb.bot = AsyncMock()
+
+        async def send_message(_chat_id, text, **_kwargs):
+            if text == "IMAGE":
+                marker_started.set()
+                await release_marker.wait()
+                return SimpleNamespace(message_id=1)
+            reply_sent.set()
+            return object()
+
+        async def edit_message_media(**_kwargs):
+            edit_started.set()
+            await release_edit.wait()
+            return object()
+
+        tb.bot.send_message.side_effect = send_message
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            placeholder_text="IMAGE",
+            isolated_preview=True,
+        )
+        await asyncio.wait_for(marker_started.wait(), timeout=5)
+        state = tb._tg_delivery_states[-100]
+
+        assert isinstance(completion, asyncio.Future)
+        assert not completion.done()
+        assert len(state.image_admission_tasks) == 1
+        reply = asyncio.create_task(
+            tb._tg_send_safe(-100, "reply", 42, important=True),
+        )
+        await asyncio.sleep(0)
+        assert not reply_sent.is_set()
+
+        release_marker.set()
+        await asyncio.wait_for(edit_started.wait(), timeout=5)
+        await asyncio.wait_for(reply_sent.wait(), timeout=5)
+        assert await reply is not None
+        assert not completion.done()
+
+        release_edit.set()
+        assert await completion is not None
+        await asyncio.sleep(0)
+        assert not list(tmp_path.glob("tg-image-*"))
+
+    @pytest.mark.asyncio
+    async def test_important_preview_bypasses_optional_image_capacity(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "important.png"
+        source.write_bytes(b"image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.return_value = object()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_IMAGE_QUEUE_MAX", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+
+        assert isinstance(completion, asyncio.Future)
+        assert await completion is not None
+        assert tb._tg_delivery_snapshot(-100)["image_dropped"] == 0
+
+    @pytest.mark.asyncio
+    async def test_important_media_edit_retries_ambiguous_failure(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "retry.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.side_effect = [
+            TelegramNetworkError(method=method, message="timeout"),
+            object(),
+        ]
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+
+        assert await completion is not None
+        assert tb.bot.edit_message_media.await_count == 2
+        assert tb._tg_delivery_snapshot(-100)["image_lost"] == 0
+
+    @pytest.mark.asyncio
+    async def test_important_media_not_modified_is_success(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "already-edited.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.side_effect = TelegramBadRequest(
+            method=method,
+            message="Bad Request: message is not modified",
+        )
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+
+        assert await completion is True
+        assert tb._tg_delivery_snapshot(-100)["image_lost"] == 0
+
+    @pytest.mark.asyncio
+    async def test_important_marker_ambiguous_failure_is_not_retried(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "marker.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = TelegramNetworkError(
+            method=method,
+            message="response lost",
+        )
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+
+        assert await completion is None
+        assert tb.bot.send_message.await_count == 1
+        assert tb.bot.edit_message_media.await_count == 0
+        assert tb._tg_delivery_snapshot(-100)["image_lost"] == 1
+
+    @pytest.mark.asyncio
+    async def test_important_marker_retries_explicit_flood_rejection(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "marker-flood.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = [
+            TelegramRetryAfter(
+                method=method,
+                message="flood",
+                retry_after=0,
+            ),
+            SimpleNamespace(message_id=1),
+        ]
+        tb.bot.edit_message_media.return_value = object()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_RETRY_AFTER_MARGIN", 0)
+
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+
+        assert await completion is not None
+        assert tb.bot.send_message.await_count == 2
+        assert tb._tg_delivery_snapshot(-100)["image_lost"] == 0
+
+    @pytest.mark.asyncio
+    async def test_important_preview_admission_failure_propagates(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        source = tmp_path / "overloaded.png"
+        source.write_bytes(b"image")
+        tb.bot = AsyncMock()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_RELIABLE_QUEUE_MAX", 0)
+        monkeypatch.setattr(tb, "_TG_RELIABLE_ADMISSION_MAX", 0)
+
+        with pytest.raises(tb._TgDeliveryOverloaded):
+            await tb._tg_send_file_safe(
+                -100, str(source), None, 42,
+                is_photo=True,
+                important=True,
+                isolated_preview=True,
+            )
+
+        assert tb.bot.send_message.await_count == 0
         assert not list(tmp_path.glob("tg-image-*"))
 
     @pytest.mark.asyncio
@@ -1065,7 +1450,7 @@ class TestTgImageLane:
         assert selected == ["R1", "R2", "R3", "R4", "MARKER"]
 
     @pytest.mark.asyncio
-    async def test_cancelled_queued_marker_does_not_block_fairness(
+    async def test_cancelled_queued_marker_does_not_make_cosmetic_preempt_reliable(
         self, tb, monkeypatch,
     ):
         loop = asyncio.get_running_loop()
@@ -1098,7 +1483,7 @@ class TestTgImageLane:
 
         selected = [tb._tg_pick_next(state)[1].label for _ in range(4)]
 
-        assert selected == ["R1", "R2", "R3", "TEXT"]
+        assert selected == ["R1", "R2", "R3", "R4"]
         state.in_flight = marker
         assert tb._tg_first_ordered_sequence(state) == 5
 
@@ -1254,6 +1639,32 @@ class TestTgImageLane:
         await asyncio.gather(submission, return_exceptions=True)
 
         assert not list(tmp_path.glob("diff-*.png"))
+
+    @pytest.mark.asyncio
+    async def test_generated_png_uses_important_isolated_preview(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+
+        captured = {}
+
+        async def send_file(*args, **kwargs):
+            captured.update(kwargs)
+            done = asyncio.get_running_loop().create_future()
+            done.set_result(object())
+            return done
+
+        tb.bot = object()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
+
+        submission = await tb._send_png_to_tg(
+            b"png", -100, 42, "Edit",
+        )
+
+        assert submission.accepted
+        assert captured["important"] is True
+        assert captured["isolated_preview"] is True
 
 
 class TestTgDeliveryStats:
@@ -1490,6 +1901,153 @@ class TestFormattedChunks:
         text, entities = chunks[0]
         assert text == "hello world"
         assert entities
+
+
+class TestTgRateAdmission:
+    @pytest.mark.asyncio
+    async def test_measured_group_burst_reserves_at_exact_1_05_spacing(
+        self, tb, monkeypatch,
+    ):
+        class FakeLoop:
+            now = 100.0
+
+            def time(self):
+                return self.now
+
+        fake_loop = FakeLoop()
+        state = tb._TgDeliveryState(loop=fake_loop)
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+            fake_loop.now += delay
+
+        monkeypatch.setattr(tb.asyncio, "sleep", fake_sleep)
+        tb._tg_last_send.pop(-100, None)
+
+        for _ in range(3):
+            assert await tb._tg_reserve_rate_slot(-100, state)
+
+        assert tb._TG_GROUP_INTERVAL == 1.05
+        assert sleeps == pytest.approx([1.05, 1.05])
+        assert list(state.rate_history) == pytest.approx(
+            [100.0, 101.05, 102.1],
+        )
+
+    @pytest.mark.asyncio
+    async def test_twenty_first_group_reservation_waits_for_rolling_window(
+        self, tb, monkeypatch,
+    ):
+        class FakeLoop:
+            now = 100.0
+
+            def time(self):
+                return self.now
+
+        fake_loop = FakeLoop()
+        state = tb._TgDeliveryState(loop=fake_loop)
+        state.rate_history.extend([100.0] * tb._TG_GROUP_WINDOW_MAX)
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+            fake_loop.now += delay
+
+        monkeypatch.setattr(tb.asyncio, "sleep", fake_sleep)
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        assert await tb._tg_reserve_rate_slot(-100, state)
+
+        assert sleeps == [60.0]
+        assert list(state.rate_history) == [160.0]
+
+    @pytest.mark.asyncio
+    async def test_first_429_defers_retry_until_retry_after_margin(
+        self, tb, monkeypatch,
+    ):
+        class FakeLoop:
+            now = 100.0
+
+            def time(self):
+                return self.now
+
+        fake_loop = FakeLoop()
+        state = tb._TgDeliveryState(loop=fake_loop)
+        method = SendMessage(chat_id=-100, text="hello")
+        starts = []
+        sleeps = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+            fake_loop.now += delay
+
+        async def call():
+            starts.append(fake_loop.now)
+            if len(starts) == 1:
+                raise TelegramRetryAfter(
+                    method=method,
+                    message="flood",
+                    retry_after=12,
+                )
+            return object()
+
+        monkeypatch.setattr(tb.asyncio, "sleep", fake_sleep)
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_RETRY_AFTER_MARGIN", 0.25)
+
+        result = await tb._tg_run_call(
+            -100,
+            state,
+            call,
+            True,
+            "send_message",
+            "reliable",
+        )
+
+        assert result is not None
+        assert sleeps == [12.25]
+        assert starts == [100.0, 112.25]
+        assert state.reliable_retries == 1
+
+    @pytest.mark.asyncio
+    async def test_different_chats_have_independent_rolling_windows(
+        self, tb, monkeypatch,
+    ):
+        class FakeLoop:
+            def time(self):
+                return 100.0
+
+        blocked = tb._TgDeliveryState(loop=FakeLoop())
+        free = tb._TgDeliveryState(loop=FakeLoop())
+        blocked.rate_history.extend([100.0] * tb._TG_GROUP_WINDOW_MAX)
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        assert tb._tg_rate_wait(-100, blocked, 100.0) == 60.0
+        assert tb._tg_rate_wait(-200, free, 100.0) == 0
+
+    @pytest.mark.asyncio
+    async def test_topic_ids_share_one_chat_rate_history(
+        self, tb, monkeypatch,
+    ):
+        thread_ids = []
+
+        async def send_message(*args, **kwargs):
+            thread_ids.append(kwargs["message_thread_id"])
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        await asyncio.gather(
+            tb._tg_send_safe(-100, "first", 11, important=True),
+            tb._tg_send_safe(-100, "second", 22, important=True),
+        )
+
+        state = tb._tg_delivery_states[-100]
+        assert thread_ids == [11, 22]
+        assert len(state.rate_history) == 2
+        assert set(tb._tg_delivery_states) == {-100}
 
 
 class TestTgSendSafe:
@@ -1797,41 +2355,51 @@ class TestTgReliableDeadlines:
         assert snapshot["reliable_lost"] == 1
 
     @pytest.mark.asyncio
-    async def test_total_timeout_bounds_one_stalled_attempt_and_releases_queue(
+    async def test_rate_wait_does_not_consume_attempt_retry_budget(
         self, tb, monkeypatch,
     ):
-        never = asyncio.Event()
-        slow_attempts = 0
+        class FakeLoop:
+            now = 100.0
 
-        async def send_message(chat_id, text, **kwargs):
-            nonlocal slow_attempts
-            if text == "slow":
-                slow_attempts += 1
-                await never.wait()
+            def time(self):
+                return self.now
+
+        fake_loop = FakeLoop()
+        state = tb._TgDeliveryState(loop=fake_loop)
+        state.rate_history.extend([80.0] * tb._TG_GROUP_WINDOW_MAX)
+        sleeps = []
+        attempts = 0
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+            fake_loop.now += delay
+
+        async def call():
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise TimeoutError
             return object()
 
-        tb.bot = AsyncMock()
-        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb.asyncio, "sleep", fake_sleep)
         monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
-        monkeypatch.setattr(tb, "_TG_RELIABLE_CALL_TIMEOUT", 1.0, raising=False)
-        monkeypatch.setattr(tb, "_TG_RELIABLE_TOTAL_TIMEOUT", 0.02, raising=False)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
 
-        started = time.monotonic()
-        results = await asyncio.wait_for(
-            asyncio.gather(
-                tb._tg_send_safe(-100, "slow", 7, important=True),
-                tb._tg_send_safe(-100, "reply", 7, important=True),
-            ),
-            timeout=5,
+        result = await tb._tg_run_call(
+            -100,
+            state,
+            call,
+            True,
+            "send_message",
+            "reliable",
         )
-        snapshot = tb._tg_delivery_snapshot(-100)
 
-        assert results[0] is None
-        assert results[1] is not None
-        assert slow_attempts == 1
-        assert time.monotonic() - started < 0.1
-        assert snapshot["reliable_total_timeouts"] == 1
-        assert snapshot["reliable_lost"] == 1
+        assert result is not None
+        assert sleeps == [40.0]
+        assert attempts == 2
+        assert state.reliable_timeouts == 1
+        assert state.reliable_total_timeouts == 0
+        assert state.reliable_lost == 0
 
     @pytest.mark.asyncio
     async def test_snapshot_exposes_oldest_queue_age_and_delivery_latency(
@@ -2021,13 +2589,7 @@ class TestTgMirrorIsolation:
     async def test_two_mirrors_share_one_chat_rate_authority(
         self, tb, monkeypatch,
     ):
-        both_sent = asyncio.Event()
-        sent_at = []
-
         async def send_message(*args, **kwargs):
-            sent_at.append(asyncio.get_running_loop().time())
-            if len(sent_at) == 2:
-                both_sent.set()
             return object()
 
         tb.bot = AsyncMock()
@@ -2040,9 +2602,15 @@ class TestTgMirrorIsolation:
 
         assert await tb._mirror_send("orch-a", "a") is True
         assert await tb._mirror_send("orch-b", "b") is True
-        await asyncio.wait_for(both_sent.wait(), timeout=5)
+        await asyncio.gather(*(
+            outbox.join()
+            for outbox in tb._mirror_outboxes.values()
+        ))
 
-        assert sent_at[1] - sent_at[0] >= 0.018
+        assert tb.bot.send_message.await_count == 1
+        snapshot = tb._tg_delivery_snapshot(-200)
+        assert snapshot["optional_dropped"] == 1
+        assert len(tb._tg_delivery_states[-200].rate_history) == 1
         for task in list(tb._mirror_tasks.values()):
             task.cancel()
         await asyncio.gather(*list(tb._mirror_tasks.values()), return_exceptions=True)
@@ -2682,28 +3250,25 @@ class TestTgCallQueue:
         assert calls == ["blocker", "reply", "tool"]
 
     @pytest.mark.asyncio
-    async def test_queued_nonimportant_calls_keep_rate_interval(self, tb, monkeypatch):
-        sent_at = []
-
-        async def send_message(*args, **kwargs):
-            sent_at.append(asyncio.get_running_loop().time())
-            return object()
-
+    async def test_nonimportant_call_drops_when_rate_slot_would_wait(
+        self, tb, monkeypatch,
+    ):
         tb.bot = AsyncMock()
-        tb.bot.send_message.side_effect = send_message
-        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0.02)
+        tb.bot.send_message.return_value = object()
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 1.0)
         monkeypatch.setattr(tb, "_TG_TELEMETRY_MAX_AGE", 0)
 
         first = await tb._tg_send_safe(
             -100, "tool-1", 77, telemetry_key=(77, "tool-1"),
         )
+        assert await first is not None
         second = await tb._tg_send_safe(
             -100, "tool-2", 77, telemetry_key=(77, "tool-2"),
         )
-        await asyncio.gather(first, second)
 
-        assert len(sent_at) == 2
-        assert sent_at[1] - sent_at[0] >= 0.018
+        assert await second is None
+        assert tb.bot.send_message.await_count == 1
+        assert tb._tg_delivery_snapshot(-100)["telemetry_dropped"] == 1
 
     @pytest.mark.asyncio
     async def test_queued_edit_does_not_block_caller(self, tb, monkeypatch):
@@ -2734,45 +3299,84 @@ class TestTgCallQueue:
         tb.bot.edit_message_text.assert_awaited_once()
 
 
-class TestTgTelemetryFairness:
+class TestTgCosmeticExpiry:
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("later_reliable", [5, 20, 50])
-    async def test_overdue_tool_is_not_starved_by_later_reliable_calls(
-        self, tb, monkeypatch, later_reliable,
+    async def test_expired_cosmetics_drop_before_reliable_selection_and_stats_show_it(
+        self, tb,
     ):
-        blocker_started = asyncio.Event()
-        release_blocker = asyncio.Event()
-        calls = []
+        class FakeLoop:
+            def time(self):
+                return 30.0
 
-        async def send_message(chat_id, text, **kwargs):
-            calls.append(text)
-            if text == "blocker":
-                blocker_started.set()
-                await release_blocker.wait()
-            return object()
-
-        tb.bot = AsyncMock()
-        tb.bot.send_message.side_effect = send_message
-        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
-        monkeypatch.setattr(tb, "_TG_TELEMETRY_MAX_AGE", 0, raising=False)
-
-        blocker = asyncio.create_task(
-            tb._tg_send_safe(-100, "blocker", 77, important=True),
+        loop = asyncio.get_running_loop()
+        state = tb._TgDeliveryState(loop=FakeLoop())
+        reliable = tb._TgCallItem(
+            call_factory=None,
+            important=True,
+            label="reply",
+            future=loop.create_future(),
+            enqueued_at=29.0,
         )
-        await asyncio.wait_for(blocker_started.wait(), timeout=5)
-        tool = await tb._tg_send_safe(-100, "tool", 77)
-        reliable = [
-            asyncio.create_task(
-                tb._tg_send_safe(-100, f"reply-{i}", 77, important=True),
+        telemetry = tb._TgCallItem(
+            call_factory=None,
+            important=False,
+            label="tool",
+            future=loop.create_future(),
+            enqueued_at=10.0,
+            key="tool",
+            count=3,
+        )
+        optional = tb._TgCallItem(
+            call_factory=None,
+            important=False,
+            label="mirror",
+            future=loop.create_future(),
+            enqueued_at=0.0,
+        )
+        state.reliable.append(reliable)
+        state.telemetry["tool"] = telemetry
+        state.optional.append(optional)
+        tb._tg_delivery_states[-100] = state
+
+        selected = tb._tg_pick_next(state)
+        from app.routes import tg as tg_routes
+        payload = await tg_routes.tg_delivery_stats()
+        snapshot = payload["chats"][0]
+
+        assert selected == ("reliable", reliable)
+        assert await telemetry.future is None
+        assert await optional.future is None
+        assert snapshot["telemetry_dropped"] == 3
+        assert snapshot["optional_dropped"] == 1
+        assert snapshot["telemetry_pending"] == 0
+        assert snapshot["optional_queued"] == 0
+
+    @pytest.mark.asyncio
+    async def test_fresh_cosmetic_never_preempts_reliable_backlog(self, tb):
+        loop = asyncio.get_running_loop()
+        state = tb._TgDeliveryState(loop=loop)
+
+        def item(label, *, important, key=None):
+            return tb._TgCallItem(
+                call_factory=None,
+                important=important,
+                label=label,
+                future=loop.create_future(),
+                enqueued_at=loop.time(),
+                key=key,
             )
-            for i in range(later_reliable)
-        ]
-        await asyncio.sleep(0)
-        release_blocker.set()
 
-        await asyncio.gather(blocker, tool, *reliable)
+        first = item("reply-1", important=True)
+        second = item("reply-2", important=True)
+        tool = item("tool", important=False, key="tool")
+        state.reliable.extend([first, second])
+        state.telemetry["tool"] = tool
 
-        assert calls.index("tool") <= 4
+        assert tb._tg_pick_next(state) == ("reliable", first)
+        assert tb._tg_pick_next(state) == ("reliable", second)
+        selected = tb._tg_pick_next(state)
+        assert selected[0] == "telemetry"
+        assert selected[1] is tool
 
     @pytest.mark.asyncio
     async def test_thousand_same_topic_tools_use_one_coalesced_entry(
