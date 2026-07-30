@@ -253,3 +253,31 @@ spawn_worker(name="feat-skill-index", repo_path="/mnt/data/Projects/Python/orche
 - **Reporter:** terrain-dev
 - **Scope:** /home/maxim/polus
 Worker terrain-dev called kwin/session_start with an isolated 1920x1080 session and a finite Godot capture command. session_start hung until the MCP 300s timeout; no output file/process remained. Subsequent kwin/session_stop also hung for 300s. Live session had been disconnected first. This blocks hidden GUI captures and caused two 5-minute stalls.
+
+## [2026-07-29 09:41 UTC] send_message не переключает смерженного воркера на новую ветку (task_id меняется, worktree остаётся на старой)
+- **Reporter:** COG-second-brain-orchestrator
+- **Scope:** /home/maxim/Рабочий стол/Cursor/COG-second-brain
+Симптом: после merge_worker + task_create + send_message с новым тикетом воркер остаётся на СТАРОЙ ветке. Orchestra не создаёт worktree/ветку task-<new_id>/<worker>. Воркеры корректно упираются и возвращают блокер, вместо того чтобы писать в чужую ветку.
+
+Воспроизведено 3 раза за сутки в проекте COG-second-brain (репозиторий /mnt/data/Projects/Python/inscryption-ai):
+1. impl-game-ux: task-7 → #8. switch_worker_branch вернул "Switch failed: 2 unmerged commit(s) on current branch — merge_worker first or pass force=True", хотя git diff main..task-7/impl-game-ux ПУСТОЙ (мерж был squash, содержимое идентично, отличаются только хеши). force параметра у switch_worker_branch нет — тупик.
+2. impl-inscryption: остался на task-9/impl-inscryption HEAD d4d8995 при выдаче #13.
+3. feat-mccfr-scale: остался на task-12/feat-mccfr-scale HEAD 1c18ab8 при выдаче #14, отдельного task-14 worktree в git worktree list нет.
+
+Вероятная причина (не проверял в коде Orchestra, чтобы не лезть в чужой репозиторий): детектор "unmerged commits" сравнивает хеши коммитов, а не содержимое дерева. При squash-мерже (штатный путь по документации самой Orchestra — "All merges are squash") ветка воркера навсегда остаётся "unmerged" по хешам, поэтому автопереключение блокируется бессрочно.
+
+Что уже проверено и исключено: воркеры idle, working tree clean, merge реально выполнен и запушен в origin/main, git diff main..<branch> пустой.
+
+Обходной путь (работает): git checkout -b task-<id>/<worker> main прямо в worktree воркера + send_message с уведомлением. ~2 лишних вызова на каждую выдачу задачи.
+
+Предложение: проверять "смержено ли" по git diff --quiet main..branch (пустой diff = смержено), а не по списку коммитов; либо добавить force в switch_worker_branch.
+
+## [2026-07-29 10:29 UTC] codex_review transport fails across three consecutive #103 reviews
+- **Reporter:** fix-branch-switch
+- **Scope:** /mnt/data/Projects/Python/orchestra
+2026-07-29, worker fix-branch-switch, task #103. codex_review failed three consecutive calls: (1) research exec timed out after 10 min but yielded a useful partial custom-driver counterexample and wrote no artifact; (2) resumed research review failed with WebSocket Connection refused, then HTTPS fallback network/error decoding response body; (3) separate plan review failed identically with WebSocket Connection refused and HTTPS fallback send failure. No Codex verdict was produced. Outputs requested: docs/tasks/103/codex-review-research.md and codex-review-plan.md. Per codex-debate rules the worker stopped retrying after the third infrastructure failure.
+
+## [2026-07-29 10:34 UTC] codex_review three consecutive transport failures without output artifact
+- **Reporter:** fix-tg-speed
+- **Scope:** /mnt/data/Projects/Python/orchestra
+Task #102 implementation review failed 3/3 on 2026-07-29. Attempts: bg-a5bb446286 (1651-line app+tests diff), bg-bdb9d0eb26 resume same session, bg-a6d30ef5c6 (reduced 771-line runtime-only diff). Each Codex child read the target and exited its command successfully, then responses transport failed after WebSocket/HTTPS reconnects (`Connection refused`, `error decoding response body`, `error sending request`). `docs/tasks/102/codex-review-impl.md` was never created, so no verdict/findings are recoverable. The review wrapper reports job exit 1 although child payload includes exit_code=0/status=completed.
