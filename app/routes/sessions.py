@@ -629,21 +629,34 @@ async def delete_session(name: str, scope: str, force: bool = False):
                 base_branch = _session_base_branch(found)
             except ValueError as e:
                 return JSONResponse({"error": str(e)}, status_code=400)
-            ahead_proc = await asyncio.create_subprocess_exec(
-                "git", "rev-list", f"{base_branch}..HEAD", "--count", cwd=wt,
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            from app.workspace import branch_content_status
+            content_status = await asyncio.to_thread(
+                branch_content_status,
+                wt,
+                base_branch,
             )
-            try:
-                stdout, stderr = await asyncio.wait_for(ahead_proc.communicate(), timeout=5)
-            except asyncio.TimeoutError:
-                ahead_proc.kill()
-                return JSONResponse({"error": "git rev-list timed out. Use force=true if certain"}, status_code=400)
-            ahead = stdout.decode().strip()
-            if ahead_proc.returncode != 0 or not ahead.isdigit():
-                return JSONResponse({"error": f"git rev-list failed: {stderr.decode().strip()}. Use force=true if certain"}, status_code=400)
-            n = int(ahead)
-            if n > 0:
-                return JSONResponse({"error": f"worker has {n} unmerged commit(s). merge_worker first (or force=true)"}, status_code=400)
+            if content_status.get("error"):
+                return JSONResponse(
+                    {
+                        "error": (
+                            f"worker content check failed: {content_status['error']}. "
+                            "Use force=true if certain"
+                        )
+                    },
+                    status_code=400,
+                )
+            if not content_status["content_merged"]:
+                n = content_status["commits_ahead"]
+                reason = content_status["reason"]
+                return JSONResponse(
+                    {
+                        "error": (
+                            f"worker has {n} commit(s) whose content is not verified in "
+                            f"{base_branch} ({reason}). merge_worker first (or force=true)"
+                        )
+                    },
+                    status_code=400,
+                )
     try:
         await manager.remove(sid)
     except Exception as e:
@@ -759,8 +772,11 @@ async def switch_branch(name: str, req: dict):
     from app import tm as _tm
     scope = req.get("scope", "")
     task_id = req.get("task_id", "")
+    force = req.get("force", False)
     if not task_id:
         return JSONResponse({"error": "task_id required"}, status_code=400)
+    if not isinstance(force, bool):
+        return JSONResponse({"error": "force must be a boolean"}, status_code=400)
     try:
         par = _normalize_task_id(task_id)
     except ValueError as e:
@@ -802,6 +818,7 @@ async def switch_branch(name: str, req: dict):
                     worktree_path,
                     new_branch,
                     from_ref=from_ref,
+                    force=force,
                 )
                 if result.get("ok") or result.get("branch"):
                     await manager.persist_lifecycle(

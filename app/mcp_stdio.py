@@ -544,12 +544,23 @@ async def merge_worker(name: str, target: str = "", next_task_id: str = "") -> s
 
 
 @mcp.tool()
-async def switch_worker_branch(name: str, task_id: str, from_ref: str = "") -> str:
+async def switch_worker_branch(
+    name: str,
+    task_id: str,
+    from_ref: str = "",
+    force: bool = False,
+) -> str:
     """After merge, switch worker to a new branch for a new task.
     from_ref — optional local base override; empty uses the worker's persisted base.
+    force=True explicitly discards committed content not verified in the base.
     Worker must be idle with clean working tree."""
     result = await _api("POST", f"/api/sessions/{name}/switch-branch",
-                        json={"scope": SCOPE, "task_id": task_id, "from_ref": from_ref})
+                        json={
+                            "scope": SCOPE,
+                            "task_id": task_id,
+                            "from_ref": from_ref,
+                            "force": force,
+                        })
     if isinstance(result, dict) and result.get("error"):
         return f"Switch failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):

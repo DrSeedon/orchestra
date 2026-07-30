@@ -989,6 +989,133 @@ def _is_branch_checked_out_elsewhere(repo: str, branch: str, current_wt: Path) -
     return False
 
 
+def branch_content_status(worktree_path: str, base_ref: str) -> dict:
+    wt = Path(worktree_path).resolve()
+    git_kwargs = {
+        "cwd": str(wt),
+        "capture_output": True,
+        "text": True,
+        "timeout": 5,
+    }
+    try:
+        ahead = _git_cmd(
+            ["git", "rev-list", f"{base_ref}..HEAD", "--count"],
+            **git_kwargs,
+        )
+        if ahead.returncode != 0:
+            detail = ahead.stderr.strip() or ahead.stdout.strip() or f"exit code {ahead.returncode}"
+            return {"error": f"git rev-list failed: {detail}"}
+        raw_count = ahead.stdout.strip()
+        if not raw_count.isdigit():
+            return {"error": f"git rev-list returned invalid count: {raw_count!r}"}
+        commits_ahead = int(raw_count)
+        if commits_ahead == 0:
+            return {
+                "base_ref": base_ref,
+                "commits_ahead": 0,
+                "content_merged": True,
+                "reason": "ancestor",
+            }
+
+        driver_config = _git_cmd(
+            ["git", "config", "-z", "--name-only", "--get-regexp", r"^merge\..*\.driver$"],
+            **git_kwargs,
+        )
+        if driver_config.returncode not in (0, 1):
+            detail = (
+                driver_config.stderr.strip()
+                or driver_config.stdout.strip()
+                or f"exit code {driver_config.returncode}"
+            )
+            return {"error": f"git config merge-driver check failed: {detail}"}
+        driver_keys = []
+        if driver_config.returncode == 0:
+            driver_keys = list(dict.fromkeys(
+                key for key in driver_config.stdout.split("\0") if key
+            ))
+
+        raw_config_count = os.environ.get("GIT_CONFIG_COUNT", "0")
+        try:
+            config_count = int(raw_config_count)
+            if config_count < 0:
+                raise ValueError
+        except ValueError:
+            return {"error": f"invalid GIT_CONFIG_COUNT: {raw_config_count!r}"}
+        merge_env = os.environ.copy()
+        overrides = [
+            ("merge.default", "text"),
+            ("merge.renormalize", "false"),
+            ("merge.union.driver", "false"),
+        ]
+        for driver_key in driver_keys:
+            overrides.append((driver_key, "false"))
+        for index, (key, value) in enumerate(overrides, start=config_count):
+            merge_env[f"GIT_CONFIG_KEY_{index}"] = key
+            merge_env[f"GIT_CONFIG_VALUE_{index}"] = value
+        merge_env["GIT_CONFIG_COUNT"] = str(config_count + len(overrides))
+
+        prospective = _git_cmd([
+            "git",
+            "merge-tree", "--write-tree", "--no-messages", base_ref, "HEAD",
+        ], env=merge_env, **git_kwargs)
+        if prospective.returncode == 1:
+            return {
+                "base_ref": base_ref,
+                "commits_ahead": commits_ahead,
+                "content_merged": False,
+                "reason": "conflict",
+            }
+        if prospective.returncode != 0:
+            detail = (
+                prospective.stderr.strip()
+                or prospective.stdout.strip()
+                or f"exit code {prospective.returncode}"
+            )
+            return {"error": f"git merge-tree failed: {detail}"}
+
+        result_lines = [
+            line.strip() for line in prospective.stdout.splitlines() if line.strip()
+        ]
+        if len(result_lines) != 1:
+            return {"error": "git merge-tree returned an invalid result tree"}
+
+        base_tree = _git_cmd(
+            ["git", "rev-parse", "--verify", f"{base_ref}^{{tree}}"],
+            **git_kwargs,
+        )
+        if base_tree.returncode != 0:
+            detail = (
+                base_tree.stderr.strip()
+                or base_tree.stdout.strip()
+                or f"exit code {base_tree.returncode}"
+            )
+            return {"error": f"git rev-parse base tree failed: {detail}"}
+        result_tree = _git_cmd(
+            ["git", "rev-parse", "--verify", f"{result_lines[0]}^{{tree}}"],
+            **git_kwargs,
+        )
+        if result_tree.returncode != 0:
+            detail = (
+                result_tree.stderr.strip()
+                or result_tree.stdout.strip()
+                or f"exit code {result_tree.returncode}"
+            )
+            return {"error": f"git merge-tree result validation failed: {detail}"}
+
+        content_merged = result_tree.stdout.strip() == base_tree.stdout.strip()
+        return {
+            "base_ref": base_ref,
+            "commits_ahead": commits_ahead,
+            "content_merged": content_merged,
+            "reason": "content-noop" if content_merged else "content-change",
+        }
+    except subprocess.TimeoutExpired as e:
+        command = " ".join(str(part) for part in e.cmd)
+        return {"error": f"{command} timed out"}
+    except OSError as e:
+        return {"error": f"git content check failed: {type(e).__name__}: {e}"}
+
+
 def switch_worktree_branch(worktree_path: str, new_branch: str,
                            from_ref: str = "",
                            force: bool = False) -> dict:
@@ -1000,19 +1127,31 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
     status = _git_cmd(
         ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
     )
+    if status.returncode != 0:
+        detail = status.stderr.strip() or status.stdout.strip() or f"exit code {status.returncode}"
+        return {"ok": False, "error": f"git status failed: {detail}"}
     if status.stdout.strip():
         dirty_lines = status.stdout.strip().splitlines()[:10]
         dirty_files = [l[3:] for l in dirty_lines]
         return {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
 
-    unmerged = _git_cmd(
-        ["git", "rev-list", f"{from_ref}..HEAD", "--count"],
-        cwd=str(wt), capture_output=True, text=True,
-    )
-    if not force and unmerged.returncode == 0 and int(unmerged.stdout.strip() or "0") > 0:
-        # Guard: switching with unmerged commits would silently discard the worker's work
-        n = unmerged.stdout.strip()
-        return {"ok": False, "error": f"{n} unmerged commit(s) on current branch — merge_worker first or pass force=True"}
+    if not force:
+        content_status = branch_content_status(str(wt), from_ref)
+        if content_status.get("error"):
+            return {
+                "ok": False,
+                "error": f"cannot verify current branch content against {from_ref}: {content_status['error']}",
+            }
+        if not content_status["content_merged"]:
+            n = content_status["commits_ahead"]
+            reason = content_status["reason"]
+            return {
+                "ok": False,
+                "error": (
+                    f"{n} commit(s) could not be verified in {from_ref} ({reason}) — "
+                    "merge_worker first or pass force=True"
+                ),
+            }
 
     reset = _git_cmd(
         ["git", "reset", "--hard", from_ref],

@@ -465,6 +465,294 @@ class TestSwitchWorktreeBranch:
                                         from_ref="refs/heads/feature/auth")
         assert result.get("ok") is True, f"expected ok, got: {result}"
 
+    def test_squash_merged_content_switches_after_base_advances(self, git_repo, wt_root):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-squash")
+        (Path(wt.path) / "one.txt").write_text("one")
+        subprocess.run(["git", "add", "one.txt"], cwd=wt.path, check=True)
+        subprocess.run(["git", "commit", "-m", "worker one"], cwd=wt.path, check=True)
+        (Path(wt.path) / "two.txt").write_text("two")
+        subprocess.run(["git", "add", "two.txt"], cwd=wt.path, check=True)
+        subprocess.run(["git", "commit", "-m", "worker two"], cwd=wt.path, check=True)
+
+        subprocess.run(["git", "merge", "--squash", wt.branch], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "squash worker"], cwd=git_repo, check=True)
+        (Path(git_repo) / "base-only.txt").write_text("later")
+        subprocess.run(["git", "add", "base-only.txt"], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "advance base"], cwd=git_repo, check=True)
+
+        result = switch_worktree_branch(
+            wt.path,
+            "task-2/worker-squash",
+            from_ref="main",
+        )
+
+        assert result == {"ok": True, "branch": "task-2/worker-squash"}
+        current = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert current.stdout.strip() == "task-2/worker-squash"
+        assert subprocess.run(
+            ["git", "diff", "--quiet", "main..HEAD"],
+            cwd=wt.path,
+        ).returncode == 0
+
+    def test_real_unmerged_content_blocks_without_moving_or_creating_branch(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-unmerged")
+        (Path(wt.path) / "worker-only.txt").write_text("must survive")
+        subprocess.run(["git", "add", "worker-only.txt"], cwd=wt.path, check=True)
+        subprocess.run(["git", "commit", "-m", "unmerged worker work"], cwd=wt.path, check=True)
+        head_before = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        branch_before = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        result = switch_worktree_branch(
+            wt.path,
+            "task-2/worker-unmerged",
+            from_ref="main",
+        )
+
+        assert result["ok"] is False
+        assert "content-change" in result["error"]
+        assert "force=True" in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip() == head_before
+        assert subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip() == branch_before
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "refs/heads/task-2/worker-unmerged"],
+            cwd=git_repo,
+            capture_output=True,
+        ).returncode != 0
+
+    @pytest.mark.parametrize("driver_name", ["keep", "keep=ours"])
+    def test_custom_merge_driver_cannot_execute_or_false_allow(
+        self, git_repo, wt_root, tmp_path, driver_name,
+    ):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        (Path(git_repo) / ".gitattributes").write_text(
+            f"protected.txt merge={driver_name}\n"
+        )
+        (Path(git_repo) / "protected.txt").write_text("base\n")
+        subprocess.run(
+            ["git", "add", ".gitattributes", "protected.txt"],
+            cwd=git_repo,
+            check=True,
+        )
+        subprocess.run(["git", "commit", "-m", "configure merge path"], cwd=git_repo, check=True)
+        marker = tmp_path / "driver-ran"
+        subprocess.run(
+            [
+                "git",
+                "config",
+                f"merge.{driver_name}.driver",
+                f"sh -c 'touch {marker}'",
+            ],
+            cwd=git_repo,
+            check=True,
+        )
+        wt = create_worktree(str(git_repo), "worker-driver")
+
+        (Path(git_repo) / "protected.txt").write_text("main\n")
+        subprocess.run(["git", "add", "protected.txt"], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "main content"], cwd=git_repo, check=True)
+        (Path(wt.path) / "protected.txt").write_text("worker\n")
+        subprocess.run(["git", "add", "protected.txt"], cwd=wt.path, check=True)
+        subprocess.run(["git", "commit", "-m", "worker content"], cwd=wt.path, check=True)
+        head_before = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        result = switch_worktree_branch(
+            wt.path,
+            "task-2/worker-driver",
+            from_ref="main",
+        )
+
+        assert result["ok"] is False
+        assert "conflict" in result["error"]
+        assert not marker.exists()
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip() == head_before
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "refs/heads/task-2/worker-driver"],
+            cwd=git_repo,
+            capture_output=True,
+        ).returncode != 0
+
+    def test_builtin_union_driver_cannot_false_allow(self, git_repo, wt_root):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        (Path(git_repo) / ".gitattributes").write_text("protected.txt merge=union\n")
+        (Path(git_repo) / "protected.txt").write_text("common\nold\n")
+        subprocess.run(
+            ["git", "add", ".gitattributes", "protected.txt"],
+            cwd=git_repo,
+            check=True,
+        )
+        subprocess.run(["git", "commit", "-m", "configure union"], cwd=git_repo, check=True)
+        wt = create_worktree(str(git_repo), "worker-union")
+
+        (Path(git_repo) / "protected.txt").write_text("common\nmain\n")
+        subprocess.run(["git", "add", "protected.txt"], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "main edit"], cwd=git_repo, check=True)
+        (Path(wt.path) / "protected.txt").write_text("common\n")
+        subprocess.run(["git", "add", "protected.txt"], cwd=wt.path, check=True)
+        subprocess.run(["git", "commit", "-m", "worker delete"], cwd=wt.path, check=True)
+        head_before = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        result = switch_worktree_branch(
+            wt.path,
+            "task-2/worker-union",
+            from_ref="main",
+        )
+
+        assert result["ok"] is False
+        assert "conflict" in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip() == head_before
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "refs/heads/task-2/worker-union"],
+            cwd=git_repo,
+            capture_output=True,
+        ).returncode != 0
+
+    def test_git_status_failure_blocks_before_reset(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-status")
+        head_before = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        real_git_cmd = workspace._git_cmd
+
+        def fail_status(args, **kwargs):
+            if args == ["git", "status", "--porcelain"]:
+                return subprocess.CompletedProcess(args, 128, "", "status exploded")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_status)
+        result = switch_worktree_branch(
+            wt.path,
+            "task-2/worker-status",
+            from_ref="main",
+        )
+
+        assert result == {"ok": False, "error": "git status failed: status exploded"}
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip() == head_before
+
+    def test_detached_verified_head_can_create_branch(self, git_repo, wt_root):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-detached")
+        subprocess.run(["git", "checkout", "--detach"], cwd=wt.path, check=True)
+
+        result = switch_worktree_branch(
+            wt.path,
+            "task-2/worker-detached",
+            from_ref="main",
+        )
+
+        assert result == {"ok": True, "branch": "task-2/worker-detached"}
+        assert subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=wt.path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip() == "task-2/worker-detached"
+
+    def test_content_status_fails_closed_on_missing_base(self, git_repo, wt_root):
+        from app.workspace import branch_content_status, create_worktree
+
+        wt = create_worktree(str(git_repo), "worker-missing-base")
+
+        result = branch_content_status(wt.path, "does-not-exist")
+
+        assert "git rev-list failed" in result["error"]
+
+    def test_content_status_fails_closed_on_malformed_count(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import branch_content_status, create_worktree
+
+        wt = create_worktree(str(git_repo), "worker-malformed")
+        real_git_cmd = workspace._git_cmd
+
+        def malformed_count(args, **kwargs):
+            if args[:2] == ["git", "rev-list"]:
+                return subprocess.CompletedProcess(args, 0, "not-a-number\n", "")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", malformed_count)
+
+        assert "invalid count" in branch_content_status(wt.path, "main")["error"]
+
 
 class TestMergeTarget:
     def _wt_with_commit(self, git_repo, wt_root, name, base):
