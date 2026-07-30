@@ -159,10 +159,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Sol не видит проектные скиллы (`.claude/skills/` — механизм Claude) → в промпт Codex идёт СГЕНЕРИРОВАННОЕ оглавление (имя/описание/путь), тело читает сам. Замер: 9/9 нужных чтений, 0/8 посторонних, промпт −90% (10 424 → 1 080 симв.)
 - Переключил воркера Claude→Sol — он «не знает проект» → зеркало `AGENTS.md` и скиллы создаются при КОННЕКТЕ бэкенда; до реконнекта у бывшего Claude-воркера их нет вовсе
 
-**Grok** (full guide + unverified-registry: `docs/grok-field-guide.md`)
-- Worker drops tasks with no error, `turn_end ok=False stop=interrupted` while `tool_result` already arrived → tool approval, not the model: option ids come from the offer (`allow-once`); an invented `allow` reads as "nothing selected" and cancels the turn
-- Worker sounds sane but ignores project rules → system prompt lands ONLY via the `--agent-profile` file; ACP `systemPrompt`/`instructions` are accepted and silently ignored
-- Grok never complains about unknown fields/flags → verify every value taken "by analogy with Codex" (`grok agent` has no `--no-subagents` → process won't start; use `GROK_SUBAGENTS=0`)
+**Grok** — все грабли + unverified-registry вынесены в `docs/grok-field-guide.md` (рантайм заблокирован: подписка SuperGrok слетела 30.07, Grok Build требует Lite $10/мес). Ниже — только то, что бьёт по общему коду:
 - New runtime's spend landed in someone else's pool → an `ELSE 'claude'` tail is always a bug; the same binary lived in 3 SQL spots and 3 frontend ternaries — hunt the SECOND copy
 - Runtime prices with a cached tier must NOT go into shared `TOKEN_PRICES` → `_cost_cached_for()` reprices history with Claude's cache heuristic (+27.6% on a measured turn)
 
@@ -175,17 +172,15 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Агент «сделал» работу, а её нет → напечатал tool call текстом вместо вызова → проверять артефакт, а не рассказ
 - `stop_reason=tool_use` читают как «агент хочет продолжить» → это ВСЕГДА внешнее прерывание → не строить на нём логику
 
-**Worktree / merge lifecycle (#90)**
-- Три оркестратора подряд репортят «`spawn_worker` игнорирует `repo_path`» → папка worktree называлась по `scope` сессии, а репозиторий брался из `repo_path`; git был прав, врало имя → принадлежность worktree проверять ТОЛЬКО `git rev-parse --git-common-dir`, никогда по пути. Фикс `2ec163a`
-- Orchestra закоммитила чужую `.serena/` в main → `_auto_commit_if_dirty` делал `git add -A` перед спавном, обоснование в комментарии («worktree наследует unstaged junk») ЛОЖНО: `git worktree add` строит дерево из коммита → удалено. Утверждение о поведении git проверяется экспериментом в `/tmp` за 30 секунд — дешевле, чем месяц жизни бага
-- Главная ветка ≠ `main`: Aperant на `develop`, VPN-Service держит и `main`, и `master` → резолвер читает symbolic remote HEAD; проверять живой функцией, а не своей упрощённой копией её логики (мой быстрый скрипт дал ЛОЖНЫЙ вывод о двух нерезолвимых репо)
-- Угаданный таймаут вместо сигнала: grace 2 с после DONE не покрыл НИ ОДНОГО из 46 замеренных случаев (хвост до `turn_end` 3.4–43.8 с). Фикс — явный terminal turn event (#91)
-
 **Метрики и лимиты (проверять факт исполнения, не флаг)**
 - A provider limit flag is not a provider verdict → `extra_usage.spend_limit_reached=true` on Claude blocks only SUPPLEMENTAL capacity; with base 5h/7d open, agents keep running. Measured: 13 successful `end_turn` across 4 agents while the flag was set (`seedon` 12:08:34→12:09:56, `COG` 12:08:59→12:11:09, `polus` 12:11:04→12:12:42). Both my reading and the worker's first model treated the label as a verdict and would have skipped a working wake path → readiness = "base timed window open OR verified supplemental", and check completed turns under that flag state before believing it
 - Dashboard showed `ctx=100%` and the runtime auto-compacted 3× for nothing (+262 236 input, $0.127, cache lost) → aggregate usage across 25 model calls was rendered as CURRENT context; the real last prompt was 84 482 (17% of window). A metric that lies is worse than a missing one → `AggregateUsage / KnownContext / UnknownContext / DeferredContext` are distinct types now; unknown context must never trigger compaction
 - A test that reads live quota state is not a test → `test_compact_logs_preamble_as_user_message` passed all morning and went red at 100% of the 5h window, because `compact()` refuses under an active subscription limit and the test never mocked the guard. Green depended on the user's remaining quota
 - `asyncio.wait_for(..., timeout=0.1)` in 21 places = wall-clock flake → on a loaded machine (3 workers + parallel runs) a random test in `tests/test_tg_bridge.py` failed; alone it passed 6/6. Timeouts that guard against hangs must not double as performance assertions
+
+- Исчерпанная квота Codex = пустое `stop_reason=error / no output`, без слова про лимит → 30.07 два моих воркера и воркеры COG упали одновременно; журнал Orchestra чист, прокси жив, `api.anthropic.com` отвечает 401 — правду сказал только `GET /api/usage` (`codex primary=100%`). Два оркестратора независимо потратили по 15+ минут на ложный след (память, load, `/tmp`, диск) → при пустом падении воркера ПЕРВЫМ делом смотреть `/api/usage`, а не инфраструктуру. Воркер в этом состоянии не может даже закоммитить готовое — забирать через `worker_wip` и коммитить руками
+- Объём документов задачи задаёт ФОРМУЛИРОВКА задания, а не модель → замер 5 задач на Sol за 30.07: прод-код 142/482/296/191 строк при 500-800 строках доков, но там, где дано точное ТЗ (файл+строка+образец рядом, #104) — **6 строк прода**. Обвинение «Sol оверинжинирит» проверено и не подтвердилось: абстракций «на вырост» в коде нет, все функции по делу. Открытые формулировки («исследуй и предложи подход») — это заказ на research, и он приходит
+- Opus печатает tool-call ТЕКСТОМ вместо вызова → замер за неделю: `seedon-orchestrator` 7 случаев, `Orchestra-orchestrator` 2, воркеры на Sol — 0. Улика: в тексте лежат ЗАКРЫВАЮЩИЕ `</parameter>`/`</invoke>`, а открывающий оборван мусором (`câ`) — поток рвётся посреди тега. Детект теперь в `app/tool_call_guard.py` (дашборд + TG, #107)
 
 **Инфраструктура и код**
 - Правишь код при работающем сервере → `app/mcp_stdio.py` подхватывается НЕМЕДЛЕННО (MCP = отдельный процесс, стартует заново), а `app/routes/` живёт в памяти systemd до рестарта → менять контракт MCP↔route = ломать живую систему в окне до рестарта. Симптом: новый MCP шлёт `target=""` как sentinel, старый route читает его как явный пустой target и падает. Обход до рестарта: `merge_worker(target="main")` явно

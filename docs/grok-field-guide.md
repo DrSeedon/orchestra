@@ -236,3 +236,13 @@ UNCERTAIN, и **как именно** это проверить, когда по
 состав MCP чистый, промпт доехал, тулы отработали, ровно один `turn_end` на ход, расходы
 в бакете SuperGrok, стоимость сходится с арифметикой. Любой пункт мимо — это баг рантайма,
 а не «модель так решила».
+
+## Грабли Grok (перенесено из CLAUDE.md 2026-07-30 — файл упёрся в лимит Codex 32 768 байт)
+
+**Grok** (full guide + unverified-registry: `docs/grok-field-guide.md`)
+- Worker drops tasks with no error, `turn_end ok=False stop=interrupted` while `tool_result` already arrived → tool approval, not the model: option ids come from the offer (`allow-once`); an invented `allow` reads as "nothing selected" and cancels the turn
+- Worker sounds sane but ignores project rules → system prompt lands ONLY via the `--agent-profile` file; ACP `systemPrompt`/`instructions` are accepted and silently ignored
+- Grok never complains about unknown fields/flags → verify every value taken "by analogy with Codex" (`grok agent` has no `--no-subagents` → process won't start; use `GROK_SUBAGENTS=0`)
+- New runtime's spend landed in someone else's pool → an `ELSE 'claude'` tail is always a bug; the same binary lived in 3 SQL spots and 3 frontend ternaries — hunt the SECOND copy
+- Runtime prices with a cached tier must NOT go into shared `TOKEN_PRICES` → `_cost_cached_for()` reprices history with Claude's cache heuristic (+27.6% on a measured turn)
+
