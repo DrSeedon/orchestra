@@ -480,6 +480,97 @@ class TestCheckPil:
 
 
 class TestSendDiffImage:
+    async def _run_bash_result_stream(self, tb, monkeypatch, submission):
+        log_calls = 0
+
+        class FakeConn:
+            def close(self):
+                pass
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal log_calls
+            log_calls += 1
+            if log_calls == 1:
+                return []
+            if log_calls == 2:
+                return [
+                    {
+                        "id": 1,
+                        "type": "tool",
+                        "content": 'Bash: {"command":"lscpu"}',
+                    },
+                    {
+                        "id": 2,
+                        "type": "tool_result",
+                        "content": "CPU(s): 12\nModel name: Example\n" + "x" * 1000,
+                    },
+                ]
+            raise asyncio.CancelledError
+
+        async def no_sleep(_delay):
+            return None
+
+        command_message = object()
+        send_expandable = AsyncMock(return_value=command_message)
+        edit_tool = AsyncMock()
+        send_result_image = AsyncMock(return_value=submission)
+        mirror_send = AsyncMock()
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "scope": "/scope"}],
+        )
+        monkeypatch.setattr(
+            "app.db.get_session_by_name",
+            lambda name, scope: {"id": "sid"},
+        )
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
+        monkeypatch.setattr(tb, "_send_expandable", send_expandable)
+        monkeypatch.setattr(tb, "_edit_tool_with_result", edit_tool)
+        monkeypatch.setattr(tb, "_send_result_image", send_result_image)
+        monkeypatch.setattr(tb, "_mirror_send", mirror_send)
+        monkeypatch.setattr(tb.asyncio, "sleep", no_sleep)
+
+        with pytest.raises(asyncio.CancelledError):
+            await tb.stream_logs("orch", 42)
+
+        return send_expandable, edit_tool, send_result_image, mirror_send
+
+    @pytest.mark.asyncio
+    async def test_accepted_result_image_suppresses_text_duplicate(
+        self, tb, monkeypatch,
+    ):
+        send_expandable, edit_tool, send_result_image, mirror_send = (
+            await self._run_bash_result_stream(
+                tb,
+                monkeypatch,
+                tb._ImageSubmission(True),
+            )
+        )
+
+        send_result_image.assert_awaited_once()
+        send_expandable.assert_awaited_once()
+        edit_tool.assert_not_awaited()
+        assert mirror_send.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_rejected_result_image_falls_back_to_text(
+        self, tb, monkeypatch,
+    ):
+        send_expandable, edit_tool, send_result_image, mirror_send = (
+            await self._run_bash_result_stream(
+                tb,
+                monkeypatch,
+                tb._ImageSubmission(False),
+            )
+        )
+
+        send_result_image.assert_awaited_once()
+        send_expandable.assert_awaited_once()
+        edit_tool.assert_awaited_once()
+        assert mirror_send.await_count == 2
+
     @pytest.mark.asyncio
     async def test_parse_edit_calls_render(self, tb, monkeypatch):
         """_send_diff_image парсит Edit JSON и вызывает render_edit_diff."""
