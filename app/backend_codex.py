@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
+from app.backend_jsonrpc import JsonRpcStdioTransport, bounded_tool_arguments
 from app.events import AgentEvent
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
@@ -131,31 +132,9 @@ def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> di
     return result
 
 
-_TOOL_ARGUMENT_LONG_FIELDS = {
-    "content", "context", "description", "message", "prompt", "system_prompt", "task",
-}
-
-
-def _bounded_tool_arguments(value, *, field: str = ""):
-    """Keep tool telemetry structured without letting prompts flood the log."""
-    if isinstance(value, dict):
-        return {
-            str(key): _bounded_tool_arguments(item, field=str(key))
-            for key, item in list(value.items())[:50]
-        }
-    if isinstance(value, list):
-        return [_bounded_tool_arguments(item, field=field) for item in value[:50]]
-    if isinstance(value, str):
-        limit = 4000 if field in _TOOL_ARGUMENT_LONG_FIELDS else 1500
-        if len(value) > limit:
-            omitted = len(value) - limit
-            return f"{value[:limit]}… [truncated {omitted} chars]"
-    return value
-
-
 def _tool_arguments_json(arguments) -> str:
     return json.dumps(
-        _bounded_tool_arguments(arguments if isinstance(arguments, dict) else {}),
+        bounded_tool_arguments(arguments if isinstance(arguments, dict) else {}),
         ensure_ascii=False,
     )
 
@@ -163,7 +142,7 @@ def _tool_arguments_json(arguments) -> str:
 ORCHESTRA_FULL_MCP_TOOLS = (
     "spawn_worker", "acquire_test_lock", "release_test_lock", "test_lock_status",
     "send_message", "list_agents", "list_orchestrators", "get_worker_logs",
-    "compact_worker", "kill_worker", "stop_worker", "rename_worker", "list_jobs",
+    "compact_worker", "kill_worker", "stop_worker", "rename_worker",
     "send_file", "update_progress", "change_worker_model", "merge_worker",
     "switch_worker_branch", "check_conflict", "worker_wip", "report_bug",
     "update_worker_description", "update_worker_prompt", "get_worker_info",
@@ -182,12 +161,14 @@ class CodexProtocolError(RuntimeError):
         super().__init__(f"{method}: {error.get('message', 'Codex app-server error')}")
 
 
-class CodexBackend:
+class CodexBackend(JsonRpcStdioTransport):
     """Persistent Codex app-server client with native turn steering.
 
     One app-server process owns one resumable thread. `send()` starts a turn while idle
     and uses `turn/steer` while that turn is in flight, matching the native Codex TUI.
     """
+
+    RUNTIME_LABEL = "Codex app-server"
 
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_thread_id: str | None = None,
@@ -231,10 +212,6 @@ class CodexBackend:
     @property
     def session_id(self) -> Optional[str]:
         return self._thread_id
-
-    @property
-    def is_alive(self) -> bool:
-        return self._proc is not None and self._proc.returncode is None
 
     async def connect(self) -> None:
         if self.is_alive:
@@ -504,31 +481,6 @@ class CodexBackend:
         self._stderr_task = None
         self._active_turn_id = None
 
-    async def _request(self, method: str, params: dict) -> dict:
-        if not self._proc or not self._proc.stdin or self._proc.returncode is not None:
-            raise RuntimeError("Codex app-server is not running")
-        self._request_seq += 1
-        request_id = self._request_seq
-        future = asyncio.get_running_loop().create_future()
-        self._pending_requests[request_id] = future
-        try:
-            await self._write({"method": method, "id": request_id, "params": params})
-            result = await future
-            return result if isinstance(result, dict) else {}
-        finally:
-            self._pending_requests.pop(request_id, None)
-
-    async def _notify(self, method: str, params: dict) -> None:
-        await self._write({"method": method, "params": params})
-
-    async def _write(self, payload: dict) -> None:
-        if not self._proc or not self._proc.stdin:
-            raise RuntimeError("Codex app-server stdin is unavailable")
-        encoded = (json.dumps(payload, ensure_ascii=False) + "\n").encode()
-        async with self._write_lock:
-            self._proc.stdin.write(encoded)
-            await self._proc.stdin.drain()
-
     async def _read_stdout(self) -> None:
         proc = self._proc
         if not proc or not proc.stdout:
@@ -597,20 +549,6 @@ class CodexBackend:
                         "stderr": self._last_stderr,
                     },
                 })
-
-    async def _drain_stderr(self) -> None:
-        proc = self._proc
-        if not proc or not proc.stderr:
-            return
-        try:
-            while True:
-                chunk = await proc.stderr.read(4096)
-                if not chunk:
-                    break
-                text = chunk.decode("utf-8", errors="replace")
-                self._last_stderr = (self._last_stderr + text)[-4000:]
-        except asyncio.CancelledError:
-            return
 
     def _record_token_usage(self, params: dict) -> None:
         usage = params.get("tokenUsage") or {}

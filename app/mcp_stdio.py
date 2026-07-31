@@ -32,7 +32,6 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "list_agents",
     "list_orchestrators",
     "get_worker_logs",
-    "list_jobs",
     "check_conflict",
     "worker_wip",
     "get_worker_info",
@@ -441,17 +440,6 @@ async def rename_worker(old_name: str, new_name: str) -> str:
     if isinstance(result, dict) and result.get("error"):
         return f"Rename failed: {result['error']}"
     return f"Worker '{old_name}' renamed to '{new_name}'."
-
-
-@mcp.tool()
-async def list_jobs() -> str:
-    """List recent spawn/kill jobs."""
-    jobs = await _api("GET", "/api/jobs", params={"scope": SCOPE} if SCOPE else None)
-    if not isinstance(jobs, list):
-        return f"Error: {jobs}"
-    if not jobs:
-        return "No jobs"
-    return "\n".join(f"- {j['id']}: {j['type']} {j['name']} = {j['status']}" for j in jobs)
 
 
 @mcp.tool()

@@ -2298,7 +2298,6 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 Agents';
             else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 Orchestrators';
             else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 Compact: ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__list_jobs') preview = '📊 Jobs';
             else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
             else if (rawName === 'mcp__orchestra__change_worker_model') preview = `🔄 ${parsed.name || '?'} → ${parsed.model || '?'}`;
             else if (rawName === 'mcp__orchestra__update_worker_description') preview = `✏️ ${parsed.name || '?'} — description`;
@@ -2318,7 +2317,7 @@ function buildCompactToolLine(type, content, ts) {
             else if (rawName === 'mcp__orchestra__task_get') preview = `📋 #${taskNum(parsed.par) || '?'}`;
             else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'} ${CUR}`;
             else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
-            else if (rawName === 'mcp__orchestra__bg_create') { const _bi = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
+            else if (rawName === 'mcp__orchestra__bg_create') { const _bi = _JOB_ICONS[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
             else if (rawName === 'mcp__orchestra__bg_list') preview = '📊 BG Jobs';
             else if (rawName === 'mcp__orchestra__bg_cancel') preview = `⏹ Cancel job ${(parsed.job_id||'').slice(0,8)}`;
             else if (rawName.startsWith('mcp__yougile__')) { const yn = rawName.replace('mcp__yougile__',''); preview = `📋 ${yn}${parsed.title ? ': '+parsed.title : ''}`; }
@@ -2733,7 +2732,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__send_message','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__list_jobs','mcp__orchestra__get_worker_logs','mcp__orchestra__get_worker_info','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel','mcp__orchestra__update_progress'].includes(rawName);
+                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__send_message','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__get_worker_logs','mcp__orchestra__get_worker_info','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel','mcp__orchestra__update_progress'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
                 const isYougileCompact = rawName.startsWith('mcp__yougile__');
@@ -3378,7 +3377,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
             'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
-            'mcp__orchestra__list_jobs': () => ({ icon: '📊', label: 'Jobs', color: '#38bdf8' }),
             'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
             'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `Info: ${d.name||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `New: "${d.title||'?'}"`, color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
@@ -3387,7 +3385,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `Task #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'} ${CUR}`, color: '#22c55e', sub: d.note || '' }),
             'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
-            'mcp__orchestra__bg_create': (d) => { const i = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
+            'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
             'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
             'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
         };
@@ -3850,7 +3848,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
         // Strip raw JSON link arrays from WebSearch results (shown as ugly JSON at top)
         const stripped = clean.replace(/^(Links:\s*\[.*?\}\]\s*\n?)+/gms, '');
-        const escaped = stripped.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const escaped = _escHtml(stripped);
         // Render markdown links [text](url) first, then bare URLs
         const mdLinked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
         const linked = mdLinked.replace(/((?<!href="|">)https?:\/\/[^\s\])"&<]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
@@ -4167,8 +4165,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
                         const container = document.createElement('div');
                         container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
                         for (const j of jobs.slice(0, 8)) {
-                            const icon = {'timer':'⏰','file':'📄','command':'🖥️','ssh':'🔗','run':'▶️'}[j.type] || '⚙️';
-                            const st = {'active':'🟢','triggered':'✅','expired':'⏰','cancelled':'❌','failed':'❌'}[j.status] || '⚪';
+                            const icon = _JOB_ICONS[j.type] || '⚙️';
+                            const st = _JOB_STATUS[j.status] || '⚪';
                             const row = document.createElement('div');
                             row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:4px;align-items:center';
                             row.innerHTML = `<span>${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(j.target_name || '')} ${DOMPurify.sanitize((j.message||'').slice(0,30))}</span><span>${st}</span>`;
@@ -4229,7 +4227,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 'mcp__orchestra__compact_worker': null,
                 'mcp__orchestra__list_agents': null,
                 'mcp__orchestra__list_orchestrators': null,
-                'mcp__orchestra__list_jobs': null,
                 'mcp__orchestra__get_worker_logs': null,
                 'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ Job ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: '✅ Job created', color: '#22c55e' }; },
                 'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} cancelled`, color: '#94a3b8' } : c.includes('rror') ? null : { text: '⏹ Cancelled', color: '#94a3b8' }; },

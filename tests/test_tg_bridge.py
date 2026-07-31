@@ -4165,3 +4165,33 @@ class TestTopicStatusHysteresis99:
 
         assert "TG topic_status failed" not in caplog.text
         assert tb._topic_status == {"orch": False}
+
+
+class TestSilentFallbacksAreLogged:
+    """#108 T3: фолбэки остаются как есть, но перестают быть немыми.
+
+    Поток управления НЕ менялся — добавлено только логирование. Самый дорогой
+    случай: сбой markdown→entities деградирует КАЖДОЕ форматированное сообщение
+    до плоского текста, и раньше об этом не было ни строки в логе.
+    """
+
+    def test_md_entities_fallback_logs_reason(self, tb, monkeypatch, caplog):
+        def _boom(_text):
+            raise ValueError("bad markdown")
+
+        monkeypatch.setattr(tb, "md_convert", _boom)
+        caplog.set_level("WARNING", logger=tb.logger.name)
+
+        text, ents = tb._md_entities("**hello**")
+
+        # фолбэк прежний: исходный текст, пустые entities
+        assert (text, ents) == ("**hello**", [])
+        # но теперь причина видна
+        assert "ValueError" in caplog.text
+        assert "bad markdown" in caplog.text
+
+    def test_md_entities_success_path_unchanged(self, tb, caplog):
+        caplog.set_level("WARNING", logger=tb.logger.name)
+        text, ents = tb._md_entities("plain text")
+        assert isinstance(text, str)
+        assert "markdown→entities failed" not in caplog.text

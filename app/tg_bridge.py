@@ -443,7 +443,10 @@ def _md_entities(text: str, base_offset: int = 0):
         converted, raw_ents = md_convert(text)
         ents = [AioEntity(**{**e.to_dict(), "offset": e.offset + base_offset}) for e in raw_ents] if raw_ents else []
         return converted, ents
-    except Exception:
+    except Exception as e:
+        # Молчаливый фолбэк деградирует КАЖДОЕ форматированное TG-сообщение до
+        # плоского текста — без лога это выглядит как «Telegram сам так решил».
+        logger.warning(f"markdown→entities failed, sending plain: {type(e).__name__}: {e}")
         return text, []
 
 
@@ -475,17 +478,6 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
         MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
         MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
     ] + tool_ents + result_ents
-    await _tg_edit_message_safe(chat_id, msg, text, entities)
-
-
-async def _edit_expandable(msg, chat_id: int, header: str, body: str):
-    from aiogram.types import MessageEntity
-    from aiogram.enums import MessageEntityType
-    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
-    text = f"{header}\n{conv_body}"
-    offset = _utf16_len(header) + 1
-    length = _utf16_len(conv_body)
-    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
     await _tg_edit_message_safe(chat_id, msg, text, entities)
 
 
@@ -2200,13 +2192,6 @@ def _find_orch_for_scope(scope: str) -> str | None:
     return top_level or any_orch
 
 
-def _find_thread_for_scope(scope: str) -> int | None:
-    orch_name = _find_orch_for_scope(scope)
-    if orch_name:
-        return config["topics"].get(orch_name)
-    return None
-
-
 async def _mirror_send_file(orch_name: str, path: str, caption: str, is_photo: bool):
     mirror = config.get("mirrors", {}).get(orch_name)
     if not mirror or not bot:
@@ -2514,6 +2499,7 @@ def _mirror_submit(orch_name: str, item: _MirrorItem) -> bool:
 
 
 def _mirror_delivery_snapshot(orch_name: str) -> dict[str, int]:
+    """Счётчики outbox зеркала — точка наблюдения для теста на ёмкость очереди."""
     outbox = _mirror_outboxes.get(orch_name)
     return {
         "queued": outbox.qsize() if outbox is not None else 0,
@@ -2778,7 +2764,8 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                 params = json.loads(tool_raw[colon + 1:].strip())
                 file_path = params.get("file_path", "")
                 offset = int(params.get("offset", 0))
-            except Exception:
+            except Exception as _e:
+                logger.debug(f"Read tool params unparsable: {type(_e).__name__}: {_e}")
                 file_path = ""
                 offset = 0
             from app.diff_image import render_read
@@ -2792,7 +2779,8 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                 colon = tool_raw.index(":")
                 params = json.loads(tool_raw[colon + 1:].strip())
                 pattern = params.get("pattern", "")
-            except Exception:
+            except Exception as _e:
+                logger.debug(f"Grep tool params unparsable: {type(_e).__name__}: {_e}")
                 pattern = ""
 
             # result format: "path/file.py:42:matching line text\n..."
@@ -2829,7 +2817,8 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                 colon = tool_raw.index(":")
                 params = json.loads(tool_raw[colon + 1:].strip())
                 command = params.get("command", "")
-            except Exception:
+            except Exception as _e:
+                logger.debug(f"Bash tool params unparsable: {type(_e).__name__}: {_e}")
                 command = ""
             from app.diff_image import render_bash
             png = render_bash(command, result)
@@ -2841,7 +2830,8 @@ async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id
                 colon = tool_raw.index(":")
                 params = json.loads(tool_raw[colon + 1:].strip())
                 pattern = params.get("pattern", "")
-            except Exception:
+            except Exception as _e:
+                logger.debug(f"Glob tool params unparsable: {type(_e).__name__}: {_e}")
                 pattern = ""
             if not result.strip():
                 return False
@@ -2956,7 +2946,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 _sp_role = _sp.get("role", "")
                                 _role_part = f" · {_sp_role}" if _sp_role and _sp_role != "worker" else ""
                                 header = f"🚀 Spawning {_sp_name} ({_sp_model}{_role_part})"
-                            except Exception:
+                            except Exception as _e:
+                                logger.debug(f"spawn_worker header format failed: {type(_e).__name__}: {_e}")
                                 header = f"{icon} {short}"
                         else:
                             header = f"{icon} {short}"
@@ -3007,7 +2998,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                             m_text, m_ents = md_convert(f"{header}\n{tool_body}")
                             from aiogram.types import MessageEntity as AioEntity
                             await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
-                        except Exception:
+                        except Exception as _e:
+                            logger.debug(f"mirror tool format failed: {type(_e).__name__}: {_e}")
                             await _mirror_send(orch_name, f"{header}\n{tool_body}")
                         continue
                     elif t == "tool_result":
@@ -3081,7 +3073,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                             m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
                             from aiogram.types import MessageEntity as AioEntity
                             await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
-                        except Exception:
+                        except Exception as _e:
+                            logger.debug(f"mirror result format failed: {type(_e).__name__}: {_e}")
                             await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
                         _last_tool_name = ""
                         _last_tool_raw = ""
@@ -3325,8 +3318,12 @@ async def start_bridge(manager):
                     async with _s.get(local_api, timeout=_aio.ClientTimeout(total=2)):
                         pass
                 break
-            except Exception:
-                logger.info(f"Waiting for Local Bot API ({_attempt+1}/10)...")
+            except Exception as _e:
+                # Без текста ошибки все 10 попыток выглядят одинаково и не говорят,
+                # почему Local Bot API не поднимается (порт? proxychains? бинарник?).
+                logger.info(
+                    f"Waiting for Local Bot API ({_attempt+1}/10): {type(_e).__name__}: {_e}"
+                )
                 await asyncio.sleep(2)
         from aiogram.client.telegram import TelegramAPIServer
         server = TelegramAPIServer(base=f"{local_api}/bot{{token}}/{{method}}", file=f"{local_api}/file/bot{{token}}/{{path}}")

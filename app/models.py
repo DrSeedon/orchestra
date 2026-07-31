@@ -294,19 +294,6 @@ def _generate_aliases(model_id: str) -> list[str]:
     return aliases
 
 
-def register_provider_metadata(
-    metadata: ProviderMetadata,
-    *,
-    replace: bool = False,
-) -> None:
-    """Register accounting/cache/UI metadata for a plugin runtime."""
-    if not metadata.id or metadata.id == "unknown":
-        raise ValueError("provider metadata id must be non-empty and not 'unknown'")
-    if metadata.id in PROVIDER_METADATA and not replace:
-        raise ValueError(f"provider metadata '{metadata.id}' is already registered")
-    PROVIDER_METADATA[metadata.id] = metadata
-
-
 def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
     """Register one explicit provider/model/runtime route and legacy lookup views."""
     if not spec.id:

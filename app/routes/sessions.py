@@ -906,14 +906,3 @@ async def toggle_tg_topic(name: str, scope: str, enabled: bool):
     save_session(found.to_dict())
     return {"ok": True, "name": name, "tg_topic": enabled}
 
-
-@router.get("/api/sessions/{name}/inbox")
-async def get_session_inbox(name: str, scope: str):
-    from app.db import get_inbox, ack_inbox
-    session_id = manager.get_session_id(name, scope)
-    if not session_id:
-        return JSONResponse({"error": "not found"}, status_code=404)
-    messages = get_inbox(session_id)
-    for m in messages:
-        ack_inbox(m["id"])
-    return messages

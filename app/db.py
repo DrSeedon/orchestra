@@ -106,26 +106,6 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_subagents_session ON subagents(session_id);
 
-            CREATE TABLE IF NOT EXISTS inbox (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                sender TEXT NOT NULL,
-                message TEXT NOT NULL,
-                status TEXT DEFAULT 'pending',
-                created_at TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_inbox_session ON inbox(session_id, status);
-
-            CREATE TABLE IF NOT EXISTS jobs (
-                id TEXT PRIMARY KEY,
-                type TEXT NOT NULL,
-                name TEXT NOT NULL,
-                scope TEXT NOT NULL,
-                status TEXT DEFAULT 'queued',
-                error TEXT,
-                created_at TEXT NOT NULL,
-                finished_at TEXT
-            );
             CREATE TABLE IF NOT EXISTS test_lock (
                 scope TEXT PRIMARY KEY,
                 holder TEXT NOT NULL,
@@ -316,11 +296,6 @@ def kv_get(key: str, default: str = "") -> str:
     with _conn() as c:
         row = c.execute("SELECT value FROM kv WHERE key=?", (key,)).fetchone()
         return row["value"] if row else default
-
-
-def kv_set(key: str, value: str) -> None:
-    with _conn() as c:
-        c.execute("INSERT OR REPLACE INTO kv(key, value) VALUES(?, ?)", (key, value))
 
 
 def _reconstruct_costs(c) -> None:
@@ -842,11 +817,6 @@ def get_last_turn_map() -> dict[str, str]:
         return {r["session_id"]: r["last_ts"] for r in rows}
 
 
-def rename_session(session_id: str, new_name: str) -> None:
-    with _conn() as c:
-        c.execute("UPDATE sessions SET name = ? WHERE id = ?", (new_name, session_id))
-
-
 def delete_session(session_id: str) -> None:
     with _conn() as c:
         c.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
@@ -1045,63 +1015,6 @@ def cleanup_old_logs(days: int = 7) -> int:
     return deleted
 
 
-def add_inbox(session_id: str, sender: str, message: str) -> int:
-    with _conn() as c:
-        cur = c.execute(
-            "INSERT INTO inbox (session_id, sender, message, created_at) VALUES (?, ?, ?, ?)",
-            (session_id, sender, message, datetime.now(timezone.utc).isoformat()),
-        )
-        return cur.lastrowid
-
-
-def get_inbox(session_id: str) -> list[dict]:
-    with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM inbox WHERE session_id = ? AND status = 'pending' ORDER BY id ASC",
-            (session_id,),
-        ).fetchall()
-        return [dict(r) for r in rows]
-
-
-def ack_inbox(inbox_id: int) -> None:
-    with _conn() as c:
-        c.execute("UPDATE inbox SET status = 'delivered' WHERE id = ?", (inbox_id,))
-
-
-def add_job(job_id: str, job_type: str, name: str, scope: str) -> None:
-    with _conn() as c:
-        c.execute(
-            "INSERT INTO jobs (id, type, name, scope, created_at) VALUES (?, ?, ?, ?, ?)",
-            (job_id, job_type, name, scope, datetime.now(timezone.utc).isoformat()),
-        )
-
-
-def update_job(job_id: str, status: str, error: str | None = None) -> None:
-    with _conn() as c:
-        finished = datetime.now(timezone.utc).isoformat() if status in ("succeeded", "failed", "timed_out") else None
-        c.execute(
-            "UPDATE jobs SET status = ?, error = ?, finished_at = ? WHERE id = ?",
-            (status, error, finished, job_id),
-        )
-
-
-def get_jobs(scope: str | None = None, status: str | None = None) -> list[dict]:
-    with _conn() as c:
-        query = "SELECT * FROM jobs"
-        params = []
-        clauses = []
-        if scope:
-            clauses.append("scope = ?")
-            params.append(scope)
-        if status:
-            clauses.append("status = ?")
-            params.append(status)
-        if clauses:
-            query += " WHERE " + " AND ".join(clauses)
-        query += " ORDER BY created_at DESC LIMIT 20"
-        return [dict(r) for r in c.execute(query, params).fetchall()]
-
-
 # ── Background Jobs ──
 
 def bg_save_job(job: dict) -> None:
@@ -1266,15 +1179,6 @@ def bg_get_jobs(scope: str | None = None, session_id: str | None = None,
         return [dict(r) for r in rows]
 
 
-def bg_get_active_for_scope(scope: str) -> list[dict]:
-    with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM bg_jobs WHERE target_scope=? AND status IN ('active','triggering')",
-            (scope,),
-        ).fetchall()
-        return [dict(r) for r in rows]
-
-
 def bg_cancel_by_session(session_id: str) -> int:
     with _conn() as c:
         cur = c.execute(
@@ -1290,20 +1194,6 @@ def bg_get_active_all() -> list[dict]:
             "SELECT * FROM bg_jobs WHERE status IN ('active','triggering')"
         ).fetchall()
         return [dict(r) for r in rows]
-
-
-def usage_get_latest_provider_usage() -> dict:
-    with _conn() as c:
-        row = c.execute(
-            "SELECT provider_usage FROM usage_snapshots ORDER BY id DESC LIMIT 1"
-        ).fetchone()
-    if not row:
-        return {}
-    try:
-        providers = json.loads(row["provider_usage"] or "{}")
-    except (json.JSONDecodeError, TypeError):
-        return {}
-    return providers if isinstance(providers, dict) else {}
 
 
 def bg_expire_overdue() -> list[str]:
@@ -1656,13 +1546,6 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
     if grid[-1].get("id") != raw[-1].get("id"):
         grid.append(raw[-1])
     return grid
-
-
-def usage_cleanup_old(days: int = 30) -> int:
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    with _conn() as c:
-        cur = c.execute("DELETE FROM usage_snapshots WHERE ts < ?", (cutoff,))
-        return cur.rowcount
 
 
 # ── Test Lock ──
