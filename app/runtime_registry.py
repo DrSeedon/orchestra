@@ -6,7 +6,6 @@ to call it (Claude Code SDK, Codex CLI, OpenCode, or an external plugin).
 
 from __future__ import annotations
 
-import importlib
 import json
 import logging
 import os
@@ -70,7 +69,6 @@ class RuntimeDefinition:
 
 
 _RUNTIMES: dict[str, RuntimeDefinition] = {}
-_PLUGINS_LOADED = False
 
 
 def register_runtime(definition: RuntimeDefinition, *, replace: bool = False) -> None:
@@ -87,20 +85,7 @@ def unregister_runtime(runtime_id: str) -> None:
     _RUNTIMES.pop(runtime_id, None)
 
 
-def load_runtime_plugins() -> None:
-    """Import admin-configured plugins; each module calls register_runtime()."""
-    global _PLUGINS_LOADED
-    if _PLUGINS_LOADED:
-        return
-    _PLUGINS_LOADED = True
-    for module_name in os.environ.get("ORCHESTRA_RUNTIME_PLUGINS", "").split(","):
-        module_name = module_name.strip()
-        if module_name:
-            importlib.import_module(module_name)
-
-
 def get_runtime(runtime_id: str) -> RuntimeDefinition:
-    load_runtime_plugins()
     try:
         return _RUNTIMES[runtime_id]
     except KeyError as exc:

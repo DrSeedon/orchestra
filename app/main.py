@@ -23,10 +23,6 @@ async def lifespan(app: FastAPI):
     load_dotenv()
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
-    # Load admin-selected provider adapters only after .env is available. Plugins fail
-    # loudly here and may register both runtimes and models before model discovery.
-    from app.runtime_registry import load_runtime_plugins
-    load_runtime_plugins()
     init_db()
     _tunnel_started = False
     if not is_auth_enabled():

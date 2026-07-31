@@ -1129,6 +1129,58 @@ class TestPromptIsolation:
         assert "ROLE coder" in out
 
 
+class TestPromptBlocksFailLoud:
+    """#108 T2: сбой сборки блока промпта не смеет притворяться пустым списком.
+
+    Раньше оба блока были обёрнуты в `except Exception: return ""`. Агент получал
+    промпт БЕЗ списка воркеров/оркестраторов и читал это как «их нет» — то есть
+    плодил дубликаты вместо переиспользования. При этом объемлющая
+    ROLE_SYSTEM_PROMPT в своём докстринге объявляет «Fail loud».
+    """
+
+    def _boom(self, *_a, **_kw):
+        raise KeyError("name")
+
+    def test_workers_block_logs_and_marks_on_failure(self, db, monkeypatch, caplog):
+        import logging
+        from app import manager
+        monkeypatch.setattr(manager, "get_all_sessions", self._boom)
+        with caplog.at_level(logging.ERROR, logger="app.manager"):
+            out = manager._workers_block("/s")
+        assert out != ""                        # НЕ пустая строка — иначе агент решит «воркеров нет»
+        assert "⚠️" in out and "unavailable" in out
+        assert "list_agents" in out             # обходной путь агенту дан
+        assert "KeyError" in caplog.text        # класс исключения в логе
+
+    def test_other_orchestrators_block_logs_and_marks_on_failure(self, db, monkeypatch, caplog):
+        import logging
+        from app import manager
+        monkeypatch.setattr(manager, "get_all_sessions", self._boom)
+        with caplog.at_level(logging.ERROR, logger="app.manager"):
+            out = manager._other_orchestrators_block("/s")
+        assert out != ""
+        assert "⚠️" in out and "unavailable" in out
+        assert "list_orchestrators" in out
+        assert "KeyError" in caplog.text
+
+    def test_healthy_path_unchanged(self, db):
+        """На здоровой БД поведение прежнее: воркеров нет → пустой блок, не маркер."""
+        from app import manager
+        assert manager._workers_block("/s") == ""
+        assert manager._other_orchestrators_block("/s") == ""
+
+    def test_unexpected_exception_propagates(self, db, monkeypatch):
+        """except сужен: неожиданное исключение летит наверх, а не глотается."""
+        from app import manager
+
+        def _weird(*_a, **_kw):
+            raise RuntimeError("something genuinely unexpected")
+
+        monkeypatch.setattr(manager, "get_all_sessions", _weird)
+        with pytest.raises(RuntimeError):
+            manager._workers_block("/s")
+
+
 class TestValidateSpawnIntegration:
     @pytest.mark.asyncio
     async def test_forbidden_spawn_blocked_before_side_effect(self, mgr, pipeline_dir, tmp_path):
@@ -1614,16 +1666,13 @@ class TestChangeScopeUnloadedWorkerGuard:
 class TestManagerLifecycle:
     @pytest.mark.asyncio
     async def test_shutdown_rebinds_background_primitives_for_next_event_loop(self, mgr):
-        old_queue = mgr._spawn_queue
         mgr.start_background_tasks()
         await asyncio.sleep(0)
 
         await mgr.shutdown_all()
 
-        assert mgr._spawn_task is None
         assert mgr._cleanup_task is None
         assert mgr._wt_cleanup_task is None
-        assert mgr._spawn_queue is not old_queue
         assert mgr._session_locks == {}
 
 

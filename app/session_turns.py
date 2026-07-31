@@ -42,8 +42,9 @@ def _format_limits() -> str:
                     if remaining > 0:
                         h, m = divmod(int(remaining) // 60, 60)
                         reset_s = f" reset {h}h{m:02d}m"
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Метрика, которая молча теряет часть себя, хуже отсутствующей.
+                    logger.debug(f"5h resets_at unparsable ({fh_reset!r}): {type(e).__name__}: {e}")
             parts.append(f"5h:{fh_pct:.0f}%{reset_s}")
         if sd_pct is not None:
             sd_reset = sd.get("resets_at", "")
@@ -57,8 +58,8 @@ def _format_limits() -> str:
                         d, rem = divmod(int(remaining), 86400)
                         h = rem // 3600
                         reset_s = f" reset {d}d{h}h" if d else f" reset {h}h"
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"7d resets_at unparsable ({sd_reset!r}): {type(e).__name__}: {e}")
             parts.append(f"7d:{sd_pct:.0f}%{reset_s}")
         return " | " + " ".join(parts) if parts else ""
     except Exception:

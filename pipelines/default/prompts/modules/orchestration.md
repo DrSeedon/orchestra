@@ -69,7 +69,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 - `compact_worker` — manual escape hatch only (user asks, or a worker is visibly stuck). Takes 30-60s; do NOT retry on timeout, check `list_agents` instead
 - `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
 - `get_worker_logs` — debugging only, NOT for progress checks (wait for the worker's message)
-- `update_worker_description`, `list_jobs` — as named
+- `update_worker_description` — as named
 
 ### Task & payment management
 - `task_create`, `task_update`, `task_list`, `task_get` — prices in thousands (20 = 20,000 rub); `par` accepts "42" or legacy "PAR-42"

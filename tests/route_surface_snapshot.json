@@ -42,18 +42,6 @@
   ]
  ],
  [
-  "/api/git-status",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/jobs",
-  [
-   "GET"
-  ]
- ],
- [
   "/api/memory/reindex",
   [
    "POST"
@@ -75,12 +63,6 @@
   "/api/models/refresh",
   [
    "POST"
-  ]
- ],
- [
-  "/api/open-file",
-  [
-   "GET"
   ]
  ],
  [
@@ -225,12 +207,6 @@
   "/api/sessions/{name}/description",
   [
    "POST"
-  ]
- ],
- [
-  "/api/sessions/{name}/inbox",
-  [
-   "GET"
   ]
  ],
  [
@@ -384,6 +360,12 @@
   ]
  ],
  [
+  "/api/tg/delivery-stats",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/tg/send_file",
   [
    "POST"
@@ -457,24 +439,12 @@
  ],
  [
   "/api/usage",
- [
-  "GET"
+  [
+   "GET"
   ]
  ],
  [
   "/api/usage/analytics",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/usage/daily",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/usage/daily/agents",
   [
    "GET"
   ]

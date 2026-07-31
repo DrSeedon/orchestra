@@ -1,5 +1,5 @@
 """System routes: dashboard/auth pages, files, projects, profiles, usage,
-orchestrators, test-lock, git-status, restart, GitHub webhook."""
+orchestrators, test-lock, restart, GitHub webhook."""
 
 import asyncio
 import hashlib
@@ -93,12 +93,6 @@ async def logout(request: Request):
     response = RedirectResponse("/login", status_code=302)
     response.delete_cookie("session")
     return response
-
-
-@router.get("/api/jobs")
-async def list_api_jobs(scope: str | None = None):
-    from app.db import get_jobs
-    return get_jobs(scope=scope)
 
 
 # ── Projects / files ──
@@ -255,22 +249,6 @@ async def open_folder(req: dict):
         return JSONResponse({"error": "not a directory"}, status_code=400)
     env = {**os.environ, "DISPLAY": ":0", "WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": f"/run/user/{os.getuid()}"}
     subprocess.Popen(["xdg-open", path], env=env)
-    return {"ok": True}
-
-
-@router.get("/api/open-file")
-async def open_file(path: str):
-    if not os.environ.get("ALLOW_OPEN_FOLDER"):
-        return JSONResponse({"error": "disabled on this server"}, status_code=403)
-    # same safety gate as get_file_content/list_files — was the one unguarded sibling
-    if not _is_safe_path(path):
-        return JSONResponse({"error": "access denied"}, status_code=403)
-    import subprocess
-    p = Path(path)
-    if not p.exists():
-        return JSONResponse({"error": "file not found"}, status_code=404)
-    env = {**os.environ, "DISPLAY": ":0", "WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": f"/run/user/{os.getuid()}"}
-    subprocess.Popen(["xdg-open", str(p)], env=env)
     return {"ok": True}
 
 
@@ -952,7 +930,6 @@ async def _usage_snapshot_loop():
     while True:
         try:
             await _collect_usage_snapshot()
-            # usage_cleanup_old removed — keep all history
         except asyncio.CancelledError:
             return
         except Exception as e:
@@ -966,13 +943,6 @@ async def usage_history(hours: int = 24):
         return []
     from app.db import usage_get_history
     return usage_get_history(hours)
-
-
-@router.get("/api/usage/daily")
-async def usage_daily(days: int = 30):
-    """Daily cost plus runtime-aware prompt-cache gap metrics."""
-    from app.usage_analytics import daily_usage
-    return daily_usage(days)
 
 
 @router.get("/api/usage/analytics")
@@ -996,26 +966,6 @@ async def wake_after_reset_endpoint():
     from app.limit_wake import schedule_wake_after_reset
 
     return await schedule_wake_after_reset()
-
-
-@router.get("/api/usage/daily/agents")
-async def usage_daily_agents(days: int = 30):
-    """Per-agent daily cost breakdown from turn-end logs."""
-    from app.db import _conn
-    c = _conn()
-    rows = c.execute("""
-        SELECT date(l.ts) as day, s.name, s.model,
-          COUNT(*) as turns,
-          ROUND(SUM(CAST(SUBSTR(l.content, INSTR(l.content, '$') + 1,
-            INSTR(SUBSTR(l.content, INSTR(l.content, '$') + 1), ' ') - 1) AS REAL)), 4) as cost_usd
-        FROM logs l JOIN sessions s ON l.session_id = s.id
-        WHERE l.type='status' AND l.content LIKE '%turn ended%'
-          AND date(l.ts) >= date('now', ?)
-        GROUP BY date(l.ts), s.name
-        ORDER BY day DESC, cost_usd DESC
-    """, (f"-{days} days",)).fetchall()
-    c.close()
-    return [{"day": r[0], "agent": r[1], "model": r[2], "turns": r[3], "cost_usd": r[4]} for r in rows]
 
 
 # ── Misc ──
@@ -1104,65 +1054,6 @@ async def release_lock_endpoint(req: TestLockRequest):
     from app.db import release_test_lock
     ok = release_test_lock(req.scope, req.holder)
     return {"released": ok}
-
-
-# ── Git status ──
-
-# Short TTL: git status is cheap but 10s prevents dashboard refresh storms
-_git_status_cache: dict = {}  # scope -> {ts, data}
-_GIT_STATUS_TTL = 10
-
-
-async def _run_git(cmd: list[str], cwd: str) -> str:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, cwd=cwd,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-    )
-    try:
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
-        return stdout.decode().strip()
-    except asyncio.TimeoutError:
-        proc.kill()
-        return ""
-
-
-@router.get("/api/git-status")
-async def get_git_status(scope: str):
-    now = time.time()
-    cached = _git_status_cache.get(scope)
-    if cached and (now - cached["ts"]) < _GIT_STATUS_TTL:
-        return cached["data"]
-
-    sessions = manager.list_sessions(scope)
-    result = []
-    for s in sessions:
-        # list_sessions() always yields dicts (to_dict for live, raw row for DB)
-        wt = s.get("worktree_path")
-        if not wt or not Path(wt).is_dir():
-            continue
-        name = s.get("name")
-        branch = s.get("branch")
-
-        ahead_str, dirty_str, last_commit = await asyncio.gather(
-            _run_git(["git", "rev-list", "main..HEAD", "--count"], wt),
-            _run_git(["git", "status", "--porcelain"], wt),
-            _run_git(["git", "log", "-1", "--format=%s"], wt),
-        )
-
-        commits_ahead = int(ahead_str) if ahead_str.isdigit() else 0
-        dirty_files = len([l for l in dirty_str.splitlines() if l.strip()])
-        last_commit = last_commit[:50] if last_commit else ""
-
-        result.append({
-            "name": name,
-            "branch": branch or "",
-            "commits_ahead": commits_ahead,
-            "dirty_files": dirty_files,
-            "last_commit": last_commit,
-        })
-
-    _git_status_cache[scope] = {"ts": now, "data": result}
-    return result
 
 
 _restart_tasks: set[asyncio.Task] = set()

@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 import uuid
@@ -85,8 +86,15 @@ def _other_orchestrators_block(exclude_scope: str = "", caller_role: str = "") -
         lines.append("")
         lines.append("Use this when the user says \"напиши оркестре X\", \"скажи Y оркестратору\", \"спроси у Z\", etc.")
         return "\n".join(lines)
-    except Exception:
-        return ""
+    except (sqlite3.Error, KeyError, TypeError):
+        # Возвращать "" нельзя: пустой блок читается агентом как "других оркестраторов
+        # нет", а не как "список не собрался". Деградируем ГРОМКО — в лог и в промпт.
+        logger.exception(
+            f"prompt block 'other orchestrators' failed for scope={exclude_scope!r}"
+        )
+        return ("## Other orchestrators\n"
+                "⚠️ Orchestrator list unavailable (internal error) — "
+                "use `list_orchestrators` before assuming there are none.")
 
 
 def _workers_block(scope: str, orchestrator_name: str = "") -> str:
@@ -127,8 +135,13 @@ def _workers_block(scope: str, orchestrator_name: str = "") -> str:
                 lines.append(_fmt(w, show_owner=True))
 
         return "\n".join(lines)
-    except Exception:
-        return ""
+    except (sqlite3.Error, KeyError, TypeError):
+        # Пустой блок агент читает как "воркеров нет" и плодит дубликаты вместо
+        # переиспользования живых. Молчать здесь дороже, чем признать сбой.
+        logger.exception(f"prompt block 'workers' failed for scope={scope!r}")
+        return ("## Your current workers\n"
+                "⚠️ Worker list unavailable (internal error) — "
+                "use `list_agents` before spawning, you may already have workers.")
 
 
 def _fmt_role_catalog_entry(rr) -> str:
@@ -294,8 +307,6 @@ def _make_mcp_config(name: str, scope: str, role: str = "worker",
 class SessionManager:
     def __init__(self):
         self.sessions: dict[str, AgentSession] = {}
-        self._spawn_queue: asyncio.Queue = asyncio.Queue()
-        self._spawn_task: asyncio.Task | None = None
         self._session_locks: dict[str, asyncio.Lock] = {}
         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
@@ -306,45 +317,10 @@ class SessionManager:
         return self._session_locks[session_id]
 
     def start_background_tasks(self) -> None:
-        if not self._spawn_task or self._spawn_task.done():
-            self._spawn_task = asyncio.create_task(self._spawn_worker_loop())
         if not getattr(self, '_cleanup_task', None) or self._cleanup_task.done():
             self._cleanup_task = asyncio.create_task(self._periodic_db_cleanup())
         if not getattr(self, '_wt_cleanup_task', None) or self._wt_cleanup_task.done():
             self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
-
-    async def enqueue_worker_spawn(self, **job) -> None:
-        await self._spawn_queue.put(job)
-
-    async def _spawn_worker_loop(self) -> None:
-        from app.db import update_job
-        while True:
-            job = await self._spawn_queue.get()
-            job_id = job.get("job_id", "?")
-            try:
-                update_job(job_id, "executing")
-                # Brief yield: lets the MCP tool that enqueued this job return its
-                # response to the agent before the spawn starts writing to the DB
-                await asyncio.sleep(0.5)
-                session = await self.create_session(
-                    name=job["name"], scope=job["repo_path"], cwd=job["repo_path"],
-                    model=job["model"], system_prompt=job.get("system_prompt", ""),
-                    use_worktree=True, repo_path=job["repo_path"],
-                    role=job.get("role", "worker"),
-                    task_id=job.get("task_id", ""),
-                    description=job.get("description", ""),
-                    parent_name=job.get("parent_name", ""),
-                    mcp_servers=job.get("mcp_servers"),
-                )
-                session.last_task_sender = job.get("parent_name", "")
-                await session.send(job["task"])
-                update_job(job_id, "succeeded")
-                logger.info(f"Worker '{job['name']}' spawned (job {job_id})")
-            except Exception as e:
-                update_job(job_id, "failed", str(e))
-                logger.error(f"Spawn '{job.get('name')}' failed (job {job_id}): {e}")
-            finally:
-                self._spawn_queue.task_done()
 
     @staticmethod
     def _ownership_prompt(owned_dirs: list[str]) -> str:
@@ -589,11 +565,6 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if session:
             await session.interrupt()
-
-    async def unload(self, session_id: str) -> None:
-        session = self.sessions.pop(session_id, None)
-        if session:
-            await session.stop()
 
     async def remove(self, session_id: str) -> None:
         from app.bg_jobs import bg_manager
@@ -1163,21 +1134,6 @@ class SessionManager:
         db_row = get_session_by_name(name, scope)
         return db_row["id"] if db_row else None
 
-    def find_worker(self, name: str, scope: str | None = None) -> AgentSession | None:
-        for s in self.sessions.values():
-            if s.name == name and not s.is_orchestrator and (scope is None or s.scope == scope):
-                return s
-        return None
-
-    def find_session_id_by_name(self, name: str, scope: str | None = None) -> str | None:
-        for s in self.sessions.values():
-            if s.name == name and (scope is None or s.scope == scope):
-                return s.id
-        for row in get_all_sessions(scope):
-            if row["name"] == name:
-                return row["id"]
-        return None
-
     @staticmethod
     def _load_worker_memory(name: str, role: str, scope: str) -> str:
         """Load persistent memory from docs/workers/{name}.md or docs/workers/{role}.md.
@@ -1328,7 +1284,6 @@ class SessionManager:
     async def shutdown_all(self) -> None:
         background_tasks = [
             task for task in (
-                self._spawn_task,
                 getattr(self, '_cleanup_task', None),
                 getattr(self, '_wt_cleanup_task', None),
             )
@@ -1339,7 +1294,6 @@ class SessionManager:
                 task.cancel()
         if background_tasks:
             await asyncio.gather(*background_tasks, return_exceptions=True)
-        self._spawn_task = None
         self._cleanup_task = None
         self._wt_cleanup_task = None
         sessions = list(self.sessions.values())
@@ -1355,7 +1309,4 @@ class SessionManager:
                     result,
                 )
         self.sessions.clear()
-        # asyncio primitives bind lazily to their first event loop. Lifespan may be
-        # entered again by TestClient or an embedded server in the same process.
-        self._spawn_queue = asyncio.Queue()
         self._session_locks.clear()

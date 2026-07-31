@@ -114,36 +114,6 @@ def get_role_icons() -> dict[str, str]:
     return icons
 
 
-def roles_catalog() -> str:
-    """Build a catalog of available worker roles from roles/ directory frontmatter."""
-    roles_dir = _PROMPTS_DIR / "roles"
-    if not roles_dir.is_dir():
-        return ""
-    entries = []
-    for f in sorted(roles_dir.glob("*.md")):
-        meta, _ = parse_role_frontmatter(f.read_text())
-        if not meta or meta.get("name") == "orchestrator":
-            continue
-        name = meta.get("name", f.stem)
-        label = meta.get("label", name)
-        model = meta.get("model", "any")
-        desc = meta.get("description", "").strip().replace("\n", " ")
-        when = meta.get("when", "").strip()
-        not_for = meta.get("not_for", "").strip()
-        skills_list = meta.get("skills", [])
-        entry = f"### `{name}` ({label}) — model: {model}\n{desc}"
-        if when:
-            entry += f"\n- ✅ **When**: {when}"
-        if not_for:
-            entry += f"\n- ❌ **Not for**: {not_for}"
-        if skills_list:
-            entry += f"\n- 🔧 **Skills**: {', '.join(skills_list)}"
-        entries.append(entry)
-    if not entries:
-        return ""
-    return "## Available worker roles\nSpawn with `role=\"<name>\"`. If no role specified, defaults to `worker`.\n\n" + "\n\n".join(entries)
-
-
 def prompt_template_hash(role_or_orch) -> str:
     """Hash only the static template files (base.md + role.md + skills).
     Accepts role string or legacy bool (is_orchestrator)."""

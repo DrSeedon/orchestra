@@ -238,16 +238,6 @@ curl -s -X POST "http://127.0.0.1:8888/api/sessions/{name}/compact" \
 curl -s "http://127.0.0.1:8888/api/sessions/{name}/prompt?scope=/path/to/project"
 ```
 
-### Входящие сообщения (inbox) агента
-```bash
-curl -s "http://127.0.0.1:8888/api/sessions/{name}/inbox?scope=/path/to/project"
-```
-
-### Список jobs (spawn/kill задачи)
-```bash
-curl -s "http://127.0.0.1:8888/api/jobs?scope=/path/to/project"
-```
-
 ---
 
 ## Типичные сценарии

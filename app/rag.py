@@ -423,18 +423,6 @@ class RagMemory:
             self.conn.execute("ROLLBACK")
             raise
 
-    def apply_file_change(self, project: str, deleted: bool, rel_path: str, abs_path: str = "") -> int:
-        """Watcher-хук: deleted → delete_file; иначе читаем abs_path и index_file.
-        Не-UTF8/пропавший файл → тихо skip (0)."""
-        if deleted:
-            return 1 if self.delete_file(project, rel_path) else 0
-        try:
-            content = Path(abs_path).read_text(encoding="utf-8")
-            mtime = Path(abs_path).stat().st_mtime
-        except (UnicodeDecodeError, OSError):
-            return 0
-        return self.index_file(project, rel_path, content, mtime)
-
     def delete_file(self, project: str, rel_path: str) -> bool:
         """Удаляет все чанки файла по (project, path). True если файл был проиндексирован."""
         row = self.conn.execute(

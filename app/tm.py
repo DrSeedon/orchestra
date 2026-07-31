@@ -119,11 +119,6 @@ def get_project_by_prefix(conn: sqlite3.Connection, prefix: str) -> dict | None:
     return dict(row) if row else None
 
 
-def get_project_prefix(conn: sqlite3.Connection, project_id: str) -> str:
-    row = conn.execute("SELECT prefix FROM tm_projects WHERE id = ?", (project_id,)).fetchone()
-    return row[0] if row else "TASK"
-
-
 # --- Clients ---
 
 def ensure_client(conn: sqlite3.Connection, client_id: str, name: str,
@@ -682,13 +677,6 @@ def log_sync(conn: sqlite3.Connection, task_id: int | None, action: str,
         (task_id, action, sync_revision, payload, status, error or None, now, completed),
     )
     return cur.lastrowid
-
-
-def get_pending_syncs(conn: sqlite3.Connection) -> list[dict]:
-    rows = conn.execute(
-        "SELECT * FROM tm_sync_log WHERE status IN ('pending', 'error') ORDER BY id ASC"
-    ).fetchall()
-    return [dict(r) for r in rows]
 
 
 # --- Sync helpers (fire-and-forget after commit) ---

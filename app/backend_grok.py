@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
+from app.backend_jsonrpc import JsonRpcStdioTransport, bounded_tool_arguments
 from app.events import AgentEvent
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
@@ -132,30 +133,12 @@ def _grok_cost(model: str, input_tokens: int, cached_tokens: int, output_tokens:
             + max(0, output_tokens) * prices["output"]) / 1_000_000
 
 
-_TOOL_ARGUMENT_LONG_FIELDS = {
-    "content", "context", "description", "message", "prompt", "system_prompt", "task",
-}
-
-
-def _bounded(value, *, field: str = ""):
-    """Keep tool telemetry structured without letting prompts flood the log."""
-    if isinstance(value, dict):
-        return {str(k): _bounded(v, field=str(k)) for k, v in list(value.items())[:50]}
-    if isinstance(value, list):
-        return [_bounded(v, field=field) for v in value[:50]]
-    if isinstance(value, str):
-        limit = 4000 if field in _TOOL_ARGUMENT_LONG_FIELDS else 1500
-        if len(value) > limit:
-            return f"{value[:limit]}… [truncated {len(value) - limit} chars]"
-    return value
-
-
 def _content_text(content) -> str:
     """Flatten an ACP content block (or list of them) to text."""
     if isinstance(content, dict):
         if content.get("type") == "text":
             return str(content.get("text", ""))
-        return json.dumps(_bounded(content), ensure_ascii=False)
+        return json.dumps(bounded_tool_arguments(content), ensure_ascii=False)
     if isinstance(content, list):
         return "\n".join(_content_text(part) for part in content)
     return str(content) if content is not None else ""
@@ -196,7 +179,7 @@ class GrokProtocolError(RuntimeError):
         super().__init__(f"{method}: {error.get('message', 'Grok ACP error')}")
 
 
-class GrokBackend:
+class GrokBackend(JsonRpcStdioTransport):
     """Persistent Grok ACP client.
 
     One `grok agent stdio` process owns one resumable ACP session. Unlike Codex there is no
@@ -204,6 +187,9 @@ class GrokBackend:
     queue and executed as its OWN turn afterwards (measured). So `send()` never blocks on the
     running turn, and N sends produce N turn_ends.
     """
+
+    RUNTIME_LABEL = "Grok ACP agent"
+    JSONRPC_ENVELOPE = True
 
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
@@ -260,10 +246,6 @@ class GrokBackend:
     @property
     def session_id(self) -> Optional[str]:
         return self._session_id
-
-    @property
-    def is_alive(self) -> bool:
-        return self._proc is not None and self._proc.returncode is None
 
     async def connect(self) -> None:
         if self.is_alive:
@@ -548,32 +530,6 @@ class GrokBackend:
 
     # ── transport ──
 
-    async def _request(self, method: str, params: dict) -> dict:
-        if not self._proc or not self._proc.stdin or self._proc.returncode is not None:
-            raise RuntimeError("Grok ACP agent is not running")
-        self._request_seq += 1
-        request_id = self._request_seq
-        future = asyncio.get_running_loop().create_future()
-        self._pending_requests[request_id] = future
-        try:
-            await self._write({"jsonrpc": "2.0", "method": method,
-                               "id": request_id, "params": params})
-            result = await future
-            return result if isinstance(result, dict) else {}
-        finally:
-            self._pending_requests.pop(request_id, None)
-
-    async def _notify(self, method: str, params: dict) -> None:
-        await self._write({"jsonrpc": "2.0", "method": method, "params": params})
-
-    async def _write(self, payload: dict) -> None:
-        if not self._proc or not self._proc.stdin:
-            raise RuntimeError("Grok ACP stdin is unavailable")
-        encoded = (json.dumps(payload, ensure_ascii=False) + "\n").encode()
-        async with self._write_lock:
-            self._proc.stdin.write(encoded)
-            await self._proc.stdin.drain()
-
     async def _read_stdout(self) -> None:
         proc = self._proc
         if not proc or not proc.stdout:
@@ -724,21 +680,6 @@ class GrokBackend:
                       "message": f"Orchestra does not implement client request {method}"},
         })
 
-    async def _drain_stderr(self) -> None:
-        proc = self._proc
-        if not proc or not proc.stderr:
-            return
-        try:
-            while True:
-                chunk = await proc.stderr.read(4096)
-                if not chunk:
-                    break
-                self._last_stderr = (
-                    self._last_stderr + chunk.decode("utf-8", errors="replace")
-                )[-4000:]
-        except asyncio.CancelledError:
-            return
-
     # ── event conversion ──
 
     def _convert(self, message: dict) -> list[AgentEvent]:
@@ -849,7 +790,7 @@ class GrokBackend:
             self._tool_names[tool_id] = name
             return [AgentEvent(
                 "tool_use",
-                f"{name}: {json.dumps(_bounded(update.get('rawInput') or {}), ensure_ascii=False)}",
+                f"{name}: {json.dumps(bounded_tool_arguments(update.get('rawInput') or {}), ensure_ascii=False)}",
                 metadata={"tool_name": name, "short_name": name, "tool_use_id": tool_id},
             )]
 
