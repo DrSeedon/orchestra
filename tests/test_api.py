@@ -2,7 +2,7 @@
 
 import subprocess
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -877,6 +877,106 @@ async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch, 
     assert captured["force"] is force
     assert session.base_branch == "master"
     assert session.branch == "task-91/w"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stored_base_branch", ["master", ""])
+async def test_switch_failure_restores_previous_lifecycle_and_does_not_update_task(
+    db, monkeypatch, stored_base_branch,
+):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    from app.db import get_session, save_session
+    from app.manager import SessionManager
+    from datetime import datetime, timezone
+
+    save_session({
+        "id": "switch-normal-failure", "name": "w", "scope": "/s",
+        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+        "status": "idle", "session_id": None, "cost_usd": 0.0,
+        "worktree_path": "/wt", "branch": "task-90/w",
+        "base_branch": stored_base_branch,
+        "needs_switch": 0, "task_id": "90", "is_orchestrator": False,
+        "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+    })
+    local_manager = SessionManager()
+    found = local_manager.get_by_name("w", "/s")
+    task_update = MagicMock()
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: found)
+    monkeypatch.setattr(mainmod.manager, "get_session_lock", local_manager.get_session_lock)
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", local_manager.persist_lifecycle)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+    monkeypatch.setattr(
+        "app.workspace.switch_worktree_branch",
+        lambda *_args, **_kwargs: {"ok": False, "error": "target busy"},
+    )
+    monkeypatch.setattr("app.tm.api_update_task", task_update)
+
+    result = await sessmod.switch_branch(
+        "w", {"scope": "/s", "task_id": "91", "force": True},
+    )
+
+    assert result == {"ok": False, "error": "target busy"}
+    row = get_session("switch-normal-failure")
+    assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
+        "task-90/w", stored_base_branch, "90", 0,
+    )
+    task_update.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_switch_rollback_failure_persists_quarantine_for_detached_reload(
+    db, monkeypatch,
+):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    from app.db import get_session, save_session
+    from app.manager import SessionManager
+    from datetime import datetime, timezone
+
+    save_session({
+        "id": "switch-rollback-failure", "name": "w", "scope": "/s",
+        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+        "status": "idle", "session_id": None, "cost_usd": 0.0,
+        "worktree_path": "/wt", "branch": "task-90/w", "base_branch": "master",
+        "needs_switch": 0, "task_id": "90", "is_orchestrator": False,
+        "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+    })
+    local_manager = SessionManager()
+    found = local_manager.get_by_name("w", "/s")
+    task_update = MagicMock()
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: found)
+    monkeypatch.setattr(mainmod.manager, "get_session_lock", local_manager.get_session_lock)
+    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", local_manager.persist_lifecycle)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+    monkeypatch.setattr(
+        "app.workspace.switch_worktree_branch",
+        lambda *_args, **_kwargs: {
+            "ok": False,
+            "state": "rollback_failed",
+            "error": "checkout failed; rollback failed",
+            "actual_branch": "task-91/w",
+            "actual_head": "deadbeef",
+        },
+    )
+    monkeypatch.setattr("app.tm.api_update_task", task_update)
+
+    result = await sessmod.switch_branch(
+        "w", {"scope": "/s", "task_id": "91", "force": True},
+    )
+
+    assert result["state"] == "rollback_failed"
+    row = get_session("switch-rollback-failure")
+    assert (row["branch"], row["task_id"], row["needs_switch"]) == (
+        "task-91/w", "", 1,
+    )
+    reloaded = SessionManager().get_by_name("w", "/s")
+    assert reloaded.branch == "task-91/w"
+    assert reloaded.task_id == ""
+    assert reloaded.needs_switch is True
+    task_update.assert_not_called()
 
 
 @pytest.mark.asyncio

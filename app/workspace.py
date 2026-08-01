@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import logging
 import os
 import re
 import subprocess
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
 
 if TYPE_CHECKING:
     # Только для аннотаций (строковые аннотации + from __future__ import annotations):
@@ -31,6 +33,23 @@ PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
 class Worktree:
     path: str
     branch: str
+    branch_created: bool = False
+
+
+class MergeOutcome(TypedDict):
+    ok: bool
+    state: Literal["merged", "conflict", "failed", "partial"]
+    commit_point: Literal["not_reached", "rolled_back", "target_committed", "unknown"]
+    target_branch: str
+    target_before: str
+    target_after: str
+    worker_branch: str
+    worker_head: str
+    conflicts: list[str]
+    error: NotRequired[str]
+    commits_merged: NotRequired[int]
+    branch: NotRequired[str]
+    merged_commits: NotRequired[dict[str, list[dict]]]
 
 
 def _slugify(s: str) -> str:
@@ -116,6 +135,100 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
         if gosu:
             args = [gosu, agent_uid] + args
     return subprocess.run(args, **kwargs)
+
+
+def _repo_lock_path(repo: str | Path) -> Path:
+    """Stable cross-process lock identity for one Git common directory."""
+    repo_path = Path(repo).resolve()
+    common = _git_cmd(
+        ["git", "rev-parse", "--git-common-dir"],
+        cwd=str(repo_path), capture_output=True, text=True,
+    )
+    if common.returncode != 0:
+        detail = common.stderr.strip() or common.stdout.strip() or f"exit {common.returncode}"
+        raise RuntimeError(f"cannot resolve git common dir for {repo_path}: {detail}")
+    common_dir = Path(common.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = repo_path / common_dir
+    common_dir = common_dir.resolve()
+    digest = hashlib.sha256(os.fsencode(str(common_dir))).hexdigest()[:24]
+    return common_dir / f"orchestra-repo-{digest}.lock"
+
+
+@contextmanager
+def repo_mutation_lock(repo: str | Path):
+    """Serialize one standalone Git mutation for a repository across processes.
+
+    Mutation helpers already acquire this lock. Callers must not wrap those helpers,
+    because a second descriptor can block on the caller's own ``flock``.
+    """
+    lock_path = _repo_lock_path(repo)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(lock_path, flags, 0o600)
+    with os.fdopen(fd, "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def _inspect_branch_ref(repo: Path, branch: str) -> str | None:
+    ref = f"refs/heads/{branch}"
+    exists = _git_cmd(
+        ["git", "show-ref", "--verify", "--quiet", ref],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if exists.returncode == 0:
+        current = _git_cmd(
+            ["git", "rev-parse", ref], cwd=str(repo), capture_output=True, text=True,
+        )
+        if current.returncode != 0:
+            detail = current.stderr.strip() or current.stdout.strip()
+            raise RuntimeError(f"cannot resolve branch '{branch}': {detail}")
+        return current.stdout.strip()
+    if exists.returncode != 1:
+        detail = exists.stderr.strip() or exists.stdout.strip() or f"exit {exists.returncode}"
+        raise RuntimeError(f"cannot inspect branch '{branch}': {detail}")
+    return None
+
+
+def _resolve_commit_oid(repo: Path, ref: str) -> str:
+    start = _git_cmd(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if start.returncode != 0:
+        detail = start.stderr.strip() or start.stdout.strip() or f"exit {start.returncode}"
+        raise RuntimeError(f"cannot resolve branch start '{ref}': {detail}")
+    return start.stdout.strip()
+
+
+def _create_branch_ref(repo: Path, branch: str, initial_oid: str) -> None:
+    created = _git_cmd(
+        ["git", "update-ref", f"refs/heads/{branch}", initial_oid, ""],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if created.returncode != 0:
+        detail = created.stderr.strip() or created.stdout.strip() or f"exit {created.returncode}"
+        raise RuntimeError(f"cannot create branch '{branch}': {detail}")
+
+
+def _worktree_registered(repo: Path, worktree: Path) -> bool:
+    listed = _git_cmd(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=str(repo), capture_output=True, text=True,
+    )
+    if listed.returncode != 0:
+        detail = listed.stderr.strip() or listed.stdout.strip() or f"exit {listed.returncode}"
+        raise RuntimeError(f"cannot inspect worktree registry: {detail}")
+    wanted = worktree.resolve()
+    return any(
+        Path(line[len("worktree "):]).resolve() == wanted
+        for line in listed.stdout.splitlines()
+        if line.startswith("worktree ")
+    )
 
 
 def validate_repo_root(repo_path: str) -> Path:
@@ -345,77 +458,183 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
                     base_branch: str = "",
                     worktree_cfg: "WorktreeCfg | None" = None) -> Worktree:
     repo = validate_repo_root(repo_path)
-    base_branch = resolve_base_branch(str(repo), base_branch)
+    with repo_mutation_lock(repo):
+        base_branch = resolve_base_branch(str(repo), base_branch)
 
-    # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
-    # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
-    repo_slug = _slugify(str(repo))
-    wt_dir = WORKTREE_ROOT / repo_slug
-    _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
-    wt_path = wt_dir / name
+        # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
+        # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
+        repo_slug = _slugify(str(repo))
+        wt_dir = WORKTREE_ROOT / repo_slug
+        _git_cmd(["mkdir", "-p", str(wt_dir)], capture_output=True)
+        wt_path = wt_dir / name
 
-    if task_id:
-        par = _normalize_task_id(task_id)
-        branch = f"task-{par}/{name}"
-    else:
-        branch = f"feat/{repo_slug}/{name}"
+        if task_id:
+            par = _normalize_task_id(task_id)
+            branch = f"task-{par}/{name}"
+        else:
+            branch = f"feat/{repo_slug}/{name}"
 
-    if wt_path.exists():
-        raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
+        if wt_path.exists():
+            raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
 
-    ref_check = _git_cmd(
-        ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
-        cwd=str(repo), capture_output=True, text=True,
-    )
-
-    fmt_check = _git_cmd(
-        ["git", "check-ref-format", "--branch", branch],
-        cwd=str(repo), capture_output=True, text=True,
-    )
-    if fmt_check.returncode != 0:
-        raise ValueError(f"Invalid branch name '{branch}': {fmt_check.stderr.strip()}")
-
-    if ref_check.returncode == 0:
-        if _is_branch_checked_out_elsewhere(str(repo), branch, wt_path):
-            raise ValueError(f"Branch '{branch}' is checked out in another worktree.")
-        result = _git_cmd(
-            ["git", "worktree", "add", str(wt_path), branch],
+        fmt_check = _git_cmd(
+            ["git", "check-ref-format", "--branch", branch],
             cwd=str(repo), capture_output=True, text=True,
         )
-    else:
-        result = _git_cmd(
-            ["git", "worktree", "add", str(wt_path), "-b", branch, base_branch],
-            cwd=str(repo), capture_output=True, text=True,
+        if fmt_check.returncode != 0:
+            raise ValueError(f"Invalid branch name '{branch}': {fmt_check.stderr.strip()}")
+
+        branch_initial_oid = _inspect_branch_ref(repo, branch)
+        branch_created = branch_initial_oid is None
+        if branch_created:
+            branch_initial_oid = _resolve_commit_oid(repo, base_branch)
+            result = _git_cmd(
+                ["git", "worktree", "add", "--detach", str(wt_path), branch_initial_oid],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+        else:
+            if _is_branch_checked_out_elsewhere(str(repo), branch, wt_path):
+                raise ValueError(f"Branch '{branch}' is checked out in another worktree.")
+            result = _git_cmd(
+                ["git", "worktree", "add", str(wt_path), branch],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+        if result.returncode != 0:
+            raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
+
+        if branch_created:
+            try:
+                _create_branch_ref(repo, branch, branch_initial_oid)
+            except RuntimeError as create_error:
+                removed = _git_cmd(
+                    ["git", "worktree", "remove", str(wt_path), "--force"],
+                    cwd=str(repo), capture_output=True, text=True,
+                )
+                if removed.returncode != 0 and _worktree_registered(repo, wt_path):
+                    detail = removed.stderr.strip() or removed.stdout.strip()
+                    raise RuntimeError(
+                        f"{create_error}; detached worktree cleanup failed: {detail}"
+                    ) from create_error
+                raise
+            checkout = _git_cmd(
+                ["git", "checkout", branch],
+                cwd=str(wt_path), capture_output=True, text=True,
+            )
+            if checkout.returncode != 0:
+                removed = _git_cmd(
+                    ["git", "worktree", "remove", str(wt_path), "--force"],
+                    cwd=str(repo), capture_output=True, text=True,
+                )
+                detail = checkout.stderr.strip() or checkout.stdout.strip()
+                if removed.returncode != 0 and _worktree_registered(repo, wt_path):
+                    cleanup_detail = removed.stderr.strip() or removed.stdout.strip()
+                    detail = f"{detail}; worktree cleanup failed: {cleanup_detail}"
+                raise RuntimeError(
+                    f"git checkout created branch failed: {detail}; "
+                    f"branch '{branch}' was preserved"
+                )
+
+        _exclude_claude_dir(wt_path)
+
+        # worktree_cfg задан → правила манифеста (copies + symlinks) и ТОЛЬКО они.
+        # None → upstream-fallback: хардкод PROJECT_FILES, симлинков нет.
+        copies = worktree_cfg.copies if worktree_cfg is not None else list(PROJECT_FILES)
+        try:
+            for fname in copies:
+                src = _resolve_src(repo, fname)
+                if src is None:
+                    continue
+                dst = wt_path / fname
+                if not _within(dst.parent, wt_path):
+                    raise ValueError(f"copy target '{fname}' escapes worktree")
+                _copy_file(src, dst)
+            if worktree_cfg is not None:
+                for sl in worktree_cfg.symlinks:
+                    _apply_symlink(repo, wt_path, sl)
+            sync_agents_md(str(wt_path))
+        except Exception as setup_error:
+            cleanup_errors: list[str] = []
+            branch_deleted = False
+            if branch_created:
+                current_branch = _git_cmd(
+                    ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+                    cwd=str(wt_path), capture_output=True, text=True,
+                )
+                try:
+                    current_oid = _inspect_branch_ref(repo, branch)
+                except RuntimeError as inspect_error:
+                    current_oid = None
+                    cleanup_errors.append(str(inspect_error))
+                ownership_changed = (
+                    current_branch.returncode != 0
+                    or current_branch.stdout.strip() != branch
+                    or current_oid != branch_initial_oid
+                )
+                if cleanup_errors or ownership_changed:
+                    cleanup_errors.append(
+                        f"created branch ownership changed; preserving worktree and {branch}"
+                    )
+                else:
+                    deleted = _git_cmd(
+                        [
+                            "git", "update-ref", "-d",
+                            f"refs/heads/{branch}", branch_initial_oid,
+                        ],
+                        cwd=str(repo), capture_output=True, text=True,
+                    )
+                    if deleted.returncode != 0:
+                        cleanup_errors.append(
+                            "branch delete: "
+                            f"{deleted.stderr.strip() or deleted.stdout.strip()}"
+                        )
+                    else:
+                        branch_deleted = True
+            if not cleanup_errors:
+                removed = _git_cmd(
+                    ["git", "worktree", "remove", str(wt_path), "--force"],
+                    cwd=str(repo), capture_output=True, text=True,
+                )
+                try:
+                    registered = _worktree_registered(repo, wt_path)
+                except RuntimeError as inspect_error:
+                    registered = True
+                    cleanup_errors.append(str(inspect_error))
+                if removed.returncode != 0 and registered:
+                    cleanup_errors.append(
+                        "worktree remove: "
+                        f"{removed.stderr.strip() or removed.stdout.strip()}"
+                    )
+                elif registered:
+                    cleanup_errors.append("worktree remains registered after removal")
+                if registered and branch_deleted:
+                    restored = _git_cmd(
+                        [
+                            "git", "update-ref", f"refs/heads/{branch}",
+                            branch_initial_oid, "",
+                        ],
+                        cwd=str(repo), capture_output=True, text=True,
+                    )
+                    if restored.returncode != 0:
+                        cleanup_errors.append(
+                            "branch restore after failed removal: "
+                            f"{restored.stderr.strip() or restored.stdout.strip()}"
+                        )
+            if branch_created and not cleanup_errors:
+                remaining_ref = _inspect_branch_ref(repo, branch)
+                if remaining_ref is not None:
+                    cleanup_errors.append(
+                        f"created branch {branch} remains at {remaining_ref}"
+                    )
+            if cleanup_errors:
+                raise RuntimeError(
+                    f"worktree setup failed: {setup_error}; "
+                    f"cleanup failed: {'; '.join(cleanup_errors)}"
+                ) from setup_error
+            raise
+
+        return Worktree(
+            path=str(wt_path), branch=branch, branch_created=branch_created,
         )
-    if result.returncode != 0:
-        raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
-
-    _exclude_claude_dir(wt_path)
-
-    # worktree_cfg задан → правила манифеста (copies + symlinks) и ТОЛЬКО они.
-    # None → upstream-fallback: хардкод PROJECT_FILES, симлинков нет.
-    copies = worktree_cfg.copies if worktree_cfg is not None else list(PROJECT_FILES)
-    try:
-        for fname in copies:
-            src = _resolve_src(repo, fname)
-            if src is None:
-                continue
-            dst = wt_path / fname
-            if not _within(dst.parent, wt_path):
-                raise ValueError(f"copy target '{fname}' escapes worktree")
-            _copy_file(src, dst)
-        if worktree_cfg is not None:
-            for sl in worktree_cfg.symlinks:
-                _apply_symlink(repo, wt_path, sl)
-        sync_agents_md(str(wt_path))
-    except Exception:
-        _git_cmd(
-            ["git", "worktree", "remove", str(wt_path), "--force"],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        raise
-
-    return Worktree(path=str(wt_path), branch=branch)
 
 
 def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
@@ -582,7 +801,7 @@ def _commit_failure_result(repo: str, old_head: str, commit) -> dict:
     )
 
 
-def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
+def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> tuple[dict, bool]:
     """Cherry-pick all commits from branch onto current HEAD.
 
     Fallback for unrelated histories: happens when a worker was spawned from a
@@ -594,14 +813,19 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
         cwd=repo, capture_output=True, text=True,
     )
     if rev_list.returncode != 0 or not rev_list.stdout.strip():
-        return {"ok": False, "error": f"cannot list commits on {branch}: {rev_list.stderr.strip()}"}
+        return ({
+            "ok": False,
+            "error": f"cannot list commits on {branch}: {rev_list.stderr.strip()}",
+        }, False)
 
     commits = rev_list.stdout.strip().splitlines()
     logger.info(f"cherry-pick fallback: {len(commits)} commits from {branch}")
 
     messages = _get_commit_messages(repo, branch, "")
 
+    mutation_started = False
     for i, sha in enumerate(commits):
+        mutation_started = True
         cp = _git_cmd(
             ["git", "cherry-pick", "--no-commit", sha],
             cwd=repo, capture_output=True, text=True,
@@ -615,7 +839,13 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
                 ["git", "cherry-pick", "--abort"],
                 cwd=repo, capture_output=True, text=True,
             )
-            return {"ok": False, "error": f"cherry-pick failed on commit {sha[:7]} ({i+1}/{len(commits)}): {cp_err}"}
+            return ({
+                "ok": False,
+                "error": (
+                    f"cherry-pick failed on commit {sha[:7]} "
+                    f"({i+1}/{len(commits)}): {cp_err}"
+                ),
+            }, mutation_started)
 
     status = _git_cmd(
         ["git", "diff", "--cached", "--quiet"],
@@ -628,16 +858,16 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> dict:
             cwd=repo, capture_output=True, text=True,
         )
         if commit.returncode != 0:
-            return _commit_failure_result(repo, old_head, commit)
+            return _commit_failure_result(repo, old_head, commit), mutation_started
 
     merged_commits = _parse_merged_commits(repo, old_head) if old_head else {}
-    return {
+    return ({
         "ok": True,
         "commits_merged": len(commits),
         "branch": branch,
         "strategy": "cherry-pick",
         "merged_commits": merged_commits,
-    }
+    }, mutation_started)
 
 
 def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None:
@@ -661,18 +891,31 @@ def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None
         logger.info(f"_reset_worktree_to_ref: {wt} reset to {ref} ({target_sha[:8]})")
 
 
-def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: str = "") -> dict:
+def merge_worktree_to_main(
+    worktree_path: str, repo_path: str, target_branch: str = "",
+) -> MergeOutcome:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
-    target_branch = resolve_base_branch(str(repo), target_branch)
-    lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(repo))}.lock"
 
     original_branch = None
     result = None
+    worker_head = ""
+    target_before = ""
+    target_after = ""
+    worker_branch = ""
+    mutation_started = False
+    target_commit_succeeded = False
+    merge_cwd = ""
 
-    with open(lock_path, "w") as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
+    with repo_mutation_lock(repo):
+        target_branch = resolve_base_branch(str(repo), target_branch)
         try:
+            worker_head_result = _git_cmd(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if worker_head_result.returncode == 0:
+                worker_head = worker_head_result.stdout.strip()
             branch_result = _git_cmd(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=str(wt), capture_output=True, text=True,
@@ -681,6 +924,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                 result = {"ok": False, "error": f"cannot get branch: {branch_result.stderr.strip()}"}
             else:
                 branch = branch_result.stdout.strip()
+                worker_branch = branch
                 child_error = _clean_worktree_error(wt, "worker")
                 if child_error:
                     result = {"ok": False, "error": child_error}
@@ -692,6 +936,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                     if ref_verify.returncode != 0:
                         result = {"ok": False, "error": f"target branch '{target_branch}' does not exist"}
                     else:
+                        target_before = ref_verify.stdout.split()[0]
                         try:
                             owner = _branch_worktree_path(str(repo), target_branch)
                         except RuntimeError as e:
@@ -762,19 +1007,20 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                         precheck_ok = True
                                         if not unrelated:
                                             precheck = _git_cmd(
-                                                ["git", "merge-tree", "--write-tree",
-                                                 target_branch, branch],
+                                                [
+                                                    "git", "merge-tree", "--write-tree",
+                                                    "--name-only", "--no-messages", "-z",
+                                                    target_branch, branch,
+                                                ],
                                                 cwd=merge_cwd,
                                                 capture_output=True,
                                                 text=True,
                                             )
                                             if precheck.returncode != 0:
-                                                conflict_files = []
-                                                for line in precheck.stdout.splitlines():
-                                                    if line.startswith("CONFLICT"):
-                                                        parts = line.split()
-                                                        if parts:
-                                                            conflict_files.append(parts[-1])
+                                                records = precheck.stdout.split("\0")
+                                                conflict_files = [
+                                                    path for path in records[1:] if path
+                                                ]
                                                 if not conflict_files:
                                                     err = (
                                                         precheck.stderr.strip()
@@ -813,7 +1059,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                                     "unrelated histories for %s — using cherry-pick",
                                                     branch,
                                                 )
-                                                result = _cherry_pick_branch(
+                                                result, mutation_started = _cherry_pick_branch(
                                                     merge_cwd, branch, old_head,
                                                 )
                                             else:
@@ -830,6 +1076,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                                 messages = _get_commit_messages(
                                                     merge_cwd, branch, target_branch,
                                                 )
+                                                mutation_started = True
                                                 merge = _git_cmd(
                                                     ["git", "merge", "--squash", branch],
                                                     cwd=merge_cwd,
@@ -897,6 +1144,7 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                                                         }
 
                                             if result and result.get("ok"):
+                                                target_commit_succeeded = True
                                                 _reset_worktree_to_ref(
                                                     str(wt), target_branch, str(repo),
                                                 )
@@ -910,8 +1158,68 @@ def merge_worktree_to_main(worktree_path: str, repo_path: str, target_branch: st
                     logger.error(f"restore branch failed: {restore.stderr.strip()}")
                     result = {"ok": False, "state": "restore_failed",
                               "error": f"cannot restore branch '{original_branch}': {restore.stderr.strip()}"}
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
-    return result if result is not None else {"ok": False, "error": "merge produced no result"}
+        target_after_result = _git_cmd(
+            ["git", "show-ref", "--verify", f"refs/heads/{target_branch}"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if target_after_result.returncode == 0:
+            target_after = target_after_result.stdout.split()[0]
+        target_snapshot_known = target_after_result.returncode in (0, 1)
+
+        if result is None:
+            result = {"ok": False, "error": "merge produced no result"}
+        target_changed = target_after != target_before
+        rollback_verified = False
+        if mutation_started and merge_cwd and target_snapshot_known and not target_changed:
+            final_target_status = _git_cmd(
+                ["git", "status", "--porcelain"],
+                cwd=merge_cwd, capture_output=True, text=True,
+            )
+            rollback_verified = (
+                final_target_status.returncode == 0
+                and not final_target_status.stdout.strip()
+            )
+
+        prior_state = result.get("state")
+        if not target_snapshot_known or (target_before and not target_after):
+            result["ok"] = False
+            state = "partial"
+            commit_point = "unknown"
+            result["error"] = result.get("error") or "cannot obtain final target snapshot"
+        elif prior_state in {"restore_failed", "rollback_failed"}:
+            result["ok"] = False
+            state = "partial"
+            commit_point = "unknown"
+            result["error"] = result.get("error") or f"merge ended in {prior_state}"
+        elif result.get("ok"):
+            state = "merged"
+            commit_point = "target_committed" if target_changed else "not_reached"
+        elif target_commit_succeeded and target_changed:
+            state = "partial"
+            commit_point = "target_committed"
+            result["error"] = result.get("error") or "merge changed target before failing"
+        elif result.get("conflicts"):
+            state = "conflict"
+            commit_point = "not_reached"
+        elif mutation_started and not rollback_verified:
+            state = "partial"
+            commit_point = "unknown"
+            result["error"] = result.get("error") or "merge rollback could not be verified"
+        else:
+            state = "failed"
+            commit_point = "rolled_back" if mutation_started else "not_reached"
+            result["error"] = result.get("error") or "merge failed without an error detail"
+        result.update(
+            state=state,
+            commit_point=commit_point,
+            target_branch=target_branch,
+            target_before=target_before,
+            target_after=target_after,
+            worker_branch=worker_branch,
+            worker_head=worker_head,
+            conflicts=result.get("conflicts", []),
+        )
+        return result
 
 
 _TASK_REF_RE = re.compile(r"(?:\b([A-Z]{2,5})-(\d+)\b|#(\d+)\b)")
@@ -1121,88 +1429,343 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                            force: bool = False) -> dict:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), str(wt))
-    from_ref = resolve_base_branch(str(repo), from_ref)
-    lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(repo))}.lock"
+    with repo_mutation_lock(repo):
+        from_ref = resolve_base_branch(str(repo), from_ref)
+        valid = _git_cmd(
+            ["git", "check-ref-format", "--branch", new_branch],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if valid.returncode != 0:
+            return {"ok": False, "error": f"invalid branch '{new_branch}': {valid.stderr.strip()}"}
 
-    status = _git_cmd(
-        ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
-    )
-    if status.returncode != 0:
-        detail = status.stderr.strip() or status.stdout.strip() or f"exit code {status.returncode}"
-        return {"ok": False, "error": f"git status failed: {detail}"}
-    if status.stdout.strip():
-        dirty_lines = status.stdout.strip().splitlines()[:10]
-        dirty_files = [l[3:] for l in dirty_lines]
-        return {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
+        status = _git_cmd(
+            ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+        )
+        if status.returncode != 0:
+            detail = status.stderr.strip() or status.stdout.strip() or f"exit code {status.returncode}"
+            return {"ok": False, "error": f"git status failed: {detail}"}
+        if status.stdout.strip():
+            dirty_lines = status.stdout.strip().splitlines()[:10]
+            dirty_files = [l[3:] for l in dirty_lines]
+            return {"ok": False, "error": f"dirty working tree ({len(dirty_lines)} file(s): {', '.join(dirty_files)}) — commit or discard first"}
 
-    if not force:
-        content_status = branch_content_status(str(wt), from_ref)
-        if content_status.get("error"):
-            return {
-                "ok": False,
-                "error": f"cannot verify current branch content against {from_ref}: {content_status['error']}",
-            }
-        if not content_status["content_merged"]:
-            n = content_status["commits_ahead"]
-            reason = content_status["reason"]
-            return {
-                "ok": False,
-                "error": (
-                    f"{n} commit(s) could not be verified in {from_ref} ({reason}) — "
-                    "merge_worker first or pass force=True"
-                ),
-            }
+        if not force:
+            content_status = branch_content_status(str(wt), from_ref)
+            if content_status.get("error"):
+                return {
+                    "ok": False,
+                    "error": f"cannot verify current branch content against {from_ref}: {content_status['error']}",
+                }
+            if not content_status["content_merged"]:
+                n = content_status["commits_ahead"]
+                reason = content_status["reason"]
+                return {
+                    "ok": False,
+                    "error": (
+                        f"{n} commit(s) could not be verified in {from_ref} ({reason}) — "
+                        "merge_worker first or pass force=True"
+                    ),
+                }
 
-    reset = _git_cmd(
-        ["git", "reset", "--hard", from_ref],
-        cwd=str(wt), capture_output=True, text=True,
-    )
-    if reset.returncode != 0:
-        return {"ok": False, "error": f"reset to {from_ref} failed: {reset.stderr.strip()}"}
+        original_branch_result = _git_cmd(
+            ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+            cwd=str(wt), capture_output=True, text=True,
+        )
+        if original_branch_result.returncode == 0:
+            original_branch = original_branch_result.stdout.strip()
+        elif original_branch_result.returncode == 1:
+            original_branch = ""
+        else:
+            detail = (
+                original_branch_result.stderr.strip()
+                or original_branch_result.stdout.strip()
+                or f"exit {original_branch_result.returncode}"
+            )
+            return {"ok": False, "error": f"cannot inspect current branch: {detail}"}
+        original_head_result = _git_cmd(
+            ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
+        )
+        if original_head_result.returncode != 0:
+            return {"ok": False, "error": f"cannot resolve current HEAD: {original_head_result.stderr.strip()}"}
+        original_head = original_head_result.stdout.strip()
 
-    with open(lock_path, "w") as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
-            ref_check = _git_cmd(
+            target_head = _inspect_branch_ref(repo, new_branch)
+        except RuntimeError as e:
+            return {"ok": False, "error": str(e)}
+        target_existed = target_head is not None
+        target_created = False
+        if target_existed and _is_branch_checked_out_elsewhere(str(repo), new_branch, wt):
+            return {"ok": False, "error": f"branch '{new_branch}' is checked out in another worktree"}
+        if original_branch == new_branch:
+            return {"ok": False, "error": f"worker is already on branch '{new_branch}'"}
+
+        try:
+            from_head = _resolve_commit_oid(repo, from_ref)
+        except RuntimeError as e:
+            return {"ok": False, "error": str(e)}
+
+        def rollback(cause: str, conflicts: list[str] | None = None) -> dict:
+            errors: list[str] = []
+            merge_head = _git_cmd(
+                ["git", "rev-parse", "--quiet", "--verify", "MERGE_HEAD"],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if merge_head.returncode == 0:
+                abort = _git_cmd(
+                    ["git", "merge", "--abort"], cwd=str(wt), capture_output=True, text=True,
+                )
+                if abort.returncode != 0:
+                    errors.append(f"merge abort: {abort.stderr.strip() or abort.stdout.strip()}")
+
+            if target_created:
+                target_owner = _git_cmd(
+                    ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+                    cwd=str(wt), capture_output=True, text=True,
+                )
+                try:
+                    target_now = _inspect_branch_ref(repo, new_branch)
+                except RuntimeError as inspect_error:
+                    target_now = None
+                    errors.append(str(inspect_error))
+                if (
+                    not errors
+                    and target_owner.returncode == 0
+                    and target_owner.stdout.strip() == new_branch
+                    and target_now == target_head
+                ):
+                    deleted = _git_cmd(
+                        [
+                            "git", "update-ref", "-d",
+                            f"refs/heads/{new_branch}", target_head,
+                        ],
+                        cwd=str(repo), capture_output=True, text=True,
+                    )
+                    if deleted.returncode != 0:
+                        errors.append(
+                            "delete owned target ref: "
+                            f"{deleted.stderr.strip() or deleted.stdout.strip()}"
+                        )
+                else:
+                    errors.append(
+                        f"created target ref ownership is uncertain; preserving {new_branch}"
+                    )
+
+            original_ref_matches = True
+            if original_branch:
+                original_ref = _git_cmd(
+                    ["git", "rev-parse", f"refs/heads/{original_branch}"],
+                    cwd=str(repo), capture_output=True, text=True,
+                )
+                original_ref_head = (
+                    original_ref.stdout.strip() if original_ref.returncode == 0 else ""
+                )
+                original_ref_matches = original_ref_head == original_head
+                if not original_ref_matches:
+                    errors.append(
+                        "original ref changed concurrently: "
+                        f"{original_ref_head or 'missing'} (expected {original_head})"
+                    )
+                restore_checkout = _git_cmd(
+                    ["git", "checkout", original_branch],
+                    cwd=str(wt), capture_output=True, text=True,
+                )
+            else:
+                restore_checkout = _git_cmd(
+                    ["git", "checkout", "--detach", original_head],
+                    cwd=str(wt), capture_output=True, text=True,
+                )
+            if restore_checkout.returncode != 0:
+                errors.append(
+                    "restore checkout: "
+                    f"{restore_checkout.stderr.strip() or restore_checkout.stdout.strip()}"
+                )
+
+            if not original_branch or original_ref_matches:
+                restore_head = _git_cmd(
+                    ["git", "reset", "--hard", original_head],
+                    cwd=str(wt), capture_output=True, text=True,
+                )
+                if restore_head.returncode != 0:
+                    errors.append(
+                        f"restore HEAD: {restore_head.stderr.strip() or restore_head.stdout.strip()}"
+                    )
+
+            if new_branch != original_branch:
+                target_now = _git_cmd(
+                    ["git", "show-ref", "--verify", f"refs/heads/{new_branch}"],
+                    cwd=str(repo), capture_output=True, text=True,
+                )
+                target_now_head = (
+                    target_now.stdout.split()[0] if target_now.returncode == 0 else ""
+                )
+                if target_created:
+                    if target_now.returncode == 0:
+                        errors.append(
+                            f"created target ref remains at {target_now_head}"
+                        )
+                    elif target_now.returncode != 1:
+                        errors.append(
+                            "inspect created target ref: "
+                            f"{target_now.stderr.strip() or target_now.stdout.strip()}"
+                        )
+                elif target_existed and (
+                    target_now.returncode != 0 or target_now_head != target_head
+                ):
+                    errors.append(
+                        "existing target ref changed concurrently: "
+                        f"{target_now_head or 'missing'} (expected {target_head})"
+                    )
+
+            actual_branch_result = _git_cmd(
+                ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            actual_branch = (
+                actual_branch_result.stdout.strip()
+                if actual_branch_result.returncode == 0 else "HEAD"
+            )
+            actual_head_result = _git_cmd(
+                ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
+            )
+            actual_head = (
+                actual_head_result.stdout.strip()
+                if actual_head_result.returncode == 0 else ""
+            )
+            final_status = _git_cmd(
+                ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+            )
+            final_merge_head = _git_cmd(
+                ["git", "rev-parse", "--quiet", "--verify", "MERGE_HEAD"],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            expected_branch = original_branch or "HEAD"
+            if actual_branch != expected_branch:
+                errors.append(f"branch is {actual_branch}, expected {expected_branch}")
+            if actual_head != original_head:
+                errors.append(f"HEAD is {actual_head or 'unknown'}, expected {original_head}")
+            if final_status.returncode != 0 or final_status.stdout.strip():
+                detail = final_status.stderr.strip() or final_status.stdout.strip()
+                errors.append(f"working tree not clean: {detail}")
+            if final_merge_head.returncode == 0:
+                errors.append("MERGE_HEAD still exists")
+
+            target_after = _git_cmd(
                 ["git", "show-ref", "--verify", f"refs/heads/{new_branch}"],
                 cwd=str(repo), capture_output=True, text=True,
             )
-            if ref_check.returncode == 0:
-                if _is_branch_checked_out_elsewhere(str(repo), new_branch, wt):
-                    return {"ok": False, "error": f"branch '{new_branch}' is checked out in another worktree"}
-
-                checkout = _git_cmd(
-                    ["git", "checkout", new_branch], cwd=str(wt), capture_output=True, text=True,
-                )
-                if checkout.returncode != 0:
-                    return {"ok": False, "error": f"checkout failed: {checkout.stderr.strip()}"}
-
-                merge_main = _git_cmd(
-                    ["git", "merge", from_ref, "--no-edit"],
-                    cwd=str(wt), capture_output=True, text=True,
-                )
-                if merge_main.returncode != 0:
-                    conflict_files = []
-                    status_out = _git_cmd(
-                        ["git", "diff", "--name-only", "--diff-filter=U"],
-                        cwd=str(wt), capture_output=True, text=True,
+            if target_existed:
+                target_after_head = target_after.stdout.split()[0] if target_after.returncode == 0 else ""
+                if target_after_head != target_head:
+                    errors.append(
+                        f"target ref is {target_after_head or 'missing'}, expected {target_head}"
                     )
-                    if status_out.stdout.strip():
-                        conflict_files = status_out.stdout.strip().splitlines()
-                    return {"ok": False, "branch": new_branch, "conflicts": conflict_files,
-                            "state": "conflict",
-                            "error": f"merge conflict with {from_ref} — resolve or abort"}
-            else:
-                checkout = _git_cmd(
-                    ["git", "checkout", "-b", new_branch, from_ref],
+            elif target_after.returncode == 0:
+                errors.append("new target ref still exists")
+
+            if errors:
+                result = {
+                    "ok": False,
+                    "state": "rollback_failed",
+                    "error": f"{cause}; rollback failed: {'; '.join(errors)}",
+                    "actual_branch": actual_branch,
+                    "actual_head": actual_head,
+                }
+                if conflicts:
+                    result["conflicts"] = conflicts
+                return result
+            result = {"ok": False, "error": cause}
+            if conflicts:
+                result["conflicts"] = conflicts
+            return result
+
+        detach = _git_cmd(
+            ["git", "checkout", "--detach", original_head],
+            cwd=str(wt), capture_output=True, text=True,
+        )
+        if detach.returncode != 0:
+            detail = detach.stderr.strip() or detach.stdout.strip()
+            return rollback(f"detach current branch failed: {detail}")
+
+        reset = _git_cmd(
+            ["git", "reset", "--hard", from_head],
+            cwd=str(wt), capture_output=True, text=True,
+        )
+        if reset.returncode != 0:
+            detail = reset.stderr.strip() or reset.stdout.strip()
+            return rollback(f"reset to {from_ref} failed: {detail}")
+
+        if not target_existed:
+            try:
+                _create_branch_ref(repo, new_branch, from_head)
+            except RuntimeError as e:
+                return rollback(str(e))
+            target_created = True
+            target_head = from_head
+
+        if target_existed:
+            checkout = _git_cmd(
+                ["git", "checkout", new_branch], cwd=str(wt), capture_output=True, text=True,
+            )
+            if checkout.returncode != 0:
+                detail = checkout.stderr.strip() or checkout.stdout.strip()
+                return rollback(f"checkout failed: {detail}")
+
+            merge_main = _git_cmd(
+                ["git", "merge", from_ref, "--no-edit"],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if merge_main.returncode != 0:
+                conflict_files = []
+                status_out = _git_cmd(
+                    ["git", "diff", "--name-only", "--diff-filter=U"],
                     cwd=str(wt), capture_output=True, text=True,
                 )
-                if checkout.returncode != 0:
-                    return {"ok": False, "error": f"branch create failed: {checkout.stderr.strip()}"}
+                if status_out.stdout.strip():
+                    conflict_files = status_out.stdout.strip().splitlines()
+                detail = merge_main.stderr.strip() or merge_main.stdout.strip()
+                cause = f"merge with {from_ref} failed: {detail}"
+                return rollback(cause, conflict_files)
+        else:
+            checkout = _git_cmd(
+                ["git", "checkout", new_branch],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if checkout.returncode != 0:
+                detail = checkout.stderr.strip() or checkout.stdout.strip()
+                return rollback(f"branch create failed: {detail}")
 
-            return {"ok": True, "branch": new_branch}
-        finally:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
+        actual_branch_result = _git_cmd(
+            ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+            cwd=str(wt), capture_output=True, text=True,
+        )
+        actual_head_result = _git_cmd(
+            ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
+        )
+        final_status = _git_cmd(
+            ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,
+        )
+        actual_branch = (
+            actual_branch_result.stdout.strip()
+            if actual_branch_result.returncode == 0 else "HEAD"
+        )
+        actual_head = (
+            actual_head_result.stdout.strip() if actual_head_result.returncode == 0 else ""
+        )
+        if (
+            actual_branch != new_branch
+            or final_status.returncode != 0
+            or bool(final_status.stdout.strip())
+        ):
+            detail = final_status.stderr.strip() or final_status.stdout.strip() or "state changed"
+            return {
+                "ok": False,
+                "state": "rollback_failed",
+                "error": f"switched worktree has inconsistent final state: {detail}",
+                "actual_branch": actual_branch,
+                "actual_head": actual_head,
+            }
+        return {"ok": True, "branch": new_branch}
 
 
 def remove_worktree(repo_path: str, worktree_path: str) -> None:
@@ -1222,24 +1785,20 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
                         break
         except Exception as e:
             logger.warning(f"gitdir resolve failed for {wt}, using repo_path: {e}")
-    lock_path = Path("/tmp") / f"orchestra-merge-{hash(str(_resolve_repo(str(wt), repo_path)))}.lock"
-    with open(lock_path, "w") as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
-        try:
-            result = _git_cmd(
-                ["git", "worktree", "remove", str(wt), "--force"],
-                cwd=cwd, capture_output=True, text=True,
+    repo = _resolve_repo(str(wt), repo_path)
+    with repo_mutation_lock(repo):
+        result = _git_cmd(
+            ["git", "worktree", "remove", str(wt), "--force"],
+            cwd=cwd, capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            if not wt.exists():
+                return
+            detail = result.stderr.strip() or result.stdout.strip() or "unknown git error"
+            raise RuntimeError(
+                f"git worktree remove failed for {wt} "
+                f"(exit {result.returncode}): {detail}"
             )
-            if result.returncode != 0:
-                if not wt.exists():
-                    return
-                detail = result.stderr.strip() or result.stdout.strip() or "unknown git error"
-                raise RuntimeError(
-                    f"git worktree remove failed for {wt} "
-                    f"(exit {result.returncode}): {detail}"
-                )
-        finally:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
 def cleanup_stale_worktrees() -> list[str]:

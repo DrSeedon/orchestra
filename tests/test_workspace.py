@@ -2,6 +2,9 @@
 
 import shutil
 import subprocess
+import sys
+import threading
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -114,7 +117,7 @@ class TestValidateRepoRoot:
 
 class TestCreateWorktree:
     def test_success(self, git_repo, wt_root):
-        from app.workspace import create_worktree
+        from app.workspace import _slugify, create_worktree
         wt = create_worktree(str(git_repo), "worker-1")
         assert Path(wt.path).exists()
         assert Path(wt.path).is_dir()
@@ -217,6 +220,60 @@ class TestCreateWorktree:
         assert Path(wt2.path).exists()
         assert wt2.branch == wt1.branch
 
+    def test_branch_inspection_error_does_not_create_or_delete_ref(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import _slugify, create_worktree
+
+        real_git_cmd = workspace._git_cmd
+
+        def fail_show_ref(args, **kwargs):
+            if args[:4] == ["git", "show-ref", "--verify", "--quiet"]:
+                return subprocess.CompletedProcess(args, 128, "", "simulated read failure")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_show_ref)
+        with pytest.raises(RuntimeError, match="cannot inspect branch.*simulated read failure"):
+            create_worktree(str(git_repo), "worker-inspect")
+
+        branch_ref = f"refs/heads/feat/{_slugify(str(git_repo.resolve()))}/worker-inspect"
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", branch_ref],
+            cwd=git_repo, capture_output=True,
+        ).returncode != 0
+
+    def test_failed_add_does_not_delete_concurrently_advanced_ref(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import _slugify, create_worktree
+
+        external_oid = subprocess.run(
+            ["git", "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "external"],
+            cwd=git_repo, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        real_git_cmd = workspace._git_cmd
+        branch_ref = f"refs/heads/feat/{_slugify(str(git_repo.resolve()))}/worker-cas"
+
+        def fail_add_after_advance(args, **kwargs):
+            if args[:3] == ["git", "worktree", "add"]:
+                real_git_cmd(
+                    ["git", "update-ref", branch_ref, external_oid],
+                    cwd=str(git_repo), capture_output=True, text=True,
+                )
+                return subprocess.CompletedProcess(args, 1, "", "simulated add failure")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_add_after_advance)
+        with pytest.raises(RuntimeError, match="worktree add failed"):
+            create_worktree(str(git_repo), "worker-cas")
+
+        assert subprocess.run(
+            ["git", "rev-parse", branch_ref], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == external_oid
+
     def test_rollback_on_copy_failure(self, git_repo, wt_root, monkeypatch):
         # Task #39 Fix 5a: if PROJECT_FILES copy raises after `git worktree add`,
         # the just-created worktree must be rolled back (no orphan on disk/in git).
@@ -241,6 +298,40 @@ class TestCreateWorktree:
             ["git", "worktree", "list"], cwd=git_repo, capture_output=True, text=True,
         )
         assert "worker-x" not in listing.stdout
+        branch_ref = f"refs/heads/feat/{_slugify(str(git_repo.resolve()))}/worker-x"
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", branch_ref],
+            cwd=git_repo, capture_output=True,
+        ).returncode != 0
+
+    def test_setup_cleanup_restores_ref_when_worktree_removal_fails(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import _slugify, create_worktree
+
+        real_git_cmd = workspace._git_cmd
+
+        def fail_copy_and_remove(args, **kwargs):
+            if args[:2] == ["cp", "-p"]:
+                return subprocess.CompletedProcess(args, 1, "", "disk full")
+            if args[:3] == ["git", "worktree", "remove"]:
+                return subprocess.CompletedProcess(args, 1, "", "metadata busy")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_copy_and_remove)
+        with pytest.raises(RuntimeError, match="worktree remove: metadata busy"):
+            create_worktree(str(git_repo), "worker-partial")
+
+        branch = f"feat/{_slugify(str(git_repo.resolve()))}/worker-partial"
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
+            cwd=git_repo, capture_output=True,
+        ).returncode == 0
+        assert subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=git_repo, capture_output=True, text=True, check=True,
+        ).stdout.find("worker-partial") >= 0
 
     def test_different_repos_no_collision(self, tmp_path, git_repo, wt_root):
         from app.workspace import create_worktree
@@ -431,6 +522,341 @@ class TestCreateWorktreeManifest:
 
 
 class TestSwitchWorktreeBranch:
+    def test_new_branch_creation_failure_restores_original_without_quarantine(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-create-fail", task_id="1")
+        old_branch = wt.branch
+        old_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        target = "task-2/worker-create-fail"
+
+        def fail_create(_repo, _branch, _oid):
+            raise RuntimeError("simulated branch creation failure")
+
+        monkeypatch.setattr(workspace, "_create_branch_ref", fail_create)
+
+        result = switch_worktree_branch(
+            wt.path, target, from_ref="main", force=True,
+        )
+
+        assert result["ok"] is False
+        assert result.get("state") != "rollback_failed"
+        assert "simulated branch creation failure" in result["error"]
+        assert subprocess.run(
+            ["git", "branch", "--show-current"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_branch
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_head
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", f"refs/heads/{target}"],
+            cwd=git_repo, capture_output=True,
+        ).returncode == 1
+
+    def test_force_busy_target_preserves_original_branch_and_refs(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-busy", task_id="1")
+        (Path(wt.path) / "worker.txt").write_text("unmerged")
+        subprocess.run(["git", "add", "worker.txt"], cwd=wt.path, check=True)
+        subprocess.run(["git", "commit", "-m", "worker work"], cwd=wt.path, check=True)
+        old_branch = wt.branch
+        old_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        target = "task-2/worker-busy"
+        subprocess.run(["git", "branch", target, "main"], cwd=git_repo, check=True)
+        target_head = subprocess.run(
+            ["git", "rev-parse", target], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        owner = wt_root / "target-owner"
+        subprocess.run(
+            ["git", "worktree", "add", str(owner), target],
+            cwd=git_repo, capture_output=True, check=True,
+        )
+
+        result = switch_worktree_branch(
+            wt.path, target, from_ref="main", force=True,
+        )
+
+        assert result["ok"] is False
+        assert "checked out in another worktree" in result["error"]
+        assert subprocess.run(
+            ["git", "branch", "--show-current"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_branch
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_head
+        assert subprocess.run(
+            ["git", "rev-parse", target], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == target_head
+        assert subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
+
+    def test_force_merge_conflict_rolls_back_all_git_state(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        conflict_path = "shared file.txt"
+        (Path(git_repo) / conflict_path).write_text("base\n")
+        subprocess.run(["git", "add", conflict_path], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "shared base"], cwd=git_repo, check=True)
+        target = "task-2/worker-conflict"
+        subprocess.run(["git", "branch", target], cwd=git_repo, check=True)
+        target_owner = wt_root / "conflict-owner"
+        subprocess.run(
+            ["git", "worktree", "add", str(target_owner), target],
+            cwd=git_repo, capture_output=True, check=True,
+        )
+        (target_owner / "shared.txt").write_text("target\n")
+        subprocess.run(["git", "add", "shared.txt"], cwd=target_owner, check=True)
+        subprocess.run(["git", "commit", "-m", "target edit"], cwd=target_owner, check=True)
+        subprocess.run(
+            ["git", "worktree", "remove", str(target_owner)],
+            cwd=git_repo, capture_output=True, check=True,
+        )
+        target_head = subprocess.run(
+            ["git", "rev-parse", target], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        (Path(git_repo) / "shared.txt").write_text("main\n")
+        subprocess.run(["git", "add", "shared.txt"], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "main edit"], cwd=git_repo, check=True)
+        wt = create_worktree(str(git_repo), "worker-conflict", task_id="1")
+        old_branch = wt.branch
+        old_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+        result = switch_worktree_branch(
+            wt.path, target, from_ref="main", force=True,
+        )
+
+        assert result["ok"] is False
+        assert result["conflicts"] == ["shared.txt"]
+        assert subprocess.run(
+            ["git", "branch", "--show-current"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_branch
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_head
+        assert subprocess.run(
+            ["git", "rev-parse", target], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == target_head
+        assert subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
+        assert subprocess.run(
+            ["git", "rev-parse", "--quiet", "--verify", "MERGE_HEAD"],
+            cwd=wt.path, capture_output=True,
+        ).returncode != 0
+
+    def test_rollback_command_failure_returns_actual_snapshot(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-rollback", task_id="1")
+        target = "task-2/worker-rollback"
+        subprocess.run(["git", "branch", target, "main"], cwd=git_repo, check=True)
+        real_git_cmd = workspace._git_cmd
+
+        def fail_checkout(args, **kwargs):
+            if args == ["git", "checkout", target]:
+                return subprocess.CompletedProcess(args, 1, "", "target checkout failed")
+            if args == ["git", "checkout", wt.branch]:
+                return subprocess.CompletedProcess(args, 1, "", "restore checkout failed")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_checkout)
+        result = switch_worktree_branch(
+            wt.path, target, from_ref="main", force=True,
+        )
+
+        assert result["ok"] is False
+        assert result["state"] == "rollback_failed"
+        assert result["actual_branch"] == "HEAD"
+        assert result["actual_head"]
+        assert "restore checkout failed" in result["error"]
+
+    def test_rollback_does_not_rewind_concurrently_advanced_target(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-concurrent", task_id="1")
+        target = "task-2/worker-concurrent"
+        subprocess.run(["git", "branch", target, "main"], cwd=git_repo, check=True)
+        external_oid = subprocess.run(
+            ["git", "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "external"],
+            cwd=git_repo, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        real_git_cmd = workspace._git_cmd
+
+        def fail_checkout_after_advance(args, **kwargs):
+            if args == ["git", "checkout", target]:
+                real_git_cmd(
+                    ["git", "update-ref", f"refs/heads/{target}", external_oid],
+                    cwd=str(git_repo), capture_output=True, text=True,
+                )
+                return subprocess.CompletedProcess(args, 1, "", "simulated checkout failure")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_checkout_after_advance)
+        result = switch_worktree_branch(
+            wt.path, target, from_ref="main", force=True,
+        )
+
+        assert result["ok"] is False
+        assert result["state"] == "rollback_failed"
+        assert "changed concurrently" in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", target], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == external_oid
+
+    def test_created_target_claimed_elsewhere_is_preserved_and_quarantined(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-claimed", task_id="1")
+        target = "task-2/worker-claimed"
+        claimant = wt_root / "target-claimant"
+        real_git_cmd = workspace._git_cmd
+
+        def claim_before_checkout(args, **kwargs):
+            if args == ["git", "checkout", target]:
+                subprocess.run(
+                    ["git", "worktree", "add", str(claimant), target],
+                    cwd=git_repo, capture_output=True, check=True,
+                )
+                return subprocess.CompletedProcess(args, 128, "", "branch became busy")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", claim_before_checkout)
+        result = switch_worktree_branch(
+            wt.path, target, from_ref="main", force=True,
+        )
+
+        assert result["ok"] is False
+        assert result["state"] == "rollback_failed"
+        assert "ownership is uncertain" in result["error"]
+        assert subprocess.run(
+            ["git", "branch", "--show-current"], cwd=claimant,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == target
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", f"refs/heads/{target}"],
+            cwd=git_repo, capture_output=True,
+        ).returncode == 0
+
+    def test_successful_force_switch_retains_original_branch(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-retained", task_id="1")
+        (Path(wt.path) / "unmerged.txt").write_text("retain me")
+        subprocess.run(["git", "add", "unmerged.txt"], cwd=wt.path, check=True)
+        subprocess.run(["git", "commit", "-m", "unmerged"], cwd=wt.path, check=True)
+        old_head = subprocess.run(
+            ["git", "rev-parse", wt.branch], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+        result = switch_worktree_branch(
+            wt.path, "task-2/worker-retained", from_ref="main", force=True,
+        )
+
+        assert result == {"ok": True, "branch": "task-2/worker-retained"}
+        assert subprocess.run(
+            ["git", "rev-parse", wt.branch], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_head
+
+    def test_same_branch_is_rejected_without_mutation(self, git_repo, wt_root):
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-same", task_id="1")
+        old_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+        result = switch_worktree_branch(
+            wt.path, wt.branch, from_ref="main", force=True,
+        )
+
+        assert result["ok"] is False
+        assert "already on branch" in result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_head
+
+    def test_symbolic_ref_operational_error_aborts_before_mutation(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import create_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "worker-symbolic", task_id="1")
+        old_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        real_git_cmd = workspace._git_cmd
+
+        def fail_symbolic_ref(args, **kwargs):
+            if args == ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]:
+                return subprocess.CompletedProcess(args, 128, "", "inspection failed")
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_symbolic_ref)
+        result = switch_worktree_branch(
+            wt.path, "task-2/worker-symbolic", from_ref="main", force=True,
+        )
+
+        assert result == {
+            "ok": False,
+            "error": "cannot inspect current branch: inspection failed",
+        }
+        assert subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == old_head
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "refs/heads/task-2/worker-symbolic"],
+            cwd=git_repo, capture_output=True,
+        ).returncode != 0
+
     def test_from_ref_used_for_merge_check(self, git_repo, wt_root):
         """switch_worktree_branch использует from_ref, а не hardcode main.
 
@@ -790,6 +1216,48 @@ class TestMergeTarget:
                                   capture_output=True, text=True).stdout
         assert "work" in log_main
 
+    def test_unobservable_final_target_snapshot_is_partial_unknown(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import merge_worktree_to_main
+
+        wt = self._wt_with_commit(git_repo, wt_root, "snapshot-fail", "main")
+        target_before = subprocess.run(
+            ["git", "rev-parse", "main"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        real_git_cmd = workspace._git_cmd
+        target_ref_calls = 0
+
+        def fail_final_snapshot(args, **kwargs):
+            nonlocal target_ref_calls
+            if args == ["git", "show-ref", "--verify", "refs/heads/main"]:
+                target_ref_calls += 1
+                if target_ref_calls == 3:
+                    return subprocess.CompletedProcess(
+                        args, 128, "", "simulated final ref inspection failure",
+                    )
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "_git_cmd", fail_final_snapshot)
+
+        result = merge_worktree_to_main(
+            wt.path, str(git_repo), target_branch="main",
+        )
+
+        assert target_ref_calls == 3
+        assert result["ok"] is False
+        assert result["state"] == "partial"
+        assert result["commit_point"] == "unknown"
+        assert result["target_before"] == target_before
+        assert result["target_after"] == ""
+        assert result["error"]
+        assert subprocess.run(
+            ["git", "rev-parse", "main"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() != target_before
+
     def test_main_head_restored_after_merge(self, git_repo, wt_root):
         """После merge в feature/auth основной репо должен вернуться на main (save/restore HEAD)."""
         from app.workspace import merge_worktree_to_main
@@ -816,12 +1284,28 @@ class TestMergeTarget:
             ["git", "commit", "-m", "#90: child work"], cwd=child.path,
             capture_output=True, check=True,
         )
+        target_before = subprocess.run(
+            ["git", "rev-parse", parent.branch], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        worker_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=child.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
 
         result = merge_worktree_to_main(
             child.path, str(git_repo), target_branch=parent.branch,
         )
 
         assert result["ok"] is True
+        assert result["state"] == "merged"
+        assert result["commit_point"] == "target_committed"
+        assert result["target_branch"] == parent.branch
+        assert result["target_before"] == target_before
+        assert result["target_after"] != target_before
+        assert result["worker_branch"] == child.branch
+        assert result["worker_head"] == worker_head
+        assert result["conflicts"] == []
         assert (Path(parent.path) / "child.txt").read_text() == "child work"
         assert subprocess.run(
             ["git", "branch", "--show-current"], cwd=parent.path,
@@ -841,6 +1325,45 @@ class TestMergeTarget:
             capture_output=True, text=True, check=True,
         ).stdout.strip() == child.branch
         assert not (Path(git_repo) / "child.txt").exists()
+
+    def test_conflict_returns_typed_snapshot_without_mutation(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, merge_worktree_to_main
+
+        conflict_path = "shared file.txt"
+        (Path(git_repo) / conflict_path).write_text("base\n")
+        subprocess.run(["git", "add", conflict_path], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=git_repo, check=True)
+        worker = create_worktree(str(git_repo), "worker-merge-conflict", base_branch="main")
+        (Path(worker.path) / conflict_path).write_text("worker\n")
+        subprocess.run(["git", "add", conflict_path], cwd=worker.path, check=True)
+        subprocess.run(["git", "commit", "-m", "worker edit"], cwd=worker.path, check=True)
+        worker_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=worker.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        (Path(git_repo) / conflict_path).write_text("main\n")
+        subprocess.run(["git", "add", conflict_path], cwd=git_repo, check=True)
+        subprocess.run(["git", "commit", "-m", "main edit"], cwd=git_repo, check=True)
+        target_before = subprocess.run(
+            ["git", "rev-parse", "main"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+        result = merge_worktree_to_main(
+            worker.path, str(git_repo), target_branch="main",
+        )
+
+        assert result["ok"] is False
+        assert result["state"] == "conflict"
+        assert result["commit_point"] == "not_reached"
+        assert result["target_branch"] == "main"
+        assert result["target_before"] == target_before
+        assert result["target_after"] == target_before
+        assert result["worker_branch"] == worker.branch
+        assert result["worker_head"] == worker_head
+        assert result["conflicts"] == [conflict_path]
 
     def test_dirty_checked_out_target_is_rejected_without_stash(
         self, git_repo, wt_root,
@@ -949,6 +1472,8 @@ class TestMergeTarget:
         result = merge_worktree_to_main(wt.path, str(git_repo), target_branch="main")
 
         assert result["ok"] is False
+        assert result["state"] == "failed"
+        assert result["commit_point"] == "rolled_back"
         assert "squash commit failed" in result["error"]
         assert "rejecting hook" in result["error"]
         assert subprocess.run(
@@ -997,6 +1522,8 @@ class TestMergeTarget:
         result = merge_worktree_to_main(wt.path, str(git_repo), target_branch="main")
 
         assert result["ok"] is False
+        assert result["state"] == "failed"
+        assert result["commit_point"] == "rolled_back"
         assert result.get("strategy") != "cherry-pick"
         assert "squash commit failed" in result["error"]
         assert "rejecting hook" in result["error"]
@@ -1051,6 +1578,110 @@ class TestRemoveWorktree:
         remove_worktree(str(git_repo), wt.path)
         assert ws.fcntl.LOCK_EX in flocks  # exclusive lock taken
         assert ws.fcntl.LOCK_UN in flocks  # and released
+
+
+class TestRepoLock:
+    def test_path_is_stable_across_processes_and_excludes_second_holder(
+        self, git_repo,
+    ):
+        import fcntl
+        from app.workspace import _repo_lock_path
+
+        lock_path = _repo_lock_path(git_repo)
+        assert lock_path.parent == (git_repo / ".git").resolve()
+        code = (
+            "from app.workspace import _repo_lock_path; import sys; "
+            "print(_repo_lock_path(sys.argv[1]))"
+        )
+        child_path = subprocess.run(
+            [sys.executable, "-c", code, str(git_repo)],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        assert child_path == str(lock_path)
+
+        contender = (
+            "import fcntl,sys; f=open(sys.argv[1],'a');\n"
+            "try:\n fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB); print('acquired')\n"
+            "except BlockingIOError:\n print('blocked')\n"
+        )
+        with open(lock_path, "a") as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            output = subprocess.run(
+                [sys.executable, "-c", contender, str(lock_path)],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+            assert output == "blocked"
+            fcntl.flock(held, fcntl.LOCK_UN)
+
+    def test_symlink_lock_entry_is_rejected(self, git_repo, tmp_path):
+        from app.workspace import _repo_lock_path, repo_mutation_lock
+
+        lock_path = _repo_lock_path(git_repo)
+        target = tmp_path / "outside-lock"
+        target.write_text("")
+        lock_path.symlink_to(target)
+
+        with pytest.raises(OSError):
+            with repo_mutation_lock(git_repo):
+                pass
+
+    def test_switch_and_remove_do_not_enter_repo_mutation_together(
+        self, git_repo, wt_root, monkeypatch,
+    ):
+        import app.workspace as workspace
+        from app.workspace import create_worktree, remove_worktree, switch_worktree_branch
+
+        wt = create_worktree(str(git_repo), "serialized-worker", task_id="1")
+        real_git_cmd = workspace._git_cmd
+        real_repo_lock = workspace.repo_mutation_lock
+        switch_inside = threading.Event()
+        release_switch = threading.Event()
+        remove_attempted = threading.Event()
+        remove_done = threading.Event()
+
+        @contextmanager
+        def observed_repo_lock(repo):
+            if threading.current_thread().name == "remove-op":
+                remove_attempted.set()
+            with real_repo_lock(repo):
+                yield
+
+        def block_switch_reset(args, **kwargs):
+            if (
+                threading.current_thread().name == "switch-op"
+                and args[:3] == ["git", "reset", "--hard"]
+            ):
+                switch_inside.set()
+                assert release_switch.wait(2)
+            return real_git_cmd(args, **kwargs)
+
+        monkeypatch.setattr(workspace, "repo_mutation_lock", observed_repo_lock)
+        monkeypatch.setattr(workspace, "_git_cmd", block_switch_reset)
+        switch_result = {}
+
+        def run_switch():
+            switch_result.update(switch_worktree_branch(
+                wt.path, "task-2/serialized-worker", from_ref="main", force=True,
+            ))
+
+        def run_remove():
+            remove_worktree(str(git_repo), wt.path)
+            remove_done.set()
+
+        switch_thread = threading.Thread(target=run_switch, name="switch-op")
+        remove_thread = threading.Thread(target=run_remove, name="remove-op")
+        switch_thread.start()
+        assert switch_inside.wait(2)
+        remove_thread.start()
+        assert remove_attempted.wait(2)
+        assert remove_done.is_set() is False
+        release_switch.set()
+        switch_thread.join(2)
+        remove_thread.join(2)
+
+        assert switch_result["ok"] is True
+        assert remove_done.is_set() is True
+        assert not Path(wt.path).exists()
 
 
 class TestSlugify:
