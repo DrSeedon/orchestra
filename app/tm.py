@@ -916,7 +916,10 @@ def api_update_task(par: str, title: str | None = None,
 
 
 def api_update_task_if_current(
-    identity: TaskIdentity, *, status: str,
+    identity: TaskIdentity,
+    *,
+    status: str,
+    worker_session_id: str | None = None,
 ) -> dict:
     """Update a prevalidated task only while its immutable identity/version matches."""
     if status not in VALID_STATUSES:
@@ -954,7 +957,12 @@ def api_update_task_if_current(
                         f"found {task['sync_revision']}"
                     ),
                 }
-            result = update_task(conn, task_id, status=status)
+            result = update_task(
+                conn,
+                task_id,
+                status=status,
+                worker_session_id=worker_session_id,
+            )
             updated = get_task_by_id(conn, task_id)
             conn.commit()
         except Exception:

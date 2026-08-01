@@ -384,6 +384,52 @@ class TestDeleteArchivedSession:
         assert get_session(sample_session["id"]) is not None
 
 
+class TestPublishReadySession:
+    def test_atomically_replaces_archived_identity(self, db, sample_session):
+        from app.db import (
+            add_log, archive_session, get_logs, get_session,
+            publish_ready_session, save_session,
+        )
+
+        save_session(sample_session)
+        add_log(sample_session["id"], datetime.now(timezone.utc), "text", "old")
+        archive_session(sample_session["id"])
+        ready = {
+            **sample_session,
+            "id": "ready-session",
+            "status": "idle",
+        }
+
+        publish_ready_session(ready)
+
+        assert get_session(sample_session["id"]) is None
+        assert get_logs(sample_session["id"]) == []
+        assert get_session("ready-session")["status"] == "idle"
+
+    def test_failed_insert_preserves_archived_row_and_logs(self, db, sample_session):
+        from app.db import (
+            add_log, archive_session, get_logs, get_session,
+            publish_ready_session, save_session,
+        )
+
+        save_session(sample_session)
+        add_log(sample_session["id"], datetime.now(timezone.utc), "text", "keep")
+        archive_session(sample_session["id"])
+        invalid = {
+            **sample_session,
+            "id": "invalid-ready-session",
+            "model": None,
+            "status": "idle",
+        }
+
+        with pytest.raises(sqlite3.IntegrityError):
+            publish_ready_session(invalid)
+
+        assert get_session(sample_session["id"])["status"] == "archived"
+        assert [row["content"] for row in get_logs(sample_session["id"])] == ["keep"]
+        assert get_session("invalid-ready-session") is None
+
+
 class TestUpsert:
     def test_updates_mutable_fields(self, db, sample_session):
         from app.db import save_session, get_session

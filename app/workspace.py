@@ -34,6 +34,7 @@ class Worktree:
     path: str
     branch: str
     branch_created: bool = False
+    initial_head: str = ""
 
 
 class MergeOutcome(TypedDict):
@@ -634,7 +635,108 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
 
         return Worktree(
             path=str(wt_path), branch=branch, branch_created=branch_created,
+            initial_head=branch_initial_oid,
         )
+
+
+def discard_prepared_worktree(repo_path: str, worktree: Worktree) -> None:
+    """Remove an unpublished worktree and only the branch this spawn created."""
+    repo = validate_repo_root(repo_path)
+    wt_path = Path(worktree.path)
+    with repo_mutation_lock(repo):
+        if not wt_path.exists():
+            if _worktree_registered(repo, wt_path):
+                raise RuntimeError(
+                    f"prepared worktree directory is missing but '{wt_path}' "
+                    "remains registered"
+                )
+            if worktree.branch_created:
+                remaining = _inspect_branch_ref(repo, worktree.branch)
+                if remaining is not None:
+                    raise RuntimeError(
+                        f"prepared worktree disappeared but created branch "
+                        f"'{worktree.branch}' remains at {remaining}"
+                    )
+            return
+
+        branch_deleted = False
+        if worktree.branch_created:
+            if not worktree.initial_head:
+                raise RuntimeError(
+                    f"cannot prove ownership of created branch '{worktree.branch}'"
+                )
+            actual_branch = _git_cmd(
+                ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+                cwd=str(wt_path), capture_output=True, text=True,
+            )
+            actual_head = _git_cmd(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(wt_path), capture_output=True, text=True,
+            )
+            current_ref = _inspect_branch_ref(repo, worktree.branch)
+            if (
+                actual_branch.returncode != 0
+                or actual_branch.stdout.strip() != worktree.branch
+                or actual_head.returncode != 0
+                or actual_head.stdout.strip() != worktree.initial_head
+                or current_ref != worktree.initial_head
+            ):
+                raise RuntimeError(
+                    f"prepared worktree ownership changed; preserving "
+                    f"'{worktree.path}' and branch '{worktree.branch}'"
+                )
+            deleted = _git_cmd(
+                [
+                    "git", "update-ref", "-d", f"refs/heads/{worktree.branch}",
+                    worktree.initial_head,
+                ],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+            if deleted.returncode != 0:
+                detail = deleted.stderr.strip() or deleted.stdout.strip()
+                raise RuntimeError(
+                    f"cannot delete prepared branch '{worktree.branch}': {detail}"
+                )
+            branch_deleted = True
+
+        removed = _git_cmd(
+            ["git", "worktree", "remove", str(wt_path), "--force"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        try:
+            registered = _worktree_registered(repo, wt_path)
+        except RuntimeError as inspect_error:
+            registered = True
+            removal_detail = str(inspect_error)
+        else:
+            removal_detail = removed.stderr.strip() or removed.stdout.strip()
+        if removed.returncode != 0 or registered or wt_path.exists():
+            restore_error = ""
+            if branch_deleted:
+                restored = _git_cmd(
+                    [
+                        "git", "update-ref", f"refs/heads/{worktree.branch}",
+                        worktree.initial_head, "",
+                    ],
+                    cwd=str(repo), capture_output=True, text=True,
+                )
+                if restored.returncode != 0:
+                    restore_error = (
+                        "; branch restore failed: "
+                        f"{restored.stderr.strip() or restored.stdout.strip()}"
+                    )
+            raise RuntimeError(
+                f"cannot discard prepared worktree '{wt_path}': "
+                f"{removal_detail or 'worktree remains registered'}{restore_error}"
+            )
+
+        if branch_deleted:
+            remaining = _inspect_branch_ref(repo, worktree.branch)
+            if remaining is not None:
+                raise RuntimeError(
+                    f"discarded worktree but created branch '{worktree.branch}' "
+                    f"remains at {remaining}"
+                )
 
 
 def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
