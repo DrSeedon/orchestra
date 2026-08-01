@@ -1,16 +1,16 @@
 ---
 name: vps-deploy
-description: Update and restart Orchestra on VPS (git pull + systemctl restart)
+description: Deploy Orchestra to its VPS via git pull and systemd restart. Use only when the active user request explicitly commands that exact VPS/production deploy or restart; merged fixes, production drift, or urgency do not trigger it.
 ---
 
 # VPS Deploy
 
 Update Orchestra on production VPS.
 
-## When to use
-- User asks to update VPS / production / deploy
-- User says "update server", "deploy", "pull to VPS", "restart on VPS"
-- After merging important fixes needed on prod
+## Authorization gate
+This skill provides a procedure, never permission. Before any SSH or external mutation, verify
+that the active user request explicitly authorizes this exact VPS deploy/restart. Otherwise STOP
+without SSH; merged fixes, stale production, urgency, or passing tests never authorize a deploy.
 
 ## Procedure
 

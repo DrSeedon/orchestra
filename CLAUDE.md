@@ -51,10 +51,9 @@ sudo systemctl status orchestra
 - External MCP (no in-process deadlocks)
 - Workers communicate via HTTP callback, not MCP inject
 - Proxy — см. секцию «🔌 ПРОКСИ» ниже (источник истины = .env HTTPS_PROXY)
-- **НЕ рестартить сервер при изменении фронта** (JS/CSS/HTML) — статика подтягивается автоматически. Рестарт только при изменении Python-кода
-- **sudo без пароля** для `systemctl restart/stop/start/status orchestra` и `telegram-bot-api` — можно рестартить сервер самому через `sudo systemctl restart orchestra`
-- **НЕ рестартить сервер самостоятельно** — только по явной команде юзера ("ок", "рестартни", "перезапусти"). Ребут убивает все активные сессии агентов
-- **Рестарт безопасен** — сессии персистентные (SQLite), auto_resume_all поднимает агентов. Контекст НЕ теряется. Активные turns прерываются, но idle воркеры восстанавливаются
+- Фронтенд (JS/CSS/HTML) обновляется без рестарта; Python-код требует рестарта для загрузки, но это не разрешение на него
+- `sudo systemctl` для `orchestra`/`telegram-bot-api` доступен технически, но это НЕ authorization: `restart/stop/start` — только по явной команде текущего юзера; `status` остаётся read-only. Рестарт прерывает active turns
+- После разрешённого рестарта SQLite-сессии и idle workers восстанавливаются; активные turns прерываются
 - **НЕ обновлять VPS самостоятельно** — git pull, systemctl restart на VPS делает только юзер вручную. Не пушить и не деплоить на VPS без команды
 - **TG /restart** — команда в TG группе для рестарта Orchestra
 - **Воркеры могут общаться друг с другом** через `send_message(to="worker-name")`. Пример: backend воркер добавил endpoint → пишет frontend-opus чтобы тот добавил кнопку. Оркестратор не нужен как посредник для координации между воркерами
