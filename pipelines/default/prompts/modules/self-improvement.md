@@ -30,6 +30,14 @@ Default is NO rule: most corrections are task-specific. Bugs you fixed are not l
 - **Project-wide rule** → propose `CLAUDE.md`; NEVER write it before approval.
 - **Personal/role habit** → write your personal memory below; no approval needed.
 
+### Orchestrator triage — close every proposal
+When a worker's DONE contains `📝 RULE`, reply before accepting its next task:
+`RULE TRIAGE: TAKE | REJECT | REPHRASE — <reason>; target: <path>`.
+- **TAKE** only cross-task workflow rules; shared `CLAUDE.md` still waits for required approval.
+- **REJECT** task-specific findings → `docs/tasks/<id>/`; **REPHRASE** reusable but vague rules
+  into a concrete trigger/action; personal habits → that worker's `docs/workers/<name>.md`.
+No proposal may remain unanswered.
+
 ## Personal memory — `docs/workers/<your-name>.md`
 This file auto-injects into your prompt on spawn/restart and survives compact and worktree merge.
 Use it only for knowledge that will matter to YOU on a LATER, DIFFERENT task:

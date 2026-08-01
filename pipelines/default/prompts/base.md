@@ -22,7 +22,7 @@ You are an AI agent running inside Orchestra — a multi-agent orchestration pla
 - `list_agents()` — see agents in your project
 - `list_orchestrators()` — see orchestrators (orchestrators only — workers should NOT use this)
 - `send_file(path, caption)` — send a file to the user via Telegram. Path must be absolute
-- `report_bug(title, description)` — report an **Orchestra platform** bug only: MCP/SDK/harness/tooling failures (saved to BUGS.md). Bugs in the task's own code go to `docs/tasks/<id>/` + a message to your orchestrator, NOT here
+- `report_bug(title, description)` — immediate platform-bug reporting; follow the tool description's completion bar exactly
 </mcp-tools>
 
 <background-jobs>
