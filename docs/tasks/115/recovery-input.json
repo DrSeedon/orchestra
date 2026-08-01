@@ -1,0 +1,2125 @@
+{
+  "counts": {
+    "candidate_non_numeric_task_refs": 8,
+    "candidate_numeric_task_refs": 23,
+    "entries": 32,
+    "evidence_only_non_integrations": 1,
+    "non_numeric_task_refs": 8,
+    "numeric_task_refs": 24,
+    "protected_refs": 32,
+    "recovery_candidates": 31,
+    "unique_target_commits": 32
+  },
+  "entries": [
+    {
+      "caller": {
+        "name": "polus-orchestrator",
+        "scope": "/home/maxim/polus",
+        "session_id": "21251d5d-1a63-4a08-b978-d2f9efa3fc71"
+      },
+      "integration_mode": "selective_worktree_copy",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/a734c5ab1823001947eba3fc6bf3de3122fd7891",
+        "survives_gc": true,
+        "verified_oid": "a734c5ab1823001947eba3fc6bf3de3122fd7891"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"wt=/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/research-compress; git merge --abort 2>/dev/null; cp \\\"$wt/scenes/terrain_viewer.gd\\\" scenes/terrain_viewer.gd && cp \\\"$wt/tools/terrain/gen_eroded.py\\\" tools/terrain/ 2>/dev/null; cp \\\"$wt/tools/terrain/erosion_filter.py\\\" tools/terrain/ 2>/dev/null; git add -A scenes/ tools/ && git commit -q -m \\\"#12: erosion filter generation from scratch + viewer keys 1-6\\\" && git push -q && echo \\\"pushed\\\"",
+          "id": 293605,
+          "sha256": "72f1ea7b3ff20b46ad3d399d1a93c1442df8b6ff29c7468eca433a79b076d151",
+          "ts": "2026-07-25T13:27:04.243331+00:00"
+        },
+        {
+          "excerpt": "Bash: {\"command\": \"/usr/bin/zsh -lc 'git log --oneline -8",
+          "id": 293886,
+          "sha256": "16e5bbbb1691b8c514e89f75f06fed84aa9e09ac7df0c68ae3c315ae07184ffe",
+          "ts": "2026-07-25T13:49:03.968605+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "pushed\n208:const REGION_KEYS := [\"krasnoyarsk\", \"krasnoyarsk_eroded\",\n230:\t\t\tKEY_P: _load_slot((_idx + 1) % REGION_KEYS.size())\ndata/terrain/ero_gen1/\ndata/terrain/ero_gen2/\ndata/terrain/ero_gen3/\ndata/terrain/ero_gen4/\ndata/terrain/krasnoyarsk_eroded/",
+          "id": 293606,
+          "sha256": "f8370811a7c376f2166d084691a0b018cab9d048f6a36e4c72730371b39a0ce3",
+          "ts": "2026-07-25T13:27:07.293169+00:00"
+        },
+        {
+          "excerpt": "9a5dcc0 #12: rescue GLSL reference + research + erode_dem tool\na734c5a #12: erosion filter generation from scratch + viewer keys 1-6\n19776df #11: all 12 methods in viewer (1-9,0,P) — resolved conflict",
+          "id": 293887,
+          "sha256": "faaa16409c2ab1cbeb65e01e937f362e55afb166e20fac7f1696c6b4f100807d",
+          "ts": "2026-07-25T13:49:03.969333+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/home/maxim/polus/.git",
+        "commit_oid": "a734c5ab1823001947eba3fc6bf3de3122fd7891",
+        "committed_at": "2026-07-25T15:27:04+02:00",
+        "head_at_freeze": "57c2dcad4a487c3bc22334e0485151bd7ecf857e",
+        "parent_oids": [
+          "19776dfda95ffefae3648a9556c04e4ebebdbb7a"
+        ],
+        "parsed_numeric_task_ref": 12,
+        "repo_path": "/home/maxim/polus",
+        "subject": "#12: erosion filter generation from scratch + viewer keys 1-6",
+        "tree_oid": "2a54b930131e666784bca5947195893dafcf98c0"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "adhoc-830013/research-compress",
+        "branch_at_integration": null,
+        "created_at": "2026-07-11T14:49:05.486712+00:00",
+        "finished_at": "2026-07-25T13:46:52.120176+00:00",
+        "name": "research-compress",
+        "scope": "/home/maxim/polus",
+        "session_id": "6e34750d-a2b6-4941-ac90-247731e37680",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/research-compress"
+      }
+    },
+    {
+      "caller": {
+        "name": "polus-orchestrator",
+        "scope": "/home/maxim/polus",
+        "session_id": "21251d5d-1a63-4a08-b978-d2f9efa3fc71"
+      },
+      "integration_mode": "selective_worktree_copy",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/9a5dcc0540d2d7831174801ff6947c50b022271a",
+        "survives_gc": true,
+        "verified_oid": "9a5dcc0540d2d7831174801ff6947c50b022271a"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"wt=/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/research-compress; mkdir -p docs/tasks/12/reference; cp \\\"$wt/docs/tasks/12/reference/\\\"*.glsl docs/tasks/12/reference/ 2>/dev/null; cp \\\"$wt/docs/tasks/12/research.md\\\" docs/tasks/12/ 2>/dev/null; cp \\\"$wt/tools/terrain/erode_dem.py\\\" tools/terrain/ 2>/dev/null; git add docs/tasks/12/ tools/terrain/erode_dem.py && git commit -q -m \\\"#12: rescue GLSL reference + research + erode_dem tool\\\" && git push -q && echo \\\"спасено\\\"",
+          "id": 293802,
+          "sha256": "f9b63bb8bc7a27c81fff9040de0e643fe6a2a5f368ded76181a4e91227fe1bd8",
+          "ts": "2026-07-25T13:46:40.279085+00:00"
+        },
+        {
+          "excerpt": "Bash: {\"command\": \"/usr/bin/zsh -lc 'git log --oneline -8",
+          "id": 293886,
+          "sha256": "16e5bbbb1691b8c514e89f75f06fed84aa9e09ac7df0c68ae3c315ae07184ffe",
+          "ts": "2026-07-25T13:49:03.968605+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "спасено\nerosion_original.glsl\noptolab_scene_full.glsl",
+          "id": 293805,
+          "sha256": "2770348b03491f2b2e0de40986bce99c7a2bcc76a6b062797a7c66820ce6b323",
+          "ts": "2026-07-25T13:46:43.500038+00:00"
+        },
+        {
+          "excerpt": "9a5dcc0 #12: rescue GLSL reference + research + erode_dem tool\na734c5a #12: erosion filter generation from scratch + viewer keys 1-6\n19776df #11: all 12 methods in viewer (1-9,0,P) — resolved conflict",
+          "id": 293887,
+          "sha256": "faaa16409c2ab1cbeb65e01e937f362e55afb166e20fac7f1696c6b4f100807d",
+          "ts": "2026-07-25T13:49:03.969333+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/home/maxim/polus/.git",
+        "commit_oid": "9a5dcc0540d2d7831174801ff6947c50b022271a",
+        "committed_at": "2026-07-25T15:46:40+02:00",
+        "head_at_freeze": "57c2dcad4a487c3bc22334e0485151bd7ecf857e",
+        "parent_oids": [
+          "a734c5ab1823001947eba3fc6bf3de3122fd7891"
+        ],
+        "parsed_numeric_task_ref": 12,
+        "repo_path": "/home/maxim/polus",
+        "subject": "#12: rescue GLSL reference + research + erode_dem tool",
+        "tree_oid": "b26f7000ae0bd17da3831d50199cbe4e1772aa68"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "adhoc-830013/research-compress",
+        "branch_at_integration": null,
+        "created_at": "2026-07-11T14:49:05.486712+00:00",
+        "finished_at": "2026-07-25T13:46:52.120176+00:00",
+        "name": "research-compress",
+        "scope": "/home/maxim/polus",
+        "session_id": "6e34750d-a2b6-4941-ac90-247731e37680",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/research-compress"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "cherry_pick",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/ca6b8581f37eb384dfde18f5ab74f478c7b76e07",
+        "survives_gc": true,
+        "verified_oid": "ca6b8581f37eb384dfde18f5ab74f478c7b76e07"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git cherry-pick b61a7a4 35e2af0 d8d57ce eeac43a 6f13f75 2>&1 | tail -5; echo \\\"=== result ===\\\"; git log --oneline -6 | cat; git status --short | head\",\n  \"description\": \"Cherry-pick docs-only research commits onto main\"\n}",
+          "id": 305700,
+          "sha256": "9c954e2513769656f47783b148f764a4e15747d81152efeef36a4187a8f486b7",
+          "ts": "2026-07-26T09:02:51.530300+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "efficiency): findings — cost is 70% call-count, 4% bytes; prior image/byte findings are Claude-only\nca6b858 research(sol-efficiency): raw forensics data — 5608 tool calls, 580 turns, 07-18..07-25\n7e5082a #88: #88: research repo_path spawn behavior\n8bf9647 fix: unread tabs track orchestrator turns\n98d327e chore: clean up bug registry\n M BUGS.md\nA  d",
+          "id": 305701,
+          "sha256": "f707aec1f73fd6aa9d731f092b7b3178cee7e1522a073f22a00609e70677ca83",
+          "ts": "2026-07-26T09:02:51.728991+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "ca6b8581f37eb384dfde18f5ab74f478c7b76e07",
+        "committed_at": "2026-07-26T11:02:51+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "7e5082a14e17358b51e2abf4cd24af16690c1824"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "research(sol-efficiency): raw forensics data — 5608 tool calls, 580 turns, 07-18..07-25",
+        "tree_oid": "075abcb1b31b03f8f256f93f9b248184a9d50722"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "feat/mnt-data-projects-python-orchestra/research-sol-efficiency",
+        "branch_at_integration": "feat/mnt-data-projects-python-orchestra/research-sol-efficiency",
+        "created_at": "2026-07-25T11:18:24.574505+00:00",
+        "finished_at": "2026-07-26T09:03:22.864129+00:00",
+        "name": "research-sol-efficiency",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "0a9e8f78-3dff-471b-9ac1-b7ad8d474cc5",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-sol-efficiency"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "cherry_pick",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/ed5b5e3b2d027d1b1b265ecc842cf00b1d0f9e82",
+        "survives_gc": true,
+        "verified_oid": "ed5b5e3b2d027d1b1b265ecc842cf00b1d0f9e82"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git cherry-pick b61a7a4 35e2af0 d8d57ce eeac43a 6f13f75 2>&1 | tail -5; echo \\\"=== result ===\\\"; git log --oneline -6 | cat; git status --short | head\",\n  \"description\": \"Cherry-pick docs-only research commits onto main\"\n}",
+          "id": 305700,
+          "sha256": "9c954e2513769656f47783b148f764a4e15747d81152efeef36a4187a8f486b7",
+          "ts": "2026-07-26T09:02:51.530300+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "iency): robustness pass — downgrade 70/26/4 to CIs, retract preamble mechanism, add test statistics\ned5b5e3 research(sol-efficiency): findings — cost is 70% call-count, 4% bytes; prior image/byte findings are Claude-only\nca6b858 research(sol-efficiency): raw forensics data — 5608 tool calls, 580 turns, 07-18..07-25\n7e5082a #88: #88: research repo_p",
+          "id": 305701,
+          "sha256": "f707aec1f73fd6aa9d731f092b7b3178cee7e1522a073f22a00609e70677ca83",
+          "ts": "2026-07-26T09:02:51.728991+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "ed5b5e3b2d027d1b1b265ecc842cf00b1d0f9e82",
+        "committed_at": "2026-07-26T11:02:51+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "ca6b8581f37eb384dfde18f5ab74f478c7b76e07"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "research(sol-efficiency): findings — cost is 70% call-count, 4% bytes; prior image/byte findings are Claude-only",
+        "tree_oid": "e03764bc813400bd386706f436bf1e8c51ee10d6"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "feat/mnt-data-projects-python-orchestra/research-sol-efficiency",
+        "branch_at_integration": "feat/mnt-data-projects-python-orchestra/research-sol-efficiency",
+        "created_at": "2026-07-25T11:18:24.574505+00:00",
+        "finished_at": "2026-07-26T09:03:22.864129+00:00",
+        "name": "research-sol-efficiency",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "0a9e8f78-3dff-471b-9ac1-b7ad8d474cc5",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-sol-efficiency"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "cherry_pick",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/a1a3d3b5283235530d4369d3156f9d635d06e429",
+        "survives_gc": true,
+        "verified_oid": "a1a3d3b5283235530d4369d3156f9d635d06e429"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git cherry-pick b61a7a4 35e2af0 d8d57ce eeac43a 6f13f75 2>&1 | tail -5; echo \\\"=== result ===\\\"; git log --oneline -6 | cat; git status --short | head\",\n  \"description\": \"Cherry-pick docs-only research commits onto main\"\n}",
+          "id": 305700,
+          "sha256": "9c954e2513769656f47783b148f764a4e15747d81152efeef36a4187a8f486b7",
+          "ts": "2026-07-26T09:02:51.530300+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "-abort\".\nhint: Disable this message with \"git config set advice.mergeConflict false\"\n=== result ===\na1a3d3b research(sol-efficiency): robustness pass — downgrade 70/26/4 to CIs, retract preamble mechanism, add test statistics\ned5b5e3 research(sol-efficiency): findings — cost is 70% call-count, 4% bytes; prior image/byte findings are Claude-only\nca6",
+          "id": 305701,
+          "sha256": "f707aec1f73fd6aa9d731f092b7b3178cee7e1522a073f22a00609e70677ca83",
+          "ts": "2026-07-26T09:02:51.728991+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "a1a3d3b5283235530d4369d3156f9d635d06e429",
+        "committed_at": "2026-07-26T11:02:51+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "ed5b5e3b2d027d1b1b265ecc842cf00b1d0f9e82"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "research(sol-efficiency): robustness pass — downgrade 70/26/4 to CIs, retract preamble mechanism, add test statistics",
+        "tree_oid": "296347f88d36b6b6d2b8b774e994ff79c0e6393e"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "feat/mnt-data-projects-python-orchestra/research-sol-efficiency",
+        "branch_at_integration": "feat/mnt-data-projects-python-orchestra/research-sol-efficiency",
+        "created_at": "2026-07-25T11:18:24.574505+00:00",
+        "finished_at": "2026-07-26T09:03:22.864129+00:00",
+        "name": "research-sol-efficiency",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "0a9e8f78-3dff-471b-9ac1-b7ad8d474cc5",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-sol-efficiency"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "cherry_pick_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/9793a44dee1321f5f2b4638f05f89688db4da02b",
+        "survives_gc": true,
+        "verified_oid": "9793a44dee1321f5f2b4638f05f89688db4da02b"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git cherry-pick b61a7a4 35e2af0 d8d57ce eeac43a 6f13f75 2>&1 | tail -5; echo \\\"=== result ===\\\"; git log --oneline -6 | cat; git status --short | head\",\n  \"description\": \"Cherry-pick docs-only research commits onto main\"\n}",
+          "id": 305700,
+          "sha256": "9c954e2513769656f47783b148f764a4e15747d81152efeef36a4187a8f486b7",
+          "ts": "2026-07-26T09:02:51.530300+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout --theirs docs/tasks/subscription-strategy/research.md 2>/dev/null || git show eeac43a:docs/tasks/subscription-strategy/research.md > docs/tasks/subscription-strategy/research.md; git add docs/tasks/subscription-strategy/research.md && git -c core.editor=true cherry-pick --continue 2>&1 | tail -3; echo \\\"=== state ",
+          "id": 305702,
+          "sha256": "6c68295257abc8ba9baae5d33f88aac5d2f4855c2395cb7965b4e879776caf52",
+          "ts": "2026-07-26T09:02:58.721976+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "hint: \"git cherry-pick --continue\".\nhint: You can instead skip this commit with \"git cherry-pick --skip\".\nhint: To abort and get back to the state before \"git cherry-pick\",\nhint: run \"git cherry-pick --abort\".\nhint: Disable this message with \"git config set advice.mergeConflict false\"\n=== result ===\na1a3d3b research(sol-efficiency): robustness pass",
+          "id": 305701,
+          "sha256": "f707aec1f73fd6aa9d731f092b7b3178cee7e1522a073f22a00609e70677ca83",
+          "ts": "2026-07-26T09:02:51.728991+00:00"
+        },
+        {
+          "excerpt": "--abort\".\nhint: Disable this message with \"git config set advice.mergeConflict false\"\n=== state ===\n9793a44 Mined usage_snapshots.provider_usage (per-provider windows), not used in Phase 1. Codex burns 25pp/working-day of its weekly window -> ~2.5 working days on 5x, then sat dead at 100% for ~2.5 days. Confirms user's '$1000 in 1.5 days'. 20x give",
+          "id": 305703,
+          "sha256": "e1c762972beed927928b71e2f5eadf1f07467d22beac1f375f6a74d653cb75e4",
+          "ts": "2026-07-26T09:02:58.833027+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "9793a44dee1321f5f2b4638f05f89688db4da02b",
+        "committed_at": "2026-07-26T11:02:58+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "a1a3d3b5283235530d4369d3156f9d635d06e429"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "Mined usage_snapshots.provider_usage (per-provider windows), not used in Phase 1. Codex burns 25pp/working-day of its weekly window -> ~2.5 working days on 5x, then sat dead at 100% for ~2.5 days. Confirms user's '$1000 in 1.5 days'. 20x gives ~10 working days (~5.3 if Sol demand triples), survives even at 2x scaling.",
+        "tree_oid": "4eb5587af33d1e3af3621107aeb889df63bc530d"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "feat/mnt-data-projects-python-orchestra/research-subscription",
+        "branch_at_integration": "feat/mnt-data-projects-python-orchestra/research-subscription",
+        "created_at": "2026-07-21T06:46:01.219967+00:00",
+        "finished_at": "2026-07-26T09:03:25.233261+00:00",
+        "name": "research-subscription",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "0826f17d-285d-4fb4-ad60-405b1bc4b939",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-subscription"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "cherry_pick_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/7a8e1b7d7d6fc601aa3bd787a4967a340a856fa1",
+        "survives_gc": true,
+        "verified_oid": "7a8e1b7d7d6fc601aa3bd787a4967a340a856fa1"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git cherry-pick b61a7a4 35e2af0 d8d57ce eeac43a 6f13f75 2>&1 | tail -5; echo \\\"=== result ===\\\"; git log --oneline -6 | cat; git status --short | head\",\n  \"description\": \"Cherry-pick docs-only research commits onto main\"\n}",
+          "id": 305700,
+          "sha256": "9c954e2513769656f47783b148f764a4e15747d81152efeef36a4187a8f486b7",
+          "ts": "2026-07-26T09:02:51.530300+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout --theirs docs/tasks/subscription-strategy/research.md 2>/dev/null || git show eeac43a:docs/tasks/subscription-strategy/research.md > docs/tasks/subscription-strategy/research.md; git add docs/tasks/subscription-strategy/research.md && git -c core.editor=true cherry-pick --continue 2>&1 | tail -3; echo \\\"=== state ",
+          "id": 305702,
+          "sha256": "6c68295257abc8ba9baae5d33f88aac5d2f4855c2395cb7965b4e879776caf52",
+          "ts": "2026-07-26T09:02:58.721976+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout eeac43a -- docs/tasks/subscription-strategy/ && git add docs/tasks/subscription-strategy/ && git -c core.editor=true cherry-pick --continue 2>&1 | tail -2; echo \\\"=== in progress? ===\\\"; test -d .git/sequencer && echo \\\"STILL RUNNING\\\" || echo \\\"done\\\"; git log --oneline -3 | cat\",\n  \"description\": \"Finish cherry-",
+          "id": 305706,
+          "sha256": "93fced44fa2ea500d3c561e00bc7d955a2c48139f9e1b1e49e63ae3d6bad9a4a",
+          "ts": "2026-07-26T09:03:06.617423+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "hint: \"git cherry-pick --continue\".\nhint: You can instead skip this commit with \"git cherry-pick --skip\".\nhint: To abort and get back to the state before \"git cherry-pick\",\nhint: run \"git cherry-pick --abort\".\nhint: Disable this message with \"git config set advice.mergeConflict false\"\n=== result ===\na1a3d3b research(sol-efficiency): robustness pass",
+          "id": 305701,
+          "sha256": "f707aec1f73fd6aa9d731f092b7b3178cee7e1522a073f22a00609e70677ca83",
+          "ts": "2026-07-26T09:02:51.728991+00:00"
+        },
+        {
+          "excerpt": "hint: To abort and get back to the state before \"git cherry-pick\",\nhint: run \"git cherry-pick --abort\".\nhint: Disable this message with \"git config set advice.mergeConflict false\"\n=== state ===\n9793a44 Mined usage_snapshots.provider_usage (per-provider windows), not used in Phase 1. Codex burns 25pp/working-day of its weekly window -> ~2.5 working ",
+          "id": 305703,
+          "sha256": "e1c762972beed927928b71e2f5eadf1f07467d22beac1f375f6a74d653cb75e4",
+          "ts": "2026-07-26T09:02:58.833027+00:00"
+        },
+        {
+          "excerpt": "h.md\n create mode 100644 docs/tasks/subscription-strategy/measurements.md\n=== in progress? ===\ndone\n7a8e1b7 Measured 1.77x Claude limit-consumption increase across the 2026-07-18 downgrade (n=904 turns, work-normalized). Refutes the 4x hypothesis; confirms direction. Codex side verified exactly 5x from primary source. Units are not addable.\n9793a44",
+          "id": 305707,
+          "sha256": "6ba88b5ac59c7183faf730ea9d3d55e7bcd4b86610001a060754f0a6bffade2d",
+          "ts": "2026-07-26T09:03:06.679315+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "7a8e1b7d7d6fc601aa3bd787a4967a340a856fa1",
+        "committed_at": "2026-07-26T11:03:06+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "9793a44dee1321f5f2b4638f05f89688db4da02b"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "Measured 1.77x Claude limit-consumption increase across the 2026-07-18 downgrade (n=904 turns, work-normalized). Refutes the 4x hypothesis; confirms direction. Codex side verified exactly 5x from primary source. Units are not addable.",
+        "tree_oid": "18898d7001aab3ae22730e462dc43f8c47e0288e"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "feat/mnt-data-projects-python-orchestra/research-subscription",
+        "branch_at_integration": "feat/mnt-data-projects-python-orchestra/research-subscription",
+        "created_at": "2026-07-21T06:46:01.219967+00:00",
+        "finished_at": "2026-07-26T09:03:25.233261+00:00",
+        "name": "research-subscription",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "0826f17d-285d-4fb4-ad60-405b1bc4b939",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-subscription"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/aa3d382947e702e9720cd864d55702a6e6914186",
+        "survives_gc": true,
+        "verified_oid": "aa3d382947e702e9720cd864d55702a6e6914186"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git merge --squash adhoc-568267/prompt-engineer 2>&1 | tail -3 && git commit -q -m \\\"#prompt-engineer: личная база знаний по промпт-инжинирингу\\\" && git log --oneline -1 && ls -la docs/workers/\"\n}",
+          "id": 370921,
+          "sha256": "330b992c0be573c4e217d4a223411da9afbec33e667e03e2c7c4e1a7e34f2dbd",
+          "ts": "2026-08-01T07:24:02.239087+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "++++++++++++\n 1 file changed, 170 insertions(+)\n create mode 100644 docs/workers/prompt-engineer.md\naa3d382 #prompt-engineer: личная база знаний по промпт-инжинирингу\ntotal 32\ndrwxr-xr-x  2 maxim maxim  4096 Aug  1 09:24 .\ndrwxrwxr-x 10 maxim maxim  4096 Jul 28 13:11 ..\n-rw-r--r--  1 maxim maxim   994 Jul 26 09:17 frontend.md\n-rw-r--r--  1 maxim ma",
+          "id": 370922,
+          "sha256": "c6f36393e201f3f8aed81b3abb1592a2aa1262b41273831c446dad4ee117cc3c",
+          "ts": "2026-08-01T07:24:02.444821+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "aa3d382947e702e9720cd864d55702a6e6914186",
+        "committed_at": "2026-08-01T09:24:02+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "8959e5f6d56e5140452d3e04534dcd4f5bcf756c"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "#prompt-engineer: личная база знаний по промпт-инжинирингу",
+        "tree_oid": "ba9e00fea4b72880246b10745115ffe9d96082ea"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "adhoc-572769/prompt-engineer",
+        "branch_at_integration": "adhoc-568267/prompt-engineer",
+        "created_at": "2026-05-31T10:28:33.428920+00:00",
+        "finished_at": null,
+        "name": "prompt-engineer",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "107a7692-6a87-47d6-903b-1728fa964202",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/prompt-engineer"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/c2776320f547607d990bc894b78e01325e303f87",
+        "survives_gc": true,
+        "verified_oid": "c2776320f547607d990bc894b78e01325e303f87"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"B=$(git worktree list | grep prompt-engineer | sed 's/.*\\\\[\\\\(.*\\\\)\\\\]/\\\\1/'); echo \\\"ветка: $B\\\"; git merge --squash \\\"$B\\\" 2>&1 | tail -3 && git commit -q -m \\\"#prompt: self-improvement — событийный контракт памяти воркера\\\" && git log --oneline -1\"\n}",
+          "id": 371461,
+          "sha256": "8eff94d23afe54e4e3b657e9dc8c79202e5920cd55d32abb3a8053aacf22c971",
+          "ts": "2026-08-01T07:27:51.605528+00:00"
+        },
+        {
+          "excerpt": "rs docs/workers/prompt-engineer.md && git add docs/workers/prompt-engineer.md && git commit -q -m \\\"#prompt: self-improvement — событийный контракт памяти воркера + граница refresh\\\" && git log --oneline -1 && wc -c docs/workers/prompt-engineer.md pipelines/default/prompts/modules/self-improvement.md\"\n}",
+          "id": 371477,
+          "sha256": "237b3f42e0f36acfa1510d1c0aa530a22d4a106052c65c949e6397cf6cedd235",
+          "ts": "2026-08-01T07:27:56.040142+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "Exit code 128\nветка: adhoc-568267/prompt-engineer\nCONFLICT (add/add): Merge conflict in docs/workers/prompt-engineer.md\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.\nerror: Committing is not possible because you have unmerged files.\nhint: Fix them up in the work tree, and then use 'git add/rm <",
+          "id": 371462,
+          "sha256": "77f4b64115d85f83b18528aab83fb63986e76611e8753f6bd40c21d90eae7e4b",
+          "ts": "2026-08-01T07:27:51.675768+00:00"
+        },
+        {
+          "excerpt": "Updated 1 path from the index\nc277632 #prompt: self-improvement — событийный контракт памяти воркера + граница refresh\n17786 docs/workers/prompt-engineer.md\n 3088 pipelines/default/prompts/modules/self-improvement.md\n20874 total",
+          "id": 371479,
+          "sha256": "208fb1727bf091bbae9070e80dcdc7a8146c529f916d4428abbc84c96aafe638",
+          "ts": "2026-08-01T07:27:56.133778+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "c2776320f547607d990bc894b78e01325e303f87",
+        "committed_at": "2026-08-01T09:27:56+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "aa3d382947e702e9720cd864d55702a6e6914186"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "#prompt: self-improvement — событийный контракт памяти воркера + граница refresh",
+        "tree_oid": "474c6c2156f9a84db3cdf1e9c3c6a3a58e014728"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "adhoc-572769/prompt-engineer",
+        "branch_at_integration": "adhoc-568267/prompt-engineer",
+        "created_at": "2026-05-31T10:28:33.428920+00:00",
+        "finished_at": null,
+        "name": "prompt-engineer",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "107a7692-6a87-47d6-903b-1728fa964202",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/prompt-engineer"
+      }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/6926fea07f19d4c43e0771de70f6ca6d49ea1fcb",
+        "survives_gc": true,
+        "verified_oid": "6926fea07f19d4c43e0771de70f6ca6d49ea1fcb"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"B=$(git worktree list | grep prompt-engineer | sed 's/.*\\\\[\\\\(.*\\\\)\\\\]/\\\\1/'); git merge --squash \\\"$B\\\" 2>&1 | tail -5\"\n}",
+          "id": 371945,
+          "sha256": "2345549fd190a7938255a6bb36648baf8ddcacf2d9eebf7d3d2acbf5ead81e88",
+          "ts": "2026-08-01T07:32:20.308744+00:00"
+        },
+        {
+          "excerpt": "ommand\": \"git checkout --theirs docs/workers/prompt-engineer.md && git add -A && git commit -q -m \\\"#prompt: pre-send gate — запрет второй задачи занятому воркеру\\\" && git log --oneline -1 && grep -c \\\"list_agents\\\" pipelines/default/prompts/modules/orchestration.md\"\n}",
+          "id": 371952,
+          "sha256": "68064c726a31a77577c102929249c96d41e90440dde342f5aa4a782d39ca7a6d",
+          "ts": "2026-08-01T07:32:25.638680+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "Auto-merging docs/workers/prompt-engineer.md\nCONFLICT (add/add): Merge conflict in docs/workers/prompt-engineer.md\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.",
+          "id": 371946,
+          "sha256": "7dd0fca8c86afbd1171088fffa174d9e579e7734490b882cda9b8d8c914e819b",
+          "ts": "2026-08-01T07:32:20.414174+00:00"
+        },
+        {
+          "excerpt": "Updated 1 path from the index\n6926fea #prompt: pre-send gate — запрет второй задачи занятому воркеру\n3",
+          "id": 371954,
+          "sha256": "eac91b3e3b172ce8f8dce487b20d9d187578018b5ba4d5845dd12e4d17eb0fc3",
+          "ts": "2026-08-01T07:32:25.726925+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "6926fea07f19d4c43e0771de70f6ca6d49ea1fcb",
+        "committed_at": "2026-08-01T09:32:25+02:00",
+        "head_at_freeze": "a0395ae6f74c2c39636577554598fe28aee3c572",
+        "parent_oids": [
+          "a4d6a8540c73530b32b888a11dbcb20e6fa5a3b7"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "#prompt: pre-send gate — запрет второй задачи занятому воркеру",
+        "tree_oid": "cff8b236e591bdc7688c143abf5a9782fee9e9d3"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "adhoc-572769/prompt-engineer",
+        "branch_at_integration": "adhoc-568267/prompt-engineer",
+        "created_at": "2026-05-31T10:28:33.428920+00:00",
+        "finished_at": null,
+        "name": "prompt-engineer",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "107a7692-6a87-47d6-903b-1728fa964202",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/prompt-engineer"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/6f75c4bce3e2deed3078d8d19b2549a8033310d5",
+        "survives_gc": true,
+        "verified_oid": "6f75c4bce3e2deed3078d8d19b2549a8033310d5"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git merge --squash task-2/impl-deck-search 2>&1 | tail -5; echo \\\"=== конфликты ===\\\"; git diff --name-only --diff-filter=U\",\n  \"description\": \"Squash merge deck-search into main\"\n}",
+          "id": 318079,
+          "sha256": "4babdc59324c17ac200ebfae09708824debc501f0608f527bd70856e630a169d",
+          "ts": "2026-07-28T05:48:13.509089+00:00"
+        },
+        {
+          "excerpt": "F'\\n#2: ко-эволюционный поиск колод (hall of fame, resume, ограничение памяти)\\n\\nSquash-мерж ветки task-2/impl-deck-search. Популяция 16, cumulative halving\\n8→32→128 пар, растущий архив 8-12 рецептов с прореживанием близких и\\nPFSP-выборкой со смещением к тем, кому кандидат проигрывает.\\n\\nДва независимых запуска из разных стартовых точек сошлись",
+          "id": 318191,
+          "sha256": "27f3ddf69c6268ccb7241c0abf74fe9bc1be201f0074ab7c47d386e73439f175",
+          "ts": "2026-07-28T05:49:19.488988+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "Auto-merging CLAUDE.md\nCONFLICT (content): Merge conflict in CLAUDE.md\nAuto-merging src/inscryption_ai/experiments.py\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.\n=== конфликты ===\nCLAUDE.md\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 318080,
+          "sha256": "83e51f3dd30b36b42e64b787f581358c196180c08e220ccbea8ce2f8a30313fd",
+          "ts": "2026-07-28T05:48:13.586754+00:00"
+        },
+        {
+          "excerpt": "запушено: 6f75c4b #2: ко-эволюционный поиск колод (hall of fame, resume, ограничение памяти)\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 318192,
+          "sha256": "bd455e8844919b2a5c3c6266f5c188a5e10c4d9ff167eb10925c7335f9904682",
+          "ts": "2026-07-28T05:49:22.514420+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "6f75c4bce3e2deed3078d8d19b2549a8033310d5",
+        "committed_at": "2026-07-28T07:49:19+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "9fb02e5d78c6356d5bb132afb4d59edea88c57d8"
+        ],
+        "parsed_numeric_task_ref": 2,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#2: ко-эволюционный поиск колод (hall of fame, resume, ограничение памяти)",
+        "tree_oid": "a85b0a7b05f67e75d06659fb22e5172c9448f99f"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "task-2/impl-deck-search",
+        "branch_at_integration": "task-2/impl-deck-search",
+        "created_at": "2026-07-26T14:22:26.144625+00:00",
+        "finished_at": "2026-08-01T06:59:56.799819+00:00",
+        "name": "impl-deck-search",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "fe94c75b-9d48-4b1e-a6fc-0b0139070016",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-cog-second-brain/impl-deck-search"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/ae8b12789cd798819da4a7d8e938c8e99af716ae",
+        "survives_gc": true,
+        "verified_oid": "ae8b12789cd798819da4a7d8e938c8e99af716ae"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git merge --squash task-2/impl-deck-search 2>&1 | tail -3 && git diff --name-only --diff-filter=U | head\",\n  \"description\": \"Merge dose curve branch\"\n}",
+          "id": 320925,
+          "sha256": "c39a00fb6a3fd2923210533ce724e25b31baefd3daf6293bda55ac137174c97f",
+          "ts": "2026-07-28T06:27:57.380555+00:00"
+        },
+        {
+          "excerpt": "command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git add -A && git commit -q -F - <<'EOF'\\n#3: дозовые кривые для трёх пар — смена знака не универсальна\\n\\n24 предрегистрированные точки по 600 блоков, окна сидов объявлены до\\nзапуска и не пересекаются.\\n\\nOpossum→Bullfrog (разные ресурсы): убывающая отдача, 58,9→53,2% на\\nэвристике и 61,7→",
+          "id": 321018,
+          "sha256": "f26d40b29d8a1e452980eb4401ad4322f0b4ab37addbb0356eb16f6cd35e30be",
+          "ts": "2026-07-28T06:29:25.589555+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "CONFLICT (add/add): Merge conflict in tests/test_deck_search.py\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.\ndocs/tasks/inscryption-ai-deck-search/pilot-plan.md\nsrc/inscryption_ai/deck_search.py\ntests/test_deck_search.py\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 320926,
+          "sha256": "5bad1839dbc20fc4df53dbf665e223ac7f6bc812256ae0ba7a7210080b0fec61",
+          "ts": "2026-07-28T06:27:57.722510+00:00"
+        },
+        {
+          "excerpt": "запушено: ae8b127 #3: дозовые кривые для трёх пар — смена знака не универсальна\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 321026,
+          "sha256": "5311bac541726e0212f2ea6dd2a5372c4f74e9a4496ee20cc411907a110c69c8",
+          "ts": "2026-07-28T06:29:28.491343+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "ae8b12789cd798819da4a7d8e938c8e99af716ae",
+        "committed_at": "2026-07-28T08:29:25+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "0a17b21ab1e424e660927fc94e6094a4cf449a34"
+        ],
+        "parsed_numeric_task_ref": 3,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#3: дозовые кривые для трёх пар — смена знака не универсальна",
+        "tree_oid": "913c501aa794b8bbb254a1d3f9354a143bb9b308"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "task-2/impl-deck-search",
+        "branch_at_integration": "task-2/impl-deck-search",
+        "created_at": "2026-07-26T14:22:26.144625+00:00",
+        "finished_at": "2026-08-01T06:59:56.799819+00:00",
+        "name": "impl-deck-search",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "fe94c75b-9d48-4b1e-a6fc-0b0139070016",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-cog-second-brain/impl-deck-search"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/70c8e70f5db77169673527c1d930500473e952b3",
+        "survives_gc": true,
+        "verified_oid": "70c8e70f5db77169673527c1d930500473e952b3"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git merge --squash task-7/impl-game-ux 2>&1 | tail -3; echo \\\"=== конфликты ===\\\"; git diff --name-only --diff-filter=U\",\n  \"description\": \"Merge game UX branch\"\n}",
+          "id": 322673,
+          "sha256": "45621a94dc6fe225b2b4c73b1ef6d848710648f214c09977c7827e9a8ceff91b",
+          "ts": "2026-07-28T07:21:06.790058+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git merge --squash task-7/impl-game-ux 2>&1 | tail -2; echo \\\"конфликты: $(git diff --name-only --diff-filter=U | wc -l)\\\"\",\n  \"description\": \"Merge game UX branch after conflict resolution\"\n}",
+          "id": 322995,
+          "sha256": "c7c513954e62bad89e8d44c330422bc486c17bf1fa8c5d3b3b8bfc4b91e6cbe9",
+          "ts": "2026-07-28T07:29:17.711800+00:00"
+        },
+        {
+          "excerpt": "command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git add -A && git commit -q -F - <<'EOF'\\n#7: игровой экран в один viewport, горячие клавиши, предпросмотр размена, полный локальный арт\\n\\nLayout: 100dvh grid — состояние слева, доска с рукой в центре, журнал справа.\\nПрокрутка осталась только внутри журнала; Playwright проверяет\\nscrollHei",
+          "id": 323034,
+          "sha256": "267b29e7e9a592879760e4342bd1a5581866b9978ef9524c840e593cef5e1d00",
+          "ts": "2026-07-28T07:30:12.965519+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "Auto-merging web/tests/Presentation.test.ts\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.\n=== конфликты ===\nweb/src/game/GameBoard.tsx\nweb/src/game/presentation.ts\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 322674,
+          "sha256": "cf49424d93250a0f39aa7c58abce962b3967824f7268a48bf43b65f418f2f522",
+          "ts": "2026-07-28T07:21:07.073905+00:00"
+        },
+        {
+          "excerpt": " create mode 100644 web/screenshots/game-390x844.png\n create mode 100644 web/tests/layout.spec.ts\nконфликты: 0\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 322996,
+          "sha256": "f380d4f59c866c633a2ef146427371b6ff94c774192bae80123a08955ad14340",
+          "ts": "2026-07-28T07:29:18.050695+00:00"
+        },
+        {
+          "excerpt": "запушено: 70c8e70 #7: игровой экран в один viewport, горячие клавиши, предпросмотр размена, полный локальный арт\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 323053,
+          "sha256": "9102187f3902e634bf2b80015c1a87f33dee0a2ad090cd0137a51ee1bce1f116",
+          "ts": "2026-07-28T07:30:27.128453+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "70c8e70f5db77169673527c1d930500473e952b3",
+        "committed_at": "2026-07-28T09:30:13+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "7b30878ce3f22766f877a3a0bce3280e105972db"
+        ],
+        "parsed_numeric_task_ref": 7,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#7: игровой экран в один viewport, горячие клавиши, предпросмотр размена, полный локальный арт",
+        "tree_oid": "705b8768966440d6e5ca11fe925c27bb6ea6eeaa"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-8/impl-game-ux",
+        "branch_at_integration": "task-7/impl-game-ux",
+        "created_at": "2026-07-28T06:01:58.666165+00:00",
+        "finished_at": "2026-08-01T06:59:41.780866+00:00",
+        "name": "impl-game-ux",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "903f6981-e7e0-44ef-a0d3-5a984f5e4552",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-inscryption-ai/impl-game-ux"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/e2b2d0440b457aad086c606ee16b2c1256f0cca3",
+        "survives_gc": true,
+        "verified_oid": "e2b2d0440b457aad086c606ee16b2c1256f0cca3"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git merge --squash task-8/impl-game-ux 2>&1 | tail -3 && git status --short | wc -l\",\n  \"description\": \"Squash merge game-ux branch\"\n}",
+          "id": 326842,
+          "sha256": "a329c789548ab0afd6ca80b6ae3516550d50a6b3631492298fe0196d42c3ca87",
+          "ts": "2026-07-28T10:14:57.360563+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git commit -q -m \\\"#8: анимации боевой фазы и выбор кликом по доске\\\" && git log --oneline -1 && echo \\\"--- push:\\\" && git push origin main 2>&1 | tail -2\",\n  \"description\": \"Commit and push merged animations\"\n}",
+          "id": 326845,
+          "sha256": "caead037e67163721ceba9e2a864d355ea254f83eaa5f73cc1226a1b1b5bd331",
+          "ts": "2026-07-28T10:15:01.873271+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": " create mode 100644 web/screenshots/combat-sigil-impact.png\n create mode 100644 web/src/game/combatAnimation.ts\n create mode 100644 web/tests/CombatAnimation.test.ts\n16\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 326843,
+          "sha256": "64b2580a6bc74651b945deb5aaa626a65ad032acc33fdaf192d3d0acd95ed1c1",
+          "ts": "2026-07-28T10:14:57.560702+00:00"
+        },
+        {
+          "excerpt": "e2b2d04 #8: анимации боевой фазы и выбор кликом по доске\n--- push:\nTo github.com:DrSeedon/inscryption-ai.git\n   70c8e70..e2b2d04  main -> main\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 326853,
+          "sha256": "1bc0297831113eb5f80c6857a0b8abb2755df6da05a966d97c7fb699598ce366",
+          "ts": "2026-07-28T10:15:06.403531+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "e2b2d0440b457aad086c606ee16b2c1256f0cca3",
+        "committed_at": "2026-07-28T12:15:01+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "70c8e70f5db77169673527c1d930500473e952b3"
+        ],
+        "parsed_numeric_task_ref": 8,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#8: анимации боевой фазы и выбор кликом по доске",
+        "tree_oid": "c75240cfeb790a364f5a054eacab02921f317432"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-8/impl-game-ux",
+        "branch_at_integration": "task-8/impl-game-ux",
+        "created_at": "2026-07-28T06:01:58.666165+00:00",
+        "finished_at": "2026-08-01T06:59:41.780866+00:00",
+        "name": "impl-game-ux",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "903f6981-e7e0-44ef-a0d3-5a984f5e4552",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-inscryption-ai/impl-game-ux"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/4a250372fa500736bc78c7d592075aad4762db83",
+        "survives_gc": true,
+        "verified_oid": "4a250372fa500736bc78c7d592075aad4762db83"
+      },
+      "source_calls": [
+        {
+          "excerpt": "\": \"cd /mnt/data/Projects/Python/inscryption-ai && git status --short | wc -l && git merge --squash task-10/feat-algo-research 2>&1 | tail -2 && git status --short | wc -l\",\n  \"description\": \"Squash merge algo research branch\"\n}",
+          "id": 328551,
+          "sha256": "47a9b71fc2279472a3192f4bb0cb92df8ec389b77c13ef6dee8037f4abf61409",
+          "ts": "2026-07-28T11:00:16.446252+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git commit -q -m \\\"#10: разбор алгоритмов неполной информации + MCCFR micro-oracle с точным LP\\\" && git push origin main 2>&1 | tail -1 && git log --oneline -1\",\n  \"description\": \"Commit and push algo research\"\n}",
+          "id": 328556,
+          "sha256": "3eb2031f5f8aae403fde265a53edde4d16eb234c459a69cbaf05a73c75c2e5b7",
+          "ts": "2026-07-28T11:00:31.197135+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "0\nAutomatic merge went well; stopped before committing as requested\nSquash commit -- not updating HEAD\n15\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 328552,
+          "sha256": "5d28bd06e99cc8e7c7211ddb2ea8ae4597422a5488dc3e058484210e21f6bec4",
+          "ts": "2026-07-28T11:00:16.997057+00:00"
+        },
+        {
+          "excerpt": "   e2b2d04..4a25037  main -> main\n4a25037 #10: разбор алгоритмов неполной информации + MCCFR micro-oracle с точным LP\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 328559,
+          "sha256": "a73aacaacf8bee7ff5e9145ed8f329d6d91a4bf8a7427310cdfbd0701e0e25d5",
+          "ts": "2026-07-28T11:00:34.523463+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "4a250372fa500736bc78c7d592075aad4762db83",
+        "committed_at": "2026-07-28T13:00:31+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "e2b2d0440b457aad086c606ee16b2c1256f0cca3"
+        ],
+        "parsed_numeric_task_ref": 10,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#10: разбор алгоритмов неполной информации + MCCFR micro-oracle с точным LP",
+        "tree_oid": "7cc7baddbd31d7750e03c57644503f239fbfbaaa"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-10/feat-algo-research",
+        "branch_at_integration": "task-10/feat-algo-research",
+        "created_at": "2026-07-28T09:44:50.034403+00:00",
+        "finished_at": "2026-08-01T06:59:56.050338+00:00",
+        "name": "feat-algo-research",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "42fb3e3d-0a60-44b5-98ae-8472bc2a0c9e",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-inscryption-ai/feat-algo-research"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/fe75ac046504d6d0f0a9e4130ad3f3af95bf4169",
+        "survives_gc": true,
+        "verified_oid": "fe75ac046504d6d0f0a9e4130ad3f3af95bf4169"
+      },
+      "source_calls": [
+        {
+          "excerpt": "\": \"cd /mnt/data/Projects/Python/inscryption-ai && git status --short | wc -l && git merge --squash task-9/impl-inscryption 2>&1 | tail -2\",\n  \"description\": \"Squash merge ismcts recipes branch\"\n}",
+          "id": 329496,
+          "sha256": "604c95fcf2dbf533006296c1c4c89f31363c204cf708c8651e6859da628f2898",
+          "ts": "2026-07-28T12:09:10.104735+00:00"
+        },
+        {
+          "excerpt": "\": \"cd /mnt/data/Projects/Python/inscryption-ai && git status --short | wc -l && git commit -q -m \\\"#9: закрытые схемы PlayerView + контраст Опоссум→Койот на ismcts50\\\" && git push origin main 2>&1 | tail -1 && git log --oneline -1\",\n  \"description\": \"Commit and push ismcts recipes work\"\n}",
+          "id": 329499,
+          "sha256": "a8b87cc18cb86e8015a5ea6e8aaab7d11fdfb268153904c9771804b8142202f5",
+          "ts": "2026-07-28T12:09:14.893837+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "0\nAutomatic merge went well; stopped before committing as requested\nSquash commit -- not updating HEAD\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 329498,
+          "sha256": "47524a8b9e6ce90bba1411e789373317f614dc1460cbf78c9d5d6f3497529f57",
+          "ts": "2026-07-28T12:09:10.305905+00:00"
+        },
+        {
+          "excerpt": "14\n   4a25037..fe75ac0  main -> main\nfe75ac0 #9: закрытые схемы PlayerView + контраст Опоссум→Койот на ismcts50\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 329510,
+          "sha256": "3f557f00ba58c9a72bdbd4ee95fa828ae20a9d195a91d60588282b5fbfb83e57",
+          "ts": "2026-07-28T12:09:17.945360+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "fe75ac046504d6d0f0a9e4130ad3f3af95bf4169",
+        "committed_at": "2026-07-28T14:09:14+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "4a250372fa500736bc78c7d592075aad4762db83"
+        ],
+        "parsed_numeric_task_ref": 9,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#9: закрытые схемы PlayerView + контраст Опоссум→Койот на ismcts50",
+        "tree_oid": "6cb8168cc363c67195f16335fb761ca1269bea54"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "task-13/impl-inscryption",
+        "branch_at_integration": "task-9/impl-inscryption",
+        "created_at": "2026-07-26T07:01:50.018163+00:00",
+        "finished_at": null,
+        "name": "impl-inscryption",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "380de4c2-efd6-4813-9d29-8911d4ddc33a",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-cog-second-brain/impl-inscryption"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "selective_branch_checkout",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/4ca09774b3e26d05724588e96f6fb331c91fc5e7",
+        "survives_gc": true,
+        "verified_oid": "4ca09774b3e26d05724588e96f6fb331c91fc5e7"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git checkout task-10/feat-algo-research -- artifacts/inscryption-full-story.html 2>&1 && ls -la artifacts/inscryption-full-story.html\",\n  \"description\": \"Extract artifact file from branch\"\n}",
+          "id": 332077,
+          "sha256": "b94ebdcc1257e63904f39c7022d5f6dab8437a6e35ae43ee91c77980fbb6fe69",
+          "ts": "2026-07-28T13:12:05.056945+00:00"
+        },
+        {
+          "excerpt": "ojects/Python/inscryption-ai && git add artifacts/inscryption-full-story.html && git commit -q -m \\\"#11: визуальная история проекта\\\" && git push origin main 2>&1 | tail -1 && cp artifacts/inscryption-full-story.html \\\"/mnt/data/Рабочий стол/Cursor/COG-second-brain/artifacts/inscryption-full-story.html\\\" && echo copied\",\n  \"description\": \"Commit ar",
+          "id": 332091,
+          "sha256": "3141e43260d94a1b3b1301ead0c941ac2e2360db48bf9bf0a1e0b114036cea56",
+          "ts": "2026-07-28T13:12:12.664670+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "-rw-r--r-- 1 maxim maxim 138832 Jul 28 15:12 artifacts/inscryption-full-story.html\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 332078,
+          "sha256": "4be66e542a3536ad8277157a56c292948f5b98132e866b56457d30a1b8f60592",
+          "ts": "2026-07-28T13:12:05.294157+00:00"
+        },
+        {
+          "excerpt": "   fe75ac0..4ca0977  main -> main\ncopied\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 332094,
+          "sha256": "f62e458acc8de9964209b09a6a9a8201b570ea0e1e209e88aabe84ec58ec5442",
+          "ts": "2026-07-28T13:12:15.822215+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "4ca09774b3e26d05724588e96f6fb331c91fc5e7",
+        "committed_at": "2026-07-28T15:12:12+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "fe75ac046504d6d0f0a9e4130ad3f3af95bf4169"
+        ],
+        "parsed_numeric_task_ref": 11,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#11: визуальная история проекта",
+        "tree_oid": "93cddf0ba406edab8c6fc1c3b8a212b6987c459c"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-10/feat-algo-research",
+        "branch_at_integration": "task-10/feat-algo-research",
+        "created_at": "2026-07-28T09:44:50.034403+00:00",
+        "finished_at": "2026-08-01T06:59:56.050338+00:00",
+        "name": "feat-algo-research",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "42fb3e3d-0a60-44b5-98ae-8472bc2a0c9e",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-inscryption-ai/feat-algo-research"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/351a248559078ae369d80c70f5d1650a2fe9d1ae",
+        "survives_gc": true,
+        "verified_oid": "351a248559078ae369d80c70f5d1650a2fe9d1ae"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git merge --squash task-12/feat-mccfr-scale 2>&1 | tail -2 && git commit -q -m \\\"#12: масштабирование MCCFR — измеренная стена, outcome sampling закрыт\\\" && git push origin main 2>&1 | tail -1\",\n  \"description\": \"Merge and push task 12\"\n}",
+          "id": 335180,
+          "sha256": "9b056ff441ff26fa28a0e4ca83db5e91474bd9c96bfc2acc3aec7447832b2b1c",
+          "ts": "2026-07-28T15:18:14.132482+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "ge went well; stopped before committing as requested\nSquash commit -- not updating HEAD\n   4ca0977..351a248  main -> main\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 335184,
+          "sha256": "70c8a41278acd2eba0f62b5b54dd85bbb77be0cf8844733fa05b9a1699310fc4",
+          "ts": "2026-07-28T15:18:17.243145+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "351a248559078ae369d80c70f5d1650a2fe9d1ae",
+        "committed_at": "2026-07-28T17:18:14+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "4ca09774b3e26d05724588e96f6fb331c91fc5e7"
+        ],
+        "parsed_numeric_task_ref": 12,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#12: масштабирование MCCFR — измеренная стена, outcome sampling закрыт",
+        "tree_oid": "d95450a33ca7ac0767d1a2707bb5e62c73e7594c"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-14/feat-mccfr-scale",
+        "branch_at_integration": "task-12/feat-mccfr-scale",
+        "created_at": "2026-07-28T12:58:53.532250+00:00",
+        "finished_at": null,
+        "name": "feat-mccfr-scale",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "b175ea30-0327-48bc-a8c9-a4a83c4d8a84",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-inscryption-ai/feat-mccfr-scale"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/ef7c67eb2ff9ae24833bcfba72e927f26a288e02",
+        "survives_gc": true,
+        "verified_oid": "ef7c67eb2ff9ae24833bcfba72e927f26a288e02"
+      },
+      "source_calls": [
+        {
+          "excerpt": "\": \"cd /mnt/data/Projects/Python/inscryption-ai && git status --short | wc -l && git merge --squash task-13/impl-inscryption 2>&1 | tail -2 && git commit -q -m \\\"#13: сохранение партий человека и вкладка истории\\\" && git push origin main 2>&1 | tail -1\",\n  \"description\": \"Merge and push game history\"\n}",
+          "id": 341035,
+          "sha256": "3cf428eb8804e049b9d12067017e75b9f91e8c25e5c45735658658e96c0605dd",
+          "ts": "2026-07-29T11:25:38.655246+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "100644 web/tests/History.test.tsx\n create mode 100644 web/tests/history-restart.spec.ts\n   351a248..ef7c67e  main -> main\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 341040,
+          "sha256": "ed29369ee2ea65d296e0e5c09b07ea7f8f5b603fe59d7a152063a93b749e4caa",
+          "ts": "2026-07-29T11:25:42.247299+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "ef7c67eb2ff9ae24833bcfba72e927f26a288e02",
+        "committed_at": "2026-07-29T13:25:38+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "351a248559078ae369d80c70f5d1650a2fe9d1ae"
+        ],
+        "parsed_numeric_task_ref": 13,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#13: сохранение партий человека и вкладка истории",
+        "tree_oid": "11f1f4a48602138d681228dcd5423300dac7e674"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "task-13/impl-inscryption",
+        "branch_at_integration": "task-13/impl-inscryption",
+        "created_at": "2026-07-26T07:01:50.018163+00:00",
+        "finished_at": null,
+        "name": "impl-inscryption",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "380de4c2-efd6-4813-9d29-8911d4ddc33a",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-cog-second-brain/impl-inscryption"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/25fad2515a39a8e8e4a5e1a1c581783f166c3c63",
+        "survives_gc": true,
+        "verified_oid": "25fad2515a39a8e8e4a5e1a1c581783f166c3c63"
+      },
+      "source_calls": [
+        {
+          "excerpt": "\": \"cd /mnt/data/Projects/Python/inscryption-ai && git status --short | wc -l && git merge --squash task-14/feat-mccfr-scale 2>&1 | tail -1 && git commit -q -m \\\"#14: compact codec + измеренная стена буфера воспроизведения\\\" && git push origin main 2>&1 | tail -1\",\n  \"description\": \"Merge deepcfr research\"\n}",
+          "id": 342498,
+          "sha256": "f263229ec818435c8b85a1671f137585cb062100246135a0087ac9c288285266",
+          "ts": "2026-07-29T13:38:38.714690+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "0\nSquash commit -- not updating HEAD\n   ef7c67e..25fad25  main -> main\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 342508,
+          "sha256": "5b08ec88e89db68aa0275efc2addce38c7295ac44dfab0d78f7f841acaad5f8f",
+          "ts": "2026-07-29T13:38:42.309856+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "25fad2515a39a8e8e4a5e1a1c581783f166c3c63",
+        "committed_at": "2026-07-29T15:38:39+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "ef7c67eb2ff9ae24833bcfba72e927f26a288e02"
+        ],
+        "parsed_numeric_task_ref": 14,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#14: compact codec + измеренная стена буфера воспроизведения",
+        "tree_oid": "464cb3b854872ac0c2cff7686627c1e0dc9feda4"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-14/feat-mccfr-scale",
+        "branch_at_integration": "task-14/feat-mccfr-scale",
+        "created_at": "2026-07-28T12:58:53.532250+00:00",
+        "finished_at": null,
+        "name": "feat-mccfr-scale",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "b175ea30-0327-48bc-a8c9-a4a83c4d8a84",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-inscryption-ai/feat-mccfr-scale"
+      }
+    },
+    {
+      "caller": {
+        "name": "COG-second-brain-orchestrator",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "47f075de-28d3-482e-9513-c172a03b4a3e"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "survives_gc": true,
+        "verified_oid": "7c5206b2d7027ba874918c7751d10f3f69d9abe4"
+      },
+      "source_calls": [
+        {
+          "excerpt": "ash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git status --short | head -3; B=task-14/feat-mccfr-scale; git checkout -b merge-t14-$(date +%s) main 2>&1 | tail -1; git merge --squash \\\"$B\\\" 2>&1 | tail -2\",\n  \"description\": \"Create fresh branch and squash-merge worker\"\n}",
+          "id": 358613,
+          "sha256": "4655116485ccee1acbec80e6a0471036dae07305f4fa54fdb59b026f494a5790",
+          "ts": "2026-07-30T13:02:16.905536+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/inscryption-ai && git commit -q -m \\\"#14: MLP vs ByteGRU, батчинг 2,12x, дисковый буфер, термозащита, ресёрч архитектур\\\" && git log --oneline -1; BR=$(git branch --show-current); git checkout -q main && git merge -q --ff-only \\\"$BR\\\" && echo \\\"в main: $(git log --oneline -1)\\\"; git branch -d \\\"$BR",
+          "id": 358618,
+          "sha256": "fc04cd9b90aa119c119ddf0572f603c3830d070366df5338a5a237cf5df6bf18",
+          "ts": "2026-07-30T13:02:30.450833+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "Switched to a new branch 'merge-t14-1785416536'\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 358614,
+          "sha256": "57fbd6b6a4dcc858206d53a8cc227ef5ad86d02d77adc092b9f6fccbf5ec254c",
+          "ts": "2026-07-30T13:02:16.984906+00:00"
+        },
+        {
+          "excerpt": "7c5206b #14: MLP vs ByteGRU, батчинг 2,12x, дисковый буфер, термозащита, ресёрч архитектур\nв main: 7c5206b #14: MLP vs ByteGRU, батчинг 2,12x, дисковый буфер, термозащита, ресёрч архитектур\nDeleted branch merge-t14-1785416536 (was 7c5206b).\nShell cwd was reset to /mnt/data/Рабочий стол/Cursor/COG-second-brain",
+          "id": 358619,
+          "sha256": "8bc05fa045fa375890cd89b39c76bbe7160a7f4d91712872de2e0e7446682d20",
+          "ts": "2026-07-30T13:02:30.526420+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/inscryption-ai/.git",
+        "commit_oid": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "committed_at": "2026-07-30T15:02:30+02:00",
+        "head_at_freeze": "7c5206b2d7027ba874918c7751d10f3f69d9abe4",
+        "parent_oids": [
+          "6fc8b98f1c0cf74d82c3077b73c1d24c6b62c23e"
+        ],
+        "parsed_numeric_task_ref": 14,
+        "repo_path": "/mnt/data/Projects/Python/inscryption-ai",
+        "subject": "#14: MLP vs ByteGRU, батчинг 2,12x, дисковый буфер, термозащита, ресёрч архитектур",
+        "tree_oid": "7d95847ab219ec68b5e67c77166e35a1c57fd516"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-14/feat-mccfr-scale",
+        "branch_at_integration": "task-14/feat-mccfr-scale",
+        "created_at": "2026-07-28T12:58:53.532250+00:00",
+        "finished_at": null,
+        "name": "feat-mccfr-scale",
+        "scope": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+        "session_id": "b175ea30-0327-48bc-a8c9-a4a83c4d8a84",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-inscryption-ai/feat-mccfr-scale"
+      }
+    },
+    {
+      "caller": {
+        "name": "seedon-orchestrator",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "1a9ae57a-2819-4be2-acf2-4b1db8ad9c10"
+      },
+      "integration_mode": "selective_branch_checkout",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/f5147cb96cc29617cc7e3b30195f70c521ac6018",
+        "survives_gc": true,
+        "verified_oid": "f5147cb96cc29617cc7e3b30195f70c521ac6018"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout task-162/intent-hunter -- tools/intent_monitor/ docs/tasks/174/ && git status --short\",\n  \"description\": \"Забрать только новые файлы монитора и доки задачи\"\n}",
+          "id": 336019,
+          "sha256": "8e6845fcb61ca555f29a0ae81e7617f73f1f7e85c2d9b27429b247f8067e96f8",
+          "ts": "2026-07-29T04:38:21.896580+00:00"
+        },
+        {
+          "excerpt": "q -m \\\"#174: монитор бирж (tools/intent_monitor) + доки задачи\\n\\nВзяты только новые файлы из ветки task-162/intent-hunter.\\nBUGS.md/CLAUDE.md/TODO.md НЕ мержены: ветка отпочковалась до правок 28.07\\nи удаляла бухгалтерию, аудит #175 и разбор ст.427.\\\" && git log --oneline -1\",\n  \"description\": \"Коммит монитора без затирания моих файлов\"\n}",
+          "id": 336029,
+          "sha256": "2a7334cdb722d258a594e6ec0675e19a8470a695c92d12c9f263af791555405b",
+          "ts": "2026-07-29T04:38:34.123844+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "A  docs/tasks/174/codex-review-impl.md\nA  docs/tasks/174/codex-review-plan.md\nA  docs/tasks/174/codex-review-quiet.md\nA  docs/tasks/174/plan.md\nA  docs/tasks/174/report.md\nA  docs/tasks/174/research.md\nA  tools/intent_monitor/README.md\nA  tools/intent_monitor/__init__.py\nA  tools/intent_monitor/monitor.py\nA  tools/intent_monitor/rules.json\nA  tools",
+          "id": 336020,
+          "sha256": "810eb253c012d46c92ec5741a3de76a19a20dd5bf790a67987d73efbc355deb5",
+          "ts": "2026-07-29T04:38:22.228367+00:00"
+        },
+        {
+          "excerpt": "f5147cb #174: монитор бирж (tools/intent_monitor) + доки задачи",
+          "id": 336030,
+          "sha256": "4aae367b7f9329f9722971f6c8b55fff0659e9cdc126be30cc84a2036c77faa4",
+          "ts": "2026-07-29T04:38:34.430225+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/seedon/.git",
+        "commit_oid": "f5147cb96cc29617cc7e3b30195f70c521ac6018",
+        "committed_at": "2026-07-29T06:38:34+02:00",
+        "head_at_freeze": "f7de74700e1abe74cbc28a025e6b0218d1717718",
+        "parent_oids": [
+          "b59e7f258c8c0ec1e43d6471ad0c1830dbd38b77"
+        ],
+        "parsed_numeric_task_ref": 174,
+        "repo_path": "/mnt/data/Projects/Python/seedon",
+        "subject": "#174: монитор бирж (tools/intent_monitor) + доки задачи",
+        "tree_oid": "24dd4761b25a44deef7f97356801a396a674adaa"
+      },
+      "worker": {
+        "base_branch_at_freeze": "",
+        "branch_at_freeze": "task-162/intent-hunter",
+        "branch_at_integration": "task-162/intent-hunter",
+        "created_at": "2026-07-26T08:35:30.839627+00:00",
+        "finished_at": "2026-08-01T07:03:20.748827+00:00",
+        "name": "intent-hunter",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "7021ae99-7e69-41b3-b4de-48b5ccb65457",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/intent-hunter"
+      }
+    },
+    {
+      "caller": {
+        "name": "seedon-orchestrator",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "1a9ae57a-2819-4be2-acf2-4b1db8ad9c10"
+      },
+      "integration_mode": "squash",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/12306a1c85310e968f8d2785b9835f1ee6bcc5f1",
+        "survives_gc": true,
+        "verified_oid": "12306a1c85310e968f8d2785b9835f1ee6bcc5f1"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git merge --squash task-181/admin-analytics-site 2>&1 | tail -5; git status --short | head -10\",\n  \"description\": \"Squash merge worker branch\"\n}",
+          "id": 362776,
+          "sha256": "3cae872f4006c85e3b5f1e69461d71cc367b5194c5efe3f950f82ae4d3caf11c",
+          "ts": "2026-07-31T13:25:04.535413+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git commit -q -m \\\"#181: разрезы админки по страницам, воронке, кампаниям; price_view; версии JS\\\" && git log --oneline -2 && echo \\\"=== PUSH ===\\\" && git push origin main 2>&1 | tail -4\",\n  \"description\": \"Commit and push to origin\"\n}",
+          "id": 362785,
+          "sha256": "543794957ac32358e85cdda5e31aa2b8b74f689ce5ac3b55bca8238a34b94f15",
+          "ts": "2026-07-31T13:25:18.490233+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": " js/ai-dispetcher.js                  |  11 +++\n js/ai-dispetcher.min.js              |   9 ++\n 8 files changed, 357 insertions(+), 4 deletions(-)\n create mode 100644 docs/tasks/181/report.md\n create mode 100644 docs/workers/admin-analytics-site.md\nM  ai-dispetcher/index.html\nM  backend/main.py\nA  docs/tasks/181/report.md\nA  docs/workers/admin-anal",
+          "id": 362777,
+          "sha256": "45b21f642d13cc8c83c11c2bf0bd9ca1b66bda02da26b4f59e83fb37f9df2f38",
+          "ts": "2026-07-31T13:25:04.587442+00:00"
+        },
+        {
+          "excerpt": "12306a1 #181: разрезы админки по страницам, воронке, кампаниям; price_view; версии JS\nd91c6d6 #180: #180: visit metrics from second zero\n=== PUSH ===\nTo github.com:DrSeedon/seedon-site.git\n   ba1c369..12306a1  main -> main",
+          "id": 362786,
+          "sha256": "3aa2a6e134de0540dc8aba4f748b5161e6aae8416ed87600116af7b2c5239773",
+          "ts": "2026-07-31T13:25:21.489608+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/seedon/site/.git",
+        "commit_oid": "12306a1c85310e968f8d2785b9835f1ee6bcc5f1",
+        "committed_at": "2026-07-31T15:25:18+02:00",
+        "head_at_freeze": "912646815292a52e23c79ea1c72a002b2bb4f2bd",
+        "parent_oids": [
+          "d91c6d65268cef84a47b2a28429ceaa901c1daf5"
+        ],
+        "parsed_numeric_task_ref": 181,
+        "repo_path": "/mnt/data/Projects/Python/seedon/site",
+        "subject": "#181: разрезы админки по страницам, воронке, кампаниям; price_view; версии JS",
+        "tree_oid": "1c41b763c1ab2dd763313a41b9b01c8701c6d768"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-181/admin-analytics-site",
+        "branch_at_integration": "task-181/admin-analytics-site",
+        "created_at": "2026-07-31T13:03:02.308816+00:00",
+        "finished_at": "2026-08-01T07:01:08.597920+00:00",
+        "name": "admin-analytics-site",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "d0b4657c-6ebc-4eb2-942b-d9866283795f",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/admin-analytics-site"
+      }
+    },
+    {
+      "caller": {
+        "name": "seedon-orchestrator",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "1a9ae57a-2819-4be2-acf2-4b1db8ad9c10"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/8cfc8823f0baa6a1bd985a1e7ca9e80a85b6986f",
+        "survives_gc": true,
+        "verified_oid": "8cfc8823f0baa6a1bd985a1e7ca9e80a85b6986f"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"cd /mnt/data/Projects/Python/seedon/site && git merge --squash task-181/admin-analytics-site 2>&1 | tail -3 && git diff --cached --stat | tail -3\",\n  \"description\": \"Merge worker final commits\"\n}",
+          "id": 362979,
+          "sha256": "08e2871d86abbbd761eaec9feabff636653a8947d9d6b56bc07221e8c8da7417",
+          "ts": "2026-07-31T13:37:12.127685+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git commit -q -m \\\"#181: отчёт и память воркера после деплоя\\\" && git push origin main 2>&1 | tail -2; echo \\\"=== ПРОД: версии в HTML ===\\\"; curl -s https://seedon.ru/ai-dispetcher/ --max-time 15 | grep -o 'ai-dispetcher\\\\.min\\\\.js?v=[0-9-]*\\\\|bootstrap\\\\.min\\\\.js?v=[0-9-]*' | head -3; echo \\\"=== размер bootstrap ===\\\"; curl -",
+          "id": 362988,
+          "sha256": "28644737269333c34a4c7b4576bd4db0eec050bfcecc034df7d25ce0c946c6e3",
+          "ts": "2026-07-31T13:37:36.004122+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "CONFLICT (add/add): Merge conflict in docs/workers/admin-analytics-site.md\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.\n docs/tasks/181/report.md             | Unmerged\n docs/workers/admin-analytics-site.md | Unmerged\n 0 files changed",
+          "id": 362980,
+          "sha256": "ae2cb9df2e936359ce86ebdf7d56bed0c6421b1b83a563afa787ee259c215ce0",
+          "ts": "2026-07-31T13:37:12.174151+00:00"
+        },
+        {
+          "excerpt": "To github.com:DrSeedon/seedon-site.git\n   12306a1..8cfc882  main -> main\n=== ПРОД: версии в HTML ===\nbootstrap.min.js?v=181-1\nai-dispetcher.min.js?v=181-1\n=== размер bootstrap ===\n5793 байт",
+          "id": 362991,
+          "sha256": "8c30be40cf7fac49fb5d09aa1d45e71ca62c582035e4bf475cf60c9276174de6",
+          "ts": "2026-07-31T13:37:40.581562+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/seedon/site/.git",
+        "commit_oid": "8cfc8823f0baa6a1bd985a1e7ca9e80a85b6986f",
+        "committed_at": "2026-07-31T15:37:36+02:00",
+        "head_at_freeze": "912646815292a52e23c79ea1c72a002b2bb4f2bd",
+        "parent_oids": [
+          "12306a1c85310e968f8d2785b9835f1ee6bcc5f1"
+        ],
+        "parsed_numeric_task_ref": 181,
+        "repo_path": "/mnt/data/Projects/Python/seedon/site",
+        "subject": "#181: отчёт и память воркера после деплоя",
+        "tree_oid": "976b07734e8d54b6aee0ba68b7b3060682a6faec"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-181/admin-analytics-site",
+        "branch_at_integration": "task-181/admin-analytics-site",
+        "created_at": "2026-07-31T13:03:02.308816+00:00",
+        "finished_at": "2026-08-01T07:01:08.597920+00:00",
+        "name": "admin-analytics-site",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "d0b4657c-6ebc-4eb2-942b-d9866283795f",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/admin-analytics-site"
+      }
+    },
+    {
+      "caller": {
+        "name": "seedon-orchestrator",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "1a9ae57a-2819-4be2-acf2-4b1db8ad9c10"
+      },
+      "integration_mode": "task_derived_manual_commit_after_worker_merge_noop",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/0244e3d64d60fb4682451b3c7742c1abc963bce3",
+        "survives_gc": true,
+        "verified_oid": "0244e3d64d60fb4682451b3c7742c1abc963bce3"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git merge --squash task-182/direct-research 2>&1 | tail -3 && git commit -q -m \\\"#182: ресёрч Директа, починка лимита path, снятие MOBILE +70%\\\" && git log --oneline -1\",\n  \"description\": \"Merge research work\"\n}",
+          "id": 363419,
+          "sha256": "57ad26a87783de75c480f897d1488cc15e9db0b6e9b118c7bf84858856c3ca44",
+          "ts": "2026-08-01T06:01:55.519194+00:00"
+        },
+        {
+          "excerpt": "& grep -n \\\"48 ключей\\\\|СНЯТ 31.07\\\" CLAUDE.md | head -3 && git add CLAUDE.md && git commit -q -m \\\"#182: актуализация — 48 ключей, кавычки сняты, блокер закрыт\\\" && echo ok\",\n  \"description\": \"Update and commit CLAUDE.md\"\n}",
+          "id": 363435,
+          "sha256": "6a6f9d138add88d6e39984abf6156a2a70ff75c5f4aedeaf95f66c1423aaece1",
+          "ts": "2026-08-01T06:02:23.589723+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "Exit code 1\nAlready up to date. (nothing to squash)\nOn branch main\nYour branch is ahead of 'origin/main' by 125 commits.\n  (use \"git push\" to publish your local commits)\n\nnothing to commit, working tree clean",
+          "id": 363420,
+          "sha256": "bde271eabd75055cf9b58e38fe3e42cbac3c48f182155f383e84933af52d303e",
+          "ts": "2026-08-01T06:01:55.581593+00:00"
+        },
+        {
+          "excerpt": "CLAUDE.md обновлён\n599:- **#175/#176 MCP Директа:** 62 тула, 260 тестов, 6 групп / **48 ключей** (28 Поиск + 20 РСЯ, счёт 108 был неверен) / 6 RESPONSIVE_AD, минус-фразы 55+38\n625:### ~~БЛОКЕР ЗАПУСКА — КАВЫЧКИ~~ ✅ СНЯТ 31.07\nok",
+          "id": 363436,
+          "sha256": "181888b37625ee1982ec64511e6cad1ece8274a041fdc785aaba905ab7a209db",
+          "ts": "2026-08-01T06:02:23.682353+00:00"
+        }
+      ],
+      "recovery_disposition": "evidence_only_non_integration",
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/seedon/.git",
+        "commit_oid": "0244e3d64d60fb4682451b3c7742c1abc963bce3",
+        "committed_at": "2026-08-01T08:02:23+02:00",
+        "head_at_freeze": "f7de74700e1abe74cbc28a025e6b0218d1717718",
+        "parent_oids": [
+          "ec8d97eb84ce7768c196d89ae91b2f182e07e0b8"
+        ],
+        "parsed_numeric_task_ref": 182,
+        "repo_path": "/mnt/data/Projects/Python/seedon",
+        "subject": "#182: актуализация — 48 ключей, кавычки сняты, блокер закрыт",
+        "tree_oid": "97a0501f37e1bb887f9d65886bcac129f7dab25f"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-182/direct-research",
+        "branch_at_integration": "task-182/direct-research",
+        "created_at": "2026-08-01T05:45:35.293361+00:00",
+        "finished_at": null,
+        "name": "direct-research",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "6f1597d3-00cf-4db0-b397-2f61cc226413",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/direct-research"
+      }
+    },
+    {
+      "caller": {
+        "name": "seedon-orchestrator",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "1a9ae57a-2819-4be2-acf2-4b1db8ad9c10"
+      },
+      "integration_mode": "squash_conflict_resolution",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/2e19a830d34a0967db37675db4bafa9a2f669c30",
+        "survives_gc": true,
+        "verified_oid": "2e19a830d34a0967db37675db4bafa9a2f669c30"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git merge --squash task-183/docs-cleanup 2>&1 | tail -3; git diff --name-only --diff-filter=U\",\n  \"description\": \"Attempt merge and see conflicts\"\n}",
+          "id": 365200,
+          "sha256": "4bcfb4586e228346b20efd72baf17903d84992bbc7c9a887daaf76fe7a6a5cfc",
+          "ts": "2026-08-01T06:30:56.084262+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git add CLAUDE.md docs/ && git commit -q -m \\\"#183: разбор CLAUDE.md — знания в docs/, в корне рабочая память\\\" && wc -l CLAUDE.md docs/history/session-notes-2026-07.md docs/business/DECISIONS-HISTORY-2026-07.md docs/marketing/OPERATIONS-HISTORY-2026-07.md docs/infra/OPERATIONS-HISTORY-2026-07.md 2>/dev/null | tail -6\",\n  \"des",
+          "id": 365259,
+          "sha256": "337715295229a1ef5ef20876fe2bef46371c33ab516537fdceefb273d0358106",
+          "ts": "2026-08-01T06:31:21.744652+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "CONFLICT (content): Merge conflict in CLAUDE.md\nSquash commit -- not updating HEAD\nAutomatic merge failed; fix conflicts and then commit the result.\nCLAUDE.md",
+          "id": 365201,
+          "sha256": "4ab1edacace91c7409d63d1d289ddc2681495ae11ae7a11ebc064cc9268ef244",
+          "ts": "2026-08-01T06:30:56.159279+00:00"
+        },
+        {
+          "excerpt": "   352 CLAUDE.md\n   382 docs/history/session-notes-2026-07.md\n   155 docs/business/DECISIONS-HISTORY-2026-07.md\n    87 docs/marketing/OPERATIONS-HISTORY-2026-07.md\n    92 docs/infra/OPERATIONS-HISTORY-2026-07.md\n  1068 total",
+          "id": 365260,
+          "sha256": "833f170512b0c3c546a2374f4f820e58d838640eccd4d8508fc0f0d6cd8cbfa0",
+          "ts": "2026-08-01T06:31:21.812570+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/seedon/.git",
+        "commit_oid": "2e19a830d34a0967db37675db4bafa9a2f669c30",
+        "committed_at": "2026-08-01T08:31:21+02:00",
+        "head_at_freeze": "f7de74700e1abe74cbc28a025e6b0218d1717718",
+        "parent_oids": [
+          "cf7f16d74f87a6c6467580b1eb2450fa8914ebf0"
+        ],
+        "parsed_numeric_task_ref": 183,
+        "repo_path": "/mnt/data/Projects/Python/seedon",
+        "subject": "#183: разбор CLAUDE.md — знания в docs/, в корне рабочая память",
+        "tree_oid": "a5cc6aba919d305db95b8c941e3f486bf227369f"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-183/docs-cleanup",
+        "branch_at_integration": "task-183/docs-cleanup",
+        "created_at": "2026-08-01T06:17:21.761583+00:00",
+        "finished_at": "2026-08-01T07:01:08.494267+00:00",
+        "name": "docs-cleanup",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "92016686-ed42-48ec-a799-5ea1382691a3",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/docs-cleanup"
+      }
+    },
+    {
+      "caller": {
+        "name": "seedon-orchestrator",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "1a9ae57a-2819-4be2-acf2-4b1db8ad9c10"
+      },
+      "integration_mode": "selective_branch_checkout",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/df720c8688a01b94bd43b5c747d49ab063aca403",
+        "survives_gc": true,
+        "verified_oid": "df720c8688a01b94bd43b5c747d49ab063aca403"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout task-182/direct-research -- docs/tasks/182/ 2>&1 && git status --short | head -5; echo \\\"--- проверка что архивы целы ---\\\"; ls docs/history/session-notes-2026-07.md docs/business/DECISIONS-HISTORY-2026-07.md 2>&1 | wc -l; wc -l CLAUDE.md\",\n  \"description\": \"Cherry-pick only task docs, keep cleanup intact\"\n}",
+          "id": 366040,
+          "sha256": "3646d6449726805c97cd8173456defa7cb8c49eef641334e0287590222309cb1",
+          "ts": "2026-08-01T06:35:33.628427+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git commit -q -m \\\"#182: ресёрч Директа и Codex-ревью (без отката разбора доков)\\\" && git log --oneline -1\",\n  \"description\": \"Commit research docs\"\n}",
+          "id": 366054,
+          "sha256": "4faac8e32cb3768bdff70bfec36dfc1f9a5b64353f90503ad8c073102a19fc59",
+          "ts": "2026-08-01T06:35:39.606394+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "A  docs/tasks/182/codex-review-research.md\nA  docs/tasks/182/research.md\n--- проверка что архивы целы ---\n2\n352 CLAUDE.md",
+          "id": 366041,
+          "sha256": "4ba22d1cc4063aa8f570a95341390f70d3b9ce32707d4176eb6477fc7d401d27",
+          "ts": "2026-08-01T06:35:33.705939+00:00"
+        },
+        {
+          "excerpt": "df720c8 #182: ресёрч Директа и Codex-ревью (без отката разбора доков)",
+          "id": 366055,
+          "sha256": "9594a24f3adc56f951c4e09f20b9e2424a79ac9c87143b37c6bfc4a93493f77b",
+          "ts": "2026-08-01T06:35:39.662721+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/seedon/.git",
+        "commit_oid": "df720c8688a01b94bd43b5c747d49ab063aca403",
+        "committed_at": "2026-08-01T08:35:39+02:00",
+        "head_at_freeze": "f7de74700e1abe74cbc28a025e6b0218d1717718",
+        "parent_oids": [
+          "2e19a830d34a0967db37675db4bafa9a2f669c30"
+        ],
+        "parsed_numeric_task_ref": 182,
+        "repo_path": "/mnt/data/Projects/Python/seedon",
+        "subject": "#182: ресёрч Директа и Codex-ревью (без отката разбора доков)",
+        "tree_oid": "709d999dd65bb7f1ff8108c6b2c27406c4fb1335"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-182/direct-research",
+        "branch_at_integration": "task-182/direct-research",
+        "created_at": "2026-08-01T05:45:35.293361+00:00",
+        "finished_at": null,
+        "name": "direct-research",
+        "scope": "/mnt/data/Projects/Python/seedon",
+        "session_id": "6f1597d3-00cf-4db0-b397-2f61cc226413",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/direct-research"
+      }
+    },
+    {
+      "caller": {
+        "name": "kesha-tg-bot",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "12184af8-27e5-466e-ba78-6c98dd62e8e8"
+      },
+      "integration_mode": "cherry_pick_then_ff",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/1aba008c5d0e718170ea6ac96c14d907b4512179",
+        "survives_gc": true,
+        "verified_oid": "1aba008c5d0e718170ea6ac96c14d907b4512179"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q -b merge-14 main && git cherry-pick e9fad85 2>&1 | tail -5; echo \\\"=== STATUS ===\\\"; git status --short | head\",\n  \"description\": \"Cherry-pick task-14 commit onto fresh branch from main\"\n}",
+          "id": 362142,
+          "sha256": "1baa952cf97908e1677b5963c0ac1fa61baf10fd57df9d510c8150a6e9da9da5",
+          "ts": "2026-07-31T08:04:04.916082+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q main && git merge -q --ff-only merge-14 && git branch -q -d merge-14 && git log --oneline -2 && echo \\\"=== smoke ===\\\" && .venv/bin/python -c \\\"import bot; print('import ok')\\\"\",\n  \"description\": \"Fast-forward main and smoke test\"\n}",
+          "id": 362152,
+          "sha256": "2cd1ef7272100e354892d8b553180c9ac5fe61a487e26e637dcc0760595b9b1a",
+          "ts": "2026-07-31T08:04:27.777942+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": " create mode 100644 tests/fixtures/compact_summary_cases.json\n create mode 100644 tests/test_activity_ingress.py\n create mode 100644 tests/test_chat_activity.py\n create mode 100644 tests/test_compact_evaluator.py\n create mode 100644 tests/test_compact_prompt.py\n=== STATUS ===",
+          "id": 362143,
+          "sha256": "26ad87525f3609365cb089d77122f5bca7bd178bff118e18db05813ef0162bfc",
+          "ts": "2026-07-31T08:04:04.961703+00:00"
+        },
+        {
+          "excerpt": "Exit code 1\n1aba008 #14: compact only at night behind a context reserve\n13ab5a4 #15 #16: session notes — причины банов Claude, феасибилити Codex-харнеса\n=== smoke ===\nTraceback (most recent call last):\n  File \"/mnt/data/Projects/Python/kesha-tg-bot/.venv/lib/python3.13/site-packages/aiogram/client/session/aiohttp.py\", line 95, in __init__\n    self.",
+          "id": 362153,
+          "sha256": "f9371524da8a860267d1498d8ca4d7f43c495fadc92f4fd7fb81ffc4b9b5cfea",
+          "ts": "2026-07-31T08:04:29.762075+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/kesha-tg-bot/.git",
+        "commit_oid": "1aba008c5d0e718170ea6ac96c14d907b4512179",
+        "committed_at": "2026-07-31T10:04:04+02:00",
+        "head_at_freeze": "3e3f51c579ee7307afa4d2e3c0b033a5f9b98826",
+        "parent_oids": [
+          "13ab5a440c673123be8b29136c9443f5752f1db1"
+        ],
+        "parsed_numeric_task_ref": 14,
+        "repo_path": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "subject": "#14: compact only at night behind a context reserve",
+        "tree_oid": "891a2fe56bb6a48b2fc0176cfd467e8d4f10f74d"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-14/upgrade-claude5",
+        "branch_at_integration": "task-14/upgrade-claude5",
+        "created_at": "2026-07-25T03:41:26.972802+00:00",
+        "finished_at": null,
+        "name": "upgrade-claude5",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "01f650eb-c788-4279-bbc1-af4c5159b4c0",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/upgrade-claude5"
+      }
+    },
+    {
+      "caller": {
+        "name": "kesha-tg-bot",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "12184af8-27e5-466e-ba78-6c98dd62e8e8"
+      },
+      "integration_mode": "selective_branch_checkout_then_ff",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/ea73409ebb6661d46354f2f6d41c14f2d3c48751",
+        "survives_gc": true,
+        "verified_oid": "ea73409ebb6661d46354f2f6d41c14f2d3c48751"
+      },
+      "source_calls": [
+        {
+          "excerpt": "-14/preserve-adaptive-thinking -- claude_session.py && git diff --cached --stat; git commit -q -m \\\"#14: preserve adaptive thinking + effort=high in options\\\" && git diff main merge-thinking --stat\",\n  \"description\": \"Cherry-pick only claude_session.py change onto main\"\n}",
+          "id": 365089,
+          "sha256": "0e446cfb85679df9e89055262fed4a9bc1e7b4de3ff03fc803353d6eb8fe0f6c",
+          "ts": "2026-08-01T06:29:47.496641+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q main && git merge -q --ff-only merge-thinking && git branch -q -d merge-thinking && git push -q origin main && echo \\\"=== remote ===\\\" && git ls-remote origin refs/heads/main && git log --oneline -2 && echo \\\"=== thinking on remote main ===\\\" && git show origin/main:claude_session.py | grep -A1 \\\"include_partia",
+          "id": 365134,
+          "sha256": "b71773be2913e304c36b3169a455a9022537b8d2760160fbd274372943fb9f49",
+          "ts": "2026-08-01T06:30:26.192212+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": " claude_session.py | 2 ++\n 1 file changed, 2 insertions(+)\n claude_session.py | 2 ++\n 1 file changed, 2 insertions(+)",
+          "id": 365090,
+          "sha256": "bbe2b1b8643789d7d94b0841855c827ea2d05ee558fb5815ae730e043a9a07dc",
+          "ts": "2026-08-01T06:29:47.560334+00:00"
+        },
+        {
+          "excerpt": "=== remote ===\nea73409ebb6661d46354f2f6d41c14f2d3c48751\trefs/heads/main\nea73409 #14: preserve adaptive thinking + effort=high in options\necbda33 docs: deploy-time checks — verify remote SHA and prod git status\n=== thinking on remote main ===\n            include_partial_messages=True,\n            thinking={\"type\": \"adaptive\"},",
+          "id": 365142,
+          "sha256": "3192d519de870d401049e549059d22642d904188f57624e863e4bc9e0e5d2ac3",
+          "ts": "2026-08-01T06:30:31.303647+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/kesha-tg-bot/.git",
+        "commit_oid": "ea73409ebb6661d46354f2f6d41c14f2d3c48751",
+        "committed_at": "2026-08-01T08:29:47+02:00",
+        "head_at_freeze": "3e3f51c579ee7307afa4d2e3c0b033a5f9b98826",
+        "parent_oids": [
+          "ecbda332d07a11ca8d17ea3ef5fac79bd906be5d"
+        ],
+        "parsed_numeric_task_ref": 14,
+        "repo_path": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "subject": "#14: preserve adaptive thinking + effort=high in options",
+        "tree_oid": "20adf01f67d639aa0fadff8e3b821e58178390e4"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-14/upgrade-claude5",
+        "branch_at_integration": "task-14/upgrade-claude5",
+        "created_at": "2026-07-25T03:41:26.972802+00:00",
+        "finished_at": null,
+        "name": "upgrade-claude5",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "01f650eb-c788-4279-bbc1-af4c5159b4c0",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/upgrade-claude5"
+      }
+    },
+    {
+      "caller": {
+        "name": "kesha-tg-bot",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "12184af8-27e5-466e-ba78-6c98dd62e8e8"
+      },
+      "integration_mode": "selective_branch_checkout_then_ff",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/7b1850dd8499c987b47e9854d7b2d553bb80f1ea",
+        "survives_gc": true,
+        "verified_oid": "7b1850dd8499c987b47e9854d7b2d553bb80f1ea"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q -b merge-17 main && git checkout task-17/fix-stream-flood -- response_stream.py tests/test_response_limit.py docs/tasks/17/ && git commit -q -m \\\"#17: prevent streaming freeze under Telegram flood control\\\" && git diff main merge-17 --stat\",\n  \"description\": \"Cherry-pick only task-17 files onto main\"\n}",
+          "id": 367562,
+          "sha256": "217d6f4090b8d2e2f3aeab265ae065e8197d1c215754ae45a07cf530fb8cab3d",
+          "ts": "2026-08-01T06:54:01.904722+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q main && git merge -q --ff-only merge-17 && git branch -q -d merge-17 && git push -q origin main && git log --oneline -1 && echo \\\"=== adaptive still in main? ===\\\" && grep -c adaptive claude_session.py\",\n  \"description\": \"Merge and push #17\"\n}",
+          "id": 367633,
+          "sha256": "78647fe59e111afbe98304577895ae306c0c8613a0721478e8f8aacae9ba3e5f",
+          "ts": "2026-08-01T06:54:26.497185+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": " docs/tasks/17/codex-review-impl.md |  48 +++++++++++++\n response_stream.py                 | 142 ++++++++++++++++++++++++++++++-------\n tests/test_response_limit.py       | 141 ++++++++++++++++++++++++++++++++++++\n 3 files changed, 305 insertions(+), 26 deletions(-)",
+          "id": 367563,
+          "sha256": "c6674534c3ae13991e897a049cf62afb8b2be7ef0b6aed45df28d456182d4066",
+          "ts": "2026-08-01T06:54:01.952636+00:00"
+        },
+        {
+          "excerpt": "7b1850d #17: prevent streaming freeze under Telegram flood control\n=== adaptive still in main? ===\n1",
+          "id": 367643,
+          "sha256": "6aaa94cd93fdf99381e8143c5492c913bf910d278e240165d3bcefbf4663bc38",
+          "ts": "2026-08-01T06:54:29.326462+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/kesha-tg-bot/.git",
+        "commit_oid": "7b1850dd8499c987b47e9854d7b2d553bb80f1ea",
+        "committed_at": "2026-08-01T08:54:01+02:00",
+        "head_at_freeze": "3e3f51c579ee7307afa4d2e3c0b033a5f9b98826",
+        "parent_oids": [
+          "ea73409ebb6661d46354f2f6d41c14f2d3c48751"
+        ],
+        "parsed_numeric_task_ref": 17,
+        "repo_path": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "subject": "#17: prevent streaming freeze under Telegram flood control",
+        "tree_oid": "546d4f4a8251c3b186182ccd9998a057c8c6601f"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "task-17/fix-stream-flood",
+        "branch_at_integration": "task-17/fix-stream-flood",
+        "created_at": "2026-08-01T06:19:55.612552+00:00",
+        "finished_at": "2026-08-01T07:01:04.034580+00:00",
+        "name": "fix-stream-flood",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "f1e55129-6f3a-4b30-95cc-2c8966bc1fe2",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/fix-stream-flood"
+      }
+    },
+    {
+      "caller": {
+        "name": "kesha-tg-bot",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "12184af8-27e5-466e-ba78-6c98dd62e8e8"
+      },
+      "integration_mode": "cherry_pick_then_ff",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/d7829daee8a9b4c1b89a636825f13272b59ba208",
+        "survives_gc": true,
+        "verified_oid": "d7829daee8a9b4c1b89a636825f13272b59ba208"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q -b merge-16 main && git cherry-pick aa4b768 0d17e47 2>&1 | tail -3; git status --short | head -3; echo \\\"=== RESULT ===\\\"; git log --oneline -3 && ls docs/tasks/16/\",\n  \"description\": \"Cherry-pick research v2 commits\"\n}",
+          "id": 371366,
+          "sha256": "1b470ef3469dca29bce2b068bec847e78a94356ed26cfdf933b23207f8ef597c",
+          "ts": "2026-08-01T07:27:11.236318+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q main && git merge -q --ff-only merge-16 && git branch -q -d merge-16 && git push -q origin main && git log --oneline -1 && echo \\\"=== codex verdict in artifact ===\\\" && grep -iE \\\"APPROVED|REJECT|blocking\\\" docs/tasks/16/codex-review-plan.md | head -5\",\n  \"description\": \"Merge and push task-16 research v2\"\n}",
+          "id": 371378,
+          "sha256": "0d41ed3fab21c0a1a39ac4d2e6c86a0d5cf1a0816cb1a14b75628b465a7a6c55",
+          "ts": "2026-08-01T07:27:15.495279+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "plan.md\n=== RESULT ===\n36c44f4 #16: codex review — estimate 7-10 to 10-15 days, 2 blockers accepted\nd7829da #16: research dual-runtime hot switch, Orchestra pattern review\n7b1850d #17: prevent streaming freeze under Telegram flood control\ncodex-review-plan.md\nresearch-v2-runtime-switch.md\nresearch.md\nspikes",
+          "id": 371367,
+          "sha256": "df7577633f4bc1d8c16d28a02e7ac59e223d7aa99f250994cc92f624f6458dcf",
+          "ts": "2026-08-01T07:27:11.475213+00:00"
+        },
+        {
+          "excerpt": "36c44f4 #16: codex review — estimate 7-10 to 10-15 days, 2 blockers accepted\n=== codex verdict in artifact ===\nВ текущем плане два blocking-пробела: неполный runtime-контракт приведёт к падению Codex-пути, а HTTP-мост не имеет достаточной границы авторизации. Оценка 7–10 дней выглядит как best case, не как срок, на который стоит планировать.\n## Fin",
+          "id": 371385,
+          "sha256": "61c87d7437425b33737b09a3689d3f75b110390f64648cb421042b437b12858e",
+          "ts": "2026-08-01T07:27:18.567362+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/kesha-tg-bot/.git",
+        "commit_oid": "d7829daee8a9b4c1b89a636825f13272b59ba208",
+        "committed_at": "2026-08-01T09:27:11+02:00",
+        "head_at_freeze": "3e3f51c579ee7307afa4d2e3c0b033a5f9b98826",
+        "parent_oids": [
+          "7b1850dd8499c987b47e9854d7b2d553bb80f1ea"
+        ],
+        "parsed_numeric_task_ref": 16,
+        "repo_path": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "subject": "#16: research dual-runtime hot switch, Orchestra pattern review",
+        "tree_oid": "baa5ad7b0fc4fa64b025c8f1cb6dee0d09591879"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "adhoc-568067/research-codex-harness",
+        "branch_at_integration": "adhoc-568067/research-codex-harness",
+        "created_at": "2026-07-31T04:22:55.033691+00:00",
+        "finished_at": null,
+        "name": "research-codex-harness",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "d1147f1b-cb08-4a6c-87b8-54526e5a752c",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/research-codex-harness"
+      }
+    },
+    {
+      "caller": {
+        "name": "kesha-tg-bot",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "12184af8-27e5-466e-ba78-6c98dd62e8e8"
+      },
+      "integration_mode": "cherry_pick_then_ff",
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/36c44f464642070fe60115b994334a55bbce6729",
+        "survives_gc": true,
+        "verified_oid": "36c44f464642070fe60115b994334a55bbce6729"
+      },
+      "source_calls": [
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q -b merge-16 main && git cherry-pick aa4b768 0d17e47 2>&1 | tail -3; git status --short | head -3; echo \\\"=== RESULT ===\\\"; git log --oneline -3 && ls docs/tasks/16/\",\n  \"description\": \"Cherry-pick research v2 commits\"\n}",
+          "id": 371366,
+          "sha256": "1b470ef3469dca29bce2b068bec847e78a94356ed26cfdf933b23207f8ef597c",
+          "ts": "2026-08-01T07:27:11.236318+00:00"
+        },
+        {
+          "excerpt": "Bash: {\n  \"command\": \"git checkout -q main && git merge -q --ff-only merge-16 && git branch -q -d merge-16 && git push -q origin main && git log --oneline -1 && echo \\\"=== codex verdict in artifact ===\\\" && grep -iE \\\"APPROVED|REJECT|blocking\\\" docs/tasks/16/codex-review-plan.md | head -5\",\n  \"description\": \"Merge and push task-16 research v2\"\n}",
+          "id": 371378,
+          "sha256": "0d41ed3fab21c0a1a39ac4d2e6c86a0d5cf1a0816cb1a14b75628b465a7a6c55",
+          "ts": "2026-08-01T07:27:15.495279+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "insertions(+), 9 deletions(-)\n create mode 100644 docs/tasks/16/codex-review-plan.md\n=== RESULT ===\n36c44f4 #16: codex review — estimate 7-10 to 10-15 days, 2 blockers accepted\nd7829da #16: research dual-runtime hot switch, Orchestra pattern review\n7b1850d #17: prevent streaming freeze under Telegram flood control\ncodex-review-plan.md\nresearch-v2-r",
+          "id": 371367,
+          "sha256": "df7577633f4bc1d8c16d28a02e7ac59e223d7aa99f250994cc92f624f6458dcf",
+          "ts": "2026-08-01T07:27:11.475213+00:00"
+        },
+        {
+          "excerpt": "36c44f4 #16: codex review — estimate 7-10 to 10-15 days, 2 blockers accepted\n=== codex verdict in artifact ===\nВ текущем плане два blocking-пробела: неполный runtime-контракт приведёт к падению Codex-пути, а HTTP-мост не имеет достаточной границы авторизации. Оценка 7–10 дней выглядит как best case, не как срок, на который стоит планировать.\n## Fin",
+          "id": 371385,
+          "sha256": "61c87d7437425b33737b09a3689d3f75b110390f64648cb421042b437b12858e",
+          "ts": "2026-08-01T07:27:18.567362+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/kesha-tg-bot/.git",
+        "commit_oid": "36c44f464642070fe60115b994334a55bbce6729",
+        "committed_at": "2026-08-01T09:27:11+02:00",
+        "head_at_freeze": "3e3f51c579ee7307afa4d2e3c0b033a5f9b98826",
+        "parent_oids": [
+          "d7829daee8a9b4c1b89a636825f13272b59ba208"
+        ],
+        "parsed_numeric_task_ref": 16,
+        "repo_path": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "subject": "#16: codex review — estimate 7-10 to 10-15 days, 2 blockers accepted",
+        "tree_oid": "55774d5202c9670d2d295eb9c720c8c76c6d9939"
+      },
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "adhoc-568067/research-codex-harness",
+        "branch_at_integration": "adhoc-568067/research-codex-harness",
+        "created_at": "2026-07-31T04:22:55.033691+00:00",
+        "finished_at": null,
+        "name": "research-codex-harness",
+        "scope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "session_id": "d1147f1b-cb08-4a6c-87b8-54526e5a752c",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/research-codex-harness"
+      }
+    }
+  ],
+  "frozen_at": "2026-08-01T09:19:28.248475+00:00",
+  "purpose": "Immutable provenance and reachability anchors for verified manual-integration recovery candidates plus explicitly excluded historical evidence.",
+  "recovery_policy": {
+    "apply_authorized": false,
+    "cleanup_authorized": false,
+    "default_entry_disposition": "recovery_candidate",
+    "excluded_entries": [
+      {
+        "allowed_automatic_effects": [],
+        "commit_oid": "0244e3d64d60fb4682451b3c7742c1abc963bce3",
+        "disposition": "evidence_only_non_integration",
+        "reason": "The named worker merge was a proven no-op; this SHA was created by a separate caller-side CLAUDE.md edit and cannot prove worker content or lifecycle/ref integration."
+      }
+    ],
+    "ref_cleanup": "A later explicit cleanup gate must delete each backup ref with an exact-value CAS against its recorded verified_oid."
+  },
+  "ref_namespace": "refs/orchestra/recovery/115/",
+  "schema_version": 1,
+  "source_snapshot": {
+    "classifier": "A default recovery candidate requires retained orchestrator logs that explicitly integrate a named worker branch/worktree plus Git verification of the resulting full SHA on target history. Entries listed in recovery_policy.excluded_entries are retained only as evidence and authorize no automatic recovery effect.",
+    "database": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+    "logs_cutoff_id": 371999,
+    "logs_cutoff_ts": "2026-08-01T07:33:07.324803+00:00"
+  },
+  "task": 115
+}
