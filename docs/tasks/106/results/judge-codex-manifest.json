@@ -1,0 +1,8 @@
+{
+  "judge": "codex",
+  "expected_jobs": 13,
+  "observed_jobs": 13,
+  "failures_this_invocation": 0,
+  "seed": 10620260732,
+  "completed_at": "2026-08-01T07:36:07.439689+00:00"
+}

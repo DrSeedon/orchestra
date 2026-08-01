@@ -1,0 +1,704 @@
+{
+  "d44654980a1603c2": {
+    "primary_job_id": "1a18b863580cff08",
+    "fixture_id": "dev-command-evidence",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "9e90e22a8e35c4cc": {
+    "primary_job_id": "9d9c13eacf7a7226",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "538e238dd7fdc35e": {
+    "primary_job_id": "5dce8833a21b14ee",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "9bfa51147689e039": {
+    "primary_job_id": "4d1bdb0e330a6220",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "95834b9932ac4fbd": {
+    "primary_job_id": "f5997a9cac2734eb",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "031422a293bae0c4": {
+    "primary_job_id": "f864ab2b90bd3d6a",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "4ebf4b0eba8ec3cc": {
+    "primary_job_id": "faff5d0c10ce0092",
+    "fixture_id": "holdout-file-state",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "98122a3364bb0b9a": {
+    "primary_job_id": "86db573601eacb8e",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "390b0f95cb1c9681": {
+    "primary_job_id": "5a246171d548c5d0",
+    "fixture_id": "holdout-reversal",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "5fd232a1dff26714": {
+    "primary_job_id": "04e6d9d8e21b7a47",
+    "fixture_id": "dev-command-evidence",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "51f1b07069c2d14a": {
+    "primary_job_id": "287150deb72d13e5",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "44f8f187d864799e": {
+    "primary_job_id": "16dd470d70c12945",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "72809a933e10a0b5": {
+    "primary_job_id": "ff1d37a2ea2511ee",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "ef65216d16c8df09": {
+    "primary_job_id": "7a58cf7f179d92dc",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "2903a38fe908eab4": {
+    "primary_job_id": "bd6302e137520263",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "359e9be6f9693aa1": {
+    "primary_job_id": "e97aaa3d59ec4cf4",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "09e5639f68d13c57": {
+    "primary_job_id": "231d49c27eb6069c",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "8fc6c031ddd4b1aa": {
+    "primary_job_id": "8ad92afba13699c6",
+    "fixture_id": "holdout-file-state",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "aebcaa9586ccca61": {
+    "primary_job_id": "545ac57930d5b296",
+    "fixture_id": "holdout-reversal",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "304b19069c1f0b92": {
+    "primary_job_id": "8fd3fc60cdbc3d6b",
+    "fixture_id": "dev-file-status",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "9e9301f13baf5e1e": {
+    "primary_job_id": "83b828fbcca69d3f",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "97363378f7bc5178": {
+    "primary_job_id": "8a5ca90e50ef14cd",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "7daf0743e7f7c4e7": {
+    "primary_job_id": "f19e7b8c25510e7f",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "0de9f2889c9d1562": {
+    "primary_job_id": "c4e1cb58450d1f77",
+    "fixture_id": "holdout-reversal",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "d1bdcc5617b52b7c": {
+    "primary_job_id": "02fb74f9a9ae6b2b",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "02794fb342c23327": {
+    "primary_job_id": "3a0ab89fa2112a9a",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "53e3f21228437b89": {
+    "primary_job_id": "7440d968c6516852",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "c5d7d47a5a2eed95": {
+    "primary_job_id": "a52f25c5564aa9bb",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "6a2413adfd6ecd7e": {
+    "primary_job_id": "4b81e606709f0a98",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "ffb2d28c1aadad1d": {
+    "primary_job_id": "276e332573c0a39d",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "930b93d730dd30d2": {
+    "primary_job_id": "6067acb8d2b20dc1",
+    "fixture_id": "dev-command-evidence",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "8094a8c2c9676b88": {
+    "primary_job_id": "d1a3827b0d19b7f7",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "c9bb7da05d67cd82": {
+    "primary_job_id": "f16498cc26a05be0",
+    "fixture_id": "holdout-reversal",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "2d09d750ff4d6755": {
+    "primary_job_id": "c9c6fab7059a5508",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "e6ecf342884585ae": {
+    "primary_job_id": "97252e51f123612a",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "89a7648fe8d8cf22": {
+    "primary_job_id": "8b51e5f16463c8d2",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "f832772686b20818": {
+    "primary_job_id": "33513492dae3dcc6",
+    "fixture_id": "dev-command-evidence",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "8288f2505dd9e976": {
+    "primary_job_id": "e03dadaa8ac65d2b",
+    "fixture_id": "holdout-reversal",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "f138657fddcb4d89": {
+    "primary_job_id": "4aadc2ccb2ace7cb",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "5f8753f691d5785b": {
+    "primary_job_id": "720e05f63f4ca5c6",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "8467af07f88b237b": {
+    "primary_job_id": "e0289c0ed8b11eca",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "abd2e56e42f36114": {
+    "primary_job_id": "d2d7b925c5e9e4cb",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "937d8df89620f7dd": {
+    "primary_job_id": "a80a3dcbef905ee0",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "128fc946b6473090": {
+    "primary_job_id": "8d85a7a573c7444c",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "e97395bb0d426653": {
+    "primary_job_id": "8706ee0c21a412a9",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "fd5519e476120323": {
+    "primary_job_id": "a9afc7b7cab00335",
+    "fixture_id": "dev-long-conflict",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "224ee2fbb8f5c49f": {
+    "primary_job_id": "b11fa4727b137d4e",
+    "fixture_id": "dev-file-status",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "d30dbbad56920037": {
+    "primary_job_id": "a085f328156747e2",
+    "fixture_id": "dev-long-conflict",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "a5399e990d61cc14": {
+    "primary_job_id": "1d56b0ea1c03b406",
+    "fixture_id": "dev-long-conflict",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "1c210b8b1a48b36c": {
+    "primary_job_id": "d8cfa5ee2e3b2218",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "d283ea1291d685fb": {
+    "primary_job_id": "a56d42a5bb422c8a",
+    "fixture_id": "dev-long-conflict",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "2c7aa03490883d43": {
+    "primary_job_id": "69fce370f75ecd72",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "aad44cc137d5e8f0": {
+    "primary_job_id": "3b92ac2b21829040",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "96511c6099968d4a": {
+    "primary_job_id": "cd5badecc5f85ad5",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "c0c721a1b4762757": {
+    "primary_job_id": "855723c1d0997bea",
+    "fixture_id": "dev-command-evidence",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "9ce9f9702b2028e9": {
+    "primary_job_id": "c25671ee38b4f8e8",
+    "fixture_id": "dev-command-evidence",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "92499c3c2cb815ca": {
+    "primary_job_id": "22511efd739e2c0f",
+    "fixture_id": "dev-command-evidence",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "e7bea555d07794c4": {
+    "primary_job_id": "7a4a0ca2e96e730d",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "cb5c7717e9f369c6": {
+    "primary_job_id": "7eeda79bacc45bec",
+    "fixture_id": "holdout-reversal",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "751e17f21822a918": {
+    "primary_job_id": "bf925f1ae61529f5",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "37d31016aeec31fc": {
+    "primary_job_id": "8427dd91aa8d9751",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "3eb7d8960f2e82d3": {
+    "primary_job_id": "6b4940d6c649ab3f",
+    "fixture_id": "dev-file-status",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "75def9c06becced8": {
+    "primary_job_id": "c14ba22a67fabb41",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "b98dc7e7d2a787e1": {
+    "primary_job_id": "be3614aec3854359",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "d8f7560388e85738": {
+    "primary_job_id": "44c760491b971a09",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "b787c39593e10f19": {
+    "primary_job_id": "05e2b2cde87e304a",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "f8dd998ac3a84574": {
+    "primary_job_id": "b91529bff03f1893",
+    "fixture_id": "holdout-file-state",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "9ce1c91ad1af890c": {
+    "primary_job_id": "b83691453fdd935d",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "0d86c09b600a84a3": {
+    "primary_job_id": "11e629817f4799a1",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "d66b7c4e63b477bd": {
+    "primary_job_id": "d24b13fc25002d9d",
+    "fixture_id": "holdout-file-state",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "5d4dfdacfdf5346e": {
+    "primary_job_id": "ea96520d5bee7b06",
+    "fixture_id": "dev-file-status",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "eed206b41838855f": {
+    "primary_job_id": "a26e4913a6e26a46",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "3d76cc222a883212": {
+    "primary_job_id": "19b09807786041f0",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "36c5b4ae0c7061d9": {
+    "primary_job_id": "15dc4a125dfdd987",
+    "fixture_id": "holdout-reversal",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "97ec01111f0234b8": {
+    "primary_job_id": "2178862332877025",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "74e10218efbae7da": {
+    "primary_job_id": "be12eec8239b2c28",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "e9e0df23d88ad214": {
+    "primary_job_id": "d374bafb85b255e2",
+    "fixture_id": "holdout-reversal",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "4bdd23d050947657": {
+    "primary_job_id": "6bbcbbd7039d8bad",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "258dfbe941405d8a": {
+    "primary_job_id": "b331b78ef8b7135e",
+    "fixture_id": "holdout-file-state",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "3cc4536d6dc12b01": {
+    "primary_job_id": "9fec9373a74e19b8",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "ac2995785186f553": {
+    "primary_job_id": "d90b403132742dca",
+    "fixture_id": "dev-file-status",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "e8f7c2804551b8c9": {
+    "primary_job_id": "1579d64b6b1db2a9",
+    "fixture_id": "holdout-reversal",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "f3ed87bc69aa4cd6": {
+    "primary_job_id": "5d7a6e7343deb6d2",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "2c6b7fb8339b6b8c": {
+    "primary_job_id": "cd53c102a494943f",
+    "fixture_id": "dev-file-status",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "a1033193faf850cd": {
+    "primary_job_id": "fca2542185911a81",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "cc5e3b37d221421a": {
+    "primary_job_id": "0ec19c2c4b5e7e77",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "28d32e78bf2e88f5": {
+    "primary_job_id": "f5d75a279c77fdf5",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "838fc83bcbae4226": {
+    "primary_job_id": "1d2685bfa21ee56b",
+    "fixture_id": "dev-file-status",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "ba470350ba91a481": {
+    "primary_job_id": "af92d26aa7975ef4",
+    "fixture_id": "dev-long-conflict",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "77e23a609b2312bf": {
+    "primary_job_id": "de14b1299e65e807",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "3f0481370331e091": {
+    "primary_job_id": "ee52149ce969e248",
+    "fixture_id": "dev-command-evidence",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "27b497eaa59f57b9": {
+    "primary_job_id": "eb57344a13fadfbe",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "fd81ef0084cb96f0": {
+    "primary_job_id": "8784fa21edbdfdcc",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "f17548ecb1b98f72": {
+    "primary_job_id": "e43c25aa0fe657dc",
+    "fixture_id": "holdout-file-state",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "7d2de0e41a91ea09": {
+    "primary_job_id": "bbdba75b263db5bb",
+    "fixture_id": "holdout-file-state",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "0c43abfeac3c8864": {
+    "primary_job_id": "68560419529b0d6e",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "e1980a573badb716": {
+    "primary_job_id": "12d707860202f829",
+    "fixture_id": "dev-file-status",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "da50d0b1f137de7b": {
+    "primary_job_id": "44e1c35cd90ef311",
+    "fixture_id": "dev-command-evidence",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "d1e149f8e9eddf2b": {
+    "primary_job_id": "66d62a4a06f546bb",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "bec17e3bddad601b": {
+    "primary_job_id": "120a1d2515b503c7",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "concise",
+    "repetition": 1
+  },
+  "079986a45698def1": {
+    "primary_job_id": "793fbd43f971832d",
+    "fixture_id": "holdout-command-close-values",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "a4d2a56e9f006b71": {
+    "primary_job_id": "f1f47451cf6b8619",
+    "fixture_id": "dev-pending-temporal",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "28ae838847921202": {
+    "primary_job_id": "5b0e51e193394148",
+    "fixture_id": "dev-long-conflict",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "8a87e455cd0be7c5": {
+    "primary_job_id": "ae8b016977f5aed0",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "f1df5abb138be98d": {
+    "primary_job_id": "0cf78e5cc1216045",
+    "fixture_id": "dev-long-conflict",
+    "variant": "concise",
+    "repetition": 3
+  },
+  "78e8720eebd858fb": {
+    "primary_job_id": "75786d7ff525df84",
+    "fixture_id": "dev-preference-oneoff",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "1281483a147a3b2a": {
+    "primary_job_id": "8e1d64a3b7fc44b3",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "a3bedec7447c4edd": {
+    "primary_job_id": "45f96c83198367c1",
+    "fixture_id": "dev-file-status",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "20c54cf1a70a8a3a": {
+    "primary_job_id": "abd1b939790135ad",
+    "fixture_id": "holdout-pending-temporal",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "eff6ede7ac55e9c1": {
+    "primary_job_id": "4d2d009e3f1de9f5",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "3e236701eac8a7bf": {
+    "primary_job_id": "6fc703adcd322526",
+    "fixture_id": "holdout-preference-secret",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "f92bf92bafb904e7": {
+    "primary_job_id": "f505cab9a3c16bac",
+    "fixture_id": "holdout-file-state",
+    "variant": "concise",
+    "repetition": 2
+  },
+  "ce0f3b0f0911966a": {
+    "primary_job_id": "ae1906961d75985b",
+    "fixture_id": "holdout-file-state",
+    "variant": "kesha_full",
+    "repetition": 3
+  },
+  "ee6ecbf0f09ee0b9": {
+    "primary_job_id": "17f70add21db5aae",
+    "fixture_id": "dev-decision-reversal",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "aa41781b64104cc3": {
+    "primary_job_id": "313b8ba3a6402543",
+    "fixture_id": "dev-long-conflict",
+    "variant": "kesha_full",
+    "repetition": 2
+  },
+  "f0a187c790d29ec3": {
+    "primary_job_id": "90a29ace04b57f47",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "2ab2a2cd5a8052e2": {
+    "primary_job_id": "80542f8f31d4b0da",
+    "fixture_id": "dev-long-conflict",
+    "variant": "orchestra_current",
+    "repetition": 1
+  }
+}

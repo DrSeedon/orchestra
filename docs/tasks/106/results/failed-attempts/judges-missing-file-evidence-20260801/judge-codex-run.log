@@ -1,0 +1,14 @@
+{"job_id": "5e6266929524cbcb", "fixture_id": "dev-preference-oneoff", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "48b16f0efa599723", "fixture_id": "dev-file-status", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "ec1be91af5384294", "fixture_id": "holdout-preference-secret", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "40c4425f0e2247c9", "fixture_id": "holdout-command-close-values", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "e1b8122beecd9cf6", "fixture_id": "dev-long-conflict", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "8d8e277ee6e8e368", "fixture_id": "holdout-presave-idempotent", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "a7a0dc4952ec8e79", "fixture_id": "holdout-conflict-long", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "5e123b2029fc0014", "fixture_id": "dev-pending-temporal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "cd913d0a63f03ffe", "fixture_id": "dev-command-evidence", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "0b1d7f0e9a865726", "fixture_id": "holdout-reversal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "0c410bc4056bcb67", "fixture_id": "dev-decision-reversal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "cc1e5fd873e8929d", "fixture_id": "holdout-pending-temporal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "c52a67f9e4888653", "fixture_id": "holdout-file-state", "failed_total": 0, "failure_diagnostic": null}
+{"judge": "codex", "expected_jobs": 13, "observed_jobs": 13, "failures_this_invocation": 0, "seed": 10620260732, "completed_at": "2026-08-01T07:19:24.444842+00:00"}

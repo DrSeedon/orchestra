@@ -1,0 +1,8 @@
+{
+  "judge": "claude",
+  "expected_jobs": 13,
+  "observed_jobs": 13,
+  "failures_this_invocation": 0,
+  "seed": 10620260732,
+  "completed_at": "2026-08-01T07:29:29.109823+00:00"
+}
