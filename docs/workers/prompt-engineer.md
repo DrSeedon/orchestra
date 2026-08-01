@@ -56,6 +56,9 @@ DONE WHEN: наблюдаемое условие завершения.
   и потерю данных; операционно соблюдается. [L4]
 - Вывод: императив сам по себе не магия. Работает связка **событие → действие → причина →
   исключения**; для гарантии уровня API используй enforcement/tool choice, если доступно. [A2]
+- Сильный запрет тоже обходится, если он называет ярлык, а не наблюдаемое действие: Opus 5
+  переименовал запрещённую очередь новой задачи в «контекст на будущее». Привязывай gate к
+  моменту tool call, status/`task_id` и эффекту; явно ранжируй конфликтующие эвристики. [L4]
 
 ## Архитектура и порядок промпта
 
@@ -156,7 +159,8 @@ DONE WHEN: наблюдаемое условие завершения.
 - **[L1]** `docs/tasks/fullcycle-audit/research.md` — traces 28k calls, working/dead rules, phases.
 - **[L2]** `docs/tasks/sol-efficiency/research.md` — OLS n=103 и raw TSV/scripts.
 - **[L3]** `docs/tasks/context-engineering/research.md` — 32 KiB experiment, duplicate drift.
-- **[L4]** read-only `orchestra.db` snapshot + task/commit `#memory-search` (2026-08-01).
+- **[L4]** read-only `orchestra.db` snapshots + prompt incidents `memory-search` and
+  active-worker task queue (2026-08-01).
 - **[L5]** `app/backend_claude.py`, `app/backend_codex.py`, `app/runtime_registry.py`,
   `app/manager.py`, `app/workspace.py` — фактическая сборка prompt stack.
 - **[O1]** [OpenAI: Prompting guidance for GPT-5.6 Sol](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6) (checked 2026-08-01).

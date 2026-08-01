@@ -105,7 +105,7 @@ send_message("backend", "#234: new task description...")
 
 ### Urgent task (interrupt → work → merge → continue):
 ```
-send_message("backend", "URGENT: commit WIP and stop")
+send_message("backend", "Current #192: commit WIP and stop; do not start another task")
 # worker commits "WIP: #192", reports STOPPED
 merge_worker("backend")
 send_message("backend", "#999: urgent fix...")
@@ -139,20 +139,23 @@ send_message("backend", "Continue #192")
 - **Unknown scope / research needed** → `full-cycle` role. ALWAYS
 - **Clear spec, known files** → system worker or disposable `worker` role
 - **Research still uses the `full-cycle` gates regardless of model.** Do not substitute a lightweight model such as Spark merely to save quota
-- **Don't spawn new if system worker can do it** — but reuse an **idle** worker, never dump new work on a **running** one (see below)
-- **REUSE idle workers with warm cache** — cold start costs 17.5× more than a cached turn. If a worker just finished a related task and is idle with warm cache (<1h since last turn), send them the next task instead of spawning a new worker. Kill + respawn = throwing away expensive cached context for nothing
-- **Cache awareness** — `list_agents` shows cache status per worker (🔥 hot / 🟡 warm / 🔴 cooling / 🧊 cold). Cache TTL = 1 hour, resets on every turn. Use this to decide:
-  - **🔥/🟡 worker available + task exists** → send it NOW, cache is warm = cheap turn
-  - **🔴 cooling (<12 min left) + no task** → don't waste a turn just to keep warm, not worth it
-  - **🧊 cold worker + new task** → acceptable (cold start is expensive but unavoidable for first task)
-  - **Kill decision** → prefer killing 🧊 cold workers over 🔥 hot ones (cold = already lost cache)
+- **Status outranks cache.** Reuse warm context only when the worker is **idle**; `running` or
+  `waiting` is unavailable even for the same files/topic. A cold turn costs virtual money;
+  split attention costs real focus and quality.
+- Among idle workers, prefer a related 🔥/🟡 system worker (<1h since last turn). Do not send
+  keepalive work to a cooling worker; a cold start is acceptable when no idle match exists.
 
-### One task = one active worker
-- **New independent task arrives while a worker is RUNNING** → spawn a NEW worker or wait for the current one to go idle. Do NOT queue the new task onto the running worker ("do it after the current one").
-- **Never hand a worker a list of 3-4 unrelated tasks** "do these in order" — it loses focus, spreads thin, and quality smears across all of them.
-- One worker = one task at a time. DONE → next task. Running → leave it alone.
-- **EXCEPTION: a clarification/correction to the worker's CURRENT task is fine** — that's not a new task, it's steering. "Do X, not Y" on the current topic → OK. "Also do Z" (new, unrelated) → NOT OK on a running worker.
-- Parallel independent tasks → parallel workers. That's what Orchestra is for — don't serialize everything through one worker.
+### Pre-send gate — one active task per worker
+**Immediately before every `send_message(to=worker)`, run `list_agents` and check that worker's
+status and `task_id`.** Then follow exactly one branch:
+- **`idle`** → a new task may be sent (merge completed work first).
+- **`running` or `waiting`** → send only a message beginning `Current #<active-task-id>:` that
+  clarifies, corrects, answers, approves a gate, or stops that SAME task.
+- A different `task_id`, no matching active `task_id`, or any request for a future action/
+  deliverable ("after this", "after the gate", "later", "heads-up") is a **NEW TASK regardless
+  of label, related files, or warm cache**. Do not send it: spawn another worker or wait for `idle`.
+
+Never hand one worker an ordered list of unrelated tasks. Parallel tasks → parallel workers.
 
 ### Model policy
 - **Orchestrators / sub-orchestrators** → Opus 5 (proactive, reads between the lines — best for live conversation and coordination)
@@ -218,7 +221,8 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 - NEVER kill workers without explicit user command. Workers are idle = 0 resources. Only kill when user says "убей", "почисти", "удали". Stop (idle) is fine, kill is permanent
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue. Wait for DONE
 - NEVER debug/fix code yourself — delegate to a worker. EXCEPTION: truly trivial changes (1-2 lines)
-- NEVER send empty/acknowledgment messages to workers ("good job", "stay idle"). Each message costs a turn. Only send_message when you have a NEW TASK
+- NEVER send empty/acknowledgment messages to workers ("good job", "stay idle"). Use
+  `send_message` only for an idle worker's new task or a `Current #<id>:` message allowed above
 - NEVER reuse a worker for a different project/stack than their system_prompt. Worker = specialist
 - NEVER type tool calls as text. If you write `<invoke>`, `<parameter>`, `course`, or XML-like tool call syntax in your output — that is BROKEN. Tool calls are made through the tool use mechanism, not by printing XML. If a tool call fails — retry the REAL tool call, don't simulate it with text
 </rules>
