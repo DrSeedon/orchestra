@@ -263,10 +263,14 @@ generation пока явно `not_tracked`, а не молча fresh.
 
 ### 4.4 #113 overlap
 
-Согласовано с `research-memory`: #113 меняет только `app/rag.py:46`
-(`EMBED_BATCH` default 64→16) и соседний comment; T4 #113 reaper живёт только в
-`app/bg_jobs.py`. #116 не трогает constants/top block, не добавляет новый module и
-не блокируется #113. При merge сохранить #113 `EMBED_BATCH=16`.
+#113-T1 со сменой batch size снят после quality A/B: смешанный индекс с batch
+64/16 менял ranking, поэтому `EMBED_BATCH` остаётся **64**. T6/T7 не используют
+размер batch как freshness/scheduling input и не меняют эту константу.
+
+Текущая реализация #113 всё ещё меняет `app/rag.py`; это file-level sequencing, а
+не функциональная зависимость. T6 стартует только после DONE-сигнала #113 от
+оркестратора, затем ребейзится и держится вне чужих hunks. Новый module только ради
+разведения merge не добавляется.
 
 ## Tickets
 
@@ -448,7 +452,7 @@ generation пока явно `not_tracked`, а не молча fresh.
   - empty/no-hit search still returns freshness; non-Git/missing project is unknown;
   - API labels file basis and logs `not_tracked`; MCP prints header before results or
     “no matches”;
-  - #113 `EMBED_BATCH=16` remains unchanged and existing retrieval ranking/content
+  - current `EMBED_BATCH=64` remains unchanged and existing retrieval ranking/content
     tests pass.
 - **blocked-by:** none.
 
@@ -501,7 +505,8 @@ Priority from the task, not file convenience:
 4. **T4 skills bridge** only after untouched #94 A/B task lands.
 5. **T5 typed MCP errors** — independent and may land immediately; #115 then consumes
    the contract.
-6. **T6 RAG watermark** — independent and may land immediately; preserve #113 line.
+6. **T6 RAG watermark** — functionally independent, but starts only after the
+   orchestrator reports #113 DONE; preserve `EMBED_BATCH=64`.
 7. **T7 scheduler** after T6/#93-T2; then #115-T1 consumes its route result.
 
 Acceptance can be selective:
@@ -551,7 +556,9 @@ without separate user command.
   state machine. #116 rebases after it; no concurrent edits.
 - #94 owns exact-set skill copy/prune and slug hash. #116 computes delivery hash and
   timing only.
-- #113 owns `EMBED_BATCH=16` and bg-job reaper. #116 preserves both.
+- #113-T1 batch-size change is cancelled; `EMBED_BATCH=64` remains source truth.
+  Active #113 `app/rag.py` work lands first; #116 preserves it and does not make
+  watermark/scheduler behavior depend on batch size.
 - #115 owns merge idempotency, commit point, recovery and domain DTO. #116 owns the
   reusable HTTP/MCP error envelope/adapter plus the single T7 scheduler route hunk.
   Sequencing: #93-T2 → #116-T7 → #115-T1; #115 reconcile calls existing
