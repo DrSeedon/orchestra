@@ -716,7 +716,7 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
     page.close()
 
 
-def test_chat_returns_to_last_user_message_and_preserves_bottom_mode(
+def test_chat_uses_last_user_message_only_when_unread(
     dashboard_browser: Browser,
 ):
     root = Path(__file__).parent.parent
@@ -771,7 +771,18 @@ def test_chat_returns_to_last_user_message_and_preserves_bottom_mode(
         """,
     )
 
-    page.evaluate("fillChat(); _prepareChatAnchorRestore(); _restoreChatAnchor(_chatPositionKey())")
+    page.evaluate(
+        """() => {
+            fillChat();
+            $('#chat').scrollTop = $('#chat').scrollHeight;
+            _prepareChatAnchorRestore(false);
+            _restoreChatAnchor(_chatPositionKey());
+        }"""
+    )
+    assert page.evaluate("() => _chatAtBottom()") is True
+    expect(page.locator("#chat-jump-latest")).to_be_hidden()
+
+    page.evaluate("fillChat(); _prepareChatAnchorRestore(true); _restoreChatAnchor(_chatPositionKey())")
     anchor_offset = page.evaluate(
         """() => {
             const chat = $('#chat').getBoundingClientRect();
@@ -782,18 +793,15 @@ def test_chat_returns_to_last_user_message_and_preserves_bottom_mode(
     assert anchor_offset < 2
     expect(page.locator("#chat-jump-latest")).to_be_visible()
     expect(page.locator("#chat-jump-latest")).to_have_text("↓ Новые ниже")
-
     page.locator("#chat-jump-latest").click()
     page.wait_for_function("() => _chatAtBottom()")
-    page.evaluate("_rememberChatPosition(); fillChat(); _prepareChatAnchorRestore(); _restoreChatAnchor(_chatPositionKey())")
-    assert page.evaluate("() => _chatAtBottom()") is True
     expect(page.locator("#chat-jump-latest")).to_be_hidden()
 
     page.evaluate(
         """() => {
             selectedAgent = 'agent-without-user-message';
             fillChat(false);
-            _prepareChatAnchorRestore();
+            _prepareChatAnchorRestore(true);
             _restoreChatAnchor(_chatPositionKey());
         }"""
     )
@@ -803,7 +811,7 @@ def test_chat_returns_to_last_user_message_and_preserves_bottom_mode(
         """() => {
             selectedAgent = 'agent-user-message-is-last';
             fillChat(true, true);
-            _prepareChatAnchorRestore();
+            _prepareChatAnchorRestore(true);
             _restoreChatAnchor(_chatPositionKey());
         }"""
     )
@@ -821,7 +829,9 @@ def test_chat_returns_to_last_user_message_and_preserves_bottom_mode(
     expect(page.locator("#chat-jump-latest")).to_have_text("↓ Новые ниже")
 
     assert "_scheduleChatInitialSettle();" in source
-    assert source.count("_prepareChatAnchorRestore();") >= 3
+    assert "const restoreUnreadAnchor = _unreadTabs.delete(currentScope);" in source
+    assert "_prepareChatAnchorRestore(restoreUnreadAnchor);" in source
+    assert source.count("_unreadTabs.add(") == 1
     assert "localStorage" not in helper_code
     page.close()
 
