@@ -103,6 +103,124 @@ def test_usage_bar_visible(dashboard_page: Page):
     expect(usage_bar).to_be_attached()
 
 
+def test_bug_report_banner_is_compact_overlay_with_safe_reader_contract():
+    root = Path(__file__).parent.parent
+    template = (root / "app/templates/dashboard.html").read_text()
+    source = (root / "app/static/js/app.js").read_text()
+    banner_tag = template.split('id="bug-report-banner"', 1)[1].split(">", 1)[0]
+    block = source.split("const _BUG_INBOX_SEEN_KEY", 1)[1].split(
+        "document.addEventListener('DOMContentLoaded'", 1,
+    )[0]
+
+    assert "fixed" in banner_tag
+    assert "top-12" in banner_tag
+    assert "DOMPurify.sanitize(marked.parse(markdown))" in block
+    assert "await response.text()" in block
+    assert block.index("await _fetchBugInbox(viewUrl)") < block.index(
+        "localStorage.setItem(_BUG_INBOX_SEEN_KEY, version)"
+    )
+    assert "setInterval(_refreshBugReportStatus, 30000)" in block
+    assert "initBugReportBanner();" in source
+
+
+def test_bug_report_banner_acknowledges_only_complete_sanitized_read(
+    dashboard_browser: Browser,
+):
+    root = Path(__file__).parent.parent
+    source = (root / "app/static/js/app.js").read_text()
+    block = "const _BUG_INBOX_SEEN_KEY" + source.split(
+        "const _BUG_INBOX_SEEN_KEY", 1,
+    )[1].split("document.addEventListener('DOMContentLoaded'", 1)[0]
+    page = dashboard_browser.new_page()
+    page.route(
+        "http://orchestra.test/",
+        lambda route: route.fulfill(
+            content_type="text/html",
+            body='<div id="bug-report-banner" class="hidden"></div>',
+        ),
+    )
+    page.goto("http://orchestra.test/")
+    page.add_script_tag(path=str(root / "app/static/css/vendor/purify.min.js"))
+    page.add_script_tag(path=str(root / "app/static/css/vendor/marked.min.js"))
+    page.evaluate("""
+        window._bugResponses = [];
+        window.fetch = async () => {
+            const item = window._bugResponses.shift();
+            return {ok: item.ok, status: item.status, text: async () => item.body};
+        };
+        window.open = () => {
+            const reader = {
+                document: document.implementation.createHTMLDocument(''),
+                opener: window,
+                closed: false,
+                close() { this.closed = true; },
+            };
+            window._bugReader = reader;
+            return reader;
+        };
+    """)
+    page.add_script_tag(content=block)
+    page.evaluate("""
+        window._bugResponses.push({
+            ok: true,
+            status: 200,
+            body: JSON.stringify({
+                has_reports: true,
+                version: 'v1',
+                view_url: '/api/report_bug',
+            }),
+        });
+    """)
+    page.evaluate("() => _refreshBugReportStatus()")
+
+    expect(page.locator("#bug-report-banner")).to_contain_text("Новые bug reports")
+    assert page.evaluate("localStorage.getItem('orchestraBugInboxSeenVersion')") is None
+
+    page.evaluate("""
+        window._bugResponses.push({
+            ok: true,
+            status: 200,
+            body: '# Report\\n<img src=x onerror="window.pwned=1"><script>window.pwned=2</script>',
+        });
+    """)
+    page.get_by_role("button", name="Прочитать").click()
+    page.wait_for_function(
+        "localStorage.getItem('orchestraBugInboxSeenVersion') === 'v1'",
+    )
+
+    rendered = page.evaluate("window._bugReader.document.body.innerHTML")
+    assert "<script" not in rendered
+    assert "onerror" not in rendered
+    assert page.evaluate("window.pwned") is None
+
+    page.evaluate("""
+        window._bugResponses.push({
+            ok: true,
+            status: 200,
+            body: JSON.stringify({
+                has_reports: true,
+                version: 'v2',
+                view_url: '/api/report_bug',
+            }),
+        });
+    """)
+    page.evaluate("() => _refreshBugReportStatus()")
+    page.evaluate("""
+        window._bugResponses.push({
+            ok: false,
+            status: 500,
+            body: '<b>ReadTimeout</b>',
+        });
+    """)
+    page.get_by_role("button", name="Прочитать").click()
+    expect(page.locator("#bug-report-banner")).to_contain_text("HTTP500")
+    assert page.evaluate(
+        "localStorage.getItem('orchestraBugInboxSeenVersion')"
+    ) == "v1"
+    assert page.evaluate("window._bugReader.closed") is True
+    page.close()
+
+
 def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     stream_code = source.split("let streamBubble = null;", 1)[1].split(
