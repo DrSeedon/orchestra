@@ -1488,6 +1488,44 @@ class TestMergeTarget:
             capture_output=True, text=True, check=True,
         ).stdout == ""
 
+    def test_external_bug_report_does_not_weaken_dirty_target_guard(
+        self, git_repo, wt_root, tmp_path, monkeypatch,
+    ):
+        import app.routes.system as system
+        from app.workspace import create_worktree, merge_worktree_to_main
+
+        monkeypatch.setattr(system, "_BUG_STATE_ROOT_CACHE", tmp_path / "state")
+        monkeypatch.setattr(system, "_BUG_VALIDATED_DIRS", {})
+        first = self._wt_with_commit(git_repo, wt_root, "bug-report-clean", "main")
+        system._publish_bug_record("external report")
+
+        clean_result = merge_worktree_to_main(first.path, str(git_repo))
+
+        assert clean_result["ok"] is True
+        assert subprocess.run(
+            ["git", "status", "--porcelain"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout == ""
+
+        second = create_worktree(str(git_repo), "bug-report-dirty", base_branch="main")
+        (Path(second.path) / "second.txt").write_text("second")
+        subprocess.run(
+            ["git", "add", "second.txt"], cwd=second.path,
+            capture_output=True, check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "second work"], cwd=second.path,
+            capture_output=True, check=True,
+        )
+        (Path(git_repo) / "human-wip.txt").write_text("do not hide me")
+        system._publish_bug_record("second external report")
+
+        dirty_result = merge_worktree_to_main(second.path, str(git_repo))
+
+        assert dirty_result["ok"] is False
+        assert "target working tree is dirty" in dirty_result["error"]
+        assert "human-wip.txt" in dirty_result["error"]
+
     def test_related_commit_failure_rolls_back_target_and_preserves_worker(
         self, git_repo, wt_root,
     ):

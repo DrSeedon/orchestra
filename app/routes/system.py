@@ -9,13 +9,18 @@ import logging
 import os
 import re
 import signal
+import stat
+import subprocess
 import time
+import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Form
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app.auth import is_auth_enabled
@@ -988,6 +993,308 @@ async def hibernate_session_endpoint(name: str, req: dict):
         return JSONResponse(result, status_code=409)
     return result
 
+
+_BUG_STATE_ROOT_CACHE: Path | None = None
+_BUG_VALIDATED_DIRS: dict[str, tuple[int, int]] = {}
+_DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+_FILE_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+
+
+def _bug_error(exc: Exception) -> str:
+    detail = str(exc)
+    return f"{type(exc).__name__}: {detail}" if detail else type(exc).__name__
+
+
+def _nearest_existing(path: Path) -> Path:
+    current = path
+    while not os.path.lexists(current):
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return current
+
+
+def _assert_bug_path_outside_git(path: Path) -> None:
+    probe_path = _nearest_existing(path.absolute()).resolve(strict=True)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update({
+        "LC_ALL": "C",
+        "GIT_DISCOVERY_ACROSS_FILESYSTEM": "1",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+    })
+    result = subprocess.run(
+        ["git", "-C", str(probe_path), "rev-parse", "--absolute-git-dir"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode == 0:
+        raise RuntimeError(
+            f"bug inbox path resolves inside Git metadata: {result.stdout.strip()}"
+        )
+    if result.returncode != 128 or "not a git repository" not in result.stderr:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise RuntimeError(f"bug inbox Git isolation probe failed: {detail}")
+
+
+def _bug_state_root() -> Path:
+    global _BUG_STATE_ROOT_CACHE
+    if _BUG_STATE_ROOT_CACHE is not None:
+        return _BUG_STATE_ROOT_CACHE
+
+    systemd_state = os.environ.get("STATE_DIRECTORY", "").strip()
+    if systemd_state:
+        parts = [part for part in systemd_state.split(":") if part]
+        if len(parts) != 1:
+            raise RuntimeError("STATE_DIRECTORY must contain exactly one path")
+        candidate = Path(parts[0])
+    else:
+        xdg_state = os.environ.get("XDG_STATE_HOME", "").strip()
+        candidate = (
+            Path(xdg_state) / "orchestra"
+            if xdg_state
+            else Path.home() / ".local" / "state" / "orchestra"
+        )
+    if not candidate.is_absolute():
+        raise RuntimeError(f"bug inbox state path is not absolute: {candidate}")
+    _assert_bug_path_outside_git(candidate)
+    _BUG_STATE_ROOT_CACHE = candidate
+    return candidate
+
+
+def _sync_fd(fd: int) -> None:
+    os.fsync(fd)
+
+
+def _open_private_path(path: Path) -> int:
+    if not path.is_absolute():
+        raise RuntimeError(f"private state path is not absolute: {path}")
+    fd = os.open(os.sep, _DIR_FLAGS)
+    try:
+        for part in path.parts[1:]:
+            try:
+                child_fd = os.open(part, _DIR_FLAGS, dir_fd=fd)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(part, 0o700, dir_fd=fd)
+                except FileExistsError:
+                    pass
+                _sync_fd(fd)
+                child_fd = os.open(part, _DIR_FLAGS, dir_fd=fd)
+            os.close(fd)
+            fd = child_fd
+        os.fchmod(fd, 0o700)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _open_private_child(parent_fd: int, name: str) -> int:
+    try:
+        fd = os.open(name, _DIR_FLAGS, dir_fd=parent_fd)
+    except FileNotFoundError:
+        try:
+            os.mkdir(name, 0o700, dir_fd=parent_fd)
+        except FileExistsError:
+            pass
+        _sync_fd(parent_fd)
+        fd = os.open(name, _DIR_FLAGS, dir_fd=parent_fd)
+    try:
+        if not stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise RuntimeError(f"bug inbox component is not a directory: {name}")
+        os.fchmod(fd, 0o700)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _verify_open_directory(fd: int, path: Path) -> None:
+    opened = os.fstat(fd)
+    current = os.lstat(path)
+    if (
+        stat.S_ISLNK(current.st_mode)
+        or not stat.S_ISDIR(current.st_mode)
+        or (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino)
+    ):
+        raise RuntimeError(f"bug inbox directory identity changed: {path}")
+    identity = (opened.st_dev, opened.st_ino)
+    cache_key = str(path)
+    if _BUG_VALIDATED_DIRS.get(cache_key) != identity:
+        _assert_bug_path_outside_git(path)
+        _BUG_VALIDATED_DIRS[cache_key] = identity
+
+
+def _open_regular_at(dir_fd: int, name: str) -> tuple[int, os.stat_result]:
+    fd = os.open(name, os.O_RDONLY | _FILE_NOFOLLOW, dir_fd=dir_fd)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise RuntimeError(f"bug inbox entry is not a regular file: {name}")
+        if stat.S_IMODE(info.st_mode) != 0o600:
+            os.fchmod(fd, 0o600)
+            info = os.fstat(fd)
+        return fd, info
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+@contextmanager
+def _open_bug_store():
+    root = _bug_state_root()
+    root_fd = _open_private_path(root)
+    inbox_fd = tmp_fd = records_fd = None
+    try:
+        _verify_open_directory(root_fd, root)
+        inbox_fd = _open_private_child(root_fd, "bug-inbox")
+        inbox = root / "bug-inbox"
+        _verify_open_directory(inbox_fd, inbox)
+        tmp_fd = _open_private_child(inbox_fd, "tmp")
+        _verify_open_directory(tmp_fd, inbox / "tmp")
+        records_fd = _open_private_child(inbox_fd, "records")
+        _verify_open_directory(records_fd, inbox / "records")
+        try:
+            legacy_fd, _legacy_info = _open_regular_at(inbox_fd, "legacy.md")
+        except FileNotFoundError:
+            pass
+        else:
+            os.close(legacy_fd)
+        yield inbox, inbox_fd, tmp_fd, records_fd
+    finally:
+        for fd in (records_fd, tmp_fd, inbox_fd, root_fd):
+            if fd is not None:
+                os.close(fd)
+
+
+def _write_all(fd: int, payload: bytes) -> None:
+    remaining = memoryview(payload)
+    while remaining:
+        written = os.write(fd, remaining)
+        if written <= 0:
+            raise OSError("bug record write made no progress")
+        remaining = remaining[written:]
+
+
+def _publish_bug_record(entry: str) -> tuple[str, str]:
+    payload = entry.encode("utf-8")
+    token = uuid.uuid4().hex
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    temp_name = f".{token}.tmp"
+    record_name = f"{stamp}-{token}.md"
+    published = False
+
+    with _open_bug_store() as (inbox, _inbox_fd, tmp_fd, records_fd):
+        fd = os.open(
+            temp_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | _FILE_NOFOLLOW,
+            0o600,
+            dir_fd=tmp_fd,
+        )
+        try:
+            os.fchmod(fd, 0o600)
+            _write_all(fd, payload)
+            _sync_fd(fd)
+        finally:
+            os.close(fd)
+        try:
+            os.replace(
+                temp_name,
+                record_name,
+                src_dir_fd=tmp_fd,
+                dst_dir_fd=records_fd,
+            )
+            published = True
+            _sync_fd(records_fd)
+            _sync_fd(tmp_fd)
+        finally:
+            if not published:
+                try:
+                    os.unlink(temp_name, dir_fd=tmp_fd)
+                    _sync_fd(tmp_fd)
+                except FileNotFoundError:
+                    pass
+        return str(inbox / "records" / record_name), record_name
+
+
+def _regular_metadata(dir_fd: int, name: str) -> dict:
+    fd, info = _open_regular_at(dir_fd, name)
+    try:
+        return {
+            "name": name,
+            "dev": info.st_dev,
+            "ino": info.st_ino,
+            "size": info.st_size,
+            "mtime_ns": info.st_mtime_ns,
+            "ctime_ns": info.st_ctime_ns,
+        }
+    finally:
+        os.close(fd)
+
+
+def _bug_snapshot() -> dict:
+    with _open_bug_store() as (inbox, inbox_fd, _tmp_fd, records_fd):
+        legacy = None
+        try:
+            legacy = _regular_metadata(inbox_fd, "legacy.md")
+        except FileNotFoundError:
+            pass
+        records = sorted(
+            (
+                _regular_metadata(records_fd, name)
+                for name in os.listdir(records_fd)
+                if name.endswith(".md")
+            ),
+            key=lambda item: item["name"],
+        )
+        fingerprint = json.dumps(
+            {
+                "legacy": legacy,
+                "count": len(records),
+                "latest": records[-1] if records else None,
+            },
+            sort_keys=True,
+        ).encode()
+        has_reports = bool(records or (legacy and legacy["size"]))
+        return {
+            "inbox": str(inbox),
+            "legacy": legacy,
+            "records": records,
+            "has_reports": has_reports,
+            "version": hashlib.sha256(fingerprint).hexdigest()[:20] if has_reports else "",
+        }
+
+
+def _stream_snapshot_file(dir_fd: int, metadata: dict) -> Iterator[bytes]:
+    fd, current = _open_regular_at(dir_fd, metadata["name"])
+    try:
+        if (
+            (current.st_dev, current.st_ino, current.st_size)
+            != (metadata["dev"], metadata["ino"], metadata["size"])
+        ):
+            raise RuntimeError(f"bug inbox snapshot changed: {metadata['name']}")
+        remaining = metadata["size"]
+        while remaining:
+            chunk = os.read(fd, min(65536, remaining))
+            if not chunk:
+                raise OSError(f"unexpected EOF reading bug record: {metadata['name']}")
+            remaining -= len(chunk)
+            yield chunk
+    finally:
+        os.close(fd)
+
+
+def _stream_bug_snapshot(snapshot: dict) -> Iterator[bytes]:
+    with _open_bug_store() as (_inbox, inbox_fd, _tmp_fd, records_fd):
+        if snapshot["legacy"]:
+            yield from _stream_snapshot_file(inbox_fd, snapshot["legacy"])
+        for metadata in snapshot["records"]:
+            yield from _stream_snapshot_file(records_fd, metadata)
+
+
 @router.post("/api/report_bug")
 async def report_bug_endpoint(req: Request):
     data = await req.json()
@@ -995,16 +1302,51 @@ async def report_bug_endpoint(req: Request):
     description = data.get("description", "")
     reporter = data.get("reporter", "unknown")
     scope = data.get("scope", "")
-    from datetime import datetime, timezone
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     entry = f"\n## [{ts}] {title}\n- **Reporter:** {reporter}\n- **Scope:** {scope}\n{description}\n"
-    bugs_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "BUGS.md")
     try:
-        with open(bugs_path, "a") as f:
-            f.write(entry)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-    return {"result": f"Bug reported: {title}"}
+        record_path, record_id = await asyncio.to_thread(_publish_bug_record, entry)
+    except Exception as exc:
+        error = _bug_error(exc)
+        logger.exception(f"report_bug failed: {error}")
+        return JSONResponse({"error": error}, status_code=500)
+    return {
+        "result": f"Bug reported: {title}. Read: /api/report_bug",
+        "record_id": record_id,
+        "path": record_path,
+        "view_url": "/api/report_bug",
+    }
+
+
+@router.get("/api/report_bug")
+async def read_bug_reports():
+    try:
+        snapshot = await asyncio.to_thread(_bug_snapshot)
+    except Exception as exc:
+        error = _bug_error(exc)
+        logger.exception(f"report_bug read failed: {error}")
+        return JSONResponse({"error": error}, status_code=500)
+    return StreamingResponse(
+        _stream_bug_snapshot(snapshot),
+        media_type="text/markdown",
+        headers={"Content-Disposition": 'inline; filename="BUGS.md"'},
+    )
+
+
+@router.get("/api/report_bug/status")
+async def bug_report_status():
+    try:
+        snapshot = await asyncio.to_thread(_bug_snapshot)
+    except Exception as exc:
+        error = _bug_error(exc)
+        logger.exception(f"report_bug status failed: {error}")
+        return JSONResponse({"error": error}, status_code=500)
+    return {
+        "has_reports": snapshot["has_reports"],
+        "version": snapshot["version"],
+        "record_count": len(snapshot["records"]),
+        "view_url": "/api/report_bug",
+    }
 
 
 @router.get("/api/orchestrators")

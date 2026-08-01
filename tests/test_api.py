@@ -1,6 +1,13 @@
 """TDD tests for main.py — HTTP API endpoints."""
 
+import asyncio
+import os
+import stat
 import subprocess
+import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -252,6 +259,293 @@ class TestHibernateSession:
         )
 
         assert response.status_code == 404
+
+
+@pytest.fixture
+def bug_state(tmp_path, monkeypatch):
+    import app.routes.system as sysmod
+
+    state = tmp_path / "state"
+    monkeypatch.setattr(sysmod, "_BUG_STATE_ROOT_CACHE", state)
+    monkeypatch.setattr(sysmod, "_BUG_VALIDATED_DIRS", {})
+    return state
+
+
+class TestBugReports:
+    def test_publish_read_status_and_private_modes(self, client, bug_state):
+        description = "Location: app/x.py:7\n" + ("trace <unsafe>\n" * 8192)
+
+        before = client.get("/api/report_bug/status")
+        response = client.post("/api/report_bug", json={
+            "title": "full trace",
+            "description": description,
+            "reporter": "worker",
+            "scope": "/project",
+        })
+        reader = client.get("/api/report_bug")
+        after = client.get("/api/report_bug/status")
+
+        assert before.json() == {
+            "has_reports": False,
+            "version": "",
+            "record_count": 0,
+            "view_url": "/api/report_bug",
+        }
+        assert response.status_code == 200
+        assert response.json()["view_url"] == "/api/report_bug"
+        assert response.json()["record_id"].endswith(".md")
+        assert reader.status_code == 200
+        assert description in reader.text
+        assert "## [" in reader.text
+        assert after.json()["has_reports"] is True
+        assert after.json()["record_count"] == 1
+        assert after.json()["version"]
+        assert len(after.content) < 256
+
+        inbox = bug_state / "bug-inbox"
+        for directory in (bug_state, inbox, inbox / "tmp", inbox / "records"):
+            assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+        record = next((inbox / "records").iterdir())
+        assert stat.S_IMODE(record.stat().st_mode) == 0o600
+
+    def test_legacy_and_snapshot_exclude_later_publish(self, bug_state):
+        import app.routes.system as sysmod
+
+        sysmod._bug_snapshot()
+        legacy = bug_state / "bug-inbox" / "legacy.md"
+        legacy.write_text("# migrated\n")
+        legacy.chmod(0o600)
+        sysmod._publish_bug_record("\nfirst-record\n")
+        snapshot = sysmod._bug_snapshot()
+        stream = sysmod._stream_bug_snapshot(snapshot)
+
+        first_chunk = next(stream)
+        sysmod._publish_bug_record("\nsecond-record\n")
+        captured = first_chunk + b"".join(stream)
+
+        assert b"# migrated" in captured
+        assert b"first-record" in captured
+        assert b"second-record" not in captured
+        assert b"second-record" in b"".join(
+            sysmod._stream_bug_snapshot(sysmod._bug_snapshot())
+        )
+
+    @pytest.mark.asyncio
+    async def test_route_offloads_blocking_publish(self, monkeypatch):
+        import app.routes.system as sysmod
+
+        loop = asyncio.get_running_loop()
+        started = asyncio.Event()
+        release = threading.Event()
+
+        def blocking_publish(_entry):
+            loop.call_soon_threadsafe(started.set)
+            release.wait()
+            return "/state/record.md", "record.md"
+
+        request = SimpleNamespace(json=AsyncMock(return_value={"title": "blocked"}))
+        monkeypatch.setattr(sysmod, "_publish_bug_record", blocking_publish)
+
+        task = asyncio.create_task(sysmod.report_bug_endpoint(request))
+        await started.wait()
+        assert task.done() is False
+        release.set()
+        result = await task
+
+        assert result["record_id"] == "record.md"
+
+    def test_concurrent_large_and_subprocess_records_are_complete(
+        self, bug_state,
+    ):
+        import app.routes.system as sysmod
+
+        entries = [f"\nmarker-{i}\n" + (chr(65 + i % 26) * 131072) for i in range(32)]
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(sysmod._publish_bug_record, entries))
+
+        env = os.environ.copy()
+        env["STATE_DIRECTORY"] = str(bug_state)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from app.routes.system import _publish_bug_record; "
+                "_publish_bug_record('\\nsubprocess-marker\\n')",
+            ],
+            cwd=Path(__file__).parent.parent,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        records = list((bug_state / "bug-inbox" / "records").glob("*.md"))
+        assert len(records) == 33
+        bodies = [record.read_text() for record in records]
+        for i, entry in enumerate(entries):
+            matches = [body for body in bodies if f"\nmarker-{i}\n" in body]
+            assert matches == [entry]
+        assert sum("subprocess-marker" in body for body in bodies) == 1
+
+    def test_partial_write_never_becomes_visible(self, bug_state, monkeypatch):
+        import app.routes.system as sysmod
+
+        real_write = sysmod.os.write
+        calls = 0
+
+        def interrupted_write(fd, payload):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return real_write(fd, payload[:7])
+            raise OSError("simulated partial write")
+
+        monkeypatch.setattr(sysmod.os, "write", interrupted_write)
+
+        with pytest.raises(OSError, match="simulated partial write"):
+            sysmod._publish_bug_record("complete-record")
+
+        assert sysmod._bug_snapshot()["records"] == []
+
+    def test_failure_after_publish_keeps_one_complete_record(
+        self, bug_state, monkeypatch,
+    ):
+        import app.routes.system as sysmod
+
+        sysmod._bug_snapshot()
+        real_sync = sysmod._sync_fd
+        calls = 0
+
+        def fail_directory_sync(fd):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("simulated directory fsync")
+            real_sync(fd)
+
+        monkeypatch.setattr(sysmod, "_sync_fd", fail_directory_sync)
+        with pytest.raises(OSError, match="simulated directory fsync"):
+            sysmod._publish_bug_record("whole-record")
+
+        monkeypatch.setattr(sysmod, "_sync_fd", real_sync)
+        monkeypatch.setattr(sysmod, "_BUG_VALIDATED_DIRS", {})
+        snapshot = sysmod._bug_snapshot()
+        body = b"".join(sysmod._stream_bug_snapshot(snapshot))
+        assert len(snapshot["records"]) == 1
+        assert body == b"whole-record"
+
+    def test_empty_exception_text_still_returns_class(
+        self, client, bug_state, monkeypatch,
+    ):
+        import app.routes.system as sysmod
+
+        monkeypatch.setattr(
+            sysmod, "_publish_bug_record", MagicMock(side_effect=TimeoutError()),
+        )
+        response = client.post("/api/report_bug", json={"title": "timeout"})
+
+        assert response.status_code == 500
+        assert response.json()["error"] == "TimeoutError"
+
+    def test_git_environment_is_sanitized(self, tmp_path, monkeypatch):
+        import app.routes.system as sysmod
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        safe = tmp_path / "safe"
+        safe.mkdir()
+        monkeypatch.setenv("GIT_DIR", str(repo / ".git"))
+        monkeypatch.setenv("GIT_WORK_TREE", str(repo))
+
+        sysmod._assert_bug_path_outside_git(safe)
+
+    def test_state_directory_inside_worktree_is_rejected(self, tmp_path, monkeypatch):
+        import app.routes.system as sysmod
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        monkeypatch.setenv("STATE_DIRECTORY", str(repo / "state"))
+        monkeypatch.setattr(sysmod, "_BUG_STATE_ROOT_CACHE", None)
+
+        with pytest.raises(RuntimeError, match="inside Git metadata"):
+            sysmod._bug_state_root()
+
+    def test_state_root_symlink_is_rejected(self, tmp_path, monkeypatch):
+        import app.routes.system as sysmod
+
+        target = tmp_path / "target"
+        target.mkdir()
+        state_link = tmp_path / "state-link"
+        state_link.symlink_to(target, target_is_directory=True)
+        monkeypatch.setattr(sysmod, "_BUG_STATE_ROOT_CACHE", state_link)
+        monkeypatch.setattr(sysmod, "_BUG_VALIDATED_DIRS", {})
+
+        with pytest.raises((NotADirectoryError, RuntimeError, OSError)):
+            sysmod._publish_bug_record("must-not-follow-root")
+        assert list(target.iterdir()) == []
+
+    @pytest.mark.parametrize("kind", ["worktree", "git-dir", "bare", "missing-child"])
+    def test_git_paths_are_rejected(self, tmp_path, kind):
+        import app.routes.system as sysmod
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
+        if kind == "worktree":
+            candidate = repo
+        elif kind == "git-dir":
+            candidate = repo / ".git"
+        elif kind == "missing-child":
+            candidate = repo / "missing" / "state"
+        else:
+            candidate = tmp_path / "bare.git"
+            subprocess.run(
+                ["git", "init", "--bare", str(candidate)],
+                capture_output=True,
+                check=True,
+            )
+
+        with pytest.raises(RuntimeError, match="inside Git metadata"):
+            sysmod._assert_bug_path_outside_git(candidate)
+
+    @pytest.mark.parametrize("component", ["bug-inbox", "tmp", "records"])
+    def test_descendant_symlink_after_validation_is_rejected(
+        self, bug_state, tmp_path, monkeypatch, component,
+    ):
+        import app.routes.system as sysmod
+
+        target = tmp_path / "target"
+        target.mkdir()
+        sysmod._bug_snapshot()
+        inbox = bug_state / "bug-inbox"
+        replaced = inbox if component == "bug-inbox" else inbox / component
+        if component == "bug-inbox":
+            for child in inbox.iterdir():
+                child.rmdir()
+        replaced.rmdir()
+        replaced.symlink_to(target, target_is_directory=True)
+        monkeypatch.setattr(sysmod, "_BUG_VALIDATED_DIRS", {})
+
+        with pytest.raises((NotADirectoryError, RuntimeError, OSError)):
+            sysmod._publish_bug_record("must-not-land-in-target")
+        assert list(target.iterdir()) == []
+
+    def test_legacy_and_record_symlinks_are_rejected(self, bug_state, tmp_path):
+        import app.routes.system as sysmod
+
+        sysmod._bug_snapshot()
+        target = tmp_path / "target.md"
+        target.write_text("secret")
+        inbox = bug_state / "bug-inbox"
+        (inbox / "legacy.md").symlink_to(target)
+        with pytest.raises((RuntimeError, OSError)):
+            sysmod._bug_snapshot()
+        (inbox / "legacy.md").unlink()
+        (inbox / "records" / "redirect.md").symlink_to(target)
+        with pytest.raises((RuntimeError, OSError)):
+            sysmod._bug_snapshot()
 
 
 class TestSendMessage:

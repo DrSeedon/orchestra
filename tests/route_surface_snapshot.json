@@ -140,7 +140,19 @@
  [
   "/api/report_bug",
   [
+   "GET"
+  ]
+ ],
+ [
+  "/api/report_bug",
+  [
    "POST"
+  ]
+ ],
+ [
+  "/api/report_bug/status",
+  [
+   "GET"
   ]
  ],
  [
