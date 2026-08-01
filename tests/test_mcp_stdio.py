@@ -428,6 +428,31 @@ async def test_switch_worker_branch_forwards_explicit_force(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("payload", [
+    {"ok": False, "error": "target branch is busy"},
+    {
+        "ok": False,
+        "state": "rollback_failed",
+        "error": "checkout failed; rollback failed: restore HEAD denied",
+        "actual_branch": "task-90/coder",
+    },
+])
+async def test_switch_worker_branch_renders_failure_without_new_contract(
+    monkeypatch, payload,
+):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+
+    async def fake_api(_method, _path, **_kwargs):
+        return payload
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        output = await m.switch_worker_branch(name="coder", task_id="91", force=True)
+
+    assert output == f"Switch failed: {payload['error']}"
+
+
+@pytest.mark.asyncio
 async def test_kill_worker_force_param(monkeypatch):
     """force=True передаётся как строчный параметр в DELETE-запрос."""
     import app.mcp_stdio as m

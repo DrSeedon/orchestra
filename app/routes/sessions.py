@@ -760,6 +760,23 @@ async def merge_session(name: str, req: dict):
                                 _tm.api_update_task(par, status="in_progress")
                             except Exception as e:
                                 logger.warning(f"task #{par} → in_progress failed after merge-switch: {e}")
+                        elif switch_result.get("state") == "rollback_failed":
+                            try:
+                                await manager.persist_lifecycle(
+                                    found,
+                                    branch=(
+                                        switch_result.get("actual_branch")
+                                        or getattr(found, "branch", "")
+                                        or ""
+                                    ),
+                                    base_branch=target,
+                                    task_id="",
+                                    needs_switch=True,
+                                )
+                            except Exception as persist_error:
+                                found.task_id = ""
+                                found.needs_switch = True
+                                switch_result["persistence_error"] = str(persist_error)
                         result["switch"] = switch_result
                 return result
             except Exception as e:
@@ -813,6 +830,19 @@ async def switch_branch(name: str, req: dict):
                         status_code=400,
                     )
             try:
+                old_lifecycle = {
+                    "branch": getattr(found, "branch", "") or "",
+                    "base_branch": getattr(found, "base_branch", "") or "",
+                    "task_id": getattr(found, "task_id", "") or "",
+                    "needs_switch": bool(getattr(found, "needs_switch", False)),
+                }
+                await manager.persist_lifecycle(
+                    found,
+                    branch=old_lifecycle["branch"],
+                    base_branch=old_lifecycle["base_branch"],
+                    task_id="",
+                    needs_switch=True,
+                )
                 result = await asyncio.to_thread(
                     switch_worktree_branch,
                     worktree_path,
@@ -820,7 +850,7 @@ async def switch_branch(name: str, req: dict):
                     from_ref=from_ref,
                     force=force,
                 )
-                if result.get("ok") or result.get("branch"):
+                if result.get("ok"):
                     await manager.persist_lifecycle(
                         found,
                         branch=result.get("branch", new_branch),
@@ -828,10 +858,30 @@ async def switch_branch(name: str, req: dict):
                         task_id=par,
                         needs_switch=False,
                     )
-                try:
-                    _tm.api_update_task(par, status="in_progress")
-                except Exception as e:
-                    logger.warning(f"task #{par} → in_progress failed after switch-branch: {e}")
+                    try:
+                        _tm.api_update_task(par, status="in_progress")
+                    except Exception as e:
+                        logger.warning(f"task #{par} → in_progress failed after switch-branch: {e}")
+                elif result.get("state") == "rollback_failed":
+                    try:
+                        await manager.persist_lifecycle(
+                            found,
+                            branch=result.get("actual_branch") or old_lifecycle["branch"],
+                            base_branch=from_ref,
+                            task_id="",
+                            needs_switch=True,
+                        )
+                    except Exception as persist_error:
+                        found.task_id = ""
+                        found.needs_switch = True
+                        result["persistence_error"] = str(persist_error)
+                else:
+                    try:
+                        await manager.persist_lifecycle(found, **old_lifecycle)
+                    except Exception as persist_error:
+                        found.task_id = ""
+                        found.needs_switch = True
+                        result["persistence_error"] = str(persist_error)
                 return result
             except Exception as e:
                 return JSONResponse({"error": str(e)}, status_code=500)
@@ -905,4 +955,3 @@ async def toggle_tg_topic(name: str, scope: str, enabled: bool):
     found.tg_topic = enabled
     save_session(found.to_dict())
     return {"ok": True, "name": name, "tg_topic": enabled}
-
