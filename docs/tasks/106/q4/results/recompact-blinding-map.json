@@ -1,0 +1,50 @@
+{
+  "1654b511e725e308": {
+    "variant": "orchestra_current",
+    "blind_variant": "df00da45b93bf75d",
+    "fixture_id": "holdout-reversal-rollback",
+    "repetition": 1
+  },
+  "dc91498e607ccf86": {
+    "variant": "exact3_prompt",
+    "blind_variant": "f02a9bf572c6d536",
+    "fixture_id": "holdout-reversal-rollback",
+    "repetition": 1
+  },
+  "801926ebf8d7311c": {
+    "variant": "raw_tail",
+    "blind_variant": "9c80878d26729a39",
+    "fixture_id": "holdout-reversal-rollback",
+    "repetition": 1
+  },
+  "cf18aa9a8c0826fb": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "ff6ce1992d82e2fc",
+    "fixture_id": "holdout-reversal-rollback",
+    "repetition": 1
+  },
+  "3125846d921ad858": {
+    "variant": "orchestra_current",
+    "blind_variant": "73a4196b4e91cc2a",
+    "fixture_id": "holdout-tool-gap",
+    "repetition": 1
+  },
+  "87e9efb272a8e184": {
+    "variant": "exact3_prompt",
+    "blind_variant": "1164e59403035479",
+    "fixture_id": "holdout-tool-gap",
+    "repetition": 1
+  },
+  "0eacc785ffdbc466": {
+    "variant": "raw_tail",
+    "blind_variant": "d263b84bf1069f46",
+    "fixture_id": "holdout-tool-gap",
+    "repetition": 1
+  },
+  "d26ef796f4600107": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "c92523137df4e057",
+    "fixture_id": "holdout-tool-gap",
+    "repetition": 1
+  }
+}

@@ -1,0 +1,9 @@
+{"job_id": "cf18aa9a8c0826fb", "fixture": "holdout-reversal-rollback", "blind_variant": "ff6ce1992d82e2fc", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "d26ef796f4600107", "fixture": "holdout-tool-gap", "blind_variant": "c92523137df4e057", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "dc91498e607ccf86", "fixture": "holdout-reversal-rollback", "blind_variant": "f02a9bf572c6d536", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "1654b511e725e308", "fixture": "holdout-reversal-rollback", "blind_variant": "df00da45b93bf75d", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "801926ebf8d7311c", "fixture": "holdout-reversal-rollback", "blind_variant": "9c80878d26729a39", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "3125846d921ad858", "fixture": "holdout-tool-gap", "blind_variant": "73a4196b4e91cc2a", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "0eacc785ffdbc466", "fixture": "holdout-tool-gap", "blind_variant": "d263b84bf1069f46", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "87e9efb272a8e184", "fixture": "holdout-tool-gap", "blind_variant": "1164e59403035479", "failed_total": 0, "failure_diagnostic": null}
+{"mode": "recompact", "seed": 10620260804, "model": "claude-opus-5[1m]", "claude_version": "2.1.220 (Claude Code)", "expected_jobs": 8, "observed_jobs": 8, "failures_this_invocation": 0, "completed_at": "2026-08-01T10:21:17.756219+00:00", "protocol_sha256": "533f9f8ec01135227e747820f2aa6409c33d4753e6e937613b745b4e285fb61f", "fixtures_sha256": "b7f43a3bdbbfacb0775358e94e2ed2ceb89140fcdf693b554fd50747294695de", "candidates_sha256": "20697a53c22133046cc9b286bc17bcec347f50f64cc89fb828bc10a2eaf0d8fc"}
