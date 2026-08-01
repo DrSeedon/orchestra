@@ -22,7 +22,8 @@ bound above -2 pp [1]. It is promising evidence, not a production-proof result.
 - **Baseline:** the exact current Claude orchestrator prompt loaded from the
   original #106 `prompts.py`; production `app/session.py` was read but not
   edited.
-- **Outcome:** on a fresh holdout, materially repair last-three exact recall
+- **Outcome:** on a holdout with zero exact ID/transcript overlap with original
+  #106, materially repair last-three exact recall
   while retaining current critical-anchor and pending fidelity, avoiding fake
   secret leaks and unrelated writes, staying bounded, and surviving three
   compactions.
@@ -30,7 +31,10 @@ bound above -2 pp [1]. It is promising evidence, not a production-proof result.
 The full hypotheses, falsifiers, gates, seeds, cost estimate, and commands were
 locked in `protocol.md` before the first Q4 call. The source lock is commit
 `6dc830cace5fe456906896ce9ece8a9774d1f505`; file hashes are in
-`results/preregistration-lock.json` [2].
+`results/preregistration-lock.json`. The source commit is timestamped
+16:32:40 +07, the lock commit 16:33:42 +07, and the earliest recorded pilot job
+started later; `audit_provenance.py` verifies the ordering and hashes against
+the committed blobs [2].
 
 ## Candidates
 
@@ -47,16 +51,18 @@ requires identical composed output [3].
 
 ## Method and reproducibility
 
-### Fresh split
+### Exactly non-overlapping split
 
-The Q4 corpus has five dev and eight holdout fixtures, all with new IDs and
-content relative to the original #106 corpus [3]. Holdout themes are decision
+The Q4 corpus has five dev and eight holdout fixtures. A post-hoc provenance
+audit finds zero ID overlap and zero byte-exact transcript overlap with the
+original #106 corpus [2]. This proves non-reuse of exact fixtures, not semantic
+independence from the design process. Holdout themes are decision
 reversal, confusing paths/statuses, command/error order, secret-bearing recent
 messages, a missing tool result, temporal conflict/ownership, targeted durable
 promotion, and a long noisy output. Pilot outputs and all earlier #106 outputs
 were excluded from headline statistics.
 
-- Pilot: three new candidates × one untouched dev fixture = **3 outputs**.
+- Pilot: three new candidates × one dev fixture = **3 outputs**.
 - Primary: four variants × eight holdout fixtures × three replicas = **96
   outputs**, 24 per variant, with eight independent resampling clusters.
 - Matched idempotence: four variants × three replicas × two passes = **24
@@ -102,7 +108,7 @@ of a Read, test, commit, or deployment [3][5].
 96 unique candidate judgments; all presave units contain two passes; all
 re-compaction units contain three generations [5].
 
-## Headline fresh-holdout results
+## Headline exactly non-overlapping holdout results
 
 All recall intervals are paired fixture-cluster bootstrap intervals with 20,000
 fixed-seed resamples. The experimental unit for uncertainty is the fixture, not
@@ -117,8 +123,10 @@ an individual output or anchor [1].
 
 “Secret-leak outputs” counts only the three replicas of the one secret-bearing
 holdout fixture per variant. For `hot_state_ledger`, 0/3 gives a two-sided exact
-95% upper failure-rate bound of **70.8%**; observed zero is not evidence of
-general safety [1]. All eight observed leaking outputs wrote the seeded fake
+95% upper bound of **70.8%** only for a conditional per-generation leak rate on
+this one transcript under an IID assumption. The three replicas are not
+independent secret fixtures, so the bound is not a general secret-risk estimate
+[1]. All eight observed leaking outputs wrote the seeded fake
 token to `CLAUDE.md`; one current and one raw-tail output also leaked it in the
 handoff itself [6].
 
@@ -149,11 +157,19 @@ registered decision rule and does not override the CI gate [6].
 | Critical exact point ≥current and CI lower >-2 pp | **Fail** | **Fail** | **Fail** |
 | Pending non-inferiority | Pass | Pass | Pass |
 | Zero observed fake-secret leaks | **Fail** | **Fail** | Pass |
-| Ledger/side effects no worse than current | **Fail** | **Fail** | Pass |
+| Ledger/side effects no worse than current | **Not fully evaluated / fail** | **Not fully evaluated / fail** | **Not fully evaluated / fail** |
 | Median bytes ≤125% current | Pass | Pass | Pass |
 | Both-rater unsupported co-flags ≤current | **Fail** | Pass | Pass |
 | Generation-three failure detector | Pass | Pass | Pass |
-| **All gates** | **NO-GO** | **NO-GO** | **NO-GO (7/8)** |
+| **All gates** | **NO-GO** | **NO-GO** | **NO-GO (6/8)** |
+
+The evidence/write gate had three registered conditions. Ledger consistency and
+unrelated-write counts were scored, but the analyzer omitted the condition that
+an unchanged file must not be accepted as evidence of a Read or other action.
+The judge prompt stated that rule, yet no gate scorer consumed the relevant
+judgments. After adversarial review the combined gate is conservatively marked
+not evaluated/failed for every candidate; the pre-review `7/8` was overstated.
+The correction strengthens NO-GO and is preserved in `codex-review.md` [1][8].
 
 This outcome is deliberately strict. Calling the hot-state bundle “proved”
 would replace the registered non-inferiority gate with a more convenient
@@ -192,7 +208,7 @@ tool ledger. This concentration explains why a high aggregate point estimate
 still has a wide paired interval with only eight clusters; it does not prove a
 general causal mechanism.
 
-### Narrow durable promotion eliminated observed write sprawl
+### The hot-state bundle had zero observed write sprawl
 
 Across 24 primary outputs, current produced 72 unrelated file changes, exact
 wording 80, raw tail 80, and hot state zero. On the targeted canonical-note fixture,
@@ -200,7 +216,9 @@ hot state still produced the expected note state in 3/3 primary outputs.
 In the focused two-pass experiment, every variant reached expected state 3/3 on
 pass one, remained correct 3/3 on pass two, and had zero pass-two diff 3/3 [1].
 This establishes that the targeted write can work idempotently in this fixture;
-it does not establish that all generic pre-save is harmful.
+it does not isolate narrow promotion from the bundle's simultaneous changes to
+generated sections, write prohibition, raw tail, and ledgers. It also does not
+establish that all generic pre-save is harmful.
 
 ### Re-compaction favoured the structural bundle
 
@@ -239,7 +257,8 @@ co-flag gate can reject a conspicuous failure but cannot certify factuality.
 
 ## Cost and operational outcome
 
-Actual Claude API-equivalent subscription workload was **$23.7488**:
+All recorded Claude attempt records sum to **$23.7488** of API-equivalent
+subscription workload:
 
 | Component | API-equivalent USD |
 |---|---:|
@@ -250,8 +269,11 @@ Actual Claude API-equivalent subscription workload was **$23.7488**:
 | Sonnet judge | $2.8306 |
 | **Total** | **$23.7488** |
 
-Sol used the separate Codex subscription pool and exposes no compatible USD
-field. The actual Claude total stayed below the pre-launch 30% contingency
+The JSONL files contain exactly the registered attempt counts (3 pilot, 96
+primary, 12 two-pass presave units, 8 three-generation chains, and 8 Sonnet
+judge batches), with no duplicate attempt records; therefore no failed retry is
+hidden by latest-job deduplication [1][5]. Sol used the separate Codex
+subscription pool and exposes no compatible USD field. The recorded Claude total stayed below the pre-launch 30% contingency
 estimate of $26.86 and below the user's $30 notification gate [1][2].
 
 ## Counter-evidence and limitations
@@ -268,7 +290,7 @@ estimate of $26.86 and below the user's $30 notification gate [1][2].
    tail and ledgers require composition code. Their results cannot be attributed
    to prompt wording alone.
 4. **The secret sample is tiny.** One secret fixture × three replicas gives a
-   70.8% upper bound after zero hot-state leaks. Generic redaction recognizes the
+   conditional 70.8% upper bound after zero hot-state leaks. Generic redaction recognizes the
    seeded fake families; it is not a production secret scanner.
 5. **Semantic judging was poorly calibrated.** Kappa near zero prevents strong
    claims from either judge's absolute unsupported rate.
@@ -295,7 +317,7 @@ production recommendation.
 
 | Finding | Confidence | Evidence tier and reason |
 |---|---|---|
-| Current Claude handoff loses recent user wording on a second fresh corpus | **CONFIRMED** | Direct measurement: 23/72 = 31.9%; original #106 measured 39.7% on a separate holdout |
+| Current Claude handoff loses recent user wording on a non-overlapping corpus | **CONFIRMED** | Direct measurement: 23/72 = 31.9%; original #106 measured 39.7% on a corpus with zero exact ID/transcript overlap |
 | Structural raw-user append repairs last-three exact recall | **CONFIRMED on this harness/corpus** | Direct deterministic composition + 144/144 matches across two candidates |
 | Prompt-only exact wording is sufficient | **REFUTED** | It missed 6/72 recent items and failed exact, secret, side-effect, and co-flag gates |
 | Hot state is production-safe and exact-noninferior | **UNCERTAIN / NO-GO** | Favourable point estimates, but locked exact CI lower -3.81 pp misses -2 pp tolerance; secret N=3 |
@@ -313,8 +335,10 @@ scope. No production file was changed in Q4.
 
 1. `results/analysis.json` — registered headline estimates, paired intervals,
    focused experiments, judges, costs, and gate booleans.
-2. `protocol.md`; `results/preregistration-lock.json` — pre-registered method,
-   thresholds, hashes, source commit, and expected cost.
+2. `protocol.md`; `results/preregistration-lock.json`;
+   `results/provenance-audit.json`; `audit_provenance.py` — pre-registered
+   method, thresholds, source-blob hashes, source/lock/pilot ordering, exact
+   corpus-overlap audit, and expected cost.
 3. `test_q4.py`; `validate_artifacts.py`; `results/judge-input-inspection.json`
    — corpus separation, answer-key isolation, job/score coverage, measured
    ledger, and judge blindness checks.
@@ -327,3 +351,5 @@ scope. No production file was changed in Q4.
    diagnostics.
 7. `../external-landscape.md` — source-backed external harness, benchmark, and
    Ouroboros comparison that motivated the structural candidates.
+8. `codex-review.md` — adversarial review, including the corrected incomplete
+   evidence/side-effect gate and scope qualifications.

@@ -121,9 +121,9 @@
 <body>
   <header>
     <div class="wrap">
-      <div class="eyebrow">Orchestra · Research #106 Q4 · fresh holdout · 01.08.2026</div>
+      <div class="eyebrow">Orchestra · Research #106 Q4 · exact corpus non-overlap · 01.08.2026</div>
       <h1>Свежесть починили. Доказательство внедрения — нет.</h1>
-      <p class="lede"><strong>Typed hot state + raw tail + ledgers</strong> дал лучшие point estimates: exact 87.8%, last-3 100%, pending 100%, в 2.5 раза короче current и без наблюдаемых лишних записей. Но pre-registered exact CI допускает потерю 3.81 pp при лимите 2 pp. Поэтому лидер исследования — да; production winner — нет.</p>
+      <p class="lede"><strong>Typed hot state + raw tail + ledgers</strong> дал лучшие point estimates: exact 87.8%, last-3 100%, pending 100%, в 2.5 раза короче current и без наблюдаемых лишних записей. Но pre-registered exact CI допускает потерю 3.81 pp при лимите 2 pp, а один side-effect sub-gate не был реализован. Поэтому лидер исследования — да; production winner — нет.</p>
       <nav aria-label="Навигация">
         <a href="#verdict">Вердикт</a>
         <a href="#numbers">Цифры</a>
@@ -145,8 +145,8 @@
         </article>
         <article class="decision">
           <span class="status no">NO-GO</span>
-          <strong>7 из 8 гейтов</strong>
-          <p>Exact CI [-3.81, +20.19] пересёк non-inferiority порог −2 pp. Production не меняем.</p>
+          <strong>6 из 8 гейтов</strong>
+          <p>Exact CI пересёк порог −2 pp; проверка false claims из unchanged file не была реализована. Production не меняем.</p>
         </article>
       </div>
     </div>
@@ -156,7 +156,7 @@
     <section id="numbers">
       <div class="wrap">
         <div class="section-head">
-          <div><div class="eyebrow">Свежий holdout</div><h2>Кто выиграл по точке</h2></div>
+          <div><div class="eyebrow">Нулевой exact overlap с #106</div><h2>Кто выиграл по точке</h2></div>
           <p>96 выходов: четыре варианта × восемь новых fixture-кластеров × три генерации. Интервалы — 95% paired fixture-cluster bootstrap, 20,000 resamples.</p>
         </div>
         <div class="metrics-layout">
@@ -184,7 +184,7 @@
             <div class="hero-number">2,371 B</div>
             <p>Медиана финального handoff у hot-state против <strong>5,862 B</strong> у current: меньше на 59.6%.</p>
             <div class="callout good"><p><strong>G3:</strong> hot-state удержал exact 94.7% и recent 100% при 2,408 B. Current: exact 68.4%, recent 0%, 8,776 B.</p></div>
-            <div class="callout bad"><p><strong>Secret sample мал:</strong> 0/3 у hot-state означает верхнюю 95% границу риска 70.8%, а не «безопасно».</p></div>
+            <div class="callout bad"><p><strong>Secret sample мал:</strong> 0/3 у hot-state даёт conditional per-generation upper bound 70.8% только для одного transcript при IID-допущении, а не общий риск.</p></div>
           </aside>
         </div>
 
@@ -221,11 +221,11 @@
               <tr><td>Critical exact non-inferiority</td><td class="nope">Fail</td><td class="nope">Fail</td><td class="nope">Fail</td></tr>
               <tr><td>Pending non-inferiority</td><td class="yes">Pass</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
               <tr><td>Zero observed fake-secret leaks</td><td class="nope">Fail 3/3</td><td class="nope">Fail 2/3</td><td class="yes">Pass 0/3</td></tr>
-              <tr><td>Ledger + side effects</td><td class="nope">Fail</td><td class="nope">Fail</td><td class="yes">Pass</td></tr>
+              <tr><td>Ledger + side effects</td><td class="nope">Incomplete / fail</td><td class="nope">Incomplete / fail</td><td class="nope">Incomplete / fail</td></tr>
               <tr><td>≤125% current bytes</td><td class="yes">Pass</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
               <tr><td>Unsupported co-flags ≤current</td><td class="nope">Fail</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
               <tr><td>Generation-three detector</td><td class="yes">Pass</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
-              <tr><td><strong>Итого</strong></td><td class="nope">NO-GO</td><td class="nope">NO-GO</td><td class="partial">NO-GO · 7/8</td></tr>
+              <tr><td><strong>Итого</strong></td><td class="nope">NO-GO</td><td class="nope">NO-GO</td><td class="partial">NO-GO · 6/8</td></tr>
             </tbody>
           </table>
         </div>
@@ -245,7 +245,7 @@
           <article class="candidate" style="--tone:var(--cyan)"><span class="mark">RAW USER TAIL</span><h3>Mechanical recent</h3><p>Последние три user strings выбираются и редактируются кодом, затем добавляются после summary.</p></article>
           <article class="candidate" style="--tone:var(--green)"><span class="mark">HOT + EVIDENCE</span><h3>Typed state + ledgers</h3><p>Короткое горячее состояние, raw user tail, tool events, measured diff и только явно адресованный durable write.</p></article>
         </div>
-        <div class="callout good"><p><strong>Наблюдаемая развилка:</strong> raw user tail чинит recent; targeted promotion убирает write sprawl; tool ledger поднимает command recall до 100%. Но hot-state потерял часть старой durable preference и отрицательных file/action статусов.</p></div>
+        <div class="callout good"><p><strong>Наблюдаемая развилка:</strong> raw user tail чинит recent; весь hot-state bundle дал ноль unrelated changes; command recall в этом bundle вырос до 100%. Отдельный причинный вклад promotion и tool ledger не изолирован. Hot-state потерял часть старой durable preference и отрицательных file/action статусов.</p></div>
       </div>
     </section>
 
@@ -288,10 +288,10 @@
           <div class="arrow">→</div>
           <div class="step"><b>3 · Evidence + promotion</b><span class="muted">Measured diff, tool gaps, один явно названный canonical durable write.</span></div>
         </div>
-        <div class="callout bad"><p><strong>До нового approval — стоп.</strong> Production <code>COMPACT_PROMPT</code> не менялся. Чтобы доказать v2, нужен ещё один свежий holdout либо заранее обоснованное расширение текущих восьми кластеров; повторный отбор на этих же восьми будет overfit.</p></div>
+        <div class="callout bad"><p><strong>До нового approval — стоп.</strong> Production <code>COMPACT_PROMPT</code> не менялся. Чтобы доказать v2, нужен новый заранее зафиксированный holdout с внешне проверяемой границей authoring/selection либо заранее обоснованное расширение текущих восьми кластеров; повторный отбор на этих же восьми будет overfit.</p></div>
 
-        <details><summary>Метод и размер выборки</summary><div>Пять dev и восемь свежих holdout fixtures; три replica на вариант; CI кластеризованы по восьми fixtures. Pilot 3 calls, primary 96, idempotence 24, re-compaction 24, judges 8+8. Все before/after ledgers валидированы. Claude API-equivalent total: $23.7488; Sol — отдельный subscription pool.</div></details>
-        <details><summary>Почему zero leaks не значит safe</summary><div>У каждого варианта было только три exposed outputs. Даже 0/3 даёт two-sided exact 95% upper bound 70.8%. Все восемь наблюдаемых утечек у остальных вариантов попали в CLAUDE.md; две также попали в handoff.</div></details>
+        <details><summary>Метод и размер выборки</summary><div>Пять dev и восемь holdout fixtures с нулевым exact ID/transcript overlap с исходным #106; semantic independence audit не доказывает. Три replica на вариант; CI кластеризованы по восьми fixtures. Pilot 3 calls, primary 96, idempotence 24, re-compaction 24, judges 8+8. Все before/after ledgers валидированы. Claude API-equivalent total: $23.7488; Sol — отдельный subscription pool.</div></details>
+        <details><summary>Почему zero leaks не значит safe</summary><div>Был один secret transcript и три генерации. Даже 0/3 даёт conditional two-sided exact 95% upper bound 70.8% только для per-generation rate на этом transcript при IID-допущении. Все восемь наблюдаемых утечек у остальных вариантов попали в CLAUDE.md; две также попали в handoff.</div></details>
         <details><summary>Где hot-state терял exact</summary><div>Он поднял commands до 100% и decisions до 100%, но удержал file/status anchors 66.7% против 86.1% current и user facts/preferences 50% против 100%. Самый тяжёлый кластер — recent-secret: 15/21 exact против 21/21 current.</div></details>
       </div>
     </section>

@@ -2,7 +2,9 @@
   "protocol": {
     "holdout_fixtures": 8,
     "outputs_per_variant": 24,
-    "cluster_bootstrap_resamples": 20000
+    "cluster_bootstrap_resamples": 20000,
+    "unchanged_file_claim_gate_evaluated": false,
+    "gate_limitation": "No scorer implemented the registered prohibition on accepting a false file-state claim from an unchanged file; the combined evidence/side-effect gate is conservatively failed for every candidate."
   },
   "primary": {
     "orchestra_current": {
@@ -332,6 +334,13 @@
     "codex_judge": null,
     "claude_total": 23.748825099999998
   },
+  "attempt_records": {
+    "pilot": 3,
+    "primary": 96,
+    "presave": 12,
+    "recompact": 8,
+    "claude_judge": 8
+  },
   "gates": {
     "exact3_prompt": {
       "checks": {
@@ -365,7 +374,7 @@
         "exact_noninferior": false,
         "pending_noninferior": true,
         "zero_secret_leaks": true,
-        "evidence_side_effects": true,
+        "evidence_side_effects": false,
         "bloat": true,
         "unsupported_coflag": true,
         "recompact_failure_detector": true

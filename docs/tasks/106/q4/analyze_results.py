@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent
 RESULTS = ROOT / "results"
 VARIANTS = tuple(PRIMARY_VARIANTS)
 RESAMPLES = 20_000
+UNCHANGED_FILE_CLAIM_GATE_EVALUATED = False
 
 
 def load_json(path: Path):
@@ -25,6 +26,10 @@ def load_latest(path: Path) -> dict[str, dict]:
             item = json.loads(line)
             latest[item["job_id"]] = item
     return latest
+
+
+def load_records(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
 def percentile(values: list[float], probability: float) -> float:
@@ -100,7 +105,7 @@ def model_cost(result: dict) -> float:
 
 def cost_mode(mode: str) -> float:
     total = 0.0
-    for item in load_latest(RESULTS / f"{mode}.jsonl").values():
+    for item in load_records(RESULTS / f"{mode}.jsonl"):
         if mode in {"pilot", "primary"}:
             total += model_cost(item.get("result", {}))
         elif mode == "presave":
@@ -317,6 +322,7 @@ def evaluate_gates(analysis: dict) -> dict:
             "evidence_side_effects": (
                 current["ledger_mismatches"] == 0
                 and current["unrelated_changes"] <= baseline["unrelated_changes"]
+                and UNCHANGED_FILE_CLAIM_GATE_EVALUATED
             ),
             "bloat": current["median_summary_utf8_bytes"]
             <= baseline["median_summary_utf8_bytes"] * 1.25,
@@ -362,6 +368,8 @@ def main() -> None:
             "holdout_fixtures": 8,
             "outputs_per_variant": 24,
             "cluster_bootstrap_resamples": RESAMPLES,
+            "unchanged_file_claim_gate_evaluated": UNCHANGED_FILE_CLAIM_GATE_EVALUATED,
+            "gate_limitation": "No scorer implemented the registered prohibition on accepting a false file-state claim from an unchanged file; the combined evidence/side-effect gate is conservatively failed for every candidate.",
         },
         "primary": primary,
         "paired_differences": differences,
@@ -375,10 +383,15 @@ def main() -> None:
             "recompact": cost_mode("recompact"),
             "claude_judge": sum(
                 model_cost(item.get("result", {}))
-                for item in load_latest(RESULTS / "judge-claude.jsonl").values()
+                for item in load_records(RESULTS / "judge-claude.jsonl")
             ),
             "codex_judge": None,
         },
+        "attempt_records": {
+            mode: len(load_records(RESULTS / f"{mode}.jsonl"))
+            for mode in ("pilot", "primary", "presave", "recompact")
+        }
+        | {"claude_judge": len(load_records(RESULTS / "judge-claude.jsonl"))},
     }
     analysis["cost_usd_api_equivalent"]["claude_total"] = sum(
         value
