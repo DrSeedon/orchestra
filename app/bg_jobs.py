@@ -133,6 +133,42 @@ async def _kill_proc(proc: asyncio.subprocess.Process) -> None:
             pass
 
 
+def _orphan_session_stats(session_id: int) -> tuple[int, float]:
+    """Return process count and oldest process age for a finished job's session."""
+    try:
+        with open("/proc/uptime", encoding="ascii") as fh:
+            uptime = float(fh.read().split()[0])
+        clock_ticks = os.sysconf("SC_CLK_TCK")
+        entries = os.scandir("/proc")
+    except (OSError, ValueError) as e:
+        logger.warning(
+            "bg_job: orphan observation unavailable error=%s:%s",
+            type(e).__name__, e,
+        )
+        return 0, 0.0
+
+    count = 0
+    oldest_age = 0.0
+    with entries:
+        for entry in entries:
+            if not entry.name.isdigit():
+                continue
+            try:
+                with open(
+                    f"/proc/{entry.name}/stat", encoding="utf-8", errors="replace",
+                ) as fh:
+                    stat = fh.read()
+                fields = stat[stat.rfind(")") + 2:].split()
+                if int(fields[3]) != session_id:
+                    continue
+                age = max(0.0, uptime - int(fields[19]) / clock_ticks)
+            except (OSError, ValueError, IndexError):
+                continue  # /proc entries routinely disappear during the scan
+            count += 1
+            oldest_age = max(oldest_age, age)
+    return count, oldest_age
+
+
 async def _communicate_cron_command(
     proc: asyncio.subprocess.Process,
 ) -> tuple[bytes, bytes]:
@@ -681,29 +717,24 @@ class BgJobManager:
                 try:
                     await asyncio.wait_for(asyncio.shield(reader_task), timeout=2)
                 except asyncio.TimeoutError:
-                    # Codex may leave an MCP child holding the inherited stdout FD.
-                    # The job itself has exited, so terminate only its dedicated
-                    # process group and stop waiting for an EOF that will never come.
                     logger.warning(
                         f"bg_job {job_id}: stdout still open after pid={proc.pid} exited; "
-                        "terminating leftover process group"
+                        "detaching reader without signaling descendants"
                     )
-                    try:
-                        os.killpg(proc.pid, signal.SIGTERM)
-                    except (ProcessLookupError, PermissionError):
-                        pass
-                    try:
-                        await asyncio.wait_for(asyncio.shield(reader_task), timeout=2)
-                    except asyncio.TimeoutError:
-                        try:
-                            os.killpg(proc.pid, signal.SIGKILL)
-                        except (ProcessLookupError, PermissionError):
-                            pass
-                        reader_task.cancel()
-                        await asyncio.gather(reader_task, return_exceptions=True)
-                        transport = getattr(proc, "_transport", None)
-                        if transport:
-                            transport.close()
+                    reader_task.cancel()
+                    await asyncio.gather(reader_task, return_exceptions=True)
+                    transport = getattr(proc, "_transport", None)
+                    if transport:
+                        transport.close()
+                orphan_count, oldest_age = await asyncio.to_thread(
+                    _orphan_session_stats, proc.pid,
+                )
+                if orphan_count:
+                    logger.warning(
+                        "bg_job %s: orphan_tree=1 session=%s processes=%s "
+                        "oldest_process_age_seconds=%.1f observation_only=true",
+                        job_id, proc.pid, orphan_count, oldest_age,
+                    )
             full_output = "".join(output_buf)
             exit_code = proc.returncode
             logger.info(f"bg_job {job_id}: run done pid={proc.pid} exit={exit_code} "
@@ -755,6 +786,9 @@ class BgJobManager:
             self._procs.pop(job_id, None)
             if proc:
                 await _kill_proc(proc)
+                transport = getattr(proc, "_transport", None)
+                if proc.returncode is not None and transport:
+                    transport.close()
 
 
 bg_manager = BgJobManager()
