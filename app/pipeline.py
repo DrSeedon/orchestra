@@ -22,7 +22,7 @@ from app.models import ALIASES, MODELS
 
 logger = logging.getLogger(__name__)
 
-# Корень с пайплайнами: <repo>/pipelines/. default и tasks-pm — оба в гите.
+# Корень с пайплайнами: <repo>/pipelines/. В гите только default.
 PIPELINES_DIR = Path(__file__).parent.parent / "pipelines"
 DEFAULT_PIPELINE = "default"
 
