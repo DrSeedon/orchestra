@@ -87,11 +87,10 @@ class TestDefaultManifestLoads:
 # ── resolve_role: локальные модели и kind ──────────────────────────────────
 
 class TestDefaultRolesResolve:
-    def test_worker_model_resolves_to_sol(self):
+    def test_worker_model_resolves_to_opus5(self):
         rr = P.get_role(PIPELINE, "worker")
         assert rr is not None
-        assert rr.model == "gpt5.6sol"
-        assert "gpt5.6sol" in P.ALIASES
+        assert rr.model == "claude-opus-5[1m]"
 
     def test_orchestrator_is_orchestrator(self):
         rr = P.get_role(PIPELINE, "orchestrator")
@@ -104,10 +103,10 @@ class TestDefaultRolesResolve:
         assert P.get_role(PIPELINE, "worker").is_orchestrator is False
         assert P.get_role(PIPELINE, "full-cycle").is_orchestrator is False
 
-    def test_full_cycle_model_sol(self):
+    def test_full_cycle_model_opus5(self):
         rr = P.get_role(PIPELINE, "full-cycle")
         assert rr is not None
-        assert rr.model == "gpt5.6sol"
+        assert rr.model == "claude-opus-5[1m]"
 
     def test_sub_orchestrator_is_orchestrator_opus5(self):
         """sub-orchestrator — kind:orchestrator, Opus 5, can_spawn=['*']."""

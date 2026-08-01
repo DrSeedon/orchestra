@@ -3,7 +3,7 @@
 [Changelog](CHANGELOG.md)
 
 ## Что это
-Свой оркестратор AI-агентов. Opus оркестратор управляет Haiku/Sonnet воркерами через MCP tools.
+Свой оркестратор AI-агентов. Opus-оркестратор управляет воркерами через MCP tools.
 Каждый worker = Claude CLI в отдельном git worktree. Dashboard = FastAPI + HTMX + SSE.
 
 ## Стек
@@ -74,10 +74,8 @@ sudo systemctl status orchestra
 - **TG bot** (telegram-bot-api) — через proxychains (`/etc/proxychains4.conf`), C++ бинарник не читает .env. Обычно socks5 Contabo (12345). **ВАЖНО**: при смене прокси обновлять ОБА файла: `/etc/proxychains4.conf` И `~/.proxychains/proxychains.conf` — user-config имеет приоритет
 
 ## Pricing
-- **Claude Max $100/мес + Codex Pro $100/мес** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
-- **Стратегия (2026-07-22)**: все воркеры → Sol (gpt-5.6-sol), оркестраторы → Opus 4.6 (Claude). Codex планируется апгрейд до $200 (20×), Claude остаётся $100 (5×)
-- **RULE: Квота (отдельный пул) — first-order фактор при выборе модели, не risk footnote.** Sol использует отдельный Codex-пул; Claude расходуется только при task-level эскалации на Opus 4.6 для brand/voice copy или Opus 4.8 для deep analysis/research/citations/1M/vision
-- Codex 5× хватает на ~2.5 рабочих дня, 20× на ~5-10 дней (замерено). Claude 5× без воркеров = ~30% утилизации (хватает)
+- **Claude Max 20× + Codex Pro** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
+- **Модели: единственный source of truth — `<model-routing>` системного промпта.** Выбор идёт по классу задачи и текущему quota runway, не по историческим процентам; при отсутствии telemetry используется manifest default
 - Fable 5 НЕ юзать — 2× дороже Opus по лимитам, сжигает 5h окно
 - API цены (для калькуляции): Opus $5/$25, Sonnet $3/$15, Haiku $1/$5 per M tokens
 - Не паниковать от "$172 на оркестратора" — monopoly money. Оптимизировать КАЧЕСТВО, не стоимость
@@ -140,9 +138,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 **Модели и лимиты**
 - Opus 5 вдруг с 200K контекста → голый `claude-opus-5` репортит `contextWindow: 200000`, а `claude-opus-5[1m]` — 1000000 (проверено пробой CLI, докой НЕ подтверждается) → всегда пинить `[1m]`, alias `opus` в сохранённой модели сессии не использовать. Отдельного бакета у Opus 5 нет — ест общий 5h/7d счётчик
 - `UPDATE sessions SET model=...` отработал, а после рестарта модель прежняя → живой сервер перезаписывает `sessions.model` из памяти при auto_resume → править при остановленном сервере и ПЕРЕПРОВЕРЯТЬ после рестарта; при смене бэкенда Codex→Claude обнулять ещё и `session_id`
-- Лимиты кончаются вдвое быстрее «без причины» → после даунгрейда Max $200→$100 ход стоит 0.270% вместо 0.142% (1.9×, замер за 14 дней) → планировать вдвое меньше ходов. Fable на оркестраторе = 4× (2× цена × 2× лимит)
 - full-cycle крашится сразу на старте на Claude-модели → `effort=xhigh` из pipeline.yaml, а Claude API отвергает xhigh без thinking → auto-downgrade xhigh→high (`backend_claude.py`)
-- Оркестратор на Opus 4.8 молча ломает оркестрацию → у 4.8 баги tool-calls именно в orchestration-режиме → оркестраторы на Opus 5, 4.8 только full-cycle/reviewer
 - Финальное ревью на Spark пропускает баги → в A/B Spark прошляпил реальный double-count, который поймал Sol → финальные ревью не роутить на дешёвую модель
 
 **Codex / Sol**

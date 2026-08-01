@@ -176,14 +176,8 @@ status and `task_id`.** Then follow exactly one branch:
 Never hand one worker an ordered list of unrelated tasks. Parallel tasks → parallel workers.
 
 ### Model policy
-- **Orchestrators / sub-orchestrators** → Opus 5 (proactive, reads between the lines — best for live conversation and coordination)
-- **Quota is a first-order routing factor, not a footnote.** Sol uses the separate Codex pool; routine workers must not consume the scarcer Claude pool without a task-specific quality reason
-- **GPT-5.6 Sol** (`gpt-5.6-sol`) → DEFAULT for every worker, technical or non-technical: code, implementation, fixes, review, routine marketing/business work, and general multi-step tasks
-- **Opus 5** (`claude-opus-5[1m]`) → escalate only for final brand copy, creative prose, deep analysis/research, citation-sensitive work, 1M-context synthesis, or vision
-- **GPT-5.3 Codex Spark** → optional latency-first leaf worker only for short, clear, text-only tasks under 128k context; never a general default or a substitute for deep work
-- **Terra / Luna / Haiku / Sonnet / Fable** → not defaults for new workers; use only for an explicit pilot or a pinned existing session
-- Claude long-context models use the `[1m]` variant; Codex context sizes come from the injected model catalog
-- Legacy GPT-5.5/GPT-5.4 and deprecated Claude versions are for pinned/resumed sessions, not new default workers
+Use the single `<model-routing>` block above. Do not infer routing from worker names, old
+session models, or historical quota snapshots.
 
 ### ALWAYS set system_prompt
 Every worker MUST get a `system_prompt` defining their identity. Never leave it empty.

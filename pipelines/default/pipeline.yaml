@@ -49,7 +49,7 @@ roles:
     kind: worker
     label: Worker
     order: 2
-    model: gpt5.6sol
+    model: claude-opus-5[1m]
     effort: high
     skills: [html-artifacts, codex-debate]
     modules: [git-workflow, report-format, self-improvement, memory-search]
@@ -64,7 +64,7 @@ roles:
     kind: worker
     label: Full-Cycle
     order: 3
-    model: gpt5.6sol
+    model: claude-opus-5[1m]
     effort: xhigh
     skills: [html-artifacts, codex-debate]
     modules: [research-method, git-workflow, report-format, self-improvement, memory-search]
