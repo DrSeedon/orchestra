@@ -59,33 +59,6 @@ class Tunnel:
 _tunnels: list[Tunnel] = []
 
 
-async def _kill_stale(t: Tunnel):
-    """Kill orphan ssh forwards for THIS tunnel left by prior runs / network changes.
-
-    WHY: on network switch or non-graceful restart the old `ssh -N -L` process
-    lingers holding the port in a half-dead state → new tunnel can't bind →
-    proxy silently returns HTTP 000. Match pins the FULL forward spec
-    ({local}:127.0.0.1:{remote}) + host so it only kills our own tunnel def —
-    never a same-local-port forward owned by something else, and 12340 never
-    matches 123400.
-    """
-    if t.mode == "dynamic":
-        pattern = f"ssh -N -D {t.local_port} .*root@{t.host}"
-    else:
-        pattern = f"ssh -N -L {t.local_port}:127.0.0.1:{t.remote_port} .*root@{t.host}"
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "pkill", "-f", pattern,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        await proc.wait()
-        if proc.returncode == 0:
-            logger.info(f"killed stale ssh on :{t.local_port} ({t.name})")
-    except Exception as e:
-        logger.warning(f"stale cleanup failed for :{t.local_port}: {e}")
-
-
 def _parse_tunnels() -> list[Tunnel]:
     raw = os.getenv("SSH_TUNNELS", "")
     if not raw:
@@ -203,7 +176,9 @@ async def start_tunnel():
         else:
             managed.append(tunnel)
 
-    await asyncio.gather(*(_kill_stale(t) for t in managed))
+    # systemd KillMode=control-group owns crash cleanup in production. A manual
+    # SIGKILL outside systemd can leave ssh behind, but command-line matching
+    # cannot prove ownership and may kill a user's or another project's tunnel.
     for t in managed:
         t.task = asyncio.create_task(_tunnel_loop(t))
     names = ", ".join(

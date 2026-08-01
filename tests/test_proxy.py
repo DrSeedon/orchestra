@@ -1,6 +1,8 @@
 """Proxy manager (read-only, .env source of truth) + ssh_tunnel health-gate."""
 
 import asyncio
+import subprocess
+import sys
 from unittest.mock import AsyncMock
 
 import pytest
@@ -140,24 +142,19 @@ async def test_port_open_probe():
 
 
 @pytest.mark.asyncio
-async def test_health_gate_blocks_dead_vps():
+async def test_health_gate_blocks_dead_vps(monkeypatch):
     # unroutable host → health-gate must NOT spawn ssh
     t = st.Tunnel(name="dead", local_port=19997, host="10.255.255.1",
                   remote_port=3128, key_path="")
+    spawn = AsyncMock()
+    monkeypatch.setattr(st, "_port_open", AsyncMock(return_value=False))
+    monkeypatch.setattr(st.asyncio, "create_subprocess_exec", spawn)
     task = asyncio.create_task(st._tunnel_loop(t))
-    await asyncio.sleep(st.HEALTH_TIMEOUT + 1)  # one failed probe → backoff
-    # match only real ssh processes (comm==ssh) — pgrep -f self-matches this
-    # test's own cmdline otherwise
-    proc = await asyncio.create_subprocess_exec(
-        "pgrep", "-x", "ssh", "-f", "ssh -N -L 19997:127.0.0.1:",
-        stdout=asyncio.subprocess.PIPE)
-    out, _ = await proc.communicate()
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
     task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
-    assert not out.decode().strip(), "dead VPS must not spawn ssh"
+    await task
+    spawn.assert_not_awaited()
     assert t.running is False
 
 
@@ -170,14 +167,43 @@ async def test_start_tunnel_adopts_already_bound_external_forward(monkeypatch):
         remote_port=3128,
         key_path="",
     )
-    cleanup = AsyncMock()
     monkeypatch.setattr(st, "_parse_tunnels", lambda: [tunnel])
     monkeypatch.setattr(st, "_port_open", AsyncMock(return_value=True))
-    monkeypatch.setattr(st, "_kill_stale", cleanup)
 
     await st.start_tunnel()
 
     assert tunnel.externally_managed is True
     assert tunnel.running is True
     assert tunnel.task is None
-    cleanup.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_start_stop_never_signals_similar_foreign_process(monkeypatch):
+    tunnel = st.Tunnel(
+        name="owned",
+        local_port=23456,
+        host="198.51.100.42",
+        remote_port=34567,
+        key_path="",
+    )
+    old_match = (
+        "ssh -N -L 23456:127.0.0.1:34567 "
+        "-o ExitOnForwardFailure=yes root@198.51.100.42"
+    )
+    foreign = subprocess.Popen(
+        [old_match, "-c", "import time; time.sleep(30)"],
+        executable=sys.executable,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    monkeypatch.setattr(st, "_parse_tunnels", lambda: [tunnel])
+    monkeypatch.setattr(st, "_port_open", AsyncMock(return_value=False))
+
+    try:
+        await st.start_tunnel()
+        assert foreign.poll() is None
+        await st.stop_tunnel()
+        assert foreign.poll() is None
+    finally:
+        foreign.terminate()
+        foreign.wait(timeout=5)
