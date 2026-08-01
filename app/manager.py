@@ -672,11 +672,159 @@ class SessionManager:
         await _wait_owned_task(finalize_task)
         return finalize_task.result()
 
+    async def _auto_switch_before_delivery(self, session: AgentSession) -> None:
+        if not session.needs_switch:
+            return
+        if session.status != AgentStatus.IDLE:
+            raise RuntimeError(
+                f"worker is {session.status.value} — cannot auto-switch before delivery"
+            )
+        if not session.worktree_path:
+            raise RuntimeError("auto-switch failed: session has no worktree")
+
+        async with session._lifecycle_lock:
+            if not session.needs_switch:
+                return
+            if session.status != AgentStatus.IDLE:
+                raise RuntimeError(
+                    f"worker is {session.status.value} — cannot auto-switch before delivery"
+                )
+
+            from app.workspace import inspect_worktree_identity, switch_worktree_branch
+            import time
+
+            try:
+                base_branch = await asyncio.to_thread(
+                    resolve_git_base_branch,
+                    session.worktree_path,
+                    session.base_branch,
+                )
+            except Exception as error:
+                detail = str(error) or type(error).__name__
+                raise RuntimeError(
+                    f"auto-switch failed: base resolution raised "
+                    f"{type(error).__name__}: {detail}"
+                ) from error
+            adhoc_id = str(int(time.time()))[-6:]
+            new_branch = f"adhoc-{adhoc_id}/{session.name}"
+            try:
+                result = await asyncio.to_thread(
+                    switch_worktree_branch,
+                    session.worktree_path,
+                    new_branch,
+                    base_branch,
+                    force=True,
+                )
+            except Exception as error:
+                detail = str(error) or type(error).__name__
+                session.task_id = ""
+                session.needs_switch = True
+                try:
+                    actual_branch, _actual_head = await asyncio.to_thread(
+                        inspect_worktree_identity, session.worktree_path,
+                    )
+                except Exception as inspect_error:
+                    inspect_detail = str(inspect_error) or type(inspect_error).__name__
+                    detail = f"{detail}; actual Git state unavailable: {inspect_detail}"
+                else:
+                    try:
+                        await self.persist_lifecycle(
+                            session,
+                            branch=actual_branch,
+                            base_branch=base_branch,
+                            task_id="",
+                            needs_switch=True,
+                        )
+                    except Exception as persist_error:
+                        session.branch = actual_branch
+                        session.base_branch = base_branch
+                        session.task_id = ""
+                        session.needs_switch = True
+                        persist_detail = (
+                            str(persist_error) or type(persist_error).__name__
+                        )
+                        detail = (
+                            f"{detail}; quarantine persistence failed: {persist_detail}"
+                        )
+                raise RuntimeError(
+                    f"auto-switch failed: Git switch raised "
+                    f"{type(error).__name__}: {detail}"
+                ) from error
+            if not result.get("ok"):
+                detail = result.get("error") or "Git switch returned no error detail"
+                if result.get("state") == "rollback_failed":
+                    actual_branch = result.get("actual_branch") or session.branch or ""
+                    try:
+                        await self.persist_lifecycle(
+                            session,
+                            branch=actual_branch,
+                            base_branch=base_branch,
+                            task_id="",
+                            needs_switch=True,
+                        )
+                    except Exception as persist_error:
+                        session.branch = actual_branch
+                        session.base_branch = base_branch
+                        session.task_id = ""
+                        session.needs_switch = True
+                        persist_detail = str(persist_error) or type(persist_error).__name__
+                        detail = f"{detail}; quarantine persistence failed: {persist_detail}"
+                raise RuntimeError(f"auto-switch failed: {detail}")
+
+            switched_branch = result.get("branch") or new_branch
+            try:
+                await self.persist_lifecycle(
+                    session,
+                    branch=switched_branch,
+                    base_branch=base_branch,
+                    task_id="",
+                    needs_switch=False,
+                )
+            except Exception as persist_error:
+                first_detail = str(persist_error) or type(persist_error).__name__
+                try:
+                    await self.persist_lifecycle(
+                        session,
+                        branch=switched_branch,
+                        base_branch=base_branch,
+                        task_id="",
+                        needs_switch=True,
+                    )
+                except Exception as quarantine_error:
+                    session.branch = switched_branch
+                    session.base_branch = base_branch
+                    session.task_id = ""
+                    session.needs_switch = True
+                    quarantine_detail = (
+                        str(quarantine_error) or type(quarantine_error).__name__
+                    )
+                    first_detail = (
+                        f"{first_detail}; quarantine persistence failed: "
+                        f"{quarantine_detail}"
+                    )
+                raise RuntimeError(
+                    f"auto-switch failed: lifecycle persistence failed: {first_detail}"
+                ) from persist_error
+
+            logger.info(
+                "auto-switch %s to %s before delivery", session.name, switched_branch,
+            )
+
     async def send(self, session_id: str, message: str) -> None:
         session = self.sessions.get(session_id)
         if not session:
             raise KeyError(f"session not found: {session_id}")
-        await session.send(message)
+
+        async def deliver() -> None:
+            async with self.get_session_lock(session_id):
+                if self.sessions.get(session_id) is not session:
+                    raise KeyError(f"session changed before delivery: {session_id}")
+                await self._auto_switch_before_delivery(session)
+                await session.send(message)
+
+        delivery_task = asyncio.create_task(deliver())
+        await _wait_owned_task(delivery_task)
+        delivery_task.result()
 
     async def interrupt(self, session_id: str) -> None:
         session = self.sessions.get(session_id)
@@ -1226,7 +1374,7 @@ class SessionManager:
                 f"Last output:\n{summary}{ctx}"
             )
             logger.info(f"Auto-report: {worker_name} → {orch}")
-            await orch_session.send(msg)
+            await self.send(orch_session.id, msg)
         return _on_worker_idle
 
     # ── Listings ──
@@ -1360,7 +1508,8 @@ class SessionManager:
         # concurrently and cause a connection storm; spread them over 15s
         await asyncio.sleep(3 + random.uniform(0, 12))
         try:
-            await session.send(
+            await self.send(
+                session.id,
                 "[system] Orchestra server restarted. "
                 "Your session was restored — continue where you left off."
             )

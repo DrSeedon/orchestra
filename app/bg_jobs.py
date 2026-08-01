@@ -390,7 +390,7 @@ class BgJobManager:
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
             self._restore_report_provenance(session)
-            await session.send(body)
+            await self._session_manager.send(session.id, body)
             bg_finish_trigger(job_id, output)
             logger.info(f"bg_job {job_id}: triggered → {target_name}")
         except Exception as e:
@@ -420,7 +420,7 @@ class BgJobManager:
             if output:
                 body += f"\n\nPartial output (last 3000 chars):\n{output[-3000:]}"
             self._restore_report_provenance(session)
-            await session.send(body)
+            await self._session_manager.send(session.id, body)
             logger.warning(f"bg_job {job_id}: TIMED OUT after {dur} → notified {target_name}")
         except Exception as e:
             logger.error(f"bg_job {job_id}: timeout-notify failed: {e}")
@@ -438,7 +438,7 @@ class BgJobManager:
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
             self._restore_report_provenance(session)
-            await session.send(body)
+            await self._session_manager.send(session.id, body)
             logger.warning(f"bg_job {job_id}: FAILED → notified {target_name}: {error}")
         except Exception as e:
             logger.error(f"bg_job {job_id}: failure-notify failed: {e}")
@@ -503,7 +503,9 @@ class BgJobManager:
             if not session:
                 logger.warning(f"cron {job_id}: target {target_name} not found, skipping fire")
                 return
-            await session.send(f"[Cron job fired] {message}")
+            await self._session_manager.send(
+                session.id, f"[Cron job fired] {message}",
+            )
             bg_cron_record_fire(job_id)
             logger.info(f"cron {job_id}: fired → {target_name}")
         except Exception as e:
@@ -566,7 +568,7 @@ class BgJobManager:
             body = f"[Cron command matched] {message}"
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
-            await session.send(body)
+            await self._session_manager.send(session.id, body)
             bg_cron_record_fire(job_id)
             bg_update_output(job_id, output)
             logger.info("cron_command %s: matched → %s", job_id, target_name)

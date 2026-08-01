@@ -364,29 +364,6 @@ async def send_message(name: str, req: SendRequest):
             similar = [n for n in all_names if name.lower() in n.lower() or n.lower() in name.lower()]
             hint = f" Similar: {', '.join(similar[:5])}" if similar else f" Available: {', '.join(all_names[:10])}"
             return JSONResponse({"error": f"agent '{name}' not found.{hint}"}, status_code=404)
-        if hasattr(session, 'needs_switch') and session.needs_switch:
-            try:
-                from app.workspace import switch_worktree_branch
-                import time
-                adhoc_id = str(int(time.time()))[-6:]
-                new_branch = f"adhoc-{adhoc_id}/{name}"
-                wt = session.worktree_path or session.cwd
-                base_branch = _session_base_branch(session)
-                res = await asyncio.to_thread(
-                    switch_worktree_branch, wt, new_branch, base_branch, force=True)
-                if res.get("ok"):
-                    await manager.persist_lifecycle(
-                        session,
-                        branch=res.get("branch", new_branch),
-                        base_branch=base_branch,
-                        task_id="",
-                        needs_switch=False,
-                    )
-                    logger.info(f"auto-switch {name} to {new_branch} on send_message")
-                else:
-                    return JSONResponse({"error": f"auto-switch failed: {res}"}, status_code=400)
-            except Exception as e:
-                return JSONResponse({"error": f"auto-switch failed: {e}"}, status_code=400)
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)

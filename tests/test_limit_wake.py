@@ -962,9 +962,15 @@ async def test_wake_job_stops_before_second_agent_when_limit_closes(
         ]),
     )
     session = MagicMock(status=AgentStatus.IDLE)
+    session.id = "a"
     session.send = AsyncMock()
     manager = MagicMock()
     manager.ensure_loaded = AsyncMock(return_value=session)
+
+    async def deliver(_session_id, message):
+        await session.send(message)
+
+    manager.send = AsyncMock(side_effect=deliver)
 
     await run_wake_job(
         "wake-job",
@@ -976,6 +982,7 @@ async def test_wake_job_stops_before_second_agent_when_limit_closes(
         stagger_seconds=0,
     )
 
+    manager.send.assert_awaited_once()
     session.send.assert_awaited_once()
     row = next(job for job in bg_get_jobs() if job["id"] == "wake-job")
     assert row["status"] == "triggered"

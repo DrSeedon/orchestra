@@ -1315,7 +1315,7 @@ async def test_delete_orchestrator_reports_worktree_remove_failure(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_send_auto_switch_uses_and_persists_base(monkeypatch):
+async def test_send_delegates_auto_switch_to_manager(monkeypatch):
     import app.main as mainmod
     import app.routes.sessions as sessmod
     from unittest.mock import AsyncMock
@@ -1331,32 +1331,18 @@ async def test_send_auto_switch_uses_and_persists_base(monkeypatch):
         "needs_switch": True,
         "parent_name": "orch",
     })()
-    captured = {}
-
-    def fake_switch(_wt, new_branch, from_ref, force=False):
-        captured.update(new_branch=new_branch, from_ref=from_ref, force=force)
-        return {"ok": True, "branch": new_branch}
-
-    async def persist_lifecycle(found, **fields):
-        for key, value in fields.items():
-            setattr(found, key, value)
-
     monkeypatch.setattr(mainmod.manager, "ensure_loaded", AsyncMock(return_value=session))
     monkeypatch.setattr(mainmod.manager, "send", AsyncMock())
-    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
-    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
-    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
 
     result = await sessmod.send_message(
         "w", sessmod.SendRequest(message="next", scope="/s"),
     )
 
     assert result["ok"] is True
-    assert captured["from_ref"] == "master"
-    assert captured["force"] is True
-    assert session.base_branch == "master"
-    assert session.needs_switch is False
     mainmod.manager.send.assert_awaited_once()
+    delivered_to, delivered_message = mainmod.manager.send.await_args.args
+    assert delivered_to == "sid"
+    assert delivered_message.endswith("next")
 
 
 @pytest.mark.asyncio

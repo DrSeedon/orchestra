@@ -669,7 +669,7 @@ async def run_wake_job(
                 "Продолжай с того места, где остановился."
             )
             try:
-                await session.send(message)
+                await session_manager.send(session.id, message)
             except Exception:
                 deliveries.pop(target_id, None)
                 _persist_deliveries(

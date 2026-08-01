@@ -929,6 +929,331 @@ class TestSendAndControl:
             await mgr.send("nonexistent", "hello")
 
     @pytest.mark.asyncio
+    async def test_send_rechecks_needs_switch_after_session_lock(
+        self, mgr, monkeypatch,
+    ):
+        import app.manager as manager_module
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.branch = "task-90/w"
+        session.base_branch = "main"
+        session.send = AsyncMock()
+        switches = []
+
+        def switch(*args, **kwargs):
+            switches.append((args, kwargs))
+            return {"ok": True, "branch": "adhoc-1/w"}
+
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *_: "main")
+        monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
+
+        lock = mgr.get_session_lock(session.id)
+        await lock.acquire()
+        delivery = asyncio.create_task(mgr.send(session.id, "after merge"))
+        await asyncio.sleep(0)
+        await mgr.persist_lifecycle(
+            session,
+            branch="task-90/w",
+            base_branch="main",
+            task_id="",
+            needs_switch=True,
+        )
+        lock.release()
+
+        await delivery
+
+        assert len(switches) == 1
+        assert session.needs_switch is False
+        session.send.assert_awaited_once_with("after merge")
+
+    @pytest.mark.asyncio
+    async def test_concurrent_sends_switch_once_and_deliver_serially(
+        self, mgr, monkeypatch,
+    ):
+        import app.manager as manager_module
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.branch = "task-90/w"
+        session.base_branch = "main"
+        session.needs_switch = True
+        switch_count = 0
+        active = 0
+        max_active = 0
+        delivered = []
+
+        def switch(*_args, **_kwargs):
+            nonlocal switch_count
+            switch_count += 1
+            return {"ok": True, "branch": "adhoc-1/w"}
+
+        async def accept(message):
+            nonlocal active, max_active
+            assert not session._lifecycle_lock.locked()
+            active += 1
+            max_active = max(max_active, active)
+            await asyncio.sleep(0)
+            delivered.append(message)
+            active -= 1
+
+        session.send = AsyncMock(side_effect=accept)
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *_: "main")
+        monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
+
+        await asyncio.gather(
+            mgr.send(session.id, "first"),
+            mgr.send(session.id, "second"),
+        )
+
+        assert switch_count == 1
+        assert max_active == 1
+        assert delivered == ["first", "second"]
+
+    @pytest.mark.asyncio
+    async def test_waiting_needs_switch_rejects_without_git_or_backend(
+        self, mgr, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.needs_switch = True
+        session.status = AgentStatus.WAITING
+        session.send = AsyncMock()
+        switch = MagicMock()
+        monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
+
+        with pytest.raises(RuntimeError, match="worker is waiting"):
+            await mgr.send(session.id, "must wait")
+
+        switch.assert_not_called()
+        session.send.assert_not_awaited()
+        assert session.needs_switch is True
+
+    @pytest.mark.asyncio
+    async def test_auto_switch_failure_keeps_quarantine_and_surfaces_git_error(
+        self, mgr, monkeypatch,
+    ):
+        import app.manager as manager_module
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.base_branch = "main"
+        session.needs_switch = True
+        session.send = AsyncMock()
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *_: "main")
+        monkeypatch.setattr(
+            "app.workspace.switch_worktree_branch",
+            lambda *_args, **_kwargs: {
+                "ok": False,
+                "state": "rolled_back",
+                "error": "target contains uncommitted.txt",
+            },
+        )
+
+        with pytest.raises(RuntimeError, match="target contains uncommitted.txt"):
+            await mgr.send(session.id, "blocked")
+
+        assert session.needs_switch is True
+        session.send.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failing_helper", ["resolve", "switch"])
+    async def test_auto_switch_exceptions_have_detail_and_keep_quarantine(
+        self, mgr, monkeypatch, failing_helper,
+    ):
+        import app.manager as manager_module
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.branch = "task-90/w"
+        session.base_branch = "main"
+        session.needs_switch = True
+        session.send = AsyncMock()
+
+        if failing_helper == "resolve":
+            def resolve(*_args):
+                raise TimeoutError
+
+            switch = MagicMock()
+        else:
+            resolve = lambda *_args: "main"
+
+            def switch(*_args, **_kwargs):
+                raise TimeoutError
+
+            monkeypatch.setattr(
+                "app.workspace.inspect_worktree_identity",
+                lambda *_args: ("task-90/w", "head"),
+            )
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", resolve)
+        monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
+
+        with pytest.raises(RuntimeError, match="TimeoutError"):
+            await mgr.send(session.id, "blocked")
+
+        assert session.needs_switch is True
+        session.send.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_auto_switch_persist_failure_requarantines_without_delivery(
+        self, mgr, monkeypatch,
+    ):
+        import app.manager as manager_module
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.branch = "task-90/w"
+        session.base_branch = "main"
+        session.needs_switch = True
+        session.send = AsyncMock()
+        persist_calls = []
+
+        async def persist(found, **fields):
+            persist_calls.append(fields)
+            if len(persist_calls) == 1:
+                found.needs_switch = False
+                raise RuntimeError("database unavailable")
+            for key, value in fields.items():
+                setattr(found, key, value)
+
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *_: "main")
+        monkeypatch.setattr(
+            "app.workspace.switch_worktree_branch",
+            lambda *_args, **_kwargs: {"ok": True, "branch": "adhoc-1/w"},
+        )
+        monkeypatch.setattr(mgr, "persist_lifecycle", persist)
+
+        with pytest.raises(RuntimeError, match="database unavailable"):
+            await mgr.send(session.id, "blocked")
+
+        assert [call["needs_switch"] for call in persist_calls] == [False, True]
+        assert session.branch == "adhoc-1/w"
+        assert session.needs_switch is True
+        session.send.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_send_waits_for_lifecycle_holder_before_git_and_backend(
+        self, mgr, monkeypatch,
+    ):
+        import app.manager as manager_module
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.base_branch = "main"
+        session.needs_switch = True
+        session.send = AsyncMock()
+        switch = MagicMock(return_value={"ok": True, "branch": "adhoc-1/w"})
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *_: "main")
+        monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
+
+        await session._lifecycle_lock.acquire()
+        delivery = asyncio.create_task(mgr.send(session.id, "serialized"))
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+        assert mgr.get_session_lock(session.id).locked()
+        switch.assert_not_called()
+        session.send.assert_not_awaited()
+
+        session._lifecycle_lock.release()
+        await asyncio.wait_for(delivery, timeout=2)
+
+        switch.assert_called_once()
+        session.send.assert_awaited_once_with("serialized")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("blocked_stage", ["switch", "persist", "backend"])
+    async def test_delivery_owns_commit_point_despite_repeated_cancellation(
+        self, mgr, monkeypatch, blocked_stage,
+    ):
+        import app.manager as manager_module
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.worktree_path = "/wt"
+        session.branch = "task-90/w"
+        session.base_branch = "main"
+        session.needs_switch = True
+        entered = threading.Event()
+        release = threading.Event()
+        switch_count = 0
+        delivered = []
+
+        def switch(*_args, **_kwargs):
+            nonlocal switch_count
+            switch_count += 1
+            if blocked_stage == "switch":
+                entered.set()
+                assert release.wait(2)
+            return {"ok": True, "branch": "adhoc-1/w"}
+
+        async def persist(found, **fields):
+            if blocked_stage == "persist":
+                entered.set()
+                assert await asyncio.to_thread(release.wait, 2)
+            for key, value in fields.items():
+                setattr(found, key, value)
+
+        async def accept(message):
+            if blocked_stage == "backend":
+                entered.set()
+                assert await asyncio.to_thread(release.wait, 2)
+            delivered.append(message)
+
+        session.send = AsyncMock(side_effect=accept)
+        monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *_: "main")
+        monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
+        monkeypatch.setattr(mgr, "persist_lifecycle", persist)
+
+        delivery = asyncio.create_task(mgr.send(session.id, "exactly once"))
+        assert await asyncio.to_thread(entered.wait, 2)
+        delivery.cancel()
+        await asyncio.sleep(0)
+        delivery.cancel()
+        await asyncio.sleep(0)
+
+        assert delivery.done() is False
+        assert mgr.get_session_lock(session.id).locked()
+        release.set()
+        await delivery
+
+        assert switch_count == 1
+        assert delivered == ["exactly once"]
+        assert session.needs_switch is False
+
+    @pytest.mark.asyncio
+    async def test_running_send_preserves_mid_turn_delivery(self, mgr):
+        from app.session import AgentStatus
+
+        session = await mgr.create_session(
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        )
+        session.status = AgentStatus.RUNNING
+        session.needs_switch = False
+        session.send = AsyncMock()
+
+        await mgr.send(session.id, "steer")
+
+        session.send.assert_awaited_once_with("steer")
+
+    @pytest.mark.asyncio
     async def test_stop_and_remove(self, mgr):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):

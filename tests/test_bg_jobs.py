@@ -22,9 +22,15 @@ def db(tmp_path, monkeypatch):
 def mgr_mock():
     m = MagicMock()
     sess = MagicMock()
+    sess.id = "s-1"
     sess.send = AsyncMock()
     m.ensure_loaded = AsyncMock(return_value=sess)
     m.ensure_loaded_any = AsyncMock(return_value=sess)
+
+    async def deliver(_session_id, message):
+        await sess.send(message)
+
+    m.send = AsyncMock(side_effect=deliver)
     return m, sess
 
 
@@ -189,6 +195,7 @@ class TestFireCron:
             "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
         })
         await mgr._fire_cron("c1", "ping", "w1", "/s")
+        m.send.assert_awaited_once_with("s-1", "[Cron job fired] ping")
         sess.send.assert_awaited_once()
         job = next(j for j in bg_get_active_all() if j["id"] == "c1")
         assert job["status"] == "active"

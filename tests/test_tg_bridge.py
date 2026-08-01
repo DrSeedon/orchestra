@@ -3936,6 +3936,7 @@ class TestCronCommandTopicBoundary99:
         tb.config["topics"] = {"orch": 42}
 
         session = type("Session", (), {
+            "id": "intent-hunter",
             "parent_name": "orch",
             "last_task_sender": "orch",
         })()
@@ -3944,8 +3945,13 @@ class TestCronCommandTopicBoundary99:
             await tb.notify_scope_running("orch")
 
         session.send = AsyncMock(side_effect=send)
+
+        async def manager_send(_session_id, message):
+            await session.send(message)
+
         session_manager = type("Manager", (), {
             "ensure_loaded": AsyncMock(return_value=session),
+            "send": AsyncMock(side_effect=manager_send),
         })()
         manager = module.BgJobManager()
         manager.set_session_manager(session_manager)
@@ -3993,6 +3999,7 @@ class TestCronCommandTopicBoundary99:
         )
         await asyncio.gather(*tb._topic_status_tasks.values())
 
+        session_manager.send.assert_awaited_once()
         session.send.assert_awaited_once()
         tb.bot.edit_forum_topic.assert_awaited_once()
 
