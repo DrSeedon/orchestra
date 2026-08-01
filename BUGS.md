@@ -324,3 +324,8 @@ Task #102 implementation review failed 3/3 on 2026-07-29. Attempts: bg-a5bb44628
 - **Reporter:** dev-lead
 - **Scope:** /mnt/data/Projects/Python/seedon
 Project seedon, worker feat-attribution, task #180: three consecutive triggered turns ended with stop_reason=error and no explicit report or output. worker_wip vs main is clean (no uncommitted or unmerged work); worker returns idle with ctx reset to 0. This caused the high-priority task to make zero progress despite dispatch/retries. Please inspect worker runtime/session failure path and ensure errors include actionable diagnostics.
+
+## [2026-08-01 07:07 UTC] PreToolUse ложно блокирует read-only rg по слову shutdown
+- **Reporter:** fix-branch-switch
+- **Scope:** /mnt/data/Projects/Python/orchestra
+В #112 безопасная команда чтения установленного Python-пакета Serena была целиком заблокирована как `Blocked host shutdown/reboot command`, потому что regex для `rg -n` содержал слово `shutdown` среди поисковых терминов (`idle|timeout|shutdown|language...`). Команда запускала только Python metadata/version, sed config и rg по site-packages; системных shutdown/reboot вызовов не было. Guard должен матчить исполняемую команду/argv, а не любое упоминание слова в поисковом шаблоне.
