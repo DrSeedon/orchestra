@@ -8,12 +8,18 @@ Usage: python -m app.mcp_stdio
 
 import json
 import logging
+import math
 import os
+import re
 import shlex
 import sys
+import uuid
+from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.types import CallToolResult, TextContent
 
 # Logs go to stderr so they don't pollute the JSON-RPC stdout stream
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
@@ -42,7 +48,211 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "search_memory",
 })
 
-mcp = FastMCP("orchestra")
+
+@dataclass
+class ApiToolError(RuntimeError):
+    code: str
+    message: str
+    status: int | None = None
+    retryable: bool = False
+    request_id: str | None = None
+    retry_after_seconds: int | float | None = None
+    outcome_unknown: bool = False
+    details: dict[str, Any] = field(default_factory=dict)
+    result: Any = None
+
+    def __post_init__(self) -> None:
+        self.message = self.message.strip() or self.code or "ApiToolError"
+        RuntimeError.__init__(self, self.message)
+
+    def envelope(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "message": self.message,
+            "status": self.status,
+            "retryable": self.retryable,
+            "request_id": self.request_id,
+            "retry_after_seconds": self.retry_after_seconds,
+            "outcome_unknown": self.outcome_unknown,
+            "details": self.details,
+        }
+
+
+def _exception_text(exc: BaseException) -> str:
+    message = str(exc).strip()
+    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+
+
+def _canonical_error(error: ApiToolError | dict[str, Any]) -> dict[str, Any]:
+    source = error.envelope() if isinstance(error, ApiToolError) else error
+    details = source.get("details")
+    if not isinstance(details, dict):
+        details = {"value": details}
+    code = str(source.get("code") or "tool_error")
+    message = _safe_response_text(str(source.get("message") or code).strip() or code)
+    outcome_unknown = bool(source.get("outcome_unknown", False))
+    return {
+        "code": code,
+        "message": message,
+        "status": source.get("status") if isinstance(source.get("status"), int) else None,
+        "retryable": bool(source.get("retryable", False)) and not outcome_unknown,
+        "request_id": str(source["request_id"]) if source.get("request_id") else None,
+        "retry_after_seconds": _retry_after_seconds(source.get("retry_after_seconds")),
+        "outcome_unknown": outcome_unknown,
+        "details": _safe_detail(details),
+    }
+
+
+def mcp_tool_result(
+    result: Any = None,
+    *,
+    error: ApiToolError | dict[str, Any] | None = None,
+    is_error: bool = False,
+    text: str = "",
+) -> CallToolResult:
+    """Build the shared shape; partial domain results may carry error with isError false."""
+    if is_error and error is None:
+        raise ValueError("is_error=True requires an error envelope")
+    envelope = _canonical_error(error) if error is not None else None
+    if not text:
+        if envelope:
+            text = f"{envelope['code']}: {envelope['message']}"
+        elif isinstance(result, str):
+            text = result
+        else:
+            text = json.dumps(result, ensure_ascii=False)
+    if envelope:
+        text = _safe_response_text(text)
+    return CallToolResult(
+        content=[TextContent(type="text", text=text or "OK")],
+        structuredContent={"result": result, "error": envelope},
+        isError=is_error,
+    )
+
+
+def _find_api_tool_error(exc: BaseException) -> ApiToolError | None:
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ApiToolError):
+            return current
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def _root_exception(exc: BaseException) -> BaseException:
+    seen: set[int] = set()
+    current = exc
+    while id(current) not in seen:
+        seen.add(id(current))
+        next_exc = current.__cause__ or current.__context__
+        if next_exc is None:
+            break
+        current = next_exc
+    return current
+
+
+def _result_from_content(content: list[Any]) -> Any:
+    if len(content) != 1 or not isinstance(content[0], TextContent):
+        return None
+    text = content[0].text
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return text
+
+
+class OrchestraMCP(FastMCP):
+    async def call_tool(self, name: str, arguments: dict[str, Any]):
+        try:
+            converted = await super().call_tool(name, arguments)
+        except Exception as exc:
+            error = _find_api_tool_error(exc)
+            if error is None:
+                root = _root_exception(exc)
+                error = ApiToolError(
+                    code="tool_error",
+                    message=_exception_text(root),
+                    details={"exception_type": type(root).__name__, "tool": name},
+                )
+            envelope = _canonical_error(error)
+            logger.warning(
+                "MCP tool %s failed: code=%s request_id=%s message=%s",
+                name,
+                envelope["code"],
+                envelope["request_id"],
+                envelope["message"],
+            )
+            return mcp_tool_result(
+                result=error.result,
+                error=envelope,
+                is_error=True,
+            )
+
+        if isinstance(converted, CallToolResult):
+            structured = converted.structuredContent
+            if isinstance(structured, dict) and "result" in structured and "error" in structured:
+                raw_error = structured["error"]
+                if raw_error is None and converted.isError:
+                    text = "\n".join(
+                        item.text for item in converted.content if isinstance(item, TextContent)
+                    )
+                    raw_error = ApiToolError(code="tool_error", message=text or "MCP tool failed")
+                envelope = _canonical_error(raw_error) if raw_error is not None else None
+                content = list(converted.content)
+                if envelope:
+                    content = [
+                        item.model_copy(update={"text": _safe_response_text(item.text)})
+                        if isinstance(item, TextContent)
+                        else item
+                        for item in content
+                    ]
+                return CallToolResult(
+                    content=content,
+                    structuredContent={"result": structured["result"], "error": envelope},
+                    isError=converted.isError,
+                )
+            result = structured if structured is not None else _result_from_content(list(converted.content))
+            if converted.isError:
+                text = "\n".join(
+                    item.text for item in converted.content if isinstance(item, TextContent)
+                )
+                error = ApiToolError(code="tool_error", message=text or "MCP tool failed")
+                return mcp_tool_result(result=result, error=error, is_error=True, text=text)
+            return CallToolResult(
+                content=list(converted.content),
+                structuredContent={"result": result, "error": None},
+                isError=False,
+            )
+
+        if isinstance(converted, tuple):
+            content, structured = converted
+            tool = self._tool_manager.get_tool(name)
+            if (
+                tool is not None
+                and tool.fn_metadata.wrap_output
+                and isinstance(structured, dict)
+                and set(structured) == {"result"}
+            ):
+                result = structured["result"]
+            else:
+                result = structured
+            return CallToolResult(
+                content=list(content),
+                structuredContent={"result": result, "error": None},
+                isError=False,
+            )
+
+        content = list(converted)
+        return CallToolResult(
+            content=content,
+            structuredContent={"result": _result_from_content(content), "error": None},
+            isError=False,
+        )
+
+
+mcp = OrchestraMCP("orchestra")
 
 
 def _tool_names_for_access_mode(names: set[str], mode: str) -> set[str]:
@@ -73,27 +283,247 @@ def _auth_headers() -> dict:
     return {}
 
 
+def _retry_after_seconds(value: Any) -> int | float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(parsed) or parsed < 0:
+        return None
+    return int(parsed) if parsed.is_integer() else parsed
+
+
+_SENSITIVE_DETAIL_KEYS = ("authorization", "token", "password", "secret", "api_key", "api-key")
+
+
+def _safe_detail(value: Any, depth: int = 0) -> Any:
+    if depth > 4:
+        return "[truncated]"
+    if isinstance(value, dict):
+        return {
+            str(key): (
+                "[redacted]"
+                if any(marker in str(key).lower() for marker in _SENSITIVE_DETAIL_KEYS)
+                else _safe_detail(item, depth + 1)
+            )
+            for key, item in list(value.items())[:50]
+        }
+    if isinstance(value, list):
+        return [_safe_detail(item, depth + 1) for item in value[:50]]
+    if isinstance(value, str):
+        return _safe_response_text(value)
+    return value
+
+
+def _safe_response_text(value: str) -> str:
+    text = re.sub(
+        r"(?i)\b(Bearer|Basic)\s+[^\s,;}\]]+",
+        r"\1 [redacted]",
+        value[:4000],
+    )
+    text = re.sub(
+        r"(?i)((?:authorization|token|password|secret|api[_-]?key)[\"']?\s*[:=]\s*)"
+        r"(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[^,;}&\r\n]+)",
+        r"\1[redacted]",
+        text,
+    )
+    return text[:1000]
+
+
+def _response_error(
+    method: str,
+    path: str,
+    response: httpx.Response,
+    payload: Any,
+    request_id: str,
+) -> ApiToolError:
+    body = payload if isinstance(payload, dict) else {}
+    raw_error = body.get("error")
+    server_error = raw_error if isinstance(raw_error, dict) else {}
+
+    message_value: Any = None
+    if isinstance(raw_error, str):
+        message_value = raw_error
+    elif server_error:
+        message_value = server_error.get("message") or server_error.get("detail")
+    if message_value is None:
+        message_value = body.get("message") or body.get("detail")
+    if message_value is None and not isinstance(payload, dict):
+        message_value = _safe_response_text(response.text)
+    if isinstance(message_value, str):
+        message = _safe_response_text(message_value.strip())
+    elif message_value is not None:
+        message = json.dumps(message_value, ensure_ascii=False)[:1000]
+    else:
+        message = ""
+    if not message:
+        message = f"HTTP {response.status_code}" if response.status_code >= 400 else "API returned an error"
+
+    if server_error.get("code"):
+        code = str(server_error["code"])
+    elif body.get("code"):
+        code = str(body["code"])
+    elif response.status_code == 429:
+        code = "http_429"
+    elif response.status_code >= 500:
+        code = "http_5xx"
+    elif response.status_code >= 400:
+        code = "http_4xx"
+    else:
+        code = "domain_error"
+
+    response_request_id = (
+        server_error.get("request_id")
+        or body.get("request_id")
+        or response.headers.get("X-Request-ID")
+        or response.headers.get("X-Correlation-ID")
+        or request_id
+    )
+    retry_after = _retry_after_seconds(
+        server_error.get("retry_after_seconds")
+        or body.get("retry_after_seconds")
+        or response.headers.get("Retry-After")
+    )
+    transient_status = response.status_code in {408, 425, 429} or response.status_code >= 500
+    outcome_unknown = method != "GET" and response.status_code >= 500
+    if isinstance(server_error.get("outcome_unknown"), bool):
+        outcome_unknown = server_error["outcome_unknown"]
+    retryable = method == "GET" and transient_status
+    if isinstance(server_error.get("retryable"), bool):
+        retryable = server_error["retryable"]
+    if outcome_unknown:
+        retryable = False
+
+    details: dict[str, Any] = {"method": method, "path": path}
+    server_details = server_error.get("details")
+    if isinstance(server_details, dict):
+        details["server"] = _safe_detail(server_details)
+    elif response.text:
+        details["response_body"] = _safe_response_text(response.text)
+    return ApiToolError(
+        code=code,
+        message=message,
+        status=response.status_code,
+        retryable=retryable,
+        request_id=str(response_request_id),
+        retry_after_seconds=retry_after,
+        outcome_unknown=outcome_unknown,
+        details=details,
+    )
+
+
+def _transport_error(
+    method: str,
+    path: str,
+    exc: httpx.RequestError,
+    request_id: str,
+) -> ApiToolError:
+    connect_failure = isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout))
+    no_request_sent = connect_failure or isinstance(exc, httpx.PoolTimeout)
+    timeout = isinstance(exc, httpx.TimeoutException)
+    return ApiToolError(
+        code="connect_error" if connect_failure else ("transport_timeout" if timeout else "transport_error"),
+        message=_exception_text(exc),
+        retryable=method == "GET" or no_request_sent,
+        request_id=request_id,
+        outcome_unknown=method != "GET" and not no_request_sent,
+        details={"method": method, "path": path, "exception_type": type(exc).__name__},
+    )
+
+
 async def _api(method: str, path: str, **kwargs) -> dict | list | None:
     # New client per call: avoids shared state across tool invocations in the same MCP session
+    method = method.upper()
+    request_id = uuid.uuid4().hex
+    if method not in {"GET", "POST", "PUT", "DELETE"}:
+        raise ApiToolError(
+            code="unsupported_method",
+            message=f"Unsupported HTTP method: {method}",
+            request_id=request_id,
+            details={"method": method, "path": path},
+        )
     t = kwargs.pop("timeout", 30)
     headers = _auth_headers()
-    async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
-        if method == "GET":
-            r = await client.get(path, params=kwargs.get("params"))
-        elif method == "POST":
-            r = await client.post(path, json=kwargs.get("json"))
-        elif method == "PUT":
-            r = await client.put(path, json=kwargs.get("json"), params=kwargs.get("params"))
-        elif method == "DELETE":
-            r = await client.delete(path, params=kwargs.get("params"))
-        else:
-            return None
-        if r.status_code >= 400:
-            return {"error": r.text}
-        try:
-            return r.json()
-        except Exception as e:
-            return {"error": f"invalid JSON response (status={r.status_code}): {r.text[:200]}"}
+    headers["X-Request-ID"] = request_id
+    try:
+        async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
+            if method == "GET":
+                response = await client.get(path, params=kwargs.get("params"))
+            elif method == "POST":
+                response = await client.post(path, json=kwargs.get("json"))
+            elif method == "PUT":
+                response = await client.put(path, json=kwargs.get("json"), params=kwargs.get("params"))
+            else:
+                response = await client.delete(path, params=kwargs.get("params"))
+    except httpx.RequestError as exc:
+        raise _transport_error(method, path, exc, request_id) from exc
+
+    try:
+        payload = response.json()
+    except (json.JSONDecodeError, ValueError) as exc:
+        if response.status_code >= 400:
+            raise _response_error(method, path, response, None, request_id) from exc
+        raise ApiToolError(
+            code="invalid_response",
+            message=f"Invalid JSON response (status={response.status_code})",
+            status=response.status_code,
+            retryable=False,
+            request_id=(response.headers.get("X-Request-ID") or request_id),
+            outcome_unknown=method != "GET",
+            details={
+                "method": method,
+                "path": path,
+                "response_body": _safe_response_text(response.text),
+                "exception_type": type(exc).__name__,
+            },
+        ) from exc
+
+    if response.status_code >= 400:
+        raise _response_error(method, path, response, payload, request_id)
+    if isinstance(payload, dict) and payload.get("error") is not None:
+        raise _response_error(method, path, response, payload, request_id)
+    return payload
+
+
+def _spawn_delivery_error(
+    name: str,
+    mapping: dict[str, str],
+    cause: ApiToolError,
+) -> ApiToolError:
+    if cause.outcome_unknown:
+        delivery = "unknown"
+        next_action = {
+            "code": "CHECK_DELIVERY_STATE",
+            "message": "Inspect the worker turn/logs; do not resend until delivery outcome is known.",
+        }
+    else:
+        delivery = "failed"
+        next_action = {
+            "code": "SEND_INITIAL_TASK",
+            "message": "Fix the rejection cause, then use send_message; do not retry spawn.",
+        }
+    result = {
+        "worker_name": name,
+        "created": True,
+        "delivery": delivery,
+        **mapping,
+        "next_action": next_action,
+    }
+    details = dict(cause.details)
+    details.update({"phase": "initial_task_delivery", "next_action": next_action})
+    return ApiToolError(
+        code=cause.code,
+        message=f"Worker '{name}' was created, but initial task delivery {delivery}: {cause.message}",
+        status=cause.status,
+        retryable=False,
+        request_id=cause.request_id,
+        retry_after_seconds=cause.retry_after_seconds,
+        outcome_unknown=cause.outcome_unknown,
+        details=details,
+        result=result,
+    )
 
 
 @mcp.tool()
@@ -115,7 +545,11 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
-        return "Error: model is required. Choose it by the <model-routing> block in your prompt."
+        raise ApiToolError(
+            code="invalid_argument",
+            message="model is required; choose it by the <model-routing> block in your prompt",
+            details={"field": "model"},
+        )
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
@@ -132,9 +566,17 @@ async def spawn_worker(name: str, task: str, repo_path: str,
             if isinstance(parsed, dict):
                 body["mcp_servers"] = parsed
             else:
-                return "Error: mcp_servers must be a JSON object, e.g. {\"playwright\": {\"command\": \"npx\", \"args\": [...]}}"
+                raise ApiToolError(
+                    code="invalid_argument",
+                    message="mcp_servers must be a JSON object",
+                    details={"field": "mcp_servers"},
+                )
         except json.JSONDecodeError as e:
-            return f"Error: mcp_servers is not valid JSON: {e}"
+            raise ApiToolError(
+                code="invalid_argument",
+                message=f"mcp_servers is not valid JSON: {e}",
+                details={"field": "mcp_servers"},
+            ) from e
     if owned_dirs:
         import json
         try:
@@ -142,9 +584,17 @@ async def spawn_worker(name: str, task: str, repo_path: str,
             if isinstance(parsed, list):
                 body["owned_dirs"] = parsed
             else:
-                return "Error: owned_dirs must be a JSON array, e.g. [\"app/api/\", \"app/models/\"]"
+                raise ApiToolError(
+                    code="invalid_argument",
+                    message="owned_dirs must be a JSON array",
+                    details={"field": "owned_dirs"},
+                )
         except json.JSONDecodeError as e:
-            return f"Error: owned_dirs is not valid JSON: {e}"
+            raise ApiToolError(
+                code="invalid_argument",
+                message=f"owned_dirs is not valid JSON: {e}",
+                details={"field": "owned_dirs"},
+            ) from e
     if task_id:
         body["task_id"] = task_id
     if description:
@@ -153,7 +603,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         body["tg_topic"] = True
     result = await _api("POST", "/api/sessions", json=body)
     if isinstance(result, dict) and result.get("error"):
-        return f"Spawn failed: {result['error']}"
+        raise ApiToolError(code="domain_error", message=f"Spawn failed: {result['error']}")
     required = ("worktree_path", "branch", "repo_path", "git_common_dir")
     missing = [
         field for field in required
@@ -164,20 +614,34 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         )
     ]
     if missing:
-        return (
-            "Spawn failed: malformed API response after session creation "
-            f"(missing: {', '.join(missing)}); worker may have been created — "
-            "inspect list_agents before retrying."
+        next_action = {
+            "code": "INSPECT_BEFORE_RETRY",
+            "message": "Inspect list_agents before retrying; creation outcome is unknown.",
+        }
+        raise ApiToolError(
+            code="invalid_response",
+            message=(
+                "Malformed API response after session creation "
+                f"(missing: {', '.join(missing)}); worker may have been created"
+            ),
+            status=200,
+            outcome_unknown=True,
+            details={"phase": "create", "missing": missing, "next_action": next_action},
+            result={"worker_name": name, "created": "unknown", "next_action": next_action},
         )
+    mapping_data = {field: result[field] for field in required}
     mapping = (
-        f"Worktree: {result['worktree_path']}"
-        f"\nRepository: {result['repo_path']}"
-        f"\nGit common dir: {result['git_common_dir']}"
-        f"\nBranch: {result['branch']}"
+        f"Worktree: {mapping_data['worktree_path']}"
+        f"\nRepository: {mapping_data['repo_path']}"
+        f"\nGit common dir: {mapping_data['git_common_dir']}"
+        f"\nBranch: {mapping_data['branch']}"
     )
-    send_result = await _api("POST", f"/api/sessions/{name}/send", json={
-        "message": task, "scope": scope, "sender": WORKER_NAME or ROLE,
-    })
+    try:
+        send_result = await _api("POST", f"/api/sessions/{name}/send", json={
+            "message": task, "scope": scope, "sender": WORKER_NAME or ROLE,
+        })
+    except ApiToolError as exc:
+        raise _spawn_delivery_error(name, mapping_data, exc) from exc
     if (
         not isinstance(send_result, dict)
         or send_result.get("ok") is not True
@@ -188,10 +652,14 @@ async def spawn_worker(name: str, task: str, repo_path: str,
             if isinstance(send_result, dict)
             else "malformed API response"
         )
-        return (
-            f"Worker '{name}' was created, but initial task delivery failed: {detail}.\n"
-            f"{mapping}\nUse send_message to deliver the task before retrying spawn."
+        cause = ApiToolError(
+            code="domain_error" if isinstance(send_result, dict) and send_result.get("error") else "invalid_response",
+            message=str(detail),
+            status=200,
+            outcome_unknown=not (isinstance(send_result, dict) and bool(send_result.get("error"))),
+            details={"response": send_result},
         )
+        raise _spawn_delivery_error(name, mapping_data, cause)
     out = f"Worker '{name}' spawned. Model: {model}. Task sent."
     out += f"\n{mapping}"
     if isinstance(result, dict) and result.get("spawn_warning"):
@@ -313,11 +781,29 @@ async def list_agents() -> str:
     """List all agents in your project (orchestrators and workers)."""
     sessions = await _api("GET", "/api/sessions", params={"scope": SCOPE} if SCOPE else None)
     if not isinstance(sessions, list):
-        return f"Error: {sessions}"
+        raise ApiToolError(
+            code="invalid_response",
+            message="Session list API returned a non-list response",
+            status=200,
+            details={"response_type": type(sessions).__name__},
+        )
     if not sessions:
         return "No agents"
-    icons_data = await _api("GET", "/api/role-icons")
-    _icons = icons_data if isinstance(icons_data, dict) else {}
+    icon_warning = ""
+    try:
+        icons_data = await _api("GET", "/api/role-icons")
+        if isinstance(icons_data, dict):
+            _icons = icons_data
+        else:
+            _icons = {}
+            icon_warning = (
+                "⚠️ Role icons unavailable: invalid response "
+                f"({type(icons_data).__name__}); using defaults."
+            )
+    except ApiToolError as exc:
+        _icons = {}
+        icon_warning = f"⚠️ Role icons unavailable: {exc.code}: {exc.message}; using defaults."
+        logger.warning("list_agents optional role icons failed: %s", icon_warning)
 
     def _fmt(s, show_owner=False):
         r = s.get("role", "worker")
@@ -349,7 +835,7 @@ async def list_agents() -> str:
             else:
                 other_workers.append(s)
 
-    lines = []
+    lines = [icon_warning] if icon_warning else []
     if orchestrators:
         lines.append("## Orchestrators")
         lines.extend(_fmt(s) for s in orchestrators)
@@ -368,7 +854,12 @@ async def list_orchestrators() -> str:
     """List ALL orchestrators across all projects. Use to find agents you can talk to from other projects."""
     orchs = await _api("GET", "/api/orchestrators")
     if not isinstance(orchs, list):
-        return f"Error: {orchs}"
+        raise ApiToolError(
+            code="invalid_response",
+            message="Orchestrator list API returned a non-list response",
+            status=200,
+            details={"response_type": type(orchs).__name__},
+        )
     if not orchs:
         return "No orchestrators"
     lines = []
@@ -445,25 +936,33 @@ async def rename_worker(old_name: str, new_name: str) -> str:
 @mcp.tool()
 async def send_file(path: str, caption: str = "", as_document: bool = False) -> str:
     """Send a file to the user via Telegram. Path must be absolute. Images are sent as inline photos by default; set as_document=True to force file attachment."""
-    try:
-        # Delivery goes through the reliable TG queue, which waits out flood control
-        # (429 retry_after is routinely 20-30s) — 30s here timed out mid-retry.
-        result = await _api("POST", "/api/tg/send_file", json={
-            "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
-            "as_document": as_document,
-        }, timeout=180)
-    except Exception as e:
-        # httpx timeouts stringify to "" — without the class name the report says nothing.
-        return f"Send failed: network error: {type(e).__name__}: {e}"
+    # Delivery goes through the reliable TG queue, which waits out flood control
+    # (429 retry_after is routinely 20-30s) — 30s here timed out mid-retry.
+    result = await _api("POST", "/api/tg/send_file", json={
+        "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
+        "as_document": as_document,
+    }, timeout=180)
     if not isinstance(result, dict):
-        return f"Send failed: unexpected response type={type(result).__name__} value={result!r}"
+        raise ApiToolError(
+            code="invalid_response",
+            message=f"Send file API returned {type(result).__name__}, expected object",
+            status=200,
+            outcome_unknown=True,
+            details={"response": result},
+        )
     if result.get("error"):
-        return f"Send failed: {result['error']}"
+        raise ApiToolError(code="domain_error", message=f"Send failed: {result['error']}")
     if result.get("ok"):
         msg_id = result.get("message_id")
         chat_id = result.get("chat_id")
         return f"File sent to TG: {path} (msg_id={msg_id} chat_id={chat_id})"
-    return f"Send failed: unexpected response (no ok/error): {result!r}"
+    raise ApiToolError(
+        code="invalid_response",
+        message="Send file API response had neither ok nor error",
+        status=200,
+        outcome_unknown=True,
+        details={"response": result},
+    )
 
 
 @mcp.tool()
@@ -831,7 +1330,12 @@ async def bg_list() -> str:
     """List active background jobs in your project."""
     jobs = await _api("GET", "/api/bg/jobs", params={"scope": SCOPE})
     if not isinstance(jobs, list):
-        return f"Error: {jobs}"
+        raise ApiToolError(
+            code="invalid_response",
+            message="Background job API returned a non-list response",
+            status=200,
+            details={"response_type": type(jobs).__name__},
+        )
     if not jobs:
         return "No background jobs"
     icons = {
@@ -992,7 +1496,11 @@ async def codex_review(
             codex = fresh_review
     elif mode == "exec":
         if not target and not is_resume:
-            return "Error: target file required for mode='exec'"
+            raise ApiToolError(
+                code="invalid_argument",
+                message="target file required for mode='exec'",
+                details={"field": "target"},
+            )
         prompt_parts_exec = [_REVIEW_CONTEXT]
         if context:
             prompt_parts_exec.append(f"Additional context: {context}\n")
@@ -1028,7 +1536,11 @@ async def codex_review(
             )
             codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
     else:
-        return f"Error: unknown mode '{mode}'. Use 'review' or 'exec'."
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"unknown mode '{mode}'; use 'review' or 'exec'",
+            details={"field": "mode"},
+        )
 
     # Ensure codex_sessions.json / *.round are git-ignored in THIS worktree before writing them,
     # so they never dirty the tree / block merge_worker — regardless of how old the worktree is

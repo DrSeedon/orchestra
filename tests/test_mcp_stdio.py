@@ -1,8 +1,415 @@
 import json
 
+import httpx
 import pytest
 from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta, timezone
+
+
+def _mock_http(monkeypatch, module, handler):
+    real_client = httpx.AsyncClient
+    transport = httpx.MockTransport(handler)
+    monkeypatch.setattr(
+        module.httpx,
+        "AsyncClient",
+        lambda **kwargs: real_client(transport=transport, **kwargs),
+    )
+
+
+async def _protocol_call(module, name, arguments):
+    from mcp.types import CallToolRequest, CallToolRequestParams
+
+    handler = module.mcp._mcp_server.request_handlers[CallToolRequest]
+    wrapped = await handler(CallToolRequest(
+        params=CallToolRequestParams(name=name, arguments=arguments),
+    ))
+    return wrapped.root
+
+
+@pytest.mark.asyncio
+async def test_api_429_preserves_typed_fields_and_request_id(monkeypatch):
+    import app.mcp_stdio as m
+
+    seen_request_id = ""
+
+    def handler(request):
+        nonlocal seen_request_id
+        seen_request_id = request.headers["X-Request-ID"]
+        return httpx.Response(
+            429,
+            json={"error": {
+                "code": "rate_limited",
+                "message": "slow down",
+                "details": {"token": "do-not-leak", "limit": 10},
+            }},
+            headers={"Retry-After": "24", "X-Request-ID": "server-request"},
+        )
+
+    _mock_http(monkeypatch, m, handler)
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("GET", "/limited")
+
+    assert seen_request_id
+    assert caught.value.envelope() == {
+        "code": "rate_limited",
+        "message": "slow down",
+        "status": 429,
+        "retryable": True,
+        "request_id": "server-request",
+        "retry_after_seconds": 24,
+        "outcome_unknown": False,
+        "details": {
+            "method": "GET",
+            "path": "/limited",
+            "server": {"token": "[redacted]", "limit": 10},
+        },
+    }
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf", "-1", "invalid"])
+def test_retry_after_rejects_non_finite_negative_and_invalid_values(value):
+    import app.mcp_stdio as m
+
+    assert m._retry_after_seconds(value) is None
+
+
+@pytest.mark.asyncio
+async def test_api_non_json_5xx_preserves_body_and_post_is_not_safe(monkeypatch):
+    import app.mcp_stdio as m
+
+    _mock_http(monkeypatch, m, lambda _request: httpx.Response(502, text="bad gateway"))
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("POST", "/mutate", json={"x": 1})
+
+    error = caught.value
+    assert error.code == "http_5xx"
+    assert error.message == "bad gateway"
+    assert error.status == 502
+    assert error.retryable is False
+    assert error.outcome_unknown is True
+    assert error.details["response_body"] == "bad gateway"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("server_fields", "expected_retryable", "expected_unknown"),
+    [
+        ({"retryable": True}, False, True),
+        ({"retryable": True, "outcome_unknown": False}, True, False),
+    ],
+)
+async def test_api_mutation_retry_requires_known_outcome(
+    monkeypatch,
+    server_fields,
+    expected_retryable,
+    expected_unknown,
+):
+    import app.mcp_stdio as m
+
+    _mock_http(
+        monkeypatch,
+        m,
+        lambda _request: httpx.Response(
+            503,
+            json={"error": {"message": "try later", **server_fields}},
+        ),
+    )
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("POST", "/mutate", json={"x": 1})
+
+    assert caught.value.retryable is expected_retryable
+    assert caught.value.outcome_unknown is expected_unknown
+
+
+@pytest.mark.asyncio
+async def test_api_non_json_2xx_is_invalid_unknown_post_outcome(monkeypatch):
+    import app.mcp_stdio as m
+
+    _mock_http(monkeypatch, m, lambda _request: httpx.Response(200, text="accepted maybe"))
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("POST", "/mutate", json={"x": 1})
+
+    assert caught.value.code == "invalid_response"
+    assert caught.value.status == 200
+    assert caught.value.outcome_unknown is True
+    assert caught.value.details["response_body"] == "accepted maybe"
+
+
+@pytest.mark.asyncio
+async def test_api_2xx_top_level_error_is_failure(monkeypatch):
+    import app.mcp_stdio as m
+
+    _mock_http(
+        monkeypatch,
+        m,
+        lambda _request: httpx.Response(200, json={"error": "delivery rejected"}),
+    )
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("POST", "/send", json={"message": "x"})
+
+    assert caught.value.code == "domain_error"
+    assert caught.value.message == "delivery rejected"
+    assert caught.value.status == 200
+    assert caught.value.outcome_unknown is False
+
+
+@pytest.mark.asyncio
+async def test_api_empty_read_timeout_keeps_type_and_unknown_post_outcome(monkeypatch):
+    import app.mcp_stdio as m
+
+    def handler(request):
+        raise httpx.ReadTimeout("", request=request)
+
+    _mock_http(monkeypatch, m, handler)
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("POST", "/send", json={"message": "x"})
+
+    assert caught.value.code == "transport_timeout"
+    assert caught.value.message == "ReadTimeout"
+    assert caught.value.retryable is False
+    assert caught.value.outcome_unknown is True
+    assert caught.value.request_id
+
+
+@pytest.mark.asyncio
+async def test_api_connect_error_is_safe_to_retry_before_request(monkeypatch):
+    import app.mcp_stdio as m
+
+    def handler(request):
+        raise httpx.ConnectError("offline", request=request)
+
+    _mock_http(monkeypatch, m, handler)
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("POST", "/send", json={"message": "x"})
+
+    assert caught.value.code == "connect_error"
+    assert caught.value.message == "ConnectError: offline"
+    assert caught.value.retryable is True
+    assert caught.value.outcome_unknown is False
+
+
+@pytest.mark.asyncio
+async def test_api_rejects_unsupported_method_without_http_call():
+    import app.mcp_stdio as m
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m._api("PATCH", "/thing")
+
+    assert caught.value.code == "unsupported_method"
+    assert caught.value.retryable is False
+
+
+@pytest.mark.asyncio
+async def test_protocol_failure_is_typed_and_success_uses_same_shape(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "WORKER_NAME", "orch")
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    monkeypatch.setattr(m, "_api", AsyncMock(side_effect=m.ApiToolError(
+        code="transport_timeout",
+        message="ReadTimeout",
+        retryable=False,
+        request_id="req-1",
+        outcome_unknown=True,
+        details={"method": "POST"},
+    )))
+
+    failed = await _protocol_call(m, "send_message", {"to": "worker", "message": "hi"})
+
+    assert failed.isError is True
+    assert failed.structuredContent == {
+        "result": None,
+        "error": {
+            "code": "transport_timeout",
+            "message": "ReadTimeout",
+            "status": None,
+            "retryable": False,
+            "request_id": "req-1",
+            "retry_after_seconds": None,
+            "outcome_unknown": True,
+            "details": {"method": "POST"},
+        },
+    }
+    assert "ReadTimeout" in failed.content[0].text
+
+    monkeypatch.setattr(m, "_api", AsyncMock(return_value={"ok": True}))
+    succeeded = await _protocol_call(m, "send_message", {"to": "worker", "message": "hi"})
+    assert succeeded.isError is False
+    assert succeeded.structuredContent == {
+        "result": "Message sent to 'worker'",
+        "error": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_protocol_unexpected_empty_exception_keeps_class_name(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "_api", AsyncMock(side_effect=RuntimeError()))
+
+    result = await _protocol_call(m, "send_message", {"to": "worker", "message": "hi"})
+
+    assert result.isError is True
+    assert result.structuredContent["error"]["code"] == "tool_error"
+    assert result.structuredContent["error"]["message"] == "RuntimeError"
+    assert result.content[0].text == "tool_error: RuntimeError"
+
+
+def test_mcp_tool_result_preserves_arbitrary_domain_result():
+    import app.mcp_stdio as m
+
+    domain = {"operation_id": "op-1", "operation_state": "UNKNOWN"}
+    error = {
+        "code": "outcome_unknown",
+        "message": "status check required",
+        "status": None,
+        "retryable": False,
+        "request_id": "req-2",
+        "retry_after_seconds": None,
+        "outcome_unknown": True,
+        "details": {},
+    }
+
+    success = m.mcp_tool_result(domain, text="partial")
+    failure = m.mcp_tool_result(domain, error=error, is_error=True)
+
+    assert success.isError is False
+    assert success.structuredContent == {"result": domain, "error": None}
+    assert failure.isError is True
+    assert failure.structuredContent == {"result": domain, "error": error}
+
+    redacted = m.mcp_tool_result(
+        domain,
+        error=error,
+        is_error=True,
+        text="Authorization: Basic dXNlcjpwYXNz",
+    )
+    assert "dXNlcjpwYXNz" not in redacted.content[0].text
+
+
+def test_mcp_tool_result_never_marks_unknown_outcome_retryable():
+    import app.mcp_stdio as m
+
+    result = m.mcp_tool_result(
+        None,
+        error={
+            "code": "unknown",
+            "message": "check status",
+            "retryable": True,
+            "outcome_unknown": True,
+            "details": {},
+        },
+        is_error=True,
+    )
+
+    assert result.structuredContent["error"]["retryable"] is False
+    assert result.structuredContent["error"]["outcome_unknown"] is True
+
+
+@pytest.mark.asyncio
+async def test_mcp_boundary_preserves_complete_structured_domain_dict():
+    import app.mcp_stdio as m
+    from mcp.types import TextContent
+
+    domain = {"result": 4, "operation_id": "op-1"}
+    converted = ([TextContent(type="text", text="done")], domain)
+
+    with patch.object(m.FastMCP, "call_tool", AsyncMock(return_value=converted)):
+        result = await m.mcp.call_tool("domain_tool", {})
+
+    assert result.structuredContent == {"result": domain, "error": None}
+
+
+@pytest.mark.asyncio
+async def test_mcp_boundary_preserves_singleton_domain_result_dict():
+    import app.mcp_stdio as m
+
+    server = m.OrchestraMCP("domain-probe")
+
+    @server.tool()
+    async def domain_tool() -> dict:
+        return {"result": 4}
+
+    result = await server.call_tool("domain_tool", {})
+
+    assert result.structuredContent == {"result": {"result": 4}, "error": None}
+
+
+@pytest.mark.asyncio
+async def test_mcp_boundary_redacts_manual_error_before_log_and_serialization(caplog):
+    import logging
+    import app.mcp_stdio as m
+
+    error = m.ApiToolError(
+        code="manual_error",
+        message="password=correct horse",
+        details={"nested": {"api_key": "detail-secret"}},
+    )
+
+    with patch.object(m.FastMCP, "call_tool", AsyncMock(side_effect=error)):
+        with caplog.at_level(logging.WARNING):
+            result = await m.mcp.call_tool("domain_tool", {})
+
+    emitted = json.dumps(result.structuredContent, ensure_ascii=False) + caplog.text
+    assert "correct horse" not in emitted
+    assert "detail-secret" not in emitted
+    assert result.structuredContent["error"]["message"] == "password=[redacted]"
+    assert result.structuredContent["error"]["details"] == {
+        "nested": {"api_key": "[redacted]"},
+    }
+
+
+@pytest.mark.parametrize(
+    ("raw", "secret"),
+    [
+        ("Authorization: Basic dXNlcjpwYXNz", "dXNlcjpwYXNz"),
+        ("password=correct horse", "correct horse"),
+        ('token="two words", reason=bad', "two words"),
+    ],
+)
+def test_safe_response_text_redacts_complete_credentials(raw, secret):
+    import app.mcp_stdio as m
+
+    safe = m._safe_response_text(raw)
+
+    assert secret not in safe
+    assert "[redacted]" in safe
+
+
+@pytest.mark.asyncio
+async def test_mcp_boundary_normalizes_pre_shaped_result_to_two_keys():
+    import app.mcp_stdio as m
+    from mcp.types import CallToolResult, TextContent
+
+    converted = CallToolResult(
+        content=[TextContent(type="text", text="partial token=content-secret")],
+        structuredContent={
+            "result": {"operation_id": "op-1"},
+            "error": {
+                "code": "partial",
+                "message": "token=secret-value",
+                "retryable": False,
+                "details": {},
+            },
+            "extra": "drop-me",
+        },
+        isError=False,
+    )
+
+    with patch.object(m.FastMCP, "call_tool", AsyncMock(return_value=converted)):
+        result = await m.mcp.call_tool("domain_tool", {})
+
+    assert set(result.structuredContent) == {"result", "error"}
+    assert result.structuredContent["result"] == {"operation_id": "op-1"}
+    assert result.structuredContent["error"]["message"] == "token=[redacted]"
+    assert "content-secret" not in result.content[0].text
 
 
 @pytest.mark.asyncio
@@ -164,13 +571,14 @@ async def test_spawn_api_error_does_not_send_initial_task(monkeypatch):
         return {"error": "repo_path must be the Git repository root"}
 
     with patch.object(m, "_api", side_effect=fake_api):
-        out = await m.spawn_worker(
-            name="child", task="do it", repo_path="/repo/nested",
-            model="gpt-5.6-sol",
-        )
+        with pytest.raises(m.ApiToolError) as caught:
+            await m.spawn_worker(
+                name="child", task="do it", repo_path="/repo/nested",
+                model="gpt-5.6-sol",
+            )
 
     assert calls == ["/api/sessions"]
-    assert out == "Spawn failed: repo_path must be the Git repository root"
+    assert caught.value.message == "Spawn failed: repo_path must be the Git repository root"
 
 
 @pytest.mark.asyncio
@@ -230,16 +638,17 @@ async def test_spawn_malformed_success_fails_loud_without_task(
         return response
 
     with patch.object(m, "_api", side_effect=fake_api):
-        out = await m.spawn_worker(
-            name="child", task="do it", repo_path="/repo",
-            model="gpt-5.6-sol",
-        )
+        with pytest.raises(m.ApiToolError) as caught:
+            await m.spawn_worker(
+                name="child", task="do it", repo_path="/repo",
+                model="gpt-5.6-sol",
+            )
 
     assert calls == ["/api/sessions"]
-    assert "malformed API response" in out
-    assert missing in out
-    assert "worker may have been created" in out.lower()
-    assert "Worktree:" not in out
+    assert caught.value.code == "invalid_response"
+    assert caught.value.outcome_unknown is True
+    assert missing in caught.value.details["missing"]
+    assert caught.value.result["created"] == "unknown"
 
 
 @pytest.mark.asyncio
@@ -261,16 +670,56 @@ async def test_spawn_task_delivery_error_reports_created_worker(monkeypatch):
         return {"error": "delivery unavailable"}
 
     with patch.object(m, "_api", side_effect=fake_api):
-        out = await m.spawn_worker(
-            name="child", task="do it", repo_path="/repo",
-            model="gpt-5.6-sol",
-        )
+        with pytest.raises(m.ApiToolError) as caught:
+            await m.spawn_worker(
+                name="child", task="do it", repo_path="/repo",
+                model="gpt-5.6-sol",
+            )
 
     assert calls == ["/api/sessions", "/api/sessions/child/send"]
-    assert "worker 'child' was created" in out.lower()
-    assert "initial task delivery failed: delivery unavailable" in out
-    assert "Worktree: /worktrees/child" in out
-    assert "Task sent." not in out
+    assert "worker 'child' was created" in caught.value.message.lower()
+    assert caught.value.outcome_unknown is False
+    assert caught.value.result["worktree_path"] == "/worktrees/child"
+    assert caught.value.result["next_action"]["code"] == "SEND_INITIAL_TASK"
+
+
+@pytest.mark.asyncio
+async def test_spawn_unknown_delivery_preserves_mapping_and_forbids_resend(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+
+    async def fake_api(_method, path, **_kwargs):
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-88/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        raise m.ApiToolError(
+            code="transport_timeout",
+            message="ReadTimeout",
+            retryable=False,
+            request_id="send-request",
+            outcome_unknown=True,
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await _protocol_call(m, "spawn_worker", {
+        "name": "child",
+        "task": "do it",
+        "repo_path": "/repo",
+        "model": "gpt-5.6-sol",
+    })
+
+    assert result.isError is True
+    structured = result.structuredContent
+    assert structured["error"]["outcome_unknown"] is True
+    assert structured["result"]["created"] is True
+    assert structured["result"]["worktree_path"] == "/worktrees/child"
+    assert structured["result"]["next_action"]["code"] == "CHECK_DELIVERY_STATE"
+    assert "do not resend" in structured["result"]["next_action"]["message"].lower()
 
 
 @pytest.mark.asyncio
@@ -566,6 +1015,26 @@ async def test_list_agents_groups_by_parent(monkeypatch):
     assert "orch-a" in out
     assert "my-coder" in out
     assert "their-coder" in out
+
+
+@pytest.mark.asyncio
+async def test_list_agents_optional_icons_failure_is_visible_success(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+
+    async def fake_api(_method, path, **_kwargs):
+        if path == "/api/sessions":
+            return [{"name": "orch", "role": "orchestrator", "status": "idle", "model": "opus"}]
+        raise m.ApiToolError(code="http_5xx", message="icons unavailable", status=503)
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await _protocol_call(m, "list_agents", {})
+
+    assert result.isError is False
+    assert result.structuredContent["error"] is None
+    assert "Role icons unavailable" in result.structuredContent["result"]
+    assert "**orch**" in result.structuredContent["result"]
 
 
 def test_cache_pill_uses_exact_and_approximate_runtime_policies():
