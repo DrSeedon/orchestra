@@ -3122,6 +3122,112 @@ async def stream_logs(orch_name: str, thread_id: int):
         _poll_conn.close()
 
 
+async def _get_limits_usage() -> dict:
+    from app.routes.system import _get_usage_data
+
+    return await _get_usage_data()
+
+
+async def _is_limits_owner(msg: types.Message) -> bool:
+    group_id = config.get("group_id")
+    user_id = getattr(getattr(msg, "from_user", None), "id", None)
+    if not bot or not group_id or not user_id:
+        return False
+    try:
+        member = await bot.get_chat_member(group_id, user_id)
+    except Exception as e:
+        logger.warning(
+            f"TG /limits owner lookup failed: {type(e).__name__}: {e}"
+        )
+        return False
+    return member.status == "creator"
+
+
+def _format_limits_message(usage: dict, *, now: datetime | None = None) -> str:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    local_tz = timezone(timedelta(hours=7))
+
+    def window_line(label: str, window: dict | None) -> str:
+        if not isinstance(window, dict) or not isinstance(
+            window.get("utilization"), (int, float)
+        ):
+            return f"• {label} — нет данных"
+
+        remaining = max(0.0, min(100.0, 100 - float(window["utilization"])))
+        remaining_text = f"{remaining:.1f}".rstrip("0").rstrip(".")
+        reset_value = window.get("resets_at")
+        if not reset_value:
+            return f"• {label} — осталось {remaining_text}%; сброс не указан"
+        try:
+            reset = datetime.fromisoformat(
+                str(reset_value).replace("Z", "+00:00")
+            )
+            if reset.tzinfo is None:
+                reset = reset.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            return f"• {label} — осталось {remaining_text}%; сброс некорректен"
+
+        absolute = reset.astimezone(local_tz).strftime("%d.%m.%Y %H:%M UTC+7")
+        seconds = (reset - now).total_seconds()
+        if seconds <= 0:
+            relative = "сброс уже наступил"
+        else:
+            minutes_total = max(1, int((seconds + 59) // 60))
+            days, minutes_total = divmod(minutes_total, 24 * 60)
+            hours, minutes = divmod(minutes_total, 60)
+            parts = []
+            if days:
+                parts.append(f"{days} д")
+            if hours:
+                parts.append(f"{hours} ч")
+            if minutes or not parts:
+                parts.append(f"{minutes} мин")
+            relative = f"через {' '.join(parts)}"
+        return (
+            f"• {label} — осталось {remaining_text}%; "
+            f"сброс {absolute}, {relative}"
+        )
+
+    anthropic = usage.get("anthropic") or {}
+    codex = usage.get("codex") or {}
+    lines = [
+        "*Лимиты*",
+        window_line("Claude 5h", anthropic.get("five_hour")),
+        window_line("Claude 7d", anthropic.get("seven_day")),
+        window_line("Codex", codex.get("primary")),
+    ]
+    extra_usage = anthropic.get("extra_usage") or {}
+    if extra_usage.get("spend_limit_reached") is True:
+        lines.append(
+            "• Claude extra usage — лимит расходов достигнут "
+            "(базовые окна считаются отдельно)"
+        )
+    return "\n".join(lines)
+
+
+@dp.message(F.chat.type == "private", F.text, lambda msg: msg.text and msg.text.strip() == "/limits")
+async def handle_limits(msg: types.Message):
+    if not await _is_limits_owner(msg):
+        await _tg_send_safe(msg.chat.id, "⛔ Нет доступа.", important=False)
+        return
+
+    try:
+        response = _format_limits_message(await _get_limits_usage())
+    except Exception as e:
+        detail = str(e).strip() or "(без сообщения)"
+        response = f"❌ /api/usage: {type(e).__name__}: {detail}"
+
+    for text, entities in _formatted_chunks(response):
+        await _tg_send_safe(
+            msg.chat.id,
+            text,
+            entities=entities,
+            important=False,
+        )
+
+
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text, lambda msg: msg.text and msg.text.strip() == "/restart")
 async def handle_restart(msg: types.Message):
     if msg.chat.id != config.get("group_id"):

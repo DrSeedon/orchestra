@@ -10,6 +10,8 @@
 import asyncio
 import json
 import time
+from datetime import datetime, timezone
+from inspect import getsource
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -2050,6 +2052,162 @@ class TestFormattedChunks:
         text, entities = chunks[0]
         assert text == "hello world"
         assert entities
+
+
+class TestLimitsCommand:
+    @staticmethod
+    def _message(user_id=456):
+        return SimpleNamespace(
+            chat=SimpleNamespace(id=123),
+            from_user=SimpleNamespace(id=user_id),
+        )
+
+    @staticmethod
+    def _authorize_owner(tb):
+        tb.bot = AsyncMock()
+        tb.bot.get_chat_member.return_value = SimpleNamespace(status="creator")
+
+    def test_formats_independent_windows_in_krasnoyarsk_time(self, tb):
+        usage = {
+            "anthropic": {
+                "five_hour": {
+                    "utilization": 97,
+                    "resets_at": "2026-08-01T11:30:00Z",
+                },
+                "seven_day": {
+                    "utilization": 48,
+                    "resets_at": "2026-08-03T08:15:00Z",
+                },
+                "extra_usage": {"spend_limit_reached": True},
+            },
+            "codex": {
+                "primary": {
+                    "utilization": 74.5,
+                    "resets_at": "2026-08-01T08:45:00Z",
+                },
+            },
+        }
+
+        text = tb._format_limits_message(
+            usage,
+            now=datetime(2026, 8, 1, 8, 0, tzinfo=timezone.utc),
+        )
+
+        assert text.splitlines() == [
+            "*Лимиты*",
+            (
+                "• Claude 5h — осталось 3%; сброс "
+                "01.08.2026 18:30 UTC+7, через 3 ч 30 мин"
+            ),
+            (
+                "• Claude 7d — осталось 52%; сброс "
+                "03.08.2026 15:15 UTC+7, через 2 д 15 мин"
+            ),
+            (
+                "• Codex — осталось 25.5%; сброс "
+                "01.08.2026 15:45 UTC+7, через 45 мин"
+            ),
+            (
+                "• Claude extra usage — лимит расходов достигнут "
+                "(базовые окна считаются отдельно)"
+            ),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_response_uses_normal_delivery_queue(self, tb, monkeypatch):
+        usage = {
+            "anthropic": {
+                "five_hour": {
+                    "utilization": 1,
+                    "resets_at": "2026-08-01T11:30:00Z",
+                },
+                "seven_day": {
+                    "utilization": 2,
+                    "resets_at": "2026-08-03T08:15:00Z",
+                },
+            },
+            "codex": {
+                "primary": {
+                    "utilization": 3,
+                    "resets_at": "2026-08-01T08:45:00Z",
+                },
+            },
+        }
+        self._authorize_owner(tb)
+        queued = AsyncMock()
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value=usage))
+        monkeypatch.setattr(tb, "_tg_send_safe", queued)
+
+        await tb.handle_limits(self._message())
+
+        tb.bot.get_chat_member.assert_awaited_once_with(-100123456, 456)
+        queued.assert_awaited_once()
+        args, kwargs = queued.await_args
+        assert args[0] == 123
+        assert "Claude 5h" in args[1]
+        assert kwargs["entities"]
+        assert kwargs["important"] is False
+
+    @pytest.mark.asyncio
+    async def test_usage_error_includes_exception_class_and_empty_detail(
+        self, tb, monkeypatch,
+    ):
+        import httpx
+
+        self._authorize_owner(tb)
+        queued = AsyncMock()
+        monkeypatch.setattr(
+            tb,
+            "_get_limits_usage",
+            AsyncMock(side_effect=httpx.ReadTimeout("")),
+        )
+        monkeypatch.setattr(tb, "_tg_send_safe", queued)
+
+        await tb.handle_limits(self._message())
+
+        assert queued.await_args.args[1] == (
+            "❌ /api/usage: ReadTimeout: (без сообщения)"
+        )
+
+    @pytest.mark.asyncio
+    async def test_non_owner_is_denied_without_loading_usage(
+        self, tb, monkeypatch,
+    ):
+        tb.bot = AsyncMock()
+        tb.bot.get_chat_member.return_value = SimpleNamespace(
+            status="administrator",
+        )
+        get_usage = AsyncMock()
+        queued = AsyncMock()
+        monkeypatch.setattr(tb, "_get_limits_usage", get_usage)
+        monkeypatch.setattr(tb, "_tg_send_safe", queued)
+
+        await tb.handle_limits(self._message())
+
+        get_usage.assert_not_awaited()
+        queued.assert_awaited_once_with(123, "⛔ Нет доступа.", important=False)
+
+    @pytest.mark.asyncio
+    async def test_owner_lookup_failure_is_fail_closed(
+        self, tb, monkeypatch,
+    ):
+        tb.bot = AsyncMock()
+        tb.bot.get_chat_member.side_effect = TimeoutError()
+        get_usage = AsyncMock()
+        queued = AsyncMock()
+        monkeypatch.setattr(tb, "_get_limits_usage", get_usage)
+        monkeypatch.setattr(tb, "_tg_send_safe", queued)
+
+        await tb.handle_limits(self._message())
+
+        get_usage.assert_not_awaited()
+        queued.assert_awaited_once_with(123, "⛔ Нет доступа.", important=False)
+
+    def test_handler_is_registered_for_private_chat_only(self, tb):
+        source = getsource(tb.handle_limits)
+
+        assert 'F.chat.type == "private"' in source
+        assert '"group"' not in source
 
 
 class TestTgRateAdmission:
