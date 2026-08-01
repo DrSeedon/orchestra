@@ -32,8 +32,10 @@ let scrollAfterLoad = true;
 let drafts = {};
 
 const _CHAT_BOTTOM_GAP = 80;
-let _pendingChatRestoreKey = null;
+const _CHAT_READ_RECEIPTS_KEY = 'orchestraChatReadReceipts';
+let _pendingChatRestore = null;
 let _chatHasNewBelow = false;
+let _chatReadCaptureRaf = null;
 
 function _chatPositionKey(scope = currentScope, agent = selectedAgent) {
     return scope && agent ? `${scope}\u0000${agent}` : '';
@@ -41,6 +43,63 @@ function _chatPositionKey(scope = currentScope, agent = selectedAgent) {
 
 function _chatAtBottom(chat = $('#chat')) {
     return !chat || chat.scrollHeight - chat.scrollTop - chat.clientHeight < _CHAT_BOTTOM_GAP;
+}
+
+function _chatReadReceipts() {
+    try {
+        const receipts = JSON.parse(sessionStorage.getItem(_CHAT_READ_RECEIPTS_KEY) || '{}');
+        return receipts && typeof receipts === 'object' && !Array.isArray(receipts) ? receipts : {};
+    } catch (e) {
+        console.warn('Chat read receipts unavailable:', e.name, e.message);
+        return {};
+    }
+}
+
+function _chatReadReceipt(key) {
+    const id = Number(_chatReadReceipts()[key]);
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function _saveChatReadReceipt(key, id) {
+    if (!key || !Number.isFinite(id) || id <= 0) return;
+    try {
+        const receipts = _chatReadReceipts();
+        if (Number(receipts[key]) >= id) return;
+        receipts[key] = id;
+        sessionStorage.setItem(_CHAT_READ_RECEIPTS_KEY, JSON.stringify(receipts));
+    } catch (e) {
+        console.warn('Chat read receipt save failed:', e.name, e.message);
+    }
+}
+
+function _stampChatLogNode(node, payload) {
+    const id = Number(payload?.id);
+    if (!node || !Number.isFinite(id)) return;
+    node.dataset.chatLogId = String(Math.max(id, Number(node.dataset.chatLogId) || 0));
+}
+
+function _captureChatReadFrontier() {
+    if (scrollAfterLoad) return;
+    const chat = $('#chat');
+    const key = _chatPositionKey();
+    if (!chat || !key) return;
+    const bounds = chat.getBoundingClientRect();
+    let lastVisibleId = null;
+    for (const node of chat.querySelectorAll(':scope > [data-chat-log-id]')) {
+        const rect = node.getBoundingClientRect();
+        if (rect.top < bounds.bottom - 1 && rect.bottom > bounds.top + 1) {
+            lastVisibleId = Math.max(lastVisibleId || 0, Number(node.dataset.chatLogId));
+        }
+    }
+    if (lastVisibleId) _saveChatReadReceipt(key, lastVisibleId);
+}
+
+function _scheduleChatReadCapture() {
+    if (_chatReadCaptureRaf) cancelAnimationFrame(_chatReadCaptureRaf);
+    _chatReadCaptureRaf = requestAnimationFrame(() => {
+        _chatReadCaptureRaf = null;
+        _captureChatReadFrontier();
+    });
 }
 
 function _syncChatJumpButton() {
@@ -73,27 +132,30 @@ function _scrollChatToBottom(behavior = 'auto') {
 
 function _prepareChatAnchorRestore(hasUnread) {
     clearTimeout(window._scrollResetTimer);
-    _pendingChatRestoreKey = hasUnread ? _chatPositionKey() : null;
+    const key = _chatPositionKey();
+    const afterId = hasUnread ? _chatReadReceipt(key) : null;
+    _pendingChatRestore = afterId ? {key, afterId} : null;
     _chatHasNewBelow = false;
     $('#chat-jump-latest')?.classList.add('hidden');
 }
 
 function _restoreChatAnchor(key) {
-    if (!key || key !== _pendingChatRestoreKey || key !== _chatPositionKey()) return;
-    _pendingChatRestoreKey = null;
+    if (!key || key !== _pendingChatRestore?.key || key !== _chatPositionKey()) return;
+    const {afterId} = _pendingChatRestore;
+    _pendingChatRestore = null;
     const chat = $('#chat');
     if (!chat) return;
-    const userMessages = chat.querySelectorAll('.chat-user');
-    const anchor = userMessages[userMessages.length - 1];
-    if (!anchor) {
+    const firstUnread = [...chat.querySelectorAll(':scope > [data-chat-log-id]')]
+        .find(node => Number(node.dataset.chatLogId) > afterId);
+    if (!firstUnread) {
         _scrollChatToBottom();
         return;
     }
-    anchor.scrollIntoView({block: 'start'});
-    if (_chatAtBottom(chat)) {
-        _scrollChatToBottom();
-        return;
-    }
+    const divider = document.createElement('div');
+    divider.className = 'chat-unread-divider';
+    divider.textContent = 'Непрочитанные';
+    chat.insertBefore(divider, firstUnread);
+    divider.scrollIntoView({block: 'start'});
     _chatHasNewBelow = true;
     _syncChatJumpButton();
 }
@@ -114,7 +176,10 @@ function initChatPositionMemory() {
     const button = $('#chat-jump-latest');
     if (!chat || !button || chat.dataset.positionReady === '1') return;
     chat.dataset.positionReady = '1';
-    chat.addEventListener('scroll', _syncChatJumpButton, {passive: true});
+    chat.addEventListener('scroll', () => {
+        _syncChatJumpButton();
+        _scheduleChatReadCapture();
+    }, {passive: true});
     button.addEventListener('click', () => _scrollChatToBottom('smooth'));
 }
 
@@ -1316,6 +1381,7 @@ function selectOrchestrator(name, scope) {
 
 async function onOrchestratorChange() {
     saveDraft();
+    _captureChatReadFrontier();
     if (eventSource) { eventSource.close(); eventSource = null; }
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
@@ -1351,6 +1417,7 @@ async function onOrchestratorChange() {
 // === Agent Selection ===
 async function selectAgent(name) {
     saveDraft();
+    _captureChatReadFrontier();
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
     localMessages.clear();
@@ -2789,6 +2856,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     const chat = $('#chat');
     let _insertedBeforeStream = false;
     const _insert = (el) => {
+        _stampChatLogNode(el, payload);
         if (anchor) return chat.insertBefore(el, anchor);
         const wasAtBottom = _chatAtBottom(chat);
         let inserted;
@@ -2985,7 +3053,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
     // 'text' event signals streaming finished — flush typewriter buffer,
     // replace with authoritative DB content, finalize with copy/timestamp.
     if (type === 'text' && streamBubble) {
+        _stampChatLogNode(streamBubble, payload);
         _completeStreamBubble(content, ts);
+        _scheduleChatReadCapture();
         return;
     }
 

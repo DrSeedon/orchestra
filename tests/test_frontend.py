@@ -716,7 +716,7 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
     page.close()
 
 
-def test_chat_uses_last_user_message_only_when_unread(
+def test_chat_restores_last_read_boundary_only_when_unread(
     dashboard_browser: Browser,
 ):
     root = Path(__file__).parent.parent
@@ -728,12 +728,18 @@ def test_chat_uses_last_user_message_only_when_unread(
         )[0]
     )
     page = dashboard_browser.new_page(viewport={"width": 900, "height": 700})
+    page.route(
+        "http://chat-receipts.test/",
+        lambda route: route.fulfill(status=200, content_type="text/html", body=""),
+    )
+    page.goto("http://chat-receipts.test/")
     page.set_content(
         """
         <style>
           .hidden { display:none !important }
           #chat { height:240px; overflow-y:auto }
           #chat > div { height:48px }
+          .chat-unread-divider { height:20px !important }
         </style>
         <div style="position:relative;width:500px">
           <div id="chat"></div>
@@ -750,19 +756,15 @@ def test_chat_uses_last_user_message_only_when_unread(
         """
         + helper_code
         + """
-        window.fillChat = (withUser = true, userLast = false) => {
+        sessionStorage.clear();
+        window.fillChat = (total = 24, start = 1) => {
             const chat = $('#chat');
             chat.innerHTML = '';
-            const total = 24;
-            for (let i = 0; i < total; i++) {
+            for (let id = start; id < start + total; id++) {
                 const row = document.createElement('div');
-                if (withUser && i === (userLast ? total - 1 : 9)) {
-                    row.className = 'chat-user';
-                    row.textContent = 'my last request';
-                } else {
-                    row.className = 'chat-bot';
-                    row.textContent = `agent work ${i}`;
-                }
+                row.className = 'chat-bot';
+                row.dataset.chatLogId = String(id);
+                row.textContent = `agent work ${id}`;
                 chat.appendChild(row);
             }
             chat.scrollTop = 0;
@@ -771,68 +773,109 @@ def test_chat_uses_last_user_message_only_when_unread(
         """,
     )
 
+    # Reading in the middle records the lowest visible log, not the user's last message.
+    read_id = page.evaluate(
+        """() => {
+            window.fillChat(24);
+            $('#chat').scrollTop = 8 * 48;
+            _captureChatReadFrontier();
+            return _chatReadReceipt(_chatPositionKey());
+        }"""
+    )
+    assert 9 <= read_id < 24
+
     page.evaluate(
         """() => {
-            fillChat();
-            $('#chat').scrollTop = $('#chat').scrollHeight;
-            _prepareChatAnchorRestore(false);
+            window.fillChat(30);
+            _prepareChatAnchorRestore(true);
             _restoreChatAnchor(_chatPositionKey());
         }"""
     )
-    assert page.evaluate("() => _chatAtBottom()") is True
-    expect(page.locator("#chat-jump-latest")).to_be_hidden()
-
-    page.evaluate("fillChat(); _prepareChatAnchorRestore(true); _restoreChatAnchor(_chatPositionKey())")
-    anchor_offset = page.evaluate(
-        """() => {
-            const chat = $('#chat').getBoundingClientRect();
-            const anchor = $('#chat .chat-user').getBoundingClientRect();
-            return Math.abs(anchor.top - chat.top);
-        }"""
-    )
-    assert anchor_offset < 2
+    divider = page.locator(".chat-unread-divider")
+    expect(divider).to_have_count(1)
+    assert page.evaluate(
+        """() => Number($('.chat-unread-divider').nextElementSibling.dataset.chatLogId)"""
+    ) == read_id + 1
     expect(page.locator("#chat-jump-latest")).to_be_visible()
     expect(page.locator("#chat-jump-latest")).to_have_text("↓ Новые ниже")
     page.locator("#chat-jump-latest").click()
     page.wait_for_function("() => _chatAtBottom()")
     expect(page.locator("#chat-jump-latest")).to_be_hidden()
 
+    # If the saved boundary fell outside the loaded window, start at the first
+    # available unread record instead of cascading through older history.
     page.evaluate(
         """() => {
-            selectedAgent = 'agent-without-user-message';
-            fillChat(false);
+            selectedAgent = 'agent-boundary-outside-window';
+            _saveChatReadReceipt(_chatPositionKey(), 50);
+            window.fillChat(24, 100);
             _prepareChatAnchorRestore(true);
             _restoreChatAnchor(_chatPositionKey());
         }"""
     )
-    assert page.evaluate("() => _chatAtBottom()") is True
+    assert page.evaluate(
+        """() => Number($('.chat-unread-divider').nextElementSibling.dataset.chatLogId)"""
+    ) == 100
 
+    # A receipt at the old bottom puts the divider immediately before new work.
     page.evaluate(
         """() => {
-            selectedAgent = 'agent-user-message-is-last';
-            fillChat(true, true);
+            selectedAgent = 'agent-at-bottom';
+            window.fillChat(24);
+            $('#chat').scrollTop = $('#chat').scrollHeight;
+            _captureChatReadFrontier();
+            window.fillChat(28);
             _prepareChatAnchorRestore(true);
             _restoreChatAnchor(_chatPositionKey());
         }"""
     )
-    assert page.evaluate("() => _chatAtBottom()") is True
-    expect(page.locator("#chat-jump-latest")).to_be_hidden()
+    expect(page.locator(".chat-unread-divider")).to_have_count(1)
+    assert page.evaluate(
+        """() => Number($('.chat-unread-divider').nextElementSibling.dataset.chatLogId)"""
+    ) == 25
 
+    # Opening and leaving before history settles must not invent a read boundary.
     page.evaluate(
         """() => {
-            $('#chat').scrollTop = 0;
-            _syncChatJumpButton();
+            selectedAgent = 'agent-opened-and-left';
+            window.fillChat(24);
+            scrollAfterLoad = true;
+            _captureChatReadFrontier();
+            _prepareChatAnchorRestore(true);
+            _restoreChatAnchor(_chatPositionKey());
         }"""
     )
-    expect(page.locator("#chat-jump-latest")).to_have_text("↓ В конец")
-    page.evaluate("_markChatHasNewBelow()")
-    expect(page.locator("#chat-jump-latest")).to_have_text("↓ Новые ниже")
+    assert page.evaluate("() => _chatReadReceipt(_chatPositionKey())") is None
+    expect(page.locator(".chat-unread-divider")).to_have_count(0)
+
+    # Live work at the bottom stays pinned and advances the read frontier.
+    page.evaluate(
+        """() => {
+            selectedAgent = 'agent-live';
+            scrollAfterLoad = false;
+            window.fillChat(24);
+            $('#chat').scrollTop = $('#chat').scrollHeight;
+            _captureChatReadFrontier();
+            const wasAtBottom = _chatAtBottom();
+            const row = document.createElement('div');
+            row.className = 'chat-bot';
+            row.dataset.chatLogId = '25';
+            row.textContent = 'live work 25';
+            $('#chat').appendChild(row);
+            if (wasAtBottom) $('#chat').scrollTop = $('#chat').scrollHeight;
+            _captureChatReadFrontier();
+        }"""
+    )
+    assert page.evaluate("() => _chatAtBottom()") is True
+    assert page.evaluate("() => _chatReadReceipt(_chatPositionKey())") == 25
+    expect(page.locator(".chat-unread-divider")).to_have_count(0)
 
     assert "_scheduleChatInitialSettle();" in source
     assert "const restoreUnreadAnchor = _unreadTabs.delete(currentScope);" in source
     assert "_prepareChatAnchorRestore(restoreUnreadAnchor);" in source
     assert source.count("_unreadTabs.add(") == 1
     assert "localStorage" not in helper_code
+    assert "sessionStorage" in helper_code
     page.close()
 
 
