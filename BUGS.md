@@ -319,3 +319,8 @@ Task #102 implementation review failed 3/3 on 2026-07-29. Attempts: bg-a5bb44628
 КОНТЕКСТ: ранее в этой же сессии те же воркеры работали нормально десятки турнов. Сбои начались после того, как один из воркеров прошёл серверный компакт (context_pct упал 81% → 48%), но новый воркер компакта не проходил и всё равно падает.
 
 ВЛИЯНИЕ: полностью блокирует делегирование Codex-воркерам. Пришлось запускать вычислительные прогоны вручную из оркестратора, что дало 4 ошибки в CLI и потерю ~2 часов.
+
+## [2026-08-01 06:16 UTC] Worker turns fail silently with stop_reason=error
+- **Reporter:** dev-lead
+- **Scope:** /mnt/data/Projects/Python/seedon
+Project seedon, worker feat-attribution, task #180: three consecutive triggered turns ended with stop_reason=error and no explicit report or output. worker_wip vs main is clean (no uncommitted or unmerged work); worker returns idle with ctx reset to 0. This caused the high-priority task to make zero progress despite dispatch/retries. Please inspect worker runtime/session failure path and ensure errors include actionable diagnostics.
