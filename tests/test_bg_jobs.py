@@ -2,6 +2,9 @@
 
 import asyncio
 import json
+import os
+import signal
+import sys
 import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
@@ -320,7 +323,8 @@ class TestCronCommand:
             for index in range(4)
         ]
         create = AsyncMock(side_effect=processes)
-        monkeypatch.setattr(module.asyncio, "create_subprocess_shell", create)
+        monkeypatch.setattr(module, "_spawn_bg_process", create)
+        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
 
         async def communicate(proc):
             return proc.output, proc.error
@@ -362,11 +366,8 @@ class TestCronCommand:
         mgr.set_session_manager(manager)
         bg_save_job(self._job("cron-command-match", datetime.now(timezone.utc)))
         proc = self._proc(output=b"ALERT: item 42\n", returncode=7)
-        monkeypatch.setattr(
-            module.asyncio,
-            "create_subprocess_shell",
-            AsyncMock(return_value=proc),
-        )
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
+        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
 
         async def communicate(process):
             return process.output, process.error
@@ -409,11 +410,8 @@ class TestCronCommand:
         mgr.set_session_manager(manager)
         bg_save_job(self._job("cron-command-empty-output", datetime.now(timezone.utc)))
         proc = self._proc()
-        monkeypatch.setattr(
-            module.asyncio,
-            "create_subprocess_shell",
-            AsyncMock(return_value=proc),
-        )
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
+        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
 
         async def communicate(process):
             return process.output, process.error
@@ -445,11 +443,7 @@ class TestCronCommand:
         mgr.set_session_manager(manager)
         bg_save_job(self._job("cron-command-timeout", datetime.now(timezone.utc)))
         proc = self._proc(output=b"ALERT: partial\n", returncode=None)
-        monkeypatch.setattr(
-            module.asyncio,
-            "create_subprocess_shell",
-            AsyncMock(return_value=proc),
-        )
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
 
         async def timeout(_process):
             raise asyncio.TimeoutError
@@ -490,11 +484,7 @@ class TestCronCommand:
         mgr.set_session_manager(manager)
         bg_save_job(self._job("cron-command-cancel", datetime.now(timezone.utc)))
         proc = self._proc(returncode=None)
-        monkeypatch.setattr(
-            module.asyncio,
-            "create_subprocess_shell",
-            AsyncMock(return_value=proc),
-        )
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
         communicating = asyncio.Event()
         never = asyncio.Event()
 
@@ -577,17 +567,13 @@ class TestRunExecOutcome:
         session.send.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_reports_child_that_keeps_stdout_open_without_signaling(
+    async def test_reports_child_that_keeps_stdout_open_before_safe_cleanup(
         self, db, mgr_mock, caplog, monkeypatch,
     ):
         from app.bg_jobs import BgJobManager
         from app.db import bg_get_jobs, bg_save_job
 
         caplog.set_level("WARNING", logger="app.bg_jobs")
-        monkeypatch.setattr(
-            "app.bg_jobs.os.killpg",
-            lambda *_: pytest.fail("observation must not signal a process group"),
-        )
         mgr = BgJobManager()
         manager, session = mgr_mock
         mgr.set_session_manager(manager)
@@ -616,10 +602,6 @@ class TestRunExecOutcome:
         from app.bg_jobs import BgJobManager
         from app.db import bg_save_job
 
-        monkeypatch.setattr(
-            "app.bg_jobs.os.killpg",
-            lambda *_: pytest.fail("cancellation must not signal a stale process group"),
-        )
         mgr = BgJobManager()
         manager, _ = mgr_mock
         mgr.set_session_manager(manager)
@@ -690,3 +672,200 @@ class TestRunExecOutcome:
         assert row["status"] == "failed"
         assert "artifact" in row["error"].lower()
         assert "FAILED" in session.send.await_args.args[0]
+
+
+class TestPidfdProcessLifecycle:
+    @pytest.mark.asyncio
+    async def test_shell_and_argv_modes_preserve_arguments(self):
+        from app.bg_jobs import _kill_proc, _spawn_bg_process
+
+        argv_proc = await _spawn_bg_process(
+            ["/usr/bin/printf", "%s", "argv value"],
+            shell=False,
+            stdout=asyncio.subprocess.PIPE,
+        )
+        argv_output, _ = await argv_proc.communicate()
+        await _kill_proc(argv_proc)
+
+        shell_proc = await _spawn_bg_process(
+            "printf '%s' 'shell value'",
+            shell=True,
+            stdout=asyncio.subprocess.PIPE,
+        )
+        shell_output, _ = await shell_proc.communicate()
+        await _kill_proc(shell_proc)
+
+        assert argv_output == b"argv value"
+        assert shell_output == b"shell value"
+
+    @pytest.mark.asyncio
+    async def test_unsupported_group_signal_fails_before_target_exec(
+        self, tmp_path, monkeypatch,
+    ):
+        import app.bg_jobs as module
+
+        marker = tmp_path / "must-not-exist"
+        monkeypatch.setattr(module, "pidfd_send_group", lambda _fd, _sig: False)
+
+        with pytest.raises(RuntimeError, match="disappeared before exec ACK"):
+            await module._spawn_bg_process(
+                f"touch {marker}", shell=True,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+
+        assert not marker.exists()
+
+    @pytest.mark.asyncio
+    async def test_cancelled_handshake_never_executes_target(
+        self, tmp_path, monkeypatch,
+    ):
+        import app.bg_jobs as module
+
+        marker = tmp_path / "must-not-exist"
+        receiving = asyncio.Event()
+
+        async def blocked_receive(_control):
+            receiving.set()
+            await asyncio.Event().wait()
+
+        monkeypatch.setattr(module, "_recv_pidfd", blocked_receive)
+        task = asyncio.create_task(module._spawn_bg_process(
+            f"touch {marker}", shell=True,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        ))
+        await receiving.wait()
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not marker.exists()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_cleanup_is_single_and_cancellation_shielded(
+        self, monkeypatch,
+    ):
+        import app.bg_jobs as module
+
+        class Process:
+            pid = 12345
+            _orchestra_cleanup_task = None
+
+        proc = Process()
+        started = asyncio.Event()
+        release = asyncio.Event()
+        calls = 0
+
+        async def cleanup(_proc):
+            nonlocal calls
+            calls += 1
+            started.set()
+            await release.wait()
+
+        monkeypatch.setattr(module, "_cleanup_pidfd_group", cleanup)
+        first = asyncio.create_task(module._kill_proc(proc))
+        await started.wait()
+        second = asyncio.create_task(module._kill_proc(proc))
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        assert not second.done()
+
+        release.set()
+        await second
+        await module._kill_proc(proc)
+        assert calls == 1
+
+    @pytest.mark.asyncio
+    async def test_live_leader_and_child_are_terminated_but_unrelated_survives(self):
+        from app.bg_jobs import _kill_proc, _spawn_bg_process
+
+        code = """
+import os
+import time
+child = os.fork()
+if child == 0:
+    time.sleep(30)
+    os._exit(0)
+print(child, flush=True)
+time.sleep(30)
+"""
+        proc = await _spawn_bg_process(
+            [sys.executable, "-c", code],
+            shell=False,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        child_pid = int((await asyncio.wait_for(proc.stdout.readline(), 2)).decode())
+        unrelated = await asyncio.create_subprocess_exec(
+            "/bin/sleep", "30", start_new_session=True,
+        )
+        try:
+            await _kill_proc(proc)
+            assert proc.returncode == -signal.SIGTERM
+            assert not os.path.exists(f"/proc/{child_pid}")
+            assert unrelated.returncode is None
+        finally:
+            if unrelated.returncode is None:
+                unrelated.terminate()
+            await unrelated.wait()
+
+    @pytest.mark.asyncio
+    async def test_reaped_leader_retains_group_identity_for_kill_escalation(
+        self, tmp_path, monkeypatch,
+    ):
+        import app.bg_jobs as module
+
+        child_file = tmp_path / "child.pid"
+        code = f"""
+import os
+import signal
+import time
+child = os.fork()
+if child == 0:
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    with open({str(child_file)!r}, "w") as fh:
+        fh.write(str(os.getpid()))
+    while True:
+        time.sleep(30)
+os._exit(0)
+"""
+        proc = await module._spawn_bg_process(
+            [sys.executable, "-c", code],
+            shell=False,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await asyncio.wait_for(proc.wait(), 2)
+        for _ in range(100):
+            if child_file.exists():
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("TERM-ignoring child did not start")
+        child_pid = int(child_file.read_text())
+        unrelated = await asyncio.create_subprocess_exec(
+            "/bin/sleep", "30", start_new_session=True,
+        )
+        sent = []
+        real_send = module.pidfd_send_group
+
+        def record_send(pidfd, sig):
+            sent.append(sig)
+            return real_send(pidfd, sig)
+
+        monkeypatch.setattr(module, "pidfd_send_group", record_send)
+        monkeypatch.setattr(module, "_PIDFD_TERM_GRACE", 0.05)
+        monkeypatch.setattr(module, "_PIDFD_KILL_GRACE", 0.5)
+        monkeypatch.setattr(module, "_PIDFD_POLL_INTERVAL", 0.01)
+        try:
+            await module._kill_proc(proc)
+            assert signal.SIGTERM in sent
+            assert signal.SIGKILL in sent
+            assert not os.path.exists(f"/proc/{child_pid}")
+            assert unrelated.returncode is None
+        finally:
+            if unrelated.returncode is None:
+                unrelated.terminate()
+            await unrelated.wait()

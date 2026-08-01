@@ -1,13 +1,17 @@
 """Background Jobs — server-side one-shot tasks that survive hibernate."""
 
 import asyncio
+import array
 import json
 import logging
 import os
 import re
 import signal
+import socket
+import sys
 import time
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 from croniter import croniter
@@ -21,6 +25,7 @@ from app.db import (
     bg_get_jobs, bg_fail_job_if_active, bg_replace_job,
     bg_reset_wake_triggering,
 )
+from app.pidfd_exec import pidfd_send_group
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +36,11 @@ DEFAULT_TIMEOUT = 3600
 OUTPUT_PROGRESS_INTERVAL = 30
 _CRON_COMMAND_TIMEOUT_SECONDS = 30
 _NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
+_PIDFD_EXEC = str(Path(__file__).with_name("pidfd_exec.py"))
+_PIDFD_HANDSHAKE_TIMEOUT = 5
+_PIDFD_TERM_GRACE = 3
+_PIDFD_KILL_GRACE = 2
+_PIDFD_POLL_INTERVAL = 0.05
 
 _SSH_OPTS = [
     "-o", "BatchMode=yes",
@@ -111,26 +121,149 @@ def _validate_config(job_type: str, config: dict) -> str | None:
     return None
 
 
+def _extract_pidfd(data: bytes, ancillary: list[tuple[int, int, bytes]]) -> int:
+    received: list[int] = []
+    for level, kind, payload in ancillary:
+        if level != socket.SOL_SOCKET or kind != socket.SCM_RIGHTS:
+            continue
+        rights = array.array("i")
+        rights.frombytes(payload[:len(payload) - len(payload) % rights.itemsize])
+        received.extend(rights)
+    if data != b"P":
+        for fd in received:
+            os.close(fd)
+        detail = data.decode(errors="replace") or "EOF"
+        raise RuntimeError(f"pidfd exec handshake failed: {detail}")
+    if len(received) != 1:
+        for fd in received:
+            os.close(fd)
+        raise RuntimeError(f"pidfd exec handshake received {len(received)} fds")
+    return received[0]
+
+
+async def _recv_pidfd(control: socket.socket) -> int:
+    loop = asyncio.get_running_loop()
+    future = loop.create_future()
+    fd_size = array.array("i").itemsize
+
+    def receive() -> None:
+        try:
+            data, ancillary, _flags, _address = control.recvmsg(
+                256,
+                socket.CMSG_SPACE(fd_size),
+                socket.MSG_CMSG_CLOEXEC,
+            )
+            result = _extract_pidfd(data, ancillary)
+        except BlockingIOError:
+            return
+        except BaseException as exc:
+            if not future.done():
+                future.set_exception(exc)
+        else:
+            if not future.done():
+                future.set_result(result)
+        finally:
+            if future.done():
+                loop.remove_reader(control.fileno())
+
+    control.setblocking(False)
+    loop.add_reader(control.fileno(), receive)
+    try:
+        return await future
+    finally:
+        loop.remove_reader(control.fileno())
+
+
+async def _spawn_bg_process(
+    command: str | list[str],
+    *,
+    shell: bool,
+    **kwargs,
+) -> asyncio.subprocess.Process:
+    parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+    proc = None
+    pidfd = None
+    try:
+        mode = "shell" if shell else "argv"
+        target = [command] if shell else list(command)
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            _PIDFD_EXEC,
+            str(child.fileno()),
+            mode,
+            *target,
+            pass_fds=(child.fileno(),),
+            start_new_session=True,
+            **kwargs,
+        )
+        child.close()
+        pidfd = await asyncio.wait_for(
+            _recv_pidfd(parent), timeout=_PIDFD_HANDSHAKE_TIMEOUT,
+        )
+        if not pidfd_send_group(pidfd, 0):
+            raise RuntimeError("pidfd process group disappeared before exec ACK")
+        proc._orchestra_pidfd = pidfd
+        pidfd = None
+        try:
+            await asyncio.get_running_loop().sock_sendall(parent, b"A")
+        except BaseException:
+            parent.close()
+            await _kill_proc(proc)
+            raise
+        return proc
+    except BaseException:
+        if pidfd is not None:
+            os.close(pidfd)
+        if proc is not None and getattr(proc, "_orchestra_pidfd", None) is None:
+            child.close()
+            parent.close()
+            try:
+                await asyncio.wait_for(asyncio.shield(proc.wait()), timeout=2)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                logger.error(
+                    "pidfd exec shim pid=%s did not exit after handshake failure",
+                    proc.pid,
+                )
+        raise
+    finally:
+        child.close()
+        parent.close()
+
+
+async def _cleanup_pidfd_group(proc: asyncio.subprocess.Process) -> None:
+    pidfd = getattr(proc, "_orchestra_pidfd", None)
+    if pidfd is None:
+        raise RuntimeError(f"process pid={proc.pid} has no stable pidfd identity")
+    proc._orchestra_pidfd = None
+    try:
+        alive = pidfd_send_group(pidfd, signal.SIGTERM)
+        deadline = asyncio.get_running_loop().time() + _PIDFD_TERM_GRACE
+        while alive and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(_PIDFD_POLL_INTERVAL)
+            alive = pidfd_send_group(pidfd, 0)
+        if alive:
+            pidfd_send_group(pidfd, signal.SIGKILL)
+            deadline = asyncio.get_running_loop().time() + _PIDFD_KILL_GRACE
+            while asyncio.get_running_loop().time() < deadline:
+                await asyncio.sleep(_PIDFD_POLL_INTERVAL)
+                if not pidfd_send_group(pidfd, 0):
+                    break
+            else:
+                raise RuntimeError(f"process group for pid={proc.pid} survived SIGKILL")
+        try:
+            await asyncio.wait_for(asyncio.shield(proc.wait()), timeout=2)
+        except asyncio.TimeoutError:
+            logger.warning("process leader pid=%s was not reaped after group exit", proc.pid)
+    finally:
+        os.close(pidfd)
+
+
 async def _kill_proc(proc: asyncio.subprocess.Process) -> None:
-    if proc.returncode is not None:
-        return
-    try:
-        pgid = os.getpgid(proc.pid)
-        os.killpg(pgid, signal.SIGTERM)
-    except (ProcessLookupError, PermissionError):
-        pass
-    try:
-        await asyncio.wait_for(proc.wait(), timeout=3)
-    except (asyncio.TimeoutError, ProcessLookupError):
-        try:
-            pgid = os.getpgid(proc.pid)
-            os.killpg(pgid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-        try:
-            await asyncio.wait_for(proc.wait(), timeout=2)
-        except Exception:
-            pass
+    cleanup = getattr(proc, "_orchestra_cleanup_task", None)
+    if cleanup is None:
+        cleanup = asyncio.create_task(_cleanup_pidfd_group(proc))
+        proc._orchestra_cleanup_task = cleanup
+    await asyncio.shield(cleanup)
 
 
 def _orphan_session_stats(session_id: int) -> tuple[int, float]:
@@ -519,11 +652,11 @@ class BgJobManager:
         proc = None
         output = ""
         try:
-            proc = await asyncio.create_subprocess_shell(
+            proc = await _spawn_bg_process(
                 command,
+                shell=True,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                preexec_fn=os.setsid,
             )
             self._procs[job_id] = proc
             try:
@@ -590,10 +723,10 @@ class BgJobManager:
                               target_name, target_scope, timeout):
         proc = None
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "tail", "-F", "-n", "0", path,
+            proc = await _spawn_bg_process(
+                ["tail", "-F", "-n", "0", path],
+                shell=False,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                preexec_fn=os.setsid,
             )
             self._procs[job_id] = proc
             async with asyncio.timeout(timeout):
@@ -619,9 +752,9 @@ class BgJobManager:
         deadline = (time.time() + timeout) if timeout is not None else None
         try:
             while deadline is None or time.time() < deadline:
-                proc = await asyncio.create_subprocess_shell(
-                    command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                    preexec_fn=os.setsid,
+                proc = await _spawn_bg_process(
+                    command, shell=True,
+                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
                 )
                 self._procs[job_id] = proc
                 try:
@@ -647,10 +780,10 @@ class BgJobManager:
                               target_name, target_scope, timeout):
         proc = None
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "ssh", *_SSH_OPTS, host, command,
+            proc = await _spawn_bg_process(
+                ["ssh", *_SSH_OPTS, host, command],
+                shell=False,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                preexec_fn=os.setsid,
             )
             self._procs[job_id] = proc
             async with asyncio.timeout(timeout):
@@ -682,15 +815,17 @@ class BgJobManager:
             # that exceed asyncio's default 64KB StreamReader limit → ValueError
             _STREAM_LIMIT = 16 * 1024 * 1024
             if host:
-                proc = await asyncio.create_subprocess_exec(
-                    "ssh", *_SSH_OPTS, host, command,
+                proc = await _spawn_bg_process(
+                    ["ssh", *_SSH_OPTS, host, command],
+                    shell=False,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                    preexec_fn=os.setsid, limit=_STREAM_LIMIT,
+                    limit=_STREAM_LIMIT,
                 )
             else:
-                proc = await asyncio.create_subprocess_shell(
-                    command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                    preexec_fn=os.setsid, limit=_STREAM_LIMIT,
+                proc = await _spawn_bg_process(
+                    command, shell=True,
+                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                    limit=_STREAM_LIMIT,
                 )
             self._procs[job_id] = proc
             where = host or "local"
