@@ -2617,6 +2617,73 @@ function _renderCodexPlan(content) {
     return card;
 }
 
+const _TASK_PRIORITY_META = {
+    0: ['🔴', 'Critical'],
+    1: ['🟠', 'High'],
+    2: ['🟡', 'Medium'],
+    3: ['🟢', 'Low'],
+};
+
+function _taskMoney(value) {
+    if (value == null || value === '') return '';
+    if (typeof value === 'number') {
+        return String(Math.abs(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    }
+    return DOMPurify.sanitize(String(value));
+}
+
+function _taskDescriptionHtml(description) {
+    const text = String(description || '');
+    if (!text) return '';
+    const collapsible = text.length > 180 || text.split('\n').length > 3;
+    const bodyStyle = collapsible ? 'max-height:64px;overflow:hidden' : '';
+    const button = collapsible
+        ? '<button type="button" data-task-description-toggle onclick="event.stopPropagation();_toggleTaskDescription(this)" style="margin-top:3px;padding:0;border:0;background:none;color:#818cf8;font-size:10px;cursor:pointer">▼ Развернуть</button>'
+        : '';
+    return `<div data-task-description style="margin-top:6px;border-top:1px solid rgba(51,65,85,0.55);padding-top:5px">
+        <div style="font-size:9px;color:#64748b;margin-bottom:2px">DESCRIPTION</div>
+        <div data-task-description-body class="markdown-body text-xs" style="${bodyStyle};overflow-wrap:anywhere;line-height:1.4;color:#94a3b8">${DOMPurify.sanitize(marked.parse(text))}</div>
+        ${button}
+    </div>`;
+}
+
+function _toggleTaskDescription(button) {
+    const body = button.parentElement.querySelector('[data-task-description-body]');
+    if (!body) return;
+    const expanded = button.dataset.expanded === '1';
+    button.dataset.expanded = expanded ? '0' : '1';
+    body.style.maxHeight = expanded ? '64px' : 'none';
+    body.style.overflow = expanded ? 'hidden' : 'visible';
+    button.textContent = expanded ? '▼ Развернуть' : '▲ Свернуть';
+}
+
+function _taskCardBodyHtml(task) {
+    const rows = [];
+    const safe = (value) => DOMPurify.sanitize(String(value));
+    const statusColor = {'done':'#22c55e','paid':'#22c55e','in_progress':'#38bdf8','new':'#e2e8f0','cancelled':'#ef4444'}[task.status] || '#e2e8f0';
+    if (task.status) rows.push(`<div><span style="color:#64748b">Status:</span> <b style="color:${statusColor}">${safe(task.status)}</b></div>`);
+    if (task.project) rows.push(`<div><span style="color:#64748b">Project:</span> <span style="color:#94a3b8">${safe(task.project)}</span></div>`);
+    const price = task.price_rub ?? task.price;
+    if (price != null && price !== '') rows.push(`<div><span style="color:#64748b">Price:</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
+    if (Number(task.paid_rub) > 0) rows.push(`<div><span style="color:#64748b">Paid:</span> ${_taskMoney(task.paid_rub)} ${CUR}</div>`);
+    if (Number(task.debt_rub) > 0) rows.push(`<div style="color:#ef4444">Debt: ${_taskMoney(task.debt_rub)} ${CUR}</div>`);
+    if (task.assignee) rows.push(`<div><span style="color:#64748b">Assignee:</span> ${safe(task.assignee)}</div>`);
+    if (task.priority != null && _TASK_PRIORITY_META[task.priority]) {
+        const [icon, label] = _TASK_PRIORITY_META[task.priority];
+        rows.push(`<div><span style="color:#64748b">Priority:</span> ${icon} ${label}</div>`);
+    }
+    const taskId = task.task_id ?? task.id;
+    if (taskId != null && taskId !== '') rows.push(`<div><span style="color:#64748b">Task ID:</span> <span style="font-family:monospace">${safe(taskId)}</span></div>`);
+    if (task.created_at) rows.push(`<div><span style="color:#64748b">Created:</span> ${safe(String(task.created_at).slice(0, 10))}</div>`);
+    if (task.updated_at) rows.push(`<div><span style="color:#64748b">Updated:</span> ${safe(String(task.updated_at).slice(0, 10))}</div>`);
+    if (task.completed_at) rows.push(`<div><span style="color:#64748b">Done:</span> ${safe(String(task.completed_at).slice(0, 10))}</div>`);
+    if (task.paid_at) rows.push(`<div><span style="color:#64748b">Paid at:</span> ${safe(String(task.paid_at).slice(0, 10))}</div>`);
+    const fields = rows.length
+        ? `<div data-task-fields style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#94a3b8">${rows.join('')}</div>`
+        : '';
+    return fields + _taskDescriptionHtml(task.description);
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
@@ -3951,37 +4018,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     return;
                 }
                 if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
-                    const _k = (v) => typeof v === 'number' ? String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : v;
                     if (hdr) { hdr.textContent = `📋 #${parsed.par}: ${parsed.title || '?'}`; hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa'; }
-                    const info = document.createElement('div');
-                    info.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#64748b';
-                    const stColor = {'done':'#22c55e','paid':'#22c55e','in_progress':'#38bdf8','new':'#e2e8f0','cancelled':'#ef4444'}[parsed.status] || '#e2e8f0';
-                    if (parsed.status) info.innerHTML += `<div>Status: <b style="color:${stColor}">${parsed.status}</b></div>`;
-                    if (parsed.project) info.innerHTML += `<div>Project: <span style="color:#94a3b8">${DOMPurify.sanitize(parsed.project)}</span></div>`;
-                    const priceRub = parsed.price_rub ?? 0;
-                    info.innerHTML += `<div>Price: <b style="color:#eab308">${_k(priceRub)} ${CUR}</b></div>`;
-                    if (priceRub > 0) info.innerHTML += `<div>Paid: ${_k(parsed.paid_rub||0)}/${_k(priceRub)}${parsed.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(parsed.debt_rub)}</span>` : ''}</div>`;
-                    if (parsed.assignee) info.innerHTML += `<div>Assignee: ${DOMPurify.sanitize(parsed.assignee)}</div>`;
-                    if (parsed.created_at) info.innerHTML += `<div>Created: ${(parsed.created_at||'').slice(0,10)}</div>`;
-                    if (parsed.updated_at) info.innerHTML += `<div>Updated: ${(parsed.updated_at||'').slice(0,10)}</div>`;
-                    if (parsed.completed_at) info.innerHTML += `<div>Done: ${(parsed.completed_at||'').slice(0,10)}</div>`;
-                    if (parsed.paid_at) info.innerHTML += `<div>Paid: ${(parsed.paid_at||'').slice(0,10)}</div>`;
-                    lastTool.appendChild(info);
-                    if (parsed.description) {
-                        const descEl = document.createElement('div');
-                        descEl.className = 'text-xs markdown-body';
-                        descEl.style.cssText = 'margin-top:4px;max-height:54px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;line-height:1.4;color:#94a3b8';
-                        descEl.innerHTML = DOMPurify.sanitize(marked.parse(parsed.description));
-                        lastTool.appendChild(descEl);
-                        lastTool.style.cursor = 'pointer';
-                        let _tgExp = false;
-                        lastTool.addEventListener('click', (e) => {
-                            if (e.target.tagName === 'A') return;
-                            _tgExp = !_tgExp;
-                            descEl.style.maxHeight = _tgExp ? 'none' : '54px';
-                            descEl.style.overflowY = _tgExp ? 'visible' : 'hidden';
-                        });
-                    }
+                    const taskBody = document.createElement('div');
+                    taskBody.style.marginTop = '4px';
+                    taskBody.innerHTML = _taskCardBodyHtml(parsed);
+                    lastTool.appendChild(taskBody);
                     const sys = [];
                     if (parsed.yougile_id || parsed.yougile_task_id) sys.push(`yougile: ${parsed.yougile_id || parsed.yougile_task_id}`);
                     if (parsed.sync_revision) sys.push(`rev: ${parsed.sync_revision}`);
@@ -4048,7 +4089,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     if (detail.innerHTML) lastTool.appendChild(detail);
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
-                    const _k = (v) => typeof v === 'number' ? (v >= 1000 ? (v/1000)+'k' : v) : v;
                     if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}` : '');
                     if (tasks.length > 0 && parsed.detailed) {
                         const container = document.createElement('div');
@@ -4059,18 +4099,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                             card.style.cssText = `padding:6px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${t.status==='done'||t.status==='paid'?'#22c55e':t.status==='in_progress'?'#38bdf8':'#334155'}${i >= PREVIEW ? ';display:none' : ''}`;
                             card.dataset.taskRow = '1';
                             let h = `<div style="font-size:11px;color:#e2e8f0;font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
-                            h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;font-size:10px;color:#64748b;margin-top:3px">';
-                            h += `<div>Status: <b style="color:#e2e8f0">${t.status}</b></div>`;
-                            if (t.price_rub > 0) h += `<div>Price: <b style="color:#eab308">${_k(t.price_rub)} ${CUR}</b>${t.debt_rub > 0 ? ` <span style="color:#ef4444">debt ${_k(t.debt_rub)}</span>` : ''}</div>`;
-                            if (t.project) h += `<div>Project: ${DOMPurify.sanitize(t.project)}</div>`;
-                            if (t.assignee) h += `<div>→ ${DOMPurify.sanitize(t.assignee)}</div>`;
-                            if (t.created_at) h += `<div>Created: ${t.created_at.slice(0,10)}</div>`;
-                            if (t.completed_at) h += `<div>Done: ${t.completed_at.slice(0,10)}</div>`;
-                            h += '</div>';
-                            if (t.description) {
-                                const short = t.description.split('\n').slice(0,3).join('\n');
-                                h += `<div style="font-size:10px;color:#94a3b8;margin-top:3px;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere">${DOMPurify.sanitize(short)}${t.description.length > short.length ? '…' : ''}</div>`;
-                            }
+                            h += _taskCardBodyHtml(t);
                             card.innerHTML = h;
                             container.appendChild(card);
                         }
@@ -5708,24 +5737,7 @@ async function showTaskDetail(par) {
         if (!modal || !nameEl || !bodyEl) return;
         nameEl.textContent = '#' + t.par + ' ' + t.title;
         let html = '<div class="space-y-3">';
-        html += '<div class="grid grid-cols-2 gap-2 text-xs">';
-        html += `<div><span class="text-slate-500">Status:</span> <span class="font-bold">${t.status}</span></div>`;
-        html += `<div><span class="text-slate-500">Price:</span> <span class="text-amber-400">${t.price_rub > 0 ? (t.price_rub/1000)+'k '+CUR : '—'}</span></div>`;
-        html += `<div><span class="text-slate-500">Paid:</span> ${(t.paid_rub||0)/1000}/${(t.price_rub||0)/1000}k</div>`;
-        html += `<div><span class="text-slate-500">Debt:</span> <span class="text-red-400">${t.debt_rub > 0 ? (t.debt_rub/1000)+'k '+CUR : '0'}</span></div>`;
-        html += `<div><span class="text-slate-500">Assignee:</span> ${escHtml(t.assignee || '—')}</div>`;
-        const _PRI = {0:'🔴 Critical',1:'🟠 High',2:'🟡 Medium',3:'🟢 Low'};
-        html += `<div><span class="text-slate-500">Priority:</span> ${_PRI[t.priority] || 'Medium'}</div>`;
-        html += `<div><span class="text-slate-500">Project:</span> ${escHtml(t.project)}</div>`;
-        html += `<div><span class="text-slate-500">Created:</span> ${(t.created_at||'').slice(0,10)}</div>`;
-        if (t.updated_at) html += `<div><span class="text-slate-500">Updated:</span> ${t.updated_at.slice(0,10)}</div>`;
-        if (t.completed_at) html += `<div><span class="text-slate-500">Done:</span> ${t.completed_at.slice(0,10)}</div>`;
-        if (t.paid_at) html += `<div><span class="text-slate-500">Paid at:</span> ${t.paid_at.slice(0,10)}</div>`;
-        html += '</div>';
-        if (t.description) {
-            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">DESCRIPTION</div>';
-            html += `<div class="markdown-body text-xs">${DOMPurify.sanitize(marked.parse(t.description))}</div></div>`;
-        }
+        html += _taskCardBodyHtml(t);
         if (t.payments && t.payments.length > 0) {
             html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">PAYMENTS</div>';
             for (const p of t.payments) { html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`; }

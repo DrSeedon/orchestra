@@ -673,6 +673,12 @@ async def task_create(title: str, project: str, price: int = 0,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
+    if isinstance(result, dict):
+        result = dict(result)
+        result.setdefault("description", description)
+        result.setdefault("assignee", assignee)
+        result.setdefault("priority", priority)
+        result.setdefault("task_id", result.get("id"))
     return json.dumps(result, ensure_ascii=False)
 
 
