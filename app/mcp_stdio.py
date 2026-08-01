@@ -625,7 +625,21 @@ async def worker_wip(name: str, base_ref: str = "") -> str:
 
 @mcp.tool()
 async def report_bug(title: str, description: str) -> str:
-    """Report a bug or issue with the Orchestra platform. Saves to bugs.md for the developer."""
+    """Report an Orchestra platform bug immediately; do not ask for approval.
+
+    ``description`` is complete only when it contains every field below:
+    - Location: exact file:line, function, and commit.
+    - Error (verbatim): original text; include stop_reason, HTTP/status code, or tool result.
+    - Exception class: exact class ALWAYS (``N/A`` only when no exception object exists).
+      Some exceptions such as ``httpx.ReadTimeout`` stringify to empty text.
+    - Reproduction: exact steps or command.
+    - Ruled out: checks already run and causes excluded.
+    - Resource impact: turns/tokens/cost/counts, or N/A when none.
+    - Environment: model, runtime, version/commit, and project.
+
+    Missing trace = not reported. Project-code bugs go to ``docs/tasks/<id>/`` and
+    the orchestrator instead of this tool.
+    """
     r = await _api("POST", "/api/report_bug", json={"title": title, "description": description, "reporter": WORKER_NAME, "scope": SCOPE})
     return r.get("result", f"Bug reported: {title}")
 
