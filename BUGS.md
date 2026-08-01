@@ -329,3 +329,8 @@ Project seedon, worker feat-attribution, task #180: three consecutive triggered 
 - **Reporter:** fix-branch-switch
 - **Scope:** /mnt/data/Projects/Python/orchestra
 В #112 безопасная команда чтения установленного Python-пакета Serena была целиком заблокирована как `Blocked host shutdown/reboot command`, потому что regex для `rg -n` содержал слово `shutdown` среди поисковых терминов (`idle|timeout|shutdown|language...`). Команда запускала только Python metadata/version, sed config и rg по site-packages; системных shutdown/reboot вызовов не было. Guard должен матчить исполняемую команду/argv, а не любое упоминание слова в поисковом шаблоне.
+
+## [2026-08-01 07:53 UTC] PreToolUse guard blocks read-only rg when pattern contains shutdown
+- **Reporter:** research-memory
+- **Scope:** /mnt/data/Projects/Python/orchestra
+In task #113 Phase 2, command `git status ... && rg -n \"...|shutdown|...\" app/...` was rejected as `Blocked host shutdown/reboot command` solely because the regex contained the word `shutdown`. No shutdown command was present. This blocks legitimate source inspection; guard should parse command position/subcommand rather than substring-match grep patterns.
