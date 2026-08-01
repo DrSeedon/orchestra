@@ -281,7 +281,7 @@ def test_template_uses_wide_analytics_shell_and_leaf_script():
     assert '<script src="/static/js/analytics.js"></script>' in source
 
 
-def test_model_cost_and_task_money_have_separate_currency_sources():
+def test_model_cost_and_task_money_have_separate_currency_sources(browser):
     utils = UTILS_JS.read_text()
     analytics = ANALYTICS_JS.read_text()
     app = APP_JS.read_text()
@@ -289,6 +289,9 @@ def test_model_cost_and_task_money_have_separate_currency_sources():
     model_modal = app.split("async function _renderClientModal()", 1)[1].split(
         "async function _refreshModels", 1
     )[0]
+    task_renderer = "const _TASK_PRIORITY_META" + app.split(
+        "const _TASK_PRIORITY_META", 1
+    )[1].split("// Central renderer", 1)[0]
 
     assert "const CUR = document.body.dataset.currency || '₽';" in utils
     assert "const MODEL_COST_CURRENCY = '$';" in utils
@@ -297,7 +300,28 @@ def test_model_cost_and_task_money_have_separate_currency_sources():
     assert "dataset.currency" not in usage
     assert "MODEL_COST_CURRENCY" in model_modal
     assert not re.search(r"\bCUR\b", model_modal)
-    assert "price_rub/1000)+'k '+CUR" in app
+    assert "MODEL_COST_CURRENCY" not in task_renderer
+
+    page = browser.new_page()
+    page.set_content('<body data-currency="€"><div id="task-money"></div></body>')
+    page.add_script_tag(content=utils)
+    page.add_script_tag(content=task_renderer)
+    page.evaluate(
+        """() => {
+            document.querySelector('#task-money').innerHTML = _taskCardBodyHtml({
+                price_rub: 1200,
+                paid_rub: 500,
+                debt_rub: 700,
+            });
+        }"""
+    )
+    task_money = page.locator("#task-money").inner_text()
+    assert "Price: 1 200 €" in task_money
+    assert "Paid: 500 €" in task_money
+    assert "Debt: 700 €" in task_money
+    assert "$" not in task_money
+    page.close()
+
     template = TEMPLATE.read_text()
     assert template.index("/static/js/utils.js") < template.index(
         "/static/js/usage.js"
