@@ -57,6 +57,55 @@ def _page(browser: Browser, grok):
     return page
 
 
+def _interactive_page(browser: Browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    page.set_content('<body><div id="usage-bar"></div></body>')
+    page.evaluate(
+        """() => {
+            window.marked = {setOptions() {}, parse(value) { return value; }};
+            window.DOMPurify = {addHook() {}};
+            window.usageRequests = 0;
+            window.usagePending = [];
+            window.api = () => {
+                usageRequests += 1;
+                return new Promise((resolve, reject) => {
+                    usagePending.push({resolve, reject});
+                });
+            };
+        }"""
+    )
+    page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(USAGE_JS))
+    page.evaluate("() => initUsageBar()")
+    return page
+
+
+def _settle_usage(page, utilization, *, reject=False):
+    page.evaluate(
+        """([utilization, reject]) => {
+            const pending = usagePending.shift();
+            if (reject) {
+                pending.reject(new DOMException('signal timed out', 'TimeoutError'));
+                return;
+            }
+            const reset = new Date(Date.now() + 4 * 86400000).toISOString();
+            pending.resolve({
+                anthropic: {
+                    five_hour: {utilization, resets_at: reset},
+                    seven_day: {utilization: 31, resets_at: reset},
+                },
+                codex: {
+                    primary: {utilization: 22, window_minutes: 10080, resets_at: reset},
+                },
+                grok: null,
+                orchestra: {},
+            });
+        }""",
+        [utilization, reject],
+    )
+    page.wait_for_function("() => _usageFetchPromise === null")
+
+
 def test_compact_bar_replaces_spark_with_grok(browser):
     page = _page(browser, True)
 
@@ -112,6 +161,66 @@ def test_usage_fetch_failure_stays_visible_and_logs_exception(browser):
 
     expect(page.locator("#usage-bar")).to_be_visible()
     expect(page.locator("#usage-bar")).to_contain_text("Usage unavailable")
+    assert errors == ["Usage fetch failed: TimeoutError: signal timed out"]
+    page.close()
+
+
+def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(browser):
+    page = _interactive_page(browser)
+    errors = []
+    page.on(
+        "console",
+        lambda message: errors.append(message.text) if message.type == "error" else None,
+    )
+    _settle_usage(page, 88)
+
+    expect(page.locator("#usage-freshness")).to_have_text("обновлено сейчас")
+    expect(page.locator("#usage-freshness")).to_be_in_viewport()
+    expect(page.locator("#usage-bar")).to_contain_text("88%")
+
+    page.evaluate("() => { _usageLastFetchStartedAt = 0; }")
+    page.locator("#usage-bar").click()
+    page.locator("#usage-bar").click()
+    page.locator("#usage-bar").click()
+    assert page.evaluate("() => usageRequests") == 2
+    expect(page.locator("#usage-freshness")).to_have_text("обновление…")
+    _settle_usage(page, 2)
+
+    expect(page.locator("#usage-bar")).to_contain_text("2%")
+    expect(page.locator("#usage-freshness")).to_have_text("обновлено сейчас")
+
+    page.evaluate(
+        """() => {
+            window.testVisibility = 'hidden';
+            Object.defineProperty(document, 'visibilityState', {
+                configurable: true,
+                get: () => window.testVisibility,
+            });
+            _usageLastSuccessAt = Date.now() - _USAGE_REFRESH_INTERVAL_MS - 1;
+            _usageLastFetchStartedAt = 0;
+            renderUsageBar();
+            document.dispatchEvent(new Event('visibilitychange'));
+        }"""
+    )
+    assert page.evaluate("() => usageRequests") == 2
+    expect(page.locator("#usage-freshness")).to_contain_text("устарело 2 мин назад")
+
+    page.evaluate(
+        """() => {
+            window.testVisibility = 'visible';
+            document.dispatchEvent(new Event('visibilitychange'));
+            document.dispatchEvent(new Event('visibilitychange'));
+        }"""
+    )
+    assert page.evaluate("() => usageRequests") == 3
+    _settle_usage(page, 3)
+    expect(page.locator("#usage-bar")).to_contain_text("3%")
+
+    page.evaluate("() => { _usageLastFetchStartedAt = 0; }")
+    page.locator("#usage-bar").click()
+    _settle_usage(page, 0, reject=True)
+    expect(page.locator("#usage-bar")).to_contain_text("3%")
+    expect(page.locator("#usage-freshness")).to_contain_text("ошибка обновления")
     assert errors == ["Usage fetch failed: TimeoutError: signal timed out"]
     page.close()
 

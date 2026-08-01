@@ -3,6 +3,11 @@
 let _usageData = null;
 let _usageError = false;
 let _usageCountdownInterval = null;
+let _usageFetchPromise = null;
+let _usageLastSuccessAt = 0;
+let _usageLastFetchStartedAt = 0;
+const _USAGE_REFRESH_INTERVAL_MS = 120000;
+const _USAGE_CLICK_DEBOUNCE_MS = 1000;
 
 // Color encodes pace vs. ideal burn rate: green = under budget, red = over,
 // yellow = on track. When resetPct is known, diff drives color rather than raw %.
@@ -101,6 +106,20 @@ function _usageProviderWindows(providerId, capacity) {
         }));
 }
 
+function _usageFreshnessHtml() {
+    if (_usageFetchPromise) {
+        return '<span id="usage-freshness" style="color:#38bdf8">обновление…</span>';
+    }
+    if (!_usageLastSuccessAt) return '';
+    const ageMinutes = Math.floor((Date.now() - _usageLastSuccessAt) / 60000);
+    const age = ageMinutes < 1 ? 'сейчас' : `${ageMinutes} мин назад`;
+    if (_usageError) {
+        return `<span id="usage-freshness" style="color:#eab308">ошибка обновления · данные от ${age}</span>`;
+    }
+    const stale = Date.now() - _usageLastSuccessAt >= _USAGE_REFRESH_INTERVAL_MS;
+    return `<span id="usage-freshness" style="color:${stale ? '#eab308' : '#64748b'}">${stale ? 'устарело' : 'обновлено'} ${age}</span>`;
+}
+
 function renderUsageBar() {
     const bar = document.getElementById('usage-bar');
     if (!bar) return;
@@ -114,7 +133,8 @@ function renderUsageBar() {
         }
         return;
     }
-    bar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap';
+    bar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap;cursor:pointer';
+    bar.title = 'Нажмите, чтобы обновить usage';
 
     const a = _usageData.anthropic || {};
     const cx = _usageData.codex || {};
@@ -179,6 +199,8 @@ function renderUsageBar() {
     if (typeof o.agents_count === 'number') {
         parts.push(`<span style="color:#64748b">${o.agents_count} agents</span>`);
     }
+    const freshness = _usageFreshnessHtml();
+    if (freshness) parts.push(freshness);
     parts.push('<span id="usage-info-btn" style="color:#475569;font-size:12px;cursor:help;transition:color 0.15s">ⓘ</span>');
 
     bar.innerHTML = parts.join('');
@@ -518,23 +540,47 @@ function _renderSparklines(slot, providerFilter = null) {
 }
 
 async function fetchUsage() {
-    try {
-        _usageData = await api('/api/usage');
-        _usageError = false;
-    } catch (error) {
-        _usageError = true;
-        const detail = error instanceof Error
-            ? `${error.name}: ${error.message || '(no message)'}`
-            : String(error);
-        console.error(`Usage fetch failed: ${detail}`);
-    }
+    if (_usageFetchPromise) return _usageFetchPromise;
+    _usageLastFetchStartedAt = Date.now();
+    _usageFetchPromise = (async () => {
+        try {
+            _usageData = await api('/api/usage');
+            _usageError = false;
+            _usageLastSuccessAt = Date.now();
+        } catch (error) {
+            _usageError = true;
+            const detail = error instanceof Error
+                ? `${error.name}: ${error.message || '(no message)'}`
+                : String(error);
+            console.error(`Usage fetch failed: ${detail}`);
+        }
+    })();
     renderUsageBar();
+    try {
+        await _usageFetchPromise;
+    } finally {
+        _usageFetchPromise = null;
+        renderUsageBar();
+    }
 }
 
 function initUsageBar() {
     fetchUsage();
+    const bar = document.getElementById('usage-bar');
+    if (bar) {
+        bar.addEventListener('click', () => {
+            if (_usageFetchPromise) return;
+            if (Date.now() - _usageLastFetchStartedAt < _USAGE_CLICK_DEBOUNCE_MS) return;
+            fetchUsage();
+        });
+    }
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        const lastRefresh = Math.max(_usageLastSuccessAt, _usageLastFetchStartedAt);
+        if (Date.now() - lastRefresh >= _USAGE_REFRESH_INTERVAL_MS) fetchUsage();
+    });
     // Full data refresh every 2 minutes; countdown rerender every minute (no API call)
-    setInterval(fetchUsage, 120000);
+    setInterval(fetchUsage, _USAGE_REFRESH_INTERVAL_MS);
     _usageCountdownInterval = setInterval(() => {
         if (_usageData) renderUsageBar();
     }, 60000);
