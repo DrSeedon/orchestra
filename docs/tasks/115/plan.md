@@ -173,8 +173,10 @@ SQLite arbitration — явный CAS contract:
 `error=null` допустим только когда ни один stage не требует error detail. Для
 любого отказа `code` и `message` непустые; exception class хранится в `details`.
 Fallback — конкретный код вроде `UPSTREAM_EMPTY_ERROR`, но никогда пустая строка.
-RAG scheduler semantics фиксированы: `ACCEPTED` и `COALESCED` означают durable
-принятую/присоединённую работу и сами по себе не делают operation partial.
+RAG scheduler semantics фиксированы: `ACCEPTED` и `COALESCED` означают принятую
+live retained scheduler работу и сами по себе не делают operation partial. Это не
+persisted queue: после process restart гарантию восстановления дают #116
+stale/watermark и T2 awaited backfill, а не старый scheduler status.
 `NOT_READY` означает, что никакая RAG job не принята: result становится
 `PARTIAL`, содержит непустой retryable `RAG_NOT_READY`, держит session gate и
 указывает `FINALIZE_SAME_OPERATION`. T2 awaited backfill переводит stage в
@@ -297,9 +299,9 @@ actor/source и timestamp. Только `RESOLVED_NOT_REACHED` или
 `RESOLVED_REACHED_FINALIZED` снимает operation/session gate; arbitrary
 acknowledgement endpoint отсутствует.
 
-### Что можно восстановить из нынешних 24
+### Что можно восстановить из нынешних strict 23
 
-- **Task links: да, 24/24.** Все refs распознаются, задачи существовали раньше
+- **Task links: да, 23/23.** Все refs распознаются, задачи существовали раньше
   commit timestamps, target SHA известны; `link_commits_to_task` идемпотентен.
 - **RAG: да.** Полный backfill по пяти scopes восстанавливает актуальные hashes;
   один batch не должен запускать больше одного backfill на scope.
@@ -309,12 +311,15 @@ acknowledgement endpoint отсутствует.
 - **Необратимо без ручного решения:** mapping восьми manual commits без
   распознаваемого task ref и точные conflict decisions/selective-copy provenance,
   которых нет ни в operation record, ни в commit message.
+- **Evidence-only, не recovery:** `0244e3d…` имеет `#182`, но named-worker merge
+  был no-op, а commit создала отдельная правка `CLAUDE.md`; автоматические
+  task/RAG/lifecycle/ref effects для него запрещены.
 
 Phase 3 не применяет recovery к live DB/refs автоматически. Сначала формируется
 read-only manifest; live `finalize` — отдельный явный пользовательский gate после
 просмотра manifest.
 
-### Pinned recovery SHA input (32)
+### Pinned evidence SHA input (32: 31 candidates + 1 exclusion)
 
 Ниже frozen SHA seed для T0 `recovery-input.json`; T0 дополняет его exact retained
 source log ids и отвергает entry без такого evidence. T3 generator только читает
@@ -366,22 +371,30 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
 ### T0 — Freeze retained manual-merge provenance
 
 - Vertical outcome: до ожидания runtime dependencies появляется tracked,
-  самодостаточный evidence snapshot, по которому 32 historical integrations можно
-  проверить даже после pruning live logs.
+  самодостаточный evidence snapshot, по которому 31 historical integration и один
+  явно исключённый non-integration commit можно проверить даже после pruning live
+  logs; отдельные backup refs сохраняют все 32 target commit objects при branch
+  switch/rewrite и `git gc`.
 - Files: `docs/tasks/115/recovery-input.json` (new).
 - AC:
   - read-only export на frozen cutoff `logs.id <= 371999` содержит для всех 32 SHA
     source call/result log ids, caller session id/name/scope, named worker
     branch/worktree, canonical git-common-dir, target branch/SHA и минимальные
     exact integration/result excerpts с content hashes;
-  - каждый entry имеет явную связь «named worker integration command → resulting
-    target SHA»; простое упоминание SHA в позднем research/log output не считается
-    source evidence;
+  - каждый recovery candidate имеет явную связь «named worker integration command
+    → resulting target SHA»; простое упоминание SHA в позднем research/log output
+    не считается source evidence. Единственный proven no-op хранится с
+    `evidence_only_non_integration`, пустым списком разрешённых effects и не входит
+    в recovery candidate count;
   - все 32 SHA повторно существуют и являются ancestors указанного target; число
     entries и unique SHA равно 32, COG entries явно сохраняют caller scope
     `COG-second-brain` при repo `inscryption-ai`;
-  - export не пишет live DB/refs/worktrees; после commit файл становится
-    authoritative historical input, а T3 fail closed на entry вне него.
+  - export не пишет live DB/worktrees/target branches; он CAS-создаёт только
+    `refs/orchestra/recovery/115/<full-sha>` с expected-old zero OID и проверяет
+    exact value. Повтор идемпотентен, ref mismatch fail closed, refs остаются до
+    отдельного cleanup gate;
+  - после commit файл становится authoritative historical input, а T3 fail closed
+    на entry вне него; refs делают каждый указанный object reachable для `git gc`.
 - Price: **small** — один read-only export и Git verification.
 - Risk: неверно выбранный source log закрепит ложную scope/task provenance.
 - If implemented wrong: будущий reconcile либо откажется восстанавливать
@@ -436,8 +449,9 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
     нормализуются в `rag.status=ACCEPTED|COALESCED|NOT_READY`; #115 не создаёт
     второй scheduler и не добавляет второй sessions route hunk; `NOT_READY`
     возвращает `PARTIAL + RAG_NOT_READY + FINALIZE_SAME_OPERATION`, держит gate до
-    успешного T2 backfill, тогда как `ACCEPTED/COALESCED` подтверждают durable
-    scheduling и не понижают operation state;
+    успешного T2 backfill, тогда как `ACCEPTED/COALESCED` подтверждают live
+    retained scheduling и не понижают operation state; restart не трактует их как
+    durable completion и идёт через #116 stale/watermark + T2 reconcile;
   - новый MCP против старого live route возвращает
     `MERGE_API_UPGRADE_REQUIRED`, не вызывает legacy merge endpoint;
   - после activation/restart настоящий old-MCP POST в legacy endpoint получает
@@ -506,9 +520,9 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
   refs.
 - blocked-by: **T1, #93-T1, #93-T2, #93-T4**. Не зависит от #93-T3.
 
-### T3 — Read-only recovery manifest для 32 найденных manual commits
+### T3 — Read-only recovery manifest для 31 manual integration + 1 exclusion
 
-- Vertical outcome: оператор получает воспроизводимый план восстановления 24
+- Vertical outcome: оператор получает воспроизводимый план восстановления 23
   доказанных links, RAG по scopes и отдельно безопасную/запрещённую ref часть без
   live mutation.
 - Files: `docs/tasks/115/recovery-manifest.json` (generated),
@@ -520,10 +534,12 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
   - input artifact перечисляет 32 pinned full SHA/repo/scope/target и retained
     source log ids; generator fail closed на missing/ambiguous/non-orchestrator
     evidence и никогда не принимает scope только из CLI;
-  - manifest содержит все 32 strict manual SHA из research, repo/scope/target,
-    commit timestamp, parsed ref, task id, task-created-at и текущий link state;
-  - ровно 24 entries получают `task_link=READY`, восемь —
-    `NEEDS_EXPLICIT_MAPPING`; ни один ref не выводится только из номера каталога;
+  - manifest содержит все 31 strict manual SHA и один evidence-only exclusion из
+    T0, repo/scope/target, commit timestamp, parsed ref, task id, task-created-at и
+    текущий link state;
+  - ровно 23 entries получают `task_link=READY`, восемь —
+    `NEEDS_EXPLICIT_MAPPING`, один — `EXCLUDED_NON_INTEGRATION` без automatic
+    effects; ни один ref не выводится только из номера каталога;
   - generator вызывает batch prepare из T2; RAG actions дедуплицированы до одного
     backfill на scope, а gated batch finalize доказывает ровно один
     `backfill_scope` call на scope независимо от числа commits;
@@ -584,7 +600,7 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
    независимым от T4.
 5. T3 запускается только после T0/T2 и остаётся read-only.
 6. После Codex implementation review и полного suite показать recovery manifest
-   пользователю. Live finalize 24 links/RAG/refs требует отдельного явного «apply».
+   пользователю. Live finalize 23 links/RAG/refs требует отдельного явного «apply».
 7. Только после наблюдаемого периода без raw rescue отдельная задача может менять
    prompt/policy. Это не acceptance criterion #115.
 
@@ -613,6 +629,6 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
 - любые правки `pipelines/` и запрет raw merge в prompts;
 - автоматический `ours/theirs`, raw target cherry-pick или fallback на legacy
   `/api/sessions/{name}/merge`;
-- live backfill 24 commits без отдельного gate;
+- live backfill 23 commits без отдельного gate;
 - исправление двойного prefix в `_build_squash_message`: root cause доказан, но
   файл принадлежит #93 territory; вынести в отдельный follow-up после #93.

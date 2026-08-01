@@ -90,17 +90,22 @@ branch/worktree и SHA подтверждён в target history. [D9]
 | Project/scope | tool-created target commits | manual target commits | manual share среди strict-confirmed commits |
 |---|---:|---:|---:|
 | Orchestra | 67 | 8 | 10.7% |
-| Seedon (root + site) | 46 | 6 | 11.5% |
+| Seedon (root + site) | 46 | 5 | 9.8% |
 | Polus | 11 | 2 | 15.4% |
 | Kesha | 10 | 5 | 33.3% |
 | COG scope | 6 | 11 | 64.7% |
-| **Всего** | **140** | **32** | **18.6% из 172 confirmed** |
+| **Всего** | **140** | **31** | **18.1% из 171 confirmed integrations** |
 
 Итого в одном и том же retained window подтверждены **139 успешных штатных
 content-producing merges**, ещё один failed tool call (`stash restore`) уже успел
-создать target commit, и **32 ручных target commits**. При единой физической
-единице strict-confirmed set содержит 140 tool-created и 32 manual commits:
-**18.6% ручных среди этих 172 доказанных commits**. Это не upper bound для всей
+создать target commit, и **31 ручной integration commit**. T0 adversarial review
+исключил прежний 32-й кандидат `0244e3d…`: named-worker squash доказанно вернул
+`nothing to squash`, а SHA создала отдельная правка `CLAUDE.md` оркестратором.
+При единой физической единице strict-confirmed set содержит 140 tool-created и
+31 manual integration commit: **18.1% ручных среди этих 171 доказанных
+integration commits**. Исключённый task-derived commit остаётся в evidence
+snapshot и под backup ref, но не разрешает никаких automatic recovery effects.
+Это не upper bound для всей
 retained population: opaque manual integrations могли не попасть в strict
 classifier, поэтому истинная доля неизвестна. Один успешный `Merged 0 commits` не
 является integration commit и из таблицы исключён. Logical integration intents
@@ -108,16 +113,19 @@ classifier, поэтому истинная доля неизвестна. Од�
 тому же намерению, а DTO не возвращает `target_after` для надёжной дедупликации.
 [D3][D9]
 
-Все **32/32** manual SHA отсутствуют в `tm_tasks.git_commits`; это не выборка, а
-полный strict manifest найденных manual integrations в срезе. Из них **24/32**
+Все **31/31** strict manual integration SHA отсутствуют в `tm_tasks.git_commits`;
+это не выборка, а полный strict manifest найденных manual integrations в срезе.
+Из них **23/31**
 имеют numeric `#N`, распознаваемый `_TASK_REF_RE`; каждый task был создан **до**
 соответствующего commit timestamp и однозначно разрешается в caller project.
-Именно эти 24 — доказанный missed-link ущерб raw пути. Остальные восемь (пять
+Именно эти 23 — доказанный missed-link ущерб raw пути. Остальные восемь (пять
 subjects без ref и три `#prompt*`) штатный parser тоже не связал бы. Контрольные
 tool commits (`a4d6a85` #93, `d96ae34` #110,
 `d91c6d6` Seedon #180) присутствуют в соответствующих tasks. Open-set ограничение
-остаётся: opaque direct commit без ссылки на worker branch/worktree нельзя честно
-отличить от обычной разработки, поэтому 32 — строгая нижняя граница, а не
+Отдельный `0244e3d…` также не связан с task, но это не causal manual-merge damage:
+worker integration был no-op. Open-set ограничение остаётся: opaque direct commit
+без ссылки на worker branch/worktree нельзя честно отличить от обычной разработки,
+поэтому 31 — строгая нижняя граница, а не
 доказательство отсутствия скрытых ручных merges. [D6][D9][D10]
 
 Систематический bypass подтверждён не во всех scopes, а в нескольких конкретных
@@ -316,9 +324,9 @@ worker clean and unchanged
 
 ### 3.2 Live damage от ручного пути
 
-**Task provenance.** Проверен полный strict manifest из 32 manual integration
-commits: 2 Polus, 11 Inscryption, 5 Kesha, 6 Seedon и 8 Orchestra. Все 32
-отсутствуют в `tm_tasks.git_commits`, но доказанный causal denominator — **24**:
+**Task provenance.** Проверен полный strict manifest из 31 manual integration
+commit: 2 Polus, 11 Inscryption, 5 Kesha, 5 Seedon и 8 Orchestra. Все 31
+отсутствуют в `tm_tasks.git_commits`, но доказанный causal denominator — **23**:
 их numeric refs распознаются текущим regex и tasks разрешаются в project. Восемь
 остальных штатный parser тоже пропустил бы. Ущерб восстанавливаем по Git history,
 пока commit message однозначно содержит task ref; для adhoc/selective/conflict
@@ -490,23 +498,26 @@ Counter-evidence против слишком жёсткого вывода:
   COG/Inscryption.
 - **[D3]** exact merge census, live DB snapshot max log id 373177
   (2026-08-01T07:40:00Z): 205 calls, project matrix and failure taxonomy above.
-- **[D6]** `tm_tasks` + `json_each(git_commits)`: все 32 strict manual commit
-  hashes missing; 24 numeric refs resolve in caller project; three tool-generated
-  controls linked.
+- **[D6]** `tm_tasks` + `json_each(git_commits)`: все 32 первоначальных candidate
+  hashes missing; T0 review исключил `0244e3d…` как non-integration, поэтому
+  strict causal set = 31 missing hashes, из них 23 numeric refs resolve in caller
+  project; three tool-generated controls linked.
 - **[D7]** `data/vec.db` vs SHA-256 of live files: 133/3,264 stale;
   Orchestra stale file = `docs/workers/prompt-engineer.md`.
 - **[D8]** live `sessions` rows + `git rev-list/diff` for manually merged workers:
   old task ids/branches, `needs_switch=0`, branches ahead and behind main.
 - **[D9]** frozen retained-log integration census (`logs.id <= 371999`): 203 tool
   calls/results, 139 content successes, one no-op, 63 failures; one failed tool
-  call created a target commit; 32/32 explicit manual target SHAs verified as
-  commits and ancestors of their targets. Counting tool results directly corrects
+  call created a target commit; 31 strict manual target SHAs plus one excluded
+  task-derived non-integration SHA verified as commits and ancestors of their
+  targets. Counting tool results directly corrects
   an eight-success undercount produced by immediate-`LEAD()` pairing when parallel
   tool events intervene.
-- **[D10]** `git show -s --format=%s,%cI` for all 32 manual SHAs + live
+- **[D10]** `git show -s --format=%s,%cI` for all 32 original candidate SHAs + live
   `tm_tasks` lookup in the caller project: 24 subjects have recognized numeric
-  refs; all 24 tasks resolve and have `created_at` earlier than the corresponding
-  commit timestamp. Eight subjects have no recognized ref.
+  refs, but one belongs to excluded `0244e3d…`; all 23 strict numeric candidates'
+  tasks resolve and have `created_at` earlier than the corresponding commit
+  timestamp. Eight strict candidates have no recognized ref.
 - **[J1]** `journalctl -u orchestra --utc` around prompt-engineer timeouts: five
   delayed identical merge-tree prechecks after four caller timeouts.
 - **[G1]** Git history/reflog limitation: result has no reliable caller identity.
