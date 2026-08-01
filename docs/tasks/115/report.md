@@ -53,4 +53,21 @@ durable queue; после restart восстановление идёт чере
 T1–T4 не начаты. Они остаются заблокированы принятыми зависимостями #93 и #116;
 следующий шаг возможен только после отдельной команды оркестратора.
 
+## Дополнение: восемь commits без numeric task ref
+
+Read-only attribution review завершён в `manual-mapping-review.md`. Для всех
+восьми fail-closed решение одинаково: **task link не добавлять**. Ни commit,
+branch/worktree, `sessions.task_id`, доступные assignment rows, ни Task Manager не
+дают exact `#N`; тематически близкие задачи имеют другой intent.
+
+Три manual prompt-engineer integrations входят в frozen set. Четвёртая,
+`9ff4a7f`, произошла после cutoff и не входит в T0: task link ей также не нужен,
+но exact lineage доказана цепочкой `[from:prompt-engineer] DONE 35f0229 → exact
+cherry-pick → target 9ff4a7f → ff-only main`. Добавление её как 33-й entry / 32-й
+recovery candidate ждёт отдельного решения и расширения classifier; live ref/DB
+не менялись.
+
+Codex Round 1 подтвердил `1–8 → skip`, уточнил две source chains и границу
+classifier; Round 2 после исправлений: `APPROVE`, новых findings нет.
+
 Breaking changes: none.
