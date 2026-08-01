@@ -200,6 +200,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Silent `catch {}` / unchecked `resp.ok` / stringified `httpx.ReadTimeout` (empty string!) → three UI+MCP bugs in one day where the system KNEW the reason and said nothing (`Send failed: network error: ` with no text). Every error branch must surface the exception class or the server's response text
 - Task numbers are reused, `docs/tasks/<id>/` are forever → `task_create` handed out `#96` while `docs/tasks/96/` held a finished OpenCode task. Fixed in `_next_par`, but for adhoc work prefer `docs/tasks/<id>-<slug>/`
 - TG flood control (`429 retry after 24`) is routine on a busy group → the reliable queue waits it out, so per-call client timeouts must exceed it (`send_file` = 180 s, not the 30 s default)
+- Короткая фраза юзера («добей прошлую») читается двояко и меняет ЗАДАЧУ → спросить одной строкой, а не выбирать молча; отмена — только явное «отменяю #N»/«не делай #N». Стоило приостановленной задачи
 
 ## 📚 Где искать остальное
 - `docs/archive/sessions/` — хроника сессий (что делали, что чинили, какие решения принимали)
