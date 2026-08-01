@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>#106 — Как сжимают контекст и что брать Orchestra</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --surface: #111820;
+      --surface-2: #17212b;
+      --line: #2b3947;
+      --text: #eaf1f7;
+      --muted: #9fb0bf;
+      --blue: #6db5ff;
+      --cyan: #65d6d0;
+      --green: #80d99c;
+      --amber: #f0bf69;
+      --red: #ff8585;
+      --violet: #bc9cff;
+      --current: #6db5ff;
+      --kesha: #80d99c;
+      --concise: #f0bf69;
+      --max: 1180px;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--cyan); }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code { color: var(--cyan); font-size: .92em; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 900px; font-size: clamp(2rem, 5vw, 4.4rem); line-height: 1.02; letter-spacing: -.045em; margin-bottom: 22px; }
+    h2 { font-size: clamp(1.55rem, 3vw, 2.35rem); letter-spacing: -.025em; margin-bottom: 10px; }
+    h3 { font-size: 1rem; letter-spacing: .015em; }
+    small, .small { font-size: 12px; }
+    .muted { color: var(--muted); }
+    .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    .wrap { width: min(var(--max), calc(100% - 34px)); margin: 0 auto; }
+    header { padding: 64px 0 34px; border-bottom: 1px solid var(--line); }
+    header .lede { max-width: 810px; color: var(--muted); font-size: 18px; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+    nav a { border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; color: var(--muted); text-decoration: none; }
+    nav a:hover { border-color: var(--blue); color: var(--text); }
+    section { padding: 54px 0; border-bottom: 1px solid var(--line); }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+    .section-head p { max-width: 640px; margin: 0; color: var(--muted); }
+    .decision-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-top: 38px; }
+    .decision { background: var(--surface); padding: 24px; min-height: 190px; }
+    .decision strong { display: block; font-size: 23px; line-height: 1.15; margin: 8px 0 10px; }
+    .decision p { color: var(--muted); margin: 0; }
+    .status { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+    .status.go { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+    .status.no { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }
+    .status.wait { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+    .status.info { background: color-mix(in srgb, var(--blue) 16%, transparent); color: var(--blue); }
+    .metric-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 22px; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+    .panel > h3 { margin-bottom: 4px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0 18px; color: var(--muted); font-size: 12px; }
+    .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; background: var(--dot); }
+    .chart { width: 100%; min-height: 356px; display: block; }
+    .chart text { fill: var(--muted); font-family: inherit; font-size: 12px; }
+    .chart .label { fill: var(--text); font-weight: 700; }
+    .chart .grid { stroke: var(--line); stroke-width: 1; }
+    .chart .ci { stroke-width: 3; stroke-linecap: round; }
+    .chart .cap { stroke-width: 2; }
+    .chart .point { stroke: var(--bg); stroke-width: 2; }
+    .big-number { font-size: clamp(3rem, 7vw, 5.4rem); line-height: .95; letter-spacing: -.06em; color: var(--green); margin: 24px 0 10px; font-weight: 800; }
+    .delta { font-weight: 800; color: var(--green); }
+    .uncertainty { margin: 22px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); color: var(--muted); }
+    .uncertainty strong { color: var(--text); }
+    .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { position: sticky; top: 0; background: var(--surface-2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: color-mix(in srgb, var(--blue) 5%, transparent); }
+    .yes { color: var(--green); font-weight: 800; }
+    .partial { color: var(--amber); font-weight: 800; }
+    .nope { color: var(--red); font-weight: 800; }
+    .tag { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; margin: 2px 3px 2px 0; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .callout { border-left: 4px solid var(--amber); background: color-mix(in srgb, var(--amber) 7%, var(--surface)); padding: 18px 20px; margin-top: 22px; }
+    .callout.good { border-color: var(--green); background: color-mix(in srgb, var(--green) 7%, var(--surface)); }
+    .callout.bad { border-color: var(--red); background: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+    .callout p:last-child { margin-bottom: 0; }
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 14px 0; color: var(--text); font-weight: 750; }
+    summary::marker { color: var(--cyan); }
+    details > div { padding: 0 0 18px 22px; color: var(--muted); max-width: 920px; }
+    .fit-grid { display: grid; grid-template-columns: minmax(240px, .85fr) 1.15fr; gap: 24px; }
+    .fit-row { display: grid; grid-template-columns: 145px 1fr 38px; gap: 10px; align-items: center; margin: 12px 0; }
+    .fit-row .bar { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .fit-row .bar i { display: block; height: 100%; width: var(--fit); background: var(--tone); border-radius: inherit; }
+    .fit-row b { text-align: right; font-size: 12px; color: var(--tone); }
+    .rule { display: grid; gap: 12px; }
+    .rule div { display: grid; grid-template-columns: 46px 1fr; gap: 12px; align-items: start; }
+    .rule b { color: var(--cyan); font-size: 19px; }
+    .memory-map { display: grid; grid-template-columns: 1fr 84px 1fr; align-items: stretch; gap: 12px; }
+    .memory-col { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .memory-col h3 { background: var(--surface-2); padding: 16px; margin: 0; }
+    .layer { padding: 15px 16px; border-top: 1px solid var(--line); }
+    .layer strong { display: block; margin-bottom: 3px; }
+    .layer span { color: var(--muted); font-size: 13px; }
+    .versus { align-self: center; text-align: center; color: var(--muted); font-weight: 900; letter-spacing: .12em; }
+    .borrow { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .borrow article { padding: 18px; background: var(--surface); border-right: 1px solid var(--line); }
+    .borrow article:last-child { border-right: 0; }
+    .borrow .num { color: var(--cyan); font-weight: 900; font-size: 27px; }
+    .borrow p { color: var(--muted); margin-bottom: 0; }
+    .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 12px; align-items: stretch; margin-top: 22px; }
+    .flow .step { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 18px; }
+    .flow .arrow { align-self: center; color: var(--cyan); font-size: 23px; }
+    .footer { padding: 35px 0 60px; color: var(--muted); }
+    .footer-grid { display: flex; justify-content: space-between; gap: 24px; align-items: start; }
+    .source-links { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+    .source-links a { font-size: 12px; }
+    .kicker { font-weight: 800; color: var(--text); }
+
+    @media (max-width: 900px) {
+      .decision-grid, .metric-grid, .fit-grid { grid-template-columns: 1fr; }
+      .borrow { grid-template-columns: 1fr 1fr; }
+      .borrow article:nth-child(2) { border-right: 0; }
+      .borrow article { border-bottom: 1px solid var(--line); }
+      .memory-map { grid-template-columns: 1fr; }
+      .versus { padding: 4px; }
+      .flow { grid-template-columns: 1fr; }
+      .flow .arrow { transform: rotate(90deg); justify-self: center; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 8px; }
+    }
+    @media (max-width: 580px) {
+      header { padding-top: 38px; }
+      section { padding: 40px 0; }
+      .borrow { grid-template-columns: 1fr; }
+      .borrow article { border-right: 0; }
+      .fit-row { grid-template-columns: 112px 1fr 32px; font-size: 12px; }
+      .footer-grid { display: block; }
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f8fb;
+        --surface: #ffffff;
+        --surface-2: #edf2f7;
+        --line: #ced8e2;
+        --text: #16212d;
+        --muted: #526474;
+        --blue: #1769aa;
+        --cyan: #087f78;
+        --green: #187941;
+        --amber: #9b5b00;
+        --red: #b53838;
+        --violet: #6849aa;
+        --current: #2275b9;
+        --kesha: #20894b;
+        --concise: #b36f08;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      nav { display: none; }
+      body { background: #fff; color: #111; }
+      section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="eyebrow">Orchestra · Research #106 · 01.08.2026</div>
+      <h1>Сжимать надо историю. Не свежую правду.</h1>
+      <p class="lede">Разобрали публичные промпты семи агентных харнессов, восемь семейств бенчмарков и механику памяти Ouroboros. Вывод для Claude-path Orchestra: следующий эксперимент должен проверять <strong>сырой свежий хвост</strong> и <strong>детерминированный ledger</strong>, а не ещё один длинный список разделов. Codex workers уже используют отдельную native compaction.</p>
+      <nav aria-label="Навигация">
+        <a href="#verdict">Вердикт за минуту</a>
+        <a href="#numbers">Наши цифры</a>
+        <a href="#harnesses">Промпты в мире</a>
+        <a href="#benchmarks">Бенчмарки</a>
+        <a href="#ouroboros">Ouroboros</a>
+        <a href="#next">Что дальше</a>
+      </nav>
+
+      <div class="decision-grid" id="verdict">
+        <article class="decision">
+          <span class="status no">Не переносить</span>
+          <strong>Kesha full по-прежнему NO-GO</strong>
+          <p>Он исправляет свежесть, но не улучшает общий exact recall. У внешних систем полезнее механика raw tail, а не его полный prompt.</p>
+        </article>
+        <article class="decision">
+          <span class="status go">Оставить</span>
+          <strong>Свежий свой holdout — главный gate</strong>
+          <p>Ни один готовый бенч не проверяет одновременно пути, команды, ошибки, статусы, next action, durable write и секреты.</p>
+        </article>
+        <article class="decision">
+          <span class="status wait">После approval</span>
+          <strong>2–3 кандидата, затем новый прогон</strong>
+          <p>Оси: exact-last-3, сырой свежий хвост, детерминированный file/action ledger. Сейчас кандидаты не выбирались, деньги не тратились.</p>
+        </article>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="numbers">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Измеренный дефект</div>
+            <h2>Точность высокая. Свежесть провалена.</h2>
+          </div>
+          <p>Holdout: N=21 выход на вариант, семь fixture-кластеров. Линии — 95% cluster-bootstrap CI. Похожие point estimates не объявляем победой, если интервал разницы касается нуля.</p>
+        </div>
+
+        <div class="metric-grid">
+          <div class="panel">
+            <h3>Exact critical anchors и последние три сообщения</h3>
+            <div class="legend">
+              <span style="--dot:var(--current)">Current Claude prompt</span>
+              <span style="--dot:var(--kesha)">Kesha full</span>
+              <span style="--dot:var(--concise)">Concise</span>
+            </div>
+            <svg class="chart" viewBox="0 0 700 356" role="img" aria-label="Сравнение exact recall и recent recall с 95% доверительными интервалами">
+              <line class="grid" x1="170" y1="38" x2="170" y2="330"/>
+              <line class="grid" x1="290" y1="38" x2="290" y2="330"/>
+              <line class="grid" x1="410" y1="38" x2="410" y2="330"/>
+              <line class="grid" x1="530" y1="38" x2="530" y2="330"/>
+              <line class="grid" x1="650" y1="38" x2="650" y2="330"/>
+              <text x="166" y="25">0%</text><text x="282" y="25">25%</text><text x="401" y="25">50%</text><text x="520" y="25">75%</text><text x="635" y="25">100%</text>
+
+              <text class="label" x="12" y="58">Exact anchors</text>
+              <text x="12" y="88">Current</text>
+              <line class="ci" stroke="var(--current)" x1="560" y1="84" x2="650" y2="84"/><line class="cap" stroke="var(--current)" x1="560" y1="77" x2="560" y2="91"/><line class="cap" stroke="var(--current)" x1="650" y1="77" x2="650" y2="91"/><circle class="point" fill="var(--current)" cx="608" cy="84" r="7"/><text class="label" x="615" y="78">91.3</text>
+              <text x="12" y="124">Kesha</text>
+              <line class="ci" stroke="var(--kesha)" x1="553" y1="120" x2="645" y2="120"/><line class="cap" stroke="var(--kesha)" x1="553" y1="113" x2="553" y2="127"/><line class="cap" stroke="var(--kesha)" x1="645" y1="113" x2="645" y2="127"/><circle class="point" fill="var(--kesha)" cx="598" cy="120" r="7"/><text class="label" x="605" y="114">89.1</text>
+              <text x="12" y="160">Concise</text>
+              <line class="ci" stroke="var(--concise)" x1="554" y1="156" x2="642" y2="156"/><line class="cap" stroke="var(--concise)" x1="554" y1="149" x2="554" y2="163"/><line class="cap" stroke="var(--concise)" x1="642" y1="149" x2="642" y2="163"/><circle class="point" fill="var(--concise)" cx="598" cy="156" r="7"/><text class="label" x="605" y="150">89.1</text>
+
+              <line class="grid" x1="12" y1="184" x2="650" y2="184"/>
+              <text class="label" x="12" y="211">Last-3 exact</text>
+              <text x="12" y="241">Current</text>
+              <line class="ci" stroke="var(--current)" x1="216" y1="237" x2="513" y2="237"/><line class="cap" stroke="var(--current)" x1="216" y1="230" x2="216" y2="244"/><line class="cap" stroke="var(--current)" x1="513" y1="230" x2="513" y2="244"/><circle class="point" fill="var(--current)" cx="361" cy="237" r="7"/><text class="label" x="369" y="231">39.7</text>
+              <text x="12" y="277">Kesha</text>
+              <line class="ci" stroke="var(--kesha)" x1="581" y1="273" x2="650" y2="273"/><line class="cap" stroke="var(--kesha)" x1="581" y1="266" x2="581" y2="280"/><line class="cap" stroke="var(--kesha)" x1="650" y1="266" x2="650" y2="280"/><circle class="point" fill="var(--kesha)" cx="627" cy="273" r="7"/><text class="label" x="589" y="264">95.2</text>
+              <text x="12" y="313">Concise</text>
+              <line class="ci" stroke="var(--concise)" x1="574" y1="309" x2="650" y2="309"/><line class="cap" stroke="var(--concise)" x1="574" y1="302" x2="574" y2="316"/><line class="cap" stroke="var(--concise)" x1="650" y1="302" x2="650" y2="316"/><circle class="point" fill="var(--concise)" cx="620" cy="309" r="7"/><text class="label" x="581" y="300">93.7</text>
+            </svg>
+          </div>
+
+          <aside class="panel">
+            <span class="status go">Ясный отрыв</span>
+            <div class="big-number">+55.6 pp</div>
+            <p><span class="delta">Kesha − Current</span> по last-three exact recall. Paired 95% CI: <strong>[+27.0, +82.5]</strong>.</p>
+            <div class="uncertainty">
+              <p><strong>Неясный отрыв:</strong> Kesha − Current по общему exact recall = −2.19 pp, CI [−4.60, 0.00]. Это не улучшение.</p>
+              <p><strong>Pending:</strong> +4.76 pp, CI [0.00, +14.29]. Положительный population effect не установлен.</p>
+              <p><strong>Размер:</strong> медиана summary: Current 6,378 B; Kesha 4,837 B; Concise 2,803 B.</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="harnesses">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Вопрос 1</div>
+            <h2>Мир защищает свежесть кодом</h2>
+          </div>
+          <p>Prompt задаёт формат. Fidelity держат raw tail, атомарные tool-пары и факты, извлечённые из событий без участия суммаризатора.</p>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Harness</th><th>Prompt публичный</th><th>Raw recent tail</th><th>Deterministic state</th><th>Что обязателен сохранить</th><th>Слабое место</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Codex CLI</strong></td><td class="yes">Да</td><td class="yes">20k user tokens</td><td class="partial">Частично</td><td><span class="tag">progress</span><span class="tag">decisions</span><span class="tag">constraints</span><span class="tag">next</span></td><td>assistant/tool detail живёт только в summary</td></tr>
+              <tr><td><strong>Aider</strong></td><td class="yes">Да</td><td class="yes">≈½ бюджета</td><td class="nope">Нет</td><td><span class="tag">recent-heavy</span><span class="tag">functions</span><span class="tag">packages</span><span class="tag">filenames</span></td><td>recursive summary до 3 уровней</td></tr>
+              <tr><td><strong>OpenHands</strong></td><td class="yes">Да</td><td class="yes">first + recent suffix</td><td class="partial">Atomic boundaries</td><td><span class="tag">task IDs</span><span class="tag">status</span><span class="tag">tests</span><span class="tag">VCS</span></td><td>hard reset режет event strings при retry</td></tr>
+              <tr><td><strong>Cline</strong></td><td class="yes">Да</td><td class="yes">20k + later user turn</td><td class="yes">Files from tools</td><td><span class="tag">goal</span><span class="tag">state</span><span class="tag">next</span><span class="tag">files</span></td><td>единственный initial prompt перед long tool loop может попасть в summary</td></tr>
+              <tr><td><strong>Continue</strong></td><td class="yes">Да</td><td class="partial">IDE: да</td><td class="nope">Нет</td><td><span class="tag">active dev</span><span class="tag">files</span><span class="tag">troubleshooting</span></td><td>CLI overflow может резать с конца</td></tr>
+              <tr><td><strong>SWE-agent</strong></td><td class="nope">Нет LLM-summary</td><td class="yes">Last N</td><td class="yes">Omission markers</td><td><span class="tag">actions</span><span class="tag">latest file window</span></td><td>нет синтеза решений/next action</td></tr>
+              <tr><td><strong>Claude Code</strong></td><td class="nope">Не опубликован</td><td class="partial">Поведение закрыто</td><td class="partial">Recent files</td><td><span class="tag">decisions</span><span class="tag">bugs</span><span class="tag">implementation</span></td><td>точную политику нельзя проверить</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout good">
+          <p class="kicker">Самый полезный внешний шаблон — Cline, но не из-за текста prompt.</p>
+          <p>Он защищает новейший typed user turn, если тот идёт после index 0, сохраняет 20k свежих токенов, не разрывает tool_use/tool_result и вычисляет Files из событий. При ручной повторной compact он возвращается к canonical transcript, чтобы не жевать summary от summary.</p>
+        </div>
+
+        <details>
+          <summary>Какие структуры prompt повторяются</summary>
+          <div><strong>Codex:</strong> progress/decisions → constraints/preferences → remaining → critical references. <strong>OpenHands:</strong> user context → exact task tracking → completed/pending/current state → code/tests/changes/deps/VCS. <strong>Cline:</strong> one-sentence goal → done/in-progress/blocked → highlights → immediate next → files read/edited. <strong>Anthropic cookbook:</strong> intent → completed → errors & corrections → active → pending → key references.</div>
+        </details>
+        <details>
+          <summary>Что они выкидывают</summary>
+          <div>Рутинные/старые tool outputs, повторения, superseded file windows, pleasantries, неактуальные детали прошлой summary. Но зрелые реализации оставляют маркер удаления или сырой хвост, чтобы «чистота» не стала молчаливой амнезией.</div>
+        </details>
+        <details>
+          <summary>Что говорят провайдеры</summary>
+          <div>Anthropic рекомендует точные IDs/paths/values/errors, приоритет corrections/errors/active work и несуммаризованный хвост после cursor. OpenAI Responses использует opaque compaction item и требует передавать canonical compacted window целиком, не редактируя его вручную.</div>
+        </details>
+        <details>
+          <summary>Академический вывод</summary>
+          <div>Recursive summarization масштабирует длину, но plain merging усиливает hallucination. MemGPT предлагает hot/cold tiers; ReSum — reset к goal + state; ACON учит guideline на парах «full succeeds / compact fails». Для нас это означает: оптимизировать правила по нашему failure ledger и периодически re-ground к источнику.</div>
+        </details>
+      </div>
+    </section>
+
+    <section id="benchmarks">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Вопрос 2</div>
+            <h2>Чужой benchmark не обязан отвечать на наш вопрос</h2>
+          </div>
+          <p>Fit 0–3 оценивает совпадение construct, а не качество авторов: 3 требует changing agent state, compact boundary и детерминированный exact continuation outcome.</p>
+        </div>
+
+        <div class="fit-grid">
+          <div class="panel">
+            <h3>Construct fit</h3>
+            <div class="fit-row"><span><strong>Наш fresh holdout</strong></span><span class="bar"><i style="--fit:100%;--tone:var(--green)"></i></span><b style="--tone:var(--green)">3/3</b></div>
+            <div class="fit-row"><span>LongMemEval-V2</span><span class="bar"><i style="--fit:67%;--tone:var(--cyan)"></i></span><b style="--tone:var(--cyan)">2/3</b></div>
+            <div class="fit-row"><span>MEMTRACK</span><span class="bar"><i style="--fit:67%;--tone:var(--cyan)"></i></span><b style="--tone:var(--cyan)">2/3</b></div>
+            <div class="fit-row"><span>STATE-Bench</span><span class="bar"><i style="--fit:67%;--tone:var(--cyan)"></i></span><b style="--tone:var(--cyan)">2/3</b></div>
+            <div class="fit-row"><span>OdysseyBench</span><span class="bar"><i style="--fit:67%;--tone:var(--cyan)"></i></span><b style="--tone:var(--cyan)">2/3</b></div>
+            <div class="fit-row"><span>LoCoMo / LME-v1</span><span class="bar"><i style="--fit:33%;--tone:var(--amber)"></i></span><b style="--tone:var(--amber)">1/3</b></div>
+            <div class="fit-row"><span>CL-Bench</span><span class="bar"><i style="--fit:33%;--tone:var(--amber)"></i></span><b style="--tone:var(--amber)">1/3</b></div>
+            <div class="fit-row"><span>Long / Infinite</span><span class="bar"><i style="--fit:2%;--tone:var(--red)"></i></span><b style="--tone:var(--red)">0/3</b></div>
+          </div>
+
+          <div class="panel rule">
+            <div><b>3</b><p><strong>Наш contract:</strong> exact paths/status/commands/errors + latest wording + pending action + durable diff + fake-secret safety.</p></div>
+            <div><b>2</b><p><strong>Динамический agent state:</strong> LongMemEval-V2, MEMTRACK, STATE-Bench и OdysseyBench ближе всех, но оценивают QA/evidence retrieval или целую задачу.</p></div>
+            <div><b>1</b><p><strong>Long-term memory:</strong> LoCoMo/LongMemEval-v1 хороши для фактов и temporal updates; CL-Bench — для обучения через persistent memory.</p></div>
+            <div><b>0</b><p><strong>Long context:</strong> LongBench/∞Bench отвечают «может ли модель прочитать длинный input», не «может ли следующий агент продолжить работу».</p></div>
+          </div>
+        </div>
+
+        <div class="callout bad">
+          <p class="kicker">Вердикт: не гонять полный LongBench, ∞Bench или CL-Bench ради солидности.</p>
+          <p>Это даст цифру с чужим названием, но не evidence для production prompt. Headline остаётся новым Orchestra holdout. Отдельно можно импортировать маленький blinded subset MEMTRACK или LongMemEval-V2 Small и прогнать через наш atomic ledger — как внешний стресс-тест, не как общий score.</p>
+        </div>
+
+        <div class="table-scroll" style="margin-top:22px">
+          <table>
+            <thead><tr><th>Кандидат внешнего subset</th><th>Почему полезен</th><th>Почему не gate</th><th>Статус</th></tr></thead>
+            <tbody>
+              <tr><td><strong>MEMTRACK</strong></td><td>Slack + Linear + Git, конфликты, cross-reference, code/file context</td><td>не моделирует конкретный compact boundary Orchestra</td><td><span class="status wait">проверить setup</span></td></tr>
+              <tr><td><strong>LongMemEval-V2 Small</strong></td><td>dynamic state, workflows, gotchas, wrong premises; готовый memory backend API</td><td>memory возвращает evidence фиксированному QA-reader</td><td><span class="status info">самый упакованный</span></td></tr>
+              <tr><td><strong>STATE-Bench</strong></td><td>deterministic DB outcome и reusable learnings</td><td>enterprise domains и cross-task learning, не prompt handoff</td><td><span class="status wait">для memory phase</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="ouroboros">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Вопрос 3</div>
+            <h2>У Ouroboros интереснее plumbing, чем пьедестал</h2>
+          </div>
+          <p>#110 уже показал: 0.2301 против 0.223 на шести CL-Bench families не подтверждает SOTA статистически. Но устройство памяти можно оценить отдельно от рекламной цифры.</p>
+        </div>
+
+        <div class="memory-map">
+          <div class="memory-col">
+            <h3>Ouroboros · typed lifecycle</h3>
+            <div class="layer"><strong>Tier-0 always on</strong><span>identity · scratchpad · knowledge index · recent dialogue</span></div>
+            <div class="layer"><strong>Hot scratchpad</strong><span>target cap 10 atomic blocks · consolidation race может оставить 11 · FIFO journal</span></div>
+            <div class="layer"><strong>Promotion</strong><span>working facts → named knowledge topics · old/new hash audit</span></div>
+            <div class="layer"><strong>Dialogue</strong><span>100-message blocks · raw suffix · generation-bound cursor · [MEMORY GAP]</span></div>
+            <div class="layer"><strong>Scope</strong><span>project knowledge + bounded journal tail + full workpad; cross-project access blocked</span></div>
+          </div>
+          <div class="versus">VS</div>
+          <div class="memory-col">
+            <h3>Orchestra · retrieval archive</h3>
+            <div class="layer"><strong>Canonical sources</strong><span>docs/tasks · CLAUDE.md · selected agent logs</span></div>
+            <div class="layer"><strong>Cold retrieval</strong><span>vector + FTS · reciprocal rank fusion · top-k evidence</span></div>
+            <div class="layer"><strong>Provenance</strong><span>file/path or log/agent source attached to every result</span></div>
+            <div class="layer"><strong>Scope</strong><span>project namespace · cross-project only by explicit flag</span></div>
+            <div class="layer"><strong>Tradeoff</strong><span>small prompt footprint, but no typed current-task state or explicit promotion</span></div>
+          </div>
+        </div>
+
+        <h3 style="margin-top:30px">Что брать, не копируя весь комбайн</h3>
+        <div class="borrow">
+          <article><div class="num">01</div><strong>Tiny hot state</strong><p>objective, phase/status, blocker, next action, branch/worktree, exact file/action ledger.</p></article>
+          <article><div class="num">02</div><strong>Explicit promotion</strong><p>source + timestamp + scope + supersedes/TTL; факт сразу читается после записи.</p></article>
+          <article><div class="num">03</div><strong>Loud gaps</strong><p>не доказал continuity — пиши unknown/gap, а не правдоподобный вымысел.</p></article>
+          <article><div class="num">04</div><strong>Task isolation</strong><p>checkpoint задачи не меняет global identity/biography по умолчанию.</p></article>
+        </div>
+
+        <div class="callout">
+          <p class="kicker">Не брать: always-injected biography и recursive era summary как есть.</p>
+          <p>Они дороже по context footprint, сложнее текущего MVP и всё равно подвержены semantic drift. Лучший гибрид для Orchestra — маленький hot ledger + существующий RAG как cold history.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="next">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Следующий gate</div>
+            <h2>Сначала выбрать эксперимент. Потом платить за него.</h2>
+          </div>
+          <p>На этой фазе не придуманы финальные prompts и не переиспользован старый holdout. Это намеренно: старый набор уже участвовал в выборе и даст оптимистичную оценку.</p>
+        </div>
+
+        <div class="flow" aria-label="Следующие этапы">
+          <div class="step"><span class="status info">после approval</span><h3>1. Зафиксировать 2–3 кандидата</h3><p class="muted">Prompt-only last-3; raw recent tail; raw tail + deterministic ledger. Без production diff.</p></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="status wait">новый материал</span><h3>2. Свежий blinded holdout</h3><p class="muted">Новые fixtures, отдельный dev, случайные labels/order, несколько реплик, source ledger до запуска.</p></div>
+          <div class="arrow">→</div>
+          <div class="step"><span class="status go">decision gate</span><h3>3. Ship только по CI</h3><p class="muted">Сохранить ≥ current exact recall и закрыть recent defect; bloat, secrets, claims и G2–G3 остаются hard checks.</p></div>
+        </div>
+
+        <div class="callout good">
+          <p class="kicker">Сейчас: research-only, стоимость новых generation = $0, production не тронут.</p>
+          <p>Полный метод, pinned commits, benchmark contracts, Ouroboros source map, ограничения и confidence находятся в <a href="../tasks/106/external-landscape.md">Markdown-исследовании</a>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-grid">
+      <div><strong>#106 external landscape</strong><br><span class="small">Витрина полного source-backed исследования</span></div>
+      <div class="source-links" aria-label="Ключевые источники">
+        <a href="https://github.com/openai/codex/blob/ee0247f95a6fe2b094ba2253d82cae2a2b4c2dff/codex-rs/core/src/compact.rs">Codex source</a>
+        <a href="https://github.com/cline/cline/blob/94f897f55933c86a08578385a019211e01a1a36d/sdk/packages/core/src/extensions/context/compaction-shared.ts">Cline source</a>
+        <a href="https://platform.claude.com/cookbook/misc-session-memory-compaction">Anthropic cookbook</a>
+        <a href="https://developers.openai.com/api/docs/guides/compaction">OpenAI guide</a>
+        <a href="https://github.com/xiaowu0162/LongMemEval-V2">LongMemEval-V2</a>
+        <a href="https://arxiv.org/abs/2510.01353">MEMTRACK</a>
+        <a href="../tasks/106/research.md">Original #106</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
