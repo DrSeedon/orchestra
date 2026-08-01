@@ -46,6 +46,14 @@ code, pre, kbd, samp, .font-mono,
 }
 .chat-jump-latest:hover { background: #1e293b; color: #eef2ff; border-color: #818cf8; }
 .chat-jump-latest:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; }
+.chat-unread-divider {
+  display: flex; align-items: center; gap: 8px;
+  color: #f87171; font-size: 10px; font-weight: 700;
+  scroll-margin-top: 4px;
+}
+.chat-unread-divider::before, .chat-unread-divider::after {
+  content: ''; height: 1px; flex: 1; background: rgba(248,113,113,0.5);
+}
 .chat-user { background: rgba(99, 102, 241, 0.15); border-left: 3px solid var(--accent); }
 .chat-bot { border-left: 3px solid rgba(99,102,241,0.1); }
 .chat-tool { background: rgba(56, 189, 248, 0.05); border-left: 3px solid rgba(56, 189, 248, 0.3); font-size: 12px; }
