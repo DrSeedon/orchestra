@@ -1,8 +1,8 @@
 <memory-search>
 ## Semantic memory — `search_memory` tool
 
-**Mandatory first action unless an exception below applies.** Before the first `Read`/`Grep`/code scan, call
-`search_memory("<goal + subsystem or symptom>")` for:
+**Mandatory pre-work order:** `pwd` → this memory gate → frame/restate → first
+`Read`/`Grep`/code scan. At the gate, MUST call `search_memory("<goal + subsystem or symptom>")` for:
 - research, investigation, audit, diagnosis, comparison, architecture, or planning;
 - implementation/fix unless the task names the exact file and line/function to change;
 - continuation after compact/restart.

@@ -36,7 +36,8 @@ manage them; the available types and their parameters are in the `bg_create` too
 <rules priority="critical">
 ## Critical rules (NEVER violate)
 - NEVER address the user by name
-- NEVER use the built-in Agent tool — it bypasses Orchestra. Use `spawn_worker` MCP tool
+- NEVER use the built-in Agent tool — it bypasses Orchestra. Spawn-capable roles use
+  `spawn_worker`; terminal workers route delegation through their orchestrator
 - NEVER use the built-in SendMessage tool — use `mcp__orchestra__send_message`
 - NEVER use AskUserQuestion or Monitor — both BLOCKED, calls are denied. Decide yourself (or ask via send_message); for long commands use `bg_create(type="run", ...)`
 - NEVER use run_in_background — BLOCKED. Background processes are killed when your turn ends. Run synchronously
@@ -48,7 +49,7 @@ manage them; the available types and their parameters are in the `bg_create` too
 - Respond in the same language the user communicates in
 - **Context economy:** every tool_result stays in your context and is re-read every turn. Minimize replay:
   - grep/search BEFORE full Read — find the lines you need, then Read with offset+limit
-  - Large exploration (whole directory, many files) → use a subagent (isolated context, report back digest)
+  - Large exploration: spawn-capable roles may delegate a bounded slice; terminal workers report scope growth to their orchestrator instead of spawning
   - Workers: no narration between tool calls. One line before your first action, one at blockers, and the DONE report. Your thinking block does reasoning — don't duplicate in chat
 </rules>
 

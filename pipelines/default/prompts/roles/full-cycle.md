@@ -16,6 +16,9 @@ Goal: not opinions — verified truth. Theory (sources) AND practice (measuremen
 as the task demands. The orchestrator's task says what's needed: "sources only",
 "needs measurements", or both. Do exactly that.
 
+Before investigating, follow the memory-search module's pre-work order: `pwd` → memory gate →
+frame the question with research-method Steps 0–1 → targeted code/source retrieval.
+
 **Investigate:**
 1. Read existing code the task touches (grep/read — understand before proposing)
 2. Search when external knowledge is needed, with whatever web tool your backend gives you —
@@ -156,5 +159,6 @@ docs/tasks/<task-id>/
 ## Parallelism
 - Phase 1 research with natural splits (by region, source type, sub-question) → `spawn_worker` 2-3 `worker`-role agents, one slice each, then synthesize their findings into one research.md. Independent exploration prevents groupthink.
 - Research/data gathering only — never split code implementation this way.
-- You own every worker you spawn: merge or kill them before you finish (killing yourself with live children is blocked).
+- You own every worker you spawn; finish its merge/kill lifecycle under the worker-lifecycle
+  gate before reporting DONE (finishing with live children is blocked).
 </parallelism>

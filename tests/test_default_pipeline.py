@@ -102,6 +102,8 @@ class TestDefaultRolesResolve:
         """worker И full-cycle — воркеры (оркестратор спавнит их как исполнителей)."""
         assert P.get_role(PIPELINE, "worker").is_orchestrator is False
         assert P.get_role(PIPELINE, "full-cycle").is_orchestrator is False
+        assert P.get_role(PIPELINE, "worker").can_spawn == []
+        assert P.get_role(PIPELINE, "full-cycle").can_spawn == ["*"]
 
     def test_full_cycle_model_opus5(self):
         rr = P.get_role(PIPELINE, "full-cycle")
@@ -120,18 +122,18 @@ class TestDefaultRolesResolve:
     def test_modules_resolve_from_manifest(self):
         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
         assert P.get_role(PIPELINE, "orchestrator").modules == [
-            "git-workflow", "orchestration", "background-jobs",
+            "git-workflow", "orchestration", "worker-lifecycle", "background-jobs",
             "task-management", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
-            "git-workflow", "orchestration", "background-jobs",
+            "git-workflow", "orchestration", "worker-lifecycle", "background-jobs",
             "task-management", "self-improvement",
         ]
         assert P.get_role(PIPELINE, "worker").modules == [
             "git-workflow", "report-format", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
-            "research-method", "git-workflow",
+            "research-method", "git-workflow", "worker-lifecycle",
             "report-format", "self-improvement", "memory-search",
         ]
 
