@@ -366,7 +366,7 @@ class TestCreateWorktree:
 
 
 class TestResolveBaseBranch:
-    def test_master_only_repository(self, git_repo):
+    def test_master_only_repository(self, git_repo, wt_root):
         from app.workspace import create_worktree, resolve_base_branch
 
         subprocess.run(["git", "branch", "-m", "master"], cwd=git_repo, check=True)
@@ -557,7 +557,7 @@ class TestSwitchWorktreeBranch:
             capture_output=True, text=True, check=True,
         ).stdout.strip() == old_head
         assert subprocess.run(
-            ["git", "show-ref", "--verify", f"refs/heads/{target}"],
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{target}"],
             cwd=git_repo, capture_output=True,
         ).returncode == 1
 
@@ -1215,6 +1215,41 @@ class TestMergeTarget:
         log_main = subprocess.run(["git", "log", "--oneline", "main"], cwd=git_repo,
                                   capture_output=True, text=True).stdout
         assert "work" in log_main
+
+    def test_expected_worker_identity_mismatch_is_not_reached(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import merge_worktree_to_main
+
+        wt = self._wt_with_commit(git_repo, wt_root, "pinned-worker", "main")
+        target_before = subprocess.run(
+            ["git", "rev-parse", "main"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        worker_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt.path,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+        result = merge_worktree_to_main(
+            wt.path,
+            str(git_repo),
+            target_branch="main",
+            expected_worker_branch=wt.branch,
+            expected_worker_head="0" * 40,
+        )
+
+        assert result["ok"] is False
+        assert result["state"] == "failed"
+        assert result["commit_point"] == "not_reached"
+        assert result["worker_branch"] == wt.branch
+        assert result["worker_head"] == worker_head
+        assert "worker HEAD changed" in result["error"]
+        assert result["target_after"] == target_before
+        assert subprocess.run(
+            ["git", "rev-parse", "main"], cwd=git_repo,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip() == target_before
 
     def test_unobservable_final_target_snapshot_is_partial_unknown(
         self, git_repo, wt_root, monkeypatch,

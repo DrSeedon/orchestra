@@ -10,12 +10,20 @@ import logging
 import sqlite3
 from datetime import datetime, date, timezone
 from pathlib import Path
+from typing import TypedDict
 
 logger = logging.getLogger("tm")
 
 from app.db import _conn
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "paid", "cancelled"}
+
+
+class TaskIdentity(TypedDict):
+    id: int
+    project_id: str
+    par_number: int
+    sync_revision: int
 
 
 def _now() -> str:
@@ -314,6 +322,38 @@ def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str = "") -
             return get_task_by_par(conn, num, proj["id"])
         return None
     return get_task_by_par(conn, num, project_id)
+
+
+def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
+    """Resolve one task through the session's authoritative project scope."""
+    normalized_scope = scope.rstrip("/")
+    if not normalized_scope:
+        raise ValueError("session scope is required for task assignment")
+    with _conn() as conn:
+        project = get_project_by_scope(conn, normalized_scope)
+        if not project:
+            raise ValueError(f"scope '{normalized_scope}' has no task project")
+        prefix, par_number = _parse_task_ref(ref)
+        if (
+            prefix
+            and prefix != "TASK"
+            and prefix != (project.get("prefix") or "").upper()
+        ):
+            raise ValueError(
+                f"task '{ref}' belongs to project prefix {prefix}, "
+                f"not session project {project['id']}"
+            )
+        task = get_task_by_par(conn, par_number, project["id"])
+        if not task:
+            raise ValueError(
+                f"task '{ref}' not found in session project {project['id']}"
+            )
+        return TaskIdentity(
+            id=task["id"],
+            project_id=task["project_id"],
+            par_number=task["par_number"],
+            sync_revision=task["sync_revision"],
+        )
 
 
 def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
@@ -872,6 +912,63 @@ def api_update_task(par: str, title: str | None = None,
         "new_status": updated["status"],
         "price_rub": updated["price_rub"],
         "paid_rub": updated["paid_rub"],
+    }
+
+
+def api_update_task_if_current(
+    identity: TaskIdentity, *, status: str,
+) -> dict:
+    """Update a prevalidated task only while its immutable identity/version matches."""
+    if status not in VALID_STATUSES:
+        raise ValueError(f"Invalid status: {status}")
+    task_id = identity["id"]
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            task = get_task_by_id(conn, task_id)
+            if not task:
+                conn.rollback()
+                return {
+                    "ok": False,
+                    "task_id": task_id,
+                    "error": "prevalidated task no longer exists",
+                }
+            if (
+                task["project_id"] != identity["project_id"]
+                or task["par_number"] != identity["par_number"]
+            ):
+                conn.rollback()
+                return {
+                    "ok": False,
+                    "task_id": task_id,
+                    "error": "prevalidated task identity changed before status update",
+                }
+            if task["sync_revision"] != identity["sync_revision"]:
+                conn.rollback()
+                return {
+                    "ok": False,
+                    "task_id": task_id,
+                    "error": (
+                        "prevalidated task revision changed before status update: "
+                        f"expected {identity['sync_revision']}, "
+                        f"found {task['sync_revision']}"
+                    ),
+                }
+            result = update_task(conn, task_id, status=status)
+            updated = get_task_by_id(conn, task_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    _fire_sync(task_id)
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "par": str(identity["par_number"]),
+        "updated": result["changed"],
+        "new_status": updated["status"],
+        "sync_revision": updated["sync_revision"],
     }
 
 
