@@ -1,14 +1,16 @@
 {
   "counts": {
-    "candidate_non_numeric_task_refs": 8,
+    "candidate_non_numeric_task_refs": 9,
     "candidate_numeric_task_refs": 23,
-    "entries": 32,
+    "entries": 33,
     "evidence_only_non_integrations": 1,
-    "non_numeric_task_refs": 8,
+    "non_numeric_task_refs": 9,
     "numeric_task_refs": 24,
-    "protected_refs": 32,
-    "recovery_candidates": 31,
-    "unique_target_commits": 32
+    "protected_refs": 34,
+    "protected_source_refs": 1,
+    "protected_target_refs": 33,
+    "recovery_candidates": 32,
+    "unique_target_commits": 33
   },
   "entries": [
     {
@@ -2095,9 +2097,128 @@
         "session_id": "d1147f1b-cb08-4a6c-87b8-54526e5a752c",
         "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/research-codex-harness"
       }
+    },
+    {
+      "caller": {
+        "name": "Orchestra-orchestrator",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "07233e67-502d-4c62-9f34-b37fbbdf8606"
+      },
+      "integration_mode": "post_cutoff_exact_sha_cherry_pick_then_ff",
+      "lineage": {
+        "fresh_branch": {
+          "base_oid_at_integration": "6926fea07f19d4c43e0771de70f6ca6d49ea1fcb",
+          "name": "fix-pe-35f0229",
+          "requested_base_branch": "main",
+          "target_parent_oid": "6926fea07f19d4c43e0771de70f6ca6d49ea1fcb",
+          "verified_target_parent_matches_base": true
+        },
+        "source_commit_oid": "35f02293d8d1fca9c83aa66f7a42687bb404de73",
+        "source_patch_id": "6332a138486d9e4cbe8495de7a01ab8dddce699d",
+        "target_patch_id": "6332a138486d9e4cbe8495de7a01ab8dddce699d",
+        "verification_mode": "named_worker_inbox_report_exact_source_sha_then_exact_cherry_pick_then_ff_only"
+      },
+      "lineage_evidence": [
+        {
+          "evidence_role": "named_worker_exact_source_report",
+          "excerpt": "[from:prompt-engineer] DONE: правила и баги разведены в две асимметричные политики, отдельный коммит `35f0229`.",
+          "id": 372506,
+          "log_type": "user_message",
+          "sender": "prompt-engineer",
+          "sha256": "1847a6b916c936151881ff7c224cfcc501bbd08ad03d69405579bf7000cbdb85",
+          "ts": "2026-08-01T07:36:17.014378+00:00"
+        }
+      ],
+      "protection": {
+        "backup_ref": "refs/orchestra/recovery/115/9ff4a7f53708ad365b73cf1db1cefc8a5bd8dad3",
+        "source_backup_ref": "refs/orchestra/recovery/115/source/35f02293d8d1fca9c83aa66f7a42687bb404de73",
+        "survives_gc": true,
+        "verified_oid": "9ff4a7f53708ad365b73cf1db1cefc8a5bd8dad3",
+        "verified_source_oid": "35f02293d8d1fca9c83aa66f7a42687bb404de73"
+      },
+      "source_calls": [
+        {
+          "excerpt": "git branch -f fix-pe-35f0229 main 2>/dev/null\\ngit checkout -q fix-pe-35f0229 2>&1 | tail -2\\ngit cherry-pick 35f0229 2>&1 | tail -4",
+          "id": 372616,
+          "sha256": "9f2c8b48551abfddc44de427a1c4889b6c8f03bb57bc3f6f6a7f2fdb1cc4ddef",
+          "ts": "2026-08-01T07:36:46.503237+00:00"
+        },
+        {
+          "excerpt": "git checkout -q main && git merge --ff-only fix-pe-35f0229 2>&1 | tail -2 && git branch -D fix-pe-35f0229 -q; git log --oneline -1",
+          "id": 372634,
+          "sha256": "08c72ee03c557b1289c9d735077579c4715d5518ce0eea71478b93c74a50d1ef",
+          "ts": "2026-08-01T07:36:50.586008+00:00"
+        }
+      ],
+      "source_results": [
+        {
+          "excerpt": "[fix-pe-35f0229 9ff4a7f] #prompt-policy: separate rule triage from bug reporting\n Date: Sat Aug 1 14:35:58 2026 +0700\n 5 files changed, 31 insertions(+), 8 deletions(-)",
+          "id": 372617,
+          "sha256": "c272e0723410b7254712ca7c4e3d00b7ca0ec5d1f2386d3b5d962216b1ef8d9d",
+          "ts": "2026-08-01T07:36:46.573861+00:00"
+        },
+        {
+          "excerpt": "9ff4a7f #prompt-policy: separate rule triage from bug reporting\n=== тесты промптов ===",
+          "id": 372655,
+          "sha256": "17a7eb9726523b34cb6228c63f0a04207126f296ae42c279b1f52b604e838ac1",
+          "ts": "2026-08-01T07:37:02.908517+00:00"
+        }
+      ],
+      "target": {
+        "ancestor_of_target_at_freeze": true,
+        "branch": "main",
+        "canonical_git_common_dir": "/mnt/data/Projects/Python/orchestra/.git",
+        "commit_oid": "9ff4a7f53708ad365b73cf1db1cefc8a5bd8dad3",
+        "committed_at": "2026-08-01T09:36:46+02:00",
+        "head_at_freeze": "c5f1d0d25a953b1133ce4312d5d576e52aaaaea9",
+        "parent_oids": [
+          "6926fea07f19d4c43e0771de70f6ca6d49ea1fcb"
+        ],
+        "parsed_numeric_task_ref": null,
+        "repo_path": "/mnt/data/Projects/Python/orchestra",
+        "subject": "#prompt-policy: separate rule triage from bug reporting",
+        "tree_oid": "a0d6c0bbe4258ead5f2f1c17cc8e31c4d7a043f8"
+      },
+      "task_link_disposition": "skip_owner_confirmed_no_numeric_ref",
+      "worker": {
+        "base_branch_at_freeze": "main",
+        "branch_at_freeze": "adhoc-572769/prompt-engineer",
+        "branch_at_integration": null,
+        "created_at": "2026-05-31T10:28:33.428920+00:00",
+        "finished_at": null,
+        "name": "prompt-engineer",
+        "scope": "/mnt/data/Projects/Python/orchestra",
+        "session_id": "107a7692-6a87-47d6-903b-1728fa964202",
+        "worktree_path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/prompt-engineer"
+      }
     }
   ],
   "frozen_at": "2026-08-01T09:19:28.248475+00:00",
+  "post_cutoff_policy": {
+    "added_at": "2026-08-01T10:09:58.309390+00:00",
+    "added_entries": [
+      {
+        "commit_oid": "9ff4a7f53708ad365b73cf1db1cefc8a5bd8dad3",
+        "decision_log": {
+          "excerpt": "[from:Orchestra-orchestrator] ОТВЕТ: ДА — расширяй classifier на доказанную exact-SHA lineage и добавляй `9ff4a7f` 33-й entry / 32-м recovery candidate без task link.",
+          "id": 384556,
+          "sha256": "d3cf81eba135238bcea6c5beacbb6bf6aefd3a94394cda7cd747db10cc907766",
+          "ts": "2026-08-01T10:08:02.762089+00:00"
+        },
+        "maximum_lineage_log_id": 372655,
+        "recovery_disposition": "recovery_candidate",
+        "task_link_disposition": "skip_owner_confirmed_no_numeric_ref"
+      }
+    ],
+    "default_disposition": "reject",
+    "does_not_replace": "The exact-SHA lineage mode is additive. Existing entries and future branch-based entries still require their branch/head evidence; a time-adjacent or subject-similar commit never qualifies.",
+    "exact_sha_lineage_requirements": [
+      "An Orchestra inbox log identifies the named worker and a source SHA prefix that resolves uniquely to one full commit OID in the recorded repository.",
+      "A caller command creates and checks out a fresh branch from the recorded target branch, then cherry-picks that exact source SHA; the resulting target commit's parent must equal the recorded target-before OID.",
+      "A caller command ff-only integrates that fresh branch into the recorded target branch, and its result verifies the target commit.",
+      "Git verifies equal stable patch-id for source and target, target ancestry, and exact protected refs for both source and target objects."
+    ]
+  },
   "purpose": "Immutable provenance and reachability anchors for verified manual-integration recovery candidates plus explicitly excluded historical evidence.",
   "recovery_policy": {
     "apply_authorized": false,
@@ -2111,12 +2232,26 @@
         "reason": "The named worker merge was a proven no-op; this SHA was created by a separate caller-side CLAUDE.md edit and cannot prove worker content or lifecycle/ref integration."
       }
     ],
-    "ref_cleanup": "A later explicit cleanup gate must delete each backup ref with an exact-value CAS against its recorded verified_oid."
+    "ref_cleanup": "A later explicit cleanup gate must delete each target/source backup ref with an exact-value CAS against its recorded verified OID.",
+    "task_link_decisions": {
+      "decision_log_id": 384556,
+      "skip_commit_oids": [
+        "ca6b8581f37eb384dfde18f5ab74f478c7b76e07",
+        "ed5b5e3b2d027d1b1b265ecc842cf00b1d0f9e82",
+        "a1a3d3b5283235530d4369d3156f9d635d06e429",
+        "9793a44dee1321f5f2b4638f05f89688db4da02b",
+        "7a8e1b7d7d6fc601aa3bd787a4967a340a856fa1",
+        "aa3d382947e702e9720cd864d55702a6e6914186",
+        "c2776320f547607d990bc894b78e01325e303f87",
+        "6926fea07f19d4c43e0771de70f6ca6d49ea1fcb",
+        "9ff4a7f53708ad365b73cf1db1cefc8a5bd8dad3"
+      ]
+    }
   },
   "ref_namespace": "refs/orchestra/recovery/115/",
-  "schema_version": 1,
+  "schema_version": 2,
   "source_snapshot": {
-    "classifier": "A default recovery candidate requires retained orchestrator logs that explicitly integrate a named worker branch/worktree plus Git verification of the resulting full SHA on target history. Entries listed in recovery_policy.excluded_entries are retained only as evidence and authorize no automatic recovery effect.",
+    "classifier": "A default recovery candidate requires either retained orchestrator logs that explicitly integrate a named worker branch/worktree, or the additive post-cutoff exact-SHA lineage defined by post_cutoff_policy. Both require exact Git verification on target history. Exact-SHA lineage never replaces branch/head evidence for branch-based entries. Entries listed in recovery_policy.excluded_entries are retained only as evidence and authorize no automatic recovery effect.",
     "database": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
     "logs_cutoff_id": 371999,
     "logs_cutoff_ts": "2026-08-01T07:33:07.324803+00:00"

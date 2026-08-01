@@ -308,9 +308,10 @@ acknowledgement endpoint отсутствует.
 - **Lifecycle/ref: частично.** Автоматически только для session, где сохранился
   точный expected worker head и CAS/tree verification проходит. Если branch уже
   содержит новую работу или original head/provenance утрачен, ref не двигается.
-- **Необратимо без ручного решения:** mapping восьми manual commits без
-  распознаваемого task ref и точные conflict decisions/selective-copy provenance,
-  которых нет ни в operation record, ни в commit message.
+- **Task link намеренно отсутствует:** владелец подтвердил `skip` для девяти manual
+  commits без numeric ref (восемь frozen + post-cutoff `9ff4a7f`); T3 не пытается
+  подобрать им номер по времени/теме. Точные conflict decisions/selective-copy
+  provenance без operation record остаются только historical evidence.
 - **Evidence-only, не recovery:** `0244e3d…` имеет `#182`, но named-worker merge
   был no-op, а commit создала отдельная правка `CLAUDE.md`; автоматические
   task/RAG/lifecycle/ref effects для него запрещены.
@@ -319,11 +320,12 @@ Phase 3 не применяет recovery к live DB/refs автоматичес�
 read-only manifest; live `finalize` — отдельный явный пользовательский gate после
 просмотра manifest.
 
-### Pinned evidence SHA input (32: 31 candidates + 1 exclusion)
+### Pinned evidence SHA input (33: 32 candidates + 1 exclusion)
 
-Ниже frozen SHA seed для T0 `recovery-input.json`; T0 дополняет его exact retained
-source log ids и отвергает entry без такого evidence. T3 generator только читает
-уже tracked snapshot и не переатрибутирует scope по поздним live данным.
+Ниже исходный frozen SHA seed для T0 `recovery-input.json`. Первые 32 entries
+ограничены cutoff; post-cutoff entry допускается только отдельным fail-closed
+classifier с доказанной exact-SHA lineage и owner decision. T3 generator только
+читает tracked snapshot и не переатрибутирует scope по поздним live данным.
 
 ```text
 polus | /home/maxim/polus |
@@ -338,6 +340,7 @@ orchestra | /mnt/data/Projects/Python/orchestra |
   aa3d382947e702e9720cd864d55702a6e6914186
   c2776320f547607d990bc894b78e01325e303f87
   6926fea07f19d4c43e0771de70f6ca6d49ea1fcb
+  9ff4a7f53708ad365b73cf1db1cefc8a5bd8dad3  # post-cutoff exact-SHA lineage
 COG-second-brain | /mnt/data/Projects/Python/inscryption-ai |
   6f75c4bce3e2deed3078d8d19b2549a8033310d5
   ae8b12789cd798819da4a7d8e938c8e99af716ae
@@ -371,28 +374,34 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
 ### T0 — Freeze retained manual-merge provenance
 
 - Vertical outcome: до ожидания runtime dependencies появляется tracked,
-  самодостаточный evidence snapshot, по которому 31 historical integration и один
-  явно исключённый non-integration commit можно проверить даже после pruning live
-  logs; отдельные backup refs сохраняют все 32 target commit objects при branch
-  switch/rewrite и `git gc`.
+  самодостаточный evidence snapshot, по которому 32 historical integrations и
+  один явно исключённый non-integration commit можно проверить даже после pruning
+  live logs; backup refs сохраняют 33 target objects и единственный отдельный
+  source object exact-SHA lineage при branch switch/rewrite и `git gc`.
 - Files: `docs/tasks/115/recovery-input.json` (new).
 - AC:
-  - read-only export на frozen cutoff `logs.id <= 371999` содержит для всех 32 SHA
+  - read-only export на frozen cutoff `logs.id <= 371999` содержит для первых 32 SHA
     source call/result log ids, caller session id/name/scope, named worker
     branch/worktree, canonical git-common-dir, target branch/SHA и минимальные
     exact integration/result excerpts с content hashes;
+  - post-cutoff entry default-denied и допустим только при полном
+    `[from:worker] exact source SHA → exact cherry-pick → named target SHA →
+    ff-only main` evidence, equal source/target patch-id, target ancestry, owner
+    decision и protected source+target objects; этот classifier дополнительный и
+    не заменяет branch/head evidence остальных entries;
   - каждый recovery candidate имеет явную связь «named worker integration command
     → resulting target SHA»; простое упоминание SHA в позднем research/log output
     не считается source evidence. Единственный proven no-op хранится с
     `evidence_only_non_integration`, пустым списком разрешённых effects и не входит
     в recovery candidate count;
-  - все 32 SHA повторно существуют и являются ancestors указанного target; число
-    entries и unique SHA равно 32, COG entries явно сохраняют caller scope
+  - все 33 target SHA повторно существуют и являются ancestors указанного target;
+    число entries и unique target SHA равно 33, COG entries явно сохраняют caller scope
     `COG-second-brain` при repo `inscryption-ai`;
   - export не пишет live DB/worktrees/target branches; он CAS-создаёт только
-    `refs/orchestra/recovery/115/<full-sha>` с expected-old zero OID и проверяет
-    exact value. Повтор идемпотентен, ref mismatch fail closed, refs остаются до
-    отдельного cleanup gate;
+    `refs/orchestra/recovery/115/<full-sha>` и единственный
+    `refs/orchestra/recovery/115/source/<full-sha>` с expected-old zero OID и
+    проверяет exact value. Повтор идемпотентен, ref mismatch fail closed, refs
+    остаются до отдельного cleanup gate;
   - после commit файл становится authoritative historical input, а T3 fail closed
     на entry вне него; refs делают каждый указанный object reachable для `git gc`.
 - Price: **small** — один read-only export и Git verification.
@@ -520,7 +529,7 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
   refs.
 - blocked-by: **T1, #93-T1, #93-T2, #93-T4**. Не зависит от #93-T3.
 
-### T3 — Read-only recovery manifest для 31 manual integration + 1 exclusion
+### T3 — Read-only recovery manifest для 32 manual integrations + 1 exclusion
 
 - Vertical outcome: оператор получает воспроизводимый план восстановления 23
   доказанных links, RAG по scopes и отдельно безопасную/запрещённую ref часть без
@@ -531,15 +540,16 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
   `tests/test_merge_recovery_manifest.py` (new).
 - Input: immutable `docs/tasks/115/recovery-input.json` из T0.
 - AC:
-  - input artifact перечисляет 32 pinned full SHA/repo/scope/target и retained
-    source log ids; generator fail closed на missing/ambiguous/non-orchestrator
-    evidence и никогда не принимает scope только из CLI;
-  - manifest содержит все 31 strict manual SHA и один evidence-only exclusion из
+  - input artifact перечисляет 33 pinned full target SHA/repo/scope/target,
+    retained source log ids и один protected source SHA; generator fail closed на
+    missing/ambiguous/non-orchestrator evidence и никогда не принимает scope
+    только из CLI;
+  - manifest содержит все 32 strict manual SHA и один evidence-only exclusion из
     T0, repo/scope/target, commit timestamp, parsed ref, task id, task-created-at и
     текущий link state;
-  - ровно 23 entries получают `task_link=READY`, восемь —
-    `NEEDS_EXPLICIT_MAPPING`, один — `EXCLUDED_NON_INTEGRATION` без automatic
-    effects; ни один ref не выводится только из номера каталога;
+  - ровно 23 entries получают `task_link=READY`, девять —
+    `SKIP_OWNER_CONFIRMED_NO_NUMERIC_REF`, один — `EXCLUDED_NON_INTEGRATION` без
+    automatic effects; ни один ref не выводится только из номера каталога;
   - generator вызывает batch prepare из T2; RAG actions дедуплицированы до одного
     backfill на scope, а gated batch finalize доказывает ровно один
     `backfill_scope` call на scope независимо от числа commits;
