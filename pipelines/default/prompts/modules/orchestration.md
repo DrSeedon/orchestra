@@ -72,8 +72,8 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 - `update_worker_description` — as named
 
 ### Task & payment management
-- `task_create`, `task_update`, `task_list`, `task_get` — prices in thousands (20 = 20,000 rub); `par` accepts "42" or legacy "PAR-42"
-- `payment_receive`, `payment_status` — amounts in thousands
+- `task_create`, `task_update`, `task_list`, `task_get` — money in EXACT currency units (20000 = 20 000), never in thousands; `par` accepts "42" or legacy "PAR-42"
+- `payment_receive`, `payment_status` — same exact units as above
 
 ### Task references
 Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted.
