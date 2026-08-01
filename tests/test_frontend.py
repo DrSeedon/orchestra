@@ -646,6 +646,74 @@ def _open_tool_fixture_page(browser: Browser) -> Page:
     return page
 
 
+def test_task_card_uses_real_long_description_and_shared_expandable_body(
+    dashboard_browser: Browser,
+):
+    root = Path(__file__).parent.parent
+    source = (root / "app/static/js/app.js").read_text()
+    helper_code = (
+        "const _TASK_PRIORITY_META"
+        + source.split("const _TASK_PRIORITY_META", 1)[1].split(
+            "// Central renderer", 1,
+        )[0]
+    )
+    api_page = dashboard_browser.new_page()
+    response = api_page.request.get(
+        f"{BASE}/api/tm/tasks/112",
+        params={"scope": "/mnt/data/Projects/Python/orchestra"},
+    )
+    assert response.status == 200
+    task = response.json()
+    api_page.close()
+    assert len(task["description"]) > 180
+    task.update({"assignee": "frontend", "task_id": 987})
+
+    page = dashboard_browser.new_page(viewport={"width": 1440, "height": 900})
+    page.set_content(
+        '<body style="background:#0a0e17;color:#e2e8f0">'
+        '<style>#chat-card,#panel-card,#xss-card{width:420px}</style>'
+        '<div id="chat-card"></div><div id="panel-card"></div><div id="xss-card"></div>'
+        '</body>'
+    )
+    page.add_style_tag(path=str(root / "app/static/css/style.css"))
+    page.add_script_tag(path=str(root / "app/static/css/vendor/marked.min.js"))
+    page.add_script_tag(path=str(root / "app/static/css/vendor/purify.min.js"))
+    page.add_script_tag(content="const CUR = '₽';\n" + helper_code)
+    page.evaluate(
+        """task => {
+            document.querySelector('#chat-card').innerHTML = _taskCardBodyHtml(task);
+            document.querySelector('#panel-card').innerHTML = _taskCardBodyHtml(task);
+            document.querySelector('#xss-card').innerHTML = _taskCardBodyHtml({
+                description: '<img src=x onerror="window.taskXss=1"><script>window.taskXss=1</script>',
+            });
+        }""",
+        task,
+    )
+
+    chat = page.locator("#chat-card")
+    panel = page.locator("#panel-card")
+    expect(chat).to_contain_text("🟠 High")
+    expect(chat).to_contain_text("Assignee: frontend")
+    expect(chat).to_contain_text("Task ID: 987")
+    expect(chat.locator("[data-task-description-toggle]")).to_have_text("▼ Развернуть")
+    assert chat.inner_html() == panel.inner_html()
+
+    description = chat.locator("[data-task-description-body]")
+    assert description.evaluate("el => el.scrollHeight > el.clientHeight")
+    chat.locator("[data-task-description-toggle]").click()
+    expect(chat.locator("[data-task-description-toggle]")).to_have_text("▲ Свернуть")
+    assert description.evaluate("el => el.style.maxHeight") == "none"
+
+    assert page.evaluate("() => window.taskXss") is None
+    expect(page.locator("#xss-card script")).to_have_count(0)
+    expect(page.locator("#xss-card img")).not_to_have_attribute("onerror", "window.taskXss=1")
+
+    assert "taskBody.innerHTML = _taskCardBodyHtml(parsed);" in source
+    assert "h += _taskCardBodyHtml(t);" in source
+    assert "html += _taskCardBodyHtml(t);" in source
+    page.close()
+
+
 def test_codex_successful_mcp_startup_status_is_hidden(
     dashboard_browser: Browser,
 ):

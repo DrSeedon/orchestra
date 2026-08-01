@@ -1,6 +1,43 @@
+import json
+
 import pytest
 from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta, timezone
+
+
+@pytest.mark.asyncio
+async def test_task_create_returns_fields_needed_by_dashboard_card(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+
+    async def fake_api(method, path, **kwargs):
+        assert method == "POST"
+        assert path == "/api/tm/tasks"
+        assert kwargs["json"]["description"] == "Long task description"
+        return {
+            "par": "113",
+            "id": 987,
+            "title": "Task card",
+            "project": "orchestra",
+            "price_rub": 0,
+            "status": "new",
+        }
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        raw = await m.task_create(
+            title="Task card",
+            project="orchestra",
+            description="Long task description",
+            assignee="frontend",
+            priority=1,
+        )
+
+    result = json.loads(raw)
+    assert result["description"] == "Long task description"
+    assert result["assignee"] == "frontend"
+    assert result["priority"] == 1
+    assert result["task_id"] == 987
 
 
 @pytest.mark.asyncio
