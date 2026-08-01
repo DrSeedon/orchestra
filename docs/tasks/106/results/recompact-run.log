@@ -1,0 +1,6 @@
+{"job_id": "e12ad7179a77f7d4", "fixture": "holdout-reversal", "blind_variant": "d5ee89e2b5cefe3d", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "df6f16a410a040bb", "fixture": "holdout-conflict-long", "blind_variant": "04a903fcbfa4523d", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "e455fb85953662c2", "fixture": "holdout-conflict-long", "blind_variant": "df37d9f73f2220c3", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "d4fe1aee4c3bc794", "fixture": "holdout-reversal", "blind_variant": "ba05d5b3f433b0c0", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "ef5f7c29dbb8c6bb", "fixture": "holdout-conflict-long", "blind_variant": "64dc47c8ebd8f6e3", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "e13ccf22e5bf54c8", "fixture": "holdout-reversal", "blind_variant": "c6cde216cb88088e", "failed_total": 0, "failure_diagnostic": null}

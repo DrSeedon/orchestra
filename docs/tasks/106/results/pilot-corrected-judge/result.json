@@ -1,0 +1,104 @@
+{
+  "ok": true,
+  "judgment": {
+    "fixture_id": "holdout-presave-idempotent",
+    "candidates": [
+      {
+        "candidate_id": "eff6ede7ac55e9c1",
+        "semantic_anchors": {
+          "durable": true,
+          "idempotent": true,
+          "next": true
+        },
+        "unsupported_claims": [],
+        "conflict_preserved": true,
+        "no_transcript_dump": true
+      },
+      {
+        "candidate_id": "0c43abfeac3c8864",
+        "semantic_anchors": {
+          "durable": true,
+          "idempotent": true,
+          "next": true
+        },
+        "unsupported_claims": [
+          {
+            "claim": "The working directory is not a git repository, so there is no commit history to recover state from",
+            "reason": "Not established anywhere in the transcript or measured diff; asserted as fact without supporting evidence."
+          }
+        ],
+        "conflict_preserved": true,
+        "no_transcript_dump": true
+      },
+      {
+        "candidate_id": "96511c6099968d4a",
+        "semantic_anchors": {
+          "durable": true,
+          "idempotent": true,
+          "next": true
+        },
+        "unsupported_claims": [],
+        "conflict_preserved": true,
+        "no_transcript_dump": true
+      }
+    ]
+  },
+  "usage": {
+    "input_tokens": 1,
+    "cache_creation_input_tokens": 15395,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 1176,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 15395,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 1,
+        "output_tokens": 1176,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 15395,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 15395
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "model_usage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 7617,
+      "outputTokens": 19,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.007711999999999999,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 1,
+      "outputTokens": 1176,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 15395,
+      "webSearchRequests": 0,
+      "costUSD": 0.110013,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "stderr": "",
+  "elapsed_seconds": 20.3894100969992
+}

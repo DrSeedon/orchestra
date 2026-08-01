@@ -1,0 +1,704 @@
+{
+  "83b828fbcca69d3f": {
+    "variant": "orchestra_current",
+    "blind_variant": "44bb8c92201fecad",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 1
+  },
+  "ae8b016977f5aed0": {
+    "variant": "orchestra_current",
+    "blind_variant": "fdc91071b6227bbc",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 2
+  },
+  "e97aaa3d59ec4cf4": {
+    "variant": "orchestra_current",
+    "blind_variant": "b0a012707a34f888",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 3
+  },
+  "17f70add21db5aae": {
+    "variant": "kesha_full",
+    "blind_variant": "778d128eb0b0a7e1",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 1
+  },
+  "97252e51f123612a": {
+    "variant": "kesha_full",
+    "blind_variant": "8fe0acfa567bdf8e",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 2
+  },
+  "8e1d64a3b7fc44b3": {
+    "variant": "kesha_full",
+    "blind_variant": "30dcd7bf4095ba58",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 3
+  },
+  "4aadc2ccb2ace7cb": {
+    "variant": "concise",
+    "blind_variant": "a526523d05af3157",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 1
+  },
+  "05e2b2cde87e304a": {
+    "variant": "concise",
+    "blind_variant": "1ea4993e3acf552d",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 2
+  },
+  "d8cfa5ee2e3b2218": {
+    "variant": "concise",
+    "blind_variant": "72ead48871d9964c",
+    "fixture_id": "dev-decision-reversal",
+    "repetition": 3
+  },
+  "f5997a9cac2734eb": {
+    "variant": "orchestra_current",
+    "blind_variant": "65142f27d8433c22",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 1
+  },
+  "9fec9373a74e19b8": {
+    "variant": "orchestra_current",
+    "blind_variant": "0ab7691ffa1772ae",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 2
+  },
+  "75786d7ff525df84": {
+    "variant": "orchestra_current",
+    "blind_variant": "568186e5824f1cec",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 3
+  },
+  "8b51e5f16463c8d2": {
+    "variant": "kesha_full",
+    "blind_variant": "f9931a33c242993d",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 1
+  },
+  "8a5ca90e50ef14cd": {
+    "variant": "kesha_full",
+    "blind_variant": "ad95c9fc9c773038",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 2
+  },
+  "6bbcbbd7039d8bad": {
+    "variant": "kesha_full",
+    "blind_variant": "60d0241993ef6383",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 3
+  },
+  "120a1d2515b503c7": {
+    "variant": "concise",
+    "blind_variant": "22c46bd0d6ea0a1e",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 1
+  },
+  "8427dd91aa8d9751": {
+    "variant": "concise",
+    "blind_variant": "3658240b04c9e102",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 2
+  },
+  "66d62a4a06f546bb": {
+    "variant": "concise",
+    "blind_variant": "3363cc1a6b20252f",
+    "fixture_id": "dev-preference-oneoff",
+    "repetition": 3
+  },
+  "6b4940d6c649ab3f": {
+    "variant": "orchestra_current",
+    "blind_variant": "7d6a5b806d0b003b",
+    "fixture_id": "dev-file-status",
+    "repetition": 1
+  },
+  "d90b403132742dca": {
+    "variant": "orchestra_current",
+    "blind_variant": "69064f490fcdcdfa",
+    "fixture_id": "dev-file-status",
+    "repetition": 2
+  },
+  "8fd3fc60cdbc3d6b": {
+    "variant": "orchestra_current",
+    "blind_variant": "3723d08afd5c8184",
+    "fixture_id": "dev-file-status",
+    "repetition": 3
+  },
+  "ea96520d5bee7b06": {
+    "variant": "kesha_full",
+    "blind_variant": "aa15db032052b3f4",
+    "fixture_id": "dev-file-status",
+    "repetition": 1
+  },
+  "45f96c83198367c1": {
+    "variant": "kesha_full",
+    "blind_variant": "4fded1bd228cbe61",
+    "fixture_id": "dev-file-status",
+    "repetition": 2
+  },
+  "1d2685bfa21ee56b": {
+    "variant": "kesha_full",
+    "blind_variant": "bb24c68e30f771ea",
+    "fixture_id": "dev-file-status",
+    "repetition": 3
+  },
+  "b11fa4727b137d4e": {
+    "variant": "concise",
+    "blind_variant": "ef6c4671493c225b",
+    "fixture_id": "dev-file-status",
+    "repetition": 1
+  },
+  "12d707860202f829": {
+    "variant": "concise",
+    "blind_variant": "2c82a980da2221db",
+    "fixture_id": "dev-file-status",
+    "repetition": 2
+  },
+  "cd53c102a494943f": {
+    "variant": "concise",
+    "blind_variant": "0c33dad118c51e7c",
+    "fixture_id": "dev-file-status",
+    "repetition": 3
+  },
+  "855723c1d0997bea": {
+    "variant": "orchestra_current",
+    "blind_variant": "715dc662d6dbd5f1",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 1
+  },
+  "33513492dae3dcc6": {
+    "variant": "orchestra_current",
+    "blind_variant": "3781633037e257db",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 2
+  },
+  "04e6d9d8e21b7a47": {
+    "variant": "orchestra_current",
+    "blind_variant": "92f27dc93d83e135",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 3
+  },
+  "22511efd739e2c0f": {
+    "variant": "kesha_full",
+    "blind_variant": "8171570f06e9e026",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 1
+  },
+  "44e1c35cd90ef311": {
+    "variant": "kesha_full",
+    "blind_variant": "83ebfb0ab7503335",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 2
+  },
+  "6067acb8d2b20dc1": {
+    "variant": "kesha_full",
+    "blind_variant": "e9109e1a0d2e1734",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 3
+  },
+  "c25671ee38b4f8e8": {
+    "variant": "concise",
+    "blind_variant": "759ca833dd7c9b87",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 1
+  },
+  "1a18b863580cff08": {
+    "variant": "concise",
+    "blind_variant": "7b0e9dd33da2d8bb",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 2
+  },
+  "ee52149ce969e248": {
+    "variant": "concise",
+    "blind_variant": "fd8f6e937d95e2fa",
+    "fixture_id": "dev-command-evidence",
+    "repetition": 3
+  },
+  "a80a3dcbef905ee0": {
+    "variant": "orchestra_current",
+    "blind_variant": "ff9b542f13b01d9a",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 1
+  },
+  "44c760491b971a09": {
+    "variant": "orchestra_current",
+    "blind_variant": "294bae1ee0f3af88",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 2
+  },
+  "be3614aec3854359": {
+    "variant": "orchestra_current",
+    "blind_variant": "58216cfbe7cc3950",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 3
+  },
+  "f1f47451cf6b8619": {
+    "variant": "kesha_full",
+    "blind_variant": "af19d860198d20a9",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 1
+  },
+  "287150deb72d13e5": {
+    "variant": "kesha_full",
+    "blind_variant": "90cfad1da1511015",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 2
+  },
+  "bf925f1ae61529f5": {
+    "variant": "kesha_full",
+    "blind_variant": "a75b2e1f3b55365c",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 3
+  },
+  "7440d968c6516852": {
+    "variant": "concise",
+    "blind_variant": "d7edbf80fd25eb5b",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 1
+  },
+  "a26e4913a6e26a46": {
+    "variant": "concise",
+    "blind_variant": "bc4b99acb17ff657",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 2
+  },
+  "ff1d37a2ea2511ee": {
+    "variant": "concise",
+    "blind_variant": "3bacee974d23e5d8",
+    "fixture_id": "dev-pending-temporal",
+    "repetition": 3
+  },
+  "80542f8f31d4b0da": {
+    "variant": "orchestra_current",
+    "blind_variant": "aed552bfa18378ff",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 1
+  },
+  "a9afc7b7cab00335": {
+    "variant": "orchestra_current",
+    "blind_variant": "41d8cd3b186a883b",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 2
+  },
+  "a085f328156747e2": {
+    "variant": "orchestra_current",
+    "blind_variant": "80b2d5e2b40338c7",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 3
+  },
+  "5b0e51e193394148": {
+    "variant": "kesha_full",
+    "blind_variant": "48fe3f2b46ca09e3",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 1
+  },
+  "313b8ba3a6402543": {
+    "variant": "kesha_full",
+    "blind_variant": "b04ecc447ce036e5",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 2
+  },
+  "af92d26aa7975ef4": {
+    "variant": "kesha_full",
+    "blind_variant": "f9d16cf2b3be0fb7",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 3
+  },
+  "a56d42a5bb422c8a": {
+    "variant": "concise",
+    "blind_variant": "c6b40c86602e31f6",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 1
+  },
+  "1d56b0ea1c03b406": {
+    "variant": "concise",
+    "blind_variant": "1ebbe1db0d9dab8a",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 2
+  },
+  "0cf78e5cc1216045": {
+    "variant": "concise",
+    "blind_variant": "493d4f4bd68e284c",
+    "fixture_id": "dev-long-conflict",
+    "repetition": 3
+  },
+  "c4e1cb58450d1f77": {
+    "variant": "orchestra_current",
+    "blind_variant": "ba05d5b3f433b0c0",
+    "fixture_id": "holdout-reversal",
+    "repetition": 1
+  },
+  "d374bafb85b255e2": {
+    "variant": "orchestra_current",
+    "blind_variant": "866a21c7b03e69f2",
+    "fixture_id": "holdout-reversal",
+    "repetition": 2
+  },
+  "f16498cc26a05be0": {
+    "variant": "orchestra_current",
+    "blind_variant": "1852f8a1b57e60ef",
+    "fixture_id": "holdout-reversal",
+    "repetition": 3
+  },
+  "545ac57930d5b296": {
+    "variant": "kesha_full",
+    "blind_variant": "d5ee89e2b5cefe3d",
+    "fixture_id": "holdout-reversal",
+    "repetition": 1
+  },
+  "15dc4a125dfdd987": {
+    "variant": "kesha_full",
+    "blind_variant": "431464312fc06cfd",
+    "fixture_id": "holdout-reversal",
+    "repetition": 2
+  },
+  "e03dadaa8ac65d2b": {
+    "variant": "kesha_full",
+    "blind_variant": "6464fd53821ade53",
+    "fixture_id": "holdout-reversal",
+    "repetition": 3
+  },
+  "5a246171d548c5d0": {
+    "variant": "concise",
+    "blind_variant": "c6cde216cb88088e",
+    "fixture_id": "holdout-reversal",
+    "repetition": 1
+  },
+  "1579d64b6b1db2a9": {
+    "variant": "concise",
+    "blind_variant": "644276f5dd882301",
+    "fixture_id": "holdout-reversal",
+    "repetition": 2
+  },
+  "7eeda79bacc45bec": {
+    "variant": "concise",
+    "blind_variant": "9ff6ab30ae329036",
+    "fixture_id": "holdout-reversal",
+    "repetition": 3
+  },
+  "11e629817f4799a1": {
+    "variant": "orchestra_current",
+    "blind_variant": "5bdfd08e6d1251b0",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 1
+  },
+  "19b09807786041f0": {
+    "variant": "orchestra_current",
+    "blind_variant": "5e1547f7e45875a5",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 2
+  },
+  "bd6302e137520263": {
+    "variant": "orchestra_current",
+    "blind_variant": "5ca34f0c2639c800",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 3
+  },
+  "6fc703adcd322526": {
+    "variant": "kesha_full",
+    "blind_variant": "d64ecdedf5209be4",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 1
+  },
+  "16dd470d70c12945": {
+    "variant": "kesha_full",
+    "blind_variant": "ec46cc34fc64d541",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 2
+  },
+  "720e05f63f4ca5c6": {
+    "variant": "kesha_full",
+    "blind_variant": "9c21b085edfe0644",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 3
+  },
+  "2178862332877025": {
+    "variant": "concise",
+    "blind_variant": "f9bd5058300221bc",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 1
+  },
+  "c9c6fab7059a5508": {
+    "variant": "concise",
+    "blind_variant": "2decda68bac43da7",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 2
+  },
+  "231d49c27eb6069c": {
+    "variant": "concise",
+    "blind_variant": "c4a39fc1837e6903",
+    "fixture_id": "holdout-preference-secret",
+    "repetition": 3
+  },
+  "8ad92afba13699c6": {
+    "variant": "orchestra_current",
+    "blind_variant": "7a7bb6fdea4ef528",
+    "fixture_id": "holdout-file-state",
+    "repetition": 1
+  },
+  "b331b78ef8b7135e": {
+    "variant": "orchestra_current",
+    "blind_variant": "23b8c211a5afe0d8",
+    "fixture_id": "holdout-file-state",
+    "repetition": 2
+  },
+  "b91529bff03f1893": {
+    "variant": "orchestra_current",
+    "blind_variant": "28c8e355d61a350f",
+    "fixture_id": "holdout-file-state",
+    "repetition": 3
+  },
+  "faff5d0c10ce0092": {
+    "variant": "kesha_full",
+    "blind_variant": "1a3bff4ac69617c8",
+    "fixture_id": "holdout-file-state",
+    "repetition": 1
+  },
+  "e43c25aa0fe657dc": {
+    "variant": "kesha_full",
+    "blind_variant": "0bff2ab212fcc3d5",
+    "fixture_id": "holdout-file-state",
+    "repetition": 2
+  },
+  "ae1906961d75985b": {
+    "variant": "kesha_full",
+    "blind_variant": "146ed4dfab92a515",
+    "fixture_id": "holdout-file-state",
+    "repetition": 3
+  },
+  "bbdba75b263db5bb": {
+    "variant": "concise",
+    "blind_variant": "9d6f6f6c0b6d3df2",
+    "fixture_id": "holdout-file-state",
+    "repetition": 1
+  },
+  "f505cab9a3c16bac": {
+    "variant": "concise",
+    "blind_variant": "093a77bbb5d16e55",
+    "fixture_id": "holdout-file-state",
+    "repetition": 2
+  },
+  "d24b13fc25002d9d": {
+    "variant": "concise",
+    "blind_variant": "88893ead814bbef8",
+    "fixture_id": "holdout-file-state",
+    "repetition": 3
+  },
+  "eb57344a13fadfbe": {
+    "variant": "orchestra_current",
+    "blind_variant": "08ebc15d6082656a",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 1
+  },
+  "8784fa21edbdfdcc": {
+    "variant": "orchestra_current",
+    "blind_variant": "ab7d9ac79aea1a91",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 2
+  },
+  "793fbd43f971832d": {
+    "variant": "orchestra_current",
+    "blind_variant": "c154d1ae74928fa8",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 3
+  },
+  "4d1bdb0e330a6220": {
+    "variant": "kesha_full",
+    "blind_variant": "cacd30097c5b7c42",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 1
+  },
+  "276e332573c0a39d": {
+    "variant": "kesha_full",
+    "blind_variant": "db4680dd6b79096f",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 2
+  },
+  "de14b1299e65e807": {
+    "variant": "kesha_full",
+    "blind_variant": "5d790b7a65857bb8",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 3
+  },
+  "be12eec8239b2c28": {
+    "variant": "concise",
+    "blind_variant": "5d6c9b988be597e6",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 1
+  },
+  "f5d75a279c77fdf5": {
+    "variant": "concise",
+    "blind_variant": "f4fe2e6b2ddf7469",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 2
+  },
+  "5dce8833a21b14ee": {
+    "variant": "concise",
+    "blind_variant": "433fce39513ac123",
+    "fixture_id": "holdout-command-close-values",
+    "repetition": 3
+  },
+  "f19e7b8c25510e7f": {
+    "variant": "orchestra_current",
+    "blind_variant": "59e4375c46b60766",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 1
+  },
+  "c14ba22a67fabb41": {
+    "variant": "orchestra_current",
+    "blind_variant": "a92070b9fa960ef5",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 2
+  },
+  "5d7a6e7343deb6d2": {
+    "variant": "orchestra_current",
+    "blind_variant": "d89c03812526b8c0",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 3
+  },
+  "a52f25c5564aa9bb": {
+    "variant": "kesha_full",
+    "blind_variant": "3e851dc3cddc916b",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 1
+  },
+  "86db573601eacb8e": {
+    "variant": "kesha_full",
+    "blind_variant": "96ae2d9defe8ca4d",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 2
+  },
+  "abd1b939790135ad": {
+    "variant": "kesha_full",
+    "blind_variant": "31759a31e13b7432",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 3
+  },
+  "69fce370f75ecd72": {
+    "variant": "concise",
+    "blind_variant": "c6228d24403389b5",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 1
+  },
+  "3a0ab89fa2112a9a": {
+    "variant": "concise",
+    "blind_variant": "ed719bb956f549aa",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 2
+  },
+  "d1a3827b0d19b7f7": {
+    "variant": "concise",
+    "blind_variant": "c7f0c08ade0f1c05",
+    "fixture_id": "holdout-pending-temporal",
+    "repetition": 3
+  },
+  "8706ee0c21a412a9": {
+    "variant": "orchestra_current",
+    "blind_variant": "64dc47c8ebd8f6e3",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 1
+  },
+  "3b92ac2b21829040": {
+    "variant": "orchestra_current",
+    "blind_variant": "5372757d5ffd5d00",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 2
+  },
+  "4b81e606709f0a98": {
+    "variant": "orchestra_current",
+    "blind_variant": "9eba0a4cacc809b2",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 3
+  },
+  "fca2542185911a81": {
+    "variant": "kesha_full",
+    "blind_variant": "04a903fcbfa4523d",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 1
+  },
+  "e0289c0ed8b11eca": {
+    "variant": "kesha_full",
+    "blind_variant": "20c40ca6442621ad",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 2
+  },
+  "b83691453fdd935d": {
+    "variant": "kesha_full",
+    "blind_variant": "9b8bf175108014a3",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 3
+  },
+  "7a58cf7f179d92dc": {
+    "variant": "concise",
+    "blind_variant": "df37d9f73f2220c3",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 1
+  },
+  "0ec19c2c4b5e7e77": {
+    "variant": "concise",
+    "blind_variant": "5dcedf0e614d04c2",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 2
+  },
+  "7a4a0ca2e96e730d": {
+    "variant": "concise",
+    "blind_variant": "a97c4772fc521ad9",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 3
+  },
+  "68560419529b0d6e": {
+    "variant": "orchestra_current",
+    "blind_variant": "56962d1b125420ff",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 1
+  },
+  "90a29ace04b57f47": {
+    "variant": "orchestra_current",
+    "blind_variant": "11552dbf18844811",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 2
+  },
+  "02fb74f9a9ae6b2b": {
+    "variant": "orchestra_current",
+    "blind_variant": "fd9a38db5f398d04",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 3
+  },
+  "4d2d009e3f1de9f5": {
+    "variant": "kesha_full",
+    "blind_variant": "fba25ff8f7137baf",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 1
+  },
+  "d2d7b925c5e9e4cb": {
+    "variant": "kesha_full",
+    "blind_variant": "46df1053a26e2e5e",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 2
+  },
+  "f864ab2b90bd3d6a": {
+    "variant": "kesha_full",
+    "blind_variant": "49611e942dd3fd5f",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 3
+  },
+  "cd5badecc5f85ad5": {
+    "variant": "concise",
+    "blind_variant": "561393ac8972eae5",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 1
+  },
+  "9d9c13eacf7a7226": {
+    "variant": "concise",
+    "blind_variant": "d96813460a347e71",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 2
+  },
+  "8d85a7a573c7444c": {
+    "variant": "concise",
+    "blind_variant": "56153a8096e03780",
+    "fixture_id": "holdout-presave-idempotent",
+    "repetition": 3
+  }
+}

@@ -1,0 +1,14 @@
+{"job_id": "bc709b72e59ae662", "fixture_id": "holdout-preference-secret", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "b82da7c572814c55", "fixture_id": "holdout-command-close-values", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "db379505cde9cef9", "fixture_id": "dev-long-conflict", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "26a42fdea4a50319", "fixture_id": "dev-file-status", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "8bb96710120205fc", "fixture_id": "holdout-presave-idempotent", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "fd8083baf2cc89a9", "fixture_id": "dev-pending-temporal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "b71de9a125d46a6a", "fixture_id": "dev-decision-reversal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "cd6af4480ac2d187", "fixture_id": "holdout-file-state", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "b71afbe1eeed99f7", "fixture_id": "holdout-pending-temporal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "c9a507653808a5f6", "fixture_id": "holdout-reversal", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "7c222343ce053b15", "fixture_id": "dev-preference-oneoff", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "c023b5e66dcc9499", "fixture_id": "holdout-conflict-long", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "19b4776e1a7fc852", "fixture_id": "dev-command-evidence", "failed_total": 0, "failure_diagnostic": null}
+{"judge": "claude", "expected_jobs": 13, "observed_jobs": 13, "failures_this_invocation": 0, "seed": 10620260732, "completed_at": "2026-08-01T07:13:03.823156+00:00"}

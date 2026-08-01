@@ -1,0 +1,12 @@
+{"job_id": "f04cb8149c6bed9c", "fixture": "holdout-preference-secret", "blind_variant": "ce76548014d5b8c9", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "0646fa0bb0f26546", "fixture": "holdout-presave-idempotent", "blind_variant": "46df1053a26e2e5e", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "b799754ce56508eb", "fixture": "holdout-presave-idempotent", "blind_variant": "cabe04d45829f93b", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "7d76ee5c140a7763", "fixture": "holdout-preference-secret", "blind_variant": "ec46cc34fc64d541", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "a382c115c9426ef9", "fixture": "holdout-presave-idempotent", "blind_variant": "dfae1508e73a0eca", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "98b07aad59992f27", "fixture": "holdout-presave-idempotent", "blind_variant": "a75616d70b78efa0", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "110ea17465f146b6", "fixture": "holdout-preference-secret", "blind_variant": "a338868231a180ad", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "81c75b40b108945f", "fixture": "holdout-preference-secret", "blind_variant": "9c21b085edfe0644", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "6b02b7fa5f0abc13", "fixture": "holdout-presave-idempotent", "blind_variant": "49611e942dd3fd5f", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "8a6a26dfd8b53295", "fixture": "holdout-presave-idempotent", "blind_variant": "fba25ff8f7137baf", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "1f348990364a2d3d", "fixture": "holdout-preference-secret", "blind_variant": "d64ecdedf5209be4", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "cec8af02a5bf6269", "fixture": "holdout-preference-secret", "blind_variant": "f0996813b2ecf548", "failed_total": 0, "failure_diagnostic": null}

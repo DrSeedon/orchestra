@@ -1,0 +1,1578 @@
+[
+  {
+    "job_id": "e12ad7179a77f7d4",
+    "fixture_id": "holdout-reversal",
+    "variant": "kesha_full",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 5004,
+          "cache_read_input_tokens": 14086,
+          "output_tokens": 2314,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 5004,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 1651,
+              "cache_read_input_tokens": 6301,
+              "cache_creation_input_tokens": 534,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 534
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": true
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 11,
+          "exact_recall": 0.8181818181818182,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": true,
+            "Don't turn 0/1000 into proof of impossibility.": true,
+            "Next, replay the missing burst trace before changing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [
+            "drop all cosmetic messages"
+          ],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "NOTES.md"
+          ],
+          "unrelated_changes": [
+            "NOTES.md"
+          ],
+          "redundant_noise_lines": 0,
+          "summary_chars": 4634,
+          "summary_utf8_bytes": 4652,
+          "hard_pass": false
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 4038,
+          "cache_read_input_tokens": 19175,
+          "output_tokens": 2252,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 4038,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 1812,
+              "cache_read_input_tokens": 7768,
+              "cache_creation_input_tokens": 420,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 420
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": true
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 11,
+          "exact_recall": 0.8181818181818182,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": true,
+            "Don't turn 0/1000 into proof of impossibility.": true,
+            "Next, replay the missing burst trace before changing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [
+            "drop all cosmetic messages"
+          ],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "NOTES.md"
+          ],
+          "unrelated_changes": [
+            "NOTES.md"
+          ],
+          "redundant_noise_lines": 0,
+          "summary_chars": 5145,
+          "summary_utf8_bytes": 5169,
+          "hard_pass": false
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 3876,
+          "cache_read_input_tokens": 11568,
+          "output_tokens": 2098,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 3876,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 1984,
+              "cache_read_input_tokens": 7418,
+              "cache_creation_input_tokens": 608,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 608
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": true
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 11,
+          "exact_recall": 0.8181818181818182,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": true,
+            "Don't turn 0/1000 into proof of impossibility.": true,
+            "Next, replay the missing burst trace before changing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [
+            "drop all cosmetic messages"
+          ],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 0,
+          "summary_chars": 5670,
+          "summary_utf8_bytes": 5694,
+          "hard_pass": false
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "df6f16a410a040bb",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "kesha_full",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 8964,
+          "cache_read_input_tokens": 21646,
+          "output_tokens": 3342,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 8964,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 2498,
+              "cache_read_input_tokens": 10076,
+              "cache_creation_input_tokens": 719,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 719
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "NOTES.md"
+          ],
+          "unrelated_changes": [
+            "NOTES.md"
+          ],
+          "redundant_noise_lines": 2,
+          "summary_chars": 6603,
+          "summary_utf8_bytes": 6637,
+          "hard_pass": true
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 5324,
+          "cache_read_input_tokens": 21043,
+          "output_tokens": 3309,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 5324,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 2613,
+              "cache_read_input_tokens": 8793,
+              "cache_creation_input_tokens": 679,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 679
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "NOTES.md"
+          ],
+          "unrelated_changes": [
+            "NOTES.md"
+          ],
+          "redundant_noise_lines": 2,
+          "summary_chars": 6800,
+          "summary_utf8_bytes": 6838,
+          "hard_pass": true
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 5091,
+          "cache_read_input_tokens": 12365,
+          "output_tokens": 2771,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 5091,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 2657,
+              "cache_read_input_tokens": 8217,
+              "cache_creation_input_tokens": 1022,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 1022
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 2,
+          "summary_chars": 6886,
+          "summary_utf8_bytes": 6928,
+          "hard_pass": true
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "e455fb85953662c2",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "concise",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 7083,
+          "cache_read_input_tokens": 1831,
+          "output_tokens": 1116,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 7083,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 1116,
+              "cache_read_input_tokens": 1831,
+              "cache_creation_input_tokens": 7083,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 7083
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 0,
+          "summary_chars": 2962,
+          "summary_utf8_bytes": 2982,
+          "hard_pass": true
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 1748,
+          "cache_read_input_tokens": 4147,
+          "output_tokens": 1077,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1748,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 1077,
+              "cache_read_input_tokens": 4147,
+              "cache_creation_input_tokens": 1748,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 1748
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 0,
+          "summary_chars": 2839,
+          "summary_utf8_bytes": 2859,
+          "hard_pass": true
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 1709,
+          "cache_read_input_tokens": 4147,
+          "output_tokens": 1070,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1709,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 1070,
+              "cache_read_input_tokens": 4147,
+              "cache_creation_input_tokens": 1709,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 1709
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 0,
+          "summary_chars": 2814,
+          "summary_utf8_bytes": 2836,
+          "hard_pass": true
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "d4fe1aee4c3bc794",
+    "fixture_id": "holdout-reversal",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 8,
+          "cache_creation_input_tokens": 5922,
+          "cache_read_input_tokens": 19593,
+          "output_tokens": 4034,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 5922,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 1950,
+              "cache_read_input_tokens": 6914,
+              "cache_creation_input_tokens": 839,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 839
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": true
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 11,
+          "exact_recall": 0.8181818181818182,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": false,
+            "Don't turn 0/1000 into proof of impossibility.": false,
+            "Next, replay the missing burst trace before changing code.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [
+            "drop all cosmetic messages"
+          ],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/outbox-cosmetic-messages.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/outbox-cosmetic-messages.md"
+          ],
+          "redundant_noise_lines": 0,
+          "summary_chars": 5755,
+          "summary_utf8_bytes": 5779,
+          "hard_pass": false
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 8,
+          "cache_creation_input_tokens": 6651,
+          "cache_read_input_tokens": 29640,
+          "output_tokens": 4031,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 2798,
+            "ephemeral_5m_input_tokens": 3853
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 2407,
+              "cache_read_input_tokens": 9806,
+              "cache_creation_input_tokens": 898,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 898,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": true
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 11,
+          "exact_recall": 0.8181818181818182,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": false,
+            "Don't turn 0/1000 into proof of impossibility.": false,
+            "Next, replay the missing burst trace before changing code.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [
+            "drop all cosmetic messages"
+          ],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/outbox-cosmetic-messages.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/outbox-cosmetic-messages.md"
+          ],
+          "redundant_noise_lines": 0,
+          "summary_chars": 6940,
+          "summary_utf8_bytes": 6966,
+          "hard_pass": false
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 8,
+          "cache_creation_input_tokens": 10162,
+          "cache_read_input_tokens": 30729,
+          "output_tokens": 4994,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 5575,
+            "ephemeral_5m_input_tokens": 4587
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 3005,
+              "cache_read_input_tokens": 11437,
+              "cache_creation_input_tokens": 556,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 556,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": true
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 11,
+          "exact_recall": 0.8181818181818182,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": false,
+            "Don't turn 0/1000 into proof of impossibility.": false,
+            "Next, replay the missing burst trace before changing code.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [
+            "drop all cosmetic messages"
+          ],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/outbox-cosmetic-messages.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/outbox-cosmetic-messages.md"
+          ],
+          "redundant_noise_lines": 0,
+          "summary_chars": 8889,
+          "summary_utf8_bytes": 8925,
+          "hard_pass": false
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "ef5f7c29dbb8c6bb",
+    "fixture_id": "holdout-conflict-long",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 11264,
+          "cache_read_input_tokens": 20635,
+          "output_tokens": 6390,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 11264,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 3053,
+              "cache_read_input_tokens": 9667,
+              "cache_creation_input_tokens": 3428,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 3428
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cache-ttl-investigation.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cache-ttl-investigation.md"
+          ],
+          "redundant_noise_lines": 2,
+          "summary_chars": 8217,
+          "summary_utf8_bytes": 8267,
+          "hard_pass": true
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 8,
+          "cache_creation_input_tokens": 11809,
+          "cache_read_input_tokens": 33866,
+          "output_tokens": 5719,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 6126,
+            "ephemeral_5m_input_tokens": 5683
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 3326,
+              "cache_read_input_tokens": 12773,
+              "cache_creation_input_tokens": 867,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 867,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cache-ttl-investigation.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cache-ttl-investigation.md"
+          ],
+          "redundant_noise_lines": 2,
+          "summary_chars": 8853,
+          "summary_utf8_bytes": 8915,
+          "hard_pass": true
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 6,
+          "cache_creation_input_tokens": 8913,
+          "cache_read_input_tokens": 24882,
+          "output_tokens": 4735,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 4173,
+            "ephemeral_5m_input_tokens": 4740
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 3784,
+              "cache_read_input_tokens": 12399,
+              "cache_creation_input_tokens": 669,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 669,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "conflict": {
+              "ttl=30m": true,
+              "ttl≈31m": true,
+              "n=2": true,
+              "ttl=60m": true,
+              "as of 2026-07-20": true
+            },
+            "commands": {
+              "CACHE_EVICT key=fake-77 age=31m04s": true
+            },
+            "pending": {
+              "collect 30 fresh evictions across three sessions": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 7,
+          "exact_recall": 1.0,
+          "recent": {
+            "Two samples cannot settle provider-wide behavior.": true,
+            "The 60m document is stale as of July 20.": true,
+            "Next: collect 30 fresh evictions across three sessions.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "collect 30 fresh evictions across three sessions": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md"
+          ],
+          "redundant_noise_lines": 2,
+          "summary_chars": 10166,
+          "summary_utf8_bytes": 10222,
+          "hard_pass": true
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "e13ccf22e5bf54c8",
+    "fixture_id": "holdout-reversal",
+    "variant": "concise",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 3301,
+          "cache_read_input_tokens": 1831,
+          "output_tokens": 985,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 3301,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 985,
+              "cache_read_input_tokens": 1831,
+              "cache_creation_input_tokens": 3301,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 3301
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": false
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 11,
+          "exact_recall": 0.7272727272727273,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": true,
+            "Don't turn 0/1000 into proof of impossibility.": true,
+            "Next, replay the missing burst trace before changing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 0,
+          "summary_chars": 2730,
+          "summary_utf8_bytes": 2738,
+          "hard_pass": false
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 1617,
+          "cache_read_input_tokens": 4152,
+          "output_tokens": 945,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1617,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 945,
+              "cache_read_input_tokens": 4152,
+              "cache_creation_input_tokens": 1617,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 1617
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": false
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 11,
+          "exact_recall": 0.7272727272727273,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": true,
+            "Don't turn 0/1000 into proof of impossibility.": true,
+            "Next, replay the missing burst trace before changing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 0,
+          "summary_chars": 2614,
+          "summary_utf8_bytes": 2624,
+          "hard_pass": false
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 1577,
+          "cache_read_input_tokens": 4152,
+          "output_tokens": 948,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1577,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "not_available",
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 948,
+              "cache_read_input_tokens": 4152,
+              "cache_creation_input_tokens": 1577,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 1577
+              },
+              "type": "message"
+            }
+          ],
+          "speed": "standard"
+        },
+        "score": {
+          "exact": {
+            "objective": {
+              "outbox": true,
+              "cosmetic Telegram messages": true
+            },
+            "decisions": {
+              "coalesce cosmetic progress": true,
+              "latest update per job": true,
+              "never drop final delivery": true,
+              "unbounded cosmetic retries": true,
+              "provisional": true
+            },
+            "commands": {
+              "queue max=12": false,
+              "final delivery loss=0/1000": false,
+              "burst trace coverage incomplete": false
+            },
+            "pending": {
+              "replay the missing burst trace": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 11,
+          "exact_recall": 0.7272727272727273,
+          "recent": {
+            "Keep “provisional”; coverage is incomplete.": true,
+            "Don't turn 0/1000 into proof of impossibility.": true,
+            "Next, replay the missing burst trace before changing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "pending": {
+            "replay the missing burst trace": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "secret_leaks": [],
+          "forbidden_claims": [],
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "redundant_noise_lines": 0,
+          "summary_chars": 2622,
+          "summary_utf8_bytes": 2632,
+          "hard_pass": false
+        }
+      }
+    ]
+  }
+]

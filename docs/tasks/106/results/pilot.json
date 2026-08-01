@@ -1,0 +1,74 @@
+{
+  "excluded_from_analysis": true,
+  "fixture_id": "dev-decision-reversal",
+  "variant": "concise",
+  "model": "claude-opus-5[1m]",
+  "result": {
+    "ok": true,
+    "returncode": 0,
+    "summary": "# Continuation Handoff\n\n## Objective and Phase\nChoose the queue backend for the MVP **before** implementation begins. Phase: decision made provisionally; implementation has not started. No code written, no files read or modified, no commits, no deployments.\n\n## Durable User Facts (standing constraints)\n- Do not add a service if SQLite WAL meets the measured load. This is a standing architectural constraint, not a one-off.\n- Records must keep the reversal and its reason, not just the winning option.\n- The SQLite choice is provisional until the crash-recovery test passes.\n\n## One-Off Requests\n- Next response must start with the crash-recovery test plan.\n\n## Decisions, Including Reversal\n- **Initial decision (superseded):** Redis, called final, on the rationale that workers already know it.\n- **Reversal (current, provisional):** Use SQLite WAL. Rationale: 412 jobs/s measured exceeds the 100 jobs/s target, and it avoids operating an extra service.\n- **Redis status:** rejected for MVP deployment; explicitly revisit if multi-host workers become a requirement.\n- The reversal is provisional and conditioned on the crash-recovery gate below.\n\n## Files\nNone read, changed, committed, or deployed.\n\n## Commands and Measurements\n- `benchmark --backend sqlite-wal` → 412 jobs/s, p95 = 18 ms, exit 0\n- `benchmark --backend redis` → 438 jobs/s, p95 = 17 ms, exit 0\n- Target referenced in the decision: 100 jobs/s. Redis is faster on both metrics; that margin was judged not to justify an extra service.\n\nNo errors encountered.\n\n## Pending Items\n- **Crash-recovery test for SQLite WAL.** Blocker: the test does not yet exist — no plan, harness, or pass criteria has been defined. Until it passes, the SQLite decision stays provisional. Next executable action: write the crash-recovery test plan.\n\n## Time-Sensitive State\nNone. No deadlines, expiring credentials, or running processes.\n\n## Unresolved Conflicts\n- Redis measured faster (438 vs 412 jobs/s; p95 17 vs 18 ms) yet was rejected on the \"no extra service\" constraint. The constraint governs, but the raw performance gap remains a noted tradeoff.\n- The Redis decision was once declared final and then reversed; the reversal supersedes it, and the earlier \"final\" label should not be treated as binding.\n\n## Last Three User Messages (verbatim)\n1. \"Keep the reversal and the reason, not just the winner.\"\n2. \"The SQLite choice is provisional until the crash-recovery test passes.\"\n3. \"Next response must start with the crash-recovery test plan.\"\n\n## Next Action\nWrite the SQLite WAL crash-recovery test plan, and open the next response with it.",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 5149,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 948,
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 5149,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 948,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 5149,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 5149
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard"
+    },
+    "model_usage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 1034,
+        "outputTokens": 18,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.001124,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000,
+        "canonicalModel": "claude-haiku-4-5",
+        "provider": "firstParty"
+      },
+      "claude-opus-5[1m]": {
+        "inputTokens": 2,
+        "outputTokens": 948,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 5149,
+        "webSearchRequests": 0,
+        "costUSD": 0.0752,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty"
+      }
+    },
+    "session_id": "73041cfe-b7ba-47d6-b430-bc8044738071",
+    "num_turns": 1,
+    "duration_api_ms": 15357,
+    "elapsed_seconds": 15.700320133000787,
+    "raw_error": null,
+    "stderr": ""
+  },
+  "files_after": {}
+}
