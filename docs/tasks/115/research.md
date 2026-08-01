@@ -113,13 +113,21 @@ classifier, поэтому истинная доля неизвестна. Од�
 тому же намерению, а DTO не возвращает `target_after` для надёжной дедупликации.
 [D3][D9]
 
-Все **31/31** strict manual integration SHA отсутствуют в `tm_tasks.git_commits`;
-это не выборка, а полный strict manifest найденных manual integrations в срезе.
-Из них **23/31**
+После cutoff доказана ещё одна manual integration: `9ff4a7f` имеет цепочку
+`[from:prompt-engineer] DONE 35f0229 → exact cherry-pick → target 9ff4a7f →
+ff-only main` и equal source/target patch-id. Она добавлена отдельным default-deny
+post-cutoff classifier; долю **18.1%** выше не меняет, потому что для нового окна
+не пересчитан симметричный tool denominator. Итоговый evidence manifest содержит
+32 strict integrations + один evidence-only non-integration. [D11]
+
+Все **32/32** strict manual integration SHA отсутствуют в `tm_tasks.git_commits`;
+это не выборка, а полный текущий strict manifest доказанных manual integrations.
+Из них **23/32**
 имеют numeric `#N`, распознаваемый `_TASK_REF_RE`; каждый task был создан **до**
 соответствующего commit timestamp и однозначно разрешается в caller project.
-Именно эти 23 — доказанный missed-link ущерб raw пути. Остальные восемь (пять
-subjects без ref и три `#prompt*`) штатный parser тоже не связал бы. Контрольные
+Именно эти 23 — доказанный missed-link ущерб raw пути. Остальные девять (восемь
+frozen subjects без numeric ref плюс post-cutoff `#prompt-policy`) штатный parser
+тоже не связал бы; владелец подтвердил `skip` для всех девяти. Контрольные
 tool commits (`a4d6a85` #93, `d96ae34` #110,
 `d91c6d6` Seedon #180) присутствуют в соответствующих tasks. Open-set ограничение
 Отдельный `0244e3d…` также не связан с task, но это не causal manual-merge damage:
@@ -324,11 +332,12 @@ worker clean and unchanged
 
 ### 3.2 Live damage от ручного пути
 
-**Task provenance.** Проверен полный strict manifest из 31 manual integration
-commit: 2 Polus, 11 Inscryption, 5 Kesha, 5 Seedon и 8 Orchestra. Все 31
+**Task provenance.** Проверен полный strict manifest из 32 manual integration
+commits: 2 Polus, 11 Inscryption, 5 Kesha, 5 Seedon и 9 Orchestra. Все 32
 отсутствуют в `tm_tasks.git_commits`, но доказанный causal denominator — **23**:
-их numeric refs распознаются текущим regex и tasks разрешаются в project. Восемь
-остальных штатный parser тоже пропустил бы. Ущерб восстанавливаем по Git history,
+их numeric refs распознаются текущим regex и tasks разрешаются в project. Девять
+остальных штатный parser тоже пропустил бы, и владелец явно решил не создавать им
+ложные links. Ущерб восстанавливаем по Git history,
 пока commit message однозначно содержит task ref; для adhoc/selective/conflict
 merges автоматическая атрибуция уже неоднозначна. [D6][D9][D10]
 
@@ -499,25 +508,32 @@ Counter-evidence против слишком жёсткого вывода:
 - **[D3]** exact merge census, live DB snapshot max log id 373177
   (2026-08-01T07:40:00Z): 205 calls, project matrix and failure taxonomy above.
 - **[D6]** `tm_tasks` + `json_each(git_commits)`: все 32 первоначальных candidate
-  hashes missing; T0 review исключил `0244e3d…` как non-integration, поэтому
-  strict causal set = 31 missing hashes, из них 23 numeric refs resolve in caller
-  project; three tool-generated controls linked.
+  hashes missing; T0 review исключил `0244e3d…` как non-integration, а post-cutoff
+  exact lineage добавила `9ff4a7f`; текущий strict causal set = 32 missing hashes,
+  из них 23 numeric refs resolve in caller project; three tool-generated controls
+  linked.
 - **[D7]** `data/vec.db` vs SHA-256 of live files: 133/3,264 stale;
   Orchestra stale file = `docs/workers/prompt-engineer.md`.
 - **[D8]** live `sessions` rows + `git rev-list/diff` for manually merged workers:
   old task ids/branches, `needs_switch=0`, branches ahead and behind main.
 - **[D9]** frozen retained-log integration census (`logs.id <= 371999`): 203 tool
   calls/results, 139 content successes, one no-op, 63 failures; one failed tool
-  call created a target commit; 31 strict manual target SHAs plus one excluded
-  task-derived non-integration SHA verified as commits and ancestors of their
-  targets. Counting tool results directly corrects
+  call created a target commit; the original-cutoff set has 31 strict manual
+  target SHAs plus one excluded task-derived non-integration SHA, all verified as
+  commits and ancestors of their targets. Counting tool results directly corrects
   an eight-success undercount produced by immediate-`LEAD()` pairing when parallel
   tool events intervene.
 - **[D10]** `git show -s --format=%s,%cI` for all 32 original candidate SHAs + live
   `tm_tasks` lookup in the caller project: 24 subjects have recognized numeric
   refs, but one belongs to excluded `0244e3d…`; all 23 strict numeric candidates'
   tasks resolve and have `created_at` earlier than the corresponding commit
-  timestamp. Eight strict candidates have no recognized ref.
+  timestamp. At the original cutoff eight strict candidates had no recognized
+  ref; post-cutoff D11 adds the ninth owner-confirmed skip.
+- **[D11]** post-cutoff logs `372506`, `372616–372617`, `372634–372655` + Git:
+  inbox `[from:prompt-engineer]` names source `35f0229`, caller cherry-picks exact
+  SHA to target `9ff4a7f` and ff-only integrates it; stable patch-id is equal
+  (`6332a138…`). Owner decision log `384556` approves the additive classifier and
+  task-link skip. Target and source are protected by separate CAS-created refs.
 - **[J1]** `journalctl -u orchestra --utc` around prompt-engineer timeouts: five
   delayed identical merge-tree prechecks after four caller timeouts.
 - **[G1]** Git history/reflog limitation: result has no reliable caller identity.

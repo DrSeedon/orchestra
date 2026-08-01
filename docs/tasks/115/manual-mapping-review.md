@@ -36,16 +36,14 @@ cherry-pick'нул именно `35f0229`, затем сделал `ff-only` в 
 Subject `#prompt-policy`, numeric task ref отсутствует; target является ancestor
 `main` и отсутствует в `tm_tasks.git_commits`.
 
-Для task linking рекомендация та же: **не привязывать**. Но это отдельный manual
+Для task linking решение владельца: **не привязывать**. Но это отдельный manual
 integration с exact source-SHA → named-worker lineage, прошедший мимо
-RAG/lifecycle/ref side effects, и текущий 32-entry T0 manifest его не содержит.
-Он станет 33-й manifest entry и 32-й recovery candidate. Existing classifier
-требует named branch/worktree; для этого случая надо явно разрешить более сильную
-цепочку `worker DONE exact SHA → caller cherry-pick exact SHA → target SHA`.
-Решение для оркестратора одной строкой:
-
-> Расширить classifier на доказанную exact-SHA lineage и добавить `9ff4a7f` как
-> 33-ю entry / 32-й recovery candidate без task link — да или нет?
+RAG/lifecycle/ref side effects. Владелец одобрил добавление log `384556`:
+classifier расширен **дополнительным**, а не замещающим режимом
+`[from:worker] DONE exact SHA → caller exact cherry-pick → target SHA → ff-only
+main`; source/target patch-id совпадает, оба objects закреплены refs. `9ff4a7f`
+теперь 33-я manifest entry / 32-й recovery candidate с
+`task_link_disposition=skip_owner_confirmed_no_numeric_ref`.
 
 ## Основание и границы уверенности
 
