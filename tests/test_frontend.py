@@ -120,6 +120,8 @@ def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
             const marked = {{parse: value => `<p>${{value}}</p>`}};
             function addCopyBtn() {{}}
             function addTimestamp() {{}}
+            function _chatAtBottom() {{ return true; }}
+            function _markChatHasNewBelow() {{}}
             let streamBubble = null;
             {stream_code}
         """
@@ -711,6 +713,116 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
     assert "taskBody.innerHTML = _taskCardBodyHtml(parsed);" in source
     assert "h += _taskCardBodyHtml(t);" in source
     assert "html += _taskCardBodyHtml(t);" in source
+    page.close()
+
+
+def test_chat_returns_to_last_user_message_and_preserves_bottom_mode(
+    dashboard_browser: Browser,
+):
+    root = Path(__file__).parent.parent
+    source = (root / "app/static/js/app.js").read_text()
+    helper_code = (
+        "const _CHAT_BOTTOM_GAP"
+        + source.split("const _CHAT_BOTTOM_GAP", 1)[1].split(
+            "window.compactMode", 1,
+        )[0]
+    )
+    page = dashboard_browser.new_page(viewport={"width": 900, "height": 700})
+    page.set_content(
+        """
+        <style>
+          .hidden { display:none !important }
+          #chat { height:240px; overflow-y:auto }
+          #chat > div { height:48px }
+        </style>
+        <div style="position:relative;width:500px">
+          <div id="chat"></div>
+          <button id="chat-jump-latest" class="hidden"></button>
+        </div>
+        """
+    )
+    page.add_script_tag(
+        content="""
+        const $ = selector => document.querySelector(selector);
+        let currentScope = '/scope';
+        let selectedAgent = 'agent-a';
+        let scrollAfterLoad = false;
+        """
+        + helper_code
+        + """
+        window.fillChat = (withUser = true, userLast = false) => {
+            const chat = $('#chat');
+            chat.innerHTML = '';
+            const total = 24;
+            for (let i = 0; i < total; i++) {
+                const row = document.createElement('div');
+                if (withUser && i === (userLast ? total - 1 : 9)) {
+                    row.className = 'chat-user';
+                    row.textContent = 'my last request';
+                } else {
+                    row.className = 'chat-bot';
+                    row.textContent = `agent work ${i}`;
+                }
+                chat.appendChild(row);
+            }
+            chat.scrollTop = 0;
+        };
+        initChatPositionMemory();
+        """,
+    )
+
+    page.evaluate("fillChat(); _prepareChatAnchorRestore(); _restoreChatAnchor(_chatPositionKey())")
+    anchor_offset = page.evaluate(
+        """() => {
+            const chat = $('#chat').getBoundingClientRect();
+            const anchor = $('#chat .chat-user').getBoundingClientRect();
+            return Math.abs(anchor.top - chat.top);
+        }"""
+    )
+    assert anchor_offset < 2
+    expect(page.locator("#chat-jump-latest")).to_be_visible()
+    expect(page.locator("#chat-jump-latest")).to_have_text("↓ Новые ниже")
+
+    page.locator("#chat-jump-latest").click()
+    page.wait_for_function("() => _chatAtBottom()")
+    page.evaluate("_rememberChatPosition(); fillChat(); _prepareChatAnchorRestore(); _restoreChatAnchor(_chatPositionKey())")
+    assert page.evaluate("() => _chatAtBottom()") is True
+    expect(page.locator("#chat-jump-latest")).to_be_hidden()
+
+    page.evaluate(
+        """() => {
+            selectedAgent = 'agent-without-user-message';
+            fillChat(false);
+            _prepareChatAnchorRestore();
+            _restoreChatAnchor(_chatPositionKey());
+        }"""
+    )
+    assert page.evaluate("() => _chatAtBottom()") is True
+
+    page.evaluate(
+        """() => {
+            selectedAgent = 'agent-user-message-is-last';
+            fillChat(true, true);
+            _prepareChatAnchorRestore();
+            _restoreChatAnchor(_chatPositionKey());
+        }"""
+    )
+    assert page.evaluate("() => _chatAtBottom()") is True
+    expect(page.locator("#chat-jump-latest")).to_be_hidden()
+
+    page.evaluate(
+        """() => {
+            $('#chat').scrollTop = 0;
+            _syncChatJumpButton();
+        }"""
+    )
+    expect(page.locator("#chat-jump-latest")).to_have_text("↓ В конец")
+    page.evaluate("_markChatHasNewBelow()")
+    expect(page.locator("#chat-jump-latest")).to_have_text("↓ Новые ниже")
+
+    assert "_scheduleChatInitialSettle();" in source
+    assert source.count("_prepareChatAnchorRestore();") >= 3
+    assert "localStorage" not in helper_code
     page.close()
 
 

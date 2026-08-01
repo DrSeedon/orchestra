@@ -31,6 +31,103 @@ const UI_DEBOUNCE_MS = 2500;
 let scrollAfterLoad = true;
 let drafts = {};
 
+const _CHAT_BOTTOM_GAP = 80;
+const _chatPinnedState = new Map();
+let _pendingChatRestoreKey = null;
+let _chatHasNewBelow = false;
+
+function _chatPositionKey(scope = currentScope, agent = selectedAgent) {
+    return scope && agent ? `${scope}\u0000${agent}` : '';
+}
+
+function _chatAtBottom(chat = $('#chat')) {
+    return !chat || chat.scrollHeight - chat.scrollTop - chat.clientHeight < _CHAT_BOTTOM_GAP;
+}
+
+function _syncChatJumpButton() {
+    const chat = $('#chat');
+    const button = $('#chat-jump-latest');
+    if (!chat || !button) return;
+    if (chat.scrollHeight <= chat.clientHeight + 1 || _chatAtBottom(chat)) {
+        _chatHasNewBelow = false;
+        button.classList.add('hidden');
+        return;
+    }
+    button.textContent = _chatHasNewBelow ? '↓ Новые ниже' : '↓ В конец';
+    button.title = _chatHasNewBelow ? 'Ниже есть сообщения — перейти в конец' : 'Перейти в конец чата';
+    button.classList.remove('hidden');
+}
+
+function _markChatHasNewBelow() {
+    if (scrollAfterLoad || _chatAtBottom()) return;
+    _chatHasNewBelow = true;
+    _syncChatJumpButton();
+}
+
+function _scrollChatToBottom(behavior = 'auto') {
+    const chat = $('#chat');
+    if (!chat) return;
+    _chatHasNewBelow = false;
+    chat.scrollTo({top: chat.scrollHeight, behavior});
+    _syncChatJumpButton();
+}
+
+function _rememberChatPosition() {
+    const key = _chatPositionKey();
+    if (key) _chatPinnedState.set(key, {pinnedToBottom: _chatAtBottom()});
+}
+
+function _prepareChatAnchorRestore() {
+    clearTimeout(window._scrollResetTimer);
+    _pendingChatRestoreKey = _chatPositionKey();
+    _chatHasNewBelow = false;
+    $('#chat-jump-latest')?.classList.add('hidden');
+}
+
+function _restoreChatAnchor(key) {
+    if (!key || key !== _pendingChatRestoreKey || key !== _chatPositionKey()) return;
+    _pendingChatRestoreKey = null;
+    const chat = $('#chat');
+    if (!chat) return;
+    if (_chatPinnedState.get(key)?.pinnedToBottom) {
+        _scrollChatToBottom();
+        return;
+    }
+    const userMessages = chat.querySelectorAll('.chat-user');
+    const anchor = userMessages[userMessages.length - 1];
+    if (!anchor) {
+        _scrollChatToBottom();
+        return;
+    }
+    anchor.scrollIntoView({block: 'start'});
+    if (_chatAtBottom(chat)) {
+        _scrollChatToBottom();
+        return;
+    }
+    _chatHasNewBelow = true;
+    _syncChatJumpButton();
+}
+
+function _scheduleChatInitialSettle() {
+    const key = _chatPositionKey();
+    clearTimeout(window._scrollResetTimer);
+    window._scrollResetTimer = setTimeout(() => {
+        if (key !== _chatPositionKey()) return;
+        scrollAfterLoad = false;
+        _restoreChatAnchor(key);
+        _syncChatJumpButton();
+    }, 500);
+}
+
+function initChatPositionMemory() {
+    const chat = $('#chat');
+    const button = $('#chat-jump-latest');
+    if (!chat || !button || chat.dataset.positionReady === '1') return;
+    chat.dataset.positionReady = '1';
+    chat.addEventListener('scroll', _syncChatJumpButton, {passive: true});
+    button.addEventListener('click', () => _scrollChatToBottom('smooth'));
+}
+
 window.compactMode = localStorage.getItem('compactToolMode') === 'true';
 
 function saveDraft() {
@@ -109,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabContextMenu();
     initHiddenTabsBtn();
     initChatDrop();
+    initChatPositionMemory();
     $('#restart-btn').addEventListener('click', restartServer);
     // Client modal (available with auth)
     const clientBtn = document.getElementById('client-btn');
@@ -132,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         compactBtn.textContent = window.compactMode ? '📄' : '📋';
         compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
         compactBtn.addEventListener('click', () => {
+            _rememberChatPosition();
             window.compactMode = !window.compactMode;
             localStorage.setItem('compactToolMode', window.compactMode);
             compactBtn.textContent = window.compactMode ? '📄' : '📋';
@@ -139,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             $('#chat').innerHTML = '';
             if (chatLogs[selectedAgent]) { chatLogs[selectedAgent].lastId = 0; chatLogs[selectedAgent].firstId = null; chatLogs[selectedAgent].initialCount = 0; }
             scrollAfterLoad = true;
+            _prepareChatAnchorRestore();
             connectSSE();
         });
     }
@@ -213,8 +313,7 @@ function connectSSE() {
             }
             if (scrollAfterLoad) {
                 $('#chat').scrollTop = $('#chat').scrollHeight;
-                clearTimeout(window._scrollResetTimer);
-                window._scrollResetTimer = setTimeout(() => { scrollAfterLoad = false; }, 500);
+                _scheduleChatInitialSettle();
             }
         } catch (e) { console.warn('SSE parse:', e); }
     };
@@ -1229,6 +1328,7 @@ function selectOrchestrator(name, scope) {
 
 async function onOrchestratorChange() {
     saveDraft();
+    _rememberChatPosition();
     if (eventSource) { eventSource.close(); eventSource = null; }
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
@@ -1251,6 +1351,7 @@ async function onOrchestratorChange() {
     }
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
+    _prepareChatAnchorRestore();
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
@@ -1262,6 +1363,7 @@ async function onOrchestratorChange() {
 // === Agent Selection ===
 async function selectAgent(name) {
     saveDraft();
+    _rememberChatPosition();
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
     localMessages.clear();
@@ -1279,6 +1381,7 @@ async function selectAgent(name) {
     $('#chat').innerHTML = '';
     chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
     scrollAfterLoad = true;
+    _prepareChatAnchorRestore();
     updateInputState();
     restoreDraft();
     renderAgentList();
@@ -2137,6 +2240,8 @@ function _streamRenderTick() {
     _streamRafId = null;
     if (!streamBubble || !streamPending) return;
     if (_selectionTouchesStream()) return;
+    const chat = $('#chat');
+    const wasAtBottom = _chatAtBottom(chat);
     // Adaptive speed: if buffer is growing, accelerate to not fall behind
     const chunkSize = Math.max(_STREAM_BASE_CPS, Math.floor(streamPending.length / 8));
     const chunk = streamPending.slice(0, chunkSize);
@@ -2157,9 +2262,8 @@ function _streamRenderTick() {
     cur.className = 'typing-cursor';
     cur.textContent = '▍';
     lastEl.appendChild(cur);
-    const chat = $('#chat');
-    const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
     if (wasAtBottom) chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+    else _markChatHasNewBelow();
     if (streamPending) _streamRafId = requestAnimationFrame(_streamRenderTick);
 }
 
@@ -2699,11 +2803,16 @@ function addChatEntry(type, content, ts, anchor, payload) {
     let _insertedBeforeStream = false;
     const _insert = (el) => {
         if (anchor) return chat.insertBefore(el, anchor);
+        const wasAtBottom = _chatAtBottom(chat);
+        let inserted;
         if (streamBubble && streamBubble.parentNode === chat) {
             _insertedBeforeStream = true;
-            return chat.insertBefore(el, streamBubble);
+            inserted = chat.insertBefore(el, streamBubble);
+        } else {
+            inserted = chat.appendChild(el);
         }
-        chat.appendChild(el);
+        if (!scrollAfterLoad && !wasAtBottom) _markChatHasNewBelow();
+        return inserted;
     };
 
     // Heuristic: detect base64 image payloads from tool results (e.g. screenshot tools)
