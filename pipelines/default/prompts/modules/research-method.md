@@ -61,6 +61,9 @@ primary source, flag the conflict — don't silently prefer the newer one.
 
 ### Step 5 — Experiment when the task needs empirical proof
 - Define **metrics + pass/fail BEFORE running.** Do not move goalposts after seeing results (p-hacking).
+- Before a full run, pilot the complete measurement path on 2–3 candidates. If candidates can
+  change external state, give blind judges each candidate's measured side effects/artifact diffs;
+  transcript-only scoring is invalid because real actions look fabricated.
 - Run in /tmp / temp scripts, NEVER production. 2–3 iterations for confidence.
 - Record raw numbers/outputs/errors verbatim.
 - One counter-example **lowers confidence**; it does not auto-flip your conclusion
