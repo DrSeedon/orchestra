@@ -32,7 +32,6 @@ let scrollAfterLoad = true;
 let drafts = {};
 
 const _CHAT_BOTTOM_GAP = 80;
-const _chatPinnedState = new Map();
 let _pendingChatRestoreKey = null;
 let _chatHasNewBelow = false;
 
@@ -72,14 +71,9 @@ function _scrollChatToBottom(behavior = 'auto') {
     _syncChatJumpButton();
 }
 
-function _rememberChatPosition() {
-    const key = _chatPositionKey();
-    if (key) _chatPinnedState.set(key, {pinnedToBottom: _chatAtBottom()});
-}
-
-function _prepareChatAnchorRestore() {
+function _prepareChatAnchorRestore(hasUnread) {
     clearTimeout(window._scrollResetTimer);
-    _pendingChatRestoreKey = _chatPositionKey();
+    _pendingChatRestoreKey = hasUnread ? _chatPositionKey() : null;
     _chatHasNewBelow = false;
     $('#chat-jump-latest')?.classList.add('hidden');
 }
@@ -89,10 +83,6 @@ function _restoreChatAnchor(key) {
     _pendingChatRestoreKey = null;
     const chat = $('#chat');
     if (!chat) return;
-    if (_chatPinnedState.get(key)?.pinnedToBottom) {
-        _scrollChatToBottom();
-        return;
-    }
     const userMessages = chat.querySelectorAll('.chat-user');
     const anchor = userMessages[userMessages.length - 1];
     if (!anchor) {
@@ -230,7 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
         compactBtn.textContent = window.compactMode ? '📄' : '📋';
         compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
         compactBtn.addEventListener('click', () => {
-            _rememberChatPosition();
             window.compactMode = !window.compactMode;
             localStorage.setItem('compactToolMode', window.compactMode);
             compactBtn.textContent = window.compactMode ? '📄' : '📋';
@@ -238,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             $('#chat').innerHTML = '';
             if (chatLogs[selectedAgent]) { chatLogs[selectedAgent].lastId = 0; chatLogs[selectedAgent].firstId = null; chatLogs[selectedAgent].initialCount = 0; }
             scrollAfterLoad = true;
-            _prepareChatAnchorRestore();
+            _prepareChatAnchorRestore(false);
             connectSSE();
         });
     }
@@ -1310,7 +1299,6 @@ function updateOrchTabDots() {
 }
 
 function selectOrchestrator(name, scope) {
-    _unreadTabs.delete(scope);
     const picker = $('#orch-picker');
     picker.value = scope;
     const opt = [...picker.options].find(o => o.dataset.name === name);
@@ -1328,11 +1316,11 @@ function selectOrchestrator(name, scope) {
 
 async function onOrchestratorChange() {
     saveDraft();
-    _rememberChatPosition();
     if (eventSource) { eventSource.close(); eventSource = null; }
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
     currentScope = picker.value || null;
+    const restoreUnreadAnchor = _unreadTabs.delete(currentScope);
     chatLogs = {};
     localMessages.clear();
     pendingUserMsgs = [];
@@ -1351,7 +1339,7 @@ async function onOrchestratorChange() {
     }
     $('#chat').innerHTML = '';
     scrollAfterLoad = true;
-    _prepareChatAnchorRestore();
+    _prepareChatAnchorRestore(restoreUnreadAnchor);
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
@@ -1363,7 +1351,6 @@ async function onOrchestratorChange() {
 // === Agent Selection ===
 async function selectAgent(name) {
     saveDraft();
-    _rememberChatPosition();
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
     localMessages.clear();
@@ -1381,7 +1368,7 @@ async function selectAgent(name) {
     $('#chat').innerHTML = '';
     chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
     scrollAfterLoad = true;
-    _prepareChatAnchorRestore();
+    _prepareChatAnchorRestore(false);
     updateInputState();
     restoreDraft();
     renderAgentList();
