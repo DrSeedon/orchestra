@@ -732,6 +732,106 @@ async def test_execute_merge_session_passes_pinned_branch_and_head_into_repo_loc
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["accepted", "coalesced", "not_ready"])
+async def test_merge_exposes_raw_rag_backfill_status(db, monkeypatch, status):
+    import app.routes.sessions as sessmod
+
+    session = type("Session", (), {
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "worktree_path": "/wt",
+        "scope": "/s",
+        "id": f"rag-status-{status}",
+        "name": "worker",
+        "branch": "task-42/worker",
+        "base_branch": "main",
+    })()
+    _prepare_detached_merge(monkeypatch, session)
+    monkeypatch.setattr(
+        "app.workspace.merge_worktree_to_main",
+        lambda *_args, **_kwargs: {
+            "ok": True, "commits_merged": 1, "branch": session.branch,
+            "merged_commits": {},
+        },
+    )
+    scheduled = []
+
+    def fake_schedule(scope):
+        scheduled.append(scope)
+        return status
+
+    monkeypatch.setattr("app.rag_service.schedule_backfill", fake_schedule)
+
+    result = await sessmod.execute_merge_session(
+        session_id=session.id,
+        expected_name=session.name,
+        expected_scope=session.scope,
+        expected_branch=session.branch,
+        expected_head="b" * 40,
+        req={"scope": "/s", "target": "main"},
+    )
+
+    assert result["rag_backfill_status"] == status
+    assert scheduled == ["/s"]
+
+
+@pytest.mark.asyncio
+async def test_merge_returns_before_blocked_rag_backfill(db, monkeypatch):
+    import asyncio
+    import app.routes.sessions as sessmod
+    from app import rag_service
+
+    session = type("Session", (), {
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "worktree_path": "/wt",
+        "scope": "/s",
+        "id": "rag-does-not-block",
+        "name": "worker",
+        "branch": "task-42/worker",
+        "base_branch": "main",
+    })()
+    _prepare_detached_merge(monkeypatch, session)
+    monkeypatch.setattr(
+        "app.workspace.merge_worktree_to_main",
+        lambda *_args, **_kwargs: {
+            "ok": True, "commits_merged": 1, "branch": session.branch,
+            "merged_commits": {},
+        },
+    )
+    monkeypatch.setattr(rag_service, "_RAG_ENABLED", True)
+    monkeypatch.setattr(rag_service, "_initialized", True)
+    monkeypatch.setattr(rag_service, "_backfill_tasks", {})
+    monkeypatch.setattr(rag_service, "_backfill_dirty", set())
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def blocked_backfill(_scope):
+        started.set()
+        await release.wait()
+        return {"files": 1, "logs": 0}
+
+    monkeypatch.setattr(rag_service, "backfill_scope", blocked_backfill)
+
+    result = await sessmod.execute_merge_session(
+        session_id=session.id,
+        expected_name=session.name,
+        expected_scope=session.scope,
+        expected_branch=session.branch,
+        expected_head="b" * 40,
+        req={"scope": "/s", "target": "main"},
+    )
+
+    assert result["rag_backfill_status"] == "accepted"
+    task = rag_service._backfill_tasks["/s"]
+    assert not task.done()
+    await started.wait()
+
+    release.set()
+    await task
+
+
+@pytest.mark.asyncio
 async def test_merge_revision_change_keeps_git_success_and_skips_task_update(
     db, monkeypatch,
 ):

@@ -928,13 +928,7 @@ async def execute_merge_session(
                 return result
 
             from app import rag_service
-            if rag_service.is_enabled():
-                async def _rag_backfill(sc):
-                    try:
-                        await rag_service.backfill_scope(sc)
-                    except Exception as e:
-                        logger.warning(f"RAG backfill after merge failed for {sc}: {e}")
-                asyncio.create_task(_rag_backfill(row_scope))
+            result["rag_backfill_status"] = rag_service.schedule_backfill(row_scope)
 
             if task_identity:
                 par = str(task_identity["par_number"])

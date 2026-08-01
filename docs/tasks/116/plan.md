@@ -463,8 +463,9 @@ generation пока явно `not_tracked`, а не молча fresh.
 - **Files:** `app/rag_service.py`, one post-merge call in
   `app/routes/sessions.py` after #93 sequencing, `tests/test_rag_service.py`,
   route test in `tests/test_api.py`.
-- **Dependency:** **depends on T6 and #93-T2** for route edit sequencing. Independent
-  of #94/#113. Exact route ownership/order is **#93-T2 → #116-T7 → #115-T1**:
+- **Dependency:** **depends on #93-T2** for route edit sequencing; functionally
+  independent of T6, which adds durable visible freshness later. Independent of
+  #94/#113. Exact route ownership/order is **#93-T2 → #116-T7 → #115-T1**:
   #116 owns the only scheduler route hunk, #115 only consumes its result.
 - **Price:** **0.5–1 day**.
 - **Risk:** low–medium — lost dirty bit or duplicate runner; restart still loses an
@@ -487,7 +488,7 @@ generation пока явно `not_tracked`, а не молча fresh.
   - route tests prove exact raw statuses `accepted|coalesced|not_ready`; accepted and
     coalesced mean live retained-scheduler acceptance, not a persisted queue or
     post-restart guarantee.
-- **blocked-by:** T6, #93-T2. #115-T1 is blocked by both T5 and T7.
+- **blocked-by:** #93-T2. #115-T1 is blocked by both T5 and T7.
 
 **#115 handoff, not T7 AC:** #115 maps the raw statuses to
 `ACCEPTED|COALESCED|NOT_READY`. `NOT_READY` becomes
@@ -507,7 +508,9 @@ Priority from the task, not file convenience:
    the contract.
 6. **T6 RAG watermark** — functionally independent, but starts only after the
    orchestrator reports #113 DONE; preserve `EMBED_BATCH=64`.
-7. **T7 scheduler** after T6/#93-T2; then #115-T1 consumes its route result.
+7. **T7 scheduler** after #93-T2; then #115-T1 consumes its route result. It may
+   land before T6, with scheduler state observable through logs until T6 adds the
+   fail-closed watermark.
 
 Acceptance can be selective:
 
