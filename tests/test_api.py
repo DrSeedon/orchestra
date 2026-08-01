@@ -2243,12 +2243,12 @@ class TestChangeScopeEndpoint:
 class TestDeleteOrphanGuard:
     """kill (DELETE) a parent with live children → blocked unless force."""
 
-    def _mk(self, client, name, parent_name=""):
+    def _mk(self, client, name, parent_name="", role="full-cycle"):
         body = {"name": name, "scope": "/tmp", "cwd": "/tmp",
-                "model": "claude-sonnet-5[1m]"}
+                "model": "claude-sonnet-5[1m]", "role": role}
         if parent_name:
-            # worker parent + unrouted child is blocked by validate_spawn
-            # (allow_unrouted_workers=False) — give the child an explicit role.
+            # `worker` is terminal (can_spawn: []), so the parent must be a
+            # fan-out role; the orphan guard itself is role-agnostic.
             body["parent_name"] = parent_name
             body["role"] = "worker"
         r = client.post("/api/sessions", json=body)
