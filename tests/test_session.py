@@ -2461,6 +2461,198 @@ class TestEnsureBackendForceFresh:
         result = await session._ensure_backend()
         assert result is existing
 
+    @pytest.mark.asyncio
+    async def test_connect_failure_retains_backend_that_still_owns_processes(
+        self, session,
+    ):
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=RuntimeError("scope still populated")),
+            has_owned_processes=True,
+        )
+        with patch.object(session, "_make_backend", return_value=backend):
+            with pytest.raises(RuntimeError, match="scope still populated"):
+                await session._ensure_backend()
+
+        assert session._backend is backend
+
+    @pytest.mark.asyncio
+    async def test_connect_failure_releases_backend_without_owned_processes(
+        self, session,
+    ):
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=RuntimeError("no process")),
+            has_owned_processes=False,
+        )
+        with patch.object(session, "_make_backend", return_value=backend):
+            with pytest.raises(RuntimeError, match="no process"):
+                await session._ensure_backend()
+
+        assert session._backend is None
+
+    @pytest.mark.asyncio
+    async def test_disconnect_failure_retains_backend_and_lifecycle_tasks(
+        self, session,
+    ):
+        backend = SimpleNamespace(
+            disconnect=AsyncMock(side_effect=PermissionError("scope denied")),
+        )
+        heartbeat = asyncio.create_task(asyncio.Event().wait())
+        listener = asyncio.create_task(asyncio.Event().wait())
+        session._backend = backend
+        session._heartbeat_task = heartbeat
+        session._listen_task = listener
+
+        try:
+            with pytest.raises(PermissionError, match="scope denied"):
+                await session._disconnect_backend()
+
+            assert session._backend is backend
+            assert heartbeat.cancelled() is False
+            assert listener.cancelled() is False
+        finally:
+            heartbeat.cancel()
+            listener.cancel()
+            await asyncio.gather(heartbeat, listener, return_exceptions=True)
+
+
+class TestHibernateDeliveryRaces:
+    @pytest.mark.asyncio
+    async def test_failed_steer_queues_before_hibernate_can_observe_state(
+        self, session,
+    ):
+        from app.session import AgentStatus
+
+        steer_started = asyncio.Event()
+        finish_steer = asyncio.Event()
+
+        async def fail_steer(_message):
+            steer_started.set()
+            await finish_steer.wait()
+            raise RuntimeError("turn already ended")
+
+        backend = SimpleNamespace(send=AsyncMock(side_effect=fail_steer))
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._backend = backend
+        spawned = []
+
+        def capture(coro):
+            spawned.append(coro.cr_code.co_name)
+            coro.close()
+            return MagicMock()
+
+        session._spawn_bg = capture
+        send_task = asyncio.create_task(session.send("late message"))
+        await steer_started.wait()
+        session.status = AgentStatus.IDLE
+        hibernate_task = asyncio.create_task(session.hibernate_now())
+        finish_steer.set()
+
+        await send_task
+        result = await hibernate_task
+
+        assert session._pending_messages == ["late message"]
+        assert result["reason"] == "pending_delivery"
+        assert "_flush_pending" in spawned
+        assert session._hibernated is False
+
+    @pytest.mark.asyncio
+    async def test_flush_holds_delivery_ownership_until_send_finishes(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        send_started = asyncio.Event()
+        finish_send = asyncio.Event()
+
+        async def send(_message):
+            send_started.set()
+            await finish_send.wait()
+
+        monkeypatch.setattr("app.session.asyncio.sleep", AsyncMock())
+        monkeypatch.setattr(
+            "app.session.get_runtime",
+            lambda _runtime: SimpleNamespace(
+                capabilities=SimpleNamespace(event_stream="persistent"),
+            ),
+        )
+        backend = SimpleNamespace(
+            send=AsyncMock(side_effect=send),
+            hibernate_safe=True,
+        )
+        session.backend_type = "codex"
+        session.status = AgentStatus.IDLE
+        session._backend = backend
+        session._pending_messages = ["queued"]
+        session._ensure_backend = AsyncMock(return_value=backend)
+
+        flush_task = asyncio.create_task(session._flush_pending())
+        await send_started.wait()
+        hibernate_task = asyncio.create_task(session.hibernate_now())
+        finish_send.set()
+
+        await flush_task
+        result = await hibernate_task
+
+        assert result["reason"] == "not_idle"
+        assert session._pending_messages == []
+        assert backend.send.await_count == 1
+        assert session._hibernated is False
+
+    @pytest.mark.asyncio
+    async def test_failed_flush_restores_payload_before_hibernate_check(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        send_started = asyncio.Event()
+        fail_send = asyncio.Event()
+
+        async def send(_message):
+            send_started.set()
+            await fail_send.wait()
+            raise RuntimeError("send failed")
+
+        monkeypatch.setattr("app.session.asyncio.sleep", AsyncMock())
+        backend = SimpleNamespace(
+            send=AsyncMock(side_effect=send),
+            hibernate_safe=True,
+        )
+        session.backend_type = "codex"
+        session.status = AgentStatus.IDLE
+        session._backend = backend
+        session._pending_messages = ["must survive"]
+        session._ensure_backend = AsyncMock(return_value=backend)
+
+        flush_task = asyncio.create_task(session._flush_pending())
+        await send_started.wait()
+        hibernate_task = asyncio.create_task(session.hibernate_now())
+        fail_send.set()
+
+        await flush_task
+        result = await hibernate_task
+
+        assert result["reason"] == "pending_delivery"
+        assert session._pending_messages == ["must survive"]
+        assert session._hibernated is False
+
+    @pytest.mark.asyncio
+    async def test_send_wakes_without_changing_native_session_id(self, session):
+        from app.session import AgentStatus
+
+        backend = SimpleNamespace(send=AsyncMock())
+        session.backend_type = "codex"
+        session.status = AgentStatus.IDLE
+        session.session_id = "thread-preserved"
+        session._hibernated = True
+        session._ensure_backend = AsyncMock(return_value=backend)
+
+        await session.send("wake")
+
+        assert session._hibernated is False
+        assert session.session_id == "thread-preserved"
+        backend.send.assert_awaited_once_with("wake")
+
 
 class TestCodexTurnLifecycle:
     @pytest.mark.asyncio

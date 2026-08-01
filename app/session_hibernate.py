@@ -56,16 +56,66 @@ class HibernateManager:
             await asyncio.sleep(timeout)
         except asyncio.CancelledError:
             return
+        try:
+            result = await self.hibernate_now()
+        except Exception as exc:
+            logger.error(
+                f"[{s.name}] automatic hibernate failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            return
+        if not result["ok"] and result["reason"] == "unsafe_backend":
+            logger.warning(
+                f"[{s.name}] automatic hibernate unavailable: {result['error']}"
+            )
+
+    async def hibernate_now(self, *, manual: bool = False) -> dict:
+        s = self.s
         async with s._lifecycle_lock:
             if s.status != AgentStatus.IDLE:
-                return
+                return {
+                    "ok": False,
+                    "reason": "not_idle",
+                    "error": f"session is {s.status.value}",
+                }
             if s._pending_messages:
-                return
+                return {
+                    "ok": False,
+                    "reason": "pending_delivery",
+                    "error": f"{len(s._pending_messages)} message(s) pending",
+                }
+            if s._compacting:
+                return {
+                    "ok": False,
+                    "reason": "compacting",
+                    "error": "context compact is in progress",
+                }
             if s._backend is None:
-                return
-            logger.info(f"[{s.name}] hibernating (idle {int(timeout)}s)")
+                s._hibernated = True
+                return {"ok": True, "state": "already_process_free"}
+            capabilities = get_runtime(s.backend_type).capabilities
+            backend_safe = getattr(s._backend, "hibernate_safe", None)
+            if backend_safe is False:
+                detail = getattr(
+                    s._backend,
+                    "hibernate_unavailable_reason",
+                    "backend has no verified process owner",
+                )
+                return {
+                    "ok": False,
+                    "reason": "unsafe_backend",
+                    "error": detail,
+                }
+            if not capabilities.hibernate and not (manual and backend_safe is True):
+                return {
+                    "ok": False,
+                    "reason": "unsupported_runtime",
+                    "error": f"{s.backend_type} does not support hibernation",
+                }
+            logger.info(f"[{s.name}] hibernating")
             await s._disconnect_backend()
             s._hibernated = True
+            return {"ok": True, "state": "hibernated"}
 
     async def heartbeat_loop(self) -> None:
         s = self.s

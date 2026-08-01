@@ -1,6 +1,7 @@
 """TDD tests for main.py — HTTP API endpoints."""
 
 import subprocess
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -110,6 +111,97 @@ class TestGetSessions:
     def test_get_404(self, client):
         r = client.get("/api/sessions/nonexistent", params={"scope": "/s"})
         assert r.status_code == 404
+
+
+class TestHibernateSession:
+    def test_loaded_session_hibernates(self, client, monkeypatch):
+        import app.routes.system as sysmod
+
+        session = SimpleNamespace(
+            loaded=True,
+            hibernate_now=AsyncMock(return_value={
+                "ok": True,
+                "state": "hibernated",
+            }),
+        )
+        monkeypatch.setattr(sysmod.manager, "get_by_name", lambda *_args: session)
+
+        response = client.post(
+            "/api/sessions/worker/hibernate",
+            json={"scope": "/project"},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"ok": True, "state": "hibernated"}
+        session.hibernate_now.assert_awaited_once_with()
+
+    def test_detached_session_is_already_process_free(self, client, monkeypatch):
+        import app.routes.system as sysmod
+
+        session = SimpleNamespace(loaded=False, hibernate_now=AsyncMock())
+        monkeypatch.setattr(sysmod.manager, "get_by_name", lambda *_args: session)
+
+        response = client.post(
+            "/api/sessions/worker/hibernate",
+            json={"scope": "/project"},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "ok": True,
+            "state": "already_process_free",
+        }
+        session.hibernate_now.assert_not_awaited()
+
+    def test_ineligible_session_returns_conflict(self, client, monkeypatch):
+        import app.routes.system as sysmod
+
+        session = SimpleNamespace(
+            loaded=True,
+            hibernate_now=AsyncMock(return_value={
+                "ok": False,
+                "reason": "not_idle",
+                "error": "session is running",
+            }),
+        )
+        monkeypatch.setattr(sysmod.manager, "get_by_name", lambda *_args: session)
+
+        response = client.post(
+            "/api/sessions/worker/hibernate",
+            json={"scope": "/project"},
+        )
+
+        assert response.status_code == 409
+        assert response.json()["reason"] == "not_idle"
+
+    def test_teardown_error_includes_exception_class(self, client, monkeypatch):
+        import app.routes.system as sysmod
+
+        session = SimpleNamespace(
+            loaded=True,
+            hibernate_now=AsyncMock(side_effect=TimeoutError()),
+        )
+        monkeypatch.setattr(sysmod.manager, "get_by_name", lambda *_args: session)
+
+        response = client.post(
+            "/api/sessions/worker/hibernate",
+            json={"scope": "/project"},
+        )
+
+        assert response.status_code == 500
+        assert response.json()["error"] == "TimeoutError: "
+
+    def test_missing_session_returns_not_found(self, client, monkeypatch):
+        import app.routes.system as sysmod
+
+        monkeypatch.setattr(sysmod.manager, "get_by_name", lambda *_args: None)
+
+        response = client.post(
+            "/api/sessions/missing/hibernate",
+            json={"scope": "/project"},
+        )
+
+        assert response.status_code == 404
 
 
 class TestSendMessage:

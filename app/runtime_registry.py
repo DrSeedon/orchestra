@@ -289,7 +289,7 @@ register_runtime(RuntimeDefinition(
         event_stream="per_turn",
         mid_turn_inject=True,
         reconnect=False,
-        hibernate=False,
+        hibernate=True,
         process_liveness=True,
         resume_across_models=False,
     ),
