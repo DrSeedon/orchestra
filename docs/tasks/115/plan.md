@@ -62,7 +62,7 @@ Internal #93 mapping принимается без переименования:
 | #93-T2 | success/partial DTO, project-scoped task identity | merge-next validation и task update |
 | #93-T4 | обязателен перед destructive reconcile: quarantine блокирует fresh delivery и после restart | delivery serialization |
 
-#116-T3 владеет общим MCP error envelope
+#116-T5 владеет общим MCP error envelope
 `{code,message,status,retryable,request_id,retry_after_seconds,outcome_unknown,details}`
 и формой `structuredContent={result,error}`. #115 использует этот контракт, не
 создаёт второй transport serializer: `PENDING/RUNNING/SUCCEEDED/PARTIAL` имеют
@@ -475,7 +475,7 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
   неверный `commit_point` → оператор пойдёт raw Git поверх landed commit.
 - If implemented wrong: возможны двойной merge, вечный ложный `RUNNING` либо
   ложный `FAILED` после commit — исходная P1 проблема в более убедительной форме.
-- blocked-by: **#93-T1, #93-T2, #116-T3, #116-T7**. Не зависит от #93-T3/T4.
+- blocked-by: **#93-T1, #93-T2, #116-T5, #116-T7**. Не зависит от #93-T3/T4.
 
 ### T2 — CAS-safe reconcile/finalize partial или verified batch
 
@@ -603,7 +603,7 @@ kesha-tg-bot | /mnt/data/Projects/Python/kesha-tg-bot |
 
 1. Сразу выполнить T0 read-only и закоммитить provenance snapshot, не ожидая
    runtime dependencies или pruning retained logs.
-2. Дождаться merge #93-T1/T2 и #116-T3/T7; проверить pinned entry point, outcome,
+2. Дождаться merge #93-T1/T2 и #116-T5/T7; проверить pinned entry point, outcome,
    shared MCP envelope и scheduler status contracts.
 3. Реализовать T1; deployment только через hard maintenance sequence из T1 AC.
 4. T4 можно делать сразу после T1. T2 дополнительно ждёт #93-T4, затем остаётся
