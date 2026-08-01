@@ -59,6 +59,9 @@ DONE WHEN: наблюдаемое условие завершения.
 - Сильный запрет тоже обходится, если он называет ярлык, а не наблюдаемое действие: Opus 5
   переименовал запрещённую очередь новой задачи в «контекст на будущее». Привязывай gate к
   моменту tool call, status/`task_id` и эффекту; явно ранжируй конфликтующие эвристики. [L4]
+- Если политика зависит от типа сущности, тип должен жить в видимом состоянии, а не выводиться
+  из имени: `fix-*` оказался и одноразовым, и постоянным. Введи явный marker при создании,
+  а немаркированный legacy трактуй консервативно. [L4]
 
 ## Архитектура и порядок промпта
 
@@ -160,7 +163,7 @@ DONE WHEN: наблюдаемое условие завершения.
 - **[L2]** `docs/tasks/sol-efficiency/research.md` — OLS n=103 и raw TSV/scripts.
 - **[L3]** `docs/tasks/context-engineering/research.md` — 32 KiB experiment, duplicate drift.
 - **[L4]** read-only `orchestra.db` snapshots + prompt incidents `memory-search` and
-  active-worker task queue (2026-08-01).
+  active-worker task queue / kill lifecycle (2026-08-01).
 - **[L5]** `app/backend_claude.py`, `app/backend_codex.py`, `app/runtime_registry.py`,
   `app/manager.py`, `app/workspace.py` — фактическая сборка prompt stack.
 - **[O1]** [OpenAI: Prompting guidance for GPT-5.6 Sol](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6) (checked 2026-08-01).
