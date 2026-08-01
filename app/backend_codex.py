@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import shutil
+import sys
+import uuid
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
@@ -45,6 +47,109 @@ CODEX_TOKEN_PRICES = {
 CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 CODEX_COMPACT_TIMEOUT_SECONDS = 120
+CODEX_PROCESS_TIMEOUT_SECONDS = 5
+
+_scope_support_cache: tuple[bool, dict[str, str], str] | None = None
+
+
+async def _run_process(
+    *cmd: str,
+    env: dict[str, str] | None = None,
+    timeout: float = CODEX_PROCESS_TIMEOUT_SECONDS,
+) -> tuple[int, str, str]:
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except BaseException:
+        if proc.returncode is None:
+            proc.kill()
+            await proc.wait()
+        raise
+    return (
+        int(proc.returncode or 0),
+        stdout.decode(errors="replace").strip(),
+        stderr.decode(errors="replace").strip(),
+    )
+
+
+def _scope_unit(prefix: str = "orchestra-codex") -> str:
+    return f"{prefix}-{os.getpid()}-{uuid.uuid4().hex}.scope"
+
+
+async def _codex_scope_support() -> tuple[bool, dict[str, str], str]:
+    global _scope_support_cache
+    if _scope_support_cache is not None:
+        return _scope_support_cache
+    try:
+        runtime_dir = Path(f"/run/user/{os.getuid()}")
+        bus = runtime_dir / "bus"
+        commands = {
+            name: shutil.which(name)
+            for name in ("loginctl", "systemd-run", "systemctl")
+        }
+        missing = [name for name, path in commands.items() if not path]
+        if missing:
+            raise RuntimeError(f"missing commands: {', '.join(missing)}")
+        if not bus.is_socket():
+            raise RuntimeError(f"systemd user bus is unavailable: {bus}")
+
+        env = dict(os.environ)
+        env["XDG_RUNTIME_DIR"] = str(runtime_dir)
+        env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={bus}"
+        rc, linger, stderr = await _run_process(
+            commands["loginctl"], "show-user", str(os.getuid()),
+            "-p", "Linger", "--value",
+        )
+        if rc or linger.lower() != "yes":
+            detail = stderr or f"Linger={linger or 'unknown'}"
+            raise RuntimeError(f"systemd user manager is not persistent: {detail}")
+
+        unit = _scope_unit("orchestra-codex-probe")
+        probe = (
+            "from pathlib import Path; "
+            "row = next(line for line in Path('/proc/self/cgroup').read_text().splitlines() "
+            "if line.startswith('0::')); "
+            "path = row.split('::', 1)[1]; "
+            "events = (Path('/sys/fs/cgroup') / path.lstrip('/') / 'cgroup.events').read_text(); "
+            "print(path); print(events)"
+        )
+        rc, cgroup, stderr = await _run_process(
+            commands["systemd-run"], "--user", "--scope", "--quiet", "--collect",
+            f"--unit={unit}", "--", sys.executable, "-c", probe,
+            env=env,
+        )
+        if rc:
+            raise RuntimeError(stderr or f"disposable scope exited with code {rc}")
+        lines = cgroup.splitlines()
+        control_group = lines[0] if lines else ""
+        events = dict(
+            line.split(maxsplit=1)
+            for line in lines[1:]
+            if " " in line
+        )
+        if unit not in control_group:
+            raise RuntimeError(
+                f"disposable process was not attached to {unit}: {control_group}"
+            )
+        if events.get("populated") != "1":
+            raise RuntimeError(
+                f"disposable scope has no usable cgroup.events: {events}"
+            )
+        _scope_support_cache = (True, env, "")
+    except Exception as exc:
+        reason = f"{type(exc).__name__}: {exc}"
+        logger.warning(
+            "Codex verified process scope unavailable; direct launch remains enabled "
+            "but hibernation is disabled: %s",
+            reason,
+        )
+        _scope_support_cache = (False, {}, reason)
+    return _scope_support_cache
 
 
 def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
@@ -208,45 +313,83 @@ class CodexBackend(JsonRpcStdioTransport):
         self._compact_future: asyncio.Future | None = None
         self._compact_notifications: asyncio.Queue[dict] | None = None
         self._compact_context_tokens: int | None = None
+        self._scope_unit: str | None = None
+        self._scope_env: dict[str, str] = {}
+        self._hibernate_safe = False
+        self._scope_reason = "scope preflight has not run"
+        self._teardown_error: str | None = None
 
     @property
     def session_id(self) -> Optional[str]:
         return self._thread_id
 
+    @property
+    def hibernate_safe(self) -> bool:
+        return self._hibernate_safe
+
+    @property
+    def hibernate_unavailable_reason(self) -> str:
+        return self._scope_reason
+
+    @property
+    def has_owned_processes(self) -> bool:
+        return self._proc is not None or self._scope_unit is not None
+
     async def connect(self) -> None:
-        if self.is_alive:
+        if self.is_alive and not self._teardown_error:
             return
 
-        if self._proc is not None:
+        if self.has_owned_processes:
             await self.disconnect()
         self._notifications = asyncio.Queue()
         self._disconnecting = False
         self._last_stderr = ""
-        cmd = [CODEX_BIN]
-        cmd += ["-c", f"model_reasoning_effort={self._toml_str(self.reasoning_effort)}"]
+        codex_cmd = [CODEX_BIN]
+        codex_cmd += ["-c", f"model_reasoning_effort={self._toml_str(self.reasoning_effort)}"]
         if self._is_orchestrator:
             # Match Claude: an Orchestra orchestrator delegates through tracked
             # worktree workers, not invisible native subagents in its own checkout.
-            cmd += ["-c", "features.multi_agent=false"]
+            codex_cmd += ["-c", "features.multi_agent=false"]
         # Managed workers are research/implementation agents, so expose current web
         # results explicitly instead of inheriting a user's cached/disabled setting.
-        cmd += ["-c", 'web_search="live"']
+        codex_cmd += ["-c", 'web_search="live"']
         for arg in self._mcp_config_args():
-            cmd += ["-c", arg]
-        cmd += ["app-server", "--stdio"]
+            codex_cmd += ["-c", arg]
+        codex_cmd += ["app-server", "--stdio"]
 
-        self._proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=self._build_env(),
-            cwd=self.cwd,
-            limit=16 * 1024 * 1024,
-        )
-        self._reader_task = asyncio.create_task(self._read_stdout())
-        self._stderr_task = asyncio.create_task(self._drain_stderr())
+        scope_ok, scope_env, scope_reason = await _codex_scope_support()
+        env = self._build_env()
+        self._hibernate_safe = scope_ok
+        self._scope_reason = scope_reason
+        if scope_ok:
+            self._scope_unit = _scope_unit()
+            self._scope_env = scope_env
+            env.update({
+                key: scope_env[key]
+                for key in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS")
+            })
+            cmd = [
+                shutil.which("systemd-run") or "systemd-run",
+                "--user", "--scope", "--quiet", "--collect",
+                f"--unit={self._scope_unit}", "--", *codex_cmd,
+            ]
+        else:
+            self._scope_unit = None
+            self._scope_env = {}
+            cmd = codex_cmd
+
         try:
+            self._proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+                cwd=self.cwd,
+                limit=16 * 1024 * 1024,
+            )
+            self._reader_task = asyncio.create_task(self._read_stdout())
+            self._stderr_task = asyncio.create_task(self._drain_stderr())
             await self._request("initialize", {
                 "clientInfo": {
                     "name": "orchestra",
@@ -263,22 +406,29 @@ class CodexBackend(JsonRpcStdioTransport):
             }
             if self.system_prompt:
                 params["developerInstructions"] = self.system_prompt
-            if self._thread_id:
-                params["threadId"] = self._thread_id
+            requested_thread_id = self._thread_id
+            if requested_thread_id:
+                params["threadId"] = requested_thread_id
                 result = await self._request("thread/resume", params)
             else:
                 result = await self._request("thread/start", params)
             thread_id = ((result.get("thread") or {}).get("id"))
             if not thread_id:
                 raise RuntimeError("Codex app-server returned no thread id")
+            if requested_thread_id and thread_id != requested_thread_id:
+                raise RuntimeError(
+                    "Codex app-server resumed a different thread: "
+                    f"requested={requested_thread_id}, returned={thread_id}"
+                )
             self._thread_id = thread_id
             self._rollout_path = None
+            self._teardown_error = None
         except BaseException:
             await self.disconnect()
             raise
 
     async def send(self, message: str) -> None:
-        if not self.is_alive:
+        if self._teardown_error or not self.is_alive:
             await self.connect()
         if not self._thread_id:
             raise RuntimeError("Codex thread is not initialized")
@@ -451,20 +601,95 @@ class CodexBackend(JsonRpcStdioTransport):
                 if self._lifecycle_belongs_to_turn(message, compact_turn_id):
                     return
 
-    async def disconnect(self) -> None:
-        proc = self._proc
-        if proc is None:
+    async def _scope_populated(self) -> bool:
+        unit = self._scope_unit
+        if not unit:
+            return False
+        systemctl = shutil.which("systemctl") or "systemctl"
+        rc, stdout, stderr = await _run_process(
+            systemctl, "--user", "show", unit,
+            "-p", "LoadState", "-p", "ActiveState", "-p", "ControlGroup",
+            "--no-pager",
+            env=self._scope_env,
+        )
+        if rc:
+            raise RuntimeError(stderr or f"systemctl show exited with code {rc}")
+        state = {}
+        for line in stdout.splitlines():
+            key, separator, value = line.partition("=")
+            if separator:
+                state[key] = value
+        if state.get("LoadState") == "not-found":
+            return False
+        control_group = state.get("ControlGroup", "")
+        if control_group:
+            events_path = Path("/sys/fs/cgroup") / control_group.lstrip("/") / "cgroup.events"
+            try:
+                events = dict(
+                    line.split(maxsplit=1)
+                    for line in events_path.read_text().splitlines()
+                    if " " in line
+                )
+            except OSError as exc:
+                raise RuntimeError(
+                    f"cannot verify Codex scope {unit}: {type(exc).__name__}: {exc}"
+                ) from exc
+            if "populated" in events:
+                return events["populated"] == "1"
+        return state.get("ActiveState") not in ("inactive", "failed", "")
+
+    async def _signal_scope(self, signal_name: str) -> None:
+        if not await self._scope_populated():
             return
-        self._disconnecting = True
-        if self._active_turn_id and proc.returncode is None:
-            await self.interrupt()
+        systemctl = shutil.which("systemctl") or "systemctl"
+        rc, _, stderr = await _run_process(
+            systemctl, "--user", "kill", f"--signal={signal_name}",
+            "--kill-whom=all", self._scope_unit or "",
+            env=self._scope_env,
+        )
+        if rc and await self._scope_populated():
+            raise RuntimeError(
+                stderr or f"systemctl kill {signal_name} exited with code {rc}"
+            )
+
+    async def _wait_scope_empty(self) -> None:
+        async with asyncio.timeout(CODEX_PROCESS_TIMEOUT_SECONDS):
+            while await self._scope_populated():
+                await asyncio.sleep(0.05)
+
+    async def _wait_owned_process(self, proc: asyncio.subprocess.Process) -> None:
+        if proc.returncode is not None:
+            return
+        await asyncio.wait_for(
+            asyncio.shield(proc.wait()),
+            timeout=CODEX_PROCESS_TIMEOUT_SECONDS,
+        )
+
+    async def _disconnect_scoped(self, proc: asyncio.subprocess.Process | None) -> None:
+        await self._signal_scope("TERM")
+        try:
+            if proc:
+                await self._wait_owned_process(proc)
+            await self._wait_scope_empty()
+        except TimeoutError:
+            await self._signal_scope("KILL")
+            if proc:
+                await self._wait_owned_process(proc)
+            await self._wait_scope_empty()
+
+    async def _disconnect_direct(self, proc: asyncio.subprocess.Process) -> None:
         if proc.returncode is None:
             proc.terminate()
             try:
-                await asyncio.wait_for(proc.wait(), timeout=5)
-            except asyncio.TimeoutError:
+                await asyncio.wait_for(
+                    asyncio.shield(proc.wait()),
+                    timeout=CODEX_PROCESS_TIMEOUT_SECONDS,
+                )
+            except TimeoutError:
                 proc.kill()
                 await proc.wait()
+
+    async def _finalize_disconnect(self) -> None:
         for task in (self._reader_task, self._stderr_task):
             if task and not task.done():
                 task.cancel()
@@ -477,9 +702,28 @@ class CodexBackend(JsonRpcStdioTransport):
                 RuntimeError("Codex app-server disconnected during context compact")
             )
         self._proc = None
+        self._scope_unit = None
         self._reader_task = None
         self._stderr_task = None
         self._active_turn_id = None
+        self._teardown_error = None
+
+    async def disconnect(self) -> None:
+        proc = self._proc
+        if proc is None and self._scope_unit is None:
+            return
+        self._disconnecting = True
+        try:
+            if self._active_turn_id and proc and proc.returncode is None:
+                await self.interrupt()
+            if self._scope_unit:
+                await self._disconnect_scoped(proc)
+            elif proc:
+                await self._disconnect_direct(proc)
+            await self._finalize_disconnect()
+        except BaseException as exc:
+            self._teardown_error = f"{type(exc).__name__}: {exc}"
+            raise
 
     async def _read_stdout(self) -> None:
         proc = self._proc

@@ -20,6 +20,7 @@ from app.runtime_registry import (
 def test_builtin_runtime_capabilities_are_explicit():
     claude = get_runtime("claude").capabilities
     codex = get_runtime("codex").capabilities
+    grok = get_runtime("grok").capabilities
     opencode = get_runtime("opencode").capabilities
 
     assert claude.event_stream == "persistent"
@@ -31,6 +32,18 @@ def test_builtin_runtime_capabilities_are_explicit():
     assert codex.mid_turn_inject is True
     assert codex.process_liveness is True
     assert codex.resume_across_models is False
+
+    assert {
+        "claude": claude.hibernate,
+        "codex": codex.hibernate,
+        "grok": grok.hibernate,
+        "opencode": opencode.hibernate,
+    } == {
+        "claude": True,
+        "codex": True,
+        "grok": False,
+        "opencode": False,
+    }
 
     assert opencode.event_stream == "per_turn"
     assert opencode.mid_turn_inject is False

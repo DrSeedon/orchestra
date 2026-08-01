@@ -204,7 +204,13 @@
   ]
  ],
  [
-  "/api/sessions/{name}/description",
+ "/api/sessions/{name}/description",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/sessions/{name}/hibernate",
   [
    "POST"
   ]

@@ -970,6 +970,24 @@ async def wake_after_reset_endpoint():
 
 # ── Misc ──
 
+@router.post("/api/sessions/{name}/hibernate")
+async def hibernate_session_endpoint(name: str, req: dict):
+    scope = str(req.get("scope", ""))
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if not found.loaded:
+        return {"ok": True, "state": "already_process_free"}
+    try:
+        result = await found.hibernate_now()
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+        logger.error(f"hibernate failed for {name}: {error}")
+        return JSONResponse({"error": error}, status_code=500)
+    if not result["ok"]:
+        return JSONResponse(result, status_code=409)
+    return result
+
 @router.post("/api/report_bug")
 async def report_bug_endpoint(req: Request):
     data = await req.json()

@@ -602,48 +602,31 @@ class AgentSession:
             self._session_limit_hit = False
 
         self._note_next_precompact_activity()
-        if self._compacting:
-            self._pending_messages.append(message)
-            self._log("user_message", message)
-            self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
-            return
-
         capabilities = get_runtime(self.backend_type).capabilities
-        if self.status == AgentStatus.RUNNING:
-            if not capabilities.mid_turn_inject:
-                self._pending_messages.append(message)
-                self._log("user_message", message)
-                self._log("status", f"message queued ({len(self._pending_messages)} pending)")
-                return
-            self._log("user_message", message)
-            try:
-                backend = await self._ensure_backend()
-                # Claude SDK supports inject via stdin during an active turn
-                await backend.send(message)
-                if self.backend_type == "codex":
-                    self._log("status", "message steered into active Codex turn")
-                return
-            except Exception as e:
-                logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
-                self._pending_messages.append(message)
-                self._log("status", f"inject failed, queued ({len(self._pending_messages)} pending)")
-                return
-
         async with self._lifecycle_lock:
-            if self.status == AgentStatus.RUNNING:
-                if capabilities.mid_turn_inject:
-                    self._log("user_message", message)
-                    try:
-                        backend = await self._ensure_backend()
-                        await backend.send(message)
-                        if self.backend_type == "codex":
-                            self._log("status", "message steered into active Codex turn")
-                        return
-                    except Exception as e:
-                        logger.warning(f"[{self.name}] mid-turn inject failed in lock, queueing: {e}")
+            if self._compacting:
                 self._pending_messages.append(message)
                 self._log("user_message", message)
-                self._log("status", f"message queued (race, {len(self._pending_messages)} pending)")
+                self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
+                return
+            if self.status == AgentStatus.RUNNING:
+                self._log("user_message", message)
+                if not capabilities.mid_turn_inject:
+                    self._pending_messages.append(message)
+                    self._log("status", f"message queued ({len(self._pending_messages)} pending)")
+                    return
+                try:
+                    backend = await self._ensure_backend()
+                    await backend.send(message)
+                    if self.backend_type == "codex":
+                        self._log("status", "message steered into active Codex turn")
+                    return
+                except Exception as e:
+                    logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
+                    self._pending_messages.append(message)
+                    self._log("status", f"inject failed, queued ({len(self._pending_messages)} pending)")
+                    if self.status != AgentStatus.RUNNING and not self._compacting:
+                        self._spawn_bg(self._flush_pending())
                 return
 
             if self._hibernate_task and not self._hibernate_task.done():
@@ -775,12 +758,14 @@ class AgentSession:
             except Exception as e:
                 logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
         self._backend = self._make_backend(force_fresh=force_fresh)
+        candidate = self._backend
         try:
-            await self._backend.connect()
+            await candidate.connect()
         except Exception as e:
             logger.error(f"[{self.name}] backend connect failed: {e}")
             self._log("error", f"connect failed: {e}")
-            self._backend = None
+            if not getattr(candidate, "has_owned_processes", False):
+                self._backend = None
             raise
         capabilities = get_runtime(self.backend_type).capabilities
         if capabilities.event_stream == "persistent":
@@ -995,28 +980,24 @@ class AgentSession:
         # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
         # before starting the next one — avoids nested lock acquisition from the same coroutine
         await asyncio.sleep(0.3)
-        if self._compacting:
-            return
-        if not self._pending_messages:
-            return
-        msgs = list(self._pending_messages)
-        self._pending_messages.clear()
-        if len(msgs) == 1:
-            combined = msgs[0]
-        else:
-            # Batch queued messages into one turn to avoid spawning N sequential turns —
-            # each turn has ~3s round-trip overhead and occupies the lifecycle lock
-            combined = "\n".join(
-                f"--- message {i+1}/{len(msgs)} ---\n{m}"
-                for i, m in enumerate(msgs)
-            )
-        self._log("status", f"delivering {len(msgs)} queued message(s)")
-        try:
-            async with self._lifecycle_lock:
-                if self._compacting:
-                    # compact grabbed the lock first — requeue, compact's finally re-flushes
-                    self._pending_messages[0:0] = msgs
-                    return
+        async with self._lifecycle_lock:
+            if self._compacting or self.status == AgentStatus.RUNNING:
+                return
+            if not self._pending_messages:
+                return
+            msgs = list(self._pending_messages)
+            self._pending_messages.clear()
+            if len(msgs) == 1:
+                combined = msgs[0]
+            else:
+                # Batch queued messages into one turn to avoid spawning N sequential turns —
+                # each turn has ~3s round-trip overhead and occupies the lifecycle lock
+                combined = "\n".join(
+                    f"--- message {i+1}/{len(msgs)} ---\n{m}"
+                    for i, m in enumerate(msgs)
+                )
+            self._log("status", f"delivering {len(msgs)} queued message(s)")
+            try:
                 self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
@@ -1025,17 +1006,18 @@ class AgentSession:
                 self._last_msg_time = self._turn_start
                 self.status = AgentStatus.RUNNING
                 self._persist()
+                self._hibernated = False
                 backend = await self._ensure_backend()
                 await backend.send(combined)
                 if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
                     self._listen_task = asyncio.create_task(self._turn_event_loop())
                     self._listen_task.add_done_callback(self._on_task_done)
-        except Exception as e:
-            logger.error(f"[{self.name}] flush pending failed: {e}")
-            self._pending_messages[0:0] = msgs
-            self.status = AgentStatus.IDLE
-            self._persist()
-            self._turns.publish_turn_finished()
+            except Exception as e:
+                logger.error(f"[{self.name}] flush pending failed: {e}")
+                self._pending_messages[0:0] = msgs
+                self.status = AgentStatus.IDLE
+                self._persist()
+                self._turns.publish_turn_finished()
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
@@ -1062,6 +1044,9 @@ class AgentSession:
             self._turns.publish_turn_finished()
 
     # ── Session operations ──
+
+    async def hibernate_now(self) -> dict:
+        return await self._hibernate.hibernate_now(manual=True)
 
     async def interrupt(self) -> None:
         async with self._lifecycle_lock:
@@ -1106,7 +1091,7 @@ class AgentSession:
                 if not callable(compact_context):
                     raise RuntimeError("Codex backend does not support native compact")
                 self._hibernated = False
-                result = await compact_context()
+            result = await compact_context()
 
             context_tokens = result.get("context_tokens")
             max_tokens = result.get("max_tokens")
@@ -1579,6 +1564,11 @@ class AgentSession:
         if self._hibernate_task and not self._hibernate_task.done() and self._hibernate_task is not asyncio.current_task():
             self._hibernate_task.cancel()
             self._hibernate_task = None
+        backend = self._backend
+        if backend:
+            await backend.disconnect()
+            if self._backend is backend:
+                self._backend = None
         if (self._heartbeat_task and not self._heartbeat_task.done()
                 and self._heartbeat_task is not asyncio.current_task()):
             self._heartbeat_task.cancel()
@@ -1589,8 +1579,6 @@ class AgentSession:
             except Exception as e:
                 logger.warning(f"[{self.name}] heartbeat task failed on disconnect: {e}")
             self._heartbeat_task = None
-        backend = self._backend
-        self._backend = None
         if self._listen_task and not self._listen_task.done():
             self._listen_task.cancel()
             try:
@@ -1599,8 +1587,6 @@ class AgentSession:
                 pass
             except Exception as e:
                 logger.warning(f"[{self.name}] listen task failed on disconnect: {e}")
-        if backend:
-            await backend.disconnect()
 
     async def stop(self) -> None:
         self._log("status", "⏹️ stopped (manual interrupt)")
