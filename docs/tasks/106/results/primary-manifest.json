@@ -1,0 +1,13 @@
+{
+  "mode": "primary",
+  "seed": 10620260730,
+  "model": "claude-opus-5[1m]",
+  "claude_version": "2.1.220 (Claude Code)",
+  "expected_jobs": 117,
+  "observed_jobs": 117,
+  "failures_this_invocation": 0,
+  "completed_at": "2026-08-01T06:21:06.774197+00:00",
+  "protocol_sha256": "a89b01638a7e61cd309f2e526fa1df554c40dfab8a45682b2ecdb5925c58a9c2",
+  "fixtures_sha256": "5a9114c2a65b77627680226716bcb8e91b20285e5ae83e9b08a042e77a209656",
+  "prompts_sha256": "6beb3c25da4601b5bf0835ca933206808fe8d957ac97ef2bf8448ef56252b306"
+}

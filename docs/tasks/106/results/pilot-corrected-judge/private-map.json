@@ -1,0 +1,20 @@
+{
+  "eff6ede7ac55e9c1": {
+    "primary_job_id": "4d2d009e3f1de9f5",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "kesha_full",
+    "repetition": 1
+  },
+  "0c43abfeac3c8864": {
+    "primary_job_id": "68560419529b0d6e",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "96511c6099968d4a": {
+    "primary_job_id": "cd5badecc5f85ad5",
+    "fixture_id": "holdout-presave-idempotent",
+    "variant": "concise",
+    "repetition": 1
+  }
+}

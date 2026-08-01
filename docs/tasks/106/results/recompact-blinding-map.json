@@ -1,0 +1,38 @@
+{
+  "d4fe1aee4c3bc794": {
+    "variant": "orchestra_current",
+    "blind_variant": "ba05d5b3f433b0c0",
+    "fixture_id": "holdout-reversal",
+    "repetition": 1
+  },
+  "e12ad7179a77f7d4": {
+    "variant": "kesha_full",
+    "blind_variant": "d5ee89e2b5cefe3d",
+    "fixture_id": "holdout-reversal",
+    "repetition": 1
+  },
+  "e13ccf22e5bf54c8": {
+    "variant": "concise",
+    "blind_variant": "c6cde216cb88088e",
+    "fixture_id": "holdout-reversal",
+    "repetition": 1
+  },
+  "ef5f7c29dbb8c6bb": {
+    "variant": "orchestra_current",
+    "blind_variant": "64dc47c8ebd8f6e3",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 1
+  },
+  "df6f16a410a040bb": {
+    "variant": "kesha_full",
+    "blind_variant": "04a903fcbfa4523d",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 1
+  },
+  "e455fb85953662c2": {
+    "variant": "concise",
+    "blind_variant": "df37d9f73f2220c3",
+    "fixture_id": "holdout-conflict-long",
+    "repetition": 1
+  }
+}

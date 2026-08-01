@@ -1,0 +1,558 @@
+{
+  "method": {
+    "primary_generations": 117,
+    "holdout_generations": 63,
+    "dev_generations": 54,
+    "bootstrap_clusters": 7,
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 10620260731
+  },
+  "holdout": {
+    "orchestra_current": {
+      "n": 21,
+      "exact_recall": 0.912568306010929,
+      "exact_recall_cluster_bootstrap_95": [
+        0.8125,
+        1.0
+      ],
+      "recent_recall": 0.3968253968253968,
+      "recent_recall_cluster_bootstrap_95": [
+        0.09523809523809523,
+        0.7142857142857143
+      ],
+      "pending_recall": 0.8095238095238095,
+      "pending_recall_cluster_bootstrap_95": [
+        0.5238095238095238,
+        1.0
+      ],
+      "median_summary_utf8_bytes": 6378,
+      "median_whole_turn_output_tokens": 5093,
+      "deterministic_clean_passes": 5,
+      "secret_exposed_runs": 6,
+      "secret_leaks": 0,
+      "zero_leak_two_sided_cp95_upper": 0.4592581264399005
+    },
+    "kesha_full": {
+      "n": 21,
+      "exact_recall": 0.8907103825136612,
+      "exact_recall_cluster_bootstrap_95": [
+        0.7966101694915254,
+        0.9895833333333334
+      ],
+      "recent_recall": 0.9523809523809523,
+      "recent_recall_cluster_bootstrap_95": [
+        0.8571428571428571,
+        1.0
+      ],
+      "pending_recall": 0.8571428571428571,
+      "pending_recall_cluster_bootstrap_95": [
+        0.5714285714285714,
+        1.0
+      ],
+      "median_summary_utf8_bytes": 4837,
+      "median_whole_turn_output_tokens": 2385,
+      "deterministic_clean_passes": 10,
+      "secret_exposed_runs": 6,
+      "secret_leaks": 0,
+      "zero_leak_two_sided_cp95_upper": 0.4592581264399005
+    },
+    "concise": {
+      "n": 21,
+      "exact_recall": 0.8907103825136612,
+      "exact_recall_cluster_bootstrap_95": [
+        0.8009259259259259,
+        0.9827586206896551
+      ],
+      "recent_recall": 0.9365079365079365,
+      "recent_recall_cluster_bootstrap_95": [
+        0.8412698412698413,
+        1.0
+      ],
+      "pending_recall": 0.8571428571428571,
+      "pending_recall_cluster_bootstrap_95": [
+        0.5714285714285714,
+        1.0
+      ],
+      "median_summary_utf8_bytes": 2803,
+      "median_whole_turn_output_tokens": 1049,
+      "deterministic_clean_passes": 9,
+      "secret_exposed_runs": 6,
+      "secret_leaks": 0,
+      "zero_leak_two_sided_cp95_upper": 0.4592581264399005
+    }
+  },
+  "dev": {
+    "orchestra_current": {
+      "n": 18,
+      "exact_recall": 0.8194444444444444,
+      "exact_recall_cluster_bootstrap_95": [
+        0.6754385964912281,
+        0.9420289855072463
+      ],
+      "recent_recall": 0.5370370370370371,
+      "recent_recall_cluster_bootstrap_95": [
+        0.2222222222222222,
+        0.8518518518518519
+      ],
+      "pending_recall": 0.8888888888888888,
+      "pending_recall_cluster_bootstrap_95": [
+        0.6666666666666666,
+        1.0
+      ],
+      "median_summary_utf8_bytes": 6627.0,
+      "median_whole_turn_output_tokens": 5519.5,
+      "deterministic_clean_passes": 4,
+      "secret_exposed_runs": 3,
+      "secret_leaks": 0,
+      "zero_leak_two_sided_cp95_upper": 0.7075982261787134
+    },
+    "kesha_full": {
+      "n": 18,
+      "exact_recall": 0.7916666666666666,
+      "exact_recall_cluster_bootstrap_95": [
+        0.6409909909909911,
+        0.9358974358974359
+      ],
+      "recent_recall": 1.0,
+      "recent_recall_cluster_bootstrap_95": [
+        1.0,
+        1.0
+      ],
+      "pending_recall": 1.0,
+      "pending_recall_cluster_bootstrap_95": [
+        1.0,
+        1.0
+      ],
+      "median_summary_utf8_bytes": 5234.5,
+      "median_whole_turn_output_tokens": 2466.5,
+      "deterministic_clean_passes": 6,
+      "secret_exposed_runs": 3,
+      "secret_leaks": 0,
+      "zero_leak_two_sided_cp95_upper": 0.7075982261787134
+    },
+    "concise": {
+      "n": 18,
+      "exact_recall": 0.7083333333333334,
+      "exact_recall_cluster_bootstrap_95": [
+        0.5038759689922481,
+        0.8794326241134751
+      ],
+      "recent_recall": 1.0,
+      "recent_recall_cluster_bootstrap_95": [
+        1.0,
+        1.0
+      ],
+      "pending_recall": 0.8888888888888888,
+      "pending_recall_cluster_bootstrap_95": [
+        0.6666666666666666,
+        1.0
+      ],
+      "median_summary_utf8_bytes": 2826.5,
+      "median_whole_turn_output_tokens": 973.5,
+      "deterministic_clean_passes": 6,
+      "secret_exposed_runs": 3,
+      "secret_leaks": 0,
+      "zero_leak_two_sided_cp95_upper": 0.7075982261787134
+    }
+  },
+  "holdout_differences": {
+    "kesha_full_minus_orchestra_current": {
+      "exact": {
+        "difference": -0.021857923497267784,
+        "paired_cluster_bootstrap_95": [
+          -0.04597701149425282,
+          0.0
+        ]
+      },
+      "recent": {
+        "difference": 0.5555555555555556,
+        "paired_cluster_bootstrap_95": [
+          0.2698412698412699,
+          0.8253968253968254
+        ]
+      },
+      "pending": {
+        "difference": 0.04761904761904756,
+        "paired_cluster_bootstrap_95": [
+          0.0,
+          0.1428571428571429
+        ]
+      }
+    },
+    "concise_minus_orchestra_current": {
+      "exact": {
+        "difference": -0.021857923497267784,
+        "paired_cluster_bootstrap_95": [
+          -0.05128205128205132,
+          0.005847953216374213
+        ]
+      },
+      "recent": {
+        "difference": 0.5396825396825398,
+        "paired_cluster_bootstrap_95": [
+          0.26984126984126977,
+          0.7936507936507936
+        ]
+      },
+      "pending": {
+        "difference": 0.04761904761904756,
+        "paired_cluster_bootstrap_95": [
+          0.0,
+          0.1428571428571429
+        ]
+      }
+    },
+    "concise_minus_kesha_full": {
+      "exact": {
+        "difference": 0.0,
+        "paired_cluster_bootstrap_95": [
+          -0.018190235690235687,
+          0.01492537313432829
+        ]
+      },
+      "recent": {
+        "difference": -0.015873015873015817,
+        "paired_cluster_bootstrap_95": [
+          -0.04761904761904767,
+          0.0
+        ]
+      },
+      "pending": {
+        "difference": 0.0,
+        "paired_cluster_bootstrap_95": [
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "missing_anchor_taxonomy": {
+    "dev": {
+      "concise": {
+        "commands": 14,
+        "pending": 2,
+        "temporal": 2,
+        "objective": 4,
+        "files": 14,
+        "user_facts": 6
+      },
+      "orchestra_current": {
+        "user_facts": 5,
+        "files": 8,
+        "commands": 8,
+        "pending": 2,
+        "objective": 3
+      },
+      "kesha_full": {
+        "user_facts": 3,
+        "files": 11,
+        "commands": 12,
+        "pending": 2,
+        "objective": 2
+      }
+    },
+    "holdout": {
+      "kesha_full": {
+        "files": 9,
+        "commands": 8,
+        "objective": 3
+      },
+      "concise": {
+        "objective": 2,
+        "commands": 10,
+        "files": 8
+      },
+      "orchestra_current": {
+        "files": 8,
+        "commands": 7,
+        "pending": 1
+      }
+    }
+  },
+  "semantic_judges": {
+    "holdout": {
+      "orchestra_current": {
+        "n_outputs": 21,
+        "semantic_anchor_total": 63,
+        "sonnet_semantic_recall": 1.0,
+        "sol_semantic_recall": 1.0,
+        "sonnet_outputs_with_unsupported_claim": 15,
+        "sol_outputs_with_unsupported_claim": 21,
+        "both_raters_flag_unsupported": 15,
+        "sonnet_unsupported_claim_count": 15,
+        "sol_unsupported_claim_count": 75,
+        "sonnet_no_dump": 12,
+        "sol_no_dump": 18
+      },
+      "kesha_full": {
+        "n_outputs": 21,
+        "semantic_anchor_total": 63,
+        "sonnet_semantic_recall": 1.0,
+        "sol_semantic_recall": 1.0,
+        "sonnet_outputs_with_unsupported_claim": 12,
+        "sol_outputs_with_unsupported_claim": 21,
+        "both_raters_flag_unsupported": 12,
+        "sonnet_unsupported_claim_count": 12,
+        "sol_unsupported_claim_count": 65,
+        "sonnet_no_dump": 12,
+        "sol_no_dump": 18
+      },
+      "concise": {
+        "n_outputs": 21,
+        "semantic_anchor_total": 63,
+        "sonnet_semantic_recall": 1.0,
+        "sol_semantic_recall": 1.0,
+        "sonnet_outputs_with_unsupported_claim": 2,
+        "sol_outputs_with_unsupported_claim": 15,
+        "both_raters_flag_unsupported": 2,
+        "sonnet_unsupported_claim_count": 2,
+        "sol_unsupported_claim_count": 34,
+        "sonnet_no_dump": 21,
+        "sol_no_dump": 21
+      }
+    },
+    "dev": {
+      "orchestra_current": {
+        "n_outputs": 18,
+        "semantic_anchor_total": 54,
+        "sonnet_semantic_recall": 1.0,
+        "sol_semantic_recall": 1.0,
+        "sonnet_outputs_with_unsupported_claim": 13,
+        "sol_outputs_with_unsupported_claim": 18,
+        "both_raters_flag_unsupported": 13,
+        "sonnet_unsupported_claim_count": 13,
+        "sol_unsupported_claim_count": 81,
+        "sonnet_no_dump": 6,
+        "sol_no_dump": 15
+      },
+      "kesha_full": {
+        "n_outputs": 18,
+        "semantic_anchor_total": 54,
+        "sonnet_semantic_recall": 1.0,
+        "sol_semantic_recall": 1.0,
+        "sonnet_outputs_with_unsupported_claim": 10,
+        "sol_outputs_with_unsupported_claim": 18,
+        "both_raters_flag_unsupported": 10,
+        "sonnet_unsupported_claim_count": 10,
+        "sol_unsupported_claim_count": 64,
+        "sonnet_no_dump": 15,
+        "sol_no_dump": 18
+      },
+      "concise": {
+        "n_outputs": 18,
+        "semantic_anchor_total": 54,
+        "sonnet_semantic_recall": 1.0,
+        "sol_semantic_recall": 1.0,
+        "sonnet_outputs_with_unsupported_claim": 3,
+        "sol_outputs_with_unsupported_claim": 11,
+        "both_raters_flag_unsupported": 3,
+        "sonnet_unsupported_claim_count": 3,
+        "sol_unsupported_claim_count": 27,
+        "sonnet_no_dump": 18,
+        "sol_no_dump": 18
+      }
+    }
+  },
+  "inter_rater": {
+    "all": {
+      "semantic_anchor": {
+        "n": 351,
+        "agreement": 1.0,
+        "kappa": null,
+        "left_positive_rate": 1.0,
+        "right_positive_rate": 1.0
+      },
+      "unsupported_any": {
+        "n": 117,
+        "agreement": 0.5811965811965812,
+        "kappa": 0.19963702359346647,
+        "left_positive_rate": 0.4700854700854701,
+        "right_positive_rate": 0.8888888888888888
+      },
+      "no_transcript_dump": {
+        "n": 117,
+        "agreement": 0.6410256410256411,
+        "kappa": -0.1375,
+        "left_positive_rate": 0.717948717948718,
+        "right_positive_rate": 0.9230769230769231
+      }
+    },
+    "holdout": {
+      "semantic_anchor": {
+        "n": 189,
+        "agreement": 1.0,
+        "kappa": null,
+        "left_positive_rate": 1.0,
+        "right_positive_rate": 1.0
+      },
+      "unsupported_any": {
+        "n": 63,
+        "agreement": 0.5555555555555556,
+        "kappa": 0.16477272727272738,
+        "left_positive_rate": 0.4603174603174603,
+        "right_positive_rate": 0.9047619047619048
+      },
+      "no_transcript_dump": {
+        "n": 63,
+        "agreement": 0.6190476190476191,
+        "kappa": -0.1666666666666669,
+        "left_positive_rate": 0.7142857142857143,
+        "right_positive_rate": 0.9047619047619048
+      }
+    }
+  },
+  "presave": {
+    "kesha_full": {
+      "n": 3,
+      "first_pass_expected_file_state": 3,
+      "second_pass_expected_file_state": 3,
+      "second_pass_zero_diff": 3,
+      "secret_leaks": 0
+    },
+    "kesha_handoff_only": {
+      "n": 3,
+      "first_pass_expected_file_state": 0,
+      "second_pass_expected_file_state": 0,
+      "second_pass_zero_diff": 3,
+      "secret_leaks": 0
+    },
+    "excluded_ambiguous_fixture": {
+      "fixture_id": "holdout-preference-secret",
+      "reason": "The fixture expected CLAUDE.md to remain byte-identical while its transcript declared a durable operating preference; Kesha's prompt explicitly allows stable operating rules in CLAUDE.md."
+    }
+  },
+  "recompaction": {
+    "orchestra_current": {
+      "1": {
+        "n_fixture_chains": 2,
+        "exact_hits": 16,
+        "exact_total": 18,
+        "exact_recall": 0.8888888888888888,
+        "recent_hits": 3,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          5779,
+          8267
+        ]
+      },
+      "2": {
+        "n_fixture_chains": 2,
+        "exact_hits": 16,
+        "exact_total": 18,
+        "exact_recall": 0.8888888888888888,
+        "recent_hits": 3,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          6966,
+          8915
+        ]
+      },
+      "3": {
+        "n_fixture_chains": 2,
+        "exact_hits": 16,
+        "exact_total": 18,
+        "exact_recall": 0.8888888888888888,
+        "recent_hits": 3,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          8925,
+          10222
+        ]
+      }
+    },
+    "kesha_full": {
+      "1": {
+        "n_fixture_chains": 2,
+        "exact_hits": 16,
+        "exact_total": 18,
+        "exact_recall": 0.8888888888888888,
+        "recent_hits": 6,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          4652,
+          6637
+        ]
+      },
+      "2": {
+        "n_fixture_chains": 2,
+        "exact_hits": 16,
+        "exact_total": 18,
+        "exact_recall": 0.8888888888888888,
+        "recent_hits": 6,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          5169,
+          6838
+        ]
+      },
+      "3": {
+        "n_fixture_chains": 2,
+        "exact_hits": 16,
+        "exact_total": 18,
+        "exact_recall": 0.8888888888888888,
+        "recent_hits": 6,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          5694,
+          6928
+        ]
+      }
+    },
+    "concise": {
+      "1": {
+        "n_fixture_chains": 2,
+        "exact_hits": 15,
+        "exact_total": 18,
+        "exact_recall": 0.8333333333333334,
+        "recent_hits": 6,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          2982,
+          2738
+        ]
+      },
+      "2": {
+        "n_fixture_chains": 2,
+        "exact_hits": 15,
+        "exact_total": 18,
+        "exact_recall": 0.8333333333333334,
+        "recent_hits": 6,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          2859,
+          2624
+        ]
+      },
+      "3": {
+        "n_fixture_chains": 2,
+        "exact_hits": 15,
+        "exact_total": 18,
+        "exact_recall": 0.8333333333333334,
+        "recent_hits": 6,
+        "recent_total": 6,
+        "secret_leaks": 0,
+        "summary_utf8_bytes": [
+          2836,
+          2632
+        ]
+      }
+    }
+  },
+  "cost_usd_api_equivalent": {
+    "primary_successful_calls": 16.098737,
+    "primary_failed_529_calls": 0.012055,
+    "presave_calls": 1.892802,
+    "recompact_calls": 2.45928075,
+    "sonnet_judge_calls": 2.5824344999999997,
+    "codex_judge": null,
+    "note": "Subscription workload; USD fields are provider/API-equivalent accounting, not cash charged for this experiment."
+  }
+}
