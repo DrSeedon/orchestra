@@ -111,6 +111,9 @@ DONE WHEN: наблюдаемое условие завершения.
 - **Фактический транспорт:** Claude получает preset `claude_code` + наш appended system prompt;
   Codex получает его как `developerInstructions`. Project `CLAUDE.md` зеркалится Codex в
   `AGENTS.md`; skills у Sol сейчас инлайнятся полностью. [L5]
+- **Личная память:** manager оборачивает файл в `<worker-memory>` при spawn/load. Правка файла
+  внутри уже живой сессии не перечитывается самим `compact()`; до reload/restart prompt cache
+  содержит прежнюю версию. Не обещай мгновенный refresh без отдельного механизма. [L5]
 - **Claude:** ясные explicit instructions, motivation/context, XML для смешанного контента,
   3–5 examples; latest models буквальнее и могут overtrigger от агрессивных MUST. [A1]
 - **Sol/GPT-5.6:** outcome + constraints + evidence + completion bar, затем свобода выбрать

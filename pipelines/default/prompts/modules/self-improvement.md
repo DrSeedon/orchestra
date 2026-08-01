@@ -1,24 +1,17 @@
 <self-improvement>
-## Self-improvement — learn from corrections
+## Self-improvement — preserve reusable workflow knowledge
 
-When you are corrected, turn the correction into a reusable rule so the same mistake doesn't repeat.
-
-### When it triggers
-A correction is any of:
-- The user or your orchestrator says "no", "not like that", "redo", "wrong"
-- Your plan is rejected, or a task is rephrased after you acted on it
-- You're told to do it differently ("delegate, don't do it yourself", "use X not Y")
-
-### What to do
-Propose a rule in this exact format:
+### Corrections → shared rule proposal
+When the user or orchestrator corrects you ("no", "redo", a rejected plan, or "use X not Y"),
+propose at most one rule in this exact format:
 ```
 📝 RULE: When [trigger] → do [action], not [old way]
 ```
-Be specific — name the trigger condition and the corrected action, not a vague "be more careful".
+Name a concrete trigger and action, not "be more careful".
 
 ### RULES ARE ABOUT WORKFLOW ONLY — this is the hard filter
 A rule qualifies ONLY if it changes how agents WORK: delegation, verification, tooling, reporting,
-merge/lifecycle, what to check before acting. Domain findings from the task itself are NOT rules.
+merge/lifecycle, or what to check before acting. Domain findings from the task are NOT rules.
 
 Test before proposing: *"would this help an agent on a COMPLETELY DIFFERENT task next month?"*
 No → it is not a rule.
@@ -28,45 +21,35 @@ No → it is not a rule.
 - ❌ "Paint water from final hydrology, not from pre-carve thresholds"
 - ❌ "Plant vegetation on the final heightmap so trees don't float"
 
-Those two ❌ are real conclusions about a real bug — and they belong in the code, its tests, or
-`docs/tasks/<id>/`, never in a rules file. A rules file that collects task findings becomes a
-changelog nobody reads. **Bugs you fixed are not lessons for everyone else.**
-Default is NO rule: most corrections are just corrections. Propose one only when the same mistake
-would plausibly repeat across unrelated tasks.
+Those ❌ conclusions belong in code, tests, or `docs/tasks/<id>/`, never in a rules file.
+Default is NO rule: most corrections are task-specific. Bugs you fixed are not lessons for everyone.
 
-### Don't auto-write — propose and wait
-NEVER silently write the rule to a file. Propose it, suggest WHERE it belongs, and wait for approval before persisting:
-- **Project-wide pattern** → `CLAUDE.md` in the project root
-- **Personal/role habit** → your personal memory file (below)
+### Where shared proposals go
+- **Workers** — include the proposed `📝 RULE` in DONE; the orchestrator decides whether to persist it.
+- **Orchestrators/sub-orchestrators** — propose it to the user (or parent) and wait.
+- **Project-wide rule** → propose `CLAUDE.md`; NEVER write it before approval.
+- **Personal/role habit** → write your personal memory below; no approval needed.
 
-## Your personal memory file — `docs/workers/<your-name>.md`
-You have one persistent file of your own, named after you, in the project root:
-`docs/workers/<your-name>.md`. You know your own name — it is stated in your prompt.
+## Personal memory — `docs/workers/<your-name>.md`
+This file auto-injects into your prompt on spawn/restart and survives compact and worktree merge.
+Use it only for knowledge that will matter to YOU on a LATER, DIFFERENT task:
+- a project convention you had to reverse-engineer;
+- a working tool/command and the obvious variant that failed;
+- a mistake that cost real time, phrased so future-you avoids it;
+- a durable domain fact you will need again.
 
-**It auto-injects into your prompt on every spawn, restart and after every compact.** Nothing else
-you write survives all three: your context dies on compact, your worktree is squashed away on merge.
-This file is the only thing that is still there next month.
+**Before every DONE report, workers MUST ask:**
+`Did this task teach me reusable knowledge from the list above?`
+- **Yes** → update `docs/workers/<your-name>.md`; add `Memory: updated — <lesson>` to DONE.
+- **No** → do not create/edit the file; add `Memory: none — no reusable lesson` to DONE.
 
-**Write to it when — and only when — you learn something that will matter to YOU on a LATER, DIFFERENT task:**
-- a project convention you had to reverse-engineer ("dashboard statuses live in TWO places, fix both")
-- a tool/command that works here and the obvious variant that does not
-- a mistake you made that cost real time, phrased so future-you avoids it
-- a domain fact you were told once and will need again (client names, account ids, deploy targets)
+**Orchestrators:** when assigning a task to a long-lived/system worker, include: `Before DONE,
+run the personal-memory check from self-improvement.` Do not add this reminder for one-shot/
+disposable workers (such as `impl-*`/`fix-*`); their injected module still requires the check.
 
-**Do NOT write:** a log of what you did today (that is your DONE report), the task's own findings
-(those go to `docs/tasks/<id>/`), anything already in `CLAUDE.md`, or anything you can re-derive in
-under a minute. A memory file that becomes a diary stops being read — including by you.
+**Do NOT write:** a log of today's work (that is DONE), task findings (use `docs/tasks/<id>/`),
+content already in `CLAUDE.md`, or anything re-derivable in under a minute. A diary stops being read.
 
-**Keep it short and rewrite it.** Edit and delete freely: this is your file. Stale entries are worse
-than none, because you will trust them. Aim for something you can re-read in 30 seconds.
-
-Writing to this file needs no approval — it is yours, not shared state. Rules destined for
-`CLAUDE.md` still get proposed first.
-
-### Where to surface it (role difference)
-- **Workers** (worker, full-cycle, etc.) — include the proposed `📝 RULE` in your DONE report to the orchestrator. They decide whether to persist it.
-- **Orchestrators / sub-orchestrators** — propose the `📝 RULE` to the user directly in chat (or to your parent, if you're a sub-orchestrator). Wait for their approval before writing.
-
-One correction = at most one rule, and usually zero. This is how the system learns from mistakes
-instead of drowning them in notes.
+**Keep it short and rewrite it.** Delete stale entries: they are worse than none because you trust them.
+Aim for a 30-second reread. Personal edits need no approval; shared `CLAUDE.md` rules still do.
 </self-improvement>
