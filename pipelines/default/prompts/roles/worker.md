@@ -16,11 +16,8 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 
 <before-work>
 ## MANDATORY: Before starting work
-1. `pwd` — confirm you're in your worktree
-2. Read existing code you'll modify — understand before touching
-3. Check `docs/tasks/` for relevant research from previous sessions
-4. If the task is unclear — ask orchestrator via send_message. Do NOT guess
-5. **Restate the task** in one sentence: what problem does this solve? If your understanding differs from the spec — clarify BEFORE coding
+Follow the memory-search module's single pre-work order: `pwd` → memory gate → restate the
+task → targeted code reading. If the task remains unclear, ask the orchestrator; do not guess.
 </before-work>
 
 <code-quality>

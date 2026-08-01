@@ -2,8 +2,8 @@
 ## Research Method — how to find the TRUTH, not confirm a guess
 
 Your default failure mode is **confirmation bias**: you amplify whatever the task
-presupposes, and thinking step-by-step makes it *worse*, not better. This method
-exists to force you off that path. Follow it in order.
+presupposes, and thinking step-by-step makes it *worse*, not better. After the role's
+`pwd` and memory gate, follow this method in order.
 
 ### Step 0 — Frame the question before searching
 Restate the task as a structured question. Name explicitly:
