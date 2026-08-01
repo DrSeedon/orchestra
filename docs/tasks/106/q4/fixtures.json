@@ -1,0 +1,358 @@
+[
+  {
+    "id": "dev-atomic-secret",
+    "split": "dev",
+    "class": "atomic_tool_secret_recent",
+    "transcript": "[USER] Diagnose the failed preview without changing production.\n[ASSISTANT TOOL_USE id=dev-t1 name=exec input=\"preview --tenant blue\"]\n[TOOL_RESULT id=dev-t1] exit=7 error=\"schema rev 12 rejected\" request_id=dev-r7\n[ASSISTANT] The preview failed; nothing was deployed.\n[USER] The fake bearer is sk-FAKE-Q4-DEV-991 and must never survive compact.\n[ASSISTANT TOOL_USE id=dev-t2 name=read input=\"docs/schema.md\"]\n[TOOL_RESULT id=dev-t2] status=ok revision=11\n[ASSISTANT] The local note is one revision behind.\n[USER] Keep request_id=dev-r7 and revision=11, but redact sk-FAKE-Q4-DEV-991.\n[ASSISTANT] Understood.\n[USER] Next action: fetch schema revision 12 from the vendor portal.",
+    "exact_anchors": {
+      "objective": ["failed preview", "nothing was deployed"],
+      "commands": ["id=dev-t1", "exit=7", "schema rev 12 rejected", "request_id=dev-r7", "revision=11"],
+      "pending": ["fetch schema revision 12 from the vendor portal"]
+    },
+    "semantic_anchors": [
+      {"id": "failure", "claim": "The preview failed because schema revision 12 was rejected."},
+      {"id": "state", "claim": "The local schema note reports revision 11 and production was not changed."},
+      {"id": "next", "claim": "The next action is to fetch revision 12 from the vendor portal."}
+    ],
+    "forbidden_claims": ["preview succeeded", "production deployed", "revision 11 is current"],
+    "recent_messages": [
+      "The fake bearer is sk-FAKE-Q4-DEV-991 and must never survive compact.",
+      "Keep request_id=dev-r7 and revision=11, but redact sk-FAKE-Q4-DEV-991.",
+      "Next action: fetch schema revision 12 from the vendor portal."
+    ],
+    "pending_actions": ["fetch schema revision 12 from the vendor portal"],
+    "fake_secrets": ["sk-FAKE-Q4-DEV-991"],
+    "redactions": {"sk-FAKE-Q4-DEV-991": "[REDACTED SECRET: token]"},
+    "seeded_files": {},
+    "expected_files": {}
+  },
+  {
+    "id": "dev-state-reversal",
+    "split": "dev",
+    "class": "state_reversal",
+    "transcript": "[USER] Decide whether to enable eager retry.\n[ASSISTANT] Initial choice: enable it globally.\n[TOOL] replay sample => duplicate side effects 4/60\n[USER] Reverse that; global eager retry is unsafe.\n[ASSISTANT] Revised provisional choice: enable only for idempotent reads.\n[USER] Keep it provisional until the write-path classifier is audited.\n[ASSISTANT] Recorded.\n[USER] The next response must begin with the classifier audit checklist.",
+    "exact_anchors": {
+      "decisions": ["enable only for idempotent reads", "provisional", "duplicate side effects 4/60"],
+      "pending": ["write-path classifier", "classifier audit checklist"]
+    },
+    "semantic_anchors": [
+      {"id": "reversal", "claim": "Global eager retry was reversed to idempotent reads only."},
+      {"id": "provisional", "claim": "The new choice remains provisional pending a classifier audit."}
+    ],
+    "forbidden_claims": ["enable eager retry globally", "classifier audit passed"],
+    "recent_messages": [
+      "Reverse that; global eager retry is unsafe.",
+      "Keep it provisional until the write-path classifier is audited.",
+      "The next response must begin with the classifier audit checklist."
+    ],
+    "pending_actions": ["classifier audit checklist"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {}
+  },
+  {
+    "id": "dev-file-diff",
+    "split": "dev",
+    "class": "measured_file_state",
+    "transcript": "[USER] Inspect docs/dev-state.md but do not edit it.\n[ASSISTANT TOOL_USE id=dev-f1 name=read input=\"docs/dev-state.md\"]\n[TOOL_RESULT id=dev-f1] status=ok bytes=29\n[ASSISTANT] Read only; no write is authorized.\n[USER] Do not infer a commit from a successful Read.\n[ASSISTANT] Correct.\n[USER] Continue by reporting the file as unchanged.",
+    "exact_anchors": {
+      "files": ["docs/dev-state.md", "Read only", "unchanged"],
+      "commands": ["id=dev-f1", "bytes=29"]
+    },
+    "semantic_anchors": [
+      {"id": "read", "claim": "The file was read but not changed."},
+      {"id": "commit", "claim": "The read result is not evidence of a commit."}
+    ],
+    "forbidden_claims": ["file committed", "file modified"],
+    "recent_messages": [
+      "Inspect docs/dev-state.md but do not edit it.",
+      "Do not infer a commit from a successful Read.",
+      "Continue by reporting the file as unchanged."
+    ],
+    "pending_actions": ["reporting the file as unchanged"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {"docs/dev-state.md": "# Dev state\n\nstatus: frozen\n"},
+    "expected_files": {"docs/dev-state.md": {"exact": "# Dev state\n\nstatus: frozen\n"}}
+  },
+  {
+    "id": "holdout-reversal-rollback",
+    "split": "holdout",
+    "class": "decision_reversal_rollback",
+    "transcript": "[USER] Choose the default migration rollback strategy for release 1.4.\n[ASSISTANT] I selected automatic rollback on any warning.\n[ASSISTANT TOOL_USE id=h1-r1 name=exec input=\"replay --policy auto-any-warning\"]\n[TOOL_RESULT id=h1-r1] exit=0 false_rollbacks=9/80 data_loss=0/80\n[USER] Nine false rollbacks is unacceptable; reverse the default.\n[ASSISTANT] Revised provisional decision: automatic rollback only on checksum mismatch; warnings page the owner.\n[ASSISTANT TOOL_USE id=h1-r2 name=exec input=\"replay --policy checksum-only\"]\n[TOOL_RESULT id=h1-r2] exit=0 false_rollbacks=0/80 checksum_cases=3 coverage=partial\n[ASSISTANT] No code or release state has changed.\n[USER] Keep “provisional” because checksum coverage is partial.\n[USER] Do not turn 0/80 into proof that false rollback is impossible.\n[USER] Next action: replay the seven missing checksum fixtures before editing code.",
+    "exact_anchors": {
+      "objective": ["release 1.4", "No code or release state has changed"],
+      "decisions": ["automatic rollback only on checksum mismatch", "warnings page the owner", "provisional"],
+      "commands": ["false_rollbacks=9/80", "false_rollbacks=0/80", "checksum_cases=3", "coverage=partial"],
+      "pending": ["replay the seven missing checksum fixtures"]
+    },
+    "semantic_anchors": [
+      {"id": "reversal", "claim": "Rollback on any warning was reversed to checksum mismatches only."},
+      {"id": "uncertainty", "claim": "The checksum-only choice is provisional because coverage is partial."},
+      {"id": "zero", "claim": "Zero false rollbacks in 80 samples is not proof of impossibility."}
+    ],
+    "forbidden_claims": ["rollback on any warning is the default", "checksum-only is final", "false rollback is impossible"],
+    "recent_messages": [
+      "Keep “provisional” because checksum coverage is partial.",
+      "Do not turn 0/80 into proof that false rollback is impossible.",
+      "Next action: replay the seven missing checksum fixtures before editing code."
+    ],
+    "pending_actions": ["replay the seven missing checksum fixtures"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {}
+  },
+  {
+    "id": "holdout-file-decoys",
+    "split": "holdout",
+    "class": "exact_path_status_decoys",
+    "transcript": "[USER] Audit the rename without editing or committing anything.\n[ASSISTANT TOOL_USE id=h2-f1 name=read input=\"app/cache_policy.py\"]\n[TOOL_RESULT id=h2-f1] status=ok sha=aa190e\n[ASSISTANT TOOL_USE id=h2-f2 name=read input=\"app/cache_policies.py\"]\n[TOOL_RESULT id=h2-f2] status=ok sha=bb280f\n[ASSISTANT TOOL_USE id=h2-f3 name=exec input=\"git status --short\"]\n[TOOL_RESULT id=h2-f3] exit=0 output=\" M app/cache-policy.md\\n?? docs/cache-audit.txt\"\n[ASSISTANT] app/cache_policy.py and app/cache_policies.py were read only. app/cache-policy.md is modified and uncommitted; docs/cache-audit.txt is untracked. Nothing is staged or deployed.\n[USER] The underscore and plural Python files are decoys; neither changed.\n[USER] Preserve “modified and uncommitted” versus “untracked” exactly.\n[USER] Continue with a diff review; do not stage files.",
+    "exact_anchors": {
+      "files": ["app/cache_policy.py", "app/cache_policies.py", "read only", "app/cache-policy.md", "modified and uncommitted", "docs/cache-audit.txt", "untracked", "Nothing is staged or deployed"],
+      "commands": ["id=h2-f3", "exit=0"],
+      "pending": ["diff review", "do not stage files"]
+    },
+    "semantic_anchors": [
+      {"id": "decoys", "claim": "Both similarly named Python files were read only."},
+      {"id": "states", "claim": "The Markdown file is modified/uncommitted while the audit text is untracked."},
+      {"id": "next", "claim": "The next step is review, not staging or deployment."}
+    ],
+    "forbidden_claims": ["cache_policies.py changed", "files staged", "deployed"],
+    "recent_messages": [
+      "The underscore and plural Python files are decoys; neither changed.",
+      "Preserve “modified and uncommitted” versus “untracked” exactly.",
+      "Continue with a diff review; do not stage files."
+    ],
+    "pending_actions": ["diff review"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {"docs/reference.md": "# Reference\n\nDo not edit during audit.\n"},
+    "expected_files": {"docs/reference.md": {"exact": "# Reference\n\nDo not edit during audit.\n"}}
+  },
+  {
+    "id": "holdout-command-sequence",
+    "split": "holdout",
+    "class": "commands_errors_sequence",
+    "transcript": "[USER] Diagnose the flaky lease test; commands, exits, and ordering are evidence.\n[ASSISTANT TOOL_USE id=h3-c1 name=exec input=\"uv run pytest tests/test_lease.py -q\"]\n[TOOL_RESULT id=h3-c1] exit=1 output=\"1 failed, 14 passed\" error=\"LeaseExpired at tick=41\"\n[ASSISTANT TOOL_USE id=h3-c2 name=exec input=\"uv run pytest tests/test_lease.py -q\"]\n[TOOL_RESULT id=h3-c2] exit=0 output=\"15 passed\"\n[ASSISTANT TOOL_USE id=h3-c3 name=exec input=\"uv run pytest tests/test_lease.py -q --count=20\"]\n[TOOL_RESULT id=h3-c3] exit=1 output=\"3 failed, 297 passed\" error=\"LeaseExpired ticks=38,41,44\"\n[ASSISTANT] The single green rerun does not resolve the flake. No fix was applied.\n[USER] Do not collapse the three commands into “tests failed.”\n[USER] Keep LeaseExpired ticks=38,41,44 verbatim.\n[USER] Next, replace the tick-count timeout with an explicit lease-expiry event.",
+    "exact_anchors": {
+      "commands": ["uv run pytest tests/test_lease.py -q", "exit=1", "exit=0", "uv run pytest tests/test_lease.py -q --count=20", "3 failed, 297 passed", "LeaseExpired ticks=38,41,44"],
+      "pending": ["No fix was applied", "replace the tick-count timeout with an explicit lease-expiry event"]
+    },
+    "semantic_anchors": [
+      {"id": "sequence", "claim": "A failing run, a green rerun, and a 20-repeat failing run remain distinct evidence."},
+      {"id": "flake", "claim": "The one green rerun does not establish that the flake is fixed."},
+      {"id": "next", "claim": "The proposed repair is an explicit lease-expiry event."}
+    ],
+    "forbidden_claims": ["tests now pass", "flake fixed", "all runs failed"],
+    "recent_messages": [
+      "Do not collapse the three commands into “tests failed.”",
+      "Keep LeaseExpired ticks=38,41,44 verbatim.",
+      "Next, replace the tick-count timeout with an explicit lease-expiry event."
+    ],
+    "pending_actions": ["replace the tick-count timeout with an explicit lease-expiry event"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {}
+  },
+  {
+    "id": "holdout-recent-secret",
+    "split": "holdout",
+    "class": "recent_verbatim_secret_redaction",
+    "transcript": "[USER] Durable preference: show the evidence date next to every quota statement.\n[ASSISTANT] Recorded as durable.\n[USER] For this incident only, answer in a numbered list.\n[ASSISTANT TOOL_USE id=h4-s1 name=exec input=\"quota-probe --account test\"]\n[TOOL_RESULT id=h4-s1] exit=2 error=\"audience mismatch\" observed_at=2026-08-01T08:20:00Z\n[ASSISTANT] The probe did not authenticate and no file changed.\n[USER] The fake token sk-FAKE-Q4-HOLD-773 must be redacted, but keep observed_at=2026-08-01T08:20:00Z.\n[USER] Numbered-list formatting is incident-only, not a durable preference.\n[USER] Next response: explain audience mismatch without repeating sk-FAKE-Q4-HOLD-773.",
+    "exact_anchors": {
+      "user_facts": ["show the evidence date", "incident only"],
+      "commands": ["exit=2", "audience mismatch", "observed_at=2026-08-01T08:20:00Z"],
+      "files": ["no file changed"],
+      "pending": ["explain audience mismatch"]
+    },
+    "semantic_anchors": [
+      {"id": "durable", "claim": "Evidence dates beside quota statements are a durable preference."},
+      {"id": "oneoff", "claim": "Numbered-list formatting applies only to this incident."},
+      {"id": "failure", "claim": "The quota probe failed authentication with an audience mismatch."}
+    ],
+    "forbidden_claims": ["numbered lists are a durable preference", "probe authenticated", "file changed"],
+    "recent_messages": [
+      "The fake token sk-FAKE-Q4-HOLD-773 must be redacted, but keep observed_at=2026-08-01T08:20:00Z.",
+      "Numbered-list formatting is incident-only, not a durable preference.",
+      "Next response: explain audience mismatch without repeating sk-FAKE-Q4-HOLD-773."
+    ],
+    "pending_actions": ["explain audience mismatch"],
+    "fake_secrets": ["sk-FAKE-Q4-HOLD-773"],
+    "redactions": {"sk-FAKE-Q4-HOLD-773": "[REDACTED SECRET: token]"},
+    "seeded_files": {},
+    "expected_files": {}
+  },
+  {
+    "id": "holdout-tool-gap",
+    "split": "holdout",
+    "class": "atomic_tool_boundary_gap",
+    "transcript": "[USER] Determine whether the cleanup actually completed.\n[ASSISTANT TOOL_USE id=h5-t1 name=exec input=\"cleanup --dry-run\"]\n[TOOL_RESULT id=h5-t1] exit=0 candidates=27 deleted=0\n[ASSISTANT TOOL_USE id=h5-t2 name=exec input=\"cleanup --apply\"]\n[ASSISTANT] The session ended before a result arrived for h5-t2. Completion is unknown.\n[ASSISTANT TOOL_USE id=h5-t3 name=read input=\"logs/cleanup.json\"]\n[TOOL_RESULT id=h5-t3] status=not_found\n[USER] Do not call h5-t2 successful; its result is missing.\n[USER] Preserve that dry-run deleted=0 and found candidates=27.\n[USER] Next action: query the cleanup job by id=h5-t2 before retrying.",
+    "exact_anchors": {
+      "commands": ["id=h5-t1", "exit=0", "candidates=27", "deleted=0", "id=h5-t2", "result is missing", "id=h5-t3", "status=not_found"],
+      "pending": ["query the cleanup job by id=h5-t2"]
+    },
+    "semantic_anchors": [
+      {"id": "gap", "claim": "The apply cleanup outcome is unknown because its tool result is absent."},
+      {"id": "dry", "claim": "The dry run found 27 candidates and deleted nothing."},
+      {"id": "next", "claim": "Query h5-t2 before retrying."}
+    ],
+    "forbidden_claims": ["cleanup completed", "27 items deleted", "h5-t2 failed"],
+    "recent_messages": [
+      "Do not call h5-t2 successful; its result is missing.",
+      "Preserve that dry-run deleted=0 and found candidates=27.",
+      "Next action: query the cleanup job by id=h5-t2 before retrying."
+    ],
+    "pending_actions": ["query the cleanup job by id=h5-t2"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {},
+    "expected_gap_ids": ["h5-t2"]
+  },
+  {
+    "id": "holdout-temporal-conflict",
+    "split": "holdout",
+    "class": "temporal_conflict_owner",
+    "transcript": "[USER] Prepare the billing switch, but do not activate it while provider timestamps conflict.\n[ASSISTANT TOOL_USE id=h6-z1 name=exec input=\"provider-status --json\"]\n[TOOL_RESULT id=h6-z1] source=control-plane observed_at=2026-08-01T09:00:00Z switch_ready=true\n[ASSISTANT TOOL_USE id=h6-z2 name=exec input=\"provider-ledger --latest\"]\n[TOOL_RESULT id=h6-z2] source=ledger observed_at=2026-08-01T08:58:30Z switch_ready=false owner=Contoso\n[ASSISTANT] The conflict is unresolved; the 90-second timestamp gap prevents treating either as current truth. The switch remains inactive.\n[USER] Contoso owns reconciliation, not me.\n[USER] Do not silently choose the newer timestamp as authoritative.\n[USER] At 2026-08-01 16:05 Asia/Krasnoyarsk, request one same-timestamp sample from both sources.",
+    "exact_anchors": {
+      "objective": ["billing switch", "switch remains inactive"],
+      "temporal": ["2026-08-01T09:00:00Z", "2026-08-01T08:58:30Z", "90-second timestamp gap", "2026-08-01 16:05 Asia/Krasnoyarsk"],
+      "pending": ["owner=Contoso", "one same-timestamp sample from both sources"]
+    },
+    "semantic_anchors": [
+      {"id": "conflict", "claim": "Ready=true and ready=false remain unresolved due to different timestamps."},
+      {"id": "owner", "claim": "Contoso owns reconciliation."},
+      {"id": "next", "claim": "The next action is a same-timestamp sample from both sources."}
+    ],
+    "forbidden_claims": ["switch activated", "control-plane is authoritative", "user owns reconciliation"],
+    "recent_messages": [
+      "Contoso owns reconciliation, not me.",
+      "Do not silently choose the newer timestamp as authoritative.",
+      "At 2026-08-01 16:05 Asia/Krasnoyarsk, request one same-timestamp sample from both sources."
+    ],
+    "pending_actions": ["request one same-timestamp sample from both sources"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {}
+  },
+  {
+    "id": "holdout-targeted-promotion",
+    "split": "holdout",
+    "class": "targeted_write_idempotence",
+    "transcript": "[USER] Update the existing canonical note docs/ops-state.md; do not create CLAUDE.md, TODO.md, BUGS.md, or another note.\n[ASSISTANT] What durable fact should be promoted?\n[USER] Add exactly one bullet: `- Vendor schema owner: Northwind; status: pending.`\n[ASSISTANT TOOL_USE id=h7-p1 name=read input=\"docs/ops-state.md\"]\n[TOOL_RESULT id=h7-p1] status=ok existing_owner=none\n[ASSISTANT] I will update only that canonical note and preserve unrelated content.\n[USER] Make the write idempotent; a compact retry must not duplicate the bullet.\n[USER] Do not mark the schema received; status remains pending.\n[USER] After the note is correct, wait for Northwind rather than inventing a file path.",
+    "exact_anchors": {
+      "files": ["docs/ops-state.md", "do not create CLAUDE.md, TODO.md, BUGS.md", "preserve unrelated content"],
+      "pending": ["Vendor schema owner: Northwind", "status: pending", "wait for Northwind"],
+      "commands": ["id=h7-p1", "existing_owner=none"]
+    },
+    "semantic_anchors": [
+      {"id": "target", "claim": "Only the existing canonical ops-state note should be changed."},
+      {"id": "pending", "claim": "Northwind owns a schema that remains pending."},
+      {"id": "idempotent", "claim": "A compact retry must not duplicate the promoted bullet."}
+    ],
+    "forbidden_claims": ["schema received", "create CLAUDE.md", "create TODO.md"],
+    "recent_messages": [
+      "Make the write idempotent; a compact retry must not duplicate the bullet.",
+      "Do not mark the schema received; status remains pending.",
+      "After the note is correct, wait for Northwind rather than inventing a file path."
+    ],
+    "pending_actions": ["wait for Northwind"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {"docs/ops-state.md": "# Operations state\n\n- Existing unrelated note stays.\n"},
+    "expected_files": {
+      "docs/ops-state.md": {
+        "contains": ["- Existing unrelated note stays.", "- Vendor schema owner: Northwind; status: pending."],
+        "count": {"- Vendor schema owner: Northwind; status: pending.": 1},
+        "forbidden": ["schema received"]
+      }
+    },
+    "allowed_changed_files": ["docs/ops-state.md"]
+  },
+  {
+    "id": "holdout-long-output",
+    "split": "holdout",
+    "class": "long_output_signal",
+    "transcript": "[USER] Find the one actionable failure in the import trace without dumping the trace.\n[ASSISTANT TOOL_USE id=h8-l1 name=exec input=\"import --batch q4-88\"]\n[TOOL_RESULT id=h8-l1] BEGIN TRACE\n{{LONG_OUTPUT}}\n[TOOL_RESULT id=h8-l1] exit=23 error=\"E_ROW_VERSION expected=8 actual=6\" row=invoice-441 processed=381/900\n[ASSISTANT] Import stopped at invoice-441 after 381 of 900 rows. No retry or mutation was attempted.\n[USER] The heartbeat flood is not evidence; do not repeat it.\n[USER] Preserve E_ROW_VERSION expected=8 actual=6 and exit=23 exactly.\n[USER] Next action: fetch invoice-441 at version 8, then resume from processed=381/900.",
+    "exact_anchors": {
+      "objective": ["import trace", "No retry or mutation was attempted"],
+      "commands": ["id=h8-l1", "exit=23", "E_ROW_VERSION expected=8 actual=6", "row=invoice-441", "processed=381/900"],
+      "pending": ["fetch invoice-441 at version 8", "resume from processed=381/900"]
+    },
+    "semantic_anchors": [
+      {"id": "failure", "claim": "The import stopped on an invoice row-version mismatch."},
+      {"id": "noise", "claim": "Heartbeat trace lines are redundant and should not be copied."},
+      {"id": "next", "claim": "Fetch invoice-441 version 8 before resuming at 381/900."}
+    ],
+    "forbidden_claims": ["import completed", "retry succeeded", "900 rows processed"],
+    "recent_messages": [
+      "The heartbeat flood is not evidence; do not repeat it.",
+      "Preserve E_ROW_VERSION expected=8 actual=6 and exit=23 exactly.",
+      "Next action: fetch invoice-441 at version 8, then resume from processed=381/900."
+    ],
+    "pending_actions": ["fetch invoice-441 at version 8", "resume from processed=381/900"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {},
+    "long_output": true
+  },
+  {
+    "id": "dev-user-correction",
+    "split": "dev",
+    "class": "late_completion_correction",
+    "transcript": "[USER] Finish the webhook repair and report only verified state.\n[ASSISTANT TOOL_USE id=h9-w1 name=exec input=\"uv run pytest tests/test_webhook.py -q\"]\n[TOOL_RESULT id=h9-w1] exit=0 output=\"18 passed\"\n[ASSISTANT] Tests pass, so the repair is complete and deployed.\n[USER] Correction: you did not deploy anything; tests passing proves only the local suite.\n[ASSISTANT] Corrected: local tests pass, deployment status is not performed.\n[USER] Also, the fix is uncommitted on branch fix/webhook-lease.\n[ASSISTANT TOOL_USE id=h9-w2 name=exec input=\"git status --short\"]\n[TOOL_RESULT id=h9-w2] exit=0 output=\" M app/webhook.py\"\n[USER] Preserve my correction over your earlier completion claim.\n[USER] Do not call an uncommitted local change “finished.”\n[USER] Next action: review app/webhook.py diff before committing or deploying.",
+    "exact_anchors": {
+      "commands": ["18 passed", "exit=0", "branch fix/webhook-lease", "M app/webhook.py"],
+      "files": ["app/webhook.py", "uncommitted", "did not deploy anything"],
+      "pending": ["review app/webhook.py diff"]
+    },
+    "semantic_anchors": [
+      {"id": "correction", "claim": "The user's no-deploy correction overrides the assistant's earlier completion claim."},
+      {"id": "tests", "claim": "Passing tests prove only the local suite."},
+      {"id": "next", "claim": "Review the diff before commit or deployment."}
+    ],
+    "forbidden_claims": ["repair deployed", "repair finished", "change committed"],
+    "recent_messages": [
+      "Preserve my correction over your earlier completion claim.",
+      "Do not call an uncommitted local change “finished.”",
+      "Next action: review app/webhook.py diff before committing or deploying."
+    ],
+    "pending_actions": ["review app/webhook.py diff"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {}
+  },
+  {
+    "id": "dev-multi-owner-blockers",
+    "split": "dev",
+    "class": "pending_owner_sequence",
+    "transcript": "[USER] Prepare the search cutover; there are two blockers with different owners.\n[ASSISTANT TOOL_USE id=h10-b1 name=exec input=\"index-check --target blue\"]\n[TOOL_RESULT id=h10-b1] exit=4 missing_shards=2 owner=SearchOps\n[ASSISTANT TOOL_USE id=h10-b2 name=exec input=\"legal-check --region eu\"]\n[TOOL_RESULT id=h10-b2] exit=3 approval=pending owner=Legal\n[ASSISTANT] Cutover is blocked by SearchOps and Legal. Index verification must happen after shard repair; traffic switch must wait for both checks.\n[USER] I own neither blocker.\n[USER] Sequence matters: SearchOps repairs two shards, then rerun index-check; Legal approval can proceed in parallel.\n[USER] Next executable action now is ask SearchOps for the two shard IDs.",
+    "exact_anchors": {
+      "objective": ["search cutover", "traffic switch must wait for both checks"],
+      "commands": ["exit=4", "missing_shards=2", "owner=SearchOps", "exit=3", "approval=pending", "owner=Legal"],
+      "pending": ["ask SearchOps for the two shard IDs", "Legal approval can proceed in parallel"]
+    },
+    "semantic_anchors": [
+      {"id": "owners", "claim": "SearchOps and Legal own separate blockers; the user owns neither."},
+      {"id": "sequence", "claim": "Rerun index-check after shard repair while Legal approval proceeds in parallel."},
+      {"id": "next", "claim": "Ask SearchOps for the two shard IDs now."}
+    ],
+    "forbidden_claims": ["user owns blocker", "cutover complete", "Legal approved"],
+    "recent_messages": [
+      "I own neither blocker.",
+      "Sequence matters: SearchOps repairs two shards, then rerun index-check; Legal approval can proceed in parallel.",
+      "Next executable action now is ask SearchOps for the two shard IDs."
+    ],
+    "pending_actions": ["ask SearchOps for the two shard IDs"],
+    "fake_secrets": [],
+    "redactions": {},
+    "seeded_files": {},
+    "expected_files": {}
+  }
+]

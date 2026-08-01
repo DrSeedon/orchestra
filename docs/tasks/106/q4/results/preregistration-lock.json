@@ -1,0 +1,19 @@
+{
+  "locked_at": "2026-08-01T16:33:33+07:00",
+  "source_commit": "6dc830cace5fe456906896ce9ece8a9774d1f505",
+  "source_sha256": {
+    "protocol.md": "533f9f8ec01135227e747820f2aa6409c33d4753e6e937613b745b4e285fb61f",
+    "fixtures.json": "b7f43a3bdbbfacb0775358e94e2ed2ceb89140fcdf693b554fd50747294695de",
+    "candidates.py": "20697a53c22133046cc9b286bc17bcec347f50f64cc89fb828bc10a2eaf0d8fc",
+    "run_evaluation.py": "b45c9f1d382b230d8ae42c2984b7c1feb47722e52964339602081b5632995d66",
+    "score_results.py": "a5b67ca1beffd142dc4f3e398dcf6054c9024220cd12609034b71e839c42f0bc",
+    "run_judges.py": "35ead975bbfd677e8aa1e0d76dae50cfad58feb01652bd8d67491cec0f0652c8",
+    "analyze_results.py": "837419a737017ea167e62754624b32ae4046ea7c194de704805d628a7f2e30bb",
+    "test_q4.py": "01df69854bf75d5a1ca1ae895c8a9162ca89b0da9df5b784560ee7925c449068",
+    "validate_artifacts.py": "db37be5f5d3dc26f7fe893f364b4c1032918396eb82192937e4f73634cde22eb"
+  },
+  "model_calls_before_lock": 0,
+  "expected_usd_api_equivalent": 20.66,
+  "contingency_usd_api_equivalent": 26.86,
+  "notification_gate_usd_api_equivalent": 30.0
+}

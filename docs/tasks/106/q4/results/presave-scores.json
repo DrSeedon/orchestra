@@ -1,0 +1,1822 @@
+[
+  {
+    "job_id": "aebc90c1c67bac5c",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": true,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2088,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": true,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2080,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "6f90ed440dd77e05",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "exact3_prompt",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3640,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3568,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "65d5abd498e598af",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": true,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 6,
+          "exact_total": 8,
+          "exact_recall": 0.75,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2301,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": true,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2190,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "13199a4504473ddf",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "raw_tail",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4299,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3273,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received",
+            "create CLAUDE.md"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "6c142fe4084f77ce",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": true,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2388,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": true,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2176,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "9350fd44ef6f54ac",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "exact3_prompt",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3744,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3099,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "36c211c3df80b723",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "raw_tail",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3632,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3335,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "360e69ca31933a50",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": false,
+            "Do not mark the schema received; status remains pending.": false,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4145,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": false,
+            "Do not mark the schema received; status remains pending.": false,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5043,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received",
+            "create CLAUDE.md"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "b0a2b12ca2b2b756",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 6,
+          "exact_total": 8,
+          "exact_recall": 0.75,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": false,
+            "Do not mark the schema received; status remains pending.": false,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4142,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": false,
+            "Do not mark the schema received; status remains pending.": false,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3432,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "a87ce18fc30b7dc2",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": false,
+            "Do not mark the schema received; status remains pending.": false,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4426,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": true
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": true
+            }
+          },
+          "exact_hits": 6,
+          "exact_total": 8,
+          "exact_recall": 0.75,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": false,
+            "Do not mark the schema received; status remains pending.": false,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4370,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "c1b006de09e70de2",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "raw_tail",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2914,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3764,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "4c28c177c4854365",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "exact3_prompt",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2915,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/ops-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "files": {
+              "docs/ops-state.md": true,
+              "do not create CLAUDE.md, TODO.md, BUGS.md": false,
+              "preserve unrelated content": false
+            },
+            "pending": {
+              "Vendor schema owner: Northwind": true,
+              "status: pending": true,
+              "wait for Northwind": true
+            },
+            "commands": {
+              "id=h7-p1": false,
+              "existing_owner=none": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Make the write idempotent; a compact retry must not duplicate the bullet.": true,
+            "Do not mark the schema received; status remains pending.": true,
+            "After the note is correct, wait for Northwind rather than inventing a file path.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Northwind": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2949,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/ops-state.md": {
+                "exists": true,
+                "contains": {
+                  "- Existing unrelated note stays.": true,
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "count": {
+                  "- Vendor schema owner: Northwind; status: pending.": true
+                },
+                "forbidden": {
+                  "schema received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "schema received"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  }
+]

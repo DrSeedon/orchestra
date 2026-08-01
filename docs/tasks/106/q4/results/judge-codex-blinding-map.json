@@ -1,0 +1,578 @@
+{
+  "a41852284ab358ec": {
+    "primary_job_id": "c497660ca23c7c75",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "0c6e37f5d2569891": {
+    "primary_job_id": "48349c9efe1a1fe8",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "f0257fc11efd616d": {
+    "primary_job_id": "fbe900a595804cb8",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "b15de034582c9a0d": {
+    "primary_job_id": "c9bb485f90c07aea",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "0454a2305067ff93": {
+    "primary_job_id": "ef5e7c1480965648",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "4953a3606f354a5a": {
+    "primary_job_id": "cec4d3640697b46d",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "0652fbf0cc9e7f40": {
+    "primary_job_id": "96d0344a07b96a61",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "c0cd3e23a78a0a9a": {
+    "primary_job_id": "2b45f683170d1d9d",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "821665233c065315": {
+    "primary_job_id": "2b59e7551a754391",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "9bde8a5f7b11c59e": {
+    "primary_job_id": "5b8423066b585041",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "37f28c089690cc40": {
+    "primary_job_id": "192930ea2e68378c",
+    "fixture_id": "holdout-long-output",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "746df9ca06a43f13": {
+    "primary_job_id": "671a504e2d2bc8ef",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "8fed360f38666263": {
+    "primary_job_id": "01fa2773f026aab8",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "90fce15bb1ea6024": {
+    "primary_job_id": "d4debf541328ec93",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "85467a5bfcf14b5b": {
+    "primary_job_id": "352a2675a44d64f8",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "ef263e66e7f39be3": {
+    "primary_job_id": "e0239a1c25aec743",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "863a80584fccc863": {
+    "primary_job_id": "93eed3572fea10e2",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "97ab0eeb7200edea": {
+    "primary_job_id": "ea95608cd44e513b",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "9f6f53508ae8c2f5": {
+    "primary_job_id": "30e420ced0044dd2",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "c3d26c5e16e27207": {
+    "primary_job_id": "def7aa1d8cc37914",
+    "fixture_id": "holdout-long-output",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "eb7fd0d71e45284e": {
+    "primary_job_id": "2e1cd3fc9f3a9686",
+    "fixture_id": "holdout-long-output",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "3de71e39c6e211b4": {
+    "primary_job_id": "d3d489828a712b61",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "48ca0d8256233093": {
+    "primary_job_id": "d494108532f3e742",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "4afa33b1a1e2109d": {
+    "primary_job_id": "65a10ac9cda3d102",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "50f03b5e2a386993": {
+    "primary_job_id": "1b54657bcc5f24ce",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "9a1beaf53f05c627": {
+    "primary_job_id": "3e4c848cf1a80724",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "a41a428a432e1f0e": {
+    "primary_job_id": "b55e73dc017809c5",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "raw_tail",
+    "repetition": 2
+  },
+  "5a74c6ba9936430c": {
+    "primary_job_id": "acfa0b0dd105d4d8",
+    "fixture_id": "holdout-long-output",
+    "variant": "raw_tail",
+    "repetition": 2
+  },
+  "ec233b880b24a6c2": {
+    "primary_job_id": "652d2592d925a38d",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "e7316ddeddf466dd": {
+    "primary_job_id": "c67a8d42c0cca0f8",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "d5923d6cb6115146": {
+    "primary_job_id": "fee69e95be6457b8",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "203bde22ec025bd5": {
+    "primary_job_id": "b2edadbe418396ec",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "b74fc4a72d798f3c": {
+    "primary_job_id": "38d32ab4a794111f",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "raw_tail",
+    "repetition": 2
+  },
+  "752900c98d577de9": {
+    "primary_job_id": "fb06a9ec5152d173",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "raw_tail",
+    "repetition": 2
+  },
+  "ccdf4e6e7916b293": {
+    "primary_job_id": "8f8cb1606fdfa43c",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "5bb464227bbede66": {
+    "primary_job_id": "58457100b8a27ceb",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "ec67d532d0d6bb41": {
+    "primary_job_id": "8fba272ba12d8e43",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "bf288421bf312a82": {
+    "primary_job_id": "aa868b043381ccaa",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "0cf3e92865f03c66": {
+    "primary_job_id": "a1d9e3868284d110",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "0fd4f80458f38a2e": {
+    "primary_job_id": "96413cb10e1c5a76",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "6043eea9141d5be6": {
+    "primary_job_id": "f0e2ba403448b3af",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "c2b77dbf77144a08": {
+    "primary_job_id": "7da9f39fb0f07253",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "fa97047a1e338bbc": {
+    "primary_job_id": "86424f10faeff537",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "raw_tail",
+    "repetition": 2
+  },
+  "e83be1bf959458f3": {
+    "primary_job_id": "aaa516c04e59c755",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "2489ca46cdb49426": {
+    "primary_job_id": "57ea710f023090e6",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "raw_tail",
+    "repetition": 2
+  },
+  "3a08a5c1cd5b6f21": {
+    "primary_job_id": "ec8e06e8b4a8e492",
+    "fixture_id": "holdout-long-output",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "874b65b57d9ec8a3": {
+    "primary_job_id": "edcd9bb1d481b193",
+    "fixture_id": "holdout-long-output",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "b410b1470f2ac36d": {
+    "primary_job_id": "5dcd69b52b434506",
+    "fixture_id": "holdout-long-output",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "b045907c46e73eed": {
+    "primary_job_id": "a8c4da0794553782",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "79eeccb4c5cfb29a": {
+    "primary_job_id": "afe47ff91e3082a4",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "7e7c6b086bbbe910": {
+    "primary_job_id": "bd304a5cbbc8c897",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "c0d4d6d84afba81a": {
+    "primary_job_id": "ad85b7a297a2acf7",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "e128bc8a0f757c49": {
+    "primary_job_id": "295eb1975e84a301",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "9039550334b4b147": {
+    "primary_job_id": "4889794502c33c3d",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "57b5d379219180f7": {
+    "primary_job_id": "be5c4f98c2ce1724",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "909e6e53931e7972": {
+    "primary_job_id": "dbd519f1d1ebf5c4",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "fb01c0cfc42753b3": {
+    "primary_job_id": "1918941b484ba1b9",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "raw_tail",
+    "repetition": 2
+  },
+  "66857499e5dcfe16": {
+    "primary_job_id": "32e45ede00f9d91c",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "66db0939e67a8f37": {
+    "primary_job_id": "f323213a48ed2d89",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "735fcafb699655eb": {
+    "primary_job_id": "0235068408676b05",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "43f445af18ef2dc6": {
+    "primary_job_id": "a0574c1ae46c7d24",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "d2f0ae730f040c87": {
+    "primary_job_id": "5b9140c34fb5b8ce",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "ccc6605b22426497": {
+    "primary_job_id": "acf792cdd4af92c6",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "e7ce0e1b9442c206": {
+    "primary_job_id": "9ff50f5914f54fe4",
+    "fixture_id": "holdout-long-output",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "152b1f3ae0f333b6": {
+    "primary_job_id": "06f74c83f4d4961b",
+    "fixture_id": "holdout-long-output",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "960696f019e6bd92": {
+    "primary_job_id": "757c297441ffb9a8",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "458a6a105a7dfee7": {
+    "primary_job_id": "c9b2af83002e5bc3",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "8e6dec03dcc85292": {
+    "primary_job_id": "e5bd9926b4986f7d",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "raw_tail",
+    "repetition": 3
+  },
+  "8cf384e97fe4cbae": {
+    "primary_job_id": "57703135af7d42a6",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "1af021a82c17fbf1": {
+    "primary_job_id": "64c2c32e4ef9bbd1",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "c730d19e60607fa8": {
+    "primary_job_id": "0e06966dc611fbb5",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "5e5dd2854a314a1f": {
+    "primary_job_id": "5ee33a9d58dd41d3",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "16fae8c7b009ff40": {
+    "primary_job_id": "13025ab532bc2bef",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "d6f31f12efc23caa": {
+    "primary_job_id": "591e39867d34763c",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "0b460e55f2dba7d6": {
+    "primary_job_id": "bd226d10575f8304",
+    "fixture_id": "holdout-long-output",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "44e54ac9b087212b": {
+    "primary_job_id": "dceda1f8b86b834b",
+    "fixture_id": "holdout-recent-secret",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "abbb408fd09ddfa6": {
+    "primary_job_id": "4e654e2dbc402caa",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "cee8414fda4d0541": {
+    "primary_job_id": "5144c8d7837e1955",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "ca5cd8582a7b5364": {
+    "primary_job_id": "cbd47c46e2832b83",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "6b6548d6ca18c31b": {
+    "primary_job_id": "ec4ddec06ca76d6c",
+    "fixture_id": "holdout-file-decoys",
+    "variant": "exact3_prompt",
+    "repetition": 1
+  },
+  "e31cb1a6ba1da284": {
+    "primary_job_id": "4ebc614b2c94e50b",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "5d2f5655d791d602": {
+    "primary_job_id": "f83f9bbb8e833139",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "3beff2ca5316aeaf": {
+    "primary_job_id": "ba680fe00477dbf1",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "2b4c5fb4e32244a6": {
+    "primary_job_id": "415eafc5f464df27",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "exact3_prompt",
+    "repetition": 3
+  },
+  "522806f4e98ad2a4": {
+    "primary_job_id": "c1c7ceac8482f295",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "f0894326f8d76a6c": {
+    "primary_job_id": "5f5584dc154a5332",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "b6b02d4effa0a779": {
+    "primary_job_id": "d11fd41c9e403c51",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "67f8fd4d9c944e8c": {
+    "primary_job_id": "3461664bc25766c2",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "fa7f98464c38b5fd": {
+    "primary_job_id": "da9877647bb14a6a",
+    "fixture_id": "holdout-long-output",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "5bbaaeb0b32ab426": {
+    "primary_job_id": "b6e3217b2106e330",
+    "fixture_id": "holdout-long-output",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "d487d5850b31db03": {
+    "primary_job_id": "a13a45b24311893a",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "b5c6924b9280adc7": {
+    "primary_job_id": "c77301279455aa0c",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "raw_tail",
+    "repetition": 1
+  },
+  "5164ba9ee7bd4935": {
+    "primary_job_id": "3523c71eed8664a6",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "c86096f88c769d9d": {
+    "primary_job_id": "6908002b70145e07",
+    "fixture_id": "holdout-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "c160eb34b0a1651c": {
+    "primary_job_id": "37c19ad103468bfc",
+    "fixture_id": "holdout-temporal-conflict",
+    "variant": "exact3_prompt",
+    "repetition": 2
+  },
+  "c6315fc316b9ba4a": {
+    "primary_job_id": "1d414578919305a0",
+    "fixture_id": "holdout-command-sequence",
+    "variant": "raw_tail",
+    "repetition": 2
+  }
+}

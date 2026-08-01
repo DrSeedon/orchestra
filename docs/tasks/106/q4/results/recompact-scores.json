@@ -1,0 +1,1560 @@
+[
+  {
+    "job_id": "cf18aa9a8c0826fb",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "hot_state_ledger",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": true
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 10,
+          "exact_total": 10,
+          "exact_recall": 1.0,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2345,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 10,
+          "exact_recall": 0.9,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2384,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 10,
+          "exact_recall": 0.9,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2382,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "d26ef796f4600107",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "hot_state_ledger",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": true,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": true,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 9,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2053,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "h5-t2"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": true,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": true,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 9,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2169,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "h5-t2"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": true,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": true,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 9,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2433,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "h5-t2"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "dc91498e607ccf86",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "exact3_prompt",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 10,
+          "exact_recall": 0.9,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5223,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 10,
+          "exact_recall": 0.9,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6401,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 10,
+          "exact_recall": 0.9,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7022,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "1654b511e725e308",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 10,
+          "exact_recall": 0.9,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": false,
+            "Do not turn 0/80 into proof that false rollback is impossible.": false,
+            "Next action: replay the seven missing checksum fixtures before editing code.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6646,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": true,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 9,
+          "exact_total": 10,
+          "exact_recall": 0.9,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": false,
+            "Do not turn 0/80 into proof that false rollback is impossible.": false,
+            "Next action: replay the seven missing checksum fixtures before editing code.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7887,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": false,
+              "warnings page the owner": true,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 10,
+          "exact_recall": 0.8,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": false,
+            "Do not turn 0/80 into proof that false rollback is impossible.": false,
+            "Next action: replay the seven missing checksum fixtures before editing code.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 9222,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "801926ebf8d7311c",
+    "fixture_id": "holdout-reversal-rollback",
+    "variant": "raw_tail",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": false,
+              "warnings page the owner": false,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 10,
+          "exact_recall": 0.7,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5044,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/rollback-policy-1.4.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": false,
+              "warnings page the owner": false,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 10,
+          "exact_recall": 0.7,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5895,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 1.4": true,
+              "No code or release state has changed": false
+            },
+            "decisions": {
+              "automatic rollback only on checksum mismatch": false,
+              "warnings page the owner": false,
+              "provisional": true
+            },
+            "commands": {
+              "false_rollbacks=9/80": true,
+              "false_rollbacks=0/80": true,
+              "checksum_cases=3": true,
+              "coverage=partial": true
+            },
+            "pending": {
+              "replay the seven missing checksum fixtures": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 10,
+          "exact_recall": 0.7,
+          "recent": {
+            "Keep “provisional” because checksum coverage is partial.": true,
+            "Do not turn 0/80 into proof that false rollback is impossible.": true,
+            "Next action: replay the seven missing checksum fixtures before editing code.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the seven missing checksum fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5920,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "false rollback is impossible"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "3125846d921ad858",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": false,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 9,
+          "exact_recall": 0.5555555555555556,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": false,
+            "Preserve that dry-run deleted=0 and found candidates=27.": false,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5249,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-h5-t2-status.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-h5-t2-status.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": false,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 9,
+          "exact_recall": 0.5555555555555556,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": false,
+            "Preserve that dry-run deleted=0 and found candidates=27.": false,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7378,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-h5-t2-status.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-h5-t2-status.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": false,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 9,
+          "exact_recall": 0.5555555555555556,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": false,
+            "Preserve that dry-run deleted=0 and found candidates=27.": false,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 8330,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-h5-t2-status.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-h5-t2-status.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "0eacc785ffdbc466",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "raw_tail",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": false
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 6,
+          "exact_total": 9,
+          "exact_recall": 0.6666666666666666,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4756,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 9,
+          "exact_recall": 0.7777777777777778,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5630,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 9,
+          "exact_recall": 0.7777777777777778,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5865,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "87e9efb272a8e184",
+    "fixture_id": "holdout-tool-gap",
+    "variant": "exact3_prompt",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 9,
+          "exact_recall": 0.7777777777777778,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4308,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 9,
+          "exact_recall": 0.7777777777777778,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6666,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "commands": {
+              "id=h5-t1": false,
+              "exit=0": true,
+              "candidates=27": true,
+              "deleted=0": true,
+              "id=h5-t2": true,
+              "result is missing": true,
+              "id=h5-t3": false,
+              "status=not_found": true
+            },
+            "pending": {
+              "query the cleanup job by id=h5-t2": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 9,
+          "exact_recall": 0.7777777777777778,
+          "recent": {
+            "Do not call h5-t2 successful; its result is missing.": true,
+            "Preserve that dry-run deleted=0 and found candidates=27.": true,
+            "Next action: query the cleanup job by id=h5-t2 before retrying.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "query the cleanup job by id=h5-t2": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7136,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/cleanup-verification.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  }
+]
