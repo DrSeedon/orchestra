@@ -1,0 +1,20 @@
+{
+  "e38ce2ad3ae2c95d": {
+    "variant": "exact3_prompt",
+    "blind_variant": "8e2f0b7b8108bd4b",
+    "fixture_id": "dev-atomic-secret",
+    "repetition": 1
+  },
+  "e9d4eacdf9d85d92": {
+    "variant": "raw_tail",
+    "blind_variant": "2532d0b692cb1453",
+    "fixture_id": "dev-atomic-secret",
+    "repetition": 1
+  },
+  "c9bbd38a0d70270d": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "1a75e5eaa4725325",
+    "fixture_id": "dev-atomic-secret",
+    "repetition": 1
+  }
+}
