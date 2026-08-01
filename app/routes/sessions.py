@@ -665,127 +665,424 @@ async def delete_session(name: str, scope: str, force: bool = False):
     return {"ok": True}
 
 
-@router.post("/api/sessions/{name}/merge")
-async def merge_session(name: str, req: dict):
-    from app.workspace import merge_worktree_to_main
+def _merge_not_reached(
+    error: str,
+    *,
+    target_branch: str = "",
+    worker_branch: str = "",
+    worker_head: str = "",
+    http_status: int = 400,
+) -> dict:
+    return {
+        "ok": False,
+        "state": "failed",
+        "commit_point": "not_reached",
+        "error": error or "merge rejected without an error detail",
+        "target_branch": target_branch,
+        "target_before": "",
+        "target_after": "",
+        "worker_branch": worker_branch,
+        "worker_head": worker_head,
+        "conflicts": [],
+        "_http_status": http_status,
+    }
+
+
+async def _persist_lifecycle_quarantine(
+    session,
+    *,
+    branch: str,
+    base_branch: str,
+) -> dict:
+    """Persist a fail-closed lifecycle snapshot, retrying one transient failure."""
+    errors: list[str] = []
+    for _attempt in range(2):
+        session.branch = branch
+        session.base_branch = base_branch
+        session.task_id = ""
+        session.needs_switch = True
+        try:
+            await manager.persist_lifecycle(
+                session,
+                branch=branch,
+                base_branch=base_branch,
+                task_id="",
+                needs_switch=True,
+            )
+        except Exception as error:
+            errors.append(str(error) or type(error).__name__)
+            continue
+        status = {"ok": True}
+        if errors:
+            status.update(recovered=True, warning="; ".join(errors))
+        return status
+    return {
+        "ok": False,
+        "error": "; ".join(errors) or "lifecycle quarantine persistence failed",
+    }
+
+
+async def execute_merge_session(
+    *,
+    session_id: str,
+    expected_name: str,
+    expected_scope: str,
+    expected_branch: str,
+    expected_head: str,
+    req: dict,
+) -> dict:
+    """Execute a merge for one pinned session identity and own its lock sequence."""
     from app import tm as _tm
-    scope = req.get("scope", "")
+    from app.db import get_session
+    from app.workspace import (
+        inspect_worktree_identity,
+        merge_worktree_to_main,
+        switch_worktree_branch,
+    )
+
     requested_target = req.get("target", "")
     next_task_id = req.get("next_task_id", "")
-    found = manager.get_by_name(name, scope)
-    if not found:
-        return JSONResponse({"error": "not found"}, status_code=404)
-    worktree_path = found.worktree_path
-    scope = found.scope or scope
-    session_id = found.id
-    if not worktree_path:
-        return JSONResponse({"error": "session has no worktree"}, status_code=400)
-    if not scope:
-        return JSONResponse({"error": "session has no scope"}, status_code=400)
-    try:
-        target = _session_base_branch(found, requested_target)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+    expected_scope = expected_scope.rstrip("/")
+
     async with manager.get_session_lock(session_id):
+        row = await asyncio.to_thread(get_session, session_id)
+        if not row or row.get("status") == "archived":
+            return _merge_not_reached(
+                f"session '{session_id}' not found",
+                worker_branch=expected_branch,
+                worker_head=expected_head,
+                http_status=404,
+            )
+        row_scope = (row.get("scope") or "").rstrip("/")
+        row_branch = row.get("branch") or ""
+        if row.get("name") != expected_name or row_scope != expected_scope:
+            return _merge_not_reached(
+                "session identity changed before merge",
+                worker_branch=row_branch,
+                worker_head=expected_head,
+                http_status=409,
+            )
+        if expected_branch and row_branch != expected_branch:
+            return _merge_not_reached(
+                f"session branch changed before merge: expected {expected_branch}, found {row_branch}",
+                worker_branch=row_branch,
+                worker_head=expected_head,
+                http_status=409,
+            )
+
+        live = manager.get(session_id)
+        if live is not None and (
+            live.name != row["name"]
+            or live.scope.rstrip("/") != row_scope
+            or (live.branch or "") != row_branch
+        ):
+            return _merge_not_reached(
+                "loaded session disagrees with its durable identity",
+                worker_branch=live.branch or "",
+                worker_head=expected_head,
+                http_status=409,
+            )
+        found = live or manager._hydrate_row(row)
+        worktree_path = row.get("worktree_path") or ""
+        if not worktree_path:
+            return _merge_not_reached(
+                "session has no worktree", worker_branch=row_branch, http_status=400,
+            )
+        if not row_scope:
+            return _merge_not_reached(
+                "session has no scope", worker_branch=row_branch, http_status=400,
+            )
+
+        task_identity = None
+        project_id = ""
+        if next_task_id:
+            try:
+                task_identity = await asyncio.to_thread(
+                    _tm.resolve_scoped_task_identity, row_scope, next_task_id,
+                )
+            except ValueError as e:
+                return _merge_not_reached(
+                    str(e), worker_branch=row_branch, worker_head=expected_head,
+                    http_status=400,
+                )
+            project_id = task_identity["project_id"]
+        else:
+            def _project_for_scope() -> str:
+                with _tm._conn() as conn:
+                    project = _tm.get_project_by_scope(conn, row_scope)
+                return project["id"] if project else ""
+
+            project_id = await asyncio.to_thread(_project_for_scope)
+
+        pinned_head = expected_head
+        pinned_branch = expected_branch or row_branch
+        if not pinned_head:
+            try:
+                actual_branch, pinned_head = await asyncio.to_thread(
+                    inspect_worktree_identity, worktree_path,
+                )
+            except RuntimeError as e:
+                return _merge_not_reached(
+                    str(e), worker_branch=row_branch, http_status=400,
+                )
+            if pinned_branch and actual_branch != pinned_branch:
+                return _merge_not_reached(
+                    f"worker branch changed before merge: expected {pinned_branch}, found {actual_branch}",
+                    worker_branch=actual_branch,
+                    worker_head=pinned_head,
+                    http_status=409,
+                )
+            pinned_branch = actual_branch
+
+        try:
+            target = await asyncio.to_thread(
+                _session_base_branch, found, requested_target,
+            )
+        except ValueError as e:
+            return _merge_not_reached(
+                str(e), target_branch=requested_target,
+                worker_branch=pinned_branch, worker_head=pinned_head,
+                http_status=400,
+            )
+
         if not await _wait_for_merge_idle(found):
             status = found.status.value
-            return JSONResponse(
-                {"error": f"worker is {status} — wait for idle before merge"},
-                status_code=400,
+            return _merge_not_reached(
+                f"worker is {status} — wait for idle before merge",
+                target_branch=target, worker_branch=pinned_branch,
+                worker_head=pinned_head, http_status=400,
             )
+
+        current_row = await asyncio.to_thread(get_session, session_id)
+        if (
+            not current_row
+            or current_row.get("status") == "archived"
+            or current_row.get("name") != expected_name
+            or (current_row.get("scope") or "").rstrip("/") != row_scope
+            or (current_row.get("branch") or "") != row_branch
+        ):
+            return _merge_not_reached(
+                "session identity changed while waiting to merge",
+                target_branch=target, worker_branch=pinned_branch,
+                worker_head=pinned_head, http_status=409,
+            )
+
         async with AsyncExitStack() as stack:
             if found.loaded:
                 await stack.enter_async_context(found._lifecycle_lock)
                 if found.status.value != "idle":
-                    return JSONResponse(
-                        {
-                            "error": (
-                                f"worker is {found.status.value} — "
-                                "wait for idle before merge"
-                            )
-                        },
-                        status_code=400,
+                    return _merge_not_reached(
+                        f"worker is {found.status.value} — wait for idle before merge",
+                        target_branch=target, worker_branch=pinned_branch,
+                        worker_head=pinned_head, http_status=400,
                     )
             try:
-                result = await asyncio.to_thread(merge_worktree_to_main, worktree_path, scope, target_branch=target)
-                if result.get("ok"):
-                    link_results = {}
-                    with _tm._conn() as _lc:
-                        _proj = _tm.get_project_by_scope(_lc, scope)
-                    _link_project_id = _proj["id"] if _proj else ""
-                    for task_ref, commits in result.pop("merged_commits", {}).items():
-                        try:
-                            link_results[task_ref] = _tm.link_commits_to_task(task_ref, commits, project_id=_link_project_id)
-                        except Exception as link_err:
-                            logger.error("Failed to link commits to %s: %s", task_ref, link_err)
-                            link_results[task_ref] = {
-                                "ok": False,
-                                "added": 0,
-                                "error": str(link_err),
-                            }
-                    if link_results:
-                        result["linked_tasks"] = link_results
-                    # RAG: re-index project's .md + logs now that knowledge is "frozen" into main.
-                    # Fire-and-forget — merge must not fail if RAG is off/broken.
-                    from app import rag_service
-                    if rag_service.is_enabled():
-                        async def _rag_backfill(sc):
-                            try:
-                                await rag_service.backfill_scope(sc)
-                            except Exception as e:
-                                logger.warning(f"RAG backfill after merge failed for {sc}: {e}")
-                        asyncio.create_task(_rag_backfill(scope))
-                    await manager.persist_lifecycle(
-                        found,
-                        branch=result.get("branch") or getattr(found, "branch", "") or "",
-                        base_branch=target,
-                        task_id="",
-                        needs_switch=True,
-                    )
-                    if next_task_id:
-                        from app.workspace import switch_worktree_branch, _normalize_task_id
-                        par = _normalize_task_id(next_task_id)
-                        new_branch = f"task-{par}/{name}"
-                        switch_result = await asyncio.to_thread(
-                            switch_worktree_branch, worktree_path, new_branch, target, force=True)
-                        if switch_result.get("ok"):
-                            await manager.persist_lifecycle(
-                                found,
-                                branch=switch_result.get("branch", new_branch),
-                                base_branch=target,
-                                task_id=par,
-                                needs_switch=False,
-                            )
-                            try:
-                                _tm.api_update_task(par, status="in_progress")
-                            except Exception as e:
-                                logger.warning(f"task #{par} → in_progress failed after merge-switch: {e}")
-                        elif switch_result.get("state") == "rollback_failed":
-                            try:
-                                await manager.persist_lifecycle(
-                                    found,
-                                    branch=(
-                                        switch_result.get("actual_branch")
-                                        or getattr(found, "branch", "")
-                                        or ""
-                                    ),
-                                    base_branch=target,
-                                    task_id="",
-                                    needs_switch=True,
-                                )
-                            except Exception as persist_error:
-                                found.task_id = ""
-                                found.needs_switch = True
-                                switch_result["persistence_error"] = str(persist_error)
-                        result["switch"] = switch_result
-                return result
+                result = await asyncio.to_thread(
+                    merge_worktree_to_main,
+                    worktree_path,
+                    row_scope,
+                    target_branch=target,
+                    expected_worker_branch=pinned_branch,
+                    expected_worker_head=pinned_head,
+                )
             except Exception as e:
-                return JSONResponse({"error": str(e)}, status_code=500)
+                return {
+                    **_merge_not_reached(
+                        f"merge execution failed: {type(e).__name__}: {e}",
+                        target_branch=target,
+                        worker_branch=pinned_branch,
+                        worker_head=pinned_head,
+                        http_status=500,
+                    ),
+                    "state": "partial",
+                    "commit_point": "unknown",
+                }
+
+            if not result.get("ok"):
+                return result
+
+            link_results = {}
+            for task_ref, commits in result.pop("merged_commits", {}).items():
+                if not project_id:
+                    link_results[task_ref] = {
+                        "ok": False,
+                        "added": 0,
+                        "error": f"scope '{row_scope}' has no task project",
+                    }
+                    continue
+                try:
+                    link_results[task_ref] = await asyncio.to_thread(
+                        _tm.link_commits_to_task,
+                        task_ref,
+                        commits,
+                        project_id,
+                    )
+                except Exception as link_err:
+                    logger.error("Failed to link commits to %s: %s", task_ref, link_err)
+                    detail = str(link_err) or type(link_err).__name__
+                    link_results[task_ref] = {
+                        "ok": False,
+                        "added": 0,
+                        "error": detail,
+                    }
+            if link_results:
+                result["linked_tasks"] = link_results
+
+            merged_branch = (
+                result.get("branch") or getattr(found, "branch", "") or ""
+            )
+            lifecycle_status = await _persist_lifecycle_quarantine(
+                found,
+                branch=merged_branch,
+                base_branch=target,
+            )
+            result["lifecycle_status"] = lifecycle_status
+            if not lifecycle_status["ok"]:
+                detail = lifecycle_status["error"]
+                if task_identity:
+                    result["switch"] = {
+                        "ok": False,
+                        "error": f"switch skipped: post-merge quarantine persistence failed: {detail}",
+                    }
+                    result["task_status"] = {
+                        "ok": False,
+                        "error": "task not updated because switch was skipped",
+                    }
+                return result
+
+            from app import rag_service
+            if rag_service.is_enabled():
+                async def _rag_backfill(sc):
+                    try:
+                        await rag_service.backfill_scope(sc)
+                    except Exception as e:
+                        logger.warning(f"RAG backfill after merge failed for {sc}: {e}")
+                asyncio.create_task(_rag_backfill(row_scope))
+
+            if task_identity:
+                par = str(task_identity["par_number"])
+                new_branch = f"task-{par}/{expected_name}"
+                try:
+                    switch_result = await asyncio.to_thread(
+                        switch_worktree_branch,
+                        worktree_path,
+                        new_branch,
+                        target,
+                        force=True,
+                    )
+                except Exception as switch_error:
+                    detail = str(switch_error) or type(switch_error).__name__
+                    switch_result = {
+                        "ok": False,
+                        "state": "failed",
+                        "error": f"branch switch failed: {detail}",
+                    }
+                if switch_result.get("ok"):
+                    switched_branch = switch_result.get("branch", new_branch)
+                    try:
+                        await manager.persist_lifecycle(
+                            found,
+                            branch=switched_branch,
+                            base_branch=target,
+                            task_id=par,
+                            needs_switch=False,
+                        )
+                    except Exception as persist_error:
+                        detail = str(persist_error) or type(persist_error).__name__
+                        switch_result = {
+                            **switch_result,
+                            "ok": False,
+                            "state": "persistence_failed",
+                            "error": (
+                                f"branch switched to {switched_branch}, but lifecycle "
+                                f"persistence failed: {detail}"
+                            ),
+                        }
+                        quarantine_status = await _persist_lifecycle_quarantine(
+                            found,
+                            branch=switched_branch,
+                            base_branch=target,
+                        )
+                        result["lifecycle_status"] = quarantine_status
+                        if not quarantine_status["ok"]:
+                            switch_result["persistence_error"] = (
+                                quarantine_status["error"]
+                            )
+                        result["task_status"] = {
+                            "ok": False,
+                            "error": "task not updated because switched lifecycle was not persisted",
+                        }
+                        result["switch"] = switch_result
+                        return result
+                    try:
+                        task_status = await asyncio.to_thread(
+                            _tm.api_update_task_if_current,
+                            task_identity,
+                            status="in_progress",
+                        )
+                    except Exception as task_error:
+                        detail = str(task_error) or type(task_error).__name__
+                        task_status = {"ok": False, "error": detail}
+                    if not task_status.get("ok"):
+                        quarantine_status = await _persist_lifecycle_quarantine(
+                            found,
+                            branch=switched_branch,
+                            base_branch=target,
+                        )
+                        result["lifecycle_status"] = quarantine_status
+                        task_status["quarantined"] = quarantine_status["ok"]
+                        if not quarantine_status["ok"]:
+                            task_status["quarantine_error"] = (
+                                quarantine_status["error"]
+                            )
+                    result["task_status"] = task_status
+                else:
+                    result["task_status"] = {
+                        "ok": False,
+                        "error": "task not updated because branch switch failed",
+                    }
+                    if switch_result.get("state") == "rollback_failed":
+                        quarantine_status = await _persist_lifecycle_quarantine(
+                            found,
+                            branch=(
+                                switch_result.get("actual_branch")
+                                or getattr(found, "branch", "")
+                                or ""
+                            ),
+                            base_branch=target,
+                        )
+                        result["lifecycle_status"] = quarantine_status
+                        if not quarantine_status["ok"]:
+                            switch_result["persistence_error"] = (
+                                quarantine_status["error"]
+                            )
+                result["switch"] = switch_result
+            return result
+
+
+@router.post("/api/sessions/{name}/merge")
+async def merge_session(name: str, req: dict):
+    scope = req.get("scope", "")
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    result = await execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope or scope,
+        expected_branch=getattr(found, "branch", "") or "",
+        expected_head="",
+        req=req,
+    )
+    status_code = result.pop("_http_status", None)
+    if status_code:
+        return JSONResponse(result, status_code=status_code)
+    return result
 
 
 @router.post("/api/sessions/{name}/switch-branch")
 async def switch_branch(name: str, req: dict):
-    from app.workspace import switch_worktree_branch, _normalize_task_id
+    from app.workspace import switch_worktree_branch
     from app import tm as _tm
     scope = req.get("scope", "")
     task_id = req.get("task_id", "")
@@ -794,13 +1091,17 @@ async def switch_branch(name: str, req: dict):
         return JSONResponse({"error": "task_id required"}, status_code=400)
     if not isinstance(force, bool):
         return JSONResponse({"error": "force must be a boolean"}, status_code=400)
-    try:
-        par = _normalize_task_id(task_id)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
+    scope = (getattr(found, "scope", "") or scope).rstrip("/")
+    try:
+        task_identity = await asyncio.to_thread(
+            _tm.resolve_scoped_task_identity, scope, task_id,
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    par = str(task_identity["par_number"])
     worktree_path = found.worktree_path
     session_id = found.id
     if not worktree_path:
@@ -851,30 +1152,76 @@ async def switch_branch(name: str, req: dict):
                     force=force,
                 )
                 if result.get("ok"):
-                    await manager.persist_lifecycle(
-                        found,
-                        branch=result.get("branch", new_branch),
-                        base_branch=from_ref,
-                        task_id=par,
-                        needs_switch=False,
-                    )
-                    try:
-                        _tm.api_update_task(par, status="in_progress")
-                    except Exception as e:
-                        logger.warning(f"task #{par} → in_progress failed after switch-branch: {e}")
-                elif result.get("state") == "rollback_failed":
+                    switched_branch = result.get("branch", new_branch)
                     try:
                         await manager.persist_lifecycle(
                             found,
-                            branch=result.get("actual_branch") or old_lifecycle["branch"],
+                            branch=switched_branch,
                             base_branch=from_ref,
-                            task_id="",
-                            needs_switch=True,
+                            task_id=par,
+                            needs_switch=False,
                         )
                     except Exception as persist_error:
-                        found.task_id = ""
-                        found.needs_switch = True
-                        result["persistence_error"] = str(persist_error)
+                        detail = str(persist_error) or type(persist_error).__name__
+                        result = {
+                            **result,
+                            "ok": False,
+                            "state": "persistence_failed",
+                            "error": (
+                                f"branch switched to {switched_branch}, but lifecycle "
+                                f"persistence failed: {detail}"
+                            ),
+                        }
+                        quarantine_status = await _persist_lifecycle_quarantine(
+                            found,
+                            branch=switched_branch,
+                            base_branch=from_ref,
+                        )
+                        if not quarantine_status["ok"]:
+                            result["persistence_error"] = quarantine_status["error"]
+                        result["task_status"] = {
+                            "ok": False,
+                            "error": "task not updated because switched lifecycle was not persisted",
+                        }
+                        return result
+                    try:
+                        result["task_status"] = await asyncio.to_thread(
+                            _tm.api_update_task_if_current,
+                            task_identity,
+                            status="in_progress",
+                        )
+                    except Exception as task_error:
+                        detail = str(task_error) or type(task_error).__name__
+                        result["task_status"] = {"ok": False, "error": detail}
+                    if not result["task_status"].get("ok"):
+                        quarantine_status = await _persist_lifecycle_quarantine(
+                            found,
+                            branch=switched_branch,
+                            base_branch=from_ref,
+                        )
+                        result["task_status"]["quarantined"] = (
+                            quarantine_status["ok"]
+                        )
+                        if not quarantine_status["ok"]:
+                            result["task_status"]["quarantine_error"] = (
+                                quarantine_status["error"]
+                            )
+                        result.update(
+                            ok=False,
+                            state="task_assignment_failed",
+                            error=(
+                                "branch switched, but task assignment failed: "
+                                f"{result['task_status']['error']}"
+                            ),
+                        )
+                elif result.get("state") == "rollback_failed":
+                    quarantine_status = await _persist_lifecycle_quarantine(
+                        found,
+                        branch=result.get("actual_branch") or old_lifecycle["branch"],
+                        base_branch=from_ref,
+                    )
+                    if not quarantine_status["ok"]:
+                        result["persistence_error"] = quarantine_status["error"]
                 else:
                     try:
                         await manager.persist_lifecycle(found, **old_lifecycle)

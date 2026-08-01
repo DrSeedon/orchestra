@@ -388,6 +388,34 @@ async def test_merge_worker_formats_normalized_and_legacy_link_results(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_merge_worker_reports_switch_failure_without_relabeling_merge(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+
+    async def fake_api(*_args, **_kwargs):
+        return {
+            "ok": True,
+            "commits_merged": 1,
+            "branch": "task-42/worker",
+            "switch": {"ok": False, "error": "target branch is busy"},
+            "task_status": {
+                "ok": False,
+                "error": "task not updated because branch switch failed",
+            },
+        }
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        output = await m.merge_worker(
+            name="worker", target="main", next_task_id="43",
+        )
+
+    assert output.startswith("Merged 1 commit from branch task-42/worker")
+    assert "switch failed: target branch is busy" in output
+    assert "Merge failed" not in output
+
+
+@pytest.mark.asyncio
 async def test_switch_and_wip_defaults_defer_to_persisted_base(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")

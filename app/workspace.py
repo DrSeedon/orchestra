@@ -891,8 +891,38 @@ def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None
         logger.info(f"_reset_worktree_to_ref: {wt} reset to {ref} ({target_sha[:8]})")
 
 
+def inspect_worktree_identity(worktree_path: str) -> tuple[str, str]:
+    """Return the current local branch and HEAD for later in-lock comparison."""
+    wt = Path(worktree_path).resolve()
+    try:
+        branch = _git_cmd(
+            ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+            cwd=str(wt), capture_output=True, text=True,
+        )
+    except OSError as e:
+        raise RuntimeError(f"cannot inspect worker branch: {type(e).__name__}: {e}") from e
+    if branch.returncode != 0:
+        detail = branch.stderr.strip() or branch.stdout.strip() or f"exit {branch.returncode}"
+        raise RuntimeError(f"cannot inspect worker branch: {detail}")
+    try:
+        head = _git_cmd(
+            ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
+        )
+    except OSError as e:
+        raise RuntimeError(f"cannot inspect worker HEAD: {type(e).__name__}: {e}") from e
+    if head.returncode != 0:
+        detail = head.stderr.strip() or head.stdout.strip() or f"exit {head.returncode}"
+        raise RuntimeError(f"cannot inspect worker HEAD: {detail}")
+    return branch.stdout.strip(), head.stdout.strip()
+
+
 def merge_worktree_to_main(
-    worktree_path: str, repo_path: str, target_branch: str = "",
+    worktree_path: str,
+    repo_path: str,
+    target_branch: str = "",
+    *,
+    expected_worker_branch: str = "",
+    expected_worker_head: str = "",
 ) -> MergeOutcome:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
@@ -916,15 +946,47 @@ def merge_worktree_to_main(
             )
             if worker_head_result.returncode == 0:
                 worker_head = worker_head_result.stdout.strip()
+                if expected_worker_head and worker_head != expected_worker_head:
+                    result = {
+                        "ok": False,
+                        "error": (
+                            "worker HEAD changed before merge: "
+                            f"expected {expected_worker_head}, found {worker_head}"
+                        ),
+                    }
+            else:
+                detail = (
+                    worker_head_result.stderr.strip()
+                    or worker_head_result.stdout.strip()
+                    or f"exit {worker_head_result.returncode}"
+                )
+                result = {"ok": False, "error": f"cannot resolve worker HEAD: {detail}"}
             branch_result = _git_cmd(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=str(wt), capture_output=True, text=True,
             )
             if branch_result.returncode != 0:
-                result = {"ok": False, "error": f"cannot get branch: {branch_result.stderr.strip()}"}
+                if result is None:
+                    result = {
+                        "ok": False,
+                        "error": f"cannot get branch: {branch_result.stderr.strip()}",
+                    }
             else:
                 branch = branch_result.stdout.strip()
                 worker_branch = branch
+                if (
+                    result is None
+                    and expected_worker_branch
+                    and branch != expected_worker_branch
+                ):
+                    result = {
+                        "ok": False,
+                        "error": (
+                            "worker branch changed before merge: "
+                            f"expected {expected_worker_branch}, found {branch}"
+                        ),
+                    }
+            if result is None:
                 child_error = _clean_worktree_error(wt, "worker")
                 if child_error:
                     result = {"ok": False, "error": child_error}
