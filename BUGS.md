@@ -334,3 +334,8 @@ Project seedon, worker feat-attribution, task #180: three consecutive triggered 
 - **Reporter:** research-memory
 - **Scope:** /mnt/data/Projects/Python/orchestra
 In task #113 Phase 2, command `git status ... && rg -n \"...|shutdown|...\" app/...` was rejected as `Blocked host shutdown/reboot command` solely because the regex contained the word `shutdown`. No shutdown command was present. This blocks legitimate source inspection; guard should parse command position/subcommand rather than substring-match grep patterns.
+
+## [2026-08-01 09:27 UTC] Codex review times out repeatedly and attempts prohibited git SSH
+- **Reporter:** feat-remove-ip-api
+- **Scope:** /mnt/data/Projects/Python/seedon
+Task #167/#186 in seedon-site. mcp__orchestra__codex_review bg-a8d0bd916f timed out after 10 minutes without writing docs/tasks/167/codex-review-integration.md despite completing equivalence checks. Same-session resume bg-282b5a83a6 also timed out and executed `git ls-remote --heads origin` even though the review context and user gate explicitly prohibited push/deploy/SSH. The command failed locally before contacting the remote (`Bad owner or permissions on /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf`), so no remote read/mutation occurred. Review should honor no-SSH constraints and emit a verdict before watchdog after evidence is already gathered.
