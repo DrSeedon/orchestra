@@ -1,0 +1,12 @@
+{
+  "inspected_at": "2026-08-01T17:22:09+07:00",
+  "actual_candidates_inspected_visually": 3,
+  "fixture": "holdout-recent-secret",
+  "all_batches_checked_deterministically": 8,
+  "all_candidates_checked_deterministically": 96,
+  "measured_workspace_diff_field_present": 96,
+  "empty_diff_rendered_explicitly": true,
+  "variant_name_leaks": 0,
+  "unchanged_file_treated_as_read_evidence": false,
+  "decision": "Judge input contains each candidate's own measured before/after diff under an opaque ID. Full blinded judge runs may proceed."
+}
