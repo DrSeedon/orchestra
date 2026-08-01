@@ -123,7 +123,7 @@ def _workers_block(scope: str, orchestrator_name: str = "") -> str:
             return f"- **{n}** — {model} | {status} | ctx:{ctx}%{desc_part}{owner_part}"
 
         lines = ["## Your current workers",
-                 "These workers exist in your project. Reuse idle ones instead of spawning new. Kill workers you no longer need (one-shot tasks done, wrong role, duplicate)."]
+                 "These workers exist in your project. Reuse idle ones instead of spawning new; lifecycle and kill decisions follow the orchestration Kill gate."]
         for w in mine:
             lines.append(_fmt(w))
 

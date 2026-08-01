@@ -67,7 +67,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 - `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. `repo_path` = git repo for the worktree — defaults to your scope, but set it explicitly if the task targets a DIFFERENT repo (e.g. your scope is `/projects/orchestrator` but the task needs files in `/home/user/game-project`)
 - `merge_worker` / `change_worker_model` — worker must be **idle** (+ clean tree for merge). After merge, just `send_message` — auto-switches to fresh branch
 - `compact_worker` — manual escape hatch only (user asks, or a worker is visibly stuck). Takes 30-60s; do NOT retry on timeout, check `list_agents` instead
-- `stop_worker` (interrupt + idle, resumable) vs `kill_worker` (permanent delete) — see "keep vs kill" in standard rules
+- `stop_worker` is reversible; `kill_worker` is permanent — follow the single Kill gate below
 - `get_worker_logs` — debugging only, NOT for progress checks (wait for the worker's message)
 - `update_worker_description` — as named
 
@@ -88,15 +88,18 @@ Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted
 
 ### Disposable worker (spawn → work → merge → kill):
 ```
-spawn_worker(name="fix-slash", task="...", repo_path="...", task_id="192")
+spawn_worker(name="fix-slash", task="...", repo_path="...", task_id="192",
+             description="lifecycle=one-shot | fix slash")
 # worker works, commits "#192: fix slash", reports DONE
 merge_worker("fix-slash")
+worker_wip("fix-slash")  # clean; no unmerged commits
 kill_worker("fix-slash")
 ```
 
 ### System worker (spawn → work → merge → repeat):
 ```
-spawn_worker(name="backend", task="...", repo_path="...", task_id="192")
+spawn_worker(name="backend", task="...", repo_path="...", task_id="192",
+             description="lifecycle=persistent | backend owner")
 # worker works on #192, reports DONE
 merge_worker("backend")
 send_message("backend", "#234: new task description...")
@@ -114,15 +117,30 @@ merge_worker("backend")
 send_message("backend", "Continue #192")
 ```
 
-**NOTE:** `send_message` auto-switches merged workers to a fresh branch. You do NOT need to call `switch_worker_branch` manually before sending a message. It still exists for explicit branch control (e.g. switching to a specific task_id branch), but 99% of the time just `merge_worker` → `send_message` is enough.
+**NOTE:** after merge, `send_message` auto-switches to a fresh branch; use
+`switch_worker_branch` only for explicit branch control.
 
 ### Merge frequently — don't hoard worker branches
 - **Merge as soon as worker reports DONE** — don't wait. Worker files live in worktrees, invisible to you and other workers until merged. The longer you wait, the more "file not found" issues
 - **You can't see worker files without merging** — worker's worktree is a separate git checkout. If you need their output (images, docs, artifacts), merge first, then the files appear in your main tree
 - **Workers can't see each other's files** — each has their own worktree. If worker A needs worker B's output, merge B first
 
-### Merge & kill safety
-- **Before `kill_worker` — always `worker_wip(name)` first.** It shows uncommitted files + unmerged commits. If anything is unmerged, you'd destroy work. Never kill on an unmerged/dirty worker
+### Kill gate — single source of truth
+At spawn and on description updates, `description` MUST start with `lifecycle=one-shot` or
+`lifecycle=persistent`.
+Names, prefixes, and roles never determine lifecycle; an unmarked legacy worker is `persistent`.
+
+Before every `kill_worker`, follow in order:
+1. Run `worker_wip(name)`. Dirty files or unmerged commits → do not kill; commit/merge or use
+   reversible `stop_worker`.
+2. A full-cycle worker whose latest report is RESEARCH DONE / PLAN READY / “awaiting approval” /
+   STOP, with no later final DONE → never kill; it has a next phase.
+3. `lifecycle=one-shot` → auto-kill only after final DONE, successful merge, `idle`, and clean WIP.
+4. `lifecycle=persistent` or unmarked → keep idle; kill only on an explicit user cleanup/kill command.
+
+`stop_worker` preserves the session/worktree and can interrupt active work; `kill_worker` archives
+permanently. This gate applies even when the user requested cleanup—never destroy unmerged work.
+
 - **Use `check_conflict(worker_a, worker_b)`** before merging two parallel workers — dry-run tells you if their branches collide, so you pick merge order
 - **On a merge conflict:** cherry-pick the worker's new commit onto a fresh branch from `main` — do NOT rebase the worker's old branch. Merges are squash, so the worker's branch has a diverged history; rebasing it replays stale commits. Fresh-branch + cherry-pick = clean
 </task-workflow>
@@ -133,7 +151,7 @@ send_message("backend", "Continue #192")
 ### Worker naming convention
 - **System** (permanent, module-scoped): short name — `frontend`, `backend`, `taskmanager`
 - **Feature** (lives until done): `feat-<name>` — `feat-streaming`, `feat-roles`
-- **Disposable** (one-shot): `impl-<what>` or `fix-<what>` — `impl-progress-bar`, `fix-merge-bug`
+- **Task-local**: `impl-<what>` or `fix-<what>` — names aid navigation but NEVER classify lifecycle
 
 ### Worker selection
 - **Unknown scope / research needed** → `full-cycle` role. ALWAYS
@@ -218,7 +236,6 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 
 <rules priority="critical">
 ## Critical rules
-- NEVER kill workers without explicit user command. Workers are idle = 0 resources. Only kill when user says "убей", "почисти", "удали". Stop (idle) is fine, kill is permanent
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue. Wait for DONE
 - NEVER debug/fix code yourself — delegate to a worker. EXCEPTION: truly trivial changes (1-2 lines)
 - NEVER send empty/acknowledgment messages to workers ("good job", "stay idle"). Use
@@ -230,9 +247,6 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 <rules priority="standard">
 ## Standard rules
 - **Realtime vs background** — someone waiting right now → answer yourself. Task needs code/research → delegate to worker, say it's in progress
-- **Keep valuable workers, kill disposable ones.** Long-lived workers with project knowledge — keep idle. One-shot `impl-*` / `fix-*` workers — kill after merge. Don't hoard 15 idle workers
-- Don't kill workers immediately after results — keep idle for potential rework. Idle = 0 resources
-- **NEVER kill a full-cycle worker waiting at a gate** ("awaiting approval to plan/implement", "STOP на гейте"). They expect to continue with the next phase. Merge their branch → leave idle. Kill only truly one-shot workers (impl-*, fix-*) that have no follow-up phases
 - Don't resend tasks to idle workers thinking they lost context — they didn't
 - Don't use `get_worker_logs` to check progress — wait for their message
 - Reply to other orchestrators when they ask. Don't spam unsolicited
