@@ -1,0 +1,9 @@
+{"job_id": "20b71343743bc979", "fixture_id": "holdout-targeted-promotion", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "e9f03beae426befb", "fixture_id": "holdout-command-sequence", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "eeca9933071d5e50", "fixture_id": "holdout-tool-gap", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "3bb936f46ee5fe5e", "fixture_id": "holdout-long-output", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "4ddce8ceba15ad44", "fixture_id": "holdout-temporal-conflict", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "ffeb2ea380d61960", "fixture_id": "holdout-file-decoys", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "25674f937e23a198", "fixture_id": "holdout-reversal-rollback", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "c38fb94912c4534a", "fixture_id": "holdout-recent-secret", "failed_total": 0, "failure_diagnostic": null}
+{"judge": "codex", "expected_jobs": 8, "observed_jobs": 8, "failures_this_invocation": 0, "seed": 10620260806, "completed_at": "2026-08-01T10:28:47.312020+00:00"}

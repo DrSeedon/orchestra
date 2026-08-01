@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>#106 Q4 — Структурное сжатие контекста</title>
+  <style>
+    :root {
+      --bg: #0b0f14; --surface: #111820; --surface-2: #17212b; --line: #2b3947;
+      --text: #eaf1f7; --muted: #9fb0bf; --blue: #6db5ff; --cyan: #65d6d0;
+      --green: #80d99c; --amber: #f0bf69; --red: #ff8585; --violet: #bc9cff;
+      --max: 1180px; --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, sans-serif; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+    code { color: var(--cyan); font-size: .92em; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 940px; font-size: clamp(2.25rem, 5.8vw, 5rem); line-height: .98; letter-spacing: -.05em; margin-bottom: 22px; }
+    h2 { font-size: clamp(1.55rem, 3vw, 2.4rem); letter-spacing: -.03em; margin-bottom: 9px; }
+    h3 { font-size: 1rem; }
+    .wrap { width: min(var(--max), calc(100% - 34px)); margin: 0 auto; }
+    .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+    .muted { color: var(--muted); }
+    header { padding: 66px 0 38px; border-bottom: 1px solid var(--line); }
+    header .lede { max-width: 870px; color: var(--muted); font-size: 19px; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 25px 0 34px; }
+    nav a { border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; color: var(--muted); text-decoration: none; }
+    nav a:hover { border-color: var(--blue); color: var(--text); }
+    section { padding: 54px 0; border-bottom: 1px solid var(--line); }
+    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 26px; }
+    .section-head p { max-width: 610px; margin-bottom: 0; color: var(--muted); }
+    .decision-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .decision { background: var(--surface); padding: 23px; min-height: 185px; }
+    .decision strong { display: block; font-size: 24px; line-height: 1.12; margin: 9px 0 11px; }
+    .decision p { color: var(--muted); margin: 0; }
+    .status { display: inline-block; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; }
+    .status.go { color: var(--green); background: color-mix(in srgb, var(--green) 15%, transparent); }
+    .status.no { color: var(--red); background: color-mix(in srgb, var(--red) 15%, transparent); }
+    .status.wait { color: var(--amber); background: color-mix(in srgb, var(--amber) 15%, transparent); }
+    .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 21px; }
+    .metrics-layout { display: grid; grid-template-columns: 1.15fr .85fr; gap: 20px; }
+    .metric { display: grid; grid-template-columns: 150px 1fr 72px; align-items: center; gap: 10px; margin: 12px 0; }
+    .track { height: 13px; overflow: hidden; background: var(--surface-2); border-radius: 999px; }
+    .fill { display: block; width: var(--value); height: 100%; background: var(--tone); border-radius: inherit; }
+    .metric b { color: var(--tone); text-align: right; }
+    .legend { display: flex; flex-wrap: wrap; gap: 13px; margin: 11px 0 20px; color: var(--muted); font-size: 12px; }
+    .legend i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; background: var(--tone); border-radius: 2px; }
+    .hero-number { font-size: clamp(3.2rem, 8vw, 6.2rem); line-height: .92; letter-spacing: -.07em; font-weight: 900; color: var(--green); margin: 24px 0 12px; }
+    .callout { margin-top: 19px; border-left: 4px solid var(--amber); background: color-mix(in srgb, var(--amber) 7%, var(--surface)); padding: 16px 18px; }
+    .callout.bad { border-color: var(--red); background: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+    .callout.good { border-color: var(--green); background: color-mix(in srgb, var(--green) 7%, var(--surface)); }
+    .callout p:last-child { margin-bottom: 0; }
+    .ci-chart { width: 100%; display: block; min-height: 248px; }
+    .ci-chart text { fill: var(--muted); font-family: inherit; font-size: 13px; }
+    .ci-chart .label { fill: var(--text); font-weight: 750; }
+    .ci-chart .axis { stroke: var(--line); }
+    .ci-chart .zero { stroke: var(--muted); stroke-dasharray: 4 5; }
+    .ci-chart .threshold { stroke: var(--red); stroke-dasharray: 2 4; }
+    .ci-chart .ci { stroke-width: 4; stroke-linecap: round; }
+    .ci-chart .point { stroke: var(--bg); stroke-width: 2; }
+    .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; min-width: 790px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--surface-2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: color-mix(in srgb, var(--blue) 5%, transparent); }
+    .yes { color: var(--green); font-weight: 850; }
+    .nope { color: var(--red); font-weight: 850; }
+    .partial { color: var(--amber); font-weight: 850; }
+    .candidate-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); border-radius: var(--radius); overflow: hidden; }
+    .candidate { padding: 18px; background: var(--surface); }
+    .candidate h3 { margin-bottom: 7px; }
+    .candidate p { color: var(--muted); margin-bottom: 0; }
+    .candidate .mark { font: 850 12px/1 ui-monospace, monospace; color: var(--tone); }
+    .world-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px; }
+    .mechanisms { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); border-radius: var(--radius); overflow: hidden; }
+    .mechanisms article { background: var(--surface); padding: 18px; }
+    .mechanisms strong { display: block; margin-bottom: 5px; }
+    .mechanisms p { color: var(--muted); margin: 0; }
+    .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 12px; align-items: stretch; }
+    .step { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 18px; }
+    .step b { color: var(--cyan); display: block; margin-bottom: 5px; }
+    .arrow { align-self: center; color: var(--cyan); font-size: 22px; }
+    .fine { color: var(--muted); font-size: 12px; }
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 14px 0; font-weight: 750; }
+    details div { padding: 0 0 17px 20px; color: var(--muted); max-width: 930px; }
+    footer { padding: 34px 0 56px; color: var(--muted); }
+    .footer-grid { display: flex; justify-content: space-between; gap: 22px; }
+    .links { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+    @media (max-width: 900px) {
+      .decision-grid, .metrics-layout, .world-grid { grid-template-columns: 1fr; }
+      .candidate-grid { grid-template-columns: 1fr 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); justify-self: center; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 8px; }
+    }
+    @media (max-width: 590px) {
+      header { padding-top: 40px; }
+      section { padding: 40px 0; }
+      h1 { font-size: 2rem; line-height: 1.04; letter-spacing: -.035em; }
+      header .lede { font-size: 16px; }
+      .eyebrow { font-size: 10px; letter-spacing: .11em; }
+      .decision { min-height: auto; }
+      .candidate-grid, .mechanisms { grid-template-columns: 1fr; }
+      .metric { grid-template-columns: 112px 1fr 58px; font-size: 12px; }
+      .footer-grid { display: block; }
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f6f8fb; --surface: #fff; --surface-2: #edf2f7; --line: #ced8e2; --text: #16212d; --muted: #526474; --blue: #1769aa; --cyan: #087f78; --green: #187941; --amber: #9b5b00; --red: #b53838; --violet: #6849aa; }
+    }
+    @media print { nav { display: none; } section { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="eyebrow">Orchestra · Research #106 Q4 · exact corpus non-overlap · 01.08.2026</div>
+      <h1>Свежесть починили. Доказательство внедрения — нет.</h1>
+      <p class="lede"><strong>Typed hot state + raw tail + ledgers</strong> дал лучшие point estimates: exact 87.8%, last-3 100%, pending 100%, в 2.5 раза короче current и без наблюдаемых лишних записей. Но pre-registered exact CI допускает потерю 3.81 pp при лимите 2 pp, а один side-effect sub-gate не был реализован. Поэтому лидер исследования — да; production winner — нет.</p>
+      <nav aria-label="Навигация">
+        <a href="#verdict">Вердикт</a>
+        <a href="#numbers">Цифры</a>
+        <a href="#gates">Гейты</a>
+        <a href="#candidates">Кандидаты</a>
+        <a href="#world">Внешний контекст</a>
+        <a href="#next">Следующий тест</a>
+      </nav>
+      <div class="decision-grid" id="verdict">
+        <article class="decision">
+          <span class="status go">Дефект исправлен</span>
+          <strong>31.9% → 100%</strong>
+          <p>Last-three exact у структурных кандидатов. Paired gain: +68.1 pp, CI [+48.6, +86.1].</p>
+        </article>
+        <article class="decision">
+          <span class="status wait">Лучший кандидат</span>
+          <strong><code>hot_state_ledger</code></strong>
+          <p>Exact +8.45 pp по точке, 0 утечек из 3 exposures, 0 unrelated changes, медиана 2,371 B.</p>
+        </article>
+        <article class="decision">
+          <span class="status no">NO-GO</span>
+          <strong>6 из 8 гейтов</strong>
+          <p>Exact CI пересёк порог −2 pp; проверка false claims из unchanged file не была реализована. Production не меняем.</p>
+        </article>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="numbers">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">Нулевой exact overlap с #106</div><h2>Кто выиграл по точке</h2></div>
+          <p>96 выходов: четыре варианта × восемь новых fixture-кластеров × три генерации. Интервалы — 95% paired fixture-cluster bootstrap, 20,000 resamples.</p>
+        </div>
+        <div class="metrics-layout">
+          <div class="panel">
+            <h3>Recall, %</h3>
+            <div class="legend">
+              <span><i style="--tone:var(--blue)"></i>Current</span>
+              <span><i style="--tone:var(--amber)"></i>Exact wording</span>
+              <span><i style="--tone:var(--cyan)"></i>Raw user tail</span>
+              <span><i style="--tone:var(--green)"></i>Hot state + ledgers</span>
+            </div>
+            <p class="fine">Critical exact</p>
+            <div class="metric" style="--tone:var(--blue);--value:79.3%"><span>Current</span><span class="track"><i class="fill"></i></span><b>79.3</b></div>
+            <div class="metric" style="--tone:var(--amber);--value:75.6%"><span>Exact wording</span><span class="track"><i class="fill"></i></span><b>75.6</b></div>
+            <div class="metric" style="--tone:var(--cyan);--value:73.7%"><span>Raw user tail</span><span class="track"><i class="fill"></i></span><b>73.7</b></div>
+            <div class="metric" style="--tone:var(--green);--value:87.8%"><span>Hot + ledgers</span><span class="track"><i class="fill"></i></span><b>87.8</b></div>
+            <p class="fine" style="margin-top:25px">Last-three exact</p>
+            <div class="metric" style="--tone:var(--blue);--value:31.9%"><span>Current</span><span class="track"><i class="fill"></i></span><b>31.9</b></div>
+            <div class="metric" style="--tone:var(--amber);--value:91.7%"><span>Exact wording</span><span class="track"><i class="fill"></i></span><b>91.7</b></div>
+            <div class="metric" style="--tone:var(--cyan);--value:100%"><span>Raw user tail</span><span class="track"><i class="fill"></i></span><b>100</b></div>
+            <div class="metric" style="--tone:var(--green);--value:100%"><span>Hot + ledgers</span><span class="track"><i class="fill"></i></span><b>100</b></div>
+          </div>
+          <aside class="panel">
+            <span class="status go">Измеренный лидер</span>
+            <div class="hero-number">2,371 B</div>
+            <p>Медиана финального handoff у hot-state против <strong>5,862 B</strong> у current: меньше на 59.6%.</p>
+            <div class="callout good"><p><strong>G3:</strong> hot-state удержал exact 94.7% и recent 100% при 2,408 B. Current: exact 68.4%, recent 0%, 8,776 B.</p></div>
+            <div class="callout bad"><p><strong>Secret sample мал:</strong> 0/3 у hot-state даёт conditional per-generation upper bound 70.8% только для одного transcript при IID-допущении, а не общий риск.</p></div>
+          </aside>
+        </div>
+
+        <div class="panel" style="margin-top:20px">
+          <h3>Разница critical exact против current, percentage points</h3>
+          <p class="muted">Точка hot-state справа от нуля, но левый край CI ушёл ниже разрешённых −2 pp.</p>
+          <svg class="ci-chart" viewBox="0 0 900 248" role="img" aria-label="Парные разницы exact recall и 95% доверительные интервалы">
+            <line class="axis" x1="190" y1="205" x2="850" y2="205"/>
+            <line class="zero" x1="310" y1="28" x2="310" y2="210"/><text x="302" y="229">0</text>
+            <line class="threshold" x1="298" y1="28" x2="298" y2="210"/><text fill="var(--red)" x="250" y="22">gate −2 pp</text>
+            <text x="184" y="229">−20</text><text x="424" y="229">+20</text><text x="664" y="229">+60</text><text x="830" y="229">+90</text>
+            <text class="label" x="8" y="67">Exact wording</text>
+            <line class="ci" stroke="var(--amber)" x1="238" y1="63" x2="334" y2="63"/><circle class="point" fill="var(--amber)" cx="287" cy="63" r="7"/><text x="345" y="68">−3.76 [−11.94, +3.92]</text>
+            <text class="label" x="8" y="119">Raw user tail</text>
+            <line class="ci" stroke="var(--cyan)" x1="222" y1="115" x2="327" y2="115"/><circle class="point" fill="var(--cyan)" cx="276" cy="115" r="7"/><text x="345" y="120">−5.63 [−14.71, +2.82]</text>
+            <text class="label" x="8" y="171">Hot + ledgers</text>
+            <line class="ci" stroke="var(--green)" x1="287" y1="167" x2="431" y2="167"/><circle class="point" fill="var(--green)" cx="361" cy="167" r="7"/><text x="445" y="172">+8.45 [−3.81, +20.19]</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section id="gates">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">Предрегистрация</div><h2>Победа по графику не отменяет гейт</h2></div>
+          <p>Критерии записаны до генераций. Порог нельзя ослабить после того, как понравился point estimate.</p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Locked gate</th><th>Exact wording</th><th>Raw user tail</th><th>Hot state + ledgers</th></tr></thead>
+            <tbody>
+              <tr><td>Recent repair</td><td class="yes">Pass</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
+              <tr><td>Critical exact non-inferiority</td><td class="nope">Fail</td><td class="nope">Fail</td><td class="nope">Fail</td></tr>
+              <tr><td>Pending non-inferiority</td><td class="yes">Pass</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
+              <tr><td>Zero observed fake-secret leaks</td><td class="nope">Fail 3/3</td><td class="nope">Fail 2/3</td><td class="yes">Pass 0/3</td></tr>
+              <tr><td>Ledger + side effects</td><td class="nope">Incomplete / fail</td><td class="nope">Incomplete / fail</td><td class="nope">Incomplete / fail</td></tr>
+              <tr><td>≤125% current bytes</td><td class="yes">Pass</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
+              <tr><td>Unsupported co-flags ≤current</td><td class="nope">Fail</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
+              <tr><td>Generation-three detector</td><td class="yes">Pass</td><td class="yes">Pass</td><td class="yes">Pass</td></tr>
+              <tr><td><strong>Итого</strong></td><td class="nope">NO-GO</td><td class="nope">NO-GO</td><td class="partial">NO-GO · 6/8</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout"><p><strong>Судьи не стали арбитром истины:</strong> agreement по unsupported claims 51.0%, κ=0.083. Co-flag hot-state 0/24 выглядит хорошо, но низкая согласованность не позволяет объявить factuality доказанной.</p></div>
+      </div>
+    </section>
+
+    <section id="candidates">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">Что именно проверили</div><h2>От текста к структуре</h2></div>
+          <p>Чем правее, тем меньше fidelity доверено одной генерации.</p>
+        </div>
+        <div class="candidate-grid">
+          <article class="candidate" style="--tone:var(--blue)"><span class="mark">BASELINE</span><h3>Current</h3><p>Подробный generated summary, «last 5–10 in detail», общий pre-save в четыре вида файлов.</p></article>
+          <article class="candidate" style="--tone:var(--amber)"><span class="mark">PROMPT ONLY</span><h3>Exact wording</h3><p>Меняется одна строка: последние три сообщения дословно. Тип redaction всё ещё выбирает модель.</p></article>
+          <article class="candidate" style="--tone:var(--cyan)"><span class="mark">RAW USER TAIL</span><h3>Mechanical recent</h3><p>Последние три user strings выбираются и редактируются кодом, затем добавляются после summary.</p></article>
+          <article class="candidate" style="--tone:var(--green)"><span class="mark">HOT + EVIDENCE</span><h3>Typed state + ledgers</h3><p>Короткое горячее состояние, raw user tail, tool events, measured diff и только явно адресованный durable write.</p></article>
+        </div>
+        <div class="callout good"><p><strong>Наблюдаемая развилка:</strong> raw user tail чинит recent; весь hot-state bundle дал ноль unrelated changes; command recall в этом bundle вырос до 100%. Отдельный причинный вклад promotion и tool ledger не изолирован. Hot-state потерял часть старой durable preference и отрицательных file/action статусов.</p></div>
+      </div>
+    </section>
+
+    <section id="world">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">Почему кандидаты такие</div><h2>Внешние системы держат свежесть кодом</h2></div>
+          <p>Предыдущая часть #106 разобрала публичные исходники и бенчмарки. Q4 перенёс эти механизмы в измеримые локальные абляции.</p>
+        </div>
+        <div class="world-grid">
+          <div class="mechanisms">
+            <article><strong>Codex CLI</strong><p>До 20k raw user tokens поверх summary.</p></article>
+            <article><strong>Cline</strong><p>20k recent tokens, atomic tool pairs, deterministic file ledger.</p></article>
+            <article><strong>OpenHands</strong><p>Raw prefix + suffix; сжимается забываемая середина.</p></article>
+            <article><strong>Aider</strong><p>Половина бюджета остаётся сырому свежему хвосту.</p></article>
+          </div>
+          <div class="panel">
+            <h3>Что не переносим</h3>
+            <p class="muted">Полный Kesha prompt, всегда-инжектируемую память Ouroboros и чужой benchmark как deployment gate.</p>
+            <h3>Что уже проверили</h3>
+            <p class="muted">Raw recent действительно работает. Маленький typed hot state и evidence ledger выглядят сильнее новой таксономии разделов.</p>
+            <h3>Почему свой holdout</h3>
+            <p class="muted">Он одновременно проверяет команды, пути, статусы, next action, секреты, write diff и compaction-of-compaction. Готового внешнего бенча с таким контрактом нет.</p>
+            <p><a href="compact-memory-landscape-106.html">Открыть полный внешний landscape →</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="next">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">Следующая гипотеза</div><h2>Не добавлять раздел. Расширить защищённую границу.</h2></div>
+          <p><code>hot_state_atomic_tail_v2</code> — только следующий экспериментальный кандидат. Не production-рекомендация.</p>
+        </div>
+        <div class="flow">
+          <div class="step"><b>1 · Typed hot state</b><span class="muted">Objective, decisions, blocker/next, active constraints.</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><b>2 · Atomic recent suffix</b><span class="muted">Целые user/assistant/tool-use/result units под фиксированным token budget, deterministic redaction.</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><b>3 · Evidence + promotion</b><span class="muted">Measured diff, tool gaps, один явно названный canonical durable write.</span></div>
+        </div>
+        <div class="callout bad"><p><strong>До нового approval — стоп.</strong> Production <code>COMPACT_PROMPT</code> не менялся. Чтобы доказать v2, нужен новый заранее зафиксированный holdout с внешне проверяемой границей authoring/selection либо заранее обоснованное расширение текущих восьми кластеров; повторный отбор на этих же восьми будет overfit.</p></div>
+
+        <details><summary>Метод и размер выборки</summary><div>Пять dev и восемь holdout fixtures с нулевым exact ID/transcript overlap с исходным #106; semantic independence audit не доказывает. Три replica на вариант; CI кластеризованы по восьми fixtures. Pilot 3 calls, primary 96, idempotence 24, re-compaction 24, judges 8+8. Все before/after ledgers валидированы. Claude API-equivalent total: $23.7488; Sol — отдельный subscription pool.</div></details>
+        <details><summary>Почему zero leaks не значит safe</summary><div>Был один secret transcript и три генерации. Даже 0/3 даёт conditional two-sided exact 95% upper bound 70.8% только для per-generation rate на этом transcript при IID-допущении. Все восемь наблюдаемых утечек у остальных вариантов попали в CLAUDE.md; две также попали в handoff.</div></details>
+        <details><summary>Где hot-state терял exact</summary><div>Он поднял commands до 100% и decisions до 100%, но удержал file/status anchors 66.7% против 86.1% current и user facts/preferences 50% против 100%. Самый тяжёлый кластер — recent-secret: 15/21 exact против 21/21 current.</div></details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-grid">
+      <div><strong>#106 Q4</strong><br><span class="fine">Research-only · production unchanged</span></div>
+      <div class="links">
+        <a href="../tasks/106/q4/research.md">Полный research</a>
+        <a href="../tasks/106/q4/results/analysis.json">Numeric source of truth</a>
+        <a href="../tasks/106/q4/protocol.md">Preregistered protocol</a>
+        <a href="compact-memory-landscape-106.html">External landscape</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

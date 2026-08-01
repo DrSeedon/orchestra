@@ -1,0 +1,13 @@
+{"job_id": "aebc90c1c67bac5c", "fixture": "holdout-targeted-promotion", "blind_variant": "4024e351ddb4f650", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "6f90ed440dd77e05", "fixture": "holdout-targeted-promotion", "blind_variant": "d7479f862a63ed2a", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "65d5abd498e598af", "fixture": "holdout-targeted-promotion", "blind_variant": "e40721be4e5be84b", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "13199a4504473ddf", "fixture": "holdout-targeted-promotion", "blind_variant": "8661423ae68e96dc", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "6c142fe4084f77ce", "fixture": "holdout-targeted-promotion", "blind_variant": "e0eb265b6b951d81", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "9350fd44ef6f54ac", "fixture": "holdout-targeted-promotion", "blind_variant": "fb6dfd671cb2c3f3", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "36c211c3df80b723", "fixture": "holdout-targeted-promotion", "blind_variant": "35ee98a82eb65800", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "360e69ca31933a50", "fixture": "holdout-targeted-promotion", "blind_variant": "e651a8e40d0f50c1", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "b0a2b12ca2b2b756", "fixture": "holdout-targeted-promotion", "blind_variant": "d1ce83cf2a6dab34", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "a87ce18fc30b7dc2", "fixture": "holdout-targeted-promotion", "blind_variant": "efb0cb0012f84423", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "c1b006de09e70de2", "fixture": "holdout-targeted-promotion", "blind_variant": "afffc5ab8b904077", "failed_total": 0, "failure_diagnostic": null}
+{"job_id": "4c28c177c4854365", "fixture": "holdout-targeted-promotion", "blind_variant": "50516460d5ad64b4", "failed_total": 0, "failure_diagnostic": null}
+{"mode": "presave", "seed": 10620260803, "model": "claude-opus-5[1m]", "claude_version": "2.1.220 (Claude Code)", "expected_jobs": 12, "observed_jobs": 12, "failures_this_invocation": 0, "completed_at": "2026-08-01T10:10:33.585316+00:00", "protocol_sha256": "533f9f8ec01135227e747820f2aa6409c33d4753e6e937613b745b4e285fb61f", "fixtures_sha256": "b7f43a3bdbbfacb0775358e94e2ed2ceb89140fcdf693b554fd50747294695de", "candidates_sha256": "20697a53c22133046cc9b286bc17bcec347f50f64cc89fb828bc10a2eaf0d8fc"}

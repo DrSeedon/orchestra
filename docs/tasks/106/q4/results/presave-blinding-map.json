@@ -1,0 +1,74 @@
+{
+  "a87ce18fc30b7dc2": {
+    "variant": "orchestra_current",
+    "blind_variant": "efb0cb0012f84423",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 1
+  },
+  "b0a2b12ca2b2b756": {
+    "variant": "orchestra_current",
+    "blind_variant": "d1ce83cf2a6dab34",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 2
+  },
+  "360e69ca31933a50": {
+    "variant": "orchestra_current",
+    "blind_variant": "e651a8e40d0f50c1",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 3
+  },
+  "9350fd44ef6f54ac": {
+    "variant": "exact3_prompt",
+    "blind_variant": "fb6dfd671cb2c3f3",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 1
+  },
+  "6f90ed440dd77e05": {
+    "variant": "exact3_prompt",
+    "blind_variant": "d7479f862a63ed2a",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 2
+  },
+  "4c28c177c4854365": {
+    "variant": "exact3_prompt",
+    "blind_variant": "50516460d5ad64b4",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 3
+  },
+  "c1b006de09e70de2": {
+    "variant": "raw_tail",
+    "blind_variant": "afffc5ab8b904077",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 1
+  },
+  "13199a4504473ddf": {
+    "variant": "raw_tail",
+    "blind_variant": "8661423ae68e96dc",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 2
+  },
+  "36c211c3df80b723": {
+    "variant": "raw_tail",
+    "blind_variant": "35ee98a82eb65800",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 3
+  },
+  "65d5abd498e598af": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "e40721be4e5be84b",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 1
+  },
+  "aebc90c1c67bac5c": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "4024e351ddb4f650",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 2
+  },
+  "6c142fe4084f77ce": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "e0eb265b6b951d81",
+    "fixture_id": "holdout-targeted-promotion",
+    "repetition": 3
+  }
+}
