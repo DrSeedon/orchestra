@@ -1615,6 +1615,85 @@ class TestRemoveWorktree:
         assert ws.fcntl.LOCK_UN in flocks  # and released
 
 
+class TestDiscardPreparedWorktree:
+    def test_removes_unpublished_worktree_and_its_created_branch(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, discard_prepared_worktree
+
+        wt = create_worktree(str(git_repo), "cancelled-worker", task_id="93")
+        (Path(wt.path) / "unpublished.txt").write_text("prepared only")
+
+        discard_prepared_worktree(str(git_repo), wt)
+
+        assert not Path(wt.path).exists()
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{wt.branch}"],
+            cwd=git_repo,
+        ).returncode == 1
+        assert str(Path(wt.path).resolve()) not in subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=git_repo, capture_output=True, text=True, check=True,
+        ).stdout
+
+    def test_preserves_branch_that_predated_spawn(self, git_repo, wt_root):
+        from app.workspace import create_worktree, discard_prepared_worktree
+
+        branch = "task-93/existing-worker"
+        subprocess.run(["git", "branch", branch], cwd=git_repo, check=True)
+        wt = create_worktree(str(git_repo), "existing-worker", task_id="93")
+        assert wt.branch_created is False
+
+        discard_prepared_worktree(str(git_repo), wt)
+
+        assert not Path(wt.path).exists()
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=git_repo,
+        ).returncode == 0
+
+    def test_preserves_worktree_when_created_branch_ownership_changed(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, discard_prepared_worktree
+
+        wt = create_worktree(str(git_repo), "changed-worker", task_id="93")
+        (Path(wt.path) / "owned.txt").write_text("new commit")
+        subprocess.run(["git", "add", "owned.txt"], cwd=wt.path, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "external change"], cwd=wt.path, check=True,
+        )
+
+        with pytest.raises(RuntimeError, match="ownership changed"):
+            discard_prepared_worktree(str(git_repo), wt)
+
+        assert Path(wt.path).exists()
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{wt.branch}"],
+            cwd=git_repo,
+        ).returncode == 0
+
+    def test_missing_directory_with_registration_fails_loud(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, discard_prepared_worktree
+
+        wt = create_worktree(str(git_repo), "missing-worker", task_id="93")
+        shutil.rmtree(wt.path)
+
+        with pytest.raises(RuntimeError, match="missing but .* remains registered"):
+            discard_prepared_worktree(str(git_repo), wt)
+
+        assert str(Path(wt.path).resolve()) in subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=git_repo, capture_output=True, text=True, check=True,
+        ).stdout
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{wt.branch}"],
+            cwd=git_repo,
+        ).returncode == 0
+
+
 class TestRepoLock:
     def test_path_is_stable_across_processes_and_excludes_second_holder(
         self, git_repo,

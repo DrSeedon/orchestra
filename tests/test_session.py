@@ -133,6 +133,40 @@ class TestStart:
         assert session.session_id == "mock-sid"
         assert session.cost_usd == pytest.approx(0.05)
 
+    @pytest.mark.asyncio
+    async def test_unpublished_start_does_not_schedule_persistence(self, session):
+        session._persist = MagicMock()
+
+        await session.start(persist=False)
+
+        session._persist.assert_not_called()
+        assert session._persist_task is None
+
+    @pytest.mark.asyncio
+    async def test_abort_unpublished_closes_runtime_without_db_side_effects(
+        self, session,
+    ):
+        blocker = asyncio.Event()
+        background = asyncio.create_task(blocker.wait())
+        persist = asyncio.create_task(blocker.wait())
+        session._background_tasks.add(background)
+        session._persist_task = persist
+        session._persist_dirty = True
+        session._disconnect_backend = AsyncMock()
+        session._persist = MagicMock()
+        session._log = MagicMock()
+
+        await session.abort_unpublished()
+
+        assert background.cancelled()
+        assert persist.cancelled()
+        assert session._background_tasks == set()
+        assert session._persist_task is None
+        assert session._persist_dirty is False
+        session._disconnect_backend.assert_awaited_once()
+        session._persist.assert_not_called()
+        session._log.assert_not_called()
+
 
 def test_codex_live_activity_is_brokered_without_db_noise(session, monkeypatch):
     from app.events import AgentEvent

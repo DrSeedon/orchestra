@@ -578,12 +578,45 @@ class AgentSession:
         task.add_done_callback(_on_done)
         return task
 
-    async def start(self, initial_message: str | None = None) -> None:
+    async def start(
+        self,
+        initial_message: str | None = None,
+        *,
+        persist: bool = True,
+    ) -> None:
+        if initial_message and not persist:
+            raise ValueError("unpublished session cannot accept an initial message")
         if initial_message:
             await self.send(initial_message)
         else:
             self.status = AgentStatus.IDLE
-            self._persist()
+            if persist:
+                self._persist()
+
+    async def abort_unpublished(self) -> None:
+        """Close preparation resources without logs or database persistence."""
+        self._turns.cancel_auto_report()
+        if self._precompact_timer_task and not self._precompact_timer_task.done():
+            self._precompact_timer_task.cancel()
+        self._precompact_timer_task = None
+        self._precompact_timer = None
+        current = asyncio.current_task()
+        tasks = [
+            task for task in (*self._background_tasks, self._persist_task)
+            if task is not None and task is not current and not task.done()
+        ]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._background_tasks.clear()
+        self._persist_task = None
+        self._persist_dirty = False
+        await self._disconnect_backend()
+        self._listen_task = None
+        self._heartbeat_task = None
+        self._hibernate_task = None
+        self.status = AgentStatus.IDLE
 
     async def wait_for_turn_completion(self) -> bool:
         """Wait for the active logical turn to publish its terminal status."""

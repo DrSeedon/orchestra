@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import sqlite3
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -572,7 +573,11 @@ def _migrate(c) -> None:
     )
 
 
-def save_session(s: dict) -> None:
+def save_session(
+    s: dict,
+    *,
+    _connection: sqlite3.Connection | None = None,
+) -> None:
     s.setdefault("context_pct", 0)
     s.setdefault("context_tokens", 0)
     s.setdefault("progress_pct", 0)
@@ -603,7 +608,10 @@ def save_session(s: dict) -> None:
     s.setdefault("last_summary", "")
     s.setdefault("base_branch", "")
     s.setdefault("needs_switch", 0)
-    with _conn() as c:
+    connection_scope = (
+        nullcontext(_connection) if _connection is not None else _conn()
+    )
+    with connection_scope as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
                 status, session_id, cost_usd, worktree_path, branch, base_branch,
@@ -670,6 +678,19 @@ def save_session(s: dict) -> None:
                 runtime_handoff=excluded.runtime_handoff,
                 last_summary=excluded.last_summary
         """, s)
+
+
+def publish_ready_session(s: dict) -> None:
+    """Atomically replace one archived identity with a fully prepared session."""
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        if c.execute("SELECT 1 FROM sessions WHERE id=?", (s["id"],)).fetchone():
+            raise sqlite3.IntegrityError(f"session id already exists: {s['id']}")
+        c.execute(
+            "DELETE FROM sessions WHERE name=? AND scope=? AND status='archived'",
+            (s["name"], s["scope"]),
+        )
+        save_session(s, _connection=c)
 
 
 def update_session_lifecycle(

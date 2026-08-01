@@ -22,7 +22,8 @@ from app.prompting import (
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import (
-    create_worktree, remove_worktree, parse_owned_dirs, dirs_overlap,
+    create_worktree, discard_prepared_worktree, remove_worktree,
+    parse_owned_dirs, dirs_overlap,
     validate_repo_root, resolve_base_branch as resolve_git_base_branch,
 )
 from app.models import (
@@ -46,9 +47,8 @@ from app.pipeline import (
     validate_spawn,
 )
 from app.db import (
-    save_session, get_session, get_session_by_name, get_all_sessions,
-    delete_session, delete_archived_session, archive_session, get_stats,
-    update_session_lifecycle,
+    get_session, get_session_by_name, get_all_sessions, publish_ready_session,
+    archive_session, get_stats, update_session_lifecycle,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,6 +59,27 @@ COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
     "#a78bfa", "#fbbf24", "#2dd4bf", "#fb7185", "#4ade80",
 ]
+
+
+async def _wait_owned_task(task: asyncio.Task) -> asyncio.CancelledError | None:
+    """Wait without letting caller cancellation penetrate an owned operation."""
+    cancellation = None
+    current = asyncio.current_task()
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError as error:
+            if current is not None and current.cancelling():
+                cancellation = cancellation or error
+                while current.cancelling():
+                    current.uncancel()
+            elif task.done():
+                break
+            else:
+                raise
+        except BaseException:
+            break
+    return cancellation
 
 
 def get_active_profile(scope: str = "", parent_profile: str = "") -> str:
@@ -308,6 +329,7 @@ class SessionManager:
     def __init__(self):
         self.sessions: dict[str, AgentSession] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
+        self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
 
@@ -346,6 +368,44 @@ class SessionManager:
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
                              tg_topic: bool = False) -> AgentSession:
+        normalized_scope = scope.rstrip("/")
+        key = (normalized_scope, name)
+        lock = self._spawn_locks.setdefault(key, asyncio.Lock())
+        async with lock:
+            return await self._create_session_locked(
+                name=name,
+                scope=normalized_scope,
+                cwd=cwd,
+                model=model,
+                system_prompt=system_prompt,
+                use_worktree=use_worktree,
+                repo_path=repo_path,
+                is_orchestrator=is_orchestrator,
+                role=role,
+                task_id=task_id,
+                description=description,
+                base_branch=base_branch,
+                parent_id=parent_id,
+                parent_name=parent_name,
+                mcp_servers=mcp_servers,
+                pipeline=pipeline,
+                profile=profile,
+                docs_feature=docs_feature,
+                owned_dirs=owned_dirs,
+                tg_topic=tg_topic,
+            )
+
+    async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
+                             system_prompt: str = "", use_worktree: bool = False,
+                             repo_path: str | None = None, is_orchestrator: bool = False,
+                             role: str = "", task_id: str = "", description: str = "",
+                             base_branch: str = "",
+                             parent_id: str = "", parent_name: str = "",
+                             mcp_servers: dict | None = None,
+                             pipeline: str = "", profile: str = "",
+                             docs_feature: str = "",
+                             owned_dirs: list | None = None,
+                             tg_topic: bool = False) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -365,9 +425,6 @@ class SessionManager:
             repo_path = str(repo_root)
             spawn_repo_path = repo_path
             spawn_git_common_dir = str((repo_root / ".git").resolve())
-        # An archived row still holds UNIQUE(name, scope) but get_session_by_name hides it →
-        # INSERT would IntegrityError. Free the slot (its logs cascade — it's gone anyway).
-        delete_archived_session(name, scope)
 
         # Явно ли указана роль: генерик-воркер (role не задан) валидируется как
         # unrouted (child_role="") — им управляет allow_unrouted_workers родителя.
@@ -462,6 +519,14 @@ class SessionManager:
                 base_branch, pipeline, role, parent_name, scope, repo_path,
             )
 
+        task_identity = None
+        if task_id and not is_orch:
+            from app.tm import resolve_scoped_task_identity
+            task_identity = await asyncio.to_thread(
+                resolve_scoped_task_identity, scope, task_id,
+            )
+            task_id = str(task_identity["par_number"])
+
         # Root orchestrators get a dedicated TG topic so users can message them
         # directly from Telegram without knowing worker names
         if is_orch and not parent_name:
@@ -490,16 +555,11 @@ class SessionManager:
         session._spawn_warning = ""
         session._spawn_repo_path = spawn_repo_path
         session._spawn_git_common_dir = spawn_git_common_dir
-        save_session(session._to_db_dict())
 
-        if task_id and not is_orch:
-            try:
-                from app.tm import api_update_task
-                api_update_task(task_id, status="in_progress")
-            except Exception as e:
-                logger.warning(f"task #{task_id} → in_progress failed on spawn: {e}")
+        prepared_worktree = None
 
-        try:
+        async def prepare() -> None:
+            nonlocal prepared_worktree
             if use_worktree and repo_path:
                 # Worktree-конфиг из манифеста (симлинки + copies). Нет манифеста
                 # → None → create_worktree использует upstream-fallback (PROJECT_FILES).
@@ -509,6 +569,7 @@ class SessionManager:
                     worktree_cfg = None
                 wt = await asyncio.to_thread(
                     create_worktree, repo_path, name, task_id, base_branch, worktree_cfg)
+                prepared_worktree = wt
                 session.cwd = wt.path
                 session.worktree_path = wt.path
                 session.branch = wt.branch
@@ -535,20 +596,81 @@ class SessionManager:
                 )
                 session.on_idle = self._make_idle_callback(scope)
 
-            save_session(session._to_db_dict())
-            await session.start()
-            self.sessions[session.id] = session
-            return session
-        except BaseException:
-            if session.worktree_path and repo_path:
+            await session.start(persist=False)
+
+        async def compensate() -> None:
+            errors: list[str] = []
+            try:
+                await session.abort_unpublished()
+            except Exception as error:
+                errors.append(f"session abort: {type(error).__name__}: {error}")
+            if prepared_worktree is not None and repo_path:
                 try:
-                    await asyncio.to_thread(remove_worktree, repo_path, session.worktree_path)
-                except Exception as e:
-                    logger.warning(
-                        f"worktree cleanup failed after spawn error ({session.worktree_path}): {e}",
-                        exc_info=True)
-            delete_session(session.id)
-            raise
+                    await asyncio.to_thread(
+                        discard_prepared_worktree, repo_path, prepared_worktree,
+                    )
+                except Exception as error:
+                    errors.append(f"Git cleanup: {type(error).__name__}: {error}")
+            if errors:
+                raise RuntimeError("; ".join(errors))
+
+        async def compensate_after(error: BaseException) -> None:
+            try:
+                await compensate()
+            except Exception as cleanup_error:
+                raise RuntimeError(
+                    f"spawn failed ({type(error).__name__}: {error}); "
+                    f"compensation failed: {cleanup_error}"
+                ) from error
+
+        prepare_task = asyncio.create_task(prepare())
+        prepare_cancelled = await _wait_owned_task(prepare_task)
+        try:
+            prepare_task.result()
+        except BaseException as prepare_error:
+            primary_error = prepare_cancelled or prepare_error
+        else:
+            primary_error = prepare_cancelled
+        if primary_error is not None:
+            cleanup_task = asyncio.create_task(compensate_after(primary_error))
+            await _wait_owned_task(cleanup_task)
+            cleanup_task.result()
+            raise primary_error
+
+        async def finalize() -> AgentSession:
+            try:
+                await asyncio.to_thread(
+                    publish_ready_session, session._to_db_dict(),
+                )
+            except BaseException as publish_error:
+                await compensate_after(publish_error)
+                raise
+
+            self.sessions[session.id] = session
+
+            if task_identity:
+                from app.tm import api_update_task_if_current
+                try:
+                    task_status = await asyncio.to_thread(
+                        api_update_task_if_current,
+                        task_identity,
+                        status="in_progress",
+                        worker_session_id=session.id,
+                    )
+                except Exception as task_error:
+                    detail = str(task_error) or type(task_error).__name__
+                    task_status = {"ok": False, "error": detail}
+                if not task_status.get("ok"):
+                    detail = task_status.get("error") or "unknown task update failure"
+                    session._spawn_warning = (
+                        f"worker is ready, but task #{task_id} was not updated: {detail}"
+                    )
+                    logger.warning(session._spawn_warning)
+            return session
+
+        finalize_task = asyncio.create_task(finalize())
+        await _wait_owned_task(finalize_task)
+        return finalize_task.result()
 
     async def send(self, session_id: str, message: str) -> None:
         session = self.sessions.get(session_id)

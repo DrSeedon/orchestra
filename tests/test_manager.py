@@ -1,6 +1,7 @@
 """TDD tests for manager.py — SessionManager."""
 
 import asyncio
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -127,10 +128,8 @@ class TestCreateSession:
             "app.manager.validate_repo_root",
             side_effect=ValueError("repo_path must be the Git repository root"),
         ) as validate, patch(
-            "app.manager.delete_archived_session",
-        ) as delete_archived, patch(
-            "app.manager.save_session",
-        ) as save:
+            "app.manager.publish_ready_session",
+        ) as publish:
             with pytest.raises(ValueError, match="must be the Git repository root"):
                 await mgr.create_session(
                     name="w1", scope="/s", cwd=str(nested), model="claude-sonnet-5[1m]",
@@ -138,19 +137,14 @@ class TestCreateSession:
                 )
 
         validate.assert_called_once_with(str(nested))
-        delete_archived.assert_not_called()
-        save.assert_not_called()
+        publish.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("repo_path", ["", None])
     async def test_missing_repo_path_fails_before_spawn_side_effects(
         self, mgr, repo_path,
     ):
-        with patch(
-            "app.manager.delete_archived_session",
-        ) as delete_archived, patch(
-            "app.manager.save_session",
-        ) as save:
+        with patch("app.manager.publish_ready_session") as publish:
             with pytest.raises(
                 ValueError, match="repo_path required when use_worktree=True",
             ):
@@ -159,8 +153,480 @@ class TestCreateSession:
                     use_worktree=True, repo_path=repo_path,
                 )
 
-        delete_archived.assert_not_called()
-        save.assert_not_called()
+        publish.assert_not_called()
+
+
+class TestAtomicSpawnLifecycle:
+    @pytest.mark.asyncio
+    async def test_blocked_worktree_preparation_is_not_visible(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        from app.db import get_session_by_name
+        import app.manager as manager_module
+
+        repo = _git_repo(tmp_path)
+        entered = threading.Event()
+        release = threading.Event()
+        real_create = manager_module.create_worktree
+
+        def blocked_create(*args, **kwargs):
+            entered.set()
+            assert release.wait(2)
+            return real_create(*args, **kwargs)
+
+        monkeypatch.setattr(manager_module, "create_worktree", blocked_create)
+        spawn = asyncio.create_task(mgr.create_session(
+            name="hidden", scope="/s", cwd=str(repo),
+            model="claude-sonnet-5[1m]", use_worktree=True,
+            repo_path=str(repo),
+        ))
+        assert await asyncio.to_thread(entered.wait, 2)
+
+        assert get_session_by_name("hidden", "/s") is None
+        assert mgr.get_by_name("hidden", "/s") is None
+        assert [s for s in mgr.list_sessions("/s") if s["name"] == "hidden"] == []
+
+        release.set()
+        session = await spawn
+        assert get_session_by_name("hidden", "/s")["id"] == session.id
+        assert mgr.sessions[session.id] is session
+
+    @pytest.mark.asyncio
+    async def test_cancelled_blocked_git_waits_then_removes_worktree_and_branch(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        import subprocess
+        import app.manager as manager_module
+        from app.db import get_session_by_name
+        from app.workspace import _slugify
+
+        repo = _git_repo(tmp_path)
+        entered = threading.Event()
+        release = threading.Event()
+        cleanup_entered = threading.Event()
+        cleanup_release = threading.Event()
+        real_create = manager_module.create_worktree
+        real_discard = manager_module.discard_prepared_worktree
+
+        def blocked_create(*args, **kwargs):
+            entered.set()
+            assert release.wait(2)
+            return real_create(*args, **kwargs)
+
+        def blocked_discard(*args, **kwargs):
+            cleanup_entered.set()
+            assert cleanup_release.wait(2)
+            return real_discard(*args, **kwargs)
+
+        monkeypatch.setattr(manager_module, "create_worktree", blocked_create)
+        monkeypatch.setattr(
+            manager_module, "discard_prepared_worktree", blocked_discard,
+        )
+        spawn = asyncio.create_task(mgr.create_session(
+            name="cancelled", scope="/s", cwd=str(repo),
+            model="claude-sonnet-5[1m]", use_worktree=True,
+            repo_path=str(repo),
+        ))
+        assert await asyncio.to_thread(entered.wait, 2)
+        spawn.cancel()
+        await asyncio.sleep(0)
+        assert spawn.done() is False
+        spawn.cancel()
+        await asyncio.sleep(0)
+        assert spawn.done() is False
+
+        release.set()
+        assert await asyncio.to_thread(cleanup_entered.wait, 2)
+        spawn.cancel()
+        await asyncio.sleep(0)
+        assert spawn.done() is False
+        cleanup_release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await spawn
+
+        branch = f"feat/{_slugify(str(repo.resolve()))}/cancelled"
+        assert get_session_by_name("cancelled", "/s") is None
+        assert mgr.get_by_name("cancelled", "/s") is None
+        listing = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout
+        assert listing.count("worktree ") == 1
+        assert subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=repo,
+        ).returncode == 1
+
+    @pytest.mark.asyncio
+    async def test_finalize_owns_resources_when_caller_is_cancelled(
+        self, mgr, monkeypatch,
+    ):
+        import app.manager as manager_module
+        from app.db import get_session_by_name
+
+        entered = threading.Event()
+        release = threading.Event()
+        real_publish = manager_module.publish_ready_session
+
+        def blocked_publish(row):
+            entered.set()
+            assert release.wait(2)
+            return real_publish(row)
+
+        monkeypatch.setattr(manager_module, "publish_ready_session", blocked_publish)
+        spawn = asyncio.create_task(mgr.create_session(
+            name="finalized", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]",
+        ))
+        assert await asyncio.to_thread(entered.wait, 2)
+        spawn.cancel()
+        await asyncio.sleep(0)
+        spawn.cancel()
+        await asyncio.sleep(0)
+        assert spawn.done() is False
+
+        release.set()
+        session = await spawn
+
+        row = get_session_by_name("finalized", "/s")
+        assert row["id"] == session.id
+        assert mgr.sessions[session.id] is session
+
+    @pytest.mark.asyncio
+    async def test_prepare_internal_cancellation_is_compensated(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        import subprocess
+        from app.db import get_session_by_name
+        from app.session import AgentSession
+
+        repo = _git_repo(tmp_path)
+
+        async def cancelled_start(_session, *args, **kwargs):
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr(AgentSession, "start", cancelled_start)
+
+        with pytest.raises(asyncio.CancelledError):
+            await mgr.create_session(
+                name="internally-cancelled", scope="/s", cwd=str(repo),
+                model="claude-sonnet-5[1m]", use_worktree=True,
+                repo_path=str(repo),
+            )
+
+        assert get_session_by_name("internally-cancelled", "/s") is None
+        listing = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout
+        assert listing.count("worktree ") == 1
+        assert "internally-cancelled" not in listing
+
+    @pytest.mark.asyncio
+    async def test_final_db_failure_aborts_runtime_before_git_cleanup(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        import app.manager as manager_module
+        from app.db import get_session_by_name
+        from app.session import AgentSession, AgentStatus
+
+        repo = _git_repo(tmp_path)
+        order = []
+        runtime = {}
+        real_abort = AgentSession.abort_unpublished
+        real_discard = manager_module.discard_prepared_worktree
+
+        async def prepared_start(session, initial_message=None, *, persist=True):
+            assert initial_message is None and persist is False
+            session.status = AgentStatus.IDLE
+            session._backend = AsyncMock()
+            session._background_tasks.add(
+                asyncio.create_task(asyncio.Event().wait())
+            )
+            session._listen_task = asyncio.create_task(asyncio.Event().wait())
+            session._heartbeat_task = asyncio.create_task(asyncio.Event().wait())
+            runtime["session"] = session
+
+        async def record_abort(session):
+            order.append("abort")
+            await real_abort(session)
+
+        def record_discard(repo_path, worktree):
+            order.append("git")
+            return real_discard(repo_path, worktree)
+
+        monkeypatch.setattr(AgentSession, "start", prepared_start)
+        monkeypatch.setattr(AgentSession, "abort_unpublished", record_abort)
+        monkeypatch.setattr(
+            manager_module, "discard_prepared_worktree", record_discard,
+        )
+        monkeypatch.setattr(
+            manager_module, "publish_ready_session",
+            lambda _row: (_ for _ in ()).throw(RuntimeError("final publish failed")),
+        )
+
+        with pytest.raises(RuntimeError, match="final publish failed"):
+            await mgr.create_session(
+                name="publish-failure", scope="/s", cwd=str(repo),
+                model="claude-sonnet-5[1m]", use_worktree=True,
+                repo_path=str(repo),
+            )
+
+        session = runtime["session"]
+        assert order == ["abort", "git"]
+        assert session._background_tasks == set()
+        assert session._listen_task is None
+        assert session._heartbeat_task is None
+        assert session._backend is None
+        assert get_session_by_name("publish-failure", "/s") is None
+        assert list(mgr.sessions) == []
+
+    @pytest.mark.asyncio
+    async def test_same_identity_spawns_are_serialized_before_git(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        import app.manager as manager_module
+
+        repo = _git_repo(tmp_path)
+        entered = threading.Event()
+        release = threading.Event()
+        real_create = manager_module.create_worktree
+        calls = 0
+
+        def blocked_create(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            entered.set()
+            assert release.wait(2)
+            return real_create(*args, **kwargs)
+
+        monkeypatch.setattr(manager_module, "create_worktree", blocked_create)
+        first = asyncio.create_task(mgr.create_session(
+            name="same", scope="/s", cwd=str(repo),
+            model="claude-sonnet-5[1m]", use_worktree=True,
+            repo_path=str(repo),
+        ))
+        assert await asyncio.to_thread(entered.wait, 2)
+        second = asyncio.create_task(mgr.create_session(
+            name="same", scope="/s", cwd=str(repo),
+            model="claude-sonnet-5[1m]", use_worktree=True,
+            repo_path=str(repo),
+        ))
+        await asyncio.sleep(0)
+        assert calls == 1
+
+        release.set()
+        results = await asyncio.gather(first, second, return_exceptions=True)
+        assert sum(not isinstance(item, BaseException) for item in results) == 1
+        error = next(item for item in results if isinstance(item, BaseException))
+        assert isinstance(error, ValueError)
+        assert "already exists" in str(error)
+        assert calls == 1
+
+    @pytest.mark.asyncio
+    async def test_same_repo_name_across_scopes_has_one_winner(self, mgr, tmp_path):
+        from app import tm
+        from app.db import get_all_sessions
+
+        repo = _git_repo(tmp_path)
+        with tm._conn() as conn:
+            tm.ensure_project(conn, "a", scope="/a")
+            tm.ensure_project(conn, "b", scope="/b")
+            task_a = tm.create_task(conn, "a", "A", par_number=1)
+            task_b = tm.create_task(conn, "b", "B", par_number=2)
+        results = await asyncio.gather(
+            mgr.create_session(
+                name="repo-shared", scope="/a", cwd=str(repo),
+                model="claude-sonnet-5[1m]", use_worktree=True,
+                repo_path=str(repo), task_id="1",
+            ),
+            mgr.create_session(
+                name="repo-shared", scope="/b", cwd=str(repo),
+                model="claude-sonnet-5[1m]", use_worktree=True,
+                repo_path=str(repo), task_id="2",
+            ),
+            return_exceptions=True,
+        )
+
+        assert sum(not isinstance(item, BaseException) for item in results) == 1
+        assert sum(isinstance(item, BaseException) for item in results) == 1
+        assert len([r for r in get_all_sessions() if r["name"] == "repo-shared"]) == 1
+        with tm._conn() as conn:
+            statuses = {
+                tm.get_task_by_id(conn, task_a["id"])["status"],
+                tm.get_task_by_id(conn, task_b["id"])["status"],
+            }
+        assert statuses == {"new", "in_progress"}
+
+    @pytest.mark.asyncio
+    async def test_invalid_task_preserves_archived_history(self, mgr):
+        from app import tm
+        from app.db import add_log, archive_session, get_logs, get_session, save_session
+
+        with tm._conn() as conn:
+            tm.ensure_project(conn, "project", scope="/s")
+        archived = {
+            "id": "archived-worker", "name": "history", "scope": "/s",
+            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "status": "idle", "session_id": None, "cost_usd": 0.0,
+            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        }
+        save_session(archived)
+        add_log("archived-worker", datetime.now(timezone.utc), "text", "history")
+        archive_session("archived-worker")
+
+        with pytest.raises(ValueError, match="not found in session project"):
+            await mgr.create_session(
+                name="history", scope="/s", cwd="/tmp",
+                model="claude-sonnet-5[1m]", task_id="999",
+            )
+
+        assert get_session("archived-worker")["status"] == "archived"
+        assert [row["content"] for row in get_logs("archived-worker")] == ["history"]
+
+    @pytest.mark.asyncio
+    async def test_successful_respawn_atomically_replaces_archived_history(self, mgr):
+        from app.db import add_log, archive_session, get_logs, get_session, save_session
+
+        archived = {
+            "id": "old-worker", "name": "respawn", "scope": "/s",
+            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "status": "idle", "session_id": None, "cost_usd": 0.0,
+            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        }
+        save_session(archived)
+        add_log("old-worker", datetime.now(timezone.utc), "text", "old history")
+        archive_session("old-worker")
+
+        session = await mgr.create_session(
+            name="respawn", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]",
+        )
+
+        assert get_session("old-worker") is None
+        assert get_logs("old-worker") == []
+        assert get_session(session.id)["status"] == "idle"
+
+    @pytest.mark.asyncio
+    async def test_spawn_updates_only_scoped_task_after_publication(self, mgr):
+        from app import tm
+        from app.db import get_session
+
+        with tm._conn() as conn:
+            tm.ensure_project(conn, "a", scope="/a")
+            tm.ensure_project(conn, "b", scope="/b")
+            task_a = tm.create_task(conn, "a", "A", par_number=93)
+            task_b = tm.create_task(conn, "b", "B", par_number=93)
+
+        session = await mgr.create_session(
+            name="scoped-task", scope="/b", cwd="/tmp",
+            model="claude-sonnet-5[1m]", task_id="93",
+        )
+
+        with tm._conn() as conn:
+            assert tm.get_task_by_id(conn, task_a["id"])["status"] == "new"
+            updated_b = tm.get_task_by_id(conn, task_b["id"])
+        assert updated_b["status"] == "in_progress"
+        assert updated_b["worker_session_id"] == session.id
+        assert get_session(session.id)["status"] == "idle"
+
+    @pytest.mark.asyncio
+    async def test_task_update_failure_returns_ready_worker_warning(
+        self, mgr, monkeypatch,
+    ):
+        from app import tm
+        from app.db import get_session
+
+        with tm._conn() as conn:
+            tm.ensure_project(conn, "project", scope="/s")
+            task = tm.create_task(conn, "project", "next", par_number=93)
+        monkeypatch.setattr(
+            tm,
+            "api_update_task_if_current",
+            lambda *_args, **_kwargs: {
+                "ok": False, "error": "task revision changed",
+            },
+        )
+
+        session = await mgr.create_session(
+            name="warning", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]", task_id="93",
+        )
+
+        assert "worker is ready" in session._spawn_warning
+        assert "task revision changed" in session._spawn_warning
+        assert mgr.sessions[session.id] is session
+        assert get_session(session.id)["status"] == "idle"
+        with tm._conn() as conn:
+            assert tm.get_task_by_id(conn, task["id"])["status"] == "new"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failure_stage", ["worktree", "start", "publish"])
+    async def test_spawn_failure_leaves_task_unchanged_and_cleans_git(
+        self, mgr, tmp_path, monkeypatch, failure_stage,
+    ):
+        import subprocess
+        import app.manager as manager_module
+        from app import tm
+        from app.db import get_session_by_name
+        from app.session import AgentSession
+
+        repo = _git_repo(tmp_path)
+        with tm._conn() as conn:
+            tm.ensure_project(conn, "project", scope="/s")
+            task = tm.create_task(conn, "project", "next", par_number=93)
+
+        if failure_stage == "worktree":
+            monkeypatch.setattr(
+                manager_module,
+                "create_worktree",
+                lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    RuntimeError("worktree failed")
+                ),
+            )
+        elif failure_stage == "start":
+            monkeypatch.setattr(
+                AgentSession,
+                "start",
+                AsyncMock(side_effect=RuntimeError("start failed")),
+            )
+        else:
+            monkeypatch.setattr(
+                manager_module,
+                "publish_ready_session",
+                lambda _row: (_ for _ in ()).throw(
+                    RuntimeError("publish failed")
+                ),
+            )
+
+        with pytest.raises(RuntimeError, match=failure_stage):
+            await mgr.create_session(
+                name=f"fail-{failure_stage}", scope="/s", cwd=str(repo),
+                model="claude-sonnet-5[1m]", use_worktree=True,
+                repo_path=str(repo), task_id="93",
+            )
+
+        with tm._conn() as conn:
+            unchanged = tm.get_task_by_id(conn, task["id"])
+        assert unchanged["status"] == "new"
+        assert unchanged["worker_session_id"] in (None, "")
+        assert get_session_by_name(f"fail-{failure_stage}", "/s") is None
+        assert subprocess.run(
+            [
+                "git", "show-ref", "--verify", "--quiet",
+                f"refs/heads/task-93/fail-{failure_stage}",
+            ],
+            cwd=repo,
+        ).returncode == 1
+        listing = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        ).stdout
+        assert listing.count("worktree ") == 1
 
 
 class TestWorktreeBaseBranch:
