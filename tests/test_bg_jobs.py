@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
@@ -569,9 +570,17 @@ class TestRunExecOutcome:
         session.send.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_finishes_when_child_keeps_stdout_open(self, db, mgr_mock):
+    async def test_reports_child_that_keeps_stdout_open_without_signaling(
+        self, db, mgr_mock, caplog, monkeypatch,
+    ):
         from app.bg_jobs import BgJobManager
         from app.db import bg_get_jobs, bg_save_job
+
+        caplog.set_level("WARNING", logger="app.bg_jobs")
+        monkeypatch.setattr(
+            "app.bg_jobs.os.killpg",
+            lambda *_: pytest.fail("observation must not signal a process group"),
+        )
         mgr = BgJobManager()
         manager, session = mgr_mock
         mgr.set_session_manager(manager)
@@ -580,7 +589,7 @@ class TestRunExecOutcome:
         await asyncio.wait_for(
             mgr._run_exec(
                 "run-open-pipe",
-                "/usr/bin/python3 -c 'import os,time; os.fork() and os._exit(0); time.sleep(30)'",
+                "/usr/bin/python3 -c 'import os,time; os.fork() and os._exit(0); time.sleep(3.5)'",
                 "review done", "w1", "/s", 10,
             ),
             timeout=12,
@@ -589,6 +598,72 @@ class TestRunExecOutcome:
         row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-open-pipe")
         assert row["status"] == "triggered"
         session.send.assert_awaited_once()
+        assert "orphan_tree=1" in caplog.text
+        assert "oldest_process_age_seconds=" in caplog.text
+        assert "observation_only=true" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_cancellation_after_leader_exit_closes_transport(
+        self, db, mgr_mock, monkeypatch,
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        monkeypatch.setattr(
+            "app.bg_jobs.os.killpg",
+            lambda *_: pytest.fail("cancellation must not signal a stale process group"),
+        )
+        mgr = BgJobManager()
+        manager, _ = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-cancel-open-pipe", datetime.now(timezone.utc)))
+        task = asyncio.create_task(mgr._run_exec(
+            "run-cancel-open-pipe",
+            "/usr/bin/python3 -c 'import os,time; os.fork() and os._exit(0); time.sleep(3.5)'",
+            "review done", "w1", "/s", 10,
+        ))
+
+        for _ in range(100):
+            proc = mgr._procs.get("run-cancel-open-pipe")
+            if proc and proc.returncode is not None:
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("job leader did not exit")
+
+        transport = proc._transport
+        close = MagicMock(wraps=transport.close)
+        monkeypatch.setattr(transport, "close", close)
+        task.cancel()
+        await asyncio.wait_for(task, timeout=2)
+        close.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_orphan_scan_runs_off_event_loop(
+        self, db, mgr_mock, monkeypatch,
+    ):
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        caller_thread = threading.get_ident()
+        scan_threads = []
+
+        def observe(_session_id):
+            scan_threads.append(threading.get_ident())
+            return 0, 0.0
+
+        monkeypatch.setattr(module, "_orphan_session_stats", observe)
+        mgr = BgJobManager()
+        manager, _ = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-threaded-observe", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-threaded-observe", "true", "review done", "w1", "/s", 10,
+        )
+
+        assert scan_threads and scan_threads[0] != caller_thread
 
     @pytest.mark.asyncio
     async def test_exit_zero_requires_declared_artifact(self, db, mgr_mock, tmp_path):

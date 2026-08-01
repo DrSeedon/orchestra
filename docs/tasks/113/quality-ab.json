@@ -1,0 +1,79 @@
+{
+  "measured_at": "2026-08-01",
+  "scope": "/mnt/data/Projects/Python/orchestra",
+  "initial_probe": {
+    "real_chunks": 33,
+    "recent_unique_queries": 20,
+    "embedding_dimension": 1024,
+    "max_absolute_delta": 0.029673396609723568,
+    "minimum_cosine_similarity": 0.9718105120114992,
+    "mean_cosine_similarity": 0.9798434875808902,
+    "exact_production_top5_queries": 20,
+    "note": "The production-index comparison is not evidence for future batch16 chunks: vec.db was already encoded with batch64 and query embeds are batch1."
+  },
+  "repeatability_falsifier": {
+    "real_chunks": 17,
+    "same_batch64_repeat": {
+      "max_absolute_delta": 0.0,
+      "minimum_cosine_similarity": 0.9999999999999999
+    },
+    "same_batch16_repeat": {
+      "max_absolute_delta": 0.0,
+      "minimum_cosine_similarity": 0.9999999999999998
+    },
+    "cross_batch_run1": {
+      "max_absolute_delta": 0.028130067512392998,
+      "minimum_cosine_similarity": 0.9719968988189002,
+      "mean_cosine_similarity": 0.9798334881246944
+    },
+    "cross_batch_run2": {
+      "max_absolute_delta": 0.028130067512392998,
+      "minimum_cosine_similarity": 0.9719968988189002,
+      "mean_cosine_similarity": 0.9798334881246944
+    }
+  },
+  "mixed_index_falsifier": {
+    "real_baseline_hits": 128,
+    "queries": 20,
+    "all16": {
+      "hybrid_exact_top5": 3,
+      "hybrid_top1_retained": 17,
+      "hybrid_mean_overlap_at5": 0.88,
+      "vector_exact_top10": 0,
+      "vector_top1_retained": 18,
+      "vector_mean_overlap_at10": 0.875
+    },
+    "mixed_50_50_five_splits": {
+      "batch16_chunk_counts": [67, 71, 72, 68, 63],
+      "hybrid_exact_top5_range": [3, 7],
+      "hybrid_top1_retained_range": [17, 19],
+      "hybrid_mean_overlap_at5_range": [0.91, 0.94],
+      "vector_exact_top10_range": [0, 2],
+      "vector_top1_retained_range": [18, 19],
+      "vector_mean_overlap_at10_range": [0.915, 0.93],
+      "baseline_top1_present_in_candidate_top20": "20/20 in every split"
+    }
+  },
+  "queries": [
+    "задача 113 T3 безопасный reaper фоновых codex_review сироты PID PGID race asyncio cleanup cancellation",
+    "#116 Phase 2 plan component hashes authoritative refresh typed MCP error contract #115 merge partial result #113 rag batch reaper conflict app/rag.py #93 #94 dependencies",
+    "сравнение Sol 5.6 против Opus 5 качество воркеров замер",
+    "#115 Phase 2 merge_worker idempotency reconcile finalize conflict workflow поверх #93 shared repo lock partial result",
+    "задача 116 протухшее состояние промпта живые сессии skills AGENTS worker memory Codex review blockers",
+    "#113 Phase 2 RAG ONNX memory ownership lazy unload subprocess lighter embedding model search_memory quality codex_review orphan process group reaper",
+    "prompt audit contradictions duplicate stale rules assembled prompts full-cycle gates Codex DIY delegation system_prompt worker suspended ambiguous message queue kill memory-search 32 KiB CLAUDE",
+    "Claude Code prompt caching system prompt prefix adding user message does not break cache exact prefix Orchestra research",
+    "Codex cache TTL 30 минут 10x cold penalty measurement prompt cache precompact cost",
+    "orchestration kill_worker disposable long-lived system worker worker_wip explicit user command idle 109 sessions swap full-cycle gate stop reversible kill permanent conflict",
+    "kesha-tg-bot orchestrator manual cherry-pick merge branch why merge_worker failed dirty .serena diverged tasks 14 16 17",
+    "COG-second-brain orchestrator why manual git merge squash instead of merge_worker inscryption-ai conflicts",
+    "task 116 Problem 2 RAG freshness rag.py rag_service.py memory routes sessions post-merge trigger watermark generation",
+    "задача 94 T7 slug hash exact-set skill sync plan worktree skills delivery",
+    "task #116 Problem 3 MCP HTTP errors lose exception type status response body retryability request id empty str(e) mcp_stdio",
+    "задача 116 свежесть prompt state skills AGENTS.md worker memory RAG reindex typed MCP errors stale copies",
+    "task 115 merge_worker failures taxonomy empty error raw logs lifecycle switch task-link warnings all projects",
+    "task 115 merge_worker manual merges census all Orchestra projects SQLite reflogs logs classifier",
+    "task 115 merge_worker MCP wrapper route error text loss conflict cleanup merge-base base_branch squash side effects manual merge recoverability task 93",
+    "#115 merge_worker ручные мержи squash reflog ошибки конфликт пустая ошибка task not found побочные эффекты по всем проектам"
+  ]
+}
