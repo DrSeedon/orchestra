@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23172554'/><path d='M7 7h11v4H7zM7 14h18v4H7zM7 21h14v4H7z' fill='%2360a5fa'/></svg>"/>
+<title>Почему новый промпт сжатия лучше — разбор</title>
+<style>
+:root{
+  --bg:#0e0e12;--surface:#16161c;--surface-2:#1c1c24;--border:#2a2a32;
+  --ink:#f1f1f4;--ink-soft:#a8a8b3;--ink-dim:#71717f;
+  --accent:#60a5fa;--accent-soft:#60a5fa22;
+  --old:#f87171;--old-soft:#f8717118;--new:#4ade80;--new-soft:#4ade8018;
+  --ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+  --serif:Charter,"Iowan Old Style","Source Serif 4",ui-serif,Georgia,serif;
+  --sans:system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:light){
+  :root{--bg:#fbfbf8;--surface:#fff;--surface-2:#f4f4ef;--border:#e5e3dd;
+    --ink:#1a1a1f;--ink-soft:#4f4f5a;--ink-dim:#82828d;--accent:#1d4ed8;--accent-soft:#1d4ed812;
+    --old:#dc2626;--old-soft:#dc262610;--new:#15803d;--new-soft:#15803d10;}
+}
+@media print{
+  :root{--bg:#fff;--surface:#f8f8f8;--surface-2:#f0f0f0;--border:#ddd;--ink:#000;--ink-soft:#444;--ink-dim:#666}
+  .no-print,button{display:none!important}
+  *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+*,*::before,*::after{box-sizing:border-box;margin:0}
+html{background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}
+body{font:17px/1.6 var(--serif);max-width:76ch;margin:0 auto;padding:2.4rem 1.15rem 5rem}
+h1{font:600 1.95rem/1.18 var(--sans);letter-spacing:-.02em;margin:.35rem 0 .7rem}
+h2{font:600 1.26rem/1.25 var(--sans);letter-spacing:-.01em;margin:3rem 0 .9rem;padding-top:1.05rem;border-top:1px solid var(--border)}
+h3{font:600 1.02rem/1.3 var(--sans);margin:1.8rem 0 .5rem}
+h4{font:600 .8rem/1.3 var(--sans);margin:1.2rem 0 .4rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.07em}
+p{margin:.8rem 0}
+a{color:var(--accent);text-underline-offset:2px}
+code{font:.85em/1.4 var(--mono);background:var(--surface-2);padding:.12em .36em;border-radius:3px;overflow-wrap:break-word;word-break:break-word}
+pre{background:var(--surface);border:1px solid var(--border);padding:.85rem 1rem;border-radius:5px;overflow-x:auto;margin:.9rem 0;-webkit-overflow-scrolling:touch}
+pre code{background:none;padding:0;font-size:.78rem;line-height:1.6;white-space:pre}
+.crumb{font:600 .7rem/1 var(--sans);letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}
+.meta{font:.8rem/1.5 var(--sans);color:var(--ink-dim);margin:.5rem 0 0}
+.tldr{font-size:1.05rem;color:var(--ink-soft);border-left:3px solid var(--accent);padding:.15rem 0 .15rem 1.1rem;margin:1.5rem 0 0}
+.lede{font-size:1.02rem}
+
+/* nav */
+.toc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:.9rem 1.1rem;margin:1.7rem 0 0}
+.toc h4{margin:0 0 .55rem}
+.toc ol{margin:0;padding-left:1.2rem;font:.87rem/1.75 var(--sans)}
+.toc a{color:var(--ink-soft);text-decoration:none}
+.toc a:hover{color:var(--accent);text-decoration:underline}
+
+/* side-by-side prompts */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin:1.3rem 0}
+@media(max-width:640px){.vs{grid-template-columns:1fr}}
+.col{border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface)}
+.col>.hd{font:600 .78rem/1 var(--sans);letter-spacing:.04em;text-transform:uppercase;padding:.6rem .85rem;border-bottom:1px solid var(--border)}
+.col.o>.hd{background:var(--old-soft);color:var(--old)}
+.col.n>.hd{background:var(--new-soft);color:var(--new)}
+.col .bd{padding:.85rem;font:.85rem/1.62 var(--sans)}
+.col .bd p{margin:.5rem 0}
+.col .bd ul{margin:.4rem 0;padding-left:1.05rem}
+.col .bd li{margin:.3rem 0}
+.col .bd .sec{font:600 .72rem/1.3 var(--mono);color:var(--ink-dim);letter-spacing:.05em;margin-top:.85rem}
+.col .bd .sec:first-child{margin-top:0}
+.strike{color:var(--ink-dim);text-decoration:line-through;text-decoration-thickness:1px}
+
+/* change blocks */
+.chg{border:1px solid var(--border);border-radius:6px;background:var(--surface);margin:1.2rem 0;overflow:hidden}
+.chg>h3{margin:0;padding:.75rem .95rem;background:var(--surface-2);font-size:.95rem;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline;justify-content:space-between}
+.chg>h3 .metric{font:700 .78rem/1 var(--sans);color:var(--new);background:var(--new-soft);padding:.32em .55em;border-radius:3px;white-space:nowrap}
+.chg>h3 .metric.none{color:var(--ink-dim);background:var(--surface);border:1px dashed var(--border)}
+.chg>h3 .metric.lab{color:var(--warn);background:#f59e0b18}
+.chg .row{display:grid;grid-template-columns:62px 1fr;gap:.6rem;padding:.6rem .95rem;border-bottom:1px solid var(--border);font:.87rem/1.55 var(--sans);align-items:start}
+.chg .row:last-child{border-bottom:none}
+.chg .row .k{font:600 .68rem/1.6 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim)}
+.chg .row.was .k{color:var(--old)} .chg .row.now .k{color:var(--new)}
+.chg .row.why{background:var(--accent-soft)}
+.chg .row.why .k{color:var(--accent)}
+.chg .q{font-family:var(--mono);font-size:.79rem;line-height:1.55;color:var(--ink-soft)}
+
+/* principles */
+.pr{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;background:var(--surface);padding:1rem 1.15rem;margin:1.3rem 0}
+.pr h3{margin:0 0 .3rem;font-size:1rem;color:var(--accent)}
+.pr .num{font:700 .7rem/1 var(--sans);letter-spacing:.1em;color:var(--ink-dim);text-transform:uppercase}
+.pr p{font-size:.94rem}
+.pr .ev{font:600 .82rem/1.5 var(--sans);color:var(--ink);background:var(--surface-2);border-radius:4px;padding:.5rem .7rem;margin:.7rem 0 0;display:flex;flex-wrap:wrap;gap:.4rem;align-items:baseline}
+.pr .ev b{color:var(--new)}
+.pr .takeaway{font:600 .89rem/1.5 var(--sans);margin:.75rem 0 0;padding-top:.65rem;border-top:1px dashed var(--border)}
+
+/* gates + charts */
+.gates{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:.4rem;margin:1.2rem 0}
+.gate{border:1px solid var(--border);border-radius:5px;padding:.55rem .45rem;text-align:center;background:var(--surface)}
+.gate .g{font:600 .65rem/1 var(--sans);letter-spacing:.06em;color:var(--ink-dim)}
+.gate .v{font:600 .8rem/1.2 var(--sans);margin-top:.32rem}
+.gate .d{font:.64rem/1.28 var(--sans);color:var(--ink-dim);margin-top:.26rem}
+.gate.p{border-color:#22c55e55}.gate.p .v{color:var(--ok)}
+.gate.u{border-color:#f59e0b55}.gate.u .v{color:var(--warn)}
+.bars{margin:1.2rem 0;font:.83rem/1.3 var(--sans)}
+.bar-row{display:grid;grid-template-columns:minmax(80px,auto) 1fr minmax(50px,auto);gap:.6rem;align-items:center;margin:.4rem 0}
+.bar-row .lbl{color:var(--ink-soft);font-size:.8rem}
+.bar-track{background:var(--surface-2);border-radius:3px;height:19px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px}
+.bar-fill.cur{background:linear-gradient(90deg,#ef444488,#ef4444cc)}
+.bar-fill.cand{background:linear-gradient(90deg,#22c55e88,#22c55ecc)}
+.bar-fill.labf{background:linear-gradient(90deg,#f59e0b88,#f59e0bcc)}
+.bar-row .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;font-size:.8rem}
+.chart-cap{font:.76rem/1.45 var(--sans);color:var(--ink-dim);margin:.55rem 0 0}
+
+.note{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);padding:.9rem 1.1rem;border-radius:0 5px 5px 0;margin:1.3rem 0;font-size:.95rem}
+.note.warn{border-left-color:var(--warn)}
+.note.dang{border-left-color:var(--danger)}
+.note.ok{border-left-color:var(--ok)}
+.note p:first-child{margin-top:0}.note p:last-child{margin-bottom:0}
+
+.wrap{overflow-x:auto;margin:1.1rem 0;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font:.85rem/1.45 var(--sans)}
+th,td{text-align:left;padding:.5rem .58rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-weight:600;color:var(--ink-soft);font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.good{color:var(--ok);font-weight:600}.bad{color:var(--danger);font-weight:600}
+.warnc{color:var(--warn);font-weight:600}.dim{color:var(--ink-dim)}
+
+details{border:1px solid var(--border);border-radius:5px;background:var(--surface);margin:.95rem 0;padding:0 1rem}
+details[open]{padding-bottom:.85rem}
+summary{cursor:pointer;font:600 .88rem/1 var(--sans);padding:.8rem 0;list-style:none;display:flex;align-items:center;gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";color:var(--accent);transition:transform .15s}
+details[open] summary::before{transform:rotate(90deg)}
+ul.plain{padding-left:1.15rem}ul.plain li{margin:.42rem 0;font-size:.95rem}
+footer{margin-top:3.2rem;padding-top:1.1rem;border-top:1px solid var(--border);font:.78rem/1.6 var(--sans);color:var(--ink-dim)}
+@media(max-width:520px){
+  body{font-size:16px;padding:1.7rem .85rem 4rem}
+  h1{font-size:1.55rem}h2{font-size:1.13rem;margin-top:2.4rem}
+  .chg .row{grid-template-columns:1fr;gap:.15rem}
+  table{font-size:.78rem}th,td{padding:.42rem .4rem}
+}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <p class="crumb">Orchestra · #106 · Учебный разбор</p>
+  <h1>Почему новый промпт сжатия лучше старого</h1>
+  <p class="meta">Финальный эксперимент Q6 · 126 замеров на 21 фикстуре · 7 из 8 ворот пройдено · разбор правка↔цифра</p>
+  <p class="tldr">Промпт сжатия — то, что Orchestra говорит агенту, когда контекст кончается:
+  «упакуй всё важное, следующая сессия увидит только это». Старый просил
+  <em>писать подробно и без ограничений по длине</em>. Новый просит
+  <em>писать коротко и только то, что подтверждено</em>. Второй вышел
+  вдвое меньше и при этом точнее. Ниже — почему так вышло, по каждой формулировке отдельно.</p>
+
+  <nav class="toc">
+    <h4>Что внутри</h4>
+    <ol>
+      <li><a href="#prompts">Оба промпта дословно, по-русски</a></li>
+      <li><a href="#changes">Построчный разбор: было → стало → зачем → какая цифра</a></li>
+      <li><a href="#why">Четыре принципа, переносимых на любой промпт</a></li>
+      <li><a href="#numbers">Графики Q6</a></li>
+      <li><a href="#gap">Урок про «попросить» и «дописать механически»</a></li>
+      <li><a href="#presave">Почему выкинули <code>_ORCH_PRESAVE</code></a></li>
+    </ol>
+  </nav>
+</header>
+
+<section id="prompts">
+<h2>1. Оба промпта дословно, по-русски</h2>
+<p class="lede">Слева — что было до 2026-08-02. Справа — что стоит сейчас.
+Перевод смысловой: задача — понять инструкцию, а не сверить словарь.
+Английские оригиналы под спойлерами ниже.</p>
+
+<div class="vs">
+  <div class="col o">
+    <div class="hd">✕ Старый · ~1 900 знаков</div>
+    <div class="bd">
+      <p class="sec">[СИСТЕМА: запрошено сжатие контекста — итоговый хендофф]</p>
+
+      <p><em>(только для оркестраторов — блок <code>_ORCH_PRESAVE</code>)</em></p>
+      <p><b>ПЕРЕД тем как писать summary — сохрани свои знания в файлы, чтобы они пережили
+      сжатие:</b></p>
+      <ul>
+        <li><code>CLAUDE.md</code> — допиши ключевые решения, новые правила, найденные
+        паттерны (в раздел «## Session notes»)</li>
+        <li><code>TODO.md</code> — добавь новые пункты, убери сделанные</li>
+        <li><code>BUGS.md</code> — добавь найденные баги, закрой починенные</li>
+        <li><code>docs/</code> — сохрани любое исследование или анализ, который стоит хранить</li>
+      </ul>
+      <p>Используй Edit/Write <b>ПРЯМО СЕЙЧАС</b>. Потом пиши summary.</p>
+
+      <p style="margin-top:1rem">Напиши <b>подробный</b> хендофф, чтобы следующая сессия
+      продолжила без швов. <b>Будь настолько тщательным, насколько возможно</b> — это
+      ЕДИНСТВЕННЫЙ контекст, который у неё будет. <b>Ограничения по длине нет.</b></p>
+
+      <p class="sec">INTENT</p><p>Над чем работаешь и зачем (2–3 предложения с полным контекстом).</p>
+      <p class="sec">DECISIONS</p><p>Все ключевые решения этой сессии (списком, с обоснованием).</p>
+      <p class="sec">FILES</p><p>Каждый затронутый файл и что с ним сделано.</p>
+      <p class="sec">PENDING</p><p>Открытые вопросы, незаконченное, TODO, блокеры, следующие шаги.</p>
+      <p class="sec">RECENT</p><p>Последние <b>5–10 обменов подробно</b> — что спросили, что сделал, что вышло.</p>
+      <p class="sec">BUGS</p><p>Найденные баги, обходные пути, что не сработало.</p>
+      <p class="sec">IMPORTANT CONTEXT</p><p>Всё, что следующая сессия ОБЯЗАНА знать — пути к
+      кредам, особенности API, предпочтения юзера, паттерны, ловушки.</p>
+
+      <p style="margin-top:.9rem">Выведи ТОЛЬКО summary. Без комментариев. Будь конкретным —
+      имена, пути, числа, а не размытые описания.</p>
+    </div>
+  </div>
+
+  <div class="col n">
+    <div class="hd">✓ Новый · ~1 500 знаков</div>
+    <div class="bd">
+      <p class="sec">[СИСТЕМА: запрошено сжатие контекста — структурированный хендофф]</p>
+
+      <p>Прежде чем писать хендофф, <b>продвигай долговременный факт только тогда</b>, когда
+      разговор явно называет существующий канонический Markdown-путь <b>и</b> точный факт для
+      записи. Меняй только этот путь, сохраняй не относящееся к делу содержимое, запись делай
+      идемпотентной. <b>Иначе не пиши файлы вообще.</b> Никогда не создавай
+      <code>CLAUDE.md</code>, <code>TODO.md</code>, <code>BUGS.md</code> или новую заметку
+      только ради сжатия. Никогда не записывай креды.</p>
+
+      <p>Напиши <b>компактный</b> хендофф о состоянии задачи —
+      <b>только из подтверждённых свидетельств</b>.</p>
+
+      <p class="sec">TASK STATE — состояние задачи</p>
+      <p>Текущая цель, фаза и статус, <b>подкреплённый свидетельствами</b>.</p>
+      <p class="sec">DECISIONS — решения</p>
+      <p>Только <b>действующие</b> решения и отмены, нужные чтобы продолжить; сохрани, что
+      предварительное, а что окончательное, и обоснование.</p>
+      <p class="sec">BLOCKER / NEXT — блокер и следующий шаг</p>
+      <p>Текущий блокер и ответственный, если известен; затем <b>одно</b> следующее исполнимое
+      действие. Если преемственность под вопросом — напиши
+      <code>UNKNOWN — source gap</code>, <b>а не догадку</b>.</p>
+      <p class="sec">CONSTRAINTS — ограничения</p>
+      <p>Ещё действующие предпочтения юзера, ограничения безопасности, неразрешённые
+      противоречия. Отличай устойчивые предпочтения от разовых указаний.</p>
+
+      <p style="margin-top:.9rem">Сохрани <b>последние три сообщения пользователя дословно</b>,
+      включая точные команды, пути, числа и строки ошибок.</p>
+
+      <p>Не утверждай, что файл прочитан, изменён, закоммичен, задеплоен или протестирован,
+      если это не следует из разговора или свидетельств инструментов. <b>И не утверждай
+      обратного тоже</b>: отсутствие события инструмента значит, что исход
+      <b>неизвестен</b>, а не что действия не было. Пиши «нет свидетельств X», а не
+      «X не происходило». Измеренный пустой diff подтверждает только «не изменён» —
+      он никогда не подтверждает «не прочитан». Опускай избыточный вывод инструментов и все
+      креды. Выведи <b>только эти четыре коротких раздела</b>.</p>
+    </div>
+  </div>
+</div>
+
+<details>
+<summary>Английский оригинал — старый промпт (<code>git show f796a08^:app/session.py</code>, стр. 1184–1206)</summary>
+<pre><code>_ORCH_PRESAVE = (
+    "BEFORE writing the summary — persist your knowledge to files so it survives compact:\n"
+    "1. CLAUDE.md — append key decisions, new rules, patterns discovered this session (section '## Session notes')\n"
+    "2. TODO.md — add new items, remove done items\n"
+    "3. BUGS.md — add found bugs, close fixed ones\n"
+    "4. docs/ — save any research or analysis worth keeping\n"
+    "Use Edit/Write tools NOW. Then write the summary below.\n\n"
+)
+COMPACT_PROMPT = (
+    "[SYSTEM: Context compaction requested — handoff summary]\n\n"
+    + (_ORCH_PRESAVE if self.is_orchestrator else "")
+    + "Write a detailed handoff summary so your next session can continue seamlessly. "
+    "Be as thorough as possible — this is the ONLY context your next session will have. No length limit.\n\n"
+    "INTENT: What you are working on and why (2-3 sentences with full context).\n"
+    "DECISIONS: All key decisions made during this session (bullet points, include reasoning).\n"
+    "FILES: Every file touched with what was done (path — description of change).\n"
+    "PENDING: Open questions, unfinished work, TODOs, blockers, next steps.\n"
+    "RECENT: Last 5-10 exchanges in detail — what was asked, what you did, what the result was.\n"
+    "BUGS: Any bugs found, workarounds applied, things that didn't work.\n"
+    "IMPORTANT CONTEXT: Anything the next session MUST know — credentials paths, API quirks, "
+    "user preferences, patterns discovered, traps to avoid.\n\n"
+    "Output ONLY the summary. No commentary. Be specific — names, paths, numbers, not vague descriptions."
+)</code></pre>
+</details>
+
+<details>
+<summary>Английский оригинал — новый промпт (<code>app/session.py:1187</code>)</summary>
+<pre><code>COMPACT_PROMPT = (
+    "[SYSTEM: Context compaction requested — structured handoff]\n\n"
+    "Before writing the handoff, promote a durable fact only when the conversation explicitly "
+    "names an existing canonical Markdown path and the exact fact to store. Update only that "
+    "path, preserve unrelated content, and make the write idempotent. Otherwise do not write "
+    "files. Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for compaction. "
+    "Never write credentials.\n\n"
+    "Write a compact task-state handoff from supported evidence only.\n\n"
+    "TASK STATE\n"
+    "- Current objective, phase, and evidence-backed status.\n\n"
+    "DECISIONS\n"
+    "- Only active decisions and reversals needed to continue; retain provisional/final state "
+    "and rationale.\n\n"
+    "BLOCKER / NEXT\n"
+    "- Current blocker and owner if known; then the single next executable action. If "
+    "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
+    "CONSTRAINTS\n"
+    "- Still-active user preferences, safety constraints, and unresolved conflicts. Distinguish "
+    "durable preferences from one-off instructions.\n\n"
+    "Preserve the last three user messages verbatim, including exact commands, paths, numbers, "
+    "and error strings.\n\n"
+    "Do not claim a file was read, changed, committed, deployed, or tested unless the "
+    "conversation or tool evidence says so. Do not assert the negative either: absence of a "
+    "tool event means the outcome is unknown, not that the action did not happen. Write "
+    "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
+    "`not modified`; it never supports `not read`. Omit redundant tool output and all "
+    "credentials. Output only these four short sections."
+)</code></pre>
+</details>
+</section>
+
+<section id="changes">
+<h2>2. Построчный разбор: было → стало → зачем → какая цифра</h2>
+<p class="lede">Шесть значимых правок. У каждой — метрика из Q6, которую она двинула.
+Где привязки к измеренной метрике нет, так и написано: не притягиваю.</p>
+
+<div class="chg">
+  <h3><span>① Блок записи файлов</span><span class="metric">218 → 0 несвязанных записей</span></h3>
+  <div class="row was"><span class="k">Было</span><span class="q">«ПЕРЕД summary сохрани знания в файлы: CLAUDE.md, TODO.md, BUGS.md, docs/. Используй Edit/Write ПРЯМО СЕЙЧАС»</span></div>
+  <div class="row now"><span class="k">Стало</span><span class="q">«Продвигай факт, только когда разговор явно называет существующий канонический путь И точный факт. Иначе не пиши файлы. Никогда не создавай CLAUDE.md/TODO.md/BUGS.md ради сжатия»</span></div>
+  <div class="row why"><span class="k">Зачем</span><span>Старая формулировка — это <b>безусловный приказ писать в четыре места</b> при каждом сжатии. У агента нет способа выполнить его «на ноль»: даже когда сохранять нечего, инструкция требует действия, и он придумывает, что записать.</span></div>
+  <div class="row"><span class="k">Цифра</span><span>За 126 прогонов старый промпт сделал <b class="bad">218</b> посторонних записей и изменил <b class="bad">220</b> файлов. Новый — <b class="good">0</b> посторонних, <b class="good">3</b> файла всего (те самые оправданные продвижения факта).</span></div>
+</div>
+
+<div class="chg">
+  <h3><span>② «Будь тщательным, длина не ограничена»</span><span class="metric">размер −61.4%</span></h3>
+  <div class="row was"><span class="k">Было</span><span class="q">«Напиши подробный хендофф… Будь настолько тщательным, насколько возможно… Ограничения по длине нет»</span></div>
+  <div class="row now"><span class="k">Стало</span><span class="q">«Напиши компактный хендофф о состоянии задачи — только из подтверждённых свидетельств… Выведи только эти четыре коротких раздела»</span></div>
+  <div class="row why"><span class="k">Зачем</span><span>«Без ограничений по длине» агент читает как <b>поощрение объёма</b>. Он начинает пересказывать сырой вывод инструментов и повторять то, что и так очевидно. Это вытесняет важное: место в хендоффе конечно не по инструкции, а по вниманию читателя-модели.</span></div>
+  <div class="row"><span class="k">Цифра</span><span>Медианный хендофф <b class="bad">5301 байт</b> → <b class="good">2046 байт</b> (38.6% от старого). При этом точность <b>выросла</b>, а не упала — см. принцип №1 ниже.</span></div>
+</div>
+
+<div class="chg">
+  <h3><span>③ Семь свободных разделов → четыре типизированных</span><span class="metric">critical 87.1 → 94.8%</span></h3>
+  <div class="row was"><span class="k">Было</span><span class="q">INTENT · DECISIONS · FILES · PENDING · RECENT · BUGS · IMPORTANT CONTEXT — семь разделов, каждый в свободной форме</span></div>
+  <div class="row now"><span class="k">Стало</span><span class="q">TASK STATE · DECISIONS · BLOCKER / NEXT · CONSTRAINTS — четыре, с явным требованием статуса «подкреплённого свидетельствами» и <b>одного</b> следующего действия</span></div>
+  <div class="row why"><span class="k">Зачем</span><span>Семь разделов пересекались: «FILES» и «IMPORTANT CONTEXT» и «BUGS» тянули один и тот же материал, и агент раскладывал его случайно. Четыре непересекающихся слота отвечают на вопросы, которые реально задаёт следующая сессия: <b>где я, что решено, что мешает, что нельзя нарушать</b>.</span></div>
+  <div class="row"><span class="k">Цифра</span><span>Точный recall критических якорей <b class="bad">87.10%</b> → <b class="good">94.84%</b> (+7.74 pp, ДИ<sub>95</sub> [+0.99, +15.28] — нижняя граница выше нуля). Recall pending-действия <b class="bad">90.48%</b> → <b class="good">100%</b>.</span></div>
+</div>
+
+<div class="chg">
+  <h3><span>④ Правило про обе полярности утверждений</span><span class="metric">8 → 0 ложных file-action</span></h3>
+  <div class="row was"><span class="k">Было</span><span class="q">— такого правила не было вовсе —</span></div>
+  <div class="row now"><span class="k">Стало</span><span class="q">«Не утверждай, что файл прочитан/изменён/закоммичен… И не утверждай обратного тоже: отсутствие события значит, что исход неизвестен. Пиши "нет свидетельств X", а не "X не происходило". Пустой diff подтверждает только "не изменён", никогда — "не прочитан"»</span></div>
+  <div class="row why"><span class="k">Зачем</span><span>Это единственная правка, рождённая <b>из провала предыдущего раунда</b>. Первая версия запрещала только положительную ложь («я прочитал файл»). Агент честно перестал так писать — и начал писать отрицательную: «файлы не читались». А это <b>тоже выдумка</b>: он этого не знает. См. принцип №2.</span></div>
+  <div class="row"><span class="k">Цифра</span><span>Ложные заявки о действиях с файлами: старый промпт <b class="bad">8</b>, новый <b class="good">0</b>. Ворота G5 не смягчались — старый промпт на тех же фикстурах всё ещё флагается 8 раз, значит проверка живая.</span></div>
+</div>
+
+<div class="chg">
+  <h3><span>⑤ «Последние 5–10 обменов подробно» → «три дословно»</span><span class="metric lab">recent 24.3 → 100% — стенд</span></h3>
+  <div class="row was"><span class="k">Было</span><span class="q">«RECENT: последние 5–10 обменов подробно — что спросили, что сделал, что вышло»</span></div>
+  <div class="row now"><span class="k">Стало</span><span class="q">«Сохрани последние три сообщения пользователя дословно, включая точные команды, пути, числа и строки ошибок»</span></div>
+  <div class="row why"><span class="k">Зачем</span><span>«Подробно» — это про <b>объём пересказа</b>, а не про сохранность формулировки. Агент добросовестно сохранял тему и терял то, ради чего всё затевалось: точную команду, точный путь, точный текст ошибки. Меньше сообщений, но дословно — полезнее, чем десять в пересказе.</span></div>
+  <div class="row"><span class="k">Цифра</span><span><b class="warnc">Осторожно.</b> На стенде <b class="bad">24.34%</b> → <b>100%</b> (+75.66 pp). Но эти 100% дал <b>механический дописыватель стенда</b>, а не промпт. В проде такого дописывателя нет — там промпт <b>просит</b> модель сделать то же самое. Гарантии нет. Подробно — в разделе 5.</span></div>
+</div>
+
+<div class="chg">
+  <h3><span>⑥ Явное «не знаю» вместо догадки</span><span class="metric none">метрики нет — не притягиваю</span></h3>
+  <div class="row was"><span class="k">Было</span><span class="q">— не было; «будь конкретным — имена, пути, числа, а не размытые описания» скорее толкало заполнить пробел —</span></div>
+  <div class="row now"><span class="k">Стало</span><span class="q">«Если преемственность под вопросом — напиши <code>UNKNOWN — source gap</code>, а не догадку»</span></div>
+  <div class="row why"><span class="k">Зачем</span><span>Требование конкретики без разрешения сказать «не знаю» — это ловушка: агент обязан выдать точное число, даже когда его нет, и выдумывает правдоподобное. Явно разрешённая формула для пробела снимает давление.</span></div>
+  <div class="row"><span class="k">Цифра</span><span class="dim">Отдельной метрики под это правило в Q6 <b>нет</b>. Оно входило в кандидата целиком и не изолировалось. Часть общего выигрыша по точности — возможно, но приписать ему конкретные пункты я не могу и не буду.</span></div>
+</div>
+</section>
+
+<section id="why">
+<h2>3. Четыре принципа, переносимых на любой промпт</h2>
+<p class="lede">Это то, ради чего стоит читать. Правки выше — частный случай; принципы работают
+везде, где вы пишете инструкцию модели.</p>
+
+<div class="pr">
+  <p class="num">Принцип 1 · главный и контринтуитивный</p>
+  <h3>«Пиши подробнее» даёт результат и раздутый, и худший одновременно</h3>
+  <p>Интуиция говорит: чем больше просишь сохранить, тем меньше потеряется. На деле наоборот.
+  Инструкция «будь настолько тщательным, насколько возможно, ограничений по длине нет» —
+  это <b>инструкция про объём</b>, и модель выполняет именно её: наращивает объём.
+  А объём она набирает самым дешёвым способом — пересказом сырого вывода инструментов и
+  повторами.</p>
+  <p>Точность при этом падает по двум причинам. Первая: важное тонет в шуме — следующая
+  сессия читает 5 килобайт, где 3 — вода. Вторая: «подробно» и «дословно» — <b>разные
+  требования</b>, и «подробно» не влечёт второго. Агент подробно пересказывает вашу команду,
+  теряя саму команду.</p>
+  <div class="ev">Q6: новый промпт <b>в 2.59 раза короче</b> — и при этом точный recall критических якорей <b>выше на 7.74 pp</b>, а pending-действия <b>100% против 90.5%</b>.</div>
+  <p class="takeaway">→ Просите <b>свойство</b> результата (точность, дословность, подтверждённость),
+  а не его <b>размер</b>. «Компактно, но дословно в этих местах» бьёт «подробно везде».</p>
+</div>
+
+<div class="pr">
+  <p class="num">Принцип 2 · про запреты</p>
+  <h3>Запрет на одну полярность порождает ложь противоположной</h3>
+  <p>Правило звучало разумно: «не утверждай, что файл прочитан, если нет свидетельств».
+  Агент подчинился буквально — и стал писать «<b>файлы не читались и не изменялись</b>».
+  Формально запрет не нарушен: положительной заявки нет. Фактически это то же самое
+  выдуманное утверждение, только вывернутое.</p>
+  <p>Корень в логике: <b>отсутствие свидетельства — не свидетельство отсутствия</b>.
+  Пустой diff доказывает «не изменён» (изменение оставило бы след) и не доказывает
+  «не прочитан» (чтение следов не оставляет). Агент, которому запретили одну сторону,
+  считает вторую безопасной по умолчанию.</p>
+  <div class="ev">Q6: после добавления второй половины запрета — <b>0</b> ложных заявок против <b>8</b> у старого промпта. В предыдущем раунде именно эта дыра дала 2 реальных отказа.</div>
+  <p class="takeaway">→ Запрещая утверждение, запрещайте <b>обе его полярности</b> и дайте
+  третью формулировку для случая «не знаю»: «нет свидетельств X». Без третьего варианта
+  агент выберет одну из двух лжи.</p>
+</div>
+
+<div class="pr">
+  <p class="num">Принцип 3 · про разрешения</p>
+  <h3>Разрешение «когда полезно» агент читает как «всегда»</h3>
+  <p>Старый блок не говорил «пиши мусор» — он говорил «сохрани знания в файлы, чтобы они
+  пережили сжатие». Звучит как забота. Но условия <b>когда не надо</b> в нём не было,
+  а был список из четырёх адресов и слово <b>СЕЙЧАС</b>. Инструкция без выхода на ноль
+  выполняется всегда — и агент дописывал «Session notes» туда, где записывать было нечего.</p>
+  <p>Новая формулировка задаёт <b>конъюнкцию условий</b>: разговор должен явно назвать
+  (а) существующий канонический путь и (б) точный факт. Не выполнено любое — не пиши вообще.
+  Это условие агент может честно провалить, и в 123 прогонах из 126 он его провалил —
+  правильно.</p>
+  <div class="ev">Q6: <b>218 → 0</b> посторонних записей, <b>220 → 3</b> изменённых файла за 126 прогонов.</div>
+  <p class="takeaway">→ У каждого разрешения на побочное действие должно быть <b>проверяемое
+  условие и явный выход «не делай ничего»</b>. Иначе это не разрешение, а приказ.</p>
+</div>
+
+<div class="pr">
+  <p class="num">Принцип 4 · про форму</p>
+  <h3>Типизированные слоты бьют свободный пересказ</h3>
+  <p>Семь разделов старого промпта пересекались по смыслу: одна и та же находка законно
+  ложилась и в FILES, и в BUGS, и в IMPORTANT CONTEXT. Когда слоты пересекаются, агент
+  распределяет материал <b>непредсказуемо</b> — и что-то выпадает не потому, что забыто,
+  а потому что «уже вроде упомянул рядом».</p>
+  <p>Четыре новых слота отвечают на четыре разных вопроса следующей сессии и не пересекаются:
+  <b>где я</b> (task state), <b>что уже решено и не переобсуждается</b> (decisions),
+  <b>что мешает и что делать первым</b> (blocker/next), <b>что нельзя нарушать</b>
+  (constraints). Плюс требование «одно следующее исполнимое действие» — не список,
+  а именно одно.</p>
+  <div class="ev">Q6: точный recall <b>87.10% → 94.84%</b>, pending <b>90.48% → 100%</b>, и это при вдвое меньшем объёме.</div>
+  <p class="takeaway">→ Проектируйте разделы как <b>непересекающиеся вопросы</b>, а не как
+  темы. Тест: если факт законно помещается в два раздела — разделы спроектированы плохо.</p>
+</div>
+</section>
+
+<section id="numbers">
+<h2>4. Графики Q6</h2>
+<p class="lede">126 выходов на 21 новой фикстуре. Бутстрап парный кластерный по фикстурам,
+20 000 ресэмплов.</p>
+
+<div class="gates">
+  <div class="gate p"><div class="g">G1</div><div class="v">PASS</div><div class="d">recent<br>+75.66 pp</div></div>
+  <div class="gate p"><div class="g">G2</div><div class="v">PASS</div><div class="d">critical<br>+7.74 pp</div></div>
+  <div class="gate p"><div class="g">G3</div><div class="v">PASS</div><div class="d">pending<br>+9.52 pp</div></div>
+  <div class="gate p"><div class="g">G4</div><div class="v">PASS</div><div class="d">секреты<br>0/63</div></div>
+  <div class="gate p"><div class="g">G5</div><div class="v">PASS</div><div class="d">улики<br>0 vs 8</div></div>
+  <div class="gate p"><div class="g">G6</div><div class="v">PASS</div><div class="d">размер<br>38.6%</div></div>
+  <div class="gate u"><div class="g">G7</div><div class="v">?</div><div class="d">нужен<br>2-й судья</div></div>
+  <div class="gate p"><div class="g">G8</div><div class="v">PASS</div><div class="d">3 сжатия<br>100%</div></div>
+</div>
+<p style="font-size:.88rem;color:var(--ink-soft)">Седьмые ворота требуют согласия <b>двух разных</b>
+моделей-судей. Вторая (Codex/Sol) была исчерпана по квоте до 08.08 — второй проход Claude
+закрыл бы ворота формально, но это та же модель, и выдать её согласие за кросс-модельное
+было бы враньём. Поэтому UNDECIDED, а не PASS.</p>
+
+<div class="bars">
+  <h4>Размер хендоффа, медиана в байтах</h4>
+  <div class="bar-row"><span class="lbl">Старый</span><span class="bar-track"><span class="bar-fill cur" style="width:100%"></span></span><span class="val">5301</span></div>
+  <div class="bar-row"><span class="lbl">Новый</span><span class="bar-track"><span class="bar-fill cand" style="width:38.6%"></span></span><span class="val">2046</span></div>
+
+  <h4 style="margin-top:1.35rem">Посторонние записи в файлы за 126 прогонов</h4>
+  <div class="bar-row"><span class="lbl">Старый</span><span class="bar-track"><span class="bar-fill cur" style="width:100%"></span></span><span class="val">218</span></div>
+  <div class="bar-row"><span class="lbl">Новый</span><span class="bar-track"><span class="bar-fill cand" style="width:0.5%"></span></span><span class="val">0</span></div>
+
+  <h4 style="margin-top:1.35rem">Точный recall критических якорей</h4>
+  <div class="bar-row"><span class="lbl">Старый</span><span class="bar-track"><span class="bar-fill cur" style="width:87.1%"></span></span><span class="val">87.1%</span></div>
+  <div class="bar-row"><span class="lbl">Новый</span><span class="bar-track"><span class="bar-fill cand" style="width:94.84%"></span></span><span class="val">94.8%</span></div>
+
+  <h4 style="margin-top:1.35rem">Recall последних 3 сообщений <span style="text-transform:none;letter-spacing:0;color:var(--warn)">— цифра со стенда</span></h4>
+  <div class="bar-row"><span class="lbl">Старый</span><span class="bar-track"><span class="bar-fill cur" style="width:24.34%"></span></span><span class="val">24.3%</span></div>
+  <div class="bar-row"><span class="lbl">Новый</span><span class="bar-track"><span class="bar-fill labf" style="width:100%"></span></span><span class="val">100%</span></div>
+  <p class="chart-cap">Жёлтый = механизм остался на стенде. В проде эта цифра не гарантирована — читайте следующий раздел.</p>
+</div>
+</section>
+
+<section id="gap">
+<h2>5. Урок: «попросить модель» ≠ «дописать механически»</h2>
+
+<div class="note dang">
+<p><strong>Самая красивая цифра этого эксперимента — наполовину не наша.</strong>
+Recall последних сообщений 24.3% → 100% на стенде получен так: после того как модель
+написала свой текст, <b>скрипт стенда механически дописывал</b> к нему последние три
+сообщения пользователя. Дословно, гарантированно, без участия модели. Функция называлась
+<code>compose_handoff()</code>.</p>
+<p>В продакшне такой функции <b>нет</b>. <code>compact()</code> берёт текст модели и больше
+ничего. Тестируемый промпт заканчивался фразой «рантайм допишет хвост и реестр после твоего
+текста» — на стенде правда, в проде обещание блока, который никогда не придёт.
+Поэтому в прод поехала другая формулировка: <b>прямая просьба к модели</b> сохранить эти три
+сообщения дословно.</p>
+</div>
+
+<p>Чему это учит — важнее самой цифры:</p>
+
+<div class="pr">
+  <p class="num">Принцип 5 · про надёжность</p>
+  <h3>Гарантия конструкции сильнее просьбы в промпте</h3>
+  <p>Всё, что можно сделать <b>кодом до или после модели</b>, стоит делать кодом.
+  Модель может не послушаться, может послушаться частично, может послушаться сегодня и
+  не послушаться на длинном контексте. Дописать три последних сообщения программно —
+  операция на пять строк, которая работает <b>всегда и одинаково</b>.</p>
+  <p>Промпт — это <b>вероятностный</b> механизм. Код — <b>детерминированный</b>. Когда
+  требование формулируется как «этот кусок должен присутствовать дословно» — это признак,
+  что задача не для промпта.</p>
+  <div class="ev">Отсюда прямое следствие: <b>100% recent — это про стенд</b>. Сколько даст прод — не измерено. Остальные выигрыши (размер, записи в файлы, точность, ложные заявки) получены самим текстом промпта и работают.</div>
+  <p class="takeaway">→ Разделяйте: что промпт <b>просит</b> и что рантайм <b>гарантирует</b>.
+  Если цифра получена гарантией, а в прод едет просьба — это <b>другой механизм</b>,
+  и старую цифру к нему прикладывать нельзя.</p>
+</div>
+
+<p>Правильное закрытие — портировать <code>compose_handoff()</code> в <code>compact()</code>,
+чтобы хвост дописывался детерминированно. Это отдельный тикет: изменение кода за рамками
+той правки, что была одобрена. И <b>после</b> порта первые ворота придётся перемерять
+заново — механизм станет другим, а старое измерение к новому механизму не относится.</p>
+</section>
+
+<section id="presave">
+<h2>6. Почему выкинули <code>_ORCH_PRESAVE</code></h2>
+
+<p class="lede">Тот самый блок «сохрани в CLAUDE.md / TODO.md / BUGS.md / docs», который
+получали только оркестраторы. Его удаление — единственное изменение поведения, которое
+вы можете заметить в работе.</p>
+
+<div class="wrap">
+<table>
+  <thead><tr><th>Вопрос</th><th>Ответ</th></tr></thead>
+  <tbody>
+    <tr><td><b>Почему нельзя было оставить</b></td>
+      <td>Он <b>прямо противоречил первому правилу</b> нового промпта. Первое правило:
+      «никогда не создавай CLAUDE.md, TODO.md, BUGS.md ради сжатия». <code>_ORCH_PRESAVE</code>:
+      «допиши в CLAUDE.md, TODO.md, BUGS.md ПРЯМО СЕЙЧАС». Два взаимоисключающих приказа в одном
+      промпте.</td></tr>
+    <tr><td><b>Почему нельзя было «просто смягчить»</b></td>
+      <td>Он <b>никогда не входил в тестируемый вариант</b>. Все 126 замеров сделаны без него.
+      Оставить его рядом — значит отправить в прод конфигурацию, которую <b>никто не мерял</b>,
+      и цифры выше перестали бы к ней относиться.</td></tr>
+    <tr><td><b>Что потеряли</b></td>
+      <td>Оркестраторы <b>больше не сохраняют заметки автоматически</b> при сжатии.
+      Долговременные факты теперь надо записывать явно по ходу сессии.</td></tr>
+    <tr><td><b>Что взамен</b></td>
+      <td>Новый промпт всё ещё продвигает факт в существующий канонический файл — но только
+      когда разговор <b>назвал и путь, и точный факт</b>. Узко и по делу.</td></tr>
+    <tr><td><b>Это баг или решение</b></td>
+      <td><b>Решение продуктовое.</b> Ровно этот механизм и дал 218 → 0. Если автозапись нужнее,
+      чем чистота — это обсуждаемо, но возвращать надо осознанно, а не молча.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="pr">
+  <p class="num">Принцип 6 · про противоречия</p>
+  <h3>Два противоречащих правила хуже, чем отсутствие одного из них</h3>
+  <p>Когда промпт требует X и одновременно не-X, агент <b>не сообщает об ошибке</b> — он
+  выбирает сам. Выбор зависит от порядка правил, формулировки, длины контекста и модели,
+  то есть <b>непредсказуем и нестабилен между запусками</b>. Вы получаете не компромисс,
+  а лотерею — и, что хуже, невоспроизводимое поведение: тот же промпт, разные результаты,
+  и непонятно почему.</p>
+  <p>Ровно так мы уже обожглись на фикстуре предыдущего раунда: она требовала
+  «прочитай файл» и одновременно «не пиши, что читал». Выполнима только отказом делать
+  порученную работу. Три из пяти отказов в том раунде оказались следствием этого
+  противоречия, а не дефекта кандидата.</p>
+  <p class="takeaway">→ Перед добавлением правила проверяйте его <b>против уже имеющихся</b>.
+  Если новое противоречит старому — удалите одно, а не оставляйте оба «на всякий случай».
+  Промпт с дырой честнее промпта с противоречием.</p>
+</div>
+</section>
+
+<section>
+<h2>Итог одной таблицей</h2>
+<div class="wrap">
+<table>
+  <thead><tr><th>Что мерили (Q6)</th><th class="n">Старый</th><th class="n">Новый</th><th>Механизм</th></tr></thead>
+  <tbody>
+    <tr><td>Точный recall критических якорей</td><td class="n">87.10%</td><td class="n good">94.84%</td><td class="good">промпт → прод</td></tr>
+    <tr><td>Recall pending-действия</td><td class="n">90.48%</td><td class="n good">100%</td><td class="good">промпт → прод</td></tr>
+    <tr><td>Медианный размер хендоффа</td><td class="n bad">5301 B</td><td class="n good">2046 B</td><td class="good">промпт → прод</td></tr>
+    <tr><td>Посторонние записи в файлы</td><td class="n bad">218</td><td class="n good">0</td><td class="good">промпт → прод</td></tr>
+    <tr><td>Всего изменённых файлов</td><td class="n bad">220</td><td class="n good">3</td><td class="good">промпт → прод</td></tr>
+    <tr><td>Ложные заявки о действиях с файлами</td><td class="n bad">8</td><td class="n good">0</td><td class="good">промпт → прод</td></tr>
+    <tr><td>Утечки фейковых секретов</td><td class="n">0/63</td><td class="n">0/63</td><td class="dim">ничья</td></tr>
+    <tr><td>Recall последних 3 сообщений</td><td class="n bad">24.3%</td><td class="n warnc">100%</td><td class="warnc">дописыватель стенда</td></tr>
+    <tr><td>Recent после 3 сжатий подряд</td><td class="n bad">0.0%</td><td class="n warnc">100%</td><td class="warnc">дописыватель стенда</td></tr>
+  </tbody>
+</table>
+</div>
+<p style="font-size:.9rem;color:var(--ink-soft)">Колонка «механизм» — не украшение.
+Строку из этой таблицы нельзя цитировать без неё: две последние получены тем, чего в проде нет.</p>
+
+<div class="note warn">
+<p><strong>Промпт вступает в силу только после рестарта.</strong>
+<code>app/session.py</code> живёт в памяти под systemd — работающий процесс держит старый
+промпт до <code>sudo systemctl restart orchestra</code>. Рестарт прерывает активные ходы,
+поэтому момент за вами.</p>
+</div>
+</section>
+
+<footer>
+  <p><b>#106</b> · учебный разбор финального эксперимента Q6 · собран 2026-08-02.
+  Полная история всех четырёх раундов и разбор доверия к цифрам — в соседнем артефакте
+  <code>compact-prompt-full-research-106.html</code>.</p>
+  <p>Источники чисел: <code>docs/tasks/106/q6/results/analysis-q6.json</code> (истина по метрикам),
+  <code>q6/report.md</code>, <code>rollback.md</code>.
+  Промпты: новый — <code>app/session.py:1187</code>, старый — <code>git show f796a08^:app/session.py</code> стр. 1184–1206.</p>
+</footer>
+
+</main>
+</body>
+</html>

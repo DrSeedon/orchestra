@@ -78,6 +78,23 @@
   first, not a footnote — the same gap was already documented in `rollback.md`
   and would still have been mis-read from a flat metrics table.
 
+- A teaching artifact must attribute each prompt rule to the metric it actually
+  moved, and say so explicitly where no such metric exists. In #106 five of six
+  rule changes map to a measured Q6 number (file-write condition → 218→0;
+  both-polarity ban → 8→0; four typed sections → +7.74 pp; compactness → −61.4%;
+  verbatim tail → harness-only), but the `UNKNOWN — source gap` rule was never
+  isolated — it shipped inside the bundle. Writing "part of the general gain"
+  there would be invention. The tutorial format pushes hardest toward exactly
+  this kind of tidy causal story; resist it per-row, not in a global disclaimer.
+
+- When quoting a prompt/config verbatim into a document, verify the embedded copy
+  against the real source programmatically before shipping — unescape the HTML
+  and assert every quoted line is a substring of the file. Hand-copied blocks
+  drift silently, and a doc that misquotes the artifact it explains is worse than
+  no doc. Also confirm WHICH commit holds the "old" version: my swap commit
+  `8b5392d` and its squashed merge `f796a08` are different SHAs for the same
+  change, so `^` on the wrong one yields the wrong parent.
+
 - Probe a "tool is unavailable" claim with the EXACT flags the code uses.
   `codex exec` from `/tmp` failed on a trust check (looks like a quota error but
   is not); rerun with the real flags gave the verbatim quota message and reset
