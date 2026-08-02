@@ -28,8 +28,8 @@ def load_latest(path: Path) -> dict[str, dict]:
     return latest
 
 
-def load_mapping() -> dict[str, dict]:
-    return json.loads((RESULTS / "primary-blinding-map.json").read_text())
+def load_mapping(source: str = "primary") -> dict[str, dict]:
+    return json.loads((RESULTS / f"{source}-blinding-map.json").read_text())
 
 
 def opaque(parts: list[str], seed: int) -> str:
@@ -270,10 +270,10 @@ def invoke_codex(prompt: str, schema: dict, cwd: Path, timeout: int) -> dict:
     }
 
 
-def build_jobs(judge: str, seed: int) -> tuple[list[dict], dict]:
+def build_jobs(judge: str, seed: int, source: str = "primary") -> tuple[list[dict], dict]:
     fixtures = [item for item in load_fixtures() if item["split"] == "holdout"]
-    primary = load_latest(RESULTS / "primary.jsonl")
-    mapping = load_mapping()
+    primary = load_latest(RESULTS / f"{source}.jsonl")
+    mapping = load_mapping(source)
     by_fixture = {}
     candidate_map = {}
     for job_id, item in primary.items():
@@ -301,6 +301,9 @@ def build_jobs(judge: str, seed: int) -> tuple[list[dict], dict]:
             }
         )
     jobs = []
+    # A stage may cover a subset of the corpus (pre-gate uses 3 fixtures), so the
+    # expected batch size follows the fixtures actually generated, not the corpus.
+    fixtures = [item for item in fixtures if item["id"] in by_fixture]
     for fixture in fixtures:
         candidates = by_fixture.get(fixture["id"], [])
         expected = len(mapping) // len(fixtures)
@@ -387,11 +390,13 @@ def main() -> int:
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--source", default="primary")
     args = parser.parse_args()
 
-    jobs, candidate_map = build_jobs(args.judge, args.seed)
-    output = RESULTS / f"judge-{args.judge}.jsonl"
-    (RESULTS / f"judge-{args.judge}-blinding-map.json").write_text(
+    jobs, candidate_map = build_jobs(args.judge, args.seed, args.source)
+    label = args.judge if args.source == "primary" else f"{args.source}-{args.judge}"
+    output = RESULTS / f"judge-{label}.jsonl"
+    (RESULTS / f"judge-{label}-blinding-map.json").write_text(
         json.dumps(candidate_map, ensure_ascii=False, indent=2) + "\n"
     )
     if output.exists() and not args.resume:
@@ -445,7 +450,7 @@ def main() -> int:
         "completed_at": datetime.now(timezone.utc).isoformat(),
         "source_sha256": source_hashes(),
     }
-    (RESULTS / f"judge-{args.judge}-manifest.json").write_text(
+    (RESULTS / f"judge-{label}-manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n"
     )
     print(json.dumps(manifest), flush=True)

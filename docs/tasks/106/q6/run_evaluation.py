@@ -375,6 +375,18 @@ def build_jobs(
     elif mode == "primary":
         selected = [item for item in fixtures if item["split"] == "holdout"]
         variants = list(PRIMARY_VARIANTS)
+    elif mode == "pregate":
+        selected = [
+            item
+            for item in fixtures
+            if item["id"]
+            in {
+                "q6-confirm-reversal-canary",
+                "q6-confirm-targeted-promotion",
+                "q6-confirm-tool-gap-archive",
+            }
+        ]
+        variants = list(PRIMARY_VARIANTS)
     elif mode == "presave":
         selected = [
             item
@@ -422,7 +434,7 @@ def build_jobs(
 
 
 def result_succeeded(mode: str, result: dict) -> bool:
-    if mode in {"pilot", "primary"}:
+    if mode in {"pilot", "primary", "pregate"}:
         return bool(result.get("result", {}).get("ok"))
     if mode == "presave":
         passes = result.get("passes", [])
@@ -458,7 +470,7 @@ def append(path: Path, payload: dict) -> None:
 def diagnostic(mode: str, result: dict) -> dict | None:
     if result_succeeded(mode, result):
         return None
-    if mode in {"pilot", "primary"}:
+    if mode in {"pilot", "primary", "pregate"}:
         failures = [result.get("result", {})]
     elif mode == "presave":
         failures = [
@@ -507,7 +519,7 @@ def runner_failure(mode: str, job: dict, model: str, exc: Exception) -> dict:
         "repetition": job["repetition"],
         "model": model,
     }
-    if mode in {"pilot", "primary"}:
+    if mode in {"pilot", "primary", "pregate"}:
         return {**common, "result": error, "files_before": {}, "files_after": {}}
     if mode == "presave":
         return {
@@ -532,7 +544,10 @@ def runner_failure(mode: str, job: dict, model: str, exc: Exception) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["pilot", "primary", "presave", "recompact"])
+    parser.add_argument(
+        "mode",
+        choices=["pilot", "primary", "pregate", "presave", "recompact"],
+    )
     parser.add_argument("--model", required=True)
     parser.add_argument("--repetitions", type=int, default=3)
     parser.add_argument("--workers", type=int, default=2)
@@ -555,6 +570,7 @@ def main() -> int:
     worker = {
         "pilot": single_pass_job,
         "primary": single_pass_job,
+        "pregate": single_pass_job,
         "presave": presave_job,
         "recompact": recompact_job,
     }[args.mode]

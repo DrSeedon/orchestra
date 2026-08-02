@@ -1,0 +1,25 @@
+{
+  "mode": "pregate",
+  "seed": 10620260821,
+  "model": "claude-opus-5[1m]",
+  "expected_jobs": 18,
+  "observed_jobs": 18,
+  "failures_this_invocation": 0,
+  "completed_at": "2026-08-02T07:00:20.027701+00:00",
+  "note": "manifest written post-hoc: the run crashed writing the manifest AFTER all 18 generations succeeded; no generation was repeated",
+  "source_sha256": {
+    "protocol.md": "f9a602299ad13082b2801de0582e0fa2f749c8223095d322a7954510d6e20d42",
+    "fixtures.json": "e2a4c157c3d4d82319115340cfda1076f072bfc04edd52d7ec1d53d27ea3b01f",
+    "build_fixtures.py": "5faf5c40d5d189676a4eb184ec34bd236879b2c77c0c6e6cf17ef4415215abb3",
+    "candidates.py": "ab03a074468e08108161dd80fd1e1755bc2ca84d8f802e7d58ed8550a4a51a48",
+    "run_evaluation.py": "22f9d88d34c689062dd92192740628d9cfd85f243fb488c59cfa649e7978416f",
+    "run_judges.py": "695d00934c11f1f2f0f868d10dcc473bb46a54927f8bca2441e7ca0dd9252401",
+    "inspect_judge_inputs.py": "bec7bf3df211ea19325688445d7adefcd2ff775ddc34bda99a8327c0cc085df7",
+    "score_results.py": "a5b67ca1beffd142dc4f3e398dcf6054c9024220cd12609034b71e839c42f0bc",
+    "analyze_results.py": "7cc60134fd3299c1a5d297bac6660d0ec3e515aa686325694d4bec9121d6d341",
+    "validate_artifacts.py": "e0053e41d7ee1f9fd2358d1cc51d785abf83988a0c3c525364588a1edf56606e",
+    "audit_provenance.py": "9eea96a83350a0c440db2791fc894d1e096061da94c46c636c1fb95101421bb2",
+    "lock_protocol.py": "b4d5c0d425880c18dc0bdb5e30638dd53c5bd29232c509a071ed16c4cbe9b446",
+    "test_q6.py": "211ec5975030afde5d8e95918aa8834e5f228661d03a4f039024c563ddc31bf4"
+  }
+}

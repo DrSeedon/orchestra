@@ -20,6 +20,12 @@
   would have "fixed" correct behaviour. An eval that cannot represent a true
   action will fail any candidate that performs it.
 
+- A run that exits non-zero may still have completed all its paid work. A
+  `pregate` crash on the manifest write happened AFTER all 18 generations
+  succeeded; blindly re-running would have burned the spend twice. Check the
+  results file (row count, `ok`, balance) before resuming or restarting, then
+  write the missing artifact post-hoc with a note.
+
 - `claude -p --output-format json` returns ONLY the final result — tool calls are
   invisible. To capture what the model actually did, use
   `--output-format stream-json --verbose` and read `type=assistant`
