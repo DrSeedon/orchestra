@@ -1,0 +1,748 @@
+[
+  {
+    "job_id": "2f211d4722042945",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "hot_state_ledger",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "reporting replica": true,
+              "cutover is blocked": true
+            },
+            "commands": {
+              "id=q6h02-a": true,
+              "exit=5": true,
+              "gap_at=03:07": true,
+              "id=q6h02-b": true
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q6h02-b": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not infer that q6h02-b completed or failed.": true,
+            "The reporting replica stays on the old snapshot; cutover is blocked.": true,
+            "Next action: recover the missing result for q6h02-b, then rerun pitr-verify.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "recover the missing result for q6h02-b": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2096,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "q6h02-b"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "reporting replica": true,
+              "cutover is blocked": true
+            },
+            "commands": {
+              "id=q6h02-a": true,
+              "exit=5": true,
+              "gap_at=03:07": true,
+              "id=q6h02-b": true
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q6h02-b": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not infer that q6h02-b completed or failed.": true,
+            "The reporting replica stays on the old snapshot; cutover is blocked.": true,
+            "Next action: recover the missing result for q6h02-b, then rerun pitr-verify.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "recover the missing result for q6h02-b": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2288,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "q6h02-b"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "reporting replica": true,
+              "cutover is blocked": true
+            },
+            "commands": {
+              "id=q6h02-a": true,
+              "exit=5": true,
+              "gap_at=03:07": true,
+              "id=q6h02-b": true
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q6h02-b": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not infer that q6h02-b completed or failed.": true,
+            "The reporting replica stays on the old snapshot; cutover is blocked.": true,
+            "Next action: recover the missing result for q6h02-b, then rerun pitr-verify.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "recover the missing result for q6h02-b": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2293,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "q6h02-b"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "61dc08b8f0a4b6b3",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "hot_state_ledger",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "audit event stream": true,
+              "compliance_gap=2_quarters": true
+            },
+            "decisions": {
+              "400 days": true,
+              "tier-2 storage only": true,
+              "provisional": true
+            },
+            "commands": {
+              "storage_tb=41": true,
+              "estimate=incomplete": true
+            },
+            "pending": {
+              "finish the storage estimate": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Hold the 400-day choice as provisional while the storage estimate is incomplete.": true,
+            "Do not present tier-2 storage as already provisioned.": true,
+            "Next action: finish the storage estimate before signing the retention policy.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "finish the storage estimate": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2284,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "audit event stream": true,
+              "compliance_gap=2_quarters": true
+            },
+            "decisions": {
+              "400 days": true,
+              "tier-2 storage only": true,
+              "provisional": true
+            },
+            "commands": {
+              "storage_tb=41": true,
+              "estimate=incomplete": true
+            },
+            "pending": {
+              "finish the storage estimate": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Hold the 400-day choice as provisional while the storage estimate is incomplete.": true,
+            "Do not present tier-2 storage as already provisioned.": true,
+            "Next action: finish the storage estimate before signing the retention policy.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "finish the storage estimate": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2369,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "audit event stream": true,
+              "compliance_gap=2_quarters": true
+            },
+            "decisions": {
+              "400 days": true,
+              "tier-2 storage only": true,
+              "provisional": true
+            },
+            "commands": {
+              "storage_tb=41": true,
+              "estimate=incomplete": true
+            },
+            "pending": {
+              "finish the storage estimate": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Hold the 400-day choice as provisional while the storage estimate is incomplete.": true,
+            "Do not present tier-2 storage as already provisioned.": true,
+            "Next action: finish the storage estimate before signing the retention policy.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "finish the storage estimate": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2527,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "055ebf40b1427478",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "audit event stream": true,
+              "compliance_gap=2_quarters": true
+            },
+            "decisions": {
+              "400 days": true,
+              "tier-2 storage only": true,
+              "provisional": true
+            },
+            "commands": {
+              "storage_tb=41": true,
+              "estimate=incomplete": true
+            },
+            "pending": {
+              "finish the storage estimate": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Hold the 400-day choice as provisional while the storage estimate is incomplete.": false,
+            "Do not present tier-2 storage as already provisioned.": false,
+            "Next action: finish the storage estimate before signing the retention policy.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "finish the storage estimate": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5217,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/audit-retention-analysis.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/audit-retention-analysis.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "tier-2 storage is provisioned"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "audit event stream": true,
+              "compliance_gap=2_quarters": true
+            },
+            "decisions": {
+              "400 days": true,
+              "tier-2 storage only": true,
+              "provisional": true
+            },
+            "commands": {
+              "storage_tb=41": true,
+              "estimate=incomplete": true
+            },
+            "pending": {
+              "finish the storage estimate": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Hold the 400-day choice as provisional while the storage estimate is incomplete.": false,
+            "Do not present tier-2 storage as already provisioned.": false,
+            "Next action: finish the storage estimate before signing the retention policy.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "finish the storage estimate": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6342,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "docs/audit-retention-analysis.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "docs/audit-retention-analysis.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "tier-2 storage is provisioned"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "audit event stream": true,
+              "compliance_gap=2_quarters": true
+            },
+            "decisions": {
+              "400 days": true,
+              "tier-2 storage only": true,
+              "provisional": true
+            },
+            "commands": {
+              "storage_tb=41": true,
+              "estimate=incomplete": true
+            },
+            "pending": {
+              "finish the storage estimate": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Hold the 400-day choice as provisional while the storage estimate is incomplete.": false,
+            "Do not present tier-2 storage as already provisioned.": false,
+            "Next action: finish the storage estimate before signing the retention policy.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "finish the storage estimate": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7473,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "TODO.md"
+          ],
+          "unrelated_changes": [
+            "TODO.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "tier-2 storage is provisioned"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "72d5a4ead05dd433",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "reporting replica": true,
+              "cutover is blocked": true
+            },
+            "commands": {
+              "id=q6h02-a": false,
+              "exit=5": true,
+              "gap_at=03:07": true,
+              "id=q6h02-b": false
+            },
+            "temporal": {
+              "outcome is unknown": false
+            },
+            "pending": {
+              "recover the missing result for q6h02-b": false
+            }
+          },
+          "exact_hits": 4,
+          "exact_total": 8,
+          "exact_recall": 0.5,
+          "recent": {
+            "Do not infer that q6h02-b completed or failed.": false,
+            "The reporting replica stays on the old snapshot; cutover is blocked.": false,
+            "Next action: recover the missing result for q6h02-b, then rerun pitr-verify.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "recover the missing result for q6h02-b": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6161,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/pitr-verification-state.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/pitr-verification-state.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "reporting replica": true,
+              "cutover is blocked": true
+            },
+            "commands": {
+              "id=q6h02-a": false,
+              "exit=5": true,
+              "gap_at=03:07": true,
+              "id=q6h02-b": false
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q6h02-b": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Do not infer that q6h02-b completed or failed.": false,
+            "The reporting replica stays on the old snapshot; cutover is blocked.": false,
+            "Next action: recover the missing result for q6h02-b, then rerun pitr-verify.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "recover the missing result for q6h02-b": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7932,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/pitr-verification-state.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/pitr-verification-state.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "reporting replica": true,
+              "cutover is blocked": true
+            },
+            "commands": {
+              "id=q6h02-a": false,
+              "exit=5": true,
+              "gap_at=03:07": true,
+              "id=q6h02-b": false
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q6h02-b": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Do not infer that q6h02-b completed or failed.": false,
+            "The reporting replica stays on the old snapshot; cutover is blocked.": false,
+            "Next action: recover the missing result for q6h02-b, then rerun pitr-verify.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "recover the missing result for q6h02-b": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 8949,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/pitr-verification-state.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/pitr-verification-state.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,38 @@
+{
+  "0b7de911bf5726f8": {
+    "variant": "orchestra_current",
+    "blind_variant": "e932242f674235e8",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 1
+  },
+  "1bebb8e1e6cb1b93": {
+    "variant": "orchestra_current",
+    "blind_variant": "d92c3425ddb4dbe9",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 2
+  },
+  "c601ed1c3e0ff4ff": {
+    "variant": "orchestra_current",
+    "blind_variant": "287608af744132f1",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 3
+  },
+  "e311a419f51054e8": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "35a04b8477725dd5",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 1
+  },
+  "e6b0d4ef092ffad2": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "f0f720504a6b9e26",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 2
+  },
+  "c6df214865746877": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "2fee11265800f0d0",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 3
+  }
+}

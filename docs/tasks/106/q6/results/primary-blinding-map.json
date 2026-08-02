@@ -1,0 +1,758 @@
+{
+  "6c64921783634741": {
+    "variant": "orchestra_current",
+    "blind_variant": "74cc5ade34d33bf9",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 1
+  },
+  "63a765a02889d1ea": {
+    "variant": "orchestra_current",
+    "blind_variant": "414946945db26c1b",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 2
+  },
+  "8ab9b0e623a34874": {
+    "variant": "orchestra_current",
+    "blind_variant": "97209a031f961268",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 3
+  },
+  "72547e84bd89e892": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "a99db94f6a779019",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 1
+  },
+  "052f7bc4174fce15": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "0b4f58dd991613bc",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 2
+  },
+  "ea499bd0c225c9fd": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "3da71e5a0d189531",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 3
+  },
+  "7709fd32ef2b227e": {
+    "variant": "orchestra_current",
+    "blind_variant": "8b37627f3bfce9a7",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 1
+  },
+  "f566aca6c376dd37": {
+    "variant": "orchestra_current",
+    "blind_variant": "df9bd78bc9992267",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 2
+  },
+  "bfc2f24255f72f79": {
+    "variant": "orchestra_current",
+    "blind_variant": "54f39fd26fb7086c",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 3
+  },
+  "689f226c73fa0620": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "5b29e3217fe6492e",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 1
+  },
+  "3a59bb7fd258755b": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "8d7e3662ff81e743",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 2
+  },
+  "07d7f6ddf9fd0530": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "11a55645d3c22797",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 3
+  },
+  "0eebb74282b89479": {
+    "variant": "orchestra_current",
+    "blind_variant": "09b3cd40cd323c90",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 1
+  },
+  "1500cf87d05002cc": {
+    "variant": "orchestra_current",
+    "blind_variant": "d685ee308c4833a8",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 2
+  },
+  "755eea48aa33fec3": {
+    "variant": "orchestra_current",
+    "blind_variant": "c64b824073cbd7b7",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 3
+  },
+  "99c164c9355a8a33": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "ba7d8b666d5c207b",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 1
+  },
+  "64f5afdca03f4dce": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "95fc27027d44152b",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 2
+  },
+  "e1718e1e78c034f6": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "55571ab1d1f2711e",
+    "fixture_id": "q6-confirm-single-note-append",
+    "repetition": 3
+  },
+  "632d44b4f768f2e5": {
+    "variant": "orchestra_current",
+    "blind_variant": "74ae880d6451ae59",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "repetition": 1
+  },
+  "b5c202703998f42c": {
+    "variant": "orchestra_current",
+    "blind_variant": "fd8ad70dd4de58a6",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "repetition": 2
+  },
+  "4d789c04fc1bc380": {
+    "variant": "orchestra_current",
+    "blind_variant": "4f5ec3f7125acc90",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "repetition": 3
+  },
+  "543a4698f9e91858": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "cf4d17019af9eb4c",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "repetition": 1
+  },
+  "9e1cef6da1d64b0e": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "2c623f0b5723a357",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "repetition": 2
+  },
+  "f87c59527bfd7b5c": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "5b3cc2bc69df1e45",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "repetition": 3
+  },
+  "122ca77e053fa194": {
+    "variant": "orchestra_current",
+    "blind_variant": "a20642a4c68d27cb",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "repetition": 1
+  },
+  "75cb21f958953196": {
+    "variant": "orchestra_current",
+    "blind_variant": "c31f20e5cddbf400",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "repetition": 2
+  },
+  "2a664a8c8807ceaf": {
+    "variant": "orchestra_current",
+    "blind_variant": "7e5ad115f0835598",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "repetition": 3
+  },
+  "b5ffd503e4148d1d": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "15ab5aed9d98c0be",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "repetition": 1
+  },
+  "6b87d9c7443844e7": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "362617b99814bdaf",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "repetition": 2
+  },
+  "06ab872b7a0c521b": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "24574241a46e9d33",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "repetition": 3
+  },
+  "bcc3f308be8210e6": {
+    "variant": "orchestra_current",
+    "blind_variant": "c5978e58c1f881b5",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "repetition": 1
+  },
+  "24f444565b43b8d0": {
+    "variant": "orchestra_current",
+    "blind_variant": "980564704af08bd8",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "repetition": 2
+  },
+  "11338d45367057dc": {
+    "variant": "orchestra_current",
+    "blind_variant": "b60cd17f2088ca1c",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "repetition": 3
+  },
+  "7c6141e64ed7fc32": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "87bf206c1db7bb25",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "repetition": 1
+  },
+  "bf37f6d0a8f43420": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "899e4a3404e03f2e",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "repetition": 2
+  },
+  "13afdbd9793cbded": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "b640766b8b1e309b",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "repetition": 3
+  },
+  "b92563a9db683140": {
+    "variant": "orchestra_current",
+    "blind_variant": "7ebed378390d5fb3",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "repetition": 1
+  },
+  "b3852fa4e53163e2": {
+    "variant": "orchestra_current",
+    "blind_variant": "004355b87d75c9d7",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "repetition": 2
+  },
+  "d6567f377e09ae2e": {
+    "variant": "orchestra_current",
+    "blind_variant": "1908dc5d1f387944",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "repetition": 3
+  },
+  "65ee63caa28a7bfc": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "ae13f5009c174b19",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "repetition": 1
+  },
+  "8c1cbc22eb9ffda0": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "879d641aa6e13abc",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "repetition": 2
+  },
+  "efd27d2f0195dbd2": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "7e505a9d79a5562f",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "repetition": 3
+  },
+  "4916bfee2e46bb2f": {
+    "variant": "orchestra_current",
+    "blind_variant": "33cb4015d79bb812",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "repetition": 1
+  },
+  "8aea221b6de4c3e0": {
+    "variant": "orchestra_current",
+    "blind_variant": "259d05bd67148733",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "repetition": 2
+  },
+  "26b92e2733de0d4b": {
+    "variant": "orchestra_current",
+    "blind_variant": "b5833b3c3c121223",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "repetition": 3
+  },
+  "a409bc1fb9ab0043": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "b04645358560e210",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "repetition": 1
+  },
+  "b4484e2b48151ff1": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "4e299b2a03ad775c",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "repetition": 2
+  },
+  "d859ae89a3b103da": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "a7c50c0d4c2775fc",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "repetition": 3
+  },
+  "7faf8104a3fe2a1b": {
+    "variant": "orchestra_current",
+    "blind_variant": "6aee4acf1aee2f54",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "repetition": 1
+  },
+  "9ccc9c9502943905": {
+    "variant": "orchestra_current",
+    "blind_variant": "0f7ef55123f79067",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "repetition": 2
+  },
+  "7fe4367bf972f714": {
+    "variant": "orchestra_current",
+    "blind_variant": "4465fb0251b615db",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "repetition": 3
+  },
+  "7b9cd974fe61c859": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "38736f5fbabe0bae",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "repetition": 1
+  },
+  "55938c82823944da": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "645675948fc08a2e",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "repetition": 2
+  },
+  "ea3940dc86cf2fff": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "fcdd286641f68b69",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "repetition": 3
+  },
+  "38e4d53cce93535e": {
+    "variant": "orchestra_current",
+    "blind_variant": "65f0850622311b72",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "repetition": 1
+  },
+  "42c819a9d7e7c774": {
+    "variant": "orchestra_current",
+    "blind_variant": "60bbd8e72a68778b",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "repetition": 2
+  },
+  "5067211ceb97cbf3": {
+    "variant": "orchestra_current",
+    "blind_variant": "6c045da42055424e",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "repetition": 3
+  },
+  "243a3055293b4f4d": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "4979971c41be319e",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "repetition": 1
+  },
+  "3774903f526b9396": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "8888255e7b4d4f7a",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "repetition": 2
+  },
+  "9e76ed094f341bec": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "bdd5efac54ed8d43",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "repetition": 3
+  },
+  "f865bcd22adc78e1": {
+    "variant": "orchestra_current",
+    "blind_variant": "a6d1f41a69ba816b",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "repetition": 1
+  },
+  "dc5b7d9fb2a09048": {
+    "variant": "orchestra_current",
+    "blind_variant": "02ea23ac6ed266d7",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "repetition": 2
+  },
+  "e54201f73a213252": {
+    "variant": "orchestra_current",
+    "blind_variant": "de508a76724bbcc5",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "repetition": 3
+  },
+  "99fdcc3a206618d2": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "298fa22273f1f364",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "repetition": 1
+  },
+  "c1e4f1f94ad7c8ff": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "cdc78332ad3e3224",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "repetition": 2
+  },
+  "aa227e4a8e20ccf9": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "70724fcf9bdcaa52",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "repetition": 3
+  },
+  "efeed628dcca3f7f": {
+    "variant": "orchestra_current",
+    "blind_variant": "753c69880f07dd57",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "repetition": 1
+  },
+  "e37fa21dee5177ab": {
+    "variant": "orchestra_current",
+    "blind_variant": "a0fb2a77e141ed1a",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "repetition": 2
+  },
+  "8f738d8a557bd8db": {
+    "variant": "orchestra_current",
+    "blind_variant": "8fd825d8caad8603",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "repetition": 3
+  },
+  "65ff0fbdcf597c02": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "615a97e66ba720d6",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "repetition": 1
+  },
+  "e1e2d5d630655b41": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "905a10f2dbc06063",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "repetition": 2
+  },
+  "de2a9d18f0d77a0d": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "e106e03b4e86beff",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "repetition": 3
+  },
+  "3b077cbd131e4974": {
+    "variant": "orchestra_current",
+    "blind_variant": "242496436f25fc78",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "repetition": 1
+  },
+  "959efc31dc839e18": {
+    "variant": "orchestra_current",
+    "blind_variant": "3547ab695e8f7178",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "repetition": 2
+  },
+  "1f9f353bcb637664": {
+    "variant": "orchestra_current",
+    "blind_variant": "65fb3dafa9e299d1",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "repetition": 3
+  },
+  "bfb48b9d28fc0008": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "690327811ade5e15",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "repetition": 1
+  },
+  "ccb3fc3a895db141": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "6f1ee703ee20b9df",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "repetition": 2
+  },
+  "7d7ef54fc02d9d59": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "278be1eb7433e066",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "repetition": 3
+  },
+  "74ee44feeeba1fb2": {
+    "variant": "orchestra_current",
+    "blind_variant": "bf9c5bbf0aba14a5",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "repetition": 1
+  },
+  "8b3cda216ee22bd7": {
+    "variant": "orchestra_current",
+    "blind_variant": "b0ccbe383d0f0734",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "repetition": 2
+  },
+  "c7304410602e5a0c": {
+    "variant": "orchestra_current",
+    "blind_variant": "b31dc22bda1d8422",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "repetition": 3
+  },
+  "00558c2dced14aa8": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "2912012958aa2843",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "repetition": 1
+  },
+  "fa39a034b691bb71": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "2b93ff1f7c1ee568",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "repetition": 2
+  },
+  "f69fff027419abc7": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "2d19adb40fb36298",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "repetition": 3
+  },
+  "fb9ee9189e729dbf": {
+    "variant": "orchestra_current",
+    "blind_variant": "d252b3bb0c8c9455",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "repetition": 1
+  },
+  "749e63416249a14d": {
+    "variant": "orchestra_current",
+    "blind_variant": "f1aeacdd05eb8d52",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "repetition": 2
+  },
+  "608e4e53ea9695f2": {
+    "variant": "orchestra_current",
+    "blind_variant": "83ceedc16c26acf7",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "repetition": 3
+  },
+  "59f8a078abcf68cf": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "002393d125a175a8",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "repetition": 1
+  },
+  "d397870f9bf2f57b": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "accc751d0e1a3652",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "repetition": 2
+  },
+  "a0f49672f73ccae2": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "23f1e060a3346bdb",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "repetition": 3
+  },
+  "e3676ae9f32fbdbc": {
+    "variant": "orchestra_current",
+    "blind_variant": "a29427b2a4670626",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "repetition": 1
+  },
+  "f522f33eb52a2397": {
+    "variant": "orchestra_current",
+    "blind_variant": "530fab8af952f87b",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "repetition": 2
+  },
+  "35bb569743fb189e": {
+    "variant": "orchestra_current",
+    "blind_variant": "323d0b70c5656ca0",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "repetition": 3
+  },
+  "9381f1965ebcdedb": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "8050aba5538b4bb8",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "repetition": 1
+  },
+  "e0daad9b40e30f7a": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "edcfda411e6daa55",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "repetition": 2
+  },
+  "981f6bc42921576e": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "5b2301b6836015be",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "repetition": 3
+  },
+  "142c6d1c045285a6": {
+    "variant": "orchestra_current",
+    "blind_variant": "9d2d2a187b073fd8",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "repetition": 1
+  },
+  "bbe2413394689136": {
+    "variant": "orchestra_current",
+    "blind_variant": "22c5f57f529832fa",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "repetition": 2
+  },
+  "e3e69a401730a2b9": {
+    "variant": "orchestra_current",
+    "blind_variant": "4690dffb7fb56b3b",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "repetition": 3
+  },
+  "c956b4e1a4a825ec": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "50868173706199f3",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "repetition": 1
+  },
+  "fbbc83aa59bc4e54": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "507c009de4cb73b8",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "repetition": 2
+  },
+  "61298e1ad33f293c": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "1382d712d50a385c",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "repetition": 3
+  },
+  "380a0ebfa96266da": {
+    "variant": "orchestra_current",
+    "blind_variant": "9ac424d6bf2759b7",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "repetition": 1
+  },
+  "cda49e06c1fa352c": {
+    "variant": "orchestra_current",
+    "blind_variant": "b28ef7b0abb2c4cb",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "repetition": 2
+  },
+  "1e8319103de7d634": {
+    "variant": "orchestra_current",
+    "blind_variant": "15a9601094c19396",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "repetition": 3
+  },
+  "7987317bde44c2e0": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "3312251400660daf",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "repetition": 1
+  },
+  "dc874330e4e9aa50": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "350d1f4ffab8d93d",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "repetition": 2
+  },
+  "ee62dab9b0ef2282": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "0fe3c3e73b988c7e",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "repetition": 3
+  },
+  "c1ef2f31ce3306d4": {
+    "variant": "orchestra_current",
+    "blind_variant": "39c232ff9815a2ac",
+    "fixture_id": "q6-confirm-case-collision",
+    "repetition": 1
+  },
+  "d4d70ea35e2e56ad": {
+    "variant": "orchestra_current",
+    "blind_variant": "2c590716583b3a68",
+    "fixture_id": "q6-confirm-case-collision",
+    "repetition": 2
+  },
+  "7a8ed927c06074f1": {
+    "variant": "orchestra_current",
+    "blind_variant": "89f801ac9448b85a",
+    "fixture_id": "q6-confirm-case-collision",
+    "repetition": 3
+  },
+  "785b9969867246d0": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "ab4d820f889790f0",
+    "fixture_id": "q6-confirm-case-collision",
+    "repetition": 1
+  },
+  "c45af82cb439b610": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "608db87d919ed942",
+    "fixture_id": "q6-confirm-case-collision",
+    "repetition": 2
+  },
+  "cf97601896301be7": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "940c188fb25c3022",
+    "fixture_id": "q6-confirm-case-collision",
+    "repetition": 3
+  },
+  "3b1e2eccae3b1173": {
+    "variant": "orchestra_current",
+    "blind_variant": "4a7afce598286272",
+    "fixture_id": "q6-confirm-cutover-order",
+    "repetition": 1
+  },
+  "8942df5cd72a63d3": {
+    "variant": "orchestra_current",
+    "blind_variant": "ca39ca376c89967a",
+    "fixture_id": "q6-confirm-cutover-order",
+    "repetition": 2
+  },
+  "c12a46854f139b0d": {
+    "variant": "orchestra_current",
+    "blind_variant": "74fe95207ec2fb36",
+    "fixture_id": "q6-confirm-cutover-order",
+    "repetition": 3
+  },
+  "f63d8ec8085e5886": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "ee0ec80883bbb08f",
+    "fixture_id": "q6-confirm-cutover-order",
+    "repetition": 1
+  },
+  "d85167e6dca6b63b": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "56c566c46cf19bbc",
+    "fixture_id": "q6-confirm-cutover-order",
+    "repetition": 2
+  },
+  "6f84c1da860ce6fc": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "573a09eed745e375",
+    "fixture_id": "q6-confirm-cutover-order",
+    "repetition": 3
+  },
+  "5106aa45d75d2304": {
+    "variant": "orchestra_current",
+    "blind_variant": "50a8edf6cda06927",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "repetition": 1
+  },
+  "ece4adb22b8fe2fe": {
+    "variant": "orchestra_current",
+    "blind_variant": "6838f4bbaaf66762",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "repetition": 2
+  },
+  "4cb32bbe610a5ff7": {
+    "variant": "orchestra_current",
+    "blind_variant": "37bcc1a341500c26",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "repetition": 3
+  },
+  "7350add99895f2d7": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "904549c9c70ad4d3",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "repetition": 1
+  },
+  "ee55c14641507ae3": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "e5b641a5c45c5b6c",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "repetition": 2
+  },
+  "cbbf1d81baf0865f": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "9c8c1d84d375a0c1",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "repetition": 3
+  }
+}

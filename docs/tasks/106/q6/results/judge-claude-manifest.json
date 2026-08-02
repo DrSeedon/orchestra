@@ -1,0 +1,24 @@
+{
+  "judge": "claude",
+  "expected_jobs": 21,
+  "observed_jobs": 21,
+  "failures_this_invocation": 0,
+  "seed": 10620260835,
+  "completed_at": "2026-08-02T08:20:24.176175+00:00",
+  "source_sha256": {
+    "protocol.md": "0e55b24d9701d64e0496c7d7c30e8945c7da194f05e1165569bbed9cc0152d44",
+    "fixtures.json": "8e855b9883548948e67db762fa43e4f27d0af45fc58b62d0444ecd8bd610b3ba",
+    "build_fixtures.py": "1d2b7c34e04e9a5b6ae2d2007cd4f7ed39e5a43e696df512a02204677f0f1443",
+    "candidates.py": "ab03a074468e08108161dd80fd1e1755bc2ca84d8f802e7d58ed8550a4a51a48",
+    "run_evaluation.py": "d1e8e174a627bbb1b84e8fc924ee5ebb3f3011ef9ba6d48abadbc84e05b46570",
+    "run_judges.py": "6eee892c0530c8fb42544af2872ed3b23503562f25cf64872253d80d0ea73e0e",
+    "inspect_judge_inputs.py": "bec7bf3df211ea19325688445d7adefcd2ff775ddc34bda99a8327c0cc085df7",
+    "score_results.py": "a5b67ca1beffd142dc4f3e398dcf6054c9024220cd12609034b71e839c42f0bc",
+    "analyze_results.py": "7cc60134fd3299c1a5d297bac6660d0ec3e515aa686325694d4bec9121d6d341",
+    "validate_artifacts.py": "fc6124c0e0b93a07892cb71970a746c3aa6b86ebdc19822f13679d3f2e789285",
+    "validate_fixtures.py": "fb66ef7098ed34508dd552db2b210cef79c2f6f752b3f20ce47acb771a6383f5",
+    "audit_provenance.py": "9eea96a83350a0c440db2791fc894d1e096061da94c46c636c1fb95101421bb2",
+    "lock_protocol.py": "b42a82c0ba60aef7b1fef1aef93f0260906d995e10801379d78ea84f1fcd634d",
+    "test_q6.py": "ffdd080957911a9e4b05ba880271ccb3de875a0c38163a5231223d3847051705"
+  }
+}

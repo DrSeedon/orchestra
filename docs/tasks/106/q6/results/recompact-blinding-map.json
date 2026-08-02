@@ -1,0 +1,26 @@
+{
+  "055ebf40b1427478": {
+    "variant": "orchestra_current",
+    "blind_variant": "faa816e41fa46540",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 1
+  },
+  "61dc08b8f0a4b6b3": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "7fb7e736b0144637",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "repetition": 1
+  },
+  "72d5a4ead05dd433": {
+    "variant": "orchestra_current",
+    "blind_variant": "a959bb53f6ebf048",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 1
+  },
+  "2f211d4722042945": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "39a9be29615774f6",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "repetition": 1
+  }
+}

@@ -9,7 +9,7 @@ from run_evaluation import result_succeeded
 
 ROOT = Path(__file__).resolve().parent
 RESULTS = ROOT / "results"
-HOLDOUT_FIXTURES = 22
+HOLDOUT_FIXTURES = 21
 REPETITIONS = 3
 
 

@@ -1,0 +1,906 @@
+[
+  {
+    "job_id": "e311a419f51054e8",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "hot_state_ledger",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": true,
+            "The append must be idempotent; running it twice must not duplicate the line.": true,
+            "Next action after the write: confirm with Ines before publishing the rota.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3096,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/oncall-handover.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": true,
+            "The append must be idempotent; running it twice must not duplicate the line.": true,
+            "Next action after the write: confirm with Ines before publishing the rota.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2406,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "c601ed1c3e0ff4ff",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "orchestra_current",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": false,
+            "The append must be idempotent; running it twice must not duplicate the line.": false,
+            "Next action after the write: confirm with Ines before publishing the rota.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4413,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/oncall-handover.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "rota is published",
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": false,
+            "The append must be idempotent; running it twice must not duplicate the line.": false,
+            "Next action after the write: confirm with Ines before publishing the rota.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5516,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "e6b0d4ef092ffad2",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "hot_state_ledger",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": true,
+            "The append must be idempotent; running it twice must not duplicate the line.": true,
+            "Next action after the write: confirm with Ines before publishing the rota.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2953,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/oncall-handover.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": true,
+            "The append must be idempotent; running it twice must not duplicate the line.": true,
+            "Next action after the write: confirm with Ines before publishing the rota.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2284,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "0b7de911bf5726f8",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "orchestra_current",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": false,
+            "The append must be idempotent; running it twice must not duplicate the line.": false,
+            "Next action after the write: confirm with Ines before publishing the rota.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4718,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/oncall-handover.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "rota is published",
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": true,
+            "The append must be idempotent; running it twice must not duplicate the line.": false,
+            "Next action after the write: confirm with Ines before publishing the rota.": false
+          },
+          "recent_hits": 1,
+          "recent_total": 3,
+          "recent_recall": 0.3333333333333333,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6024,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "rota is published",
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "1bebb8e1e6cb1b93",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "orchestra_current",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": false,
+            "The append must be idempotent; running it twice must not duplicate the line.": false,
+            "Next action after the write: confirm with Ines before publishing the rota.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4502,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/oncall-handover.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "rota is published",
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": false,
+            "The append must be idempotent; running it twice must not duplicate the line.": false,
+            "Next action after the write: confirm with Ines before publishing the rota.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5631,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "c6df214865746877",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "hot_state_ledger",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": true,
+            "The append must be idempotent; running it twice must not duplicate the line.": true,
+            "Next action after the write: confirm with Ines before publishing the rota.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2957,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/oncall-handover.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/oncall-handover.md": true,
+              "Pager owner for week 32: Ines": true
+            },
+            "decisions": {
+              "escalation path unchanged": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Pager owner for week 32: Ines; escalation path unchanged.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the line": true
+            },
+            "pending": {
+              "confirm with Ines": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or any additional note.": true,
+            "The append must be idempotent; running it twice must not duplicate the line.": true,
+            "Next action after the write: confirm with Ines before publishing the rota.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "confirm with Ines": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2783,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/oncall-handover.md": {
+                "exists": true,
+                "contains": {
+                  "# On-call handover": true,
+                  "- Rota reviewed on Monday.": true,
+                  "- Pager owner for week 32: Ines; escalation path unchanged.": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the line"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  }
+]

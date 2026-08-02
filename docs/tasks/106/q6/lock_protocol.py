@@ -30,7 +30,7 @@ payload = {
     ).stdout.strip(),
     "locked_at": datetime.now(timezone.utc).isoformat(),
     "source_sha256": source_hashes(),
-    "decision_rule": "All eight protocol gates must pass on Q5 alone; Q4 outputs are not pooled.",
+    "decision_rule": "All eight protocol gates must pass on Q6 alone; no prior-round outputs are pooled.",
 }
 output.write_text(json.dumps(payload, indent=2) + "\n")
 print(json.dumps(payload, indent=2))

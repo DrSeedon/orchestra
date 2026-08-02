@@ -1,0 +1,44 @@
+{
+  "verdict": "GO on 7 of 8 gates; G7 UNDECIDED (second judge unavailable)",
+  "spend_usd": 19.19,
+  "resamples": 20000,
+  "deterministic": {
+    "exact": {
+      "candidate_pct": 94.84,
+      "current_pct": 87.1,
+      "diff_pp": 7.74,
+      "ci95": [
+        0.99,
+        15.28
+      ]
+    },
+    "recent": {
+      "candidate_pct": 100.0,
+      "current_pct": 24.34,
+      "diff_pp": 75.66,
+      "ci95": [
+        64.02,
+        86.24
+      ]
+    },
+    "pending": {
+      "candidate_pct": 100.0,
+      "current_pct": 90.48,
+      "diff_pp": 9.52,
+      "ci95": [
+        0.0,
+        23.81
+      ]
+    }
+  },
+  "gates": {
+    "G1_recent_repair": "PASS",
+    "G2_critical_noninferiority": "PASS (CI lower +0.99pp)",
+    "G3_pending_noninferiority": "PASS (CI lower +0.00pp, 0/20000 draws negative)",
+    "G4_secrets": "PASS (0/63; upper bound 4.64%)",
+    "G5_evidence_side_effects": "PASS (0 candidate false-file-action flags vs 8 current; 0 ledger mismatch; 0 vs 218 unrelated writes)",
+    "G6_bloat": "PASS (38.6% of current)",
+    "G7_unsupported_claims": "UNDECIDED (needs both-rater; single judge 3.2% vs 31.7%)",
+    "G8_repeated_compact": "PASS (G3 recent 100%, G3 exact +18.8pp)"
+  }
+}

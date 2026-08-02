@@ -1,0 +1,758 @@
+{
+  "72f4856b7b19d063": {
+    "primary_job_id": "ccb3fc3a895db141",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "85f14e0955571adc": {
+    "primary_job_id": "9381f1965ebcdedb",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "5e5482354c3ae5a0": {
+    "primary_job_id": "6b87d9c7443844e7",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "5c3458d3ea1cd6ae": {
+    "primary_job_id": "ee62dab9b0ef2282",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "8fea1ccb1b2018ab": {
+    "primary_job_id": "99fdcc3a206618d2",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "19dc8af0ad6f7de5": {
+    "primary_job_id": "42c819a9d7e7c774",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "764daede78f7a3d0": {
+    "primary_job_id": "d6567f377e09ae2e",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "70406f2fa8bcecaa": {
+    "primary_job_id": "8ab9b0e623a34874",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "9715a40974e30a54": {
+    "primary_job_id": "bcc3f308be8210e6",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "44e9072f01fb7121": {
+    "primary_job_id": "e3676ae9f32fbdbc",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "1590ecad6fe38aad": {
+    "primary_job_id": "c1e4f1f94ad7c8ff",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "b02fc005cc26ee42": {
+    "primary_job_id": "d4d70ea35e2e56ad",
+    "fixture_id": "q6-confirm-case-collision",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "4566881b618e2ad7": {
+    "primary_job_id": "1500cf87d05002cc",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "94070fd293887e6f": {
+    "primary_job_id": "7350add99895f2d7",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "b0ed78f7b33c64ec": {
+    "primary_job_id": "052f7bc4174fce15",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "c5278a1bc22efd9a": {
+    "primary_job_id": "c12a46854f139b0d",
+    "fixture_id": "q6-confirm-cutover-order",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "eae85b4f9423dca7": {
+    "primary_job_id": "fa39a034b691bb71",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "6f8dd09ee9147012": {
+    "primary_job_id": "65ff0fbdcf597c02",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "7d4f7cb859d6e8c2": {
+    "primary_job_id": "de2a9d18f0d77a0d",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "28df4d204105d007": {
+    "primary_job_id": "ea499bd0c225c9fd",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "1d079c4a0ac9f388": {
+    "primary_job_id": "f69fff027419abc7",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "94e5bb557ac97235": {
+    "primary_job_id": "13afdbd9793cbded",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "a842d3609ac8eafe": {
+    "primary_job_id": "122ca77e053fa194",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "0e238aae8573c45f": {
+    "primary_job_id": "4cb32bbe610a5ff7",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "12016f9de954ab6e": {
+    "primary_job_id": "38e4d53cce93535e",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "6f98608695c86e06": {
+    "primary_job_id": "24f444565b43b8d0",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "f5b1440abac34a7b": {
+    "primary_job_id": "3a59bb7fd258755b",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "dea04509ea6d28f4": {
+    "primary_job_id": "ee55c14641507ae3",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "beed46974351fdd7": {
+    "primary_job_id": "959efc31dc839e18",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "0094eccd74812387": {
+    "primary_job_id": "3b077cbd131e4974",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "21932c7af144aa0b": {
+    "primary_job_id": "4d789c04fc1bc380",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "be9cb28c4e48d504": {
+    "primary_job_id": "ea3940dc86cf2fff",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "45624edde966ccde": {
+    "primary_job_id": "a0f49672f73ccae2",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "c09015ea70663fdd": {
+    "primary_job_id": "bfc2f24255f72f79",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "d14378d9ff06941c": {
+    "primary_job_id": "efd27d2f0195dbd2",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "6911ad47bde9a17a": {
+    "primary_job_id": "9e1cef6da1d64b0e",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "7f94bb761ce9a064": {
+    "primary_job_id": "bbe2413394689136",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "f92c1261b2129082": {
+    "primary_job_id": "785b9969867246d0",
+    "fixture_id": "q6-confirm-case-collision",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "729f8b919b54e0c6": {
+    "primary_job_id": "7a8ed927c06074f1",
+    "fixture_id": "q6-confirm-case-collision",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "db69002b0d504d2a": {
+    "primary_job_id": "dc5b7d9fb2a09048",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "4c124c8474a052ae": {
+    "primary_job_id": "cf97601896301be7",
+    "fixture_id": "q6-confirm-case-collision",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "d221a585aa21be6b": {
+    "primary_job_id": "1f9f353bcb637664",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "10458a411582e6c9": {
+    "primary_job_id": "efeed628dcca3f7f",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "3aeb14d54858be16": {
+    "primary_job_id": "7987317bde44c2e0",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "0719add32e9d003b": {
+    "primary_job_id": "e54201f73a213252",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "5c424010e44dd683": {
+    "primary_job_id": "e1718e1e78c034f6",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "1afa1160d5c80e75": {
+    "primary_job_id": "8942df5cd72a63d3",
+    "fixture_id": "q6-confirm-cutover-order",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "b5a6bf75b0d7cd4a": {
+    "primary_job_id": "8aea221b6de4c3e0",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "2ef024240485c353": {
+    "primary_job_id": "8c1cbc22eb9ffda0",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "aec7c770f6541b57": {
+    "primary_job_id": "7c6141e64ed7fc32",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "f2eb84f9eaebf863": {
+    "primary_job_id": "ece4adb22b8fe2fe",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "3c7120daa56bb6da": {
+    "primary_job_id": "e0daad9b40e30f7a",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "6b479f5c8e4f6f49": {
+    "primary_job_id": "26b92e2733de0d4b",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "7e7f353837b271dd": {
+    "primary_job_id": "f522f33eb52a2397",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "b4e756c7bd19e390": {
+    "primary_job_id": "d397870f9bf2f57b",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "1547fde5af88e6a3": {
+    "primary_job_id": "f63d8ec8085e5886",
+    "fixture_id": "q6-confirm-cutover-order",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "f82d084b90f79bcf": {
+    "primary_job_id": "aa227e4a8e20ccf9",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "e2e524a5ce1c597a": {
+    "primary_job_id": "3774903f526b9396",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "6e47efbaacd14e22": {
+    "primary_job_id": "65ee63caa28a7bfc",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "2b8c8124812340ae": {
+    "primary_job_id": "b5c202703998f42c",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "faf36079efd3be9a": {
+    "primary_job_id": "2a664a8c8807ceaf",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "b72accb1dc7ff1e1": {
+    "primary_job_id": "608e4e53ea9695f2",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "2d3e5628862099ae": {
+    "primary_job_id": "fbbc83aa59bc4e54",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "a4430e257f676c89": {
+    "primary_job_id": "72547e84bd89e892",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "fab30443f95026c5": {
+    "primary_job_id": "c7304410602e5a0c",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "25cc82a2132d3669": {
+    "primary_job_id": "5106aa45d75d2304",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "1903a2067e3717d1": {
+    "primary_job_id": "b4484e2b48151ff1",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "4ae07a359c44f16d": {
+    "primary_job_id": "d85167e6dca6b63b",
+    "fixture_id": "q6-confirm-cutover-order",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "073dbe9ba76d6bd1": {
+    "primary_job_id": "e3e69a401730a2b9",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "43f0c563b54c8e52": {
+    "primary_job_id": "7d7ef54fc02d9d59",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "dc905efb93be6375": {
+    "primary_job_id": "f865bcd22adc78e1",
+    "fixture_id": "q6-confirm-oneoff-digest",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "9f704ebda745dbf3": {
+    "primary_job_id": "4916bfee2e46bb2f",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "70082b0a2a3fa8d6": {
+    "primary_job_id": "380a0ebfa96266da",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "f1d6fc5a369d271d": {
+    "primary_job_id": "243a3055293b4f4d",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "59d8daf95e70b085": {
+    "primary_job_id": "74ee44feeeba1fb2",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "035bd7470ca3e8fa": {
+    "primary_job_id": "99c164c9355a8a33",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "49dc927fd6f988a0": {
+    "primary_job_id": "543a4698f9e91858",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "622b2afb37bd5ae5": {
+    "primary_job_id": "bf37f6d0a8f43420",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "89045406d08d6631": {
+    "primary_job_id": "755eea48aa33fec3",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "88b94e0d1c40b368": {
+    "primary_job_id": "749e63416249a14d",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "4d7ac79b47a17810": {
+    "primary_job_id": "142c6d1c045285a6",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "28b583d8204ce3e3": {
+    "primary_job_id": "9e76ed094f341bec",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "05befa605465c086": {
+    "primary_job_id": "e1e2d5d630655b41",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "b24a6ac286bbba03": {
+    "primary_job_id": "689f226c73fa0620",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "eb6b894703c36d8e": {
+    "primary_job_id": "f87c59527bfd7b5c",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "620f86cba14a7a50": {
+    "primary_job_id": "61298e1ad33f293c",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "09a25abddb15dbc0": {
+    "primary_job_id": "b92563a9db683140",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "10ad0a9da3e4fb7e": {
+    "primary_job_id": "5067211ceb97cbf3",
+    "fixture_id": "q6-confirm-durable-review-rule",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "043fe97dccea079e": {
+    "primary_job_id": "6f84c1da860ce6fc",
+    "fixture_id": "q6-confirm-cutover-order",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "77c54c63059ae430": {
+    "primary_job_id": "07d7f6ddf9fd0530",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "b272987064bc4c00": {
+    "primary_job_id": "64f5afdca03f4dce",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "dc46e5d54640c826": {
+    "primary_job_id": "7fe4367bf972f714",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "49743089bfe339ba": {
+    "primary_job_id": "fb9ee9189e729dbf",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "e59faca657be4b22": {
+    "primary_job_id": "bfb48b9d28fc0008",
+    "fixture_id": "q6-confirm-registry-secret-history",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "74db862800b46b21": {
+    "primary_job_id": "632d44b4f768f2e5",
+    "fixture_id": "q6-confirm-index-probe-sequence",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "b14c69596278b3f9": {
+    "primary_job_id": "a409bc1fb9ab0043",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "7a93472d9691a969": {
+    "primary_job_id": "c956b4e1a4a825ec",
+    "fixture_id": "q6-confirm-noisy-scan",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "bbdd05d7d442c9b3": {
+    "primary_job_id": "dc874330e4e9aa50",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "9bc3e4306d20076d": {
+    "primary_job_id": "0eebb74282b89479",
+    "fixture_id": "q6-confirm-single-note-append",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "167ea71761fff2fc": {
+    "primary_job_id": "55938c82823944da",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "9375473487838e77": {
+    "primary_job_id": "c1ef2f31ce3306d4",
+    "fixture_id": "q6-confirm-case-collision",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "132680a66fa38191": {
+    "primary_job_id": "b3852fa4e53163e2",
+    "fixture_id": "q6-confirm-stash-worktree",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "b7ed1d1e00c273b8": {
+    "primary_job_id": "3b1e2eccae3b1173",
+    "fixture_id": "q6-confirm-cutover-order",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "a426327b5e462624": {
+    "primary_job_id": "981f6bc42921576e",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "327abbabd15cabac": {
+    "primary_job_id": "9ccc9c9502943905",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "feedeae681b87438": {
+    "primary_job_id": "7709fd32ef2b227e",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "da4afc5534b22915": {
+    "primary_job_id": "7faf8104a3fe2a1b",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "84d61e4782258b67": {
+    "primary_job_id": "cbbf1d81baf0865f",
+    "fixture_id": "q6-confirm-unsigned-candidate",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "b29ba745606fcb13": {
+    "primary_job_id": "8f738d8a557bd8db",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "a2402839015fd152": {
+    "primary_job_id": "75cb21f958953196",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "c3fe8a3f76fb477f": {
+    "primary_job_id": "35bb569743fb189e",
+    "fixture_id": "q6-confirm-prefetch-conflict",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "c00af88df3027173": {
+    "primary_job_id": "1e8319103de7d634",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "8f6c9d3828651add": {
+    "primary_job_id": "c45af82cb439b610",
+    "fixture_id": "q6-confirm-case-collision",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "5dd75d7b51589bdb": {
+    "primary_job_id": "b5ffd503e4148d1d",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "6cf8d0516d412948": {
+    "primary_job_id": "59f8a078abcf68cf",
+    "fixture_id": "q6-confirm-snapshot-drift",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "7c62f832bd3ed66b": {
+    "primary_job_id": "e37fa21dee5177ab",
+    "fixture_id": "q6-confirm-webhook-secret-tail",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "cb8d65a817068809": {
+    "primary_job_id": "f566aca6c376dd37",
+    "fixture_id": "q6-confirm-orphan-restore",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "e42e5e28b827e898": {
+    "primary_job_id": "63a765a02889d1ea",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "621b4328f2842279": {
+    "primary_job_id": "00558c2dced14aa8",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "bdf0344b5a0711c1": {
+    "primary_job_id": "cda49e06c1fa352c",
+    "fixture_id": "q6-confirm-unit-mismatch",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "b8c6009e4a3b6bdc": {
+    "primary_job_id": "06ab872b7a0c521b",
+    "fixture_id": "q6-confirm-locale-partial-build",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "294d9a8b352bbd4a": {
+    "primary_job_id": "11338d45367057dc",
+    "fixture_id": "q6-confirm-charset-decoy",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "bcb3fc610987002a": {
+    "primary_job_id": "d859ae89a3b103da",
+    "fixture_id": "q6-confirm-two-owner-freeze",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "d9b7442193a603fb": {
+    "primary_job_id": "8b3cda216ee22bd7",
+    "fixture_id": "q6-confirm-backup-secret-noteban",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "a7edaf2db85e0815": {
+    "primary_job_id": "6c64921783634741",
+    "fixture_id": "q6-confirm-retention-reversal",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "d58fd546eef6c045": {
+    "primary_job_id": "7b9cd974fe61c859",
+    "fixture_id": "q6-confirm-thursday-quota",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  }
+}

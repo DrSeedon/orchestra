@@ -1,0 +1,14 @@
+{
+  "df18e49bc4565237": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "7f15557ac569e5b9",
+    "fixture_id": "q6-dev-pair-probe",
+    "repetition": 1
+  },
+  "fb62505e208a6eb9": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "fe387983817f8fe3",
+    "fixture_id": "q6-dev-token-probe",
+    "repetition": 1
+  }
+}

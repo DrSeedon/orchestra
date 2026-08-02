@@ -39,6 +39,21 @@
   actuals showed tools used in only 72/132 runs. Check the turn count before
   blaming the code.
 
+- When a locked source genuinely must change mid-experiment (stale constant that
+  makes a validator unpassable), do NOT rewrite the lock file — that destroys the
+  evidence anything changed. Amend the file, leave the lock as-is so the hash
+  check reports drift, and write a dated `lock-amendment-NN.md` stating the diff,
+  the reason, when it happened relative to generation/judging, and which gates it
+  touches (ideally none). Drift on exactly one documented file is honest; a
+  silently regenerated lock is not.
+
+- A long command started inside my own turn DIES when the turn ends, even when
+  the harness says "moved to background, you will be notified". That notification
+  never comes and no wake is scheduled. Cost: 45 of 126 paid generations lost
+  mid-run. For anything over ~10 minutes use
+  `bg_create(type="run", command=..., timeout_seconds=...)` — it lives on the
+  server and wakes me on completion. Then END THE TURN; do not poll.
+
 - Renaming a corpus does not renew it. Copying `q5/` to `q6/` and sed-ing the ids
   gives fixtures that were ALREADY used to select the winner — measuring on them
   inflates the effect. Say so before anyone funds the round. Also: a fixture id
