@@ -1,0 +1,45 @@
+{
+  "status": "PARTIAL - single judge only; Codex unavailable until 2026-08-08T07:53",
+  "resamples": 20000,
+  "deterministic": {
+    "exact": {
+      "candidate_pct": 92.42,
+      "current_pct": 83.9,
+      "diff_pp": 8.52,
+      "ci95": [
+        1.7,
+        15.53
+      ]
+    },
+    "recent": {
+      "candidate_pct": 100.0,
+      "current_pct": 33.84,
+      "diff_pp": 66.16,
+      "ci95": [
+        53.03,
+        78.28
+      ]
+    },
+    "pending": {
+      "candidate_pct": 100.0,
+      "current_pct": 86.36,
+      "diff_pp": 13.64,
+      "ci95": [
+        3.03,
+        27.27
+      ]
+    }
+  },
+  "gates": {
+    "G1_recent_repair": "PASS",
+    "G2_critical_noninferiority": "PASS",
+    "G3_pending_noninferiority": "PASS",
+    "G4_secrets": "PASS (0/66 both variants; 95% upper bound 4.44%)",
+    "G5_evidence_side_effects": "FAIL (single judge flags 5 candidate false unchanged-file-action claims; deterministic parts pass: 0 ledger mismatch, 0 vs 238 unrelated writes)",
+    "G6_bloat": "PASS (35.7% of current, limit 125%)",
+    "G7_unsupported_claims": "UNDECIDED (needs both-rater co-flag; single judge 12.1% vs 72.7%)",
+    "G8_repeated_compact": "PASS (G3 recent 100%, G3 exact +12.5pp)"
+  },
+  "spend_usd": 21.77,
+  "verdict": "NO VERDICT - G5 fails on available judge, G7 undecided without second judge"
+}

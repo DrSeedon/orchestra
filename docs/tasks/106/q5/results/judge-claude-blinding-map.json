@@ -1,0 +1,794 @@
+{
+  "1444d096c473fe87": {
+    "primary_job_id": "7a23cbe4ad29b272",
+    "fixture_id": "q5-confirm-user-preference-oneoff",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "d987b273f7e238bc": {
+    "primary_job_id": "5f54aac45c103879",
+    "fixture_id": "q5-confirm-command-partial-build",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "61bdb773ac45a512": {
+    "primary_job_id": "945d104caad3d346",
+    "fixture_id": "q5-confirm-file-mixed-status",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "cb2ef321a92dbdb9": {
+    "primary_job_id": "24f86b7a8fb4b248",
+    "fixture_id": "q5-confirm-user-preference-oneoff",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "4efbeffdaa0fbeac": {
+    "primary_job_id": "02332ba9678a9168",
+    "fixture_id": "q5-confirm-user-preference-durable",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "77674f5098c97c58": {
+    "primary_job_id": "9682ed366afda7e7",
+    "fixture_id": "q5-confirm-user-preference-durable",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "5301aa221dcef9b8": {
+    "primary_job_id": "ea056caf4076f912",
+    "fixture_id": "q5-confirm-blocker-two-owners",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "f073c5a05cc2d225": {
+    "primary_job_id": "48f402f0bad1d693",
+    "fixture_id": "q5-confirm-file-decoy-read",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "7d9d0b609668ba7f": {
+    "primary_job_id": "78c8c3784216a294",
+    "fixture_id": "q5-confirm-user-preference-durable",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "3b31cf834989969a": {
+    "primary_job_id": "18b83ae905cfb488",
+    "fixture_id": "q5-confirm-secret-token-tail",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "e5bf41bfc3bed4d1": {
+    "primary_job_id": "3a25b32068afeec7",
+    "fixture_id": "q5-confirm-secret-access-key",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "b702635a35104d37": {
+    "primary_job_id": "39d04802e823f78b",
+    "fixture_id": "q5-confirm-file-mixed-status",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "c3d7b507ec59a54c": {
+    "primary_job_id": "347fc282fea78e4d",
+    "fixture_id": "q5-confirm-file-unchanged-no-read",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "f54eecaeb691f005": {
+    "primary_job_id": "5ab3141b2d40357b",
+    "fixture_id": "q5-confirm-secret-token-tail",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "ecebacd872ec0982": {
+    "primary_job_id": "e310c40afa82c638",
+    "fixture_id": "q5-confirm-long-output",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "ae64b1a4d84b8161": {
+    "primary_job_id": "652caa08c88f8ada",
+    "fixture_id": "q5-confirm-deploy-negative",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "1d54b08dcc74a312": {
+    "primary_job_id": "f283ec6b41bee061",
+    "fixture_id": "q5-confirm-blocker-two-owners",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "159679a029dcba44": {
+    "primary_job_id": "358f5472d13f9c17",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "15c7d746149a15b1": {
+    "primary_job_id": "2e1a9490d6ffb2ea",
+    "fixture_id": "q5-confirm-file-unchanged-no-read",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "6b90a3cfa859b7a8": {
+    "primary_job_id": "c4defbee91ef1478",
+    "fixture_id": "q5-confirm-blocker-temporal-wait",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "7eee423cdc93308a": {
+    "primary_job_id": "c923d2608edbe59b",
+    "fixture_id": "q5-confirm-command-retry-lease",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "0200a2219f7b28c4": {
+    "primary_job_id": "0a2138f7a0b4abb4",
+    "fixture_id": "q5-confirm-file-mixed-status",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "a68ca14b354a9bb4": {
+    "primary_job_id": "eb41b54e0ea90048",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "36a418f01d74f104": {
+    "primary_job_id": "c7c8e6f812fc8b74",
+    "fixture_id": "q5-confirm-secret-access-key",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "24b2ef2bf68827fa": {
+    "primary_job_id": "1fd1bf3a616ec4f2",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "c00b2f6782039525": {
+    "primary_job_id": "806b507b4a51849f",
+    "fixture_id": "q5-confirm-path-case-sensitive",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "acc6f96e2ec27d2a": {
+    "primary_job_id": "e7852023e3689518",
+    "fixture_id": "q5-confirm-numeric-units",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "f2273fee144caec7": {
+    "primary_job_id": "3d30194ad0584918",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "629e9158c1b5c023": {
+    "primary_job_id": "976179da01d04a71",
+    "fixture_id": "q5-confirm-long-output",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "f393c29fefdabc90": {
+    "primary_job_id": "544faaa6b7b3b350",
+    "fixture_id": "q5-confirm-file-decoy-read",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "ea2c93512e5a3e25": {
+    "primary_job_id": "f790948647d9fa82",
+    "fixture_id": "q5-confirm-deploy-negative",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "53c69ba9372f5fae": {
+    "primary_job_id": "7fed045a39652021",
+    "fixture_id": "q5-confirm-deploy-negative",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "b40ecb5c7cea6fce": {
+    "primary_job_id": "085fe00b975d8aac",
+    "fixture_id": "q5-confirm-file-mixed-status",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "f44e7530ccf70cf5": {
+    "primary_job_id": "590ef67e53484458",
+    "fixture_id": "q5-confirm-file-decoy-read",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "68caa62dabf9fe79": {
+    "primary_job_id": "2c766e80df616fe0",
+    "fixture_id": "q5-confirm-deploy-negative",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "e953f1db2f5a5d65": {
+    "primary_job_id": "2afcb2df870654e6",
+    "fixture_id": "q5-confirm-secret-ghp-file",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "5f8396511f986285": {
+    "primary_job_id": "0c96aab62b80a9f3",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "3ac1116305be7ae5": {
+    "primary_job_id": "278aa1a60519422a",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "c1d87f051178de86": {
+    "primary_job_id": "0dbc7efa39db8d50",
+    "fixture_id": "q5-confirm-secret-ghp-file",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "d29520c34cbc2216": {
+    "primary_job_id": "3b5201446e8b86fa",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "885a06829bc8985e": {
+    "primary_job_id": "523e12d14468a473",
+    "fixture_id": "q5-confirm-command-retry-lease",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "225bd8d520a535fc": {
+    "primary_job_id": "5e402a4dbdc10be7",
+    "fixture_id": "q5-confirm-numeric-units",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "817149352285dd2b": {
+    "primary_job_id": "0791cab3b7085cfa",
+    "fixture_id": "q5-confirm-user-preference-oneoff",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "2f7853524b63e289": {
+    "primary_job_id": "90df9b842b690381",
+    "fixture_id": "q5-confirm-blocker-temporal-wait",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "90505ddbb2c284fa": {
+    "primary_job_id": "49f01913ce589a4b",
+    "fixture_id": "q5-confirm-blocker-temporal-wait",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "c1cae5a7e633f3b3": {
+    "primary_job_id": "1ca0fcf506970333",
+    "fixture_id": "q5-confirm-file-unchanged-no-read",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "94acc35d7e757da2": {
+    "primary_job_id": "e6f5ed92eae93481",
+    "fixture_id": "q5-confirm-file-mixed-status",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "ac8fce7a61b27a1f": {
+    "primary_job_id": "032d0df53ead7310",
+    "fixture_id": "q5-confirm-blocker-temporal-wait",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "93ba6e23f3924025": {
+    "primary_job_id": "f4f7a935661f6253",
+    "fixture_id": "q5-confirm-secret-ghp-file",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "54caf4818edddbe4": {
+    "primary_job_id": "acaa1b6071e96d5d",
+    "fixture_id": "q5-confirm-command-partial-build",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "335429533623b78a": {
+    "primary_job_id": "7a1b422f66403592",
+    "fixture_id": "q5-confirm-path-case-sensitive",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "7af1eeea0b4d2af9": {
+    "primary_job_id": "f14415f570b71025",
+    "fixture_id": "q5-confirm-conflict-zero-rate",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "cc18cb9207a76e5b": {
+    "primary_job_id": "7dfa17b990c5432c",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "3277d91113ef53eb": {
+    "primary_job_id": "fb015c5db8b0901e",
+    "fixture_id": "q5-confirm-long-output",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "8bdba1664f5b98ba": {
+    "primary_job_id": "f20e9da736565a86",
+    "fixture_id": "q5-confirm-conflict-zero-rate",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "365e16c3e0a03887": {
+    "primary_job_id": "b158f8338550bed9",
+    "fixture_id": "q5-confirm-deploy-negative",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "ee6425caec370677": {
+    "primary_job_id": "a65e2e3344829408",
+    "fixture_id": "q5-confirm-user-preference-durable",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "77f752750dabaf08": {
+    "primary_job_id": "869b2f750130127e",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "77b61970a71e9e8f": {
+    "primary_job_id": "23d5a14fd9141c8f",
+    "fixture_id": "q5-confirm-multi-step-next",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "5ae65775e3702010": {
+    "primary_job_id": "0243754932489baa",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "4e29d50e560ed437": {
+    "primary_job_id": "41954bbaa2290db8",
+    "fixture_id": "q5-confirm-conflict-zero-rate",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "f350c4bf5bd3cddd": {
+    "primary_job_id": "1d64eb9fc256ee60",
+    "fixture_id": "q5-confirm-file-decoy-read",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "dedb785177e2340b": {
+    "primary_job_id": "4f1ff6e0127f5c82",
+    "fixture_id": "q5-confirm-file-mixed-status",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "c9101b9159ec96b4": {
+    "primary_job_id": "f03aba6fbf9b5ead",
+    "fixture_id": "q5-confirm-blocker-two-owners",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "706400fbbccd62dc": {
+    "primary_job_id": "926ca7cbfa48a128",
+    "fixture_id": "q5-confirm-conflict-zero-rate",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "c3bd4aac5691b78f": {
+    "primary_job_id": "330ce4f2bee93285",
+    "fixture_id": "q5-confirm-secret-token-tail",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "0e1bf50c9c0cad32": {
+    "primary_job_id": "2dd7c400e5e1b5bd",
+    "fixture_id": "q5-confirm-temporal-snapshot",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "f4a39a55a509a806": {
+    "primary_job_id": "66ce6516eca70d06",
+    "fixture_id": "q5-confirm-file-decoy-read",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "6daafdc83c6e08f7": {
+    "primary_job_id": "98c3bb1b0db4b887",
+    "fixture_id": "q5-confirm-command-retry-lease",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "ac3fea04aa7c5cdd": {
+    "primary_job_id": "23c537ede7bcc437",
+    "fixture_id": "q5-confirm-secret-ghp-file",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "557cd83d4ca1f412": {
+    "primary_job_id": "fc6262d220139287",
+    "fixture_id": "q5-confirm-secret-access-key",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "e354f3da153cbc87": {
+    "primary_job_id": "d9dd274afb671e57",
+    "fixture_id": "q5-confirm-user-preference-durable",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "5d9f0569a44e9f85": {
+    "primary_job_id": "23bd1b27f1729a03",
+    "fixture_id": "q5-confirm-temporal-snapshot",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "3e5422cc99d5424e": {
+    "primary_job_id": "337cccb229046f5a",
+    "fixture_id": "q5-confirm-secret-access-key",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "823367c8eb2186c6": {
+    "primary_job_id": "5783b78eb3e09309",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "22e0e7ba3709fd4c": {
+    "primary_job_id": "44e49036dc5529a6",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "67dac866ea585c2f": {
+    "primary_job_id": "504e37c579aff5f1",
+    "fixture_id": "q5-confirm-blocker-two-owners",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "651f7ccc1eb91d1e": {
+    "primary_job_id": "d9875ec6517dd01b",
+    "fixture_id": "q5-confirm-path-case-sensitive",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "c39d5a7864e1e2b9": {
+    "primary_job_id": "ccd763970ac35132",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "8cac24aa0cec2ba8": {
+    "primary_job_id": "3880f483d8a35720",
+    "fixture_id": "q5-confirm-secret-access-key",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "fbb054e67d644cc8": {
+    "primary_job_id": "c0faa2809a0a1a01",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "01ae34b53a79b92f": {
+    "primary_job_id": "a7c68104911ec55c",
+    "fixture_id": "q5-confirm-multi-step-next",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "07e501ed9e452446": {
+    "primary_job_id": "45c73600f9437558",
+    "fixture_id": "q5-confirm-long-output",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "ea1e61c24a417006": {
+    "primary_job_id": "3cd756c930efdf45",
+    "fixture_id": "q5-confirm-numeric-units",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "dfb4bca7c28b7d9d": {
+    "primary_job_id": "20dd5ebeb4c1d99c",
+    "fixture_id": "q5-confirm-long-output",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "4282b82897e4621e": {
+    "primary_job_id": "2b7ce2ce9f822426",
+    "fixture_id": "q5-confirm-user-preference-durable",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "be608057e6c41dba": {
+    "primary_job_id": "358100563bb5e0d0",
+    "fixture_id": "q5-confirm-temporal-snapshot",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "1f2472e490748828": {
+    "primary_job_id": "070fc492f13b27ed",
+    "fixture_id": "q5-confirm-secret-ghp-file",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "a95ac310b261083d": {
+    "primary_job_id": "2ce95b6d4b547583",
+    "fixture_id": "q5-confirm-path-case-sensitive",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "1ec0c89a9542afba": {
+    "primary_job_id": "164b53b24ee4705f",
+    "fixture_id": "q5-confirm-numeric-units",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "aaa031a77f6dcedf": {
+    "primary_job_id": "3508b2079978cc2b",
+    "fixture_id": "q5-confirm-command-retry-lease",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "7bd30a62c0207789": {
+    "primary_job_id": "38c594b0ab327a21",
+    "fixture_id": "q5-confirm-multi-step-next",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "76fad71a697b8065": {
+    "primary_job_id": "2a8d1d8e3cbb7e93",
+    "fixture_id": "q5-confirm-secret-token-tail",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "30f0197799aa1e0a": {
+    "primary_job_id": "551b47986fb222dc",
+    "fixture_id": "q5-confirm-command-partial-build",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "2b6b4971d076ccff": {
+    "primary_job_id": "7e7a3329b3212446",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "790916962c026a67": {
+    "primary_job_id": "55daa8328f5234d7",
+    "fixture_id": "q5-confirm-user-preference-oneoff",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "99d8571d50e5eaec": {
+    "primary_job_id": "d40655bc902c55b0",
+    "fixture_id": "q5-confirm-numeric-units",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "c6cda5d095738e98": {
+    "primary_job_id": "e8d092440c8ebc57",
+    "fixture_id": "q5-confirm-user-preference-oneoff",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "0622ea1a38fe64e0": {
+    "primary_job_id": "d512137d0b37be7c",
+    "fixture_id": "q5-confirm-numeric-units",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "e3ef070edbf68e5e": {
+    "primary_job_id": "be36b6c8f1ff9629",
+    "fixture_id": "q5-confirm-user-preference-oneoff",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "60a3f294c5f28add": {
+    "primary_job_id": "4481b75362a707c9",
+    "fixture_id": "q5-confirm-long-output",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "7f951c7200ac6f4c": {
+    "primary_job_id": "5d54ae5d7506c12e",
+    "fixture_id": "q5-confirm-command-partial-build",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "2594b89a6b157c69": {
+    "primary_job_id": "87df06e0b15d2c42",
+    "fixture_id": "q5-confirm-blocker-temporal-wait",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "bcecf307104f7e55": {
+    "primary_job_id": "c6097083ff310780",
+    "fixture_id": "q5-confirm-file-unchanged-no-read",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "a034d0e31419b25c": {
+    "primary_job_id": "969e278d8a9537f8",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "81427c28e0417d57": {
+    "primary_job_id": "5f0cef32f2ceffc2",
+    "fixture_id": "q5-confirm-multi-step-next",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "514eecd6001059b2": {
+    "primary_job_id": "ae152bcc59b2df47",
+    "fixture_id": "q5-confirm-temporal-snapshot",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "8884ceba1fd495cf": {
+    "primary_job_id": "af82d2a165e0f7bd",
+    "fixture_id": "q5-confirm-command-retry-lease",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "1a4941a439388171": {
+    "primary_job_id": "d659c317c5672370",
+    "fixture_id": "q5-confirm-command-retry-lease",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "183b6c8578183df2": {
+    "primary_job_id": "f8f89977587aca18",
+    "fixture_id": "q5-confirm-secret-token-tail",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "febaf3356e502317": {
+    "primary_job_id": "f2be10793ee75ead",
+    "fixture_id": "q5-confirm-secret-token-tail",
+    "variant": "hot_state_ledger",
+    "repetition": 1
+  },
+  "8d864069404cc814": {
+    "primary_job_id": "77bcb51c5e8cbe76",
+    "fixture_id": "q5-confirm-file-unchanged-no-read",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "21a11afea7b0909e": {
+    "primary_job_id": "a1279a36cb643e5d",
+    "fixture_id": "q5-confirm-conflict-zero-rate",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "62b74fe3b893ae2a": {
+    "primary_job_id": "f44b8b470f764601",
+    "fixture_id": "q5-confirm-blocker-two-owners",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "7b186ea470578435": {
+    "primary_job_id": "e4ed567bed642604",
+    "fixture_id": "q5-confirm-command-partial-build",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "2a1d58df1bc7de59": {
+    "primary_job_id": "b599734a80f68bdc",
+    "fixture_id": "q5-confirm-temporal-snapshot",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "e89aa5ff10993ee6": {
+    "primary_job_id": "93ba60053b072a90",
+    "fixture_id": "q5-confirm-multi-step-next",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "d1bb3379c2fb9672": {
+    "primary_job_id": "c30e2dfb5d5599f9",
+    "fixture_id": "q5-confirm-secret-ghp-file",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "4e8f7473409320fc": {
+    "primary_job_id": "3cdd0fe8972fb7f5",
+    "fixture_id": "q5-confirm-temporal-snapshot",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "d7d729c5ac4d112c": {
+    "primary_job_id": "c25737a716ea0e9c",
+    "fixture_id": "q5-confirm-path-case-sensitive",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "22bfd20ec40cbecc": {
+    "primary_job_id": "f3ef48de4edcff4e",
+    "fixture_id": "q5-confirm-blocker-two-owners",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "95101466f2a25641": {
+    "primary_job_id": "e07206404fa42491",
+    "fixture_id": "q5-confirm-file-unchanged-no-read",
+    "variant": "orchestra_current",
+    "repetition": 1
+  },
+  "556944a9c0acdc17": {
+    "primary_job_id": "1532d4163325fd7f",
+    "fixture_id": "q5-confirm-blocker-temporal-wait",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "fce418731c2f2fa8": {
+    "primary_job_id": "95c786ab5e43937f",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "e6d71186f831c179": {
+    "primary_job_id": "11d0cef2b54f5c6d",
+    "fixture_id": "q5-confirm-multi-step-next",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "451e3341ca660214": {
+    "primary_job_id": "c06ebcd585c8d3c8",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "0ecaea11b20db513": {
+    "primary_job_id": "f572becf957e389e",
+    "fixture_id": "q5-confirm-deploy-negative",
+    "variant": "orchestra_current",
+    "repetition": 2
+  },
+  "8210c001d74a5f17": {
+    "primary_job_id": "3636acb474b8d746",
+    "fixture_id": "q5-confirm-conflict-zero-rate",
+    "variant": "orchestra_current",
+    "repetition": 3
+  },
+  "636a0a273156c7c5": {
+    "primary_job_id": "3933c66a66a3554b",
+    "fixture_id": "q5-confirm-file-decoy-read",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "68b1e8e3f9ef01d4": {
+    "primary_job_id": "4a07989fc59aad9a",
+    "fixture_id": "q5-confirm-path-case-sensitive",
+    "variant": "hot_state_ledger",
+    "repetition": 3
+  },
+  "bfdf898b9b903243": {
+    "primary_job_id": "dd4a40fa876aaba3",
+    "fixture_id": "q5-confirm-command-partial-build",
+    "variant": "hot_state_ledger",
+    "repetition": 2
+  },
+  "a7b9c59902794adb": {
+    "primary_job_id": "51dab02e650d1589",
+    "fixture_id": "q5-confirm-secret-access-key",
+    "variant": "orchestra_current",
+    "repetition": 1
+  }
+}

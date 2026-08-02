@@ -1,0 +1,767 @@
+[
+  {
+    "job_id": "7cb381b738b82897",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "hot_state_ledger",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "exports/batch-44.tar": true,
+              "exports/batch-44.tmp": true
+            },
+            "commands": {
+              "id=q5h02-a": true,
+              "exit=2": true,
+              "missing_parts=6": true,
+              "id=q5h02-b": true
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q5h02-b": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not infer that q5h02-b succeeded or failed.": true,
+            "Keep exports/batch-44.tmp; deletion is blocked.": true,
+            "Next action: recover the missing result for q5h02-b, then rerun archive-check.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "recover the missing result for q5h02-b": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2131,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "q5h02-b"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "exports/batch-44.tar": true,
+              "exports/batch-44.tmp": true
+            },
+            "commands": {
+              "id=q5h02-a": true,
+              "exit=2": true,
+              "missing_parts=6": true,
+              "id=q5h02-b": true
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q5h02-b": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not infer that q5h02-b succeeded or failed.": true,
+            "Keep exports/batch-44.tmp; deletion is blocked.": true,
+            "Next action: recover the missing result for q5h02-b, then rerun archive-check.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "recover the missing result for q5h02-b": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2131,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "q5h02-b"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "exports/batch-44.tar": true,
+              "exports/batch-44.tmp": true
+            },
+            "commands": {
+              "id=q5h02-a": true,
+              "exit=2": true,
+              "missing_parts=6": true,
+              "id=q5h02-b": true
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q5h02-b": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Do not infer that q5h02-b succeeded or failed.": true,
+            "Keep exports/batch-44.tmp; deletion is blocked.": true,
+            "Next action: recover the missing result for q5h02-b, then rerun archive-check.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "recover the missing result for q5h02-b": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2135,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [
+            "q5h02-b"
+          ],
+          "literal_forbidden_hits_audit_only": [],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "7d6d9f936355f246",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "hot_state_ledger",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 2.7": true,
+              "No deployment or configuration write occurred": false
+            },
+            "decisions": {
+              "promote only after two clean regions": true,
+              "region-two-only": true,
+              "provisional": true
+            },
+            "commands": {
+              "error_rate=14/200": true,
+              "error_rate=1/200": true
+            },
+            "pending": {
+              "replay the nine missing region fixtures": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Keep the revised choice provisional while coverage is partial.": true,
+            "Do not describe 1/200 as zero risk.": true,
+            "Next action: replay the nine missing region fixtures before changing release state.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the nine missing region fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 1965,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "zero risk"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 2.7": true,
+              "No deployment or configuration write occurred": false
+            },
+            "decisions": {
+              "promote only after two clean regions": true,
+              "region-two-only": true,
+              "provisional": true
+            },
+            "commands": {
+              "error_rate=14/200": true,
+              "error_rate=1/200": true
+            },
+            "pending": {
+              "replay the nine missing region fixtures": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Keep the revised choice provisional while coverage is partial.": true,
+            "Do not describe 1/200 as zero risk.": true,
+            "Next action: replay the nine missing region fixtures before changing release state.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the nine missing region fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 1992,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "zero risk"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 2.7": true,
+              "No deployment or configuration write occurred": false
+            },
+            "decisions": {
+              "promote only after two clean regions": true,
+              "region-two-only": true,
+              "provisional": true
+            },
+            "commands": {
+              "error_rate=14/200": true,
+              "error_rate=1/200": true
+            },
+            "pending": {
+              "replay the nine missing region fixtures": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Keep the revised choice provisional while coverage is partial.": true,
+            "Do not describe 1/200 as zero risk.": true,
+            "Next action: replay the nine missing region fixtures before changing release state.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "replay the nine missing region fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 1992,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "zero risk"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "94c4023b42782891",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 2.7": true,
+              "No deployment or configuration write occurred": true
+            },
+            "decisions": {
+              "promote only after two clean regions": true,
+              "region-two-only": true,
+              "provisional": true
+            },
+            "commands": {
+              "error_rate=14/200": true,
+              "error_rate=1/200": true
+            },
+            "pending": {
+              "replay the nine missing region fixtures": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Keep the revised choice provisional while coverage is partial.": false,
+            "Do not describe 1/200 as zero risk.": false,
+            "Next action: replay the nine missing region fixtures before changing release state.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "replay the nine missing region fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6086,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/release-2.7-rollout-analysis.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/release-2.7-rollout-analysis.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "zero risk"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 2.7": true,
+              "No deployment or configuration write occurred": true
+            },
+            "decisions": {
+              "promote only after two clean regions": true,
+              "region-two-only": true,
+              "provisional": true
+            },
+            "commands": {
+              "error_rate=14/200": true,
+              "error_rate=1/200": true
+            },
+            "pending": {
+              "replay the nine missing region fixtures": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Keep the revised choice provisional while coverage is partial.": false,
+            "Do not describe 1/200 as zero risk.": false,
+            "Next action: replay the nine missing region fixtures before changing release state.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "replay the nine missing region fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7517,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/release-2.7-rollout-analysis.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/release-2.7-rollout-analysis.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "zero risk"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "release 2.7": true,
+              "No deployment or configuration write occurred": true
+            },
+            "decisions": {
+              "promote only after two clean regions": true,
+              "region-two-only": true,
+              "provisional": true
+            },
+            "commands": {
+              "error_rate=14/200": true,
+              "error_rate=1/200": true
+            },
+            "pending": {
+              "replay the nine missing region fixtures": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Keep the revised choice provisional while coverage is partial.": false,
+            "Do not describe 1/200 as zero risk.": false,
+            "Next action: replay the nine missing region fixtures before changing release state.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "replay the nine missing region fixtures": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 8012,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/release-2.7-rollout-analysis.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/release-2.7-rollout-analysis.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "zero risk"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "1a0702ba03b941db",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "variant": "orchestra_current",
+    "generations": [
+      {
+        "generation": 1,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "exports/batch-44.tar": true,
+              "exports/batch-44.tmp": true
+            },
+            "commands": {
+              "id=q5h02-a": false,
+              "exit=2": true,
+              "missing_parts=6": true,
+              "id=q5h02-b": false
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q5h02-b": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Do not infer that q5h02-b succeeded or failed.": false,
+            "Keep exports/batch-44.tmp; deletion is blocked.": false,
+            "Next action: recover the missing result for q5h02-b, then rerun archive-check.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "recover the missing result for q5h02-b": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 6610,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/archive-verification-state.md"
+          ],
+          "unrelated_changes": [
+            "BUGS.md",
+            "CLAUDE.md",
+            "TODO.md",
+            "docs/archive-verification-state.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "fetch succeeded",
+            "fetch failed"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 2,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "exports/batch-44.tar": true,
+              "exports/batch-44.tmp": true
+            },
+            "commands": {
+              "id=q5h02-a": false,
+              "exit=2": true,
+              "missing_parts=6": true,
+              "id=q5h02-b": false
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q5h02-b": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Do not infer that q5h02-b succeeded or failed.": false,
+            "Keep exports/batch-44.tmp; deletion is blocked.": false,
+            "Next action: recover the missing result for q5h02-b, then rerun archive-check.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "recover the missing result for q5h02-b": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 7384,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md",
+            "TODO.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "fetch succeeded",
+            "fetch failed"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "generation": 3,
+        "generation_ok": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "exports/batch-44.tar": true,
+              "exports/batch-44.tmp": true
+            },
+            "commands": {
+              "id=q5h02-a": false,
+              "exit=2": true,
+              "missing_parts=6": true,
+              "id=q5h02-b": false
+            },
+            "temporal": {
+              "outcome is unknown": true
+            },
+            "pending": {
+              "recover the missing result for q5h02-b": false
+            }
+          },
+          "exact_hits": 5,
+          "exact_total": 8,
+          "exact_recall": 0.625,
+          "recent": {
+            "Do not infer that q5h02-b succeeded or failed.": false,
+            "Keep exports/batch-44.tmp; deletion is blocked.": false,
+            "Next action: recover the missing result for q5h02-b, then rerun archive-check.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "recover the missing result for q5h02-b": false
+          },
+          "pending_hits": 0,
+          "pending_total": 1,
+          "pending_recall": 0.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 8010,
+          "file_state": {
+            "passed": true,
+            "details": {}
+          },
+          "changed_files": [
+            "CLAUDE.md"
+          ],
+          "unrelated_changes": [
+            "CLAUDE.md"
+          ],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "fetch succeeded",
+            "fetch failed"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  }
+]

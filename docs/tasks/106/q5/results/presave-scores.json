@@ -1,0 +1,974 @@
+[
+  {
+    "job_id": "48005ddfde553936",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": true,
+            "Make the write idempotent; a retry must not duplicate the bullet.": true,
+            "Next action after the write: wait for Aurora; do not mark the export received.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2169,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/continuity-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": true,
+            "Make the write idempotent; a retry must not duplicate the bullet.": true,
+            "Next action after the write: wait for Aurora; do not mark the export received.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2089,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "37e27342dd54b836",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": true,
+            "Make the write idempotent; a retry must not duplicate the bullet.": true,
+            "Next action after the write: wait for Aurora; do not mark the export received.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2210,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/continuity-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": true,
+            "Make the write idempotent; a retry must not duplicate the bullet.": true,
+            "Next action after the write: wait for Aurora; do not mark the export received.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2215,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "7496e588d8427d21",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 3,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the bullet": false
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 6,
+          "exact_total": 8,
+          "exact_recall": 0.75,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": false,
+            "Make the write idempotent; a retry must not duplicate the bullet.": false,
+            "Next action after the write: wait for Aurora; do not mark the export received.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4695,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/continuity-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": false,
+            "Make the write idempotent; a retry must not duplicate the bullet.": false,
+            "Next action after the write: wait for Aurora; do not mark the export received.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4669,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "2c9ac06a319d3fc7",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "hot_state_ledger",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": true,
+            "Make the write idempotent; a retry must not duplicate the bullet.": true,
+            "Next action after the write: wait for Aurora; do not mark the export received.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2195,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/continuity-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": true,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 8,
+          "exact_total": 8,
+          "exact_recall": 1.0,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": true,
+            "Make the write idempotent; a retry must not duplicate the bullet.": true,
+            "Next action after the write: wait for Aurora; do not mark the export received.": true
+          },
+          "recent_hits": 3,
+          "recent_total": 3,
+          "recent_recall": 1.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 2122,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": true,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "6ddfb719983cd488",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 1,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": false,
+            "Make the write idempotent; a retry must not duplicate the bullet.": false,
+            "Next action after the write: wait for Aurora; do not mark the export received.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 3543,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/continuity-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": false,
+            "Make the write idempotent; a retry must not duplicate the bullet.": false,
+            "Next action after the write: wait for Aurora; do not mark the export received.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4297,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  },
+  {
+    "job_id": "99d5d71ef58e5d23",
+    "fixture_id": "q5-confirm-targeted-promotion",
+    "variant": "orchestra_current",
+    "repetition": 2,
+    "passes": [
+      {
+        "pass": 1,
+        "generation_ok": true,
+        "zero_diff": false,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the bullet": false
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 6,
+          "exact_total": 8,
+          "exact_recall": 0.75,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": false,
+            "Make the write idempotent; a retry must not duplicate the bullet.": false,
+            "Next action after the write: wait for Aurora; do not mark the export received.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 4936,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [
+            "docs/continuity-state.md"
+          ],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      },
+      {
+        "pass": 2,
+        "generation_ok": true,
+        "zero_diff": true,
+        "score": {
+          "exact": {
+            "objective": {
+              "docs/continuity-state.md": true,
+              "Billing export owner: Aurora": true
+            },
+            "decisions": {
+              "status: waiting": true,
+              "idempotent": true
+            },
+            "files": {
+              "- Billing export owner: Aurora; status: waiting.": true
+            },
+            "constraints": {
+              "Never create CLAUDE.md": false,
+              "must not duplicate the bullet": true
+            },
+            "pending": {
+              "wait for Aurora": true
+            }
+          },
+          "exact_hits": 7,
+          "exact_total": 8,
+          "exact_recall": 0.875,
+          "recent": {
+            "Never create CLAUDE.md, TODO.md, BUGS.md, or another note.": false,
+            "Make the write idempotent; a retry must not duplicate the bullet.": false,
+            "Next action after the write: wait for Aurora; do not mark the export received.": false
+          },
+          "recent_hits": 0,
+          "recent_total": 3,
+          "recent_recall": 0.0,
+          "pending": {
+            "wait for Aurora": true
+          },
+          "pending_hits": 1,
+          "pending_total": 1,
+          "pending_recall": 1.0,
+          "secret_leaks": [],
+          "summary_utf8_bytes": 5032,
+          "file_state": {
+            "passed": true,
+            "details": {
+              "docs/continuity-state.md": {
+                "exists": true,
+                "contains": {
+                  "# Continuity state": true,
+                  "- Existing audit note stays.": true,
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "count": {
+                  "- Billing export owner: Aurora; status: waiting.": true
+                },
+                "forbidden": {
+                  "status: received": true
+                },
+                "passed": true
+              }
+            }
+          },
+          "changed_files": [],
+          "unrelated_changes": [],
+          "ledger_expected": false,
+          "ledger_missing": [],
+          "ledger_pass": true,
+          "gap_markers": [],
+          "literal_forbidden_hits_audit_only": [
+            "duplicate the bullet"
+          ],
+          "noise_lines": 0
+        }
+      }
+    ]
+  }
+]

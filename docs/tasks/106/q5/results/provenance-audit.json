@@ -1,0 +1,36 @@
+{
+  "source_commit": "d8de3ffa3188293d6caf4d4ba2863d57776f21b3",
+  "source_commit_time": "2026-08-01T18:25:00+07:00",
+  "lock_commit": "620d26744f2ac1159f451e93a7c7ffe2a7025dbf",
+  "lock_commit_time": "2026-08-01T18:25:13+07:00",
+  "lock_recorded_at": "2026-08-01T11:25:05.610697+00:00",
+  "first_pilot_start": "2026-08-01T11:25:31.579227+00:00",
+  "ordering": {
+    "source_commit_before_lock_commit": true,
+    "lock_record_before_first_pilot_start": true,
+    "lock_commit_before_first_pilot_start": true
+  },
+  "source_hash_matches": {
+    "protocol.md": true,
+    "fixtures.json": true,
+    "build_fixtures.py": true,
+    "candidates.py": true,
+    "run_evaluation.py": true,
+    "run_judges.py": true,
+    "inspect_judge_inputs.py": true,
+    "score_results.py": true,
+    "analyze_results.py": true,
+    "validate_artifacts.py": true,
+    "audit_provenance.py": true,
+    "lock_protocol.py": true,
+    "test_q5.py": true
+  },
+  "all_source_hashes_match": true,
+  "corpus_exact_overlap": {
+    "prior_fixture_count": 26,
+    "new_fixture_count": 25,
+    "id_overlap": [],
+    "byte_exact_transcript_hash_overlap": []
+  },
+  "scope_limit": "Exact ID/transcript non-overlap does not prove semantic independence or that fixture content did not influence candidate design."
+}

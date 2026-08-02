@@ -1,0 +1,26 @@
+{
+  "94c4023b42782891": {
+    "variant": "orchestra_current",
+    "blind_variant": "73de163ab2e577a7",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "repetition": 1
+  },
+  "7d6d9f936355f246": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "ae8f1c83df1a4063",
+    "fixture_id": "q5-confirm-reversal-canary",
+    "repetition": 1
+  },
+  "1a0702ba03b941db": {
+    "variant": "orchestra_current",
+    "blind_variant": "d8f28a5669674062",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "repetition": 1
+  },
+  "7cb381b738b82897": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "04ccb33e7e094948",
+    "fixture_id": "q5-confirm-tool-gap-archive",
+    "repetition": 1
+  }
+}
