@@ -276,6 +276,42 @@ hidden by latest-job deduplication [1][5]. Sol used the separate Codex
 subscription pool and exposes no compatible USD field. The recorded Claude total stayed below the pre-launch 30% contingency
 estimate of $26.86 and below the user's $30 notification gate [1][2].
 
+## Post-Q4 sample-size estimate (no new generation)
+
+For a confirmatory extension, “decisive” is defined here as an **80% planning
+probability** that the two-sided 95% paired critical-exact interval clears the
+registered -2 pp non-inferiority margin, assuming the observed +8.45 pp effect
+and cluster-scale variance persist. The estimate uses the observed interval
+width to recover a normal-approximation standard deviation:
+
+```text
+sigma_hat = ((0.201879 - (-0.038095)) / (2 * 1.959964)) * sqrt(8)
+          = 0.17315
+N = ceil((sigma_hat * (1.959964 + 0.841621) / (0.084507 + 0.02))^2)
+  = 22 fixture clusters
+```
+
+At `N=22`, the expected 95% margin is 7.24 pp and the expected lower bound is
++1.21 pp, above the -2 pp gate. This is a planning approximation, not a
+guarantee: a smaller true effect, larger between-fixture variance, or a changed
+fixture-family mix would falsify it.
+
+The eight Q4 fixtures selected `hot_state_ledger` for follow-up, so pooling them
+into the final confirmatory interval would introduce optional-continuation and
+selection bias. The defensible estimate is therefore **22 new, independently
+authored and locked fixtures**, not 14 appended fixtures. With three replicas
+of current and hot state, that is **132 new primary outputs** (66 per variant),
+plus 22 blinded Sonnet and 22 blinded Sol judge batches.
+
+Using the retained Q4 per-output costs for current and hot state, primary
+generation is estimated at $16.84. Conservatively pricing each Sonnet judge
+batch at the full four-variant Q4 rate adds $7.78; Sol remains in its separate
+subscription pool. The Claude API-equivalent estimate is **$24.63**, or
+**$32.02 with the same 30% contingency used by Q4**. The single planning budget
+is therefore **$32**. Reproduce every value with
+`python docs/tasks/106/q4/estimate_sample_size.py`; no model call was made to
+produce this estimate [1].
+
 ## Counter-evidence and limitations
 
 1. **The hot-state point estimate is favourable.** It beats current exact by
@@ -297,6 +333,19 @@ estimate of $26.86 and below the user's $30 notification gate [1][2].
 6. **External validity remains task-specific.** No public benchmark was run;
    `external-landscape.md` explains why MEMTRACK/LongMemEval would be a secondary
    validity probe rather than the deployment gate [7].
+
+## Durable conclusion about the current production prompt
+
+The replacement remains NO-GO, but that does not make the current Claude
+handoff healthy. On the exactly non-overlapping Q4 corpus, current retained
+only **31.9%** of the exact last three user messages; in the two locked
+generation-three chains it retained **0%**. It exposed the seeded fake secret
+in **3/3** outputs of the one secret-bearing fixture, versus **0/3** for the hot
+state bundle; the small secret sample limits generalization but not the
+observed contrast. Its median handoff was **5,862 B versus 2,371 B** (2.47x),
+and it produced **72 unrelated file changes versus zero**. These are measured
+defects on specific axes even though the available sample does not yet prove
+the candidate exact-noninferior.
 
 ## Recommendation
 

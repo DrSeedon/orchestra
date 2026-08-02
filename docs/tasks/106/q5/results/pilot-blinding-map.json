@@ -1,0 +1,20 @@
+{
+  "f38f67e1c73d9fb6": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "62c9cf387f6e185a",
+    "fixture_id": "q5-dev-ledger-pair",
+    "repetition": 1
+  },
+  "484fcfdbb0bf16e9": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "ee783d3fe3f0ea27",
+    "fixture_id": "q5-dev-unchanged-no-read",
+    "repetition": 1
+  },
+  "f8933f8cf429f24b": {
+    "variant": "hot_state_ledger",
+    "blind_variant": "04af41e4c7e175df",
+    "fixture_id": "q5-dev-secret-tail",
+    "repetition": 1
+  }
+}
