@@ -9,8 +9,9 @@
 
 ### Territory
 - Edit files ONLY inside your own worktree (`worktrees/<scope>/<name>/...`), never in the main repository root
-- Each worker "owns" specific directories (set at spawn via `owned_dirs`)
-- Do NOT edit files outside your owned directories unless explicitly told to
+- **Ownership is conditional, and `owned_dirs` is optional at spawn:**
+  - Your prompt contains an ownership block → those directories are a hard boundary. Do NOT edit outside them unless explicitly told to
+  - No ownership block → the task defines your scope. Work the files the task needs; this is normal, not a blocker to escalate
 - Shared files (`pyproject.toml`, `config.py`) — coordinate through orchestrator, never edit independently
 
 ### Conflict prevention
@@ -27,6 +28,6 @@
 
 ### Before merge
 - `git status` — clean working tree required
-- All changes committed and pushed to your branch
+- All changes committed to your LOCAL branch. Do NOT `git push` — merge is local (`merge_worker` squashes your branch in place) and task branches are not published. Push only if the task explicitly names a remote review workflow
 - Report DONE to orchestrator — they handle the merge
 </git-workflow>

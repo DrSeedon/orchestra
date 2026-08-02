@@ -1,30 +1,37 @@
 ---
 name: codex-debate
-description: "Cross-LLM adversarial review через Codex (GPT-5.5) — MCP tool codex_review. Персистентные сессии, multi-round debate до консенсуса, Conventional Comments. Триггеры: 'спроси кодекса', 'кодекс ревью', 'ревьюй через кодекса', 'второе мнение', 'cross-review', 'adversarial review', 'переспроси кодекса', 'уточни у кодекса', 'продолжи с кодексом', '/codex', '/codex-debate'. НЕ юзать на тривиальных задачах."
+description: "Cross-LLM adversarial review через Codex (GPT-5.6 Sol) — MCP tool codex_review. Персистентные сессии, multi-round debate до консенсуса, Conventional Comments. Триггеры: 'спроси кодекса', 'кодекс ревью', 'ревьюй через кодекса', 'второе мнение', 'cross-review', 'adversarial review', 'переспроси кодекса', 'уточни у кодекса', 'продолжи с кодексом', '/codex', '/codex-debate'. НЕ юзать на тривиальных задачах."
 ---
 
-# Codex Debate — cross-LLM adversarial review через GPT-5.5
+# Codex Debate — cross-LLM adversarial review через GPT-5.6 Sol
 
-Review плана/кода/решения второй моделью (Codex, GPT-5.5) через MCP tool `codex_review`. Тул сам управляет процессом Codex, сессиями и записью результата — ты только вызываешь его и работаешь с findings.
+Review плана/кода/решения второй моделью (Codex, GPT-5.6 Sol) через MCP tool `codex_review`. Тул сам управляет процессом Codex, сессиями и записью результата — ты только вызываешь его и работаешь с findings.
 
 ## Главный принцип — ВТОРОЕ МНЕНИЕ, НЕ ИСТИНА
 Codex — другая модель с другими bias'ами. Часто прав, но **не всегда**:
 - **Прислушивайся** к каждому замечанию
 - **Проверяй** blocking-замечания через код (`grep`/`cat`/read) **перед** тем как принять
 - **Спорь** если не согласен — resume сессии с контраргументами из кода (не молча игнорь)
-- **Эскалируй юзеру** если Codex просит удалить функционал или сменить архитектуру
+- **Эскалируй** если Codex просит удалить функционал или сменить архитектуру
 - **Не соглашайся слепо** — это обесценивает review
 
-При расхождении для юзера: "Codex говорит X. Я проверил — [согласен / не согласен потому что Y]. Вступить в дебаты?"
+**Кому эскалировать.** Ты общаешься с тем, кто дал тебе задачу: worker/full-cycle — своему
+оркестратору (или отправителю `[from:X]`) через `send_message`; оркестратор — юзеру. Воркер
+не пишет юзеру напрямую и не выводит вопрос в обычный чат.
+
+Формат: "Codex говорит X. Я проверил — [согласен / не согласен потому что Y]. Нужно решение."
 
 ## When to use
 - "спроси кодекса", "кодекс ревью", "второе мнение", "cross-review", "adversarial review"
 - "переспроси/уточни/продолжи с кодексом" → **resume, НЕ новый вызов**
 - `/codex` или `/codex-debate`
-- Сам предлагаешь review для спорных решений — но **только с явного "да" юзера**
+- **Review, обязательный по роли** (review gate у `worker`/`full-cycle`) → запускай сразу,
+  approval не нужен и не спрашивается: роль уже решила за тебя
+- Review, который ты предлагаешь ПО СВОЕЙ инициативе сверх обязательного → сначала «да» от
+  того, кто дал задачу
 
 ## When NOT to use
-- Мелкие/тривиальные правки — трата токенов
+- Мелкие/тривиальные правки — трата токенов (точная граница skip — в review gate твоей роли)
 
 ## MCP tool: codex_review
 
@@ -83,16 +90,16 @@ codex_review(output="docs/tasks/<id>/codex-review-impl.md", resume=True,
 - Новая тема = новый `output`-файл. НЕ переиспользуй `output` от несвязанного review
 
 ## Auto-Iteration to Consensus
-После первого раунда — итерируй БЕЗ дёрганья юзера:
+После первого раунда — итерируй САМ, без вопросов наверх:
 1. Прочитай `output`-файл, разбери findings
 2. Каждое **blocking** → проверь через код (grep/cat/read). Решение: ACK / DISAGREE / PARTIAL
-3. **Эскалируй юзеру** если Codex хочет: удалить функционал / существенно менять архитектуру рабочих компонентов / что-то с неясными последствиями
+3. **Эскалируй** (адресат — выше) если Codex хочет: удалить функционал / существенно менять архитектуру рабочих компонентов / что-то с неясными последствиями
 4. Почини ACK'нутые (Edit)
 5. `codex_review(..., resume=True, context="фиксы: <changelog>, re-review")`
 6. Codex дописывает Round N
-7. Луп пока: Codex пишет "APPROVED"/"no blockers" → готово; сработала эскалация → стоп, спроси юзера
+7. Луп пока: Codex пишет "APPROVED"/"no blockers" → готово; сработала эскалация → стоп, запроси решение
 
-**Потолок 3 раунда.** Раунды 4-5 в истории дали только дубликаты. Раунд 2 обязателен на shared-runtime коде; на прозе — только если есть что перезапустить (иначе он пустой). Дальше решай сам и покажи юзеру.
+**Потолок 3 раунда.** Раунды 4-5 в истории дали только дубликаты. Раунд 2 обязателен на shared-runtime коде; на прозе — только если есть что перезапустить (иначе он пустой). Дальше решай сам и покажи результат в отчёте.
 
 **Тул падает ≠ вердикт.** Три подряд ИНФРАСТРУКТУРНЫХ падения (таймаут, транспорт, "chunk exceed" — не содержательный ответ) → прекрати долбить. Запиши в `output`-файл честно: вердикта нет, столько-то попыток. Сделай adversarial self-review вместо него. Один повтор разрешён только на существенно другом финальном артефакте.
 
@@ -104,7 +111,7 @@ Codex review done (rounds: N)
 Verdict: <APPROVED / needs work / reject>
 Findings: blocking X (Y fixed, Z rejected + причина) · suggestion M (K accepted) · nit skipped
 Full: docs/tasks/<id>/codex-review-*.md
-Next: OK → continue/push · ещё дебаты → "переспроси кодекса про <X>"
+Next: OK → continue/commit · ещё дебаты → "переспроси кодекса про <X>"
 ```
 
 ## Prompt Templates (для `context`)
@@ -117,13 +124,12 @@ Next: OK → continue/push · ещё дебаты → "переспроси ко
 **Re-review after fix:** "Применены фиксы: <changelog>. Для каждого прошлого замечания: FIXED / STILL BROKEN / NEW BUG. Все blocking закрыты и нет новых → APPROVED. Append ## Round N."
 
 ## PROJECT CONTEXT (вставляй в `context`)
-```
-PROJECT CONTEXT (calibrate severity):
-- Stack: Python 3.12+, FastAPI, SQLite, claude-agent-sdk
-- Stage: MVP, small team, ~10 users NOT millions
-- Philosophy: simple, flat, minimal abstractions. 3 lines > premature abstraction
-- "blocking" = crash/corrupt/security. "suggestion" = real improvement. "nit" = skip
-```
+Шаблон и правила заполнения — один источник: секция **PROJECT CONTEXT** в orchestration-модуле
+(она же в задании оркестратора). Поля бери из ТЕКУЩЕГО репозитория и задачи.
+
+⚠️ Скилл общий для всех проектов. Не подставляй сюда чужой stack/scale по памяти: «~10 users»
+на highload-проекте занижает severity реальных performance/architecture находок. Не можешь
+назвать поле по репозиторию — выясни до review.
 
 ## What NOT to Do
 - НЕ создавай новый вызов на follow-up — используй `resume=True`

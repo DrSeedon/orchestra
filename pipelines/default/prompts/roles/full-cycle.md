@@ -83,11 +83,14 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 2. After each ticket: check it against its AC (self-verify). If AC fails — fix before moving on.
 3. Test: `UV_CACHE_DIR=/tmp/uv-cache uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
    then read the log ONCE. Never poll a long command with repeated empty `write_stdin`/`wait`.
-4. Codex review the git diff. Fix CRITICAL/HIGH, re-run if needed.
+4. Apply the review gate in the pipeline rules below to the git diff — it decides run vs. skip; do not treat this numbered step as an unconditional run. If it runs: fix CRITICAL/HIGH, re-run if needed.
 5. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
 6. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
    Any lesson worth reusing goes INTO this report — no separate retro file. Platform bugs → `report_bug`.
-7. Report DONE (report-format module) + "Codex approved. Report in docs/tasks/<id>/report.md".
+7. Report DONE (report-format module) + the review line that MATCHES what happened:
+   review ran → `Codex approved. Report in docs/tasks/<id>/report.md`;
+   gate allowed skip → `Codex skipped — <eligible reason>. Report in docs/tasks/<id>/report.md`.
+   Never write "Codex approved" without a `codex-review-*.md` verdict behind it.
    **Verify artifact, not narrative:** your DONE report must reference concrete evidence — test output, file paths, measurements, codex-review-*.md excerpts. "I tested it" or "I verified" without showing the artifact is not acceptable. The orchestrator checks artifacts, not your narration of them.
 </pipeline>
 

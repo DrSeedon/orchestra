@@ -3,8 +3,9 @@
 [Changelog](CHANGELOG.md)
 
 ## Что это
-Свой оркестратор AI-агентов. Opus-оркестратор управляет воркерами через MCP tools.
-Каждый worker = Claude CLI в отдельном git worktree. Dashboard = FastAPI + HTMX + SSE.
+Свой оркестратор AI-агентов. Оркестратор управляет воркерами через MCP tools.
+Каждый worker = CLI-сессия (Claude или Codex-бэкенд) в отдельном git worktree.
+Dashboard = FastAPI + HTMX + SSE.
 
 ## Стек
 - Python 3.12+, FastAPI, Jinja2, SSE

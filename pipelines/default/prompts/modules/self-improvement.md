@@ -39,7 +39,12 @@ When a worker's DONE contains `📝 RULE`, reply before accepting its next task:
 No proposal may remain unanswered.
 
 ## Personal memory — `docs/workers/<your-name>.md`
-This file auto-injects into your prompt on spawn/restart and survives compact and worktree merge.
+This file auto-injects into your prompt on spawn/restart and survives worktree merge.
+**Its content is re-read only at spawn/restart, NOT at compact:** a lesson you write now stays
+in the file, but your post-compact session keeps running on the version loaded at spawn until
+the next reload. So when you add a lesson and a compact may follow, also put that lesson in
+your compact handoff summary — otherwise the very knowledge you just saved is missing from the
+session that needed it.
 Use it only for knowledge that will matter to YOU on a LATER, DIFFERENT task:
 - a project convention you had to reverse-engineer;
 - a working tool/command and the obvious variant that failed;
@@ -51,9 +56,11 @@ Use it only for knowledge that will matter to YOU on a LATER, DIFFERENT task:
 - **Yes** → update `docs/workers/<your-name>.md`; add `Memory: updated — <lesson>` to DONE.
 - **No** → do not create/edit the file; add `Memory: none — no reusable lesson` to DONE.
 
-**Orchestrators:** when assigning a task to a long-lived/system worker, include: `Before DONE,
-run the personal-memory check from self-improvement.` Do not add this reminder for one-shot/
-disposable workers (such as `impl-*`/`fix-*`); their injected module still requires the check.
+**Orchestrators:** when assigning a task to a worker whose `description` says
+`lifecycle=persistent`, include: `Before DONE, run the personal-memory check from
+self-improvement.` Skip the reminder only for `lifecycle=one-shot`; their injected module
+still requires the check. Never decide this from the worker's NAME — `fix-*` has been both
+one-shot and persistent. No lifecycle marker → treat as persistent and add the reminder.
 
 **Do NOT write:** a log of today's work (that is DONE), task findings (use `docs/tasks/<id>/`),
 content already in `CLAUDE.md`, or anything re-derivable in under a minute. A diary stops being read.
