@@ -2432,6 +2432,63 @@ class TestRateLimitClassification:
         session.send.assert_not_awaited()
 
 
+class TestCompactPromptContract:
+    """#106 Q6: properties the measured GO rests on. Changing these invalidates the experiment."""
+
+    async def _captured_prompt(self, session, monkeypatch):
+        from app.events import AgentEvent
+
+        sent = []
+        backend = AsyncMock()
+        backend.send = AsyncMock(side_effect=lambda m: sent.append(m))
+
+        async def events():
+            yield AgentEvent(type="text", content="x" * 300)
+            yield AgentEvent(type="turn_end", content="", metadata={"session_id": "s2"})
+
+        backend.events = lambda: events()
+        session._backend = backend
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active", lambda: False
+        )
+        await session.compact()
+        return sent[0] if sent else ""
+
+    @pytest.mark.asyncio
+    async def test_prompt_forbids_creating_notes_for_compaction(
+        self, session, monkeypatch
+    ):
+        prompt = await self._captured_prompt(session, monkeypatch)
+        assert "Never create CLAUDE.md, TODO.md, BUGS.md" in prompt
+        # the old unconditional presave drove 218 unrelated writes in 63 outputs
+        assert "Use Edit/Write tools NOW" not in prompt
+
+    @pytest.mark.asyncio
+    async def test_prompt_forbids_both_polarities_of_file_action_claims(
+        self, session, monkeypatch
+    ):
+        prompt = await self._captured_prompt(session, monkeypatch)
+        assert "Do not assert the negative either" in prompt
+        assert "never supports `not read`" in prompt
+
+    @pytest.mark.asyncio
+    async def test_prompt_preserves_recent_user_messages_verbatim(
+        self, session, monkeypatch
+    ):
+        prompt = await self._captured_prompt(session, monkeypatch)
+        assert "last three user messages verbatim" in prompt
+
+    @pytest.mark.asyncio
+    async def test_prompt_is_identical_for_orchestrator_and_worker(
+        self, session, monkeypatch
+    ):
+        session.is_orchestrator = False
+        worker_prompt = await self._captured_prompt(session, monkeypatch)
+        session.is_orchestrator = True
+        orch_prompt = await self._captured_prompt(session, monkeypatch)
+        assert worker_prompt == orch_prompt
+
+
 class TestFlushPendingDefersDuringCompact:
     @pytest.mark.asyncio
     async def test_flush_defers_when_compacting(self, session):

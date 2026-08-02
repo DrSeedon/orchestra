@@ -39,6 +39,15 @@
   actuals showed tools used in only 72/132 runs. Check the turn count before
   blaming the code.
 
+- Before shipping a prompt an experiment validated, diff the SHIPPED text against
+  the TESTED text token by token. #106 Q6: the tested prompt said "the runtime
+  will append a redacted user tail and ledger" — true only because the harness
+  called `compose_handoff()`. Production has no such appender, so the measured
+  100% recent recall came from the harness, not the prompt. Ship the sentence
+  verbatim and it promises a block that never arrives. Any harness-side machinery
+  a prompt refers to must either be ported to production or the claim rewritten —
+  and the gap stated where the numbers are quoted.
+
 - When a locked source genuinely must change mid-experiment (stale constant that
   makes a validator unpassable), do NOT rewrite the lock file — that destroys the
   evidence anything changed. Amend the file, leave the lock as-is so the hash

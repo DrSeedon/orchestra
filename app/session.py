@@ -1181,28 +1181,36 @@ class AgentSession:
         if self.backend_type == "codex":
             return await self._compact_codex_context()
 
-        _ORCH_PRESAVE = (
-            "BEFORE writing the summary — persist your knowledge to files so it survives compact:\n"
-            "1. CLAUDE.md — append key decisions, new rules, patterns discovered this session (section '## Session notes')\n"
-            "2. TODO.md — add new items, remove done items\n"
-            "3. BUGS.md — add found bugs, close fixed ones\n"
-            "4. docs/ — save any research or analysis worth keeping\n"
-            "Use Edit/Write tools NOW. Then write the summary below.\n\n"
-        )
+        # #106 Q6: hot_state_ledger bundle. Bounded promotion replaces the old
+        # unconditional CLAUDE.md/TODO.md/BUGS.md presave, which drove 218
+        # unrelated writes across 63 measured outputs (candidate: 0).
         COMPACT_PROMPT = (
-            "[SYSTEM: Context compaction requested — handoff summary]\n\n"
-            + (_ORCH_PRESAVE if self.is_orchestrator else "")
-            + "Write a detailed handoff summary so your next session can continue seamlessly. "
-            "Be as thorough as possible — this is the ONLY context your next session will have. No length limit.\n\n"
-            "INTENT: What you are working on and why (2-3 sentences with full context).\n"
-            "DECISIONS: All key decisions made during this session (bullet points, include reasoning).\n"
-            "FILES: Every file touched with what was done (path — description of change).\n"
-            "PENDING: Open questions, unfinished work, TODOs, blockers, next steps.\n"
-            "RECENT: Last 5-10 exchanges in detail — what was asked, what you did, what the result was.\n"
-            "BUGS: Any bugs found, workarounds applied, things that didn't work.\n"
-            "IMPORTANT CONTEXT: Anything the next session MUST know — credentials paths, API quirks, "
-            "user preferences, patterns discovered, traps to avoid.\n\n"
-            "Output ONLY the summary. No commentary. Be specific — names, paths, numbers, not vague descriptions."
+            "[SYSTEM: Context compaction requested — structured handoff]\n\n"
+            "Before writing the handoff, promote a durable fact only when the conversation explicitly "
+            "names an existing canonical Markdown path and the exact fact to store. Update only that "
+            "path, preserve unrelated content, and make the write idempotent. Otherwise do not write "
+            "files. Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for compaction. "
+            "Never write credentials.\n\n"
+            "Write a compact task-state handoff from supported evidence only.\n\n"
+            "TASK STATE\n"
+            "- Current objective, phase, and evidence-backed status.\n\n"
+            "DECISIONS\n"
+            "- Only active decisions and reversals needed to continue; retain provisional/final state "
+            "and rationale.\n\n"
+            "BLOCKER / NEXT\n"
+            "- Current blocker and owner if known; then the single next executable action. If "
+            "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
+            "CONSTRAINTS\n"
+            "- Still-active user preferences, safety constraints, and unresolved conflicts. Distinguish "
+            "durable preferences from one-off instructions.\n\n"
+            "Preserve the last three user messages verbatim, including exact commands, paths, numbers, "
+            "and error strings.\n\n"
+            "Do not claim a file was read, changed, committed, deployed, or tested unless the "
+            "conversation or tool evidence says so. Do not assert the negative either: absence of a "
+            "tool event means the outcome is unknown, not that the action did not happen. Write "
+            "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
+            "`not modified`; it never supports `not read`. Omit redundant tool output and all "
+            "credentials. Output only these four short sections."
         )
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
         COMPACT_MAX_RETRIES = 3

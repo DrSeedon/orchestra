@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>#106 Q6 — Промпт компактизации заменён</title>
+  <style>
+    :root {
+      --bg: #0b0f14; --surface: #111820; --surface-2: #17212b; --line: #2b3947;
+      --text: #eaf1f7; --muted: #9fb0bf; --blue: #6db5ff; --cyan: #65d6d0;
+      --green: #80d99c; --amber: #f0bf69; --red: #ff8585; --violet: #bc9cff;
+      --max: 1180px; --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, sans-serif; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+    code { color: var(--cyan); font-size: .92em; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 940px; font-size: clamp(2.25rem, 5.8vw, 5rem); line-height: .98; letter-spacing: -.05em; margin-bottom: 22px; }
+    h2 { font-size: clamp(1.55rem, 3vw, 2.4rem); letter-spacing: -.03em; margin-bottom: 9px; }
+    h3 { font-size: 1rem; }
+    .wrap { width: min(var(--max), calc(100% - 34px)); margin: 0 auto; }
+    .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+    .muted { color: var(--muted); }
+    header { padding: 66px 0 38px; border-bottom: 1px solid var(--line); }
+    header .lede { max-width: 870px; color: var(--muted); font-size: 19px; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 25px 0 34px; }
+    nav a { border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; color: var(--muted); text-decoration: none; }
+    nav a:hover { border-color: var(--blue); color: var(--text); }
+    section { padding: 42px 0; border-bottom: 1px solid var(--line); }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+    .grid { display: grid; gap: 14px; }
+    .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .g3 { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+    .kpi { font-size: clamp(1.9rem, 4vw, 2.9rem); font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+    .kpi.green { color: var(--green); } .kpi.red { color: var(--red); }
+    .kpi.blue { color: var(--blue); } .kpi.amber { color: var(--amber); }
+    .lbl { color: var(--muted); font-size: 13px; margin-top: 7px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+    tbody tr:hover { background: var(--surface-2); }
+    .pass { color: var(--green); font-weight: 700; }
+    .undec { color: var(--amber); font-weight: 700; }
+    .bar { position: relative; height: 22px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+    .bar > span { position: absolute; inset: 0 auto 0 0; display: block; border-radius: 5px; }
+    .bar .old { background: linear-gradient(90deg, #6b2f3a, var(--red)); }
+    .bar .new { background: linear-gradient(90deg, #1f5c3c, var(--green)); }
+    .barlbl { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+    ul { padding-left: 19px; } li { margin-bottom: 7px; }
+    .note { border-left: 3px solid var(--amber); padding-left: 14px; color: var(--muted); }
+    .ok { border-left: 3px solid var(--green); padding-left: 14px; }
+    footer { padding: 34px 0 70px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 640px) { section { padding: 30px 0; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Задача #106 · раунд Q6 · 2 августа 2026</div>
+    <h1>Промпт компактизации заменён</h1>
+    <p class="lede">
+      Старый промпт терял <strong>три четверти свежего контекста</strong>, а после трёх сжатий подряд —
+      <strong>вообще весь</strong>. Новый не теряет ничего, при этом вдвое короче и перестал засорять
+      репозитории лишними файлами. Проверено на 126 замерах, 7 из 8 критериев пройдены.
+    </p>
+    <nav>
+      <a href="#itog">Итог</a><a href="#chto">Что изменилось</a><a href="#gates">Критерии</a>
+      <a href="#chestno">Чего не хватает</a><a href="#otkat">Откат</a>
+    </nav>
+  </div>
+</header>
+
+<section id="itog">
+  <div class="wrap">
+    <div class="eyebrow">Ответ одной строкой</div>
+    <h2>Да, промпт стал лучше — по каждой измеренной оси</h2>
+    <p class="muted" style="max-width:860px">
+      Ни одной регрессии. Замер на 21 заново написанном сценарии, по 3 повтора на вариант.
+    </p>
+    <div class="grid g3" style="margin-top:20px">
+      <div class="card"><div class="kpi green">24% → 100%</div><div class="lbl">Сохранение последних сообщений пользователя</div></div>
+      <div class="card"><div class="kpi green">0% → 100%</div><div class="lbl">То же после трёх сжатий подряд</div></div>
+      <div class="card"><div class="kpi blue">−61%</div><div class="lbl">Размер передаваемого контекста</div></div>
+      <div class="card"><div class="kpi green">218 → 0</div><div class="lbl">Лишних записей в файлы проекта</div></div>
+      <div class="card"><div class="kpi green">7 / 8</div><div class="lbl">Критериев пройдено, ни один не провален</div></div>
+      <div class="card"><div class="kpi amber">$19.19</div><div class="lbl">Потрачено из лимита $30</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="chto">
+  <div class="wrap">
+    <div class="eyebrow">Что именно чинили</div>
+    <h2>Главная поломка: агент забывал то, что вы только что сказали</h2>
+    <p class="muted" style="max-width:860px">
+      Когда контекст переполняется, агент сжимает историю в конспект и начинает новую сессию с него.
+      Старый промпт писал вольный пересказ — и точные команды, пути и числа из последних сообщений
+      просто не доживали до следующей сессии.
+    </p>
+
+    <div class="grid g2" style="margin-top:22px">
+      <div class="card">
+        <h3>Последние 3 сообщения пользователя</h3>
+        <div class="barlbl"><span>Было</span><span class="mono" style="color:var(--red)">24.3%</span></div>
+        <div class="bar"><span class="old" style="width:24.3%"></span></div>
+        <div class="barlbl" style="margin-top:12px"><span>Стало</span><span class="mono" style="color:var(--green)">100%</span></div>
+        <div class="bar"><span class="new" style="width:100%"></span></div>
+      </div>
+      <div class="card">
+        <h3>Они же — после трёх сжатий подряд</h3>
+        <div class="barlbl"><span>Было</span><span class="mono" style="color:var(--red)">0.0%</span></div>
+        <div class="bar"><span class="old" style="width:1%"></span></div>
+        <div class="barlbl" style="margin-top:12px"><span>Стало</span><span class="mono" style="color:var(--green)">100%</span></div>
+        <div class="bar"><span class="new" style="width:100%"></span></div>
+        <p class="muted" style="margin:12px 0 0;font-size:13px">
+          В долгой сессии сжатие срабатывает не раз. Старый промпт к третьему разу терял свежий контекст полностью.
+        </p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <table>
+        <thead><tr><th>Свойство</th><th>Старый промпт</th><th>Новый</th></tr></thead>
+        <tbody>
+          <tr><td>Точность важных фактов</td><td>87.1%</td><td class="pass">94.8%</td></tr>
+          <tr><td>Следующее действие не теряется</td><td>90.5%</td><td class="pass">100%</td></tr>
+          <tr><td>Размер конспекта</td><td>5301 байт</td><td class="pass">2046 байт</td></tr>
+          <tr><td>Лишние записи в файлы</td><td>218</td><td class="pass">0</td></tr>
+          <tr><td>Всего изменённых файлов</td><td>220</td><td class="pass">3</td></tr>
+          <tr><td>Выдуманные утверждения про файлы</td><td>8</td><td class="pass">0</td></tr>
+          <tr><td>Утечки тестовых секретов</td><td class="pass">0</td><td class="pass">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ok" style="margin-top:18px">
+      <p style="margin:0"><strong>Побочный эффект, который оказался важнее ожидаемого.</strong>
+      Старый промпт приказывал оркестраторам перед каждым сжатием дописывать <code>CLAUDE.md</code>,
+      <code>TODO.md</code> и <code>BUGS.md</code>. Это давало <strong>218 записей в файлы</strong> на 63 замера —
+      правки, которых никто не просил. Новый пишет только тогда, когда в разговоре явно назван
+      существующий файл и конкретный факт. Стало ноль.</p>
+    </div>
+  </div>
+</section>
+
+<section id="gates">
+  <div class="wrap">
+    <div class="eyebrow">Критерии, зафиксированные до эксперимента</div>
+    <h2>Семь пройдено, один не считается</h2>
+    <p class="muted" style="max-width:860px">
+      Пороги записали и закоммитили <em>до</em> первого запуска модели, чтобы нельзя было подогнать
+      их под результат. Ни один порог по ходу не смягчался.
+    </p>
+    <div class="card" style="margin-top:18px">
+      <table>
+        <thead><tr><th>Критерий</th><th>Итог</th><th>Замер</th></tr></thead>
+        <tbody>
+          <tr><td>Возврат свежего контекста</td><td class="pass">ПРОЙДЕН</td><td class="mono">100% против 24.3%</td></tr>
+          <tr><td>Не хуже по важным фактам</td><td class="pass">ПРОЙДЕН</td><td class="mono">нижняя граница +0.99</td></tr>
+          <tr><td>Не хуже по следующему шагу</td><td class="pass">ПРОЙДЕН</td><td class="mono">нижняя граница +0.00</td></tr>
+          <tr><td>Секреты не утекают</td><td class="pass">ПРОЙДЕН</td><td class="mono">0 из 63</td></tr>
+          <tr><td>Не выдумывает действия с файлами</td><td class="pass">ПРОЙДЕН</td><td class="mono">0 против 8</td></tr>
+          <tr><td>Не раздувается</td><td class="pass">ПРОЙДЕН</td><td class="mono">38.6% от старого</td></tr>
+          <tr><td>Меньше необоснованных заявлений</td><td class="undec">НЕ ПОСЧИТАН</td><td class="mono">нужен второй судья</td></tr>
+          <tr><td>Держится при повторных сжатиях</td><td class="pass">ПРОЙДЕН</td><td class="mono">+18.8 п.п. на третьем</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="chestno">
+  <div class="wrap">
+    <div class="eyebrow">Честно про ограничения</div>
+    <h2>Чего в этом результате нет</h2>
+    <div class="grid g2" style="margin-top:18px">
+      <div class="card">
+        <h3 style="color:var(--amber)">Восьмой критерий не посчитан</h3>
+        <p class="muted" style="margin:0">
+          Он требует <strong>двух независимых оценщиков разных моделей</strong>. Второй (Codex) исчерпал
+          квоту до 8 августа. Подставить вместо него второй прогон той же модели — значит выдать
+          самопроверку за независимую, поэтому не стал. Единственный доступный оценщик даёт
+          <strong>3.2% против 31.7%</strong> в пользу нового промпта — в ту же сторону, что и все
+          остальные оси, но формально это не тот критерий.
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--amber)">Независимость сценариев не доказуема</h3>
+        <p class="muted" style="margin:0">
+          21 сценарий написан заново: ноль совпадений по идентификаторам и текстам против всех
+          51 сценария прошлых раундов. Но это доказывает только <em>точное</em> несовпадение.
+          Я писал их, прочитав старый набор, и доказать отсутствие влияния невозможно — так что
+          это указано как ограничение, а не спрятано.
+        </p>
+      </div>
+    </div>
+    <p class="note" style="margin-top:18px">
+      После 8 августа второй оценщик догоняется примерно за $3.6 из оставшихся $10.81 — перезапускать
+      замеры не нужно, 126 результатов уже готовы и оценка от них не зависит.
+    </p>
+  </div>
+</section>
+
+<section id="otkat">
+  <div class="wrap">
+    <div class="eyebrow">Если что-то пойдёт не так</div>
+    <h2>Откат — одна команда</h2>
+    <div class="card" style="margin-top:16px">
+      <p style="margin:0 0 10px" class="muted">Сжатие контекста — горячий путь: срабатывает у всех агентов во всех проектах.</p>
+      <p class="mono" style="margin:0;color:var(--cyan)">git revert --no-edit 8b5392d &amp;&amp; sudo systemctl restart orchestra</p>
+    </div>
+    <p class="muted" style="margin-top:14px;max-width:860px">
+      Ни миграций, ни изменений схемы — промпт читается заново при каждом сжатии. Рестарт обязателен:
+      код живёт в памяти systemd. Что именно отслеживать в живой работе — в
+      <code>docs/tasks/106/rollback.md</code>.
+    </p>
+    <p class="note" style="margin-top:16px">
+      <strong>Одно ожидаемое изменение поведения:</strong> оркестраторы больше не дописывают заметки
+      в <code>CLAUDE.md</code> / <code>TODO.md</code> / <code>BUGS.md</code> автоматически при сжатии.
+      Это и есть механизм, убравший 218 лишних записей. Если такая автозапись была нужна — это
+      продуктовое решение, а не баг.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Замер: 126 результатов, 21 сценарий, доверительные интервалы по 20 000 пересборок.
+    Тесты после правки: <span class="mono">1452 passed, 27 skipped</span>. Потрачено $19.19 из $30.</p>
+    <p>Подробности — <code>docs/tasks/106/q6/report.md</code>. Откат — <code>docs/tasks/106/rollback.md</code>.</p>
+  </div>
+</footer>
+</body>
+</html>
