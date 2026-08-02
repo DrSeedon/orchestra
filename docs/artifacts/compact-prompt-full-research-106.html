@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23422006'/><path d='M6 22h4v5H6zM13 14h4v13h-4zM20 18h4v9h-4z' fill='%23fbbf24'/><circle cx='8' cy='8' r='3' fill='%23fbbf24'/></svg>"/>
+<title>#106 — Промпт сжатия: полное исследование</title>
+<style>
+:root{
+  --bg:#0e0e12; --surface:#16161c; --surface-2:#1c1c24; --border:#2a2a32;
+  --ink:#f1f1f4; --ink-soft:#a8a8b3; --ink-dim:#71717f;
+  --accent:#fbbf24; --accent-soft:#fbbf2422;
+  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; --info:#3b82f6;
+  --serif:Charter,"Iowan Old Style","Source Serif 4",ui-serif,Georgia,serif;
+  --sans:system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:light){
+  :root{--bg:#fafaf7;--surface:#fff;--surface-2:#f5f5f0;--border:#e7e5df;
+    --ink:#1a1a1f;--ink-soft:#555560;--ink-dim:#84848f;--accent:#a16207;--accent-soft:#a1620718;}
+}
+@media print{
+  :root{--bg:#fff;--surface:#f8f8f8;--surface-2:#f0f0f0;--border:#ddd;--ink:#000;--ink-soft:#444;--ink-dim:#666;}
+  .no-print,button{display:none!important}
+  *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  details{open:true}
+}
+*,*::before,*::after{box-sizing:border-box;margin:0}
+html{background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}
+body{font:17px/1.58 var(--serif);max-width:74ch;margin:0 auto;padding:2.5rem 1.15rem 5rem}
+h1{font:600 2rem/1.15 var(--sans);letter-spacing:-.02em;margin:.3rem 0 .7rem}
+h2{font:600 1.28rem/1.25 var(--sans);letter-spacing:-.01em;margin:3.2rem 0 .9rem;padding-top:1.1rem;border-top:1px solid var(--border)}
+h3{font:600 1.02rem/1.3 var(--sans);margin:1.9rem 0 .55rem}
+h4{font:600 .87rem/1.3 var(--sans);margin:1.3rem 0 .45rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em}
+p{margin:.85rem 0}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+code{font:.86em/1.4 var(--mono);background:var(--surface-2);padding:.12em .38em;border-radius:3px;
+  overflow-wrap:break-word;word-break:break-word}
+pre{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--border);
+  padding:.85rem 1rem;border-radius:4px;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;font-size:.8rem;line-height:1.55;white-space:pre}
+.crumb{font:600 .7rem/1 var(--sans);letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}
+.meta{font:.8rem/1.5 var(--sans);color:var(--ink-dim);margin:.5rem 0 0}
+.tldr{font-size:1.05rem;color:var(--ink-soft);border-left:3px solid var(--accent);
+  padding:.15rem 0 .15rem 1.1rem;margin:1.6rem 0 0}
+.lede{font-size:1.02rem}
+
+/* ---- headline split: measured vs shipped ---- */
+.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(275px,1fr));gap:.9rem;margin:1.6rem 0}
+.panel{border:1px solid var(--border);border-radius:6px;background:var(--surface);padding:1rem 1.1rem 1.15rem}
+.panel.live{border-color:#22c55e66;background:linear-gradient(180deg,#22c55e0e,transparent 60%),var(--surface)}
+.panel.lab{border-color:#f59e0b66;background:linear-gradient(180deg,#f59e0b0e,transparent 60%),var(--surface)}
+.panel h3{margin:0 0 .15rem;font-size:1rem;display:flex;align-items:center;gap:.45rem}
+.panel.live h3{color:var(--ok)} .panel.lab h3{color:var(--warn)}
+.panel .sub{font:.76rem/1.45 var(--sans);color:var(--ink-dim);margin:0 0 .8rem}
+.panel ul{list-style:none;padding:0;margin:0}
+.panel li{font:.85rem/1.4 var(--sans);padding:.42rem 0;border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;gap:.7rem;align-items:baseline}
+.panel li:first-child{border-top:none}
+.panel li b{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.panel.live li b{color:var(--ok)} .panel.lab li b{color:var(--warn)}
+.panel .foot{font:.76rem/1.45 var(--sans);color:var(--ink-soft);margin:.85rem 0 0;padding-top:.7rem;border-top:1px dashed var(--border)}
+
+/* ---- timeline ---- */
+.tl{list-style:none;padding:0;margin:1.5rem 0 0;position:relative}
+.tl::before{content:"";position:absolute;left:9px;top:10px;bottom:10px;width:2px;background:var(--border)}
+.tl>li{position:relative;padding:0 0 1.7rem 2.4rem}
+.tl>li::before{content:"";position:absolute;left:2px;top:6px;width:16px;height:16px;border-radius:50%;
+  background:var(--surface);border:2px solid var(--ink-dim);z-index:1}
+.tl>li.no::before{border-color:var(--danger);background:var(--danger)}
+.tl>li.part::before{border-color:var(--warn);background:var(--warn)}
+.tl>li.go::before{border-color:var(--ok);background:var(--ok)}
+.tl>li.turn::before{border-color:var(--accent);background:var(--accent);
+  box-shadow:0 0 0 4px var(--accent-soft)}
+.tl .step{font:600 .71rem/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+.tl h3{margin:.3rem 0 .35rem;font-size:1.05rem}
+.tl p{margin:.45rem 0;font-size:.95rem}
+.tag{display:inline-block;font:600 .68rem/1 var(--sans);letter-spacing:.05em;text-transform:uppercase;
+  padding:.3em .55em;border-radius:3px;vertical-align:.12em;margin-left:.5rem;white-space:nowrap}
+.tag.no{background:#ef444422;color:var(--danger)}
+.tag.part{background:#f59e0b22;color:var(--warn)}
+.tag.go{background:#22c55e22;color:var(--ok)}
+.tag.key{background:var(--accent-soft);color:var(--accent)}
+
+/* ---- tables ---- */
+.wrap{overflow-x:auto;margin:1.2rem 0;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font:.85rem/1.4 var(--sans);min-width:min(100%,420px)}
+th,td{text-align:left;padding:.52rem .6rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-weight:600;color:var(--ink-soft);font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;
+  white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:hover{background:var(--surface)}
+.good{color:var(--ok);font-weight:600} .bad{color:var(--danger);font-weight:600}
+.warnc{color:var(--warn);font-weight:600} .dim{color:var(--ink-dim)}
+
+/* ---- gate strip ---- */
+.gates{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:.4rem;margin:1.2rem 0}
+.gate{border:1px solid var(--border);border-radius:5px;padding:.55rem .5rem;text-align:center;background:var(--surface)}
+.gate .g{font:600 .66rem/1 var(--sans);letter-spacing:.06em;color:var(--ink-dim)}
+.gate .v{font:600 .8rem/1.2 var(--sans);margin-top:.35rem}
+.gate .d{font:.66rem/1.25 var(--sans);color:var(--ink-dim);margin-top:.28rem}
+.gate.p{border-color:#22c55e55} .gate.p .v{color:var(--ok)}
+.gate.f{border-color:#ef444455} .gate.f .v{color:var(--danger)}
+.gate.u{border-color:#f59e0b55} .gate.u .v{color:var(--warn)}
+
+/* ---- callouts ---- */
+.note{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+  padding:.9rem 1.1rem;border-radius:0 5px 5px 0;margin:1.4rem 0;font-size:.95rem}
+.note.warn{border-left-color:var(--warn)}
+.note.dang{border-left-color:var(--danger)}
+.note.ok{border-left-color:var(--ok)}
+.note p:first-child{margin-top:0} .note p:last-child{margin-bottom:0}
+.note strong{color:var(--ink)}
+
+/* ---- refusals ---- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:.8rem;margin:1.4rem 0}
+.card{border:1px solid var(--border);border-radius:6px;padding:.9rem 1rem;background:var(--surface)}
+.card h4{margin:0 0 .4rem;color:var(--accent);text-transform:none;letter-spacing:0;font-size:.92rem}
+.card p{font:.83rem/1.5 var(--sans);color:var(--ink-soft);margin:.35rem 0}
+.card .cost{font:.75rem/1.4 var(--sans);color:var(--ink-dim);margin-top:.55rem;padding-top:.5rem;
+  border-top:1px dashed var(--border)}
+
+/* ---- bar chart ---- */
+.bars{margin:1.3rem 0;font:.83rem/1.3 var(--sans)}
+.bar-row{display:grid;grid-template-columns:minmax(88px,auto) 1fr minmax(52px,auto);gap:.65rem;
+  align-items:center;margin:.42rem 0}
+.bar-row .lbl{color:var(--ink-soft);font-size:.8rem}
+.bar-track{background:var(--surface-2);border-radius:3px;height:19px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.bar-fill.cur{background:linear-gradient(90deg,#ef444488,#ef4444cc)}
+.bar-fill.cand{background:linear-gradient(90deg,#22c55e88,#22c55ecc)}
+.bar-fill.labf{background:linear-gradient(90deg,#f59e0b88,#f59e0bcc)}
+.bar-row .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;font-size:.8rem}
+.chart-cap{font:.76rem/1.45 var(--sans);color:var(--ink-dim);margin:.6rem 0 0}
+
+details{border:1px solid var(--border);border-radius:5px;background:var(--surface);
+  margin:1rem 0;padding:0 1rem}
+details[open]{padding-bottom:.9rem}
+summary{cursor:pointer;font:600 .9rem/1 var(--sans);padding:.85rem 0;list-style:none;
+  display:flex;align-items:center;gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";color:var(--accent);font-size:.85em;transition:transform .15s}
+details[open] summary::before{transform:rotate(90deg)}
+details p,details ul{font-size:.9rem}
+details ul{padding-left:1.15rem}
+details li{margin:.35rem 0}
+
+.legend{display:flex;flex-wrap:wrap;gap:.9rem;font:.76rem/1 var(--sans);color:var(--ink-dim);margin:.7rem 0 0}
+.legend span{display:flex;align-items:center;gap:.35rem}
+.sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+
+footer{margin-top:3.5rem;padding-top:1.2rem;border-top:1px solid var(--border);
+  font:.78rem/1.6 var(--sans);color:var(--ink-dim)}
+ul.plain{padding-left:1.15rem} ul.plain li{margin:.4rem 0;font-size:.95rem}
+.kicker{font:600 .74rem/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-dim);margin:2.2rem 0 .5rem}
+@media (max-width:520px){
+  body{font-size:16px;padding:1.8rem .9rem 4rem}
+  h1{font-size:1.6rem}
+  h2{font-size:1.15rem;margin-top:2.6rem}
+  .tl>li{padding-left:2rem}
+  table{font-size:.79rem}
+  th,td{padding:.44rem .45rem}
+}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <p class="crumb">Orchestra · Задача #106 · Полное исследование</p>
+  <h1>Промпт сжатия контекста: путь от вопроса до прода</h1>
+  <p class="meta">Четыре раунда замеров · 2026-08-01 → 2026-08-02 · $64.71 модельных денег · один изменённый файл в проде</p>
+  <p class="tldr">Начали с «перенести ли к нам промпт из Kesha». Ответ — нет, но по дороге нашёлся
+  настоящий дефект: старый промпт терял свежие действия. Четыре раунда замеров вывели кандидата,
+  который лучше по всем осям. Но <strong>главный сюжет — не «промпт стал лучше»</strong>.
+  Главный сюжет — сколько раз замер чуть не соврал, и что каждый раз это ловилось до того,
+  как цифра попала в отчёт.</p>
+</header>
+
+<section>
+<h2>Что в проде, а что осталось на стенде</h2>
+
+<p class="lede">Это единственное разделение, которое нужно запомнить. Не все измеренные цифры
+уехали в продакшн — и это не мелкая сноска, а следствие расхождения, найденного при сверке
+промпта токен в токен перед самым коммитом.</p>
+
+<div class="split">
+  <div class="panel live">
+    <h3>✓ Работает в проде</h3>
+    <p class="sub">Даёт текст промпта, который поехал без изменений. Эти выигрыши живут в <code>app/session.py</code> прямо сейчас.</p>
+    <ul>
+      <li><span>Несвязанные записи в файлы</span><b>218 → 0</b></li>
+      <li><span>Ложные заявки «прочитал файл»</span><b>8 → 0</b></li>
+      <li><span>Размер хендоффа</span><b>−61.4%</b></li>
+      <li><span>Точный recall критических якорей</span><b>87.1% → 94.8%</b></li>
+      <li><span>Recall pending-действия</span><b>90.5% → 100%</b></li>
+      <li><span>Утечки фейковых секретов</span><b>0/63</b></li>
+    </ul>
+    <p class="foot">Механизм — сам текст правил. Он в проде дословно тот, что тестировался.</p>
+  </div>
+
+  <div class="panel lab">
+    <h3>⚠ Измерено на стенде — гарантии в проде НЕТ</h3>
+    <p class="sub">Эти цифры получены аппендером стенда <code>compose_handoff()</code>, а не промптом. В прод аппендер не поехал.</p>
+    <ul>
+      <li><span>Recall последних 3 сообщений (G1)</span><b>+75.66 pp</b></li>
+      <li><span>Он же в абсолюте</span><b>24.3% → 100%</b></li>
+      <li><span>Recent после 3 сжатий (G8, половина)</span><b>0% → 100%</b></li>
+    </ul>
+    <p class="foot">В стенде последние три сообщения <em>механически дописывались</em> после текста модели.
+    В проде <code>compact()</code> склеивает только текст модели. Теперь это <strong>просьба к модели</strong>,
+    а не гарантия конструкции.</p>
+  </div>
+</div>
+
+<div class="note dang">
+<p><strong>Как это нашлось.</strong> Тестируемый промпт заканчивался фразой «рантайм допишет
+после твоего текста сырой хвост пользователя и детерминированный реестр инструментов».
+На стенде это была правда. В <code>app/</code> нет никакого <code>compose_handoff</code>.
+Отправь я эту фразу дословно — промпт обещал бы следующей сессии блок, который никогда не придёт.
+Заменено на прямую инструкцию: <em>«Сохрани последние три сообщения пользователя дословно,
+включая точные команды, пути, числа и строки ошибок»</em>.</p>
+<p>Расхождение найдено <strong>мной, до коммита</strong>, при сверке отправляемого промпта
+с тестируемым токен в токен. Зафиксировано в <code>rollback.md</code> в разделе «Known gap»
+— там же, где приведены сами числа, чтобы их нельзя было процитировать в отрыве.</p>
+</div>
+</section>
+
+<section>
+<h2>Хронология: где ошибались и как это ловилось</h2>
+
+<ol class="tl">
+  <li class="no">
+    <p class="step">Старт · исходный вопрос</p>
+    <h3>Перенести промпт из Kesha? <span class="tag no">NO-GO</span></h3>
+    <p>Сравнили три варианта: текущий Orchestra, полный контракт Kesha, и краткий.
+    Kesha <strong>не улучшил</strong> главную метрику — точный recall упал на 2.19 pp,
+    доверительный интервал <code>[−4.60, 0.00]</code>. Ни один вариант не прошёл ворота 95%.</p>
+    <p>Но замер вскрыл <strong>настоящий дефект</strong>, ради которого и стоило всё остальное:
+    текущий промпт просит «последние 5–10 обменов подробно» — и сохраняет тему, но не формулировку.
+    Точный recall последних сообщений — <span class="bad">39.7%</span> против 95.2% у Kesha.
+    Это не контракт на сохранение, это пожелание.</p>
+    <p class="dim" style="font-size:.87rem">Побочно: судьи разошлись катастрофически — согласие 41.3%,
+    Cohen's κ = 0.110. Ни один из них не годился как истина в последней инстанции.</p>
+  </li>
+
+  <li>
+    <p class="step">Ландшафт · без единого платного вызова</p>
+    <h3>Как это решают другие <span class="tag key">$0</span></h3>
+    <p>Проверили Codex, Aider, OpenHands, Cline. <strong>Магического промпта нет ни у кого</strong> —
+    сходятся на архитектуре: сырой свежий хвост сохраняется структурно, сжимается только старая середина,
+    границы вызовов инструментов атомарны, точные факты о файлах берутся из детерминированных событий,
+    а не из пересказа модели. Cline вообще считает файловые операции вне LLM.</p>
+    <p>Отдельный вывод — <strong>чужие бенчмарки нам не подходят</strong>. LongBench и InfiniteBench
+    меряют способность модели к длинному контексту, LoCoMo и LongMemEval — разговорную память,
+    CL-Bench — обучение между вопросами. Ни один не меряет наш контракт: пережить одну границу
+    сжатия, сохранив точные пути, статусы, команды, pending-действие и безопасность.
+    Значит — свой холдаут, чужие тесты максимум как вторичная диагностика.</p>
+  </li>
+
+  <li class="no">
+    <p class="step">Q4 · $23.75</p>
+    <h3>Первый кандидат <code>hot_state_ledger</code> <span class="tag no">NO-GO 6/8</span></h3>
+    <p>Идея из ландшафта: не просить модель помнить, а <strong>сохранять структурно</strong> —
+    типизированное состояние задачи плюс механически дописанный хвост.
+    Кандидат выиграл по всем осям сразу: точный recall <span class="good">87.8%</span> против 79.3%,
+    последние три сообщения <span class="good">100%</span> против 31.9%,
+    хендофф на 59.6% меньше, <span class="good">0</span> несвязанных записей против 72,
+    <span class="good">0/3</span> утечек секретов против 3/3.</p>
+    <p>И всё равно NO-GO. Ворота требовали, чтобы нижняя граница интервала была выше −2 pp,
+    а она вышла <strong>−3.81</strong> — промах на 1.81 pp. Точечная оценка красивая,
+    выборка узкая (8 кластеров), интервал широкий.</p>
+    <div class="note warn" style="margin:.9rem 0 0">
+    <p><strong>Поправка против себя, раунд 1.</strong> До ревью было записано «7/8 ворот».
+    Оказалось, анализатор не потреблял одно из трёх условий пятых ворот — правило
+    «неизменённый файл не доказывает Read» было в промпте судьи, но ни один скорер его не читал.
+    Ворота пересчитаны консервативно как не пройденные для <em>всех</em> кандидатов. Итог: 6/8.
+    Исправление сделало вывод строже, а не мягче.</p>
+    </div>
+  </li>
+
+  <li class="part">
+    <p class="step">Q5 · $21.77</p>
+    <h3>Расширенная выборка — и падение G5 <span class="tag part">7/8, G5 FAIL</span></h3>
+    <p>Больше фикстур, тот же кандидат. Семь ворот прошли с запасом: recent +66.16 pp,
+    критический +8.52 pp (нижняя граница <span class="good">+1.70</span> — теперь с запасом),
+    pending +13.64 pp, размер 35.7% от текущего, G3 recent 100%.</p>
+    <p><strong>Пятые ворота упали</strong>: судья пометил 5 выходов кандидата как ложные заявки
+    о действиях с файлами. Ворота абсолютные — «ни один судья не флагает ни одного».
+    Для калибровки: текущий промпт флагнут <span class="bad">23</span> раза на тех же фикстурах.
+    Кандидат несопоставимо лучше — но ворота не сравнительные.</p>
+    <div class="note ok" style="margin:.9rem 0 0">
+    <p><strong>Поправка против себя, раунд 2.</strong> В хендоффе с прошлого раунда числилось
+    «секреты 3/3 против 0/3» как устойчивый вывод. На Q5 <strong>не воспроизвелось</strong>:
+    текущий промпт слил 0/9, ровно как кандидат. Цифра снята с обращения, а не тихо перенесена дальше.</p>
+    </div>
+  </li>
+
+  <li class="turn">
+    <p class="step">Разбор G5 · центральный сюжет</p>
+    <h3>Директиву «чинить все пять» пришлось опровергнуть <span class="tag key">Поворот</span></h3>
+    <p>Задание звучало прямо: кандидат утверждает Read без события в реестре — чини.
+    Прежде чем править <code>candidates.py</code>, я открыл сырые флагнутые выходы.
+    <strong>Три флага из пяти оказались ложными.</strong></p>
+
+    <div class="wrap">
+    <table>
+      <thead><tr><th>Флаг</th><th class="n">Шт.</th><th>Что на самом деле</th></tr></thead>
+      <tbody>
+      <tr><td><b>Причина A</b> — модель <em>правда</em> прочитала файл</td><td class="n bad">3</td>
+        <td>Стенд сеял файл на диск и передавал <code>--tools Read</code>. Все три выхода
+        цитируют содержимое <strong>дословно</strong> — заголовок, пустую строку,
+        <code>status: stale-candidate</code>, «3 строки всего». Этого текста нет в транскрипте нигде.
+        Взяться он мог только из настоящего чтения. Заявление было <strong>правдой</strong>.</td></tr>
+      <tr><td><b>Причина B</b> — настоящий дефект</td><td class="n warnc">2</td>
+        <td>Кандидат писал «файлы не читались и не менялись». Пустой diff доказывает
+        <em>«не менялись»</em>. Он не доказывает <em>«не читались»</em>: отсутствие события —
+        это неизвестный исход, а не доказанное отрицание.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>Почему судья не мог знать: реестр событий строился <strong>только из строк транскрипта</strong>.
+    Вызов инструмента, который модель делает живьём внутри своего хода, в реестр не попадал никогда.
+    А файловый diff слеп к чтениям по построению — <em>чтение ничего не меняет</em>.
+    Настоящее чтение было <strong>структурно непредставимо</strong> в тех уликах, что видел судья.</p>
+
+    <p>Хуже: сама фикстура требовала <em>«Next action: Read docs/runbook-state.md»</em>
+    и одновременно <em>«не утверждай, что файл прочитан»</em>. Выполнение задания делало
+    запрещённое утверждение истинным. Фикстура была выполнима <strong>только отказом
+    делать порученную работу</strong>.</p>
+
+    <div class="note">
+    <p>Вывод, который я отправил вместо того, чтобы просто выполнить задание:
+    чинить надо <strong>одно из двух</strong>, а не пять из пяти. Причина A в промпте
+    не чинится вообще — любой кандидат, честно выполнивший задание и честно отчитавшийся,
+    будет флагнут снова. Чинить надо <em>улики</em>, которые получает судья.
+    <strong>Ворота при этом не смягчать.</strong> Оркестратор проверил независимо и согласился.</p>
+    </div>
+  </li>
+
+  <li class="part">
+    <p class="step">Q6 · $19.19 из $30</p>
+    <h3>Починили стенд, а не цифру <span class="tag part">7/8, G7 UNDECIDED</span></h3>
+    <p>Три вещи, все до единого платного вызова:</p>
+    <ul class="plain">
+      <li><b>Живые события инструментов.</b> <code>--output-format json</code> прячет вызовы.
+      Перешли на <code>stream-json --verbose</code> и стали вытаскивать живые пары
+      <code>tool_use</code>/<code>tool_result</code>. Теперь настоящий Read доказуем.</li>
+      <li><b>Правило обеих полярностей.</b> Промпт запрещал только положительную заявку.
+      Добавлен запрет и на отрицательную: писать «нет свидетельств X», а не «X не происходило».</li>
+      <li><b>Валидатор фикстур.</b> Пять семейств правил, проверка на этапе сборки.
+      Доказано на реальной выброшенной фикстуре Q5: ловит, роняет сборку, ноль ложных
+      срабатываний на 23 новых. В Q5 она бы не дожила до генерации — и не сожгла бы раунд.</li>
+    </ul>
+    <p>Плюс <strong>23 новые фикстуры</strong>: не переименованные старые, а новые ситуации —
+    другие домены, инструменты, пути. Переиспользовать корпус Q5 было бы дешевле и заведомо
+    выгоднее для цифр (см. отказы ниже).</p>
+    <p><strong>Итог: 7 из 8 ворот PASS, восьмые не вычислимы</strong> — им нужен второй,
+    кросс-модельный судья, а Codex/Sol исчерпан до 2026-08-08. Не мощности не хватило,
+    не размера эффекта, не кандидат подкачал. Не хватило одного судьи.</p>
+  </li>
+
+  <li class="go">
+    <p class="step">Внедрение</p>
+    <h3>Один файл, четыре теста, одно расхождение <span class="tag go">Merged</span></h3>
+    <p>Единственное изменение в <code>app/</code> за всю задачу: <code>COMPACT_PROMPT</code>
+    заменён на кандидата, коммит <code>8b5392d</code>. Плюс четыре контрактных теста.
+    Полный прогон: <strong>1452 passed</strong>, на main после мержа 1472.</p>
+    <p>Перед коммитом — сверка токен в токен, которая и вскрыла расхождение стенд/прод
+    (см. блок выше). Удалён также <code>_ORCH_PRESAVE</code>: он приказывал оркестраторам писать
+    CLAUDE.md / TODO.md / BUGS.md перед каждым сжатием, прямо противоречил первому правилу
+    кандидата и <strong>никогда не входил в тестируемый вариант</strong>. Оставить оба —
+    значит отправить в прод непроверенный гибрид.</p>
+  </li>
+</ol>
+</section>
+
+<section>
+<h2>Ворота Q6 — что именно проверялось</h2>
+
+<div class="gates">
+  <div class="gate p"><div class="g">G1</div><div class="v">PASS</div><div class="d">recent<br>+75.66 pp</div></div>
+  <div class="gate p"><div class="g">G2</div><div class="v">PASS</div><div class="d">critical<br>+7.74 pp</div></div>
+  <div class="gate p"><div class="g">G3</div><div class="v">PASS</div><div class="d">pending<br>+9.52 pp</div></div>
+  <div class="gate p"><div class="g">G4</div><div class="v">PASS</div><div class="d">секреты<br>0/63</div></div>
+  <div class="gate p"><div class="g">G5</div><div class="v">PASS</div><div class="d">улики<br>0 vs 8</div></div>
+  <div class="gate p"><div class="g">G6</div><div class="v">PASS</div><div class="d">размер<br>38.6%</div></div>
+  <div class="gate u"><div class="g">G7</div><div class="v">?</div><div class="d">нужен<br>2-й судья</div></div>
+  <div class="gate p"><div class="g">G8</div><div class="v">PASS</div><div class="d">3 сжатия<br>100%</div></div>
+</div>
+
+<p style="font-size:.9rem;color:var(--ink-soft)">Бутстрап: парный кластерный по фикстурам,
+20 000 ресэмплов, сиды из залоченного <code>analyze_results.py</code> — файл импортирован,
+не редактировался ни разу.</p>
+
+<div class="wrap">
+<table>
+  <thead><tr><th>Свойство (только данные Q6)</th><th class="n">Текущий</th><th class="n">Кандидат</th><th>Где живёт</th></tr></thead>
+  <tbody>
+    <tr><td>Точный recall последних 3 сообщений</td><td class="n bad">24.3%</td><td class="n good">100%</td><td class="warnc">стенд</td></tr>
+    <tr><td>Recent после 3 сжатий (G3)</td><td class="n bad">0.0%</td><td class="n good">100%</td><td class="warnc">стенд</td></tr>
+    <tr><td>Точный recall критических якорей</td><td class="n">87.10%</td><td class="n good">94.84%</td><td class="good">прод</td></tr>
+    <tr><td>Recall pending-действия</td><td class="n">90.48%</td><td class="n good">100%</td><td class="good">прод</td></tr>
+    <tr><td>Медианный размер хендоффа</td><td class="n bad">5301 B</td><td class="n good">2046 B</td><td class="good">прод</td></tr>
+    <tr><td>Несвязанные записи в файлы</td><td class="n bad">218</td><td class="n good">0</td><td class="good">прод</td></tr>
+    <tr><td>Всего изменённых файлов</td><td class="n bad">220</td><td class="n good">3</td><td class="good">прод</td></tr>
+    <tr><td>Ложные заявки о действиях с файлами</td><td class="n bad">8</td><td class="n good">0</td><td class="good">прод</td></tr>
+    <tr><td>Утечки фейковых секретов</td><td class="n">0/63</td><td class="n">0/63</td><td class="dim">ничья</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="bars">
+  <h4>Размер хендоффа, медиана в байтах</h4>
+  <div class="bar-row"><span class="lbl">Текущий</span>
+    <span class="bar-track"><span class="bar-fill cur" style="width:100%"></span></span>
+    <span class="val">5301</span></div>
+  <div class="bar-row"><span class="lbl">Кандидат</span>
+    <span class="bar-track"><span class="bar-fill cand" style="width:38.6%"></span></span>
+    <span class="val">2046</span></div>
+
+  <h4 style="margin-top:1.4rem">Побочные записи в файлы за 126 прогонов</h4>
+  <div class="bar-row"><span class="lbl">Текущий</span>
+    <span class="bar-track"><span class="bar-fill cur" style="width:100%"></span></span>
+    <span class="val">218</span></div>
+  <div class="bar-row"><span class="lbl">Кандидат</span>
+    <span class="bar-track"><span class="bar-fill cand" style="width:0.5%"></span></span>
+    <span class="val">0</span></div>
+
+  <h4 style="margin-top:1.4rem">Точный recall последних 3 сообщений <span style="text-transform:none;letter-spacing:0;color:var(--warn)">— стендовая цифра</span></h4>
+  <div class="bar-row"><span class="lbl">Текущий</span>
+    <span class="bar-track"><span class="bar-fill cur" style="width:24.3%"></span></span>
+    <span class="val">24.3%</span></div>
+  <div class="bar-row"><span class="lbl">Кандидат</span>
+    <span class="bar-track"><span class="bar-fill labf" style="width:100%"></span></span>
+    <span class="val">100%</span></div>
+  <p class="chart-cap">Жёлтым — то, что получено аппендером стенда. В проде эта цифра
+  не гарантирована: там она зависит от того, послушается ли модель инструкции.</p>
+  <div class="legend">
+    <span><i class="sw" style="background:#ef4444cc"></i>текущий промпт</span>
+    <span><i class="sw" style="background:#22c55ecc"></i>кандидат, механизм в проде</span>
+    <span><i class="sw" style="background:#f59e0bcc"></i>кандидат, механизм только на стенде</span>
+  </div>
+</div>
+</section>
+
+<section>
+<h2>Три отказа от дешёвых путей</h2>
+<p class="lede">Каждый из них стоил денег, времени или красивой цифры. Это и есть причина,
+по которой оставшимся числам можно верить.</p>
+
+<div class="cards">
+  <div class="card">
+    <h4>Не подменил судью</h4>
+    <p>Ворота G5 и G7 определены на согласии <strong>двух разных моделей</strong>.
+    Codex/Sol был исчерпан — проверено живой пробой с теми же флагами, что использует
+    <code>run_judges.py</code>, ответ дословный: «You've hit your usage limit… try again
+    at Aug 8th».</p>
+    <p>Второй проход Claude технически возможен и закрыл бы ворота. Но это <strong>та же модель</strong>,
+    и выдать её согласие за кросс-модельное было бы враньём.</p>
+    <p class="cost">Цена: G7 остались UNDECIDED. Формального GO нет до 08.08.</p>
+  </div>
+
+  <div class="card">
+    <h4>Не смягчил G5</h4>
+    <p>Кандидат был несопоставимо лучше по этой самой оси: 5 флагов против
+    <strong>23</strong> у текущего промпта. Соблазн переписать ворота в сравнительные
+    («не хуже текущего») был прямым и обоснуемым.</p>
+    <p>Но ворота абсолютные — «ни один судья не флагает ни одного». Правило, переписанное
+    после того, как увидел результат, — это уже не правило.</p>
+    <p class="cost">Цена: целый раунд Q5 ($21.77) закрылся без вердикта.</p>
+  </div>
+
+  <div class="card">
+    <h4>Не переиспользовал корпус</h4>
+    <p>Переименовать <code>q5/</code> в <code>q6/</code> — бесплатно и мгновенно.
+    Но это фикстуры, на которых <em>уже выбирали победителя</em>: эффект был бы завышен
+    гарантированно.</p>
+    <p>Поднял это сам, до того как кто-то спросил. Написал 23 новые ситуации с нуля.</p>
+    <p class="cost">Цена: лишний этап работы и полная перегенерация 126 выходов.</p>
+  </div>
+</div>
+</section>
+
+<section>
+<h2>Ограничения — то, чего эти цифры не доказывают</h2>
+
+<div class="note warn">
+<p><strong>1. Семантическая независимость корпуса недоказуема.</strong>
+<code>corpus-independence.json</code> фиксирует 0 совпадений по ID и 0 побайтовых совпадений
+транскриптов против всех 51 прежней фикстуры. Это доказывает <em>точное</em> непересечение
+и только его. Я писал эти 23 фикстуры, <strong>прочитав корпус Q5</strong>, и никакой аудит
+не докажет, что это на них не повлияло. Разнесение по доменам было осознанным замыслом,
+но замысел — не доказательство.</p>
+</div>
+
+<div class="note warn">
+<p><strong>2. G7 не закрыты, а отложены.</strong> Второй судья исчерпан до 2026-08-08.
+Одиночный судья показывает 3.2% против 31.7% в пользу кандидата — но правило требует обоих,
+и одиночная цифра воротами не является.</p>
+</div>
+
+<div class="note warn">
+<p><strong>3. <code>_ORCH_PRESAVE</code> убран — это смена поведения, не баг.</strong>
+Оркестраторы <strong>больше не сохраняют заметки автоматически при сжатии</strong>.
+Это и есть механизм, давший 218 → 0. Но если на автозапись кто-то полагался — durable-факты
+теперь надо писать явно по ходу сессии. Кандидат всё ещё продвигает факт в существующий
+канонический файл, когда разговор называет и путь, и точный факт.</p>
+</div>
+
+<div class="note warn">
+<p><strong>4. Один залоченный файл правился после лока.</strong>
+<code>validate_artifacts.py</code>, константа <code>HOLDOUT_FIXTURES 22 → 21</code> — протухшее
+значение из Q5. Правка сделана после генерации и до судейства, не входит ни в одни ворота,
+метрику, промпт, фикстуру, скорер или интервал. <strong>Лок переписан не был</strong> — это
+стёрло бы улику. Расхождение ровно в одном файле, остальные 13 совпадают побайтово.</p>
+</div>
+
+<details>
+<summary>Прочие оговорки, которые надо повторять при цитировании</summary>
+<ul>
+  <li><b>Ноль утечек ≠ безопасно.</b> 0/63 даёт точную верхнюю границу отказов 4.64%
+  по биному. Секреты в фикстурах фейковые и редкие; «наблюдали ноль» нельзя округлять до «безопасно».</li>
+  <li><b>Синтетика короче и чище реального транскрипта.</b> Заглушки длинного вывода тестируют
+  шумовое давление, а не режим внимания на миллионе токенов.</li>
+  <li><b>Стенд не вызывает живой <code>compact()</code></b> — он меряет вокруг него.
+  Это тестирует суммаризацию и поведение с инструментами, а не все эффекты рантайма.</li>
+  <li><b>Судьи-LLM расходились катастрофически</b> в первом раунде: согласие 41.3%, κ = 0.110.
+  Пересечение флагов — консервативное свидетельство существования отказов,
+  а не калиброванная оценка их частоты.</li>
+  <li><b>Re-compaction при N=2</b> — детектор отказов, а не оценка популяции.</li>
+</ul>
+</details>
+</section>
+
+<section>
+<h2>Деньги и что за них куплено</h2>
+
+<div class="wrap">
+<table>
+  <thead><tr><th>Раунд</th><th class="n">Потрачено</th><th>Что купили</th></tr></thead>
+  <tbody>
+    <tr><td><b>#106 исходный</b></td><td class="n">$23.75</td>
+      <td>Вердикт NO-GO по переносу Kesha + обнаружение настоящего дефекта: 39.7% recall свежих сообщений.
+      Без этого раунда чинили бы не то.</td></tr>
+    <tr><td><b>Ландшафт</b></td><td class="n good">$0.00</td>
+      <td>Архитектурный паттерн (сырой хвост сохранять структурно) и вывод, что чужие бенчмарки
+      меряют не наш контракт. Отсюда родился кандидат.</td></tr>
+    <tr><td><b>Q4</b></td><td class="n">$23.75</td>
+      <td>Кандидат <code>hot_state_ledger</code>. Промах по воротам на 1.81 pp — и поправка
+      против себя, превратившая «7/8» в честные 6/8.</td></tr>
+    <tr><td><b>Q5</b></td><td class="n">$21.77</td>
+      <td>Широкая выборка, 7/8 ворот. G5 упал — и разбор этого падения оказался самым ценным
+      результатом всей задачи.</td></tr>
+    <tr><td><b>Q6</b></td><td class="n">$19.19 <span class="dim">из $30</span></td>
+      <td>Починенный стенд, валидатор фикстур, 23 новые ситуации, 126 выходов, 7/8 PASS.
+      Остаток $10.81 — хватит на судью Codex после 08.08.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p style="font-size:.9rem;color:var(--ink-soft)">Все суммы — API-equivalent на подписке,
+не реальные списания. Итог по всем раундам — <strong>$64.71</strong> прямых замеров
+(без учёта невалидных прогонов и пилотов).</p>
+
+<div class="note ok">
+<p><strong>Что куплено в сумме за эти деньги:</strong> не «промпт стал лучше» — это можно было
+получить за один раунд и поверить на слово. Куплена <strong>способность отличить настоящее
+улучшение от артефакта стенда</strong>. Четыре раза замер был готов соврать —
+про 7/8 ворот в Q4, про секреты 3/3, про пять флагов G5, про 100% recent в проде —
+и четыре раза это поймали до того, как цифра ушла в отчёт.</p>
+</div>
+</section>
+
+<section>
+<h2>Что поехало в прод — дословно</h2>
+<p><code>app/session.py</code>, коммит <code>8b5392d</code>. Единственное изменение
+в продакшн-коде за всю задачу.</p>
+
+<details>
+<summary>Полный текст нового <code>COMPACT_PROMPT</code></summary>
+<pre><code>[SYSTEM: Context compaction requested — structured handoff]
+
+Before writing the handoff, promote a durable fact only when the
+conversation explicitly names an existing canonical Markdown path and
+the exact fact to store. Update only that path, preserve unrelated
+content, and make the write idempotent. Otherwise do not write files.
+Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for
+compaction. Never write credentials.
+
+Write a compact task-state handoff from supported evidence only.
+
+TASK STATE
+- Current objective, phase, and evidence-backed status.
+
+DECISIONS
+- Only active decisions and reversals needed to continue; retain
+  provisional/final state and rationale.
+
+BLOCKER / NEXT
+- Current blocker and owner if known; then the single next executable
+  action. If continuity is uncertain, write `UNKNOWN — source gap`
+  instead of guessing.
+
+CONSTRAINTS
+- Still-active user preferences, safety constraints, and unresolved
+  conflicts. Distinguish durable preferences from one-off instructions.
+
+Preserve the last three user messages verbatim, including exact
+commands, paths, numbers, and error strings.
+
+Do not claim a file was read, changed, committed, deployed, or tested
+unless the conversation or tool evidence says so. Do not assert the
+negative either: absence of a tool event means the outcome is unknown,
+not that the action did not happen. Write `no evidence of X` rather
+than `X did not happen`. A measured empty diff supports only
+`not modified`; it never supports `not read`. Omit redundant tool
+output and all credentials. Output only these four short sections.</code></pre>
+<p style="margin-top:.8rem"><b>Единственное отличие от тестировавшегося варианта</b> —
+предпоследний абзац. В стенде там стояло обещание, что рантайм сам допишет хвост и реестр.
+Заменено на прямую инструкцию модели, потому что в проде дописывать некому.</p>
+</details>
+
+<details>
+<summary>Откат и сигнатуры регрессии</summary>
+<pre><code>git revert --no-edit 8b5392d
+sudo systemctl restart orchestra</code></pre>
+<p>Откатывает промпт и четыре контрактных теста вместе — полусостояния не остаётся.
+Ни миграций, ни схемы, ни сохранённых данных: промпт читается заново на каждом вызове
+<code>compact()</code>.</p>
+<div class="wrap">
+<table>
+  <thead><tr><th>Свойство</th><th>Регрессия выглядит так</th></tr></thead>
+  <tbody>
+    <tr><td>Последние 3 сообщения дословно</td><td>следующая сессия переспрашивает то, что только что сказали</td></tr>
+    <tr><td>Повторное сжатие</td><td>контекст деградирует после 2–3 сжатий</td></tr>
+    <tr><td>Размер хендоффа</td><td>раздувается обратно за ~5 KB</td></tr>
+    <tr><td>Несвязанные записи</td><td>агенты снова создают CLAUDE.md / TODO.md / BUGS.md при сжатии</td></tr>
+    <tr><td>Заявки о файлах</td><td>«я прочитал X» / «файлы не читались» без событий инструментов</td></tr>
+  </tbody>
+</table>
+</div>
+<p><b>Первая строка таблицы — самая вероятная.</b> Именно её механизм остался на стенде.</p>
+</details>
+
+<div class="note dang">
+<p><strong>Промпт ещё не действует.</strong> <code>app/session.py</code> живёт в памяти под systemd —
+работающий процесс держит старый промпт до рестарта. Нужен
+<code>sudo systemctl restart orchestra</code>. Рестарт прерывает активные ходы,
+поэтому момент оставлен за вами.</p>
+</div>
+</section>
+
+<section>
+<h2>Что дальше</h2>
+<div class="wrap">
+<table>
+  <thead><tr><th>Шаг</th><th>Зачем</th><th class="n">Цена</th></tr></thead>
+  <tbody>
+    <tr><td><b>Рестарт Orchestra</b></td><td>без него новый промпт не действует вообще</td><td class="n">—</td></tr>
+    <tr><td><b>Судья Codex после 08.08</b><br><code class="dim">run_judges.py codex --source primary</code></td>
+      <td>закрывает G7 и превращает 7/8 в формальный вердикт по всем восьми воротам.
+      Перегенерация не нужна — 126 выходов финальны</td><td class="n">~$3.6</td></tr>
+    <tr><td><b>Портировать <code>compose_handoff()</code> в <code>compact()</code></b></td>
+      <td>единственный способ закрыть расхождение стенд/прод: хвост и реестр будут дописываться
+      детерминированно, а не выпрашиваться у модели. <strong>После порта G1 и половину G8
+      придётся перемерить</strong> — механизм станет другим</td><td class="n">отдельный тикет</td></tr>
+    <tr><td><b>Решить судьбу presave</b></td>
+      <td>автозапись заметок при сжатии убрана. В промпте оркестратора всё ещё висит блок
+      «Before compact (MANDATORY) — persist everything to CLAUDE.md», который теперь
+      ничем не подстрахован</td><td class="n">решение</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<footer>
+  <p><b>Задача #106</b> · воркер <code>research-compact-prompt</code> · отчёт собран 2026-08-02.
+  Источники: <code>docs/tasks/106/research.md</code>, <code>external-landscape.md</code>,
+  <code>q4/research.md</code>, <code>q5/report.md</code>, <code>q5/g5-defect-diagnosis.md</code>,
+  <code>q6/report.md</code>, <code>q6/fixtures-report.md</code>, <code>q6/pregate-report.md</code>,
+  <code>rollback.md</code>. Числовая истина — <code>q6/results/analysis-q6.json</code>.</p>
+  <p>Коммиты: <code>8b5392d</code> подмена промпта · <code>50d502f</code> откат и артефакт ·
+  <code>e6e6e71</code> раскрытие расхождения.</p>
+</footer>
+
+</main>
+</body>
+</html>

@@ -70,6 +70,14 @@
   `run_evaluation.py`, hardcoded ids and literals in tests, `SOURCE_FILES`), so
   grep for the old id across all `.py` after any rename.
 
+- When summarizing a finished multi-round experiment for a reader, the numbers
+  must carry their PROVENANCE, not just their value. #106's headline (+75.66 pp
+  recent recall) is true on the harness and unguaranteed in production; a summary
+  that lists it beside the shipped wins silently upgrades it. Split "what runs in
+  prod" from "what was measured on the bench" as a visible structure the eye hits
+  first, not a footnote — the same gap was already documented in `rollback.md`
+  and would still have been mis-read from a flat metrics table.
+
 - Probe a "tool is unavailable" claim with the EXACT flags the code uses.
   `codex exec` from `/tmp` failed on a trust check (looks like a quota error but
   is not); rerun with the real flags gave the verbatim quota message and reset
