@@ -1,0 +1,7 @@
+{
+  "prior_fixture_count": 51,
+  "new_fixture_count": 23,
+  "id_overlap": [],
+  "byte_exact_transcript_hash_overlap": [],
+  "scope_limit": "Exact ID/transcript non-overlap does not prove semantic independence or that prior fixture content did not influence authoring."
+}

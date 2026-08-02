@@ -39,6 +39,13 @@
   actuals showed tools used in only 72/132 runs. Check the turn count before
   blaming the code.
 
+- Renaming a corpus does not renew it. Copying `q5/` to `q6/` and sed-ing the ids
+  gives fixtures that were ALREADY used to select the winner — measuring on them
+  inflates the effect. Say so before anyone funds the round. Also: a fixture id
+  appears in more places than the corpus file (mode selectors in
+  `run_evaluation.py`, hardcoded ids and literals in tests, `SOURCE_FILES`), so
+  grep for the old id across all `.py` after any rename.
+
 - Probe a "tool is unavailable" claim with the EXACT flags the code uses.
   `codex exec` from `/tmp` failed on a trust check (looks like a quota error but
   is not); rerun with the real flags gave the verbatim quota message and reset

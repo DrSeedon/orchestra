@@ -11,6 +11,7 @@ import candidates
 import run_evaluation
 import run_judges
 import score_results
+import validate_fixtures
 
 
 def fixture_map() -> dict[str, dict]:
@@ -52,7 +53,7 @@ def test_only_locked_current_and_hot_variants_exist() -> None:
 
 
 def test_structural_composer_redacts_tail_and_marks_tool_gap() -> None:
-    secret = fixture_map()["q6-confirm-secret-token-tail"]
+    secret = fixture_map()["q6-confirm-webhook-secret-tail"]
     output = candidates.compose_handoff(
         "hot_state_ledger",
         "TASK STATE\ncredential failure",
@@ -61,11 +62,11 @@ def test_structural_composer_redacts_tail_and_marks_tool_gap() -> None:
         {},
         {},
     )
-    assert "sk-FAKE-Q6-H13-884" not in output
+    assert "sk-FAKE-Q6-H12-556" not in output
     assert "[REDACTED SECRET: token]" in output
     assert output.count("PROTECTED RECENT USER MESSAGES") == 1
 
-    gap = fixture_map()["q6-confirm-tool-gap-archive"]
+    gap = fixture_map()["q6-confirm-orphan-restore"]
     output = candidates.compose_handoff(
         "hot_state_ledger",
         "TASK STATE\narchive incomplete",
@@ -79,7 +80,7 @@ def test_structural_composer_redacts_tail_and_marks_tool_gap() -> None:
 
 
 def test_composer_does_not_read_answer_keys() -> None:
-    fixture = fixture_map()["q6-confirm-reversal-canary"]
+    fixture = fixture_map()["q6-confirm-retention-reversal"]
     mutated = copy.deepcopy(fixture)
     mutated["exact_anchors"] = {"invented": ["MUST NEVER APPEAR"]}
     mutated["semantic_anchors"] = [{"id": "x", "claim": "MUST NEVER APPEAR"}]
@@ -96,7 +97,7 @@ def test_composer_does_not_read_answer_keys() -> None:
 
 
 def test_file_ledger_uses_measured_state_and_redacts() -> None:
-    fixture = fixture_map()["q6-confirm-secret-ghp-file"]
+    fixture = fixture_map()["q6-confirm-registry-secret-history"]
     before = {"docs/a.md": "old"}
     after = {"docs/a.md": "ghp_FAKE_Q6_H15_771\nnew"}
     rows = candidates._file_ledger(before, after, fixture)
@@ -107,12 +108,12 @@ def test_file_ledger_uses_measured_state_and_redacts() -> None:
 
 
 def test_score_checks_targeted_write_and_unrelated_changes() -> None:
-    fixture = fixture_map()["q6-confirm-targeted-promotion"]
+    fixture = fixture_map()["q6-confirm-single-note-append"]
     before = fixture["seeded_files"]
     after = {
         **before,
-        "docs/continuity-state.md": before["docs/continuity-state.md"]
-        + "- Billing export owner: Aurora; status: waiting.\n",
+        "docs/oncall-handover.md": before["docs/oncall-handover.md"]
+        + "- Pager owner for week 32: Ines; escalation path unchanged.\n",
         "TODO.md": "invented\n",
     }
     summary = candidates.compose_handoff(
@@ -145,7 +146,7 @@ def test_job_counts_and_failure_ledgers() -> None:
 
 
 def test_judge_prompt_is_blinded_and_carries_diff_for_every_candidate() -> None:
-    fixture = fixture_map()["q6-confirm-file-mixed-status"]
+    fixture = fixture_map()["q6-confirm-stash-worktree"]
     payload = [
         {"candidate_id": f"opaque-{index}", "summary": "summary", "workspace_diff": {}}
         for index in range(6)
@@ -162,3 +163,52 @@ def test_judge_prompt_is_blinded_and_carries_diff_for_every_candidate() -> None:
     ]["items"]["required"]
     for forbidden in candidates.PRIMARY_VARIANTS:
         assert forbidden not in prompt
+
+
+def test_validator_rejects_the_contradiction_that_cost_two_rounds() -> None:
+    """The discarded Q5 fixture demanded a Read while forbidding the read claim."""
+    poison = {
+        "id": "poison",
+        "split": "holdout",
+        "transcript": "[USER] a\n[USER] b\n[USER] c",
+        "exact_anchors": {"files": ["x"] * 8},
+        "recent_messages": ["a", "b", "c"],
+        "pending_actions": ["Read docs/runbook-state.md"],
+        "forbidden_claims": ["file was read"],
+        "seeded_files": {"docs/runbook-state.md": "x\n"},
+        "expected_files": {},
+        "fake_secrets": [],
+    }
+    errors = validate_fixtures.validate(poison)
+    assert any("prohibited by forbidden claim" in error for error in errors)
+
+
+def test_validator_flags_unseeded_reads_and_anchor_drift() -> None:
+    base = {
+        "id": "t",
+        "split": "holdout",
+        "transcript": "[USER] a\n[USER] b\n[USER] c",
+        "exact_anchors": {"files": ["x"] * 8},
+        "recent_messages": ["a", "b", "c"],
+        "pending_actions": ["ship it"],
+        "forbidden_claims": [],
+        "seeded_files": {},
+        "expected_files": {},
+        "fake_secrets": [],
+    }
+    unseeded = {**base, "pending_actions": ["Read docs/ghost.md"]}
+    assert any("does not seed" in error for error in validate_fixtures.validate(unseeded))
+
+    drifted = {**base, "exact_anchors": {"files": ["x"] * 7}}
+    assert any("exact anchors" in error for error in validate_fixtures.validate(drifted))
+
+    paired_gap = {
+        **base,
+        "transcript": "[ASSISTANT TOOL_USE id=x1 name=exec]\n[TOOL_RESULT id=x1] ok",
+        "expected_gap_ids": ["x1"],
+    }
+    assert any("pairs it with" in error for error in validate_fixtures.validate(paired_gap))
+
+
+def test_shipped_corpus_is_self_consistent() -> None:
+    assert validate_fixtures.validate_all(run_evaluation.load_fixtures()) == {}

@@ -28,6 +28,7 @@ SOURCE_FILES = (
     "score_results.py",
     "analyze_results.py",
     "validate_artifacts.py",
+    "validate_fixtures.py",
     "audit_provenance.py",
     "lock_protocol.py",
     "test_q6.py",
@@ -381,9 +382,9 @@ def build_jobs(
             for item in fixtures
             if item["id"]
             in {
-                "q6-confirm-reversal-canary",
-                "q6-confirm-targeted-promotion",
-                "q6-confirm-tool-gap-archive",
+                "q6-confirm-retention-reversal",
+                "q6-confirm-single-note-append",
+                "q6-confirm-orphan-restore",
             }
         ]
         variants = list(PRIMARY_VARIANTS)
@@ -391,7 +392,7 @@ def build_jobs(
         selected = [
             item
             for item in fixtures
-            if item["id"] == "q6-confirm-targeted-promotion"
+            if item["id"] == "q6-confirm-single-note-append"
         ]
         variants = list(PRIMARY_VARIANTS)
     else:
@@ -399,7 +400,7 @@ def build_jobs(
             item
             for item in fixtures
             if item["id"]
-            in {"q6-confirm-reversal-canary", "q6-confirm-tool-gap-archive"}
+            in {"q6-confirm-retention-reversal", "q6-confirm-orphan-restore"}
         ]
         variants = list(PRIMARY_VARIANTS)
         repetitions = 1
