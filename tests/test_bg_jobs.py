@@ -838,13 +838,18 @@ os._exit(0)
             stderr=asyncio.subprocess.DEVNULL,
         )
         await asyncio.wait_for(proc.wait(), 2)
-        for _ in range(100):
-            if child_file.exists():
+        # open(..., "w") creates the file before the pid is written — waiting on
+        # existence alone reads an empty file on a loaded machine.
+        for _ in range(500):
+            recorded = (
+                child_file.read_text() if child_file.exists() else ""
+            ).strip()
+            if recorded:
                 break
             await asyncio.sleep(0.01)
         else:
             pytest.fail("TERM-ignoring child did not start")
-        child_pid = int(child_file.read_text())
+        child_pid = int(recorded)
         unrelated = await asyncio.create_subprocess_exec(
             "/bin/sleep", "30", start_new_session=True,
         )

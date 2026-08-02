@@ -3971,9 +3971,8 @@ class TestCronCommandTopicBoundary99:
         async def communicate(process):
             return process.output, process.error
 
-        monkeypatch.setattr(
-            module.asyncio, "create_subprocess_shell", create_process,
-        )
+        monkeypatch.setattr(module, "_spawn_bg_process", create_process)
+        monkeypatch.setattr(module, "_kill_proc", AsyncMock())
         monkeypatch.setattr(module, "_communicate_cron_command", communicate)
 
         for _ in range(4):
