@@ -12,6 +12,14 @@
   gate as UNDECIDED — not to patch the locked file. Re-verify all locked source
   hashes both before AND after the run.
 
+- Before implementing an assigned fix for a judge/eval finding, open the RAW
+  flagged outputs and the fixture. In #106 Q5, 3 of 5 "hallucinated read" flags
+  were TRUE statements: the harness seeded the file on disk and passed
+  `--tools Read`, but the ledger shown to judges is built only from the fixture
+  transcript, so a live tool call is structurally invisible. Fixing the prompt
+  would have "fixed" correct behaviour. An eval that cannot represent a true
+  action will fail any candidate that performs it.
+
 - Probe a "tool is unavailable" claim with the EXACT flags the code uses.
   `codex exec` from `/tmp` failed on a trust check (looks like a quota error but
   is not); rerun with the real flags gave the verbatim quota message and reset
