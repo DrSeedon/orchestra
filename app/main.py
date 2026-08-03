@@ -18,6 +18,23 @@ from app.deps import manager
 logger = logging.getLogger("orchestra")
 
 
+async def _start_bridge_background(manager) -> None:
+    """Поднять TG-мост вне критического пути старта.
+
+    Отказ обязан быть громким: мост, умерший молча, заметят через часы по отсутствию
+    сообщений, а не по логу.
+    """
+    logger.info("TG bridge: starting in background (HTTP is already serving)")
+    try:
+        from app.tg_bridge import start_bridge
+        await start_bridge(manager)
+        logger.info("TG bridge: ready")
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        logger.error(f"TG bridge FAILED to start: {type(e).__name__}: {e}", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
@@ -62,8 +79,12 @@ async def lifespan(app: FastAPI):
     from app.bg_jobs import bg_manager
     bg_manager.set_session_manager(manager)
     await bg_manager.restore_from_db()
-    from app.tg_bridge import start_bridge, stop_bridge
-    await start_bridge(manager)
+    # TG-мост поднимаем фоном. Замер (docs/tasks/15/research.md): один только импорт
+    # app.tg_bridge стоит 4.05 с, из них 3.72 с — aiogram, и всё это время uvicorn не
+    # принимает запросы, а nginx отдаёт 502. Старт сервиса был 4.3-13.9 с; для приёма
+    # HTTP мост не нужен. Плата: polling TG стартует на несколько секунд позже, и команда
+    # из TG в это окно выполнится с задержкой (Telegram её не теряет).
+    bridge_task = asyncio.create_task(_start_bridge_background(manager))
     from app.routes.system import _usage_snapshot_loop
     snapshot_task = asyncio.create_task(_usage_snapshot_loop())
     from app import rag_service
@@ -79,6 +100,13 @@ async def lifespan(app: FastAPI):
     _rs.shutdown()
     if _tunnel_started:
         await stop_tunnel()
+    # Мост мог ещё не подняться — гасим задачу и только потом просим его остановиться
+    bridge_task.cancel()
+    try:
+        await bridge_task
+    except (asyncio.CancelledError, Exception):
+        pass
+    from app.tg_bridge import stop_bridge
     await stop_bridge()
     await bg_manager.shutdown()
     await manager.shutdown_all()
