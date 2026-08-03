@@ -1,0 +1,127 @@
+{
+ "rerank-v3.5": {
+  "status": 200,
+  "elapsed_s": 1.102,
+  "resp": {
+   "model": "rerank-v3.5",
+   "usage": {
+    "search_units": 1,
+    "cost": 0.001
+   },
+   "results": [
+    [
+     0,
+     0.11353066
+    ],
+    [
+     1,
+     0.020695398
+    ],
+    [
+     2,
+     0.012694553
+    ]
+   ]
+  }
+ },
+ "cohere/rerank-v3.5": {
+  "status": 200,
+  "elapsed_s": 1.216,
+  "resp": {
+   "model": "rerank-v3.5",
+   "usage": {
+    "search_units": 1,
+    "cost": 0.001
+   },
+   "results": [
+    [
+     0,
+     0.1137077
+    ],
+    [
+     1,
+     0.020695398
+    ],
+    [
+     2,
+     0.012694553
+    ]
+   ]
+  }
+ },
+ "cohere/rerank-3.5": {
+  "status": 400,
+  "elapsed_s": 1.652,
+  "resp": "{\"error\":{\"message\":\"Model cohere/rerank-3.5 does not exist\",\"code\":400}}"
+ },
+ "cohere/rerank-v4": {
+  "status": 400,
+  "elapsed_s": 0.794,
+  "resp": "{\"error\":{\"message\":\"Model cohere/rerank-v4 does not exist\",\"code\":400}}"
+ },
+ "cohere/rerank-multilingual-v3.5": {
+  "status": 400,
+  "elapsed_s": 1.446,
+  "resp": "{\"error\":{\"message\":\"Model cohere/rerank-multilingual-v3.5 does not exist\",\"code\":400}}"
+ },
+ "cohere/rerank-v3.5-multilingual": {
+  "status": 400,
+  "elapsed_s": 0.653,
+  "resp": "{\"error\":{\"message\":\"Model cohere/rerank-v3.5-multilingual does not exist\",\"code\":400}}"
+ },
+ "jina-reranker-v2": {
+  "status": 400,
+  "elapsed_s": 0.705,
+  "resp": "{\"error\":{\"message\":\"Model jina-reranker-v2 does not exist\",\"code\":400}}"
+ },
+ "jina/reranker-v2": {
+  "status": 400,
+  "elapsed_s": 0.903,
+  "resp": "{\"error\":{\"message\":\"Model jina/reranker-v2 does not exist\",\"code\":400}}"
+ },
+ "bge-reranker-v2-m3": {
+  "status": 400,
+  "elapsed_s": 0.847,
+  "resp": "{\"error\":{\"message\":\"Model bge-reranker-v2-m3 does not exist\",\"code\":400}}"
+ },
+ "qwen/qwen3-reranker": {
+  "status": 400,
+  "elapsed_s": 0.806,
+  "resp": "{\"error\":{\"message\":\"Model qwen/qwen3-reranker does not exist\",\"code\":400}}"
+ },
+ "mixedbread/mxbai-rerank-large-v2": {
+  "status": 400,
+  "elapsed_s": 0.823,
+  "resp": "{\"error\":{\"message\":\"Model mixedbread/mxbai-rerank-large-v2 does not exist\",\"code\":400}}"
+ },
+ "zerank-1": {
+  "status": 400,
+  "elapsed_s": 0.743,
+  "resp": "{\"error\":{\"message\":\"Model zerank-1 does not exist\",\"code\":400}}"
+ },
+ "zeroentropy/zerank-1": {
+  "status": 400,
+  "elapsed_s": 0.862,
+  "resp": "{\"error\":{\"message\":\"Model zeroentropy/zerank-1 does not exist\",\"code\":400}}"
+ },
+ "zeroentropy/zerank-1-small": {
+  "status": 400,
+  "elapsed_s": 0.895,
+  "resp": "{\"error\":{\"message\":\"Model zeroentropy/zerank-1-small does not exist\",\"code\":400}}"
+ },
+ "nvidia/nv-rerankqa-mistral-4b-v3": {
+  "status": 400,
+  "elapsed_s": 1.548,
+  "resp": "{\"error\":{\"message\":\"Model nvidia/nv-rerankqa-mistral-4b-v3 does not exist\",\"code\":400}}"
+ },
+ "amazon/rerank-v1": {
+  "status": 400,
+  "elapsed_s": 0.92,
+  "resp": "{\"error\":{\"message\":\"Model amazon/rerank-v1 does not exist\",\"code\":400}}"
+ },
+ "google/rerank": {
+  "status": 400,
+  "elapsed_s": 0.784,
+  "resp": "{\"error\":{\"message\":\"Model google/rerank does not exist\",\"code\":400}}"
+ }
+}

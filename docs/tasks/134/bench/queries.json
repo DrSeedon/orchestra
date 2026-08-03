@@ -1,0 +1,40 @@
+{
+ "_meta": {
+  "task": "#134 — retrieval benchmark (embedder x hybrid x reranker), не triplet-margin",
+  "why_not_triplets": "Триплет #133 — изолированное сравнение 2 текстов. Реранкер и гибрид действуют на РАНЖИРОВАНИЕ, построенное по всему корпусу, и на триплете физически невидимы. Здесь метрика — MRR/Recall@k по живому корпусу 68k чанков.",
+  "corpus": "/mnt/data/Projects/Python/orchestra/data/vec.db, project=/mnt/data/Projects/Python/orchestra, 39472 file_chunks + 28822 log_chunks",
+  "ground_truth": "gold_id — chunk_id, текст которого прочитан глазами и реально отвечает на запрос. Запросы написаны в стиле, в котором агент реально зовёт search_memory.",
+  "n": 28,
+  "note": "gold задан как список: часть вопросов честно покрывается несколькими чанками (например research.md и plan.md одной задачи). Попадание ЛЮБОГО считается успехом."
+ },
+ "queries": [
+  {"q": "почему воркер после компактизации теряет свою роль", "gold": [6000], "why": "CHANGELOG v2.30.0 — точка отказа и флаг _prompt_injected"},
+  {"q": "cost_usd завышен в несколько раз, откуда переучёт", "gold": [6188], "why": "CHANGELOG: CLI отдаёт cumulative cost, складывали как delta"},
+  {"q": "скиллы в worktree воркера устарели и не синхронизируются", "gold": [4041], "why": "BUGS.md — .claude/skills копируются при создании и больше не синкаются"},
+  {"q": "untracked .claude/skills блокирует merge воркера", "gold": [247001], "why": "research fix-worktree-gitignore — merge reject на git status --porcelain"},
+  {"q": "сколько памяти держат Serena language server деревья", "gold": [3291038, 3291039], "why": "#113 research — 4.09 GiB per-agent trees, 3.3-3.5 GiB retained"},
+  {"q": "чем codex exec отличается от codex exec resume по кешу", "gold": [2717010], "why": "codex-cache-research — таблица thread/prompt_cache_key"},
+  {"q": "как роутится backend по имени модели", "gold": [2124006], "why": "codex-integration — backend_for_model gpt-* codex, claude-* claude"},
+  {"q": "наш системный промпт заменяет пресет Claude Code или дописывается", "gold": [398869001], "why": "agent_msg: промпт дописывается к пресету, при resume_id не задаётся"},
+  {"q": "grok отменяет ход после запроса разрешения", "gold": [316738002], "why": "grok-backend: optionId allow выдуман, реально allow-once/reject-once"},
+  {"q": "какие переменные окружения нужны для headless режима", "gold": [3164036], "why": "grok docs 14-headless-mode — XAI_API_KEY и прочие"},
+  {"q": "как grok читает defaultMode и permissions allow deny ask", "gold": [3163026], "why": "grok 22-permissions-and-safety"},
+  {"q": "сколько стоит Grok и когда он вышел", "gold": [174012], "why": "grok-research confidence table: 08.07.2026, $2/$6/$0.50"},
+  {"q": "отслеживаем ли мы стоимость голосовой транскрипции", "gold": [2718020, 266000000], "why": "deepgram-research: billing breakdown по tag + исходный запрос юзера"},
+  {"q": "почему нельзя глобально блокировать sleep у агентов", "gold": [290246001], "why": "research-codex-sleep: bounded restart/test cases легитимны"},
+  {"q": "что должно быть в структурированной ошибке MCP тула", "gold": [3301037, 3313034], "why": "#116: code/message/status/retryable/request_id"},
+  {"q": "пустая строка error недопустима, какой контракт по кодам ошибок", "gold": [3310014], "why": "#115 plan: error=null только когда ни один stage не требует detail"},
+  {"q": "как считается turn usage и откуда берутся кешированные токены", "gold": [2124006], "why": "codex-integration: turn.completed input/cached/output"},
+  {"q": "коллизия ключа orchestra в кастомном словаре mcp серверов", "gold": [198005], "why": "#24 risks: custom не должен переопределять дефолтный orchestra"},
+  {"q": "гонка turn/start и отложенного compact перезаписывает active turn id", "gold": [223008], "why": "#97: listener не снапшотит id, compact turn/started перетирает"},
+  {"q": "правда ли escaping в bash у Sol виноват в ретраях", "gold": [3100013], "why": "sol-efficiency 3.5: не проблема, tool_errors пуст"},
+  {"q": "как понять что merge делали руками, а не через merge_worker", "gold": [372000000, 376869001], "why": "research-merge: классификатор ручных мержей, 32 отсутствующих хеша"},
+  {"q": "красная точка непрочитанного загорается от воркеров", "gold": [304000000], "why": "text log: точка только когда оркестратор закончил ход"},
+  {"q": "persistent Codex сессии и что происходит при протухшем UUID", "gold": [234377000], "why": "text log: stale UUID → graceful fallback на fresh session"},
+  {"q": "команда limits в личке с ботом, почему не в топиках группы", "gold": [363754000], "why": "agent_msg: решение юзера — только личный чат"},
+  {"q": "оценка только по стенограмме без побочных эффектов ломает судейство", "gold": [376623001], "why": "agent_msg: измеренные side effects обязательны для судей"},
+  {"q": "почему periodic опрос PM-фич конфликтует с запретом Monitor", "gold": [3297037], "why": "#118 audit P3-32"},
+  {"q": "platform contract продублирован в двух base и разъехался", "gold": [3297038], "why": "#118 audit P3-33"},
+  {"q": "есть ли у нас замкнутый цикл самоулучшения с evaluator gate", "gold": [2726050], "why": "self-improve-survey: scaffold есть, durable evaluator-gated loop нет"}
+ ]
+}
