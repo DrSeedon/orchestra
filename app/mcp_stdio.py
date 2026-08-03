@@ -6,6 +6,7 @@ Avoids the in-process SDK control_request deadlock (issue #425/#701).
 Usage: python -m app.mcp_stdio
 """
 
+import asyncio
 import json
 import logging
 import math
@@ -1053,9 +1054,17 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
     action = result.get("next_action") if isinstance(result.get("next_action"), dict) else {}
     action_message = _safe_response_text(str(action.get("message") or ""))
     if state in {"PENDING", "RUNNING"}:
+        # a blocking reason (dirty tree, conflict) already sits in `error` — surfacing it
+        # here saves the caller two blind retries before the cause finally shows up
+        reason = ""
+        if isinstance(error, dict):
+            reason = str(error.get("message") or error.get("code") or "")
+        elif error:
+            reason = str(error)
         text = (
             f"Merge operation {operation_id}: {state}. "
             f"{action_message or 'Do not merge manually; retry with the same operation_id.'}"
+            + (f" Reported reason: {_safe_response_text(reason)}" if reason else "")
         )
         return mcp_tool_result(result, text=text)
     if state == "SUCCEEDED":
@@ -1166,9 +1175,16 @@ async def merge_worker(
                         details={"exception_type": type(api_error).__name__, **api_error.details},
                     )
         if result.get("operation_state") in {"PENDING", "RUNNING"}:
-            recovered = await _recover_merge_status(str(result.get("operation_id") or operation_id))
-            if recovered is not None:
-                result = recovered
+            # polled immediately the op has not yet reached its preflight checks, so a
+            # dirty target reads as RUNNING and the caller burns blind retries on it
+            for delay in (0.0, 0.5, 1.5):
+                if delay:
+                    await asyncio.sleep(delay)
+                recovered = await _recover_merge_status(str(result.get("operation_id") or operation_id))
+                if recovered is not None:
+                    result = recovered
+                    if result.get("operation_state") not in {"PENDING", "RUNNING"}:
+                        break
         return _merge_tool_result(result)
     except Exception as exc:
         result = _merge_local_result(
