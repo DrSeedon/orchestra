@@ -846,6 +846,10 @@ async def _get_usage_data(
         "grok": grok_data,
         "orchestra": _get_agents_cost(),
         "voice_cost_usd": round(_get_voice_cost_usd(), 4),
+        # Единственное РЕАЛЬНОЕ число в этой панели (остальные — API-эквивалент).
+        # Свободная строка, потому что тариф не выражается одним числом: "$200+$20/мес".
+        # Не задано → фронт строку не рисует, чтобы не показывать устаревшую цену.
+        "subscription_cost": os.getenv("SUBSCRIPTION_COST", ""),
     }
 
 

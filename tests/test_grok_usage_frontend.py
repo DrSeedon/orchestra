@@ -259,5 +259,7 @@ def test_history_period_requires_two_points(browser):
 
     assert result["periods"] == []
     assert result["svgCount"] == 0
-    assert "Collecting data" in result["text"]
+    # Заглушка теперь называет ПРИЧИНУ вместо «Collecting data...»: одной точки мало,
+    # а сбор при этом идёт — раньше этот случай был неотличим от «данных нет вообще».
+    assert "Мало точек" in result["text"]
     page.close()

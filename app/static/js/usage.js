@@ -290,7 +290,12 @@ function renderUsageBar() {
                     if (typeof _usageData.voice_cost_usd === 'number') {
                         h += `<div style="font-size:10px">${_row('🎤 Voice', `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
                     }
-                    h += _row('Подписка', `${MODEL_COST_CURRENCY}100+${MODEL_COST_CURRENCY}100/мес`, '#64748b');
+                    // Цена подписки приходит из SUBSCRIPTION_COST (.env). Не задана — строки
+                    // нет: захардкоженная константа уже провисела неверной, а рядом стоят
+                    // посчитанные числа, и выдуманное среди них неотличимо от настоящего.
+                    if (_usageData.subscription_cost) {
+                        h += _row('Подписка', escHtml(_usageData.subscription_cost), '#64748b');
+                    }
                     h += '</div>';
                 }
                 if (typeof _o.agents_count === 'number') {
@@ -312,7 +317,7 @@ function renderUsageBar() {
     }
 }
 
-let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {};
+let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {}, _sparkError = '';
 // Cache sparkline data for 5 minutes — tooltip opens frequently, avoid hammering /api/usage/history
 async function _loadSparkline(tipEl) {
     const slots = [...tipEl.querySelectorAll('[data-usage-history]')];
@@ -320,13 +325,28 @@ async function _loadSparkline(tipEl) {
     const now = Date.now();
     if (!_sparkData || now - _sparkDataTs >= 300000) {
         try {
-            _sparkData = await api('/api/usage/history?hours=8760');
+            // Год снимков — это мегабайты (замер 03.08: 8403 строки, 4.29 МБ), а общий
+            // таймаут api() = 5 с выбран для обычных мелких ответов. На этом запросе
+            // он срабатывал раньше ответа, и падение пряталось за пустым catch.
+            _sparkData = await api('/api/usage/history?hours=8760',
+                                   { signal: AbortSignal.timeout(30000) });
             _sparkDataTs = now;
-        } catch { _sparkData = null; }
+            _sparkError = '';
+        } catch (e) {
+            _sparkData = null;
+            _sparkError = `${e?.name || 'Error'}: ${e?.message || 'без текста'}`;
+            console.error(`usage history fetch failed: ${_sparkError}`);
+        }
     }
     if (!Array.isArray(_sparkData) || _sparkData.length < 1) {
+        // Раньше здесь во всех случаях висело «Collecting data...» — и когда сбор
+        // действительно не начался, и когда запрос упал. Это разные вещи.
+        const why = _sparkError
+            ? `История не загрузилась — ${_sparkError}`
+            : 'Снимков ещё нет: график появится после двух замеров в одном окне';
         slots.forEach(slot => {
-            slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
+            slot.innerHTML = `<div style="font-size:10px;color:${_sparkError ? '#eab308' : '#475569'};font-style:italic"></div>`;
+            slot.firstChild.textContent = why;
         });
         return;
     }
@@ -527,7 +547,22 @@ function _renderSparklines(slot, providerFilter = null) {
         });
         html += '</div>';
     }
-    slot.innerHTML = html || '<div style="font-size:10px;color:#475569;font-style:italic">Collecting data...</div>';
+    if (!html) {
+        // Строки есть, но по ЭТОМУ провайдеру графика не выходит. Раньше тут стояло
+        // то же «Collecting data...», что и при полном отсутствии данных, — из-за чего
+        // «данных нет вообще» и «нет данных по Codex» выглядели одинаково.
+        const hasPoints = [...grouped.keys()].some(id => !providerFilter || providerFilter.has(id));
+        const firstTs = data[0]?.ts ? new Date(data[0].ts) : null;
+        const since = firstTs && !isNaN(firstTs)
+            ? ` Снимки ведутся с ${firstTs.toLocaleDateString()}.`
+            : '';
+        slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic"></div>';
+        slot.firstChild.textContent = hasPoints
+            ? `Мало точек: на график нужно ≥2 замера в одном окне.${since}`
+            : `Этого провайдера в истории нет.${since}`;
+        return;
+    }
+    slot.innerHTML = html;
     slot.querySelectorAll('[data-spark-nav]').forEach(button => {
         button.addEventListener('click', event => {
             event.stopPropagation();
