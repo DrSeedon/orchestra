@@ -147,7 +147,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Финальное ревью на Spark пропускает баги → в A/B Spark прошляпил реальный double-count, который поймал Sol → финальные ревью не роутить на дешёвую модель
 
 **Codex / Sol**
-- Свежие правила «не работают» у Sol-воркеров → Codex грузит проектный `AGENTS.md` максимум на 32 KiB (`project_doc_max_bytes`) и режет ПОСРЕДИ фразы; кириллица = 2 байта/символ → держать `CLAUDE.md` компактным, страховка — `project_doc_max_bytes` в `~/.codex/config.toml` (на VPS/новой машине выставить заново)
+- Свежие правила «не работают» у Sol-воркеров → Codex режет `AGENTS.md` по `project_doc_max_bytes` ПОСРЕДИ фразы (дефолт 32 KiB, кириллица = 2 байта/символ). **Страховка стоит: ноут 96 KiB, VPS 64 KiB** — сверяйся с `~/.codex/config.toml`, а не жми файл вслепую; на новой машине выставить заново
 - Codex-воркер видит правила месячной давности → `AGENTS.md` — зеркало `CLAUDE.md`, обновляется при коннекте бэкенда (`workspace.sync_agents_md`); если репозиторий ТРЕКАЕТ свой `AGENTS.md`, зеркало не трогает его
 - Codex жжёт время в `sleep` (74 сна на 1579 вызовов, у Claude — ноль) → формулировка «do NOT poll, just wait» читается им буквально → в описаниях тулов писать END YOUR TURN NOW; глобально `sleep` не блокировать
 - Codex ретраит вечно на исчерпанной квоте → «You've hit your usage limit» не матчилось паттернами, и Codex НЕ шлёт отдельный text-event перед error → терминальный лимит проверять прямо в error handler
@@ -173,13 +173,13 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - A test that reads live quota state is not a test → `test_compact_logs_preamble_as_user_message` passed all morning and went red at 100% of the 5h window, because `compact()` refuses under an active subscription limit and the test never mocked the guard. Green depended on the user's remaining quota
 - `asyncio.wait_for(..., timeout=0.1)` in 21 places = wall-clock flake → on a loaded machine (3 workers + parallel runs) a random test in `tests/test_tg_bridge.py` failed; alone it passed 6/6. Timeouts that guard against hangs must not double as performance assertions
 
-- Пустое падение воркера (`stop_reason=error`, no output, журнал чист) → ПЕРВЫМ делом `GET /api/usage`, а не инфраструктура. В этом состоянии воркер не может даже закоммитить — забирай через `worker_wip` и коммить руками
+- Пустое падение воркера (`stop_reason=error`, no output, журнал чист) → ПЕРВЫМ делом `GET /api/usage`, не инфраструктура. Коммитить за него руками через `worker_wip`
 - Объём выхлопа задаёт ФОРМУЛИРОВКА задания, а не модель: открытое «исследуй и предложи» = заказ на research; точное ТЗ (файл+строка+образец) дало 6 строк прода
 
 **Инфраструктура и код**
 - Правишь код при работающем сервере → `app/mcp_stdio.py` подхватывается НЕМЕДЛЕННО (MCP = отдельный процесс, стартует заново), а `app/routes/` живёт в памяти systemd до рестарта → менять контракт MCP↔route = ломать живую систему в окне до рестарта. Симптом: новый MCP шлёт `target=""` как sentinel, старый route читает его как явный пустой target и падает. Обход до рестарта: `merge_worker(target="main")` явно
 - `report_bug` пишет в `BUGS.md` рабочего чекаута и оставляет его грязным → после fail-loud проверки чистого target (T2 #90) любой входящий баг-репорт блокирует ВСЕ мержи, пока человек не закоммитит
-- Все исходящие TG встали намертво → `important=True` на пачке tool-сообщений → lock contention → вечная очередь; зеркально `important=False` = молча дропается → косметика и реальные доставки не делят очередь и retry-путь
+- Все исходящие TG встали намертво → `important=True` на пачке tool-сообщений → lock contention → вечная очередь; зеркально `important=False` молча дропается → косметика и доставки не делят очередь
 - merge воркера не проходит на ровном месте → инжектированные `.claude/skills/` дёргают дерево → исключать через git common-dir `info/exclude`, не `.gitignore`
 - «Мёртвый» модуль оказался живым → грепали строку, а читалось через 12 функций (fallback + дашборд) → перед удалением грепать РЕАЛЬНЫЕ импорты и fallback-пути, широко (app/, tests/, static/, манифесты)
 - Состояния в дашборде «разъезжаются» → одна и та же логика продублирована (словари статусов в `renderAgentItem` vs табы; рисование `.tab-unread` в двух местах) → искать ВТОРУЮ копию, а не подкрашивать первую. Решение и рисование держать в одной функции
@@ -188,9 +188,10 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - A guard that only checks for INTRUDERS is green on an empty room → `_verify_mcp_isolation` compared `started - expected`, so `expected={orchestra}, started={}` passed and a Grok worker ran with zero Orchestra tools. Fail-closed must fire in BOTH directions: unexpected present AND expected missing (plus same-name/different-identity and zero-tool servers)
 - Silent `catch {}` / unchecked `resp.ok` / stringified `httpx.ReadTimeout` (empty string!) → three UI+MCP bugs in one day where the system KNEW the reason and said nothing (`Send failed: network error: ` with no text). Every error branch must surface the exception class or the server's response text
 - Короткая фраза юзера («добей прошлую») читается двояко и меняет ЗАДАЧУ → спросить одной строкой, а не выбирать молча; отмена — только явное «отменяю #N»/«не делай #N». Стоило приостановленной задачи
-- Тяжёлый счёт (ONNX-бенчмарки) на ноуте юзера разогрел CPU до 93°C при пределе 100 и уронил preflight-гейт соседнего проекта → CPU-heavy прогоны только последовательно, `nice -n 15`, не больше 2-3 параллельных. Машина общая и рабочая
-- `killpg` по СОХРАНЁННОМУ числовому PGID после выхода лидера = убийство чужой новой группы (PGID переиспользуются) → сигналить только по живому handle; `pkill -f` по собранному шаблону матчит процессы всей системы, включая личные
-- Работа заблокирована зависимостями, а её ДОКАЗАТЕЛЬСТВА протухают (SHA соберёт `git gc`, ветки перемержат) → заморозить и закоммитить evidence отдельным тикетом ДО ожидания, не после
+- Тяжёлый счёт (ONNX-бенчмарки) на ноуте юзера разогрел CPU до 93°C и уронил preflight-гейт соседнего проекта → прогоны последовательно, `nice -n 15`, не больше 2-3 параллельных. Машина общая и рабочая
+- `nice` НЕ защищает от вытеснения по ПАМЯТИ (дважды за сутки выдавили чужое обучение сети: nice стоял, RSS рос 3.5→4.2 ГиБ) → ML-прогоны на общей машине только под `systemd-run --user --scope -p MemoryMax=2G`, одна модель за раз с выгрузкой. Потолок — в ПОСТАНОВКУ задачи, не в напоминание вдогонку. Гейт считать по `MemAvailable` из `/proc/meminfo`, НЕ по `free`: при page cache они расходятся в 2-3 раза
+- `killpg` по СОХРАНЁННОМУ числовому PGID после выхода лидера убьёт чужую группу (PGID переиспользуются) → сигналить по живому handle; `pkill -f` матчит процессы всей системы
+- Работа заблокирована, а её ДОКАЗАТЕЛЬСТВА протухают (SHA соберёт `git gc`, ветки перемержат) → заморозить evidence отдельным коммитом ДО ожидания
 - Тест «падает в фулле, зелёный изолированно» → не спеши звать order-dependence: общий конфиг мог измениться параллельно (`can_spawn: []` из чужой ветки дал 409 в обоих). Сверь commit обоих прогонов
 - Находка/чужой красный тест протухают между пакетами → сверяй с ТЕКУЩИМ файлом И с main, а не со своей веткой: `git stash` докажет «красное не моё», но не покажет, что фикс уже есть в main (замер: 2 из 12)
 - Переносишь спавн/IO на новую функцию → грепни тесты на СТАРОЕ имя seam и перенаправь моки. Переставший перехватывать monkeypatch не падает, а молча пускает тест в реальную систему (замер: сьют 5× за прогон запускал НАСТОЯЩИЙ `sh -c`). Зелёный тест проверяй мутацией
