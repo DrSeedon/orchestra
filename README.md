@@ -66,9 +66,9 @@ You (Telegram / Dashboard)
 Orchestrator (Claude) ─── thinks like a manager
   │   Decomposes task, assigns workers, reviews results
   │
-  ├─► Worker A (Sonnet) ── git worktree: feature/auth
-  ├─► Worker B (Sonnet) ── git worktree: feature/api
-  ├─► Worker C (Sonnet) ── git worktree: fix/bug-123
+  ├─► Worker A ── git worktree: feature/auth
+  ├─► Worker B ── git worktree: feature/api
+  ├─► Worker C ── git worktree: fix/bug-123
   │
   ▼
 Reviewer (GPT) ── cross-model review
@@ -78,7 +78,7 @@ Reviewer (GPT) ── cross-model review
 Merge ── squash to main
 ```
 
-Each worker is a full Claude Code session in its own git worktree. They don't share context, don't step on each other's code, and merge through squash PRs. The orchestrator coordinates. Not a graph engine. An actual AI deciding what to do next.
+Each worker is a full agent session in its own git worktree — Claude Code, Codex, Grok or OpenCode, chosen per worker. They don't share context, don't step on each other's code, and merge through squash PRs. The orchestrator coordinates. Not a graph engine. An actual AI deciding what to do next.
 
 Workers can talk to each other via `send_message`. The backend worker finishes an API endpoint and messages the frontend worker: "endpoint ready at /api/users, here's the schema." No human relay needed.
 
@@ -125,13 +125,18 @@ One orchestrator per project. Sub-orchestrators manage sub-teams. Workers do the
 Orchestra-orchestrator is the agent that builds Orchestra. 8 workers write the code for the platform they run on. No other framework can say: "our product was built by our product."
 
 ### ⚙️ Per-Role Model Policy
-Orchestrators run on stronger models (deep thinking). Workers run on faster models (quick execution). Full-cycle research agents get the most capable model available. Each role gets the right model for the job, not one-size-fits-all.
+Every role declares its model in the pipeline manifest, and the orchestrator routes new workers by task class and remaining quota rather than by name or habit. Runtimes are mixable per worker — Claude Code, Codex, Grok and OpenCode all run as workers behind one contract, so a task can be written by one vendor's model and reviewed by another's.
 
 ### 📋 Task Manager
 Built-in task management with priorities, assignments, and payment tracking. Agents create, update, and close tasks. No external project management tool needed.
 
 ### 💾 Persistent Sessions
 Agents survive restarts. Sessions are stored in SQLite, auto-resumed on boot. Context is compacted automatically when it fills up. Workers pick up where they left off.
+
+An idle agent costs nothing: Claude and Codex workers hibernate after their idle timeout, releasing the whole process tree — app-server and MCP servers included — and resume the exact same native thread on the next message. Spawn, switch, merge and delete are serialized through one repository lock, so a worker is never published half-prepared and a merge never lands against a moved target.
+
+### 🐞 Durable Bug Inbox
+Agents file platform bugs through `report_bug`. Reports land in the service state directory outside every Git checkout — one immutable record per report, published by atomic rename — so a bug filed mid-task can never dirty a worktree and block merges. Unread reports raise a banner in the dashboard.
 
 ### 📊 Real-Time Dashboard
 HTMX + SSE dashboard shows every agent, their status, context usage, cache hit rate, current task, and live logs. No polling, no refresh.
@@ -168,8 +173,9 @@ Dashboard (HTMX + SSE) ◄──► FastAPI :8888 ◄──► Session Manager
 
 TG Bridge (aiogram) ◄──► Orchestra API ◄──► Telegram group (topics per agent)
 
-SQLite (WAL) ── sessions, logs, tasks, payments, jobs
+SQLite (WAL) ── sessions, logs, tasks, payments, background jobs, usage
 Git Worktrees ── one per worker, squash merge to main
+Service state ── bug inbox, kept outside every checkout
 ```
 
 ## Telegram Bridge
@@ -188,6 +194,7 @@ DEEPGRAM_API_KEY=your_key
 
 - Python 3.12+, FastAPI, Jinja2, SSE
 - `claude-agent-sdk` — Claude Code SDK (persistent client per session)
+- Codex, Grok and OpenCode runtimes behind one backend contract (JSON-RPC over stdio)
 - SQLite (WAL mode), git worktrees
 - Tailwind CSS, highlight.js, marked.js (bundled offline)
 - aiogram 3.x (Telegram bridge)

@@ -68,9 +68,13 @@ async def lifespan(app: FastAPI):
     from app import rag_service
     if rag_service.is_enabled():
         rag_service.initialize()
+    from app.merge_operations import restore_merge_operations
+    await restore_merge_operations()
     yield
     snapshot_task.cancel()
     from app import rag_service as _rs
+    from app.merge_operations import shutdown_merge_operations
+    await shutdown_merge_operations()
     _rs.shutdown()
     if _tunnel_started:
         await stop_tunnel()
@@ -90,6 +94,7 @@ from app.routes.system import router as system_router
 from app.routes.tg import router as tg_router
 from app.routes.subagent import router as subagent_router
 from app.routes.memory import router as memory_router
+from app.routes.merge_operations import router as merge_operations_router
 app.include_router(tm_router)
 app.include_router(bg_router)
 app.include_router(proxy_router)
@@ -98,6 +103,7 @@ app.include_router(system_router)
 app.include_router(tg_router)
 app.include_router(subagent_router)
 app.include_router(memory_router)
+app.include_router(merge_operations_router)
 
 
 @app.exception_handler(Exception)
@@ -112,6 +118,28 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         method = request.method
+        parts = path.split("/")
+        if (
+            method == "POST"
+            and len(parts) == 5
+            and parts[1:3] == ["api", "sessions"]
+            and parts[3]
+            and parts[4] == "merge"
+        ):
+            error = {
+                "code": "MERGE_OPERATION_REQUIRED",
+                "message": (
+                    "Legacy merge endpoint is disabled; use merge operation-v1. "
+                    "No Git mutation was started."
+                ),
+                "status": 426,
+                "retryable": False,
+                "request_id": request.headers.get("X-Request-ID") or None,
+                "retry_after_seconds": None,
+                "outcome_unknown": False,
+                "details": {"capability": "operation-v1"},
+            }
+            return JSONResponse({"result": None, "error": error}, status_code=426)
         # Internal token bypasses cookie auth — allows MCP subprocess and workers
         # to call the API without a browser session
         if check_internal_token(request.headers.get("authorization", "")):

@@ -775,7 +775,7 @@ async def test_release_and_status(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_merge_worker_with_next_task_id(monkeypatch):
-    """next_task_id передаётся в body запроса к /api/sessions/{name}/merge."""
+    """MCP creates the idempotency key before the operation POST."""
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "orch")
@@ -783,85 +783,266 @@ async def test_merge_worker_with_next_task_id(monkeypatch):
     async def fake_api(method, path, **kw):
         captured["path"] = path
         captured["json"] = kw.get("json", {})
-        return {"ok": True, "commits_merged": 1, "branch": "task-42/w", "merged_commits": {}}
+        operation_id = captured["json"]["operation_id"]
+        return {"result": {
+            "schema_version": 1,
+            "operation_id": operation_id,
+            "operation_state": "SUCCEEDED",
+            "retryable": False,
+            "commit_point": "REACHED",
+            "git": {"status": "SUCCEEDED", "worker_branch": "task-42/w", "commits_merged": 1},
+            "error": None,
+            "next_action": {"code": "NONE", "message": "done"},
+        }, "error": None}
     with patch.object(m, "_api", side_effect=fake_api):
         out = await m.merge_worker(name="coder", target="main", next_task_id="task-43")
-    assert captured["path"] == "/api/sessions/coder/merge"
+    assert captured["path"] == "/api/merge-operations"
+    assert captured["json"]["name"] == "coder"
+    assert captured["json"]["scope"] == "/s"
+    assert captured["json"]["operation_id"]
     assert captured["json"]["next_task_id"] == "task-43"
     assert captured["json"]["target"] == "main"
+    assert out.isError is False
+    assert out.structuredContent["result"]["operation_state"] == "SUCCEEDED"
 
 
 @pytest.mark.asyncio
 async def test_merge_worker_no_next_task_id(monkeypatch):
-    """Без next_task_id ключ next_task_id не отправляется в body."""
+    """Caller may pin one operation id across retries."""
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "orch")
     captured = {}
     async def fake_api(method, path, **kw):
-        captured["json"] = kw.get("json", {})
-        return {"ok": True, "commits_merged": 1, "branch": "task-42/w", "merged_commits": {}}
+        if method == "POST":
+            captured["json"] = kw.get("json", {})
+        return {"result": {
+            "schema_version": 1,
+            "operation_id": "00000000-0000-0000-0000-000000000001",
+            "operation_state": "RUNNING",
+            "retryable": True,
+            "commit_point": "NOT_REACHED",
+            "git": {"status": "NOT_STARTED"},
+            "error": None,
+            "next_action": {"code": "CHECK_SAME_OPERATION", "message": "do not merge manually"},
+        }, "error": None}
     with patch.object(m, "_api", side_effect=fake_api):
-        await m.merge_worker(name="coder")
-    assert "next_task_id" not in captured["json"]
-    assert "target" not in captured["json"]
+        out = await m.merge_worker(
+            name="coder", operation_id="00000000-0000-0000-0000-000000000001",
+        )
+    assert captured["json"]["operation_id"] == "00000000-0000-0000-0000-000000000001"
+    assert captured["json"]["next_task_id"] == ""
+    assert captured["json"]["target"] == ""
+    assert out.isError is False
+    assert "do not merge manually" in out.content[0].text
 
 
 @pytest.mark.asyncio
-async def test_merge_worker_formats_normalized_and_legacy_link_results(monkeypatch):
+async def test_merge_worker_partial_keeps_domain_result_without_protocol_error(monkeypatch):
     import app.mcp_stdio as m
 
     monkeypatch.setattr(m, "SCOPE", "/s")
-
     async def fake_api(*_args, **_kwargs):
-        return {
-            "ok": True,
-            "commits_merged": 1,
-            "branch": "task-90/worker",
-            "linked_tasks": {
-                "90": {"ok": True, "added": 2, "task_id": 1},
-                "91": {"id": 2, "par_number": 91, "git_commits": "[]"},
-                "999": {"ok": False, "added": 0, "error": "task '999' not found"},
-                "998": None,
+        return {"result": {
+            "schema_version": 1,
+            "operation_id": "00000000-0000-0000-0000-000000000002",
+            "operation_state": "PARTIAL",
+            "retryable": True,
+            "commit_point": "REACHED",
+            "git": {"status": "SUCCEEDED", "target_after": "c" * 40},
+            "rag": {"status": "NOT_READY"},
+            "error": {
+                "code": "RAG_NOT_READY", "message": "RAG backfill was not accepted",
+                "status": None, "retryable": True, "request_id": "op-2",
+                "retry_after_seconds": None, "outcome_unknown": False, "details": {},
             },
-        }
+            "next_action": {"code": "FINALIZE_SAME_OPERATION", "message": "do not merge manually"},
+        }, "error": None}
 
     with patch.object(m, "_api", side_effect=fake_api):
         output = await m.merge_worker(name="worker", target="main")
 
-    assert "→ 90: 2 commits linked" in output
-    assert "→ 91: commits linked" in output
-    assert "⚠️ 999: FAILED — task '999' not found" in output
-    assert "⚠️ 998: FAILED — task not found" in output
-    assert "FAILED — unknown" not in output
+    assert output.isError is False
+    assert output.structuredContent["error"] is None
+    assert output.structuredContent["result"]["error"]["code"] == "RAG_NOT_READY"
+    assert "PARTIAL" in output.content[0].text
 
 
 @pytest.mark.asyncio
-async def test_merge_worker_reports_switch_failure_without_relabeling_merge(monkeypatch):
+async def test_merge_worker_empty_timeout_returns_unknown_with_operation_id(monkeypatch):
     import app.mcp_stdio as m
 
     monkeypatch.setattr(m, "SCOPE", "/s")
+    operation_id = "00000000-0000-0000-0000-000000000003"
 
-    async def fake_api(*_args, **_kwargs):
-        return {
-            "ok": True,
-            "commits_merged": 1,
-            "branch": "task-42/worker",
-            "switch": {"ok": False, "error": "target branch is busy"},
-            "task_status": {
-                "ok": False,
-                "error": "task not updated because branch switch failed",
-            },
-        }
+    async def fake_api(method, *_args, **_kwargs):
+        if method == "POST":
+            raise m.ApiToolError(
+                code="transport_timeout", message="ReadTimeout",
+                request_id="transport-request", outcome_unknown=True,
+                details={"exception_type": "ReadTimeout"},
+            )
+        raise m.ApiToolError(
+            code="connect_error", message="ConnectError",
+            request_id="status-request", retryable=True,
+            details={"exception_type": "ConnectError"},
+        )
 
     with patch.object(m, "_api", side_effect=fake_api):
         output = await m.merge_worker(
-            name="worker", target="main", next_task_id="43",
+            name="worker", target="main", operation_id=operation_id,
         )
 
-    assert output.startswith("Merged 1 commit from branch task-42/worker")
-    assert "switch failed: target branch is busy" in output
-    assert "Merge failed" not in output
+    assert output.isError is True
+    assert output.structuredContent["result"]["operation_id"] == operation_id
+    assert output.structuredContent["result"]["operation_state"] == "UNKNOWN"
+    assert output.structuredContent["error"]["message"]
+    assert output.structuredContent["error"]["outcome_unknown"] is True
+    assert output.content[0].text.strip()
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_empty_connect_error_is_typed_and_nonempty(monkeypatch):
+    import app.mcp_stdio as m
+
+    operation_id = "00000000-0000-0000-0000-000000000010"
+
+    async def fake_api(*_args, **_kwargs):
+        raise m.ApiToolError(
+            code="connect_error", message="ConnectError", retryable=True,
+            details={"exception_type": "ConnectError"},
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    output = await m.merge_worker(name="worker", operation_id=operation_id)
+
+    assert output.isError is True
+    assert output.structuredContent["result"]["operation_state"] == "FAILED"
+    assert output.structuredContent["error"]["message"]
+    assert output.structuredContent["error"]["details"]["exception_type"] == "ConnectError"
+    assert output.structuredContent["error"]["request_id"] == operation_id
+    assert output.content[0].text.strip()
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_invalid_json_outcome_is_typed_and_nonempty(monkeypatch):
+    import app.mcp_stdio as m
+
+    operation_id = "00000000-0000-0000-0000-000000000011"
+
+    async def fake_api(method, *_args, **_kwargs):
+        if method == "POST":
+            raise m.ApiToolError(
+                code="invalid_response", message="JSONDecodeError",
+                outcome_unknown=True,
+                details={"exception_type": "JSONDecodeError"},
+            )
+        raise m.ApiToolError(
+            code="connect_error", message="ConnectError", retryable=True,
+            details={"exception_type": "ConnectError"},
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    output = await m.merge_worker(name="worker", operation_id=operation_id)
+
+    assert output.isError is True
+    assert output.structuredContent["result"]["operation_state"] == "UNKNOWN"
+    assert output.structuredContent["error"]["message"]
+    assert output.structuredContent["error"]["details"]["exception_type"] == "JSONDecodeError"
+    assert output.structuredContent["error"]["request_id"] == operation_id
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_old_server_fails_closed_without_legacy_post(monkeypatch):
+    import app.mcp_stdio as m
+
+    paths = []
+    async def fake_api(method, path, **_kwargs):
+        paths.append((method, path))
+        raise m.ApiToolError(code="http_4xx", message="HTTP 404", status=404)
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        output = await m.merge_worker(name="worker")
+
+    assert paths == [("POST", "/api/merge-operations")]
+    assert output.isError is True
+    assert output.structuredContent["error"]["code"] == "MERGE_API_UPGRADE_REQUIRED"
+    assert output.structuredContent["error"]["message"]
+    assert "/api/sessions/worker/merge" not in [path for _, path in paths]
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_unknown_dto_keeps_nonempty_detail(monkeypatch):
+    import app.mcp_stdio as m
+
+    operation_id = "00000000-0000-0000-0000-000000000004"
+    monkeypatch.setattr(m, "_api", AsyncMock(return_value={"unexpected": True}))
+
+    output = await m.merge_worker(name="worker", operation_id=operation_id)
+
+    assert output.isError is True
+    assert output.structuredContent["result"]["operation_id"] == operation_id
+    assert output.structuredContent["error"]["message"]
+    assert output.structuredContent["error"]["details"]["exception_type"] == "ValueError"
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_formatter_exception_is_caught_with_operation_id(monkeypatch):
+    import app.mcp_stdio as m
+
+    operation_id = "00000000-0000-0000-0000-000000000007"
+    domain = {
+        "schema_version": 1,
+        "operation_id": operation_id,
+        "operation_state": "SUCCEEDED",
+        "retryable": False,
+        "commit_point": "REACHED",
+        "git": {"status": "SUCCEEDED", "worker_branch": "worker", "commits_merged": 1},
+        "error": None,
+        "next_action": {"code": "NONE", "message": "done"},
+    }
+    monkeypatch.setattr(m, "_api", AsyncMock(return_value={"result": domain, "error": None}))
+    real_formatter = m._merge_tool_result
+    calls = 0
+
+    def flaky_formatter(result):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError()
+        return real_formatter(result)
+
+    monkeypatch.setattr(m, "_merge_tool_result", flaky_formatter)
+    output = await m.merge_worker(name="worker", operation_id=operation_id)
+
+    assert output.isError is True
+    assert output.structuredContent["result"]["operation_id"] == operation_id
+    assert output.structuredContent["error"]["message"]
+    assert output.structuredContent["error"]["details"]["exception_type"] == "RuntimeError"
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_empty_http_500_never_returns_empty_error(monkeypatch):
+    import app.mcp_stdio as m
+
+    operation_id = "00000000-0000-0000-0000-000000000008"
+
+    async def fake_api(method, *_args, **_kwargs):
+        if method == "POST":
+            raise m.ApiToolError(
+                code="http_5xx", message="", status=500,
+                request_id="server-request", outcome_unknown=True,
+                details={"exception_type": "HTTPStatusError"},
+            )
+        raise m.ApiToolError(code="connect_error", message="", retryable=True)
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    output = await m.merge_worker(name="worker", operation_id=operation_id)
+
+    assert output.isError is True
+    assert output.structuredContent["error"]["message"]
+    assert output.content[0].text.strip()
+    assert output.content[0].text != "Error executing tool merge_worker:"
 
 
 @pytest.mark.asyncio

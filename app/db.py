@@ -247,6 +247,48 @@ def init_db() -> None:
                 tool_use_id TEXT NOT NULL DEFAULT ''
             );
 
+            CREATE TABLE IF NOT EXISTS merge_operations (
+                operation_id TEXT PRIMARY KEY,
+                operation_type TEXT NOT NULL DEFAULT 'merge',
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                worker_name TEXT NOT NULL,
+                request_json TEXT NOT NULL,
+                request_hash TEXT NOT NULL,
+                dedupe_fingerprint TEXT NOT NULL,
+                accepted_worker_branch TEXT NOT NULL,
+                accepted_worker_head TEXT NOT NULL,
+                accepted_base_branch TEXT NOT NULL DEFAULT '',
+                accepted_task_id TEXT NOT NULL DEFAULT '',
+                accepted_needs_switch INTEGER NOT NULL DEFAULT 0,
+                state TEXT NOT NULL,
+                commit_point TEXT NOT NULL DEFAULT 'NOT_REACHED',
+                result_json TEXT NOT NULL,
+                result_hash TEXT NOT NULL,
+                terminal_worker_branch TEXT NOT NULL DEFAULT '',
+                terminal_worker_head TEXT NOT NULL DEFAULT '',
+                terminal_base_branch TEXT NOT NULL DEFAULT '',
+                terminal_task_id TEXT NOT NULL DEFAULT '',
+                terminal_needs_switch INTEGER NOT NULL DEFAULT 0,
+                owner_token TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                started_at TEXT,
+                finished_at TEXT,
+                resolved_at TEXT,
+                resolution_outcome TEXT NOT NULL DEFAULT '',
+                resolution_evidence_hash TEXT NOT NULL DEFAULT '',
+                resolution_actor TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_merge_operations_fingerprint
+                ON merge_operations(dedupe_fingerprint);
+            CREATE INDEX IF NOT EXISTS idx_merge_operations_request
+                ON merge_operations(session_id, request_hash, finished_at);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_merge_operations_active_session
+                ON merge_operations(session_id)
+                WHERE resolved_at IS NULL
+                  AND state IN ('PENDING','RUNNING','PARTIAL','UNKNOWN');
+
             CREATE TABLE IF NOT EXISTS turn_usage (
                 id INTEGER PRIMARY KEY,
                 event_id TEXT NOT NULL UNIQUE,

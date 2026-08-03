@@ -49,6 +49,7 @@ class TestInitDb:
         assert "voice_costs" in tables
         assert "tool_errors" in tables
         assert "improvement_rules" in tables
+        assert "merge_operations" in tables
 
     def test_idempotent(self, db):
         from app.db import init_db

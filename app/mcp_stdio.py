@@ -411,6 +411,7 @@ def _response_error(
         retry_after_seconds=retry_after,
         outcome_unknown=outcome_unknown,
         details=details,
+        result=body.get("result"),
     )
 
 
@@ -987,47 +988,200 @@ async def change_worker_model(name: str, model: str) -> str:
     return f"Model already {result.get('model', model)}"
 
 
+def _merge_local_result(
+    operation_id: str,
+    state: str,
+    *,
+    code: str,
+    message: str,
+    retryable: bool,
+    outcome_unknown: bool,
+    target: str,
+    details: dict[str, Any],
+) -> dict[str, Any]:
+    envelope = _canonical_error({
+        "code": code,
+        "message": message or code,
+        "status": None,
+        "retryable": retryable,
+        "request_id": operation_id,
+        "retry_after_seconds": None,
+        "outcome_unknown": outcome_unknown,
+        "details": details,
+    })
+    return {
+        "schema_version": 1,
+        "operation_id": operation_id,
+        "operation_state": state,
+        "retryable": envelope["retryable"],
+        "commit_point": "UNKNOWN" if outcome_unknown else "NOT_REACHED",
+        "git": {
+            "status": "UNKNOWN" if outcome_unknown else "NOT_STARTED",
+            "target_branch": target,
+            "target_before": None,
+            "target_after": None,
+            "worker_branch": "",
+            "worker_head": None,
+            "conflicts": [],
+        },
+        "task_links": {"status": "NOT_RUN", "items": {}},
+        "rag": {"status": "NOT_RUN"},
+        "lifecycle": {"status": "NOT_RUN"},
+        "next_task": {"status": "NOT_REQUESTED"},
+        "error": envelope,
+        "next_action": {
+            "code": "RECONCILE_SAME_OPERATION" if outcome_unknown else "RETRY_SAME_OPERATION",
+            "message": (
+                f"Check operation {operation_id} before any retry; do not merge manually."
+                if outcome_unknown
+                else f"Retry merge_worker with operation_id={operation_id}; do not merge manually."
+            ),
+        },
+    }
+
+
+def _merge_payload_result(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("result"), dict):
+        raise ValueError("merge operation response has no domain result")
+    return payload["result"]
+
+
+def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
+    operation_id = str(result.get("operation_id") or "unknown")
+    state = str(result.get("operation_state") or "UNKNOWN").upper()
+    error = result.get("error")
+    action = result.get("next_action") if isinstance(result.get("next_action"), dict) else {}
+    action_message = _safe_response_text(str(action.get("message") or ""))
+    if state in {"PENDING", "RUNNING"}:
+        text = (
+            f"Merge operation {operation_id}: {state}. "
+            f"{action_message or 'Do not merge manually; retry with the same operation_id.'}"
+        )
+        return mcp_tool_result(result, text=text)
+    if state == "SUCCEEDED":
+        git = result.get("git") if isinstance(result.get("git"), dict) else {}
+        count = int(git.get("commits_merged") or 0)
+        branch = git.get("worker_branch") or "?"
+        text = (
+            f"Merged {count} commit{'s' if count != 1 else ''} from branch {branch}. "
+            f"Operation {operation_id}: SUCCEEDED."
+        )
+        return mcp_tool_result(result, text=text)
+    if state == "PARTIAL":
+        message = ""
+        if isinstance(error, dict):
+            message = str(error.get("message") or error.get("code") or "")
+        text = (
+            f"Merge operation {operation_id}: PARTIAL — "
+            f"{_safe_response_text(message) or 'a post-merge stage failed'}. "
+            f"{action_message or 'Finalize this same operation; do not merge manually.'}"
+        )
+        return mcp_tool_result(result, text=text)
+    if state not in {"FAILED", "UNKNOWN"}:
+        raise ValueError(f"unknown merge operation state: {state}")
+    if not isinstance(error, dict):
+        error = {
+            "code": "UNKNOWN_OUTCOME" if state == "UNKNOWN" else "UPSTREAM_EMPTY_ERROR",
+            "message": f"Merge operation {operation_id} returned {state} without error detail",
+            "status": None,
+            "retryable": False,
+            "request_id": operation_id,
+            "retry_after_seconds": None,
+            "outcome_unknown": state == "UNKNOWN",
+            "details": {"exception_type": "MissingMergeError"},
+        }
+        result = {**result, "error": error}
+    message = _safe_response_text(str(error.get("message") or error.get("code") or "merge failed"))
+    text = (
+        f"Merge operation {operation_id}: {state} — {message}. "
+        f"{action_message or 'Do not merge manually; follow next_action.'}"
+    )
+    return mcp_tool_result(result, error=error, is_error=True, text=text)
+
+
+async def _recover_merge_status(operation_id: str) -> dict[str, Any] | None:
+    try:
+        payload = await _api("GET", f"/api/merge-operations/{operation_id}")
+    except ApiToolError as lookup_error:
+        if isinstance(lookup_error.result, dict):
+            return lookup_error.result
+        return None
+    return _merge_payload_result(payload)
+
+
 @mcp.tool()
-async def merge_worker(name: str, target: str = "", next_task_id: str = "") -> str:
-    """Squash a worker branch into its persisted base branch.
-    Pass target only to override that base, and next_task_id to auto-switch afterwards."""
-    body = {"scope": SCOPE, "squash": True}
-    if target:
-        body["target"] = target
-    if next_task_id:
-        body["next_task_id"] = next_task_id
-    result = await _api("POST", f"/api/sessions/{name}/merge", json=body)
-    if isinstance(result, dict) and result.get("error"):
-        return f"Merge failed: {result['error']}"
-    if isinstance(result, dict) and result.get("ok"):
-        n = result.get("commits_merged", 0)
-        branch = result.get("branch", "?")
-        parts = [f"Merged {n} commit{'s' if n != 1 else ''} from branch {branch}"]
-        for par, info in result.get("linked_tasks", {}).items():
-            if isinstance(info, dict) and info.get("ok"):
-                parts.append(f"  → {par}: {info.get('added', 0)} commits linked")
-            elif isinstance(info, dict) and info.get("id"):
-                parts.append(f"  → {par}: commits linked")
-            elif isinstance(info, dict):
-                error = info.get("error") or "link failed without error detail"
-                parts.append(f"  ⚠️ {par}: FAILED — {error}")
-            elif info is None:
-                parts.append(f"  ⚠️ {par}: FAILED — task not found")
+async def merge_worker(
+    name: str,
+    target: str = "",
+    next_task_id: str = "",
+    operation_id: str = "",
+) -> CallToolResult:
+    """Durably squash a worker branch. Retry failures with the returned operation_id."""
+    operation_id = operation_id or str(uuid.uuid4())
+    body = {
+        "operation_id": operation_id,
+        "name": name,
+        "scope": SCOPE,
+        "target": target,
+        "next_task_id": next_task_id,
+    }
+    try:
+        try:
+            payload = await _api("POST", "/api/merge-operations", json=body)
+            result = _merge_payload_result(payload)
+        except ApiToolError as api_error:
+            if isinstance(api_error.result, dict):
+                result = api_error.result
+            elif api_error.status in {404, 426}:
+                result = _merge_local_result(
+                    operation_id,
+                    "FAILED",
+                    code="MERGE_API_UPGRADE_REQUIRED",
+                    message=(
+                        "Merge operation-v1 is unavailable in the live server; "
+                        "restart Orchestra before merging. No legacy merge was attempted."
+                    ),
+                    retryable=False,
+                    outcome_unknown=False,
+                    target=target,
+                    details={"exception_type": type(api_error).__name__, **api_error.details},
+                )
             else:
-                parts.append(f"  ⚠️ {par}: FAILED — invalid link result")
-        switch = result.get("switch")
-        if switch:
-            if switch.get("ok"):
-                parts.append(f"  → switched to branch {switch.get('branch', '?')}")
-            else:
-                parts.append(f"  ⚠️ switch failed: {switch.get('error', 'unknown')}")
-        return "\n".join(parts)
-    if isinstance(result, dict) and not result.get("ok"):
-        conflicts = result.get("conflicts", [])
-        if conflicts:
-            return f"Conflicts in: {', '.join(conflicts)}"
-        return f"Merge failed: {result.get('error', 'unknown error')}"
-    return f"Merge result: {result}"
+                recovered = await _recover_merge_status(operation_id)
+                if recovered is not None and recovered.get("operation_state") != "FAILED":
+                    result = recovered
+                else:
+                    unknown = api_error.outcome_unknown
+                    result = _merge_local_result(
+                        operation_id,
+                        "UNKNOWN" if unknown else "FAILED",
+                        code="UNKNOWN_OUTCOME" if unknown else "TRANSPORT_ERROR",
+                        message=(
+                            f"Merge request failed and status could not be confirmed: "
+                            f"{api_error.message or type(api_error).__name__}"
+                        ),
+                        retryable=not unknown and api_error.retryable,
+                        outcome_unknown=unknown,
+                        target=target,
+                        details={"exception_type": type(api_error).__name__, **api_error.details},
+                    )
+        if result.get("operation_state") in {"PENDING", "RUNNING"}:
+            recovered = await _recover_merge_status(str(result.get("operation_id") or operation_id))
+            if recovered is not None:
+                result = recovered
+        return _merge_tool_result(result)
+    except Exception as exc:
+        result = _merge_local_result(
+            operation_id,
+            "UNKNOWN",
+            code="UNKNOWN_OUTCOME",
+            message=f"Merge result handling failed: {_exception_text(exc)}",
+            retryable=False,
+            outcome_unknown=True,
+            target=target,
+            details={"exception_type": type(exc).__name__},
+        )
+        return _merge_tool_result(result)
 
 
 @mcp.tool()

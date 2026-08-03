@@ -1,0 +1,54 @@
+"""HTTP adapter for durable merge operations."""
+
+import asyncio
+
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
+from app.merge_operations import (
+    accept_merge_operation,
+    ensure_operation_runner,
+    get_operation_record,
+    operation_not_found_result,
+)
+
+router = APIRouter(prefix="/api/merge-operations", tags=["merge-operations"])
+
+
+def _response(result: dict, status_code: int = 200) -> JSONResponse:
+    top_error = (
+        result.get("error")
+        if status_code >= 400 or result.get("operation_state") in {"FAILED", "UNKNOWN"}
+        else None
+    )
+    return JSONResponse(
+        {"result": result, "error": top_error},
+        status_code=status_code,
+    )
+
+
+@router.get("/capabilities")
+async def merge_operation_capabilities():
+    return {"capability": "operation-v1", "schema_version": 1}
+
+
+@router.post("")
+async def create_merge_operation(req: dict):
+    result, status_code = await accept_merge_operation(
+        operation_id=str(req.get("operation_id") or ""),
+        name=str(req.get("name") or ""),
+        scope=str(req.get("scope") or ""),
+        target=str(req.get("target") or ""),
+        next_task_id=str(req.get("next_task_id") or ""),
+    )
+    return _response(result, status_code)
+
+
+@router.get("/{operation_id}")
+async def get_merge_operation(operation_id: str):
+    record = await asyncio.to_thread(get_operation_record, operation_id)
+    if not record:
+        return _response(operation_not_found_result(operation_id), 404)
+    if record["state"] == "PENDING":
+        ensure_operation_runner(operation_id)
+    return _response(record["result"])

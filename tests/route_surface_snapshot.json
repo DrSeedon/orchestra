@@ -54,6 +54,24 @@
   ]
  ],
  [
+  "/api/merge-operations",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/merge-operations/capabilities",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/merge-operations/{operation_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/models",
   [
    "GET"
