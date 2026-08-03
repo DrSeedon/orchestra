@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.30.1 — 2026-08-03 — #12 спавн больше не пачкает дерево воркера
+
+### Fixed
+- 🧹 **Платформа не пишет поверх файлов, которые репозиторий отслеживает** (`app/workspace.py`, `app/prompting.py`). Новый `workspace.tracked_paths(worktree, rels)` — единственный способ спросить «этот путь в индексе?»; git не смог ответить → `RuntimeError`, догадок нет. `create_worktree` пропускает трекнутые `copies`, `inject_skills_to_worktree` — трекнутый `.claude/skills/<n>/SKILL.md`, `sync_agents_md` переведён на тот же хелпер. `_exclude_claude_dir` → `_exclude_worktree_artifacts(wt, extra)`: реально положенные копии и таргеты симлинков (`.env` и прочее) теперь сами уходят в `info/exclude` якорем `/<path>` — ручные правки в каждом новом репо больше не нужны.
+  - **`info/exclude` бессилен против отслеживаемых файлов** — правила игнорирования не применяются к индексу. Поэтому защита у зеркала `AGENTS.md` была, а у инъекции скиллов её не было, и симптом жил только там, где скиллы в индексе: seedon — 14 файлов `.claude/skills/*`, orchestra / dnd-game-master / kesha-tg-bot — 0.
+  - Изменение поведения: в репо, который версионирует свои скиллы, агент читает **версию репозитория** (Claude CLI и так грузит native-скиллы из этого пути, а `_project_skill_files` уже считал их источником истины для Codex). Parent-fallback для `CLAUDE.md` работает только для нетрекнутых файлов.
+  - Тесты: `tests/test_workspace.py` (+3), `tests/test_manager.py` (+1) — все четыре проверены мутацией (со стэшнутым фиксом падают). Разбор и цена решения — `docs/tasks/12/report.md`; кросс-LLM вердикта нет (лимиты подписки) — `docs/tasks/12/codex-review.md`.
+  - **Triggered case**: в seedon шесть веток подряд не мержились — `merge_worker` отвечал `worker working tree is dirty (.claude/skills/codex-debate/SKILL.md, .env)`, хотя воркер этих файлов не трогал; оркестратор чинил `info/exclude` руками в каждом проекте.
+
 ## v2.30.0 — 2026-08-03 — #126 роль переживает сжатие контекста
 
 ### Fixed

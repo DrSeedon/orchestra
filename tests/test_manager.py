@@ -748,13 +748,31 @@ class TestInjectSkillsRealCopy:
 
     def test_copies_pipeline_skills_to_worktree(self, tmp_path):
         from app.prompting import inject_skills_to_worktree
-        wt = tmp_path / "wt"
-        wt.mkdir()
+        wt = _git_repo(tmp_path)
         # codex-debate + html-artifacts are both real files in prompts/skills/
         inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
         for name in ("codex-debate", "html-artifacts"):
             assert (wt / ".claude" / "skills" / name / "SKILL.md").is_file(), \
                 f"{name} not injected into worktree"
+
+    def test_tracked_skill_not_overwritten(self, tmp_path):
+        """Task #12: a repo that versions its own `.claude/skills/<name>/SKILL.md` cannot
+        exclude it (ignore rules skip tracked files) — injecting there dirties the worker's
+        tree permanently and blocks every merge. The repo's version wins."""
+        import subprocess
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        own = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        own.parent.mkdir(parents=True)
+        own.write_text("# repo's own skill\n")
+        subprocess.run(["git", "add", "-A"], cwd=wt, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "skill"], cwd=wt, capture_output=True, check=True)
+
+        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+
+        assert own.read_text() == "# repo's own skill\n"
+        # untracked skills are still injected — only the repo's own file is off limits
+        assert (wt / ".claude" / "skills" / "html-artifacts" / "SKILL.md").is_file()
 
     def test_empty_list_is_noop(self, tmp_path):
         from app.prompting import inject_skills_to_worktree

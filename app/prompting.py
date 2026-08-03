@@ -8,6 +8,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from app.workspace import tracked_paths
+
 logger = logging.getLogger(__name__)
 
 # Single source of prompts = pipelines/default/prompts/ (app/prompts/ removed —
@@ -140,19 +142,31 @@ def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> Non
 
     Skills are resolved from pipeline.yaml (ResolvedRole.skills), not role-file
     frontmatter — role bodies are frontmatter-free, so reading them yielded nothing.
+
+    A repo that TRACKS `.claude/skills/<name>/SKILL.md` owns that file: `info/exclude` cannot
+    ignore a tracked path, so overwriting it leaves the worker's tree dirty forever and blocks
+    every merge. Such skills are left alone — the agent reads the repo's own version, which
+    Claude CLI already loads from the same path.
     """
     if not skill_names or not _SKILLS_DIR.is_dir():
         return
     wt = Path(worktree_path)
+    rels = {sname: f".claude/skills/{sname}/SKILL.md" for sname in skill_names}
+    tracked = tracked_paths(wt, list(rels.values()))
+    injected = 0
     for sname in skill_names:
         skill_src = _SKILLS_DIR / f"{sname}.md"
         if not skill_src.exists():
             logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
             continue
+        if rels[sname] in tracked:
+            logger.info(f"Skill '{sname}' is tracked by the repo at {wt} — injection skipped")
+            continue
         skill_dir = wt / ".claude" / "skills" / sname
         _run_as_agent(["mkdir", "-p", str(skill_dir)], capture_output=True)
         _run_as_agent(["cp", "-p", str(skill_src), str(skill_dir / "SKILL.md")], capture_output=True)
-    logger.info(f"Injected {len(skill_names)} skills into {worktree_path}/.claude/skills/")
+        injected += 1
+    logger.info(f"Injected {injected} skills into {worktree_path}/.claude/skills/")
 
 
 _SKILL_INDEX_HEADER = """## Available skills (progressive loading)

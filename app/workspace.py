@@ -367,6 +367,26 @@ def _copy_file(src: Path, dst: Path) -> None:
 _WORKTREE_EXCLUDES = (".claude/", "codex_sessions.json", "*.round", "AGENTS.md")
 
 
+def tracked_paths(worktree_path: str | Path, rels: list[str]) -> set[str]:
+    """Which of ``rels`` (worktree-relative file paths) are in this repo's index.
+
+    Everything Orchestra writes into a worker's worktree must ask this first: ignore rules
+    (`.gitignore`, `info/exclude`) do NOT apply to tracked files, so writing over one dirties
+    the worker's tree permanently and blocks every merge — the worker cannot clean up work
+    it never did. Git failing to answer is raised, not guessed: the caller decides.
+    """
+    if not rels:
+        return set()
+    result = _git_cmd(
+        ["git", "-C", str(worktree_path), "ls-files", "-z", "--", *rels],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or f"exit {result.returncode}"
+        raise RuntimeError(f"git ls-files failed in {worktree_path}: {detail}")
+    return {p for p in result.stdout.split("\0") if p}
+
+
 def sync_agents_md(worktree_path: str) -> bool:
     """Mirror CLAUDE.md → AGENTS.md: Codex CLI reads project instructions from AGENTS.md only.
 
@@ -380,25 +400,23 @@ def sync_agents_md(worktree_path: str) -> bool:
     agents_md = wt / "AGENTS.md"
     if not claude_md.is_file():
         return False
-    tracked = _git_cmd(
-        ["git", "-C", str(wt), "ls-files", "--error-unmatch", "AGENTS.md"],
-        capture_output=True, text=True,
-    )
-    if tracked.returncode == 0:
-        logger.info(f"AGENTS.md is tracked by the repo at {wt} — mirror skipped")
+    try:
+        tracked = tracked_paths(wt, ["AGENTS.md"])
+    except RuntimeError as exc:
+        # Git failing (not a repo, ownership, broken worktree) proves nothing about the
+        # file — don't overwrite on a guess. A stale mirror is survivable; a clobbered
+        # repo file is not.
+        logger.warning(f"{exc} — AGENTS.md mirror skipped")
         return False
-    if tracked.returncode != 1:
-        # 1 = "untracked". Anything else is git failing (not a repo, ownership, broken worktree),
-        # which proves nothing about the file — don't overwrite on a guess.
-        detail = tracked.stderr.strip() or f"exit {tracked.returncode}"
-        logger.warning(f"git ls-files failed in {wt} ({detail}) — AGENTS.md mirror skipped")
+    if tracked:
+        logger.info(f"AGENTS.md is tracked by the repo at {wt} — mirror skipped")
         return False
     if agents_md.is_symlink():
         logger.warning(f"AGENTS.md in {wt} is a symlink — mirror skipped (copy would clobber its target)")
         return False
     # Old worktrees predate AGENTS.md joining the exclude list — do this even when the mirror is
     # already current, otherwise it keeps showing up as untracked junk and can block merge.
-    _exclude_claude_dir(wt)
+    _exclude_worktree_artifacts(wt)
     if agents_md.exists() and agents_md.read_bytes() == claude_md.read_bytes():
         return False
     # Write via tmp + mv: a half-written mirror is exactly the silent truncation this whole
@@ -418,10 +436,14 @@ def sync_agents_md(worktree_path: str) -> bool:
     return True
 
 
-def _exclude_claude_dir(wt_path: Path) -> None:
+def _exclude_worktree_artifacts(wt_path: Path, extra: list[str] | None = None) -> None:
     """Ignore injected/machine-local artifacts via `info/exclude` — untracked, never committed,
     so they can't dirty the tree or block merge_worker. Idempotent. External repos that don't
     already ignore these would otherwise leave them as untracked files.
+
+    `extra` = paths this spawn actually planted (copies/symlinks from the manifest, e.g. `.env`),
+    anchored to the repo root so they don't shadow same-named files deeper in the tree. Only
+    untracked ones get here — see `tracked_paths`.
 
     Git reads `info/exclude` from the COMMON git dir (`--git-common-dir`), not the
     per-worktree dir — a per-worktree `info/exclude` is silently ignored.
@@ -440,7 +462,8 @@ def _exclude_claude_dir(wt_path: Path) -> None:
     exclude.parent.mkdir(parents=True, exist_ok=True)
     existing = exclude.read_text() if exclude.exists() else ""
     have = {line.strip() for line in existing.splitlines()}
-    missing = [p for p in _WORKTREE_EXCLUDES if p not in have]
+    patterns = list(_WORKTREE_EXCLUDES) + [f"/{p}" for p in (extra or [])]
+    missing = [p for p in patterns if p not in have]
     if not missing:
         return
     with exclude.open("a") as f:
@@ -529,23 +552,31 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
                     f"branch '{branch}' was preserved"
                 )
 
-        _exclude_claude_dir(wt_path)
-
         # worktree_cfg задан → правила манифеста (copies + symlinks) и ТОЛЬКО они.
         # None → upstream-fallback: хардкод PROJECT_FILES, симлинков нет.
         copies = worktree_cfg.copies if worktree_cfg is not None else list(PROJECT_FILES)
         try:
+            planted: list[str] = []
+            tracked = tracked_paths(wt_path, copies)
             for fname in copies:
                 src = _resolve_src(repo, fname)
                 if src is None:
+                    continue
+                if fname in tracked:
+                    # Репозиторий версионирует этот файл сам → его версия уже в worktree,
+                    # а перезапись сделала бы дерево воркера грязным навсегда.
+                    logger.info(f"'{fname}' is tracked by {repo} — copy skipped")
                     continue
                 dst = wt_path / fname
                 if not _within(dst.parent, wt_path):
                     raise ValueError(f"copy target '{fname}' escapes worktree")
                 _copy_file(src, dst)
+                planted.append(fname)
             if worktree_cfg is not None:
                 for sl in worktree_cfg.symlinks:
                     _apply_symlink(repo, wt_path, sl)
+                    planted.append(sl.target)
+            _exclude_worktree_artifacts(wt_path, planted)
             sync_agents_md(str(wt_path))
         except Exception as setup_error:
             cleanup_errors: list[str] = []
