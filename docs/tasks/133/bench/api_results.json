@@ -1,0 +1,206 @@
+{
+ "openai/text-embedding-3-small": {
+  "model": "openai/text-embedding-3-small",
+  "dim": 1536,
+  "avg_margin": 0.09450565440356976,
+  "min_margin": -0.09023767565099025,
+  "rel_range": [
+   0.12178534220554363,
+   0.46745580689118144
+  ],
+  "dis_range": [
+   0.1300948059706006,
+   0.2944528290633868
+  ],
+  "margins": [
+   -0.023270919424383363,
+   0.30471572381728257,
+   -0.09023767565099025,
+   0.24367113223591647,
+   0.037650011040023385
+  ],
+  "batch15_s": 21.5455918560001,
+  "query_lat_ms_median": 2103.0784860013227,
+  "usage": {
+   "prompt_tokens": 177,
+   "total_tokens": 177,
+   "cost": 3.54e-06,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 3.54e-06,
+    "upstream_inference_prompt_cost": 3.54e-06,
+    "upstream_inference_completions_cost": 0
+   }
+  }
+ },
+ "openai/text-embedding-3-large": {
+  "model": "openai/text-embedding-3-large",
+  "dim": 3072,
+  "avg_margin": 0.15352739918155733,
+  "min_margin": 0.0038717511794181536,
+  "rel_range": [
+   0.19451452585399862,
+   0.6101874171904085
+  ],
+  "dis_range": [
+   0.19064277467458046,
+   0.3066040452700314
+  ],
+  "margins": [
+   0.07108462878614641,
+   0.23174536935749504,
+   0.11355154933515327,
+   0.34738369724957374,
+   0.0038717511794181536
+  ],
+  "batch15_s": 16.01749577499868,
+  "query_lat_ms_median": 2697.7291339972,
+  "usage": {
+   "prompt_tokens": 177,
+   "total_tokens": 177,
+   "cost": 2.301e-05,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 2.301e-05,
+    "upstream_inference_prompt_cost": 2.301e-05,
+    "upstream_inference_completions_cost": 0
+   }
+  }
+ },
+ "openai/text-embedding-ada-002": {
+  "model": "openai/text-embedding-ada-002",
+  "dim": 1536,
+  "avg_margin": 0.018572779790828588,
+  "min_margin": -0.035929630568149795,
+  "rel_range": [
+   0.7645809107968318,
+   0.8651006406208646
+  ],
+  "dis_range": [
+   0.7589236137641203,
+   0.8585647249265712
+  ],
+  "margins": [
+   -0.035929630568149795,
+   0.05750547850046017,
+   -0.018090194208827293,
+   0.057076146896358315,
+   0.03230209833430153
+  ],
+  "batch15_s": 6.147828888999356,
+  "query_lat_ms_median": 1779.0228240010038,
+  "usage": {
+   "prompt_tokens": 177,
+   "total_tokens": 177,
+   "cost": 1.77e-05,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 1.77e-05,
+    "upstream_inference_prompt_cost": 1.77e-05,
+    "upstream_inference_completions_cost": 0
+   }
+  }
+ },
+ "baai/bge-m3": {
+  "model": "baai/bge-m3",
+  "dim": 1024,
+  "avg_margin": 0.15200946043212035,
+  "min_margin": 0.016785266354132244,
+  "rel_range": [
+   0.2340377598152835,
+   0.6079549013714364
+  ],
+  "dis_range": [
+   0.21725249346115125,
+   0.4039025145559409
+  ],
+  "margins": [
+   0.20405238681549548,
+   0.20472900246547449,
+   0.016785266354132244,
+   0.2854461899591241,
+   0.049034456566375506
+  ],
+  "batch15_s": 6.459227941999416,
+  "query_lat_ms_median": 1830.603575999703,
+  "usage": {
+   "prompt_tokens": 126,
+   "total_tokens": 126,
+   "cost": 1.26e-06,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 1.26e-06,
+    "upstream_inference_prompt_cost": 1.26e-06,
+    "upstream_inference_completions_cost": 0
+   }
+  }
+ },
+ "google/gemini-embedding-001": {
+  "model": "google/gemini-embedding-001",
+  "dim": 3072,
+  "avg_margin": 0.1013643121155852,
+  "min_margin": -0.007552986206743384,
+  "rel_range": [
+   0.5775562221143008,
+   0.7894889250162211
+  ],
+  "dis_range": [
+   0.5297178648961188,
+   0.5950331178857017
+  ],
+  "margins": [
+   0.14761938621307502,
+   0.07088274995989785,
+   0.08961822617741577,
+   0.20625418443428079,
+   -0.007552986206743384
+  ],
+  "batch15_s": 10.285347536999325,
+  "query_lat_ms_median": 1658.8329059995885,
+  "usage": {
+   "prompt_tokens": 163,
+   "total_tokens": 163,
+   "cost": 2.445e-05,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 2.445e-05,
+    "upstream_inference_prompt_cost": 2.445e-05,
+    "upstream_inference_completions_cost": 0
+   }
+  }
+ },
+ "qwen/qwen3-embedding-8b": {
+  "model": "qwen/qwen3-embedding-8b",
+  "dim": 4096,
+  "avg_margin": 0.17460809340239608,
+  "min_margin": 0.026707131554078445,
+  "rel_range": [
+   0.45611926864049085,
+   0.8347843215485403
+  ],
+  "dis_range": [
+   0.4294121370864124,
+   0.49123981422680063
+  ],
+  "margins": [
+   0.1723144444847094,
+   0.2633657955146504,
+   0.026707131554078445,
+   0.3676328682377542,
+   0.04302022722078791
+  ],
+  "batch15_s": 9.094968047000293,
+  "query_lat_ms_median": 3447.8182720013137,
+  "usage": {
+   "prompt_tokens": 158,
+   "total_tokens": 158,
+   "cost": 1.58e-06,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 1.58e-06,
+    "upstream_inference_prompt_cost": 1.58e-06,
+    "upstream_inference_completions_cost": 0
+   }
+  }
+ }
+}
