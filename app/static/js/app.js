@@ -5896,11 +5896,44 @@ function _onServerOk() {
     _recoverAfterOutage();
 }
 
+// Версия фронта, с которой загружена эта страница. HTML отдаётся с no-cache (#9),
+// значит значение всегда свежее — в отличие от самого JS, который браузер берёт из кеша.
+const _pageBuild = document.body.dataset.build || '';
+let _buildBannerShown = false;
+
+// Сервер уехал вперёд. Перезагружать страницу за юзера НЕ будем: измерено, что reload
+// берёт JS из кеша и новую версию всё равно может не привезти, а решение перезагрузить
+// чужую вкладку — не наше. Говорим и уходим.
+function _showBuildBanner(serverBuild) {
+    if (_buildBannerShown) return;
+    _buildBannerShown = true;
+    console.warn(`[build] страница собрана на ${_pageBuild}, сервер отдаёт ${serverBuild}`);
+    const el = document.createElement('div');
+    el.id = 'build-banner';
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:99998;' +
+        'display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;' +
+        'background:#1e293b;border:1px solid #f59e0b66;color:#fde68a;font-size:12px;' +
+        'font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.4)';
+    el.innerHTML = '<span>Сервер обновился — обнови страницу, чтобы взять новую версию</span>';
+    const btn = document.createElement('button');
+    btn.style.cssText = 'padding:3px 10px;border:1px solid #475569;border-radius:6px;' +
+        'background:transparent;color:#cbd5e1;cursor:pointer;font-size:12px';
+    btn.textContent = 'Скрыть';
+    btn.onclick = () => el.remove();
+    el.appendChild(btn);
+    document.body.appendChild(el);
+}
+
 async function _heartbeatProbe() {
     try {
         const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
-        if (r.status < 502) _onServerOk();
-        else _onServerError();
+        if (r.status < 502) {
+            _onServerOk();
+            // Сверяем ПОСЛЕ _onServerOk: он снимает оверлей ребута, а баннер под
+            // полноэкранным оверлеем был бы невидим.
+            const serverBuild = r.headers.get('X-Orchestra-Build');
+            if (serverBuild && _pageBuild && serverBuild !== _pageBuild) _showBuildBanner(serverBuild);
+        } else _onServerError();
     } catch (e) { _onFetchFail(e); }
 }
 

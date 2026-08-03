@@ -19,13 +19,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Form
+from fastapi import APIRouter, HTTPException, Request, Response, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app.auth import is_auth_enabled, is_owner_mode
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
-from app.deps import manager, templates
+from app.deps import build_id, manager, templates
 from app.models import (
     MODELS,
     cache_policy_for_runtime,
@@ -342,7 +342,11 @@ async def remove_profile(name: str):
 
 
 @router.get("/api/models")
-async def list_models():
+async def list_models(response: Response):
+    # Версию фронта отдаём ЗАГОЛОВКОМ, а не полем в теле: heartbeat дёргает этот маршрут
+    # раз в 3 с и читает только статус — разбирать ради одного значения несколько
+    # килобайт JSON незачем. Тело маршрута при этом не меняется, старый клиент цел.
+    response.headers["X-Orchestra-Build"] = build_id()
     models = []
     for mid, name in MODELS.items():
         spec = get_model_spec(mid)
