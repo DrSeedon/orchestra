@@ -45,6 +45,7 @@
         <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
             <span id="stats-line"></span>
             {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status">⏳</span>{% endif %}
+            {% if is_owner_mode %}
             <div class="relative">
                 <button id="proxy-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400 flex items-center gap-1" title="Proxy settings">
                     <span id="proxy-flag">🌐</span>
@@ -77,6 +78,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             <button id="analytics-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Usage analytics" onclick="openAnalyticsModal()">📊</button>
             <button id="compact-toggle-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Toggle compact tool view">📋</button>
             <button id="restart-btn" class="px-2 py-1 bg-slate-800 hover:bg-amber-900/60 border border-slate-700 rounded-lg transition-colors text-amber-400" title="Restart Orchestra server">⟳</button>

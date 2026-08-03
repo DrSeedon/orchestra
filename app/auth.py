@@ -9,6 +9,20 @@ def is_auth_enabled() -> bool:
     return bool(os.environ.get("DASHBOARD_USER") or os.environ.get("DASHBOARD_PASSWORD"))
 
 
+def is_owner_mode() -> bool:
+    """Машина наша → дашборд показывает НАШИ квоты, прокси и профили Claude.
+
+    Это НЕ про логин: `is_auth_enabled()` решает только «спрашивать ли пароль».
+    Дефолт = старое поведение: без логина машина считается нашей (дев-ноут),
+    с логином — клиентской. `OWNER_MODE` перебивает обе стороны: на нашем VPS
+    логин включён, но данные наши → `OWNER_MODE=1`.
+    """
+    explicit = os.environ.get("OWNER_MODE", "").strip().lower()
+    if explicit:
+        return explicit in ("1", "true", "yes")
+    return not is_auth_enabled()
+
+
 def check_credentials(username: str, password: str) -> bool:
     expected_user = os.environ.get("DASHBOARD_USER", "")
     expected_pass = os.environ.get("DASHBOARD_PASSWORD", "")

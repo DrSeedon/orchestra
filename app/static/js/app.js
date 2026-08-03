@@ -6228,7 +6228,10 @@ function initProxy() {
 
 async function loadProxyList() {
     try {
-        const data = await (await fetch('/api/proxy/list')).json();
+        const resp = await fetch('/api/proxy/list');
+        // Unchecked resp.ok used to fall through to "No proxies configured" — a 403/500 must not read as "empty"
+        if (!resp.ok) throw new Error(`${resp.status}: ${(await resp.text()).slice(0, 120)}`);
+        const data = await resp.json();
         const list = $('#proxy-list');
         if (!list) return;
         list.innerHTML = '';
@@ -6322,7 +6325,11 @@ async function loadProxyList() {
             $('#proxy-flag').textContent = active.flag || '🌐';
             $('#proxy-ip').textContent = active.ip || '';
         }
-    } catch (e) { console.warn('loadProxyList failed:', e); }
+    } catch (e) {
+        console.warn('loadProxyList failed:', e);
+        const list = $('#proxy-list');
+        if (list) list.innerHTML = `<div class="text-[10px] text-red-400 text-center py-2">Proxy list failed:<br>${escHtml(String((e && e.message) || e))}</div>`;
+    }
 }
 
 function _showProxyRestartBanner(name, wroteUrl) {
