@@ -28,6 +28,11 @@ logger = logging.getLogger("orchestra-mcp")
 
 ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
+# Дедлайн ТОЛЬКО для search_memory (общий дефолт _api = 30 с не трогаем).
+# 5 с = 1.9× от худшего здорового наблюдения 2659 мс при 8 одновременных клиентах,
+# замер 03.08.2026 docs/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
+# и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
+SEARCH_DEADLINE_S = 5.0
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
@@ -1641,9 +1646,22 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
     if not SCOPE:
         return "search_memory: no project scope (orchestrator context) — nothing to search."
     body = {"scope": SCOPE, "query": query, "limit": limit, "cross_project": cross_project}
-    result = await _api("POST", "/api/memory/search", json=body)
-    if isinstance(result, dict) and result.get("error"):
-        return f"search_memory failed: {result['error']}"
+    # Подсказка одна на все отказы: агент обязан уйти в grep, а не ждать и не повторять вызов.
+    grep = f'ищи grep\'ом: rg "{query}" docs/ CLAUDE.md BUGS.md'
+    try:
+        result = await _api("POST", "/api/memory/search", json=body,
+                            timeout=SEARCH_DEADLINE_S)
+    except ApiToolError as e:
+        # _api поднимает ApiToolError и на 5xx, и на payload["error"] — ловить надо ЗДЕСЬ.
+        # Раньше исключение улетало наружу, и агент получал голое имя класса после 30 с.
+        if e.code in ("transport_timeout", "search_busy", "search_stale"):
+            reason = {"transport_timeout": f"поиск не уложился в {SEARCH_DEADLINE_S:.0f} с",
+                      "search_busy": "очередь поиска переполнена",
+                      "search_stale": "запрос протух в очереди"}[e.code]
+            return f"search_memory: {reason}. Не жди и не повторяй — {grep}"
+        if "RAG disabled" in e.message:
+            return f"search_memory: семантический поиск выключен (RAG_ENABLED=false) — {grep}"
+        return f"search_memory: {e.code} — {e.message}. {grep}"
     hits = result.get("results", []) if isinstance(result, dict) else []
     # `index` появился позже самого эндпоинта: старый роут его не отдаёт → .get, а не [].
     index = (result.get("index") or {}) if isinstance(result, dict) else {}
@@ -1651,7 +1669,12 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
     debt = (f"\n\n[индекс не догнан: {pending} файлов ещё не проиндексированы — "
             f"пустой ответ не доказывает отсутствие факта]") if pending else ""
     if not hits:
-        return f"No memory matches for: {query!r}{debt}"
+        # «долг 0» и «долга не знаем» — РАЗНОЕ: index_status отдаёт пустой словарь, пока в
+        # процессе не было ни одного прохода, и молчание честнее нуля
+        if "pending_files" not in index:
+            debt = ("\n\n[состояние индекса неизвестно: в этом процессе ещё не было прохода — "
+                    "пустой ответ ничего не доказывает]")
+        return f"No memory matches for: {query!r}. Проверь — {grep}{debt}"
     lines = []
     for h in hits:
         if h.get("source") == "file":

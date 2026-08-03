@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import struct
+import time
 from pathlib import Path
 
 # NB: sqlite_vec / fastembed / onnxruntime are OPTIONAL deps (`orchestra[rag]`). They are
@@ -799,12 +800,23 @@ def get_rag_ro() -> RagMemory:
     return _db_ro
 
 
-async def run(loop, method: str, *args):
+class StaleRequest(RuntimeError):
+    """Заявка простояла в очереди дольше дедлайна — ждать её результат уже некому."""
+
+
+async def run(loop, method: str, *args, deadline: float | None = None):
     """Выполнить RagMemory.<method>(*args) в нужном executor-потоке. search → read-executor
     (RO conn, конкурентно с backfill), остальное → write-executor. get_rag* вызывается ВНУТРИ
-    executor — иначе коннект привяжется к loop-потоку (SQLite check_same_thread)."""
+    executor — иначе коннект привяжется к loop-потоку (SQLite check_same_thread).
+
+    deadline (шкала time.monotonic) проверяется в момент, когда поток ВЗЯЛ работу. Просрочен →
+    StaleRequest, embedder не зовём: считать эмбеддинг для запроса, которого никто не ждёт, —
+    трата единственного потока. Именно ошибка, а НЕ пустой результат: пустой неотличим от
+    честного «совпадений нет», и агент прочитал бы протухшую заявку как «в памяти этого нет»."""
     if method in _READ_METHODS:
         def _call_ro():
+            if deadline is not None and time.monotonic() > deadline:
+                raise StaleRequest(f"{method} протух в очереди")
             return getattr(get_rag_ro(), method)(*args)
         return await loop.run_in_executor(_read_executor, _call_ro)
     def _call():

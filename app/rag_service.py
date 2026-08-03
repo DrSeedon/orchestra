@@ -9,6 +9,7 @@ so Orchestra runs without the optional `[rag]` deps (fastembed/sqlite-vec/onnxru
 """
 
 import asyncio
+import time
 import logging
 import os
 from pathlib import Path
@@ -101,14 +102,43 @@ def shutdown() -> None:
     _initialized = False
 
 
+class SearchBusy(RuntimeError):
+    """Очередь поиска забита: новую заявку не принимаем, она всё равно опоздает."""
+
+
+# Дедлайн серверной стороны. Считается от ПРИХОДА запроса, а не от чего-либо присланного
+# клиентом: клиентское значение — это чужой ввод, и синхронизировать их лишним полем в API
+# нельзя (окно рассинхрона MCP↔роут, MCP обновляется мгновенно, роуты — до рестарта).
+SEARCH_DEADLINE_S = 5.0
+# Потолок очереди = пропускная способность × дедлайн: 6.5 запросов/с × 5 с ≈ 32. Заявка
+# номер 33 физически не успеет — принимать её значит гарантированно потратить единственный
+# поток впустую. Обе цифры из замера 03.08.2026:
+# docs/tasks/18/measurements/search-latency-p{1,2,4,8}.log (потолок 6.5 запр/с не растёт с
+# числом клиентов — сериализация на max_workers=1). Меняется железо или размер индекса —
+# ПЕРЕМЕРЯЙ, а не подкручивай на глаз.
+SEARCH_QUEUE_MAX = 32
+_search_queued = 0
+
+
 async def search(project: str, query: str, limit: int = 5, cross_project: bool = False,
                  kinds: tuple | None = None) -> list[dict]:
     """Semantic search in the read-executor (RO conn, concurrent with backfill)."""
+    global _search_queued
     if not _initialized:
         raise RuntimeError("RAG not initialized")
     from app import rag
+    if _search_queued >= SEARCH_QUEUE_MAX:
+        raise SearchBusy(f"search queue full ({_search_queued}/{SEARCH_QUEUE_MAX})")
     loop = asyncio.get_running_loop()
-    return await rag.run(loop, "search", project, query, limit, cross_project, kinds)
+    deadline = time.monotonic() + SEARCH_DEADLINE_S
+    _search_queued += 1
+    try:
+        return await rag.run(loop, "search", project, query, limit, cross_project, kinds,
+                             deadline=deadline)
+    finally:
+        # именно finally: счётчик, не убывающий при исключении, залипает НАВСЕГДА —
+        # система начнёт отвечать busy на всё после первой же ошибки поиска
+        _search_queued -= 1
 
 
 async def backfill_scope(project: str, root: Path | None = None,

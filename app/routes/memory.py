@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app import rag_service
+from app import rag, rag_service
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
 
@@ -38,6 +38,13 @@ async def memory_search(req: MemorySearchRequest):
     try:
         results = await rag_service.search(
             scope, req.query, limit=req.limit, cross_project=req.cross_project, kinds=kinds)
+    # ВАЖНО: оба класса — наследники RuntimeError, поэтому ловятся ДО общей ветки ниже,
+    # иначе схлопнутся в безликое http_5xx и MCP не сможет назвать агенту причину.
+    # Код отдаём словарём — _response_error в mcp_stdio читает error["code"] как есть.
+    except rag_service.SearchBusy as e:
+        return JSONResponse({"error": {"code": "search_busy", "message": str(e)}}, status_code=503)
+    except rag.StaleRequest as e:
+        return JSONResponse({"error": {"code": "search_stale", "message": str(e)}}, status_code=503)
     except RuntimeError as e:
         return JSONResponse({"error": str(e)}, status_code=503)
     # `index` аддитивен: старый MCP его просто не читает. Показывает долг индекса по последнему
