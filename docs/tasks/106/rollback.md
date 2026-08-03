@@ -3,14 +3,14 @@
 Compaction is a **hot path**: this prompt fires for every Claude-backend agent in
 every project. Rollback must be possible without reading the research.
 
-**Change commit: `8b5392d`** — `app/session.py`, `COMPACT_PROMPT` replaced with
+**Change commit: `f796a08`** (squash в main; `8b5392d` — до-squash SHA воркера, из `main` НЕ достижим) — `app/session.py`, `COMPACT_PROMPT` replaced with
 the `hot_state_ledger` bundle. Codex sessions are unaffected (they take
 `_compact_codex_context()`).
 
 ## Fastest rollback
 
 ```bash
-git revert --no-edit 8b5392d
+git revert --no-edit f796a08   # ВНИМАНИЕ: после f796a08 были правки той же зоны (#126 и др.) — revert даёт конфликт, разрешать вручную
 sudo systemctl restart orchestra
 ```
 
@@ -27,7 +27,7 @@ interrupted by the restart.
 If you want the old prompt but not the test revert, restore just the block:
 
 ```bash
-git show 8b5392d^:app/session.py > /tmp/old_session.py
+git show f796a08^:app/session.py > /tmp/old_session.py
 # copy the _ORCH_PRESAVE + COMPACT_PROMPT block (was around line 1184-1206)
 ```
 
