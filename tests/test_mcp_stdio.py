@@ -812,6 +812,9 @@ async def test_merge_worker_no_next_task_id(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "orch")
+    # Заглушка НИКОГДА не отдаёт терминальное состояние, а тул теперь дожидается его —
+    # без укороченного потолка тест досиживал бы до таймаута pytest.
+    monkeypatch.setattr(m, "_MERGE_WAIT_SECONDS", 0.01)
     captured = {}
     async def fake_api(method, path, **kw):
         if method == "POST":
@@ -834,7 +837,9 @@ async def test_merge_worker_no_next_task_id(monkeypatch):
     assert captured["json"]["next_task_id"] == ""
     assert captured["json"]["target"] == ""
     assert out.isError is False
-    assert "do not merge manually" in out.content[0].text
+    # Интент — ответ предостерегает от ручного мержа. Регистр не проверяем: текст
+    # переписан так, чтобы «ещё идёт» нельзя было прочитать как отказ.
+    assert "not merge manually" in out.content[0].text.lower()
 
 
 @pytest.mark.asyncio
@@ -1317,3 +1322,112 @@ async def test_bg_create_cron_command_sends_fail_closed_type(monkeypatch):
         "created_by": "intent-hunter",
     }
     assert "type=cron_command" in result
+
+
+# ── merge_worker: RUNNING не должен читаться как отказ ──
+
+def _merge_payload(operation_id: str, state: str, **over):
+    """Ответ /api/merge-operations в форме, которую разбирает MCP."""
+    payload = {
+        "schema_version": 1,
+        "operation_id": operation_id,
+        "operation_state": state,
+        "retryable": False,
+        "commit_point": "REACHED" if state == "SUCCEEDED" else "NOT_REACHED",
+        "git": {"status": state, "worker_branch": "task-1/w", "commits_merged": 2},
+        "error": None,
+        "next_action": {"code": "CHECK_SAME_OPERATION", "message": "check it"},
+    }
+    payload.update(over)
+    return {"result": payload, "error": None}
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_waits_out_running_and_returns_the_outcome(monkeypatch):
+    """Главный контракт: один вызов — один ответ, второй шаг не нужен вызывающему."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append(method)
+        if method == "POST":
+            return _merge_payload(kw["json"]["operation_id"], "RUNNING")
+        op = path.rsplit("/", 1)[-1]
+        # Готово только с 6-го опроса. Прежний бюджет допускал максимум ТРИ
+        # (0.0+0.5+1.5), поэтому на до-фиксовом коде этот тест обязан падать —
+        # иначе он не отличает новое поведение от старого.
+        state = "RUNNING" if calls.count("GET") < 6 else "SUCCEEDED"
+        return _merge_payload(op, state)
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="w", target="main")
+
+    assert out.structuredContent["result"]["operation_state"] == "SUCCEEDED"
+    assert out.isError is False
+    assert "GET" in calls, "тул обязан дождаться, а не вернуть RUNNING сразу"
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_does_not_poll_when_already_terminal(monkeypatch):
+    """Быстрый мерж не должен становиться медленнее из-за ожидания."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append(method)
+        return _merge_payload(kw["json"]["operation_id"], "SUCCEEDED")
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="w", target="main")
+
+    assert out.structuredContent["result"]["operation_state"] == "SUCCEEDED"
+    assert calls == ["POST"], f"лишние опросы на терминальном ответе: {calls}"
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_running_past_the_cap_reads_as_progress_not_failure(monkeypatch):
+    """Потолок будет превышен — у времени операции длинный хвост.
+
+    Корректность держится не на числе, а на том, что этот ответ невозможно
+    прочитать как отказ: раньше на нём рапортовали «merge worker failed».
+    """
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "_MERGE_WAIT_SECONDS", 0.01)
+
+    async def fake_api(method, path, **kw):
+        op = kw["json"]["operation_id"] if method == "POST" else path.rsplit("/", 1)[-1]
+        return _merge_payload(op, "RUNNING")
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="w", target="main")
+
+    text = out.content[0].text
+    result = out.structuredContent["result"]
+    assert out.isError is False, "нетерминальное состояние — не ошибка протокола"
+    assert text.startswith("STILL RUNNING"), text
+    assert "NOT a failure" in text
+    assert "do NOT report an error" in text.lower() or "do NOT report an error" in text
+    assert result["operation_id"] in text, "нечем повторить — нет operation_id в тексте"
+    assert result["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_real_failure_still_reads_as_failure(monkeypatch):
+    """Ожидание не должно проглотить настоящий отказ."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+
+    async def fake_api(method, path, **kw):
+        return _merge_payload(
+            kw["json"]["operation_id"], "FAILED",
+            error={"code": "DIRTY_TREE", "message": "worktree is dirty"},
+        )
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="w", target="main")
+
+    assert out.isError is True
+    assert out.structuredContent["result"]["operation_state"] == "FAILED"

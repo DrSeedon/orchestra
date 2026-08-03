@@ -1061,10 +1061,18 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
             reason = str(error.get("message") or error.get("code") or "")
         elif error:
             reason = str(error)
+        # Формулировка — это и есть фикс. Раньше здесь было сухое «RUNNING, retry with
+        # the same operation_id», и агенты рапортовали «merge worker failed» на живом
+        # мерже, который через секунды успешно завершался. Нетерминальное состояние
+        # обязано читаться как «ещё идёт», а не как отказ, — причём с первой строки,
+        # потому что дальше неё модель может и не дочитать.
         text = (
-            f"Merge operation {operation_id}: {state}. "
-            f"{action_message or 'Do not merge manually; retry with the same operation_id.'}"
-            + (f" Reported reason: {_safe_response_text(reason)}" if reason else "")
+            f"STILL {state} — NOT a failure, nothing was lost, do NOT report an error. "
+            f"Merge operation {operation_id} is still running on the server after "
+            f"{int(_MERGE_WAIT_SECONDS)}s of waiting. "
+            f"Call merge_worker again with operation_id='{operation_id}' to pick up this "
+            f"same operation. Do NOT start a new merge and do NOT merge manually."
+            + (f" Server note: {_safe_response_text(reason)}" if reason else "")
         )
         return mcp_tool_result(result, text=text)
     if state == "SUCCEEDED":
@@ -1108,6 +1116,38 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
     return mcp_tool_result(result, error=error, is_error=True, text=text)
 
 
+# Сколько ждать терминального состояния внутри ОДНОГО вызова merge_worker.
+# Это ручка ЧАСТОТЫ, а не корректности: у времени операции длинный хвост, поэтому
+# любой потолок рано или поздно будет превышен. Корректность держится на том, что
+# нетерминальный ответ невозможно прочитать как отказ (см. _merge_tool_result), а
+# не на угаданном числе. Замер 03.08 по 31 живой операции: все дошли до терминала,
+# максимум 58.3 с. 90 с покрывает их все и вдвое ниже уже работающих в этом файле
+# длинных вызовов (compact_worker=120 с, spawn=180 с).
+_MERGE_WAIT_SECONDS = 90.0
+
+
+async def _await_merge_terminal(operation_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    """Дождаться терминального состояния, чтобы один вызов давал один ответ.
+
+    Прежний бюджет был 2 с (0.0+0.5+1.5), а 9 операций из 31 (29%) шли дольше —
+    вызывающий получал RUNNING на РАБОТАЮЩЕМ мерже и рапортовал провал.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + _MERGE_WAIT_SECONDS
+    delay = 0.2
+    while True:
+        recovered = await _recover_merge_status(operation_id)
+        if recovered is not None:
+            result = recovered
+            if result.get("operation_state") not in {"PENDING", "RUNNING"}:
+                return result
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            return result
+        await asyncio.sleep(min(delay, remaining))
+        delay = min(delay * 1.5, 2.0)
+
+
 async def _recover_merge_status(operation_id: str) -> dict[str, Any] | None:
     try:
         payload = await _api("GET", f"/api/merge-operations/{operation_id}")
@@ -1125,7 +1165,12 @@ async def merge_worker(
     next_task_id: str = "",
     operation_id: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch. Retry failures with the returned operation_id."""
+    """Durably squash a worker branch. Waits for the merge to finish and returns the outcome.
+
+    A reply starting with "STILL RUNNING" is NOT a failure: the merge is still going on the
+    server and nothing was lost. Call this tool again with the SAME operation_id to pick it
+    up. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
+    """
     operation_id = operation_id or str(uuid.uuid4())
     body = {
         "operation_id": operation_id,
@@ -1175,16 +1220,9 @@ async def merge_worker(
                         details={"exception_type": type(api_error).__name__, **api_error.details},
                     )
         if result.get("operation_state") in {"PENDING", "RUNNING"}:
-            # polled immediately the op has not yet reached its preflight checks, so a
-            # dirty target reads as RUNNING and the caller burns blind retries on it
-            for delay in (0.0, 0.5, 1.5):
-                if delay:
-                    await asyncio.sleep(delay)
-                recovered = await _recover_merge_status(str(result.get("operation_id") or operation_id))
-                if recovered is not None:
-                    result = recovered
-                    if result.get("operation_state") not in {"PENDING", "RUNNING"}:
-                        break
+            result = await _await_merge_terminal(
+                str(result.get("operation_id") or operation_id), result,
+            )
         return _merge_tool_result(result)
     except Exception as exc:
         result = _merge_local_result(
