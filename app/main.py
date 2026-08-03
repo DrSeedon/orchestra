@@ -16,6 +16,12 @@ from app.db import init_db
 from app.deps import manager
 
 logger = logging.getLogger("orchestra")
+# Uvicorn настраивает только свои логгеры, рутовый остаётся без хендлера → всё, что Orchestra
+# пишет на INFO, съедает lastResort (WARNING). Так пропадал весь жизненный цикл RAG-бэкфилла,
+# из-за чего баг «память отдаёт устаревший файл» с 26.07 висел недоказуемым (#16).
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.INFO)
 
 
 async def _start_bridge_background(manager) -> None:

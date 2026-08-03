@@ -25,6 +25,15 @@ _read_executor = None
 _initialized = False
 _backfill_tasks: dict[str, asyncio.Task[None]] = {}
 _backfill_dirty: set[str] = set()
+_last_pending: dict[str, int] = {}  # scope → файлов в долге по последнему прогону ЭТОГО scope
+
+# Размеры срезов: работа обязана переживать рестарт, а не влезать в него целиком.
+# Прогресс фиксируется на КАЖДОМ файле/логе (коммит внутри index_*), поэтому срез задаёт не
+# цену обрыва, а частоту чередования слоёв и проверки бюджета. Замер на боевом корпусе:
+# крупный docs/tasks/*.md стоит десятки секунд, отсюда 5, а не 25.
+_FILE_SLICE = 5
+_LOG_SLICE = 100
+_PASS_BUDGET_SECONDS = 300.0
 
 
 def is_enabled() -> bool:
@@ -72,6 +81,7 @@ def initialize() -> bool:
 
 def shutdown() -> None:
     global _write_executor, _read_executor, _initialized
+    _last_pending.clear()
     scheduled = tuple(_backfill_tasks.values())
     for task in scheduled:
         if not task.done():
@@ -106,20 +116,45 @@ async def backfill_scope(project: str, root: Path | None = None,
     """Index all .md + agent logs of a project (write-executor). Fire-and-forget safe:
     caller wraps in try. Incremental (sha256 + logs_indexed dedup).
     session_name задан → индексим ТОЛЬКО логи этой сессии (файлы .md пропускаем — они
-    не привязаны к сессии); иначе — весь scope (.md + все логи)."""
+    не привязаны к сессии); иначе — весь scope (.md + все логи).
+
+    Работа нарезана на срезы и чередует слои. Прогон, оборванный рестартом, продолжается с
+    места обрыва: файлы дедуплицируются по sha256, логи — по `logs_indexed`. Один запланированный
+    прогон не занимает write-executor дольше `_PASS_BUDGET_SECONDS`; недоделанное догонит
+    следующий триггер. Догнать корпус за один прогон и не пытаемся: медиана жизни процесса —
+    25 минут, полный догон — десятки минут, и схема «всё за раз» не сходится by design."""
     if not _initialized:
         raise RuntimeError("RAG not initialized")
     from app import rag
     loop = asyncio.get_running_loop()
     if session_name:
-        logs = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, 500, session_name)
+        logs = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, 0, session_name)
         logger.info(f"RAG backfill_scope[{project}] session={session_name}: {logs} logs")
         return {"files": 0, "logs": logs}
     root = root or Path(project)
-    files = await rag.run(loop, "backfill_files", project, root)
-    logs = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB)
-    logger.info(f"RAG backfill_scope[{project}]: {files} files, {logs} logs")
-    return {"files": files, "logs": logs}
+    files = logs = 0
+    deadline = loop.time() + _PASS_BUDGET_SECONDS
+    while True:
+        f = await rag.run(loop, "backfill_files", project, root, _FILE_SLICE)
+        l = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, _LOG_SLICE)
+        files += f
+        logs += l
+        if (f == 0 and l == 0) or loop.time() >= deadline:
+            break
+    pending = await rag.run(loop, "pending_files", project, root)
+    _last_pending[_normalize_scope(project)] = pending
+    logger.info(f"RAG backfill_scope[{project}]: {files} files, {logs} logs, {pending} still pending")
+    return {"files": files, "logs": logs, "pending_files": pending}
+
+
+def index_status(scope: str) -> dict:
+    """Сколько .md ЭТОГО scope ещё не догнано по последнему прогону. Долг считается по scope:
+    общий счётчик показывал бы чужой проект. Прогонов не было — пусто: врать нулём
+    («индекс догнан») хуже, чем честно молчать."""
+    key = _normalize_scope(scope)
+    if key not in _last_pending:
+        return {}
+    return {"pending_files": _last_pending[key], "indexing": key in _backfill_tasks}
 
 
 def _normalize_scope(scope: str) -> str:

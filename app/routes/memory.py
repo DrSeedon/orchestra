@@ -40,7 +40,9 @@ async def memory_search(req: MemorySearchRequest):
             scope, req.query, limit=req.limit, cross_project=req.cross_project, kinds=kinds)
     except RuntimeError as e:
         return JSONResponse({"error": str(e)}, status_code=503)
-    return {"results": results}
+    # `index` аддитивен: старый MCP его просто не читает. Показывает долг индекса по последнему
+    # прогону — без него агент не отличает «в памяти этого нет» от «до этого ещё не дошли».
+    return {"results": results, "index": rag_service.index_status(scope)}
 
 
 @router.post("/reindex")

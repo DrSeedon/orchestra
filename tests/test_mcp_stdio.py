@@ -1431,3 +1431,33 @@ async def test_merge_worker_real_failure_still_reads_as_failure(monkeypatch):
 
     assert out.isError is True
     assert out.structuredContent["result"]["operation_state"] == "FAILED"
+
+
+@pytest.mark.parametrize(
+    ("payload", "expect_debt"),
+    [
+        ({"results": [{"source": "file", "path": "a.md", "content": "текст"}]}, False),
+        ({"results": [{"source": "file", "path": "a.md", "content": "текст"}],
+          "index": {"pending_files": 7, "indexing": True}}, True),
+        ({"results": [], "index": {"pending_files": 7}}, True),
+    ],
+)
+@pytest.mark.asyncio
+async def test_search_memory_reports_index_debt_and_tolerates_its_absence(
+    monkeypatch, payload, expect_debt,
+):
+    """`index` добавлен в роут позже тула. Живой MCP подхватывает код немедленно, а роут в
+    памяти systemd — только после рестарта, поэтому новый тул ОБЯЗАН пережить ответ без `index`."""
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+
+    def handler(request):
+        return httpx.Response(200, json=payload)
+
+    _mock_http(monkeypatch, m, handler)
+    out = await m.search_memory("вопрос")
+
+    assert ("7 файлов ещё не проиндексированы" in out) is expect_debt
+    if payload["results"]:
+        assert "a.md" in out

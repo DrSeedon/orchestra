@@ -1584,8 +1584,13 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
     if isinstance(result, dict) and result.get("error"):
         return f"search_memory failed: {result['error']}"
     hits = result.get("results", []) if isinstance(result, dict) else []
+    # `index` появился позже самого эндпоинта: старый роут его не отдаёт → .get, а не [].
+    index = (result.get("index") or {}) if isinstance(result, dict) else {}
+    pending = index.get("pending_files") or 0
+    debt = (f"\n\n[индекс не догнан: {pending} файлов ещё не проиндексированы — "
+            f"пустой ответ не доказывает отсутствие факта]") if pending else ""
     if not hits:
-        return f"No memory matches for: {query!r}"
+        return f"No memory matches for: {query!r}{debt}"
     lines = []
     for h in hits:
         if h.get("source") == "file":
@@ -1597,7 +1602,7 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
         if cross_project:
             head = f"({h.get('project')}) {head}"
         lines.append(f"{head}\n{h.get('content', '').strip()}")
-    return "\n\n---\n\n".join(lines)
+    return "\n\n---\n\n".join(lines) + debt
 
 
 # Wrapper reloads Orchestra .env on every invocation, so Codex review follows the same

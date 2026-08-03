@@ -199,3 +199,86 @@ async def test_shutdown_cancels_retained_wrappers_and_clears_state(ready_service
     assert ready_service._backfill_tasks == {}
     assert ready_service._backfill_dirty == set()
     assert ready_service.is_ready() is False
+
+
+def test_orchestra_logger_has_its_own_info_handler():
+    """Весь жизненный цикл бэкфилла пишется на INFO. Uvicorn настраивает только свои логгеры,
+    рутовый остаётся без хендлера → INFO съедает lastResort (WARNING) и в journald не видно
+    ни старта, ни длительности, ни обрыва. Проверяем СВОЙ логгер, а не рутовый: рутовому
+    хендлер добавляет сам pytest, и проверка по нему зеленела бы всегда."""
+    import app.main  # noqa: F401 — импорт настраивает логирование процесса
+
+    orchestra = logging.getLogger("orchestra")
+    assert orchestra.handlers, "у 'orchestra' нет хендлера → INFO не долетит до journald"
+    assert orchestra.level == logging.INFO
+    assert logging.getLogger("orchestra.rag_service").isEnabledFor(logging.INFO)
+
+
+def _fake_rag_run(monkeypatch, files_left: int, logs_left: int, seen: list):
+    """Подменяет app.rag.run: отдаёт работу срезами, как настоящие backfill_*."""
+    from app import rag
+
+    state = {"files": files_left, "logs": logs_left}
+
+    async def fake_run(_loop, method, *args):
+        seen.append(method)
+        if method == "backfill_files":
+            take = min(state["files"], args[2])
+            state["files"] -= take
+            return take
+        if method == "backfill_logs":
+            take = min(state["logs"], args[2])
+            state["logs"] -= take
+            return take
+        if method == "pending_files":
+            return state["files"]
+        raise AssertionError(f"unexpected method {method}")
+
+    monkeypatch.setattr(rag, "run", fake_run)
+    return state
+
+
+@pytest.mark.asyncio
+async def test_backfill_scope_drains_both_layers_in_slices(ready_service, monkeypatch):
+    seen: list[str] = []
+    _fake_rag_run(monkeypatch, files_left=5, logs_left=3, seen=seen)
+    monkeypatch.setattr(ready_service, "_FILE_SLICE", 2)
+    monkeypatch.setattr(ready_service, "_LOG_SLICE", 2)
+
+    result = await ready_service.backfill_scope("/scope")
+
+    assert result == {"files": 5, "logs": 3, "pending_files": 0}
+    assert seen.count("backfill_files") > 1, "работа обязана нарезаться на срезы"
+    # слои чередуются: логи не ждут, пока досчитается весь файловый корпус
+    assert seen[:4] == ["backfill_files", "backfill_logs"] * 2
+
+
+@pytest.mark.asyncio
+async def test_backfill_scope_stops_on_budget_and_leaves_the_rest_to_the_next_trigger(
+    ready_service, monkeypatch,
+):
+    seen: list[str] = []
+    state = _fake_rag_run(monkeypatch, files_left=100, logs_left=0, seen=seen)
+    monkeypatch.setattr(ready_service, "_FILE_SLICE", 2)
+    monkeypatch.setattr(ready_service, "_PASS_BUDGET_SECONDS", 0.0)
+
+    result = await ready_service.backfill_scope("/scope")
+
+    assert result["files"] == 2, "бюджет обязан оборвать прогон на первом срезе"
+    assert state["files"] == 98, "остаток остаётся следующему триггеру, а не теряется"
+
+
+@pytest.mark.asyncio
+async def test_index_status_stays_silent_until_a_pass_actually_ran(ready_service, monkeypatch):
+    """Пустой статус честнее нуля: ноль читается как «индекс догнан»."""
+    monkeypatch.setattr(ready_service, "_last_pending", {})
+    assert ready_service.index_status("/scope") == {}
+
+    seen: list[str] = []
+    _fake_rag_run(monkeypatch, files_left=3, logs_left=0, seen=seen)
+    monkeypatch.setattr(ready_service, "_FILE_SLICE", 1)
+    monkeypatch.setattr(ready_service, "_PASS_BUDGET_SECONDS", 0.0)
+
+    await ready_service.backfill_scope("/scope")
+
+    assert ready_service.index_status("/scope") == {"pending_files": 2, "indexing": False}
