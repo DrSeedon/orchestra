@@ -156,7 +156,7 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 
 **Агенты и оркестрация**
 - Новый рантайм: расход утёк в чужой пул → хвост `ELSE 'claude'` всегда баг; та же логика жила в 3 SQL и 3 фронтовых тернарниках — ищи ВТОРУЮ копию. Цены рантайма с кеш-тарифом не класть в общий `TOKEN_PRICES` (Grok: детали в `docs/grok-field-guide.md`)
-- A new runtime widens the CONTRACT of shared code, not just adds a file → the factory started calling `get_role(pipeline, role)`; legacy sessions have empty `pipeline` → `ValueError` slipping past `except FileNotFoundError` → `send` died for 34 sessions. Verify new calls against REAL values from the live DB (read-only copy), not fixtures: `pipeline` empty in 27/330, `profile` 316/330, `base_branch` 330/330, `cwd` set but directory gone in 248/330
+- Новый рантайм расширяет КОНТРАКТ общего кода, а не добавляет файл → проверяй новые вызовы по ЖИВОЙ БД (read-only копия), не по фикстурам: legacy-строки ломают то, что зелено на тестах
 - Воркер игнорирует твой ответ → plain text в чате = сообщение ЮЗЕРУ, воркер его не видит → даже «ок, работай» слать через `send_message(to="worker")`
 - Воркер после merge «залипает» → сработал `needs_switch` guard → `merge_worker(next_task_id=...)` одним вызовом
 - Убил воркера — потерял фазу → full-cycle на гейте ЖИВОЙ и ждёт продолжения → kill только одноразовых
@@ -165,12 +165,12 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - `stop_reason=tool_use` читают как «агент хочет продолжить» → это ВСЕГДА внешнее прерывание → не строить на нём логику
 
 **Метрики и лимиты (проверять факт исполнения, не флаг)**
-- A provider limit flag is not a provider verdict → `extra_usage.spend_limit_reached=true` on Claude blocks only SUPPLEMENTAL capacity; with base 5h/7d open, agents keep running. Measured: 13 successful `end_turn` across 4 agents while the flag was set (`seedon` 12:08:34→12:09:56, `COG` 12:08:59→12:11:09, `polus` 12:11:04→12:12:42). Both my reading and the worker's first model treated the label as a verdict and would have skipped a working wake path → readiness = "base timed window open OR verified supplemental", and check completed turns under that flag state before believing it
+- Флаг лимита провайдера ≠ вердикт провайдера → `spend_limit_reached` блокирует только supplemental; проверяй ЗАВЕРШЁННЫЕ ходы под этим флагом, а не сам флаг
 - A test that reads live quota state is not a test → `test_compact_logs_preamble_as_user_message` passed all morning and went red at 100% of the 5h window, because `compact()` refuses under an active subscription limit and the test never mocked the guard. Green depended on the user's remaining quota
 - `asyncio.wait_for(..., timeout=0.1)` in 21 places = wall-clock flake → on a loaded machine (3 workers + parallel runs) a random test in `tests/test_tg_bridge.py` failed; alone it passed 6/6. Timeouts that guard against hangs must not double as performance assertions
 
-- Исчерпанная квота Codex = пустое `stop_reason=error / no output`, без слова про лимит → 30.07 два моих воркера и воркеры COG упали одновременно; журнал Orchestra чист, прокси жив, `api.anthropic.com` отвечает 401 — правду сказал только `GET /api/usage` (`codex primary=100%`). Два оркестратора независимо потратили по 15+ минут на ложный след (память, load, `/tmp`, диск) → при пустом падении воркера ПЕРВЫМ делом смотреть `/api/usage`, а не инфраструктуру. Воркер в этом состоянии не может даже закоммитить готовое — забирать через `worker_wip` и коммитить руками
-- Объём документов задачи задаёт ФОРМУЛИРОВКА задания, а не модель → замер 5 задач на Sol за 30.07: прод-код 142/482/296/191 строк при 500-800 строках доков, но там, где дано точное ТЗ (файл+строка+образец рядом, #104) — **6 строк прода**. Обвинение «Sol оверинжинирит» проверено и не подтвердилось: абстракций «на вырост» в коде нет, все функции по делу. Открытые формулировки («исследуй и предложи подход») — это заказ на research, и он приходит
+- Пустое падение воркера (`stop_reason=error`, no output, журнал чист) → ПЕРВЫМ делом `GET /api/usage`, а не инфраструктура. В этом состоянии воркер не может даже закоммитить — забирай через `worker_wip` и коммить руками
+- Объём выхлопа задаёт ФОРМУЛИРОВКА задания, а не модель: открытое «исследуй и предложи» = заказ на research; точное ТЗ (файл+строка+образец) дало 6 строк прода
 
 **Инфраструктура и код**
 - Правишь код при работающем сервере → `app/mcp_stdio.py` подхватывается НЕМЕДЛЕННО (MCP = отдельный процесс, стартует заново), а `app/routes/` живёт в памяти systemd до рестарта → менять контракт MCP↔route = ломать живую систему в окне до рестарта. Симптом: новый MCP шлёт `target=""` как sentinel, старый route читает его как явный пустой target и падает. Обход до рестарта: `merge_worker(target="main")` явно
@@ -197,6 +197,8 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Диагноз/поправка о коде — гипотеза: трассируй до КОНЦА, смотри ВЕТКУ строки, а не первую подтверждающую. Поправка бывает права про дефект и неверна про место (роль терялась не на компакте, а на реконнекте)
 - Эвал/судья назначил фикс → открой СЫРЫЕ флагнутые выходы и фикстуру, прежде чем чинить: находка может быть артефактом стенда (замер: 3 из 5 флагов ложные — судья физически не видел живой Read, а фикстура требовала «прочитай» и «не пиши что читал» одновременно)
 - Громкая заявка → формулировку ищи в ПЕРВОИСТОЧНИКЕ, вторичный обзор проверяй счётом (врёт и в минус). «Чинится за N команд» — гипотеза, как диагноз: прогони путь на всех живых вариантах
+- Документируешь период (CHANGELOG/отчёт) → два прохода: (1) `git log main` с разбивкой по датам, НЕ своя ветка и НЕ присланный список (моя цифра «93 коммита» потеряла 7); (2) прочитать `docs/tasks/<id>/report.md` по каждому id — счётчик коммитов не покажет ОТОЗВАННЫЕ и отрицательные результаты, а они и есть суть
+- SHA в инструкции отката: `--is-ancestor` доказывает достижимость, но НЕ откатываемость → прогони `git revert --no-commit` на скретче + `--abort`. У нас в hot-path доке лежал до-squash SHA, а рабочий давал конфликт с более поздними правками
 
 ## 📚 Где искать остальное
 - `docs/archive/sessions/` — хроника сессий (что делали, что чинили, какие решения принимали)
