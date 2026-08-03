@@ -91,9 +91,13 @@ figure { margin: 1.6rem 0 2rem; }
 figcaption { font: 13px/1.45 var(--sans); color: var(--ink-soft); margin-top: .6rem; }
 .chart-box { background: var(--surface); border: 1px solid var(--border); padding: 1rem .8rem .6rem; }
 .chart-box h4 { font: 600 13px/1.3 var(--sans); margin: 0 0 .8rem .2rem; }
-canvas { max-width: 100%; }
-.no-charts .chart-box canvas { display: none; }
-.no-charts .chart-box::after { content: "График не загрузился — нет доступа к сети. Все числа есть в таблице и в тексте под графиком."; display: block; font: 13px/1.5 var(--sans); color: var(--ink-soft); padding: 1.5rem .2rem; }
+svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .axis { stroke: var(--border); stroke-width: 1; }
+.chart .ax { fill: var(--ink-soft); font: 12px var(--sans); }
+.chart .val { fill: var(--ink); font: 600 12.5px var(--sans); }
+.chart .val-in { fill: #fff; font: 600 12.5px var(--sans); }
+.chart .gap { fill: var(--accent); font: 600 11px var(--sans); }
 
 .callout { border: 1px solid var(--border); border-left: 3px solid var(--accent-2); background: var(--surface); padding: 1.1rem 1.3rem; margin: 1.8rem 0; }
 .callout h3 { margin-top: 0; color: var(--accent-2); }
@@ -132,14 +136,16 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
     <p class="meta">Задача #134 · 28 тестовых запросов, правильные ответы размечены вручную · измерения на стенде, не в проде</p>
   </header>
 
-  <p class="tldr">Сейчас наш поиск по памяти агентов даёт правильный ответ <b>первой же строкой в 32 % случаев</b>. Если добавить реранкер — модель, которая перечитывает найденное и заново расставляет по важности — станет <b>61 %</b>. Почти вдвое. Плата за это: поиск замедляется с <b>0,1 с до 1,6 с</b> и становится платным (~$9–30/мес). И отдельно: <b>3 запроса из 28 не находит вообще ничто</b> — там реранкер бессилен по определению, и это, возможно, важнее его самого.</p>
+  <p class="tldr">Наш поиск по памяти агентов сейчас находит правильный ответ <b>в первых трёх строках в 64 % случаев</b>. Если добавить реранкер — модель, которая перечитывает найденное и заново расставляет по важности — станет <b>86 %</b>. Плата за это: поиск замедляется с <b>0,1 с до 1,6 с</b> и становится платным (~$9–30/мес). И отдельно: <b>3 запроса из 28 не находит вообще ничто</b> — там реранкер бессилен по определению, и это, возможно, важнее его самого.</p>
 
   <div class="lead-numbers">
-    <div><span class="n">32 % → <em style="font-style:normal" class="up">61 %</em></span><span class="l">попадание с первой строки</span></div>
+    <div><span class="n">64 % → <em style="font-style:normal" class="up">86 %</em></span><span class="l">ответ в первых трёх строках</span></div>
     <div><span class="n down">0,1 с → 1,6 с</span><span class="l">время одного поиска</span></div>
     <div><span class="n down">$9–30</span><span class="l">в месяц при 300–1000 поисках в день</span></div>
     <div><span class="n" style="color:var(--danger)">3 из 28</span><span class="l">запросов не находит ни один вариант</span></div>
   </div>
+
+  <p style="font:14px/1.5 var(--sans); color: var(--ink-soft); margin: -.6rem 0 2rem">Почему смотрим на три строки, а не на первую: наш поиск по умолчанию отдаёт <strong>5 результатов</strong> (<code>limit=5</code>), и агент читает их все. Поэтому важно, попал ли ответ в первые строки вообще, — хотя попадание именно первой строкой тоже полезно и оно в таблице есть.</p>
 
   <h2>Что это вообще за штука</h2>
 
@@ -158,41 +164,155 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
     <thead>
       <tr>
         <th>Вариант поиска</th>
-        <th class="num">Ответ первой строкой</th>
-        <th class="num">Ответ в первой пятёрке</th>
-        <th class="num">Общая точность</th>
+        <th class="num">в топ-1</th>
+        <th class="num">в топ-3</th>
+        <th class="num">в топ-5</th>
         <th class="num">Скорость</th>
         <th class="num">Деньги</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td>Только по словам (текстовый поиск)</td><td class="num">25 %</td><td class="num">54 %</td><td class="num">0,35</td><td class="num">20 мс</td><td class="num">$0</td></tr>
-      <tr><td>Только по смыслу (векторный)</td><td class="num">29 %</td><td class="num">64 %</td><td class="num">0,40</td><td class="num">97 мс</td><td class="num">$0</td></tr>
-      <tr class="now"><td>Сейчас в проде: оба сразу <span class="tag prod">прод</span></td><td class="num">32 %</td><td class="num">75 %</td><td class="num">0,49</td><td class="num">113 мс</td><td class="num">$0</td></tr>
-      <tr class="win"><td>+ реранкер по сети <span class="tag bench">бенч</span></td><td class="num">61 %</td><td class="num">86 %</td><td class="num">0,73</td><td class="num">1 589 мс</td><td class="num">$0,001/поиск</td></tr>
-      <tr><td>+ реранкер на своём железе <span class="tag bench">бенч</span></td><td class="num">57 %</td><td class="num">82 %</td><td class="num">0,66</td><td class="num">17–28 с</td><td class="num">$0, но 3,02 ГиБ памяти</td></tr>
+      <tr><td>Только по словам (текстовый поиск)</td><td class="num">25 %</td><td class="num">39 %</td><td class="num">54 %</td><td class="num">20 мс</td><td class="num">$0</td></tr>
+      <tr><td>Только по смыслу (векторный)</td><td class="num">29 %</td><td class="num">50 %</td><td class="num">64 %</td><td class="num">97 мс</td><td class="num">$0</td></tr>
+      <tr class="now"><td>Сейчас в проде: оба сразу <span class="tag prod">прод</span></td><td class="num">32 %</td><td class="num">64 %</td><td class="num">75 %</td><td class="num">113 мс</td><td class="num">$0</td></tr>
+      <tr class="win"><td>+ реранкер по сети <span class="tag bench">бенч</span></td><td class="num">61 %</td><td class="num">86 %</td><td class="num">86 %</td><td class="num">1 589 мс</td><td class="num">$0,001/поиск</td></tr>
+      <tr><td>+ реранкер на своём железе <span class="tag bench">бенч</span></td><td class="num">57 %</td><td class="num">75 %</td><td class="num">82 %</td><td class="num">17–28 с</td><td class="num">$0, но 3,02 ГиБ памяти</td></tr>
     </tbody>
   </table>
   </div>
 
-  <p style="font:13.5px/1.5 var(--sans); color: var(--ink-soft)"><span class="tag bench">бенч</span> — измерено на тестовом стенде, в проде не работало ни дня. <span class="tag prod">прод</span> — то, что работает прямо сейчас. «Общая точность» (в терминах — <em>MRR</em>) учитывает не только первое место: ответ на 2-м месте засчитывается как половина, на 3-м — как треть. У платного варианта максимум по скорости: половина запросов укладывается в 1,6 с, но каждый двадцатый занимает до 3,3 с.</p>
+  <p style="font:13.5px/1.5 var(--sans); color: var(--ink-soft)"><span class="tag bench">бенч</span> — измерено на тестовом стенде, в проде не работало ни дня. <span class="tag prod">прод</span> — то, что работает прямо сейчас. «В топ-3» — доля запросов, где правильный ответ попал в первые три строки. У платного варианта максимум по скорости: половина запросов укладывается в 1,6 с, но каждый двадцатый занимает до 3,3 с.</p>
 
   <figure>
     <div class="chart-box">
-      <h4>Как часто правильный ответ оказывается первой же строкой</h4>
-      <canvas id="c1" height="200"></canvas>
+      <h4>Как часто правильный ответ попадает в первые три строки</h4>
+<svg class="chart" viewBox="0 0 720 300" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="54" y1="246" x2="704" y2="246"/>
+<text class="ax" x="46" y="250" text-anchor="end">0%</text>
+<line class="grid" x1="54" y1="191" x2="704" y2="191"/>
+<text class="ax" x="46" y="195" text-anchor="end">25%</text>
+<line class="grid" x1="54" y1="136" x2="704" y2="136"/>
+<text class="ax" x="46" y="140" text-anchor="end">50%</text>
+<line class="grid" x1="54" y1="81" x2="704" y2="81"/>
+<text class="ax" x="46" y="85" text-anchor="end">75%</text>
+<line class="grid" x1="54" y1="26" x2="704" y2="26"/>
+<text class="ax" x="46" y="30" text-anchor="end">100%</text>
+<rect x="87.0" y="160.2" width="64.0" height="85.8" fill="var(--muted-bar)"/>
+<text class="val" x="119.0" y="153.2" text-anchor="middle">39%</text>
+<text class="ax" x="119.0" y="265" text-anchor="middle">только текст</text>
+<rect x="217.0" y="136.0" width="64.0" height="110.0" fill="var(--muted-bar)"/>
+<text class="val" x="249.0" y="129.0" text-anchor="middle">50%</text>
+<text class="ax" x="249.0" y="265" text-anchor="middle">только смысл</text>
+<rect x="347.0" y="105.2" width="64.0" height="140.8" fill="var(--accent-2)"/>
+<text class="val" x="379.0" y="98.2" text-anchor="middle">64%</text>
+<text class="ax" x="379.0" y="265" text-anchor="middle">сейчас</text>
+<text class="ax" x="379.0" y="278" text-anchor="middle">в проде</text>
+<rect x="477.0" y="56.8" width="64.0" height="189.2" fill="var(--accent)"/>
+<text class="val" x="509.0" y="49.8" text-anchor="middle">86%</text>
+<text class="ax" x="509.0" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="509.0" y="278" text-anchor="middle">по сети</text>
+<rect x="607.0" y="81.0" width="64.0" height="165.0" fill="var(--muted-bar)"/>
+<text class="val" x="639.0" y="74.0" text-anchor="middle">75%</text>
+<text class="ax" x="639.0" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="639.0" y="278" text-anchor="middle">локально</text>
+<line class="axis" x1="54" y1="246" x2="704" y2="246"/>
+</svg>
     </div>
-    <figcaption>Главная картинка. Два выделенных столбика — то, что есть сейчас, и то, что предлагается. Разница почти двукратная. Остальные варианты приглушены: они здесь для контекста, их никто не предлагает включать.</figcaption>
+    <figcaption>Главная картинка. Два выделенных столбика — то, что есть сейчас, и то, что предлагается. Остальные варианты приглушены: их никто не предлагает включать.</figcaption>
   </figure>
+
+  <h2>Чем глубже смотришь, тем меньше выигрыш</h2>
+
+  <p>Тот же результат с другой стороны — и здесь виден механизм. Слева направо растёт число строк, которые мы разрешаем прочитать: сначала только первую, потом две, три, пять.</p>
+
+  <figure>
+    <div class="chart-box">
+      <h4>Прод против платного реранкера на разной глубине</h4>
+<svg class="chart" viewBox="0 0 720 290" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="54" y1="238" x2="704" y2="238"/>
+<text class="ax" x="46" y="242" text-anchor="end">0%</text>
+<line class="grid" x1="54" y1="185" x2="704" y2="185"/>
+<text class="ax" x="46" y="189" text-anchor="end">25%</text>
+<line class="grid" x1="54" y1="132" x2="704" y2="132"/>
+<text class="ax" x="46" y="136" text-anchor="end">50%</text>
+<line class="grid" x1="54" y1="79" x2="704" y2="79"/>
+<text class="ax" x="46" y="83" text-anchor="end">75%</text>
+<line class="grid" x1="54" y1="26" x2="704" y2="26"/>
+<text class="ax" x="46" y="30" text-anchor="end">100%</text>
+<rect x="87.2" y="170.2" width="43" height="67.8" fill="var(--accent-2)"/>
+<text class="val" x="108.8" y="163.2" text-anchor="middle">32%</text>
+<rect x="135.2" y="108.7" width="43" height="129.3" fill="var(--accent)"/>
+<text class="val" x="156.8" y="101.7" text-anchor="middle">61%</text>
+<text class="ax" x="135.2" y="257" text-anchor="middle">топ-1</text>
+<text class="gap" x="135.2" y="274" text-anchor="middle">+29 п.п.</text>
+<rect x="249.8" y="123.5" width="43" height="114.5" fill="var(--accent-2)"/>
+<text class="val" x="271.2" y="116.5" text-anchor="middle">54%</text>
+<rect x="297.8" y="55.7" width="43" height="182.3" fill="var(--accent)"/>
+<text class="val" x="319.2" y="48.7" text-anchor="middle">86%</text>
+<text class="ax" x="297.8" y="257" text-anchor="middle">топ-2</text>
+<text class="gap" x="297.8" y="274" text-anchor="middle">+32 п.п.</text>
+<rect x="412.2" y="102.3" width="43" height="135.7" fill="var(--accent-2)"/>
+<text class="val" x="433.8" y="95.3" text-anchor="middle">64%</text>
+<rect x="460.2" y="55.7" width="43" height="182.3" fill="var(--accent)"/>
+<text class="val" x="481.8" y="48.7" text-anchor="middle">86%</text>
+<text class="ax" x="460.2" y="257" text-anchor="middle">топ-3</text>
+<text class="gap" x="460.2" y="274" text-anchor="middle">+22 п.п.</text>
+<rect x="574.8" y="79.0" width="43" height="159.0" fill="var(--accent-2)"/>
+<text class="val" x="596.2" y="72.0" text-anchor="middle">75%</text>
+<rect x="622.8" y="55.7" width="43" height="182.3" fill="var(--accent)"/>
+<text class="val" x="644.2" y="48.7" text-anchor="middle">86%</text>
+<text class="ax" x="622.8" y="257" text-anchor="middle">топ-5</text>
+<text class="gap" x="622.8" y="274" text-anchor="middle">+11 п.п.</text>
+<line class="axis" x1="54" y1="238" x2="704" y2="238"/>
+</svg>
+    </div>
+    <figcaption>Янтарные столбики — как сейчас, бирюзовые — с реранкером. Под каждой парой — размер выигрыша. <strong>Чем меньше строк агент читает, тем больше даёт реранкер:</strong> на первой строке разрыв 29 п.п., а на пяти — всего 11 п.п. Логично: реранкер не находит новое, он поднимает наверх уже найденное, и чем глубже мы и так готовы смотреть, тем меньше нам нужна его помощь.</figcaption>
+  </figure>
+
+  <div class="callout">
+    <h3>86 % — это не результат реранкера, это потолок самого поиска</h3>
+    <p>В таблице у платного варианта <strong>в топ-3 и в топ-5 стоит одно и то же число — 86 %</strong>. Это не опечатка и не совпадение. Начиная с третьей строки цифра перестаёт расти, потому что <strong>расти уже нечему</strong>: реранкер поднял наверх всё, что первый шаг вообще сумел найти.</p>
+    <p>Оставшиеся <strong>14 % — это 4 запроса из 28</strong>, для которых нужного куска текста нет в выдаче в принципе. Хоть три строки читай, хоть пятьдесят — его там нет. Отсюда практический вывод: <strong>потолок поиска задаёт не порядок результатов, а их полнота</strong>, и упирается он ровно в ту же стену, о которой ниже — в недостающие куски индекса.</p>
+  </div>
 
   <h2>Чем платим: скорость</h2>
 
   <figure>
     <div class="chart-box">
       <h4>Время одного поиска, логарифмическая шкала</h4>
-      <canvas id="c2" height="200"></canvas>
+<svg class="chart" viewBox="0 0 720 300" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="62" y1="246" x2="704" y2="246"/>
+<text class="ax" x="54" y="250" text-anchor="end">10 мс</text>
+<line class="grid" x1="62" y1="191" x2="704" y2="191"/>
+<text class="ax" x="54" y="195" text-anchor="end">100 мс</text>
+<line class="grid" x1="62" y1="136" x2="704" y2="136"/>
+<text class="ax" x="54" y="140" text-anchor="end">1 с</text>
+<line class="grid" x1="62" y1="81" x2="704" y2="81"/>
+<text class="ax" x="54" y="85" text-anchor="end">10 с</text>
+<line class="grid" x1="62" y1="26" x2="704" y2="26"/>
+<text class="ax" x="54" y="30" text-anchor="end">100 с</text>
+<rect x="94.2" y="229.4" width="64.0" height="16.6" fill="var(--muted-bar)"/>
+<text class="val" x="126.2" y="222.4" text-anchor="middle">20 мс</text>
+<text class="ax" x="126.2" y="265" text-anchor="middle">только текст</text>
+<rect x="222.6" y="191.7" width="64.0" height="54.3" fill="var(--muted-bar)"/>
+<text class="val" x="254.6" y="184.7" text-anchor="middle">97 мс</text>
+<text class="ax" x="254.6" y="265" text-anchor="middle">только смысл</text>
+<rect x="351.0" y="188.1" width="64.0" height="57.9" fill="var(--accent-2)"/>
+<text class="val" x="383.0" y="181.1" text-anchor="middle">113 мс</text>
+<text class="ax" x="383.0" y="265" text-anchor="middle">сейчас</text>
+<text class="ax" x="383.0" y="278" text-anchor="middle">в проде</text>
+<rect x="479.4" y="124.9" width="64.0" height="121.1" fill="var(--accent)"/>
+<text class="val" x="511.4" y="117.9" text-anchor="middle">1,6 с</text>
+<text class="ax" x="511.4" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="511.4" y="278" text-anchor="middle">по сети</text>
+<rect x="607.8" y="62.2" width="64.0" height="183.8" fill="var(--muted-bar)"/>
+<text class="val" x="639.8" y="55.2" text-anchor="middle">17–28 с</text>
+<text class="ax" x="639.8" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="639.8" y="278" text-anchor="middle">локально</text>
+<line class="axis" x1="62" y1="246" x2="704" y2="246"/>
+</svg>
     </div>
-    <figcaption><strong>Шкала логарифмическая</strong> — каждое деление вправо означает не «плюс столько-то», а «в десять раз больше». Иначе картинку не построить: 113 мс и 28 000 мс на обычной линейке выглядели бы как пылинка рядом с домом. Практический смысл: платный вариант медленнее нынешнего <strong>в 14 раз</strong>, а свой локальный — <strong>в 150–250 раз</strong>.</figcaption>
+    <figcaption><strong>Шкала логарифмическая</strong> — каждое деление вверх означает не «плюс столько-то», а <strong>в десять раз больше</strong>. Иначе картинку не построить: 113 мс и 28 000 мс на обычной линейке выглядели бы как пылинка рядом с домом. Практический смысл: платный вариант медленнее нынешнего <strong>в 14 раз</strong>, а свой локальный — <strong>в 150–250 раз</strong>.</figcaption>
   </figure>
 
   <p>1,6 секунды — это ощутимо, но терпимо: столько же грузится обычная страница. 20 секунд — это уже не поиск, а ожидание, за которое агент успевает бросить задачу.</p>
@@ -204,7 +324,28 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
   <figure>
     <div class="chart-box">
       <h4>Что случилось с каждым из 28 запросов</h4>
-      <canvas id="c3" height="150"></canvas>
+<svg class="chart" viewBox="0 0 720 190" role="img" preserveAspectRatio="xMidYMid meet">
+<text class="ax" x="122" y="45.0" text-anchor="end">реранкер по сети</text>
+<rect x="132.0" y="20" width="263.7" height="42" fill="var(--accent)"/>
+<text class="val-in" x="263.9" y="45.0" text-anchor="middle">13</text>
+<rect x="395.7" y="20" width="284.0" height="42" fill="var(--muted-bar)"/>
+<text class="val-in" x="537.7" y="45.0" text-anchor="middle">14</text>
+<rect x="679.7" y="20" width="20.3" height="42" fill="var(--danger)"/>
+<text class="val-in" x="689.9" y="45.0" text-anchor="middle">1</text>
+<text class="ax" x="122" y="117.0" text-anchor="end">реранкер локально</text>
+<rect x="132.0" y="92" width="243.4" height="42" fill="var(--accent)"/>
+<text class="val-in" x="253.7" y="117.0" text-anchor="middle">12</text>
+<rect x="375.4" y="92" width="223.1" height="42" fill="var(--muted-bar)"/>
+<text class="val-in" x="487.0" y="117.0" text-anchor="middle">11</text>
+<rect x="598.6" y="92" width="101.4" height="42" fill="var(--danger)"/>
+<text class="val-in" x="649.3" y="117.0" text-anchor="middle">5</text>
+<rect x="132" y="151" width="11" height="11" fill="var(--accent)"/>
+<text class="ax" x="148" y="160">улучшил</text>
+<rect x="292" y="151" width="11" height="11" fill="var(--muted-bar)"/>
+<text class="ax" x="308" y="160">без изменений</text>
+<rect x="452" y="151" width="11" height="11" fill="var(--danger)"/>
+<text class="ax" x="468" y="160">УХУДШИЛ</text>
+</svg>
     </div>
     <figcaption>Улучшений почти поровну — 13 против 12. А вот <strong>поломок впятеро больше: 5 против 1</strong>. Именно поэтому локальный вариант «улучшает в среднем, но слишком нестабильно, чтобы утверждать это наверняка».</figcaption>
   </figure>
@@ -225,7 +366,37 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
   <figure>
     <div class="chart-box">
       <h4>Стоимость в месяц при разной нагрузке</h4>
-      <canvas id="c4" height="185"></canvas>
+<svg class="chart" viewBox="0 0 720 250" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="54" y1="198" x2="704" y2="198"/>
+<text class="ax" x="46" y="202" text-anchor="end">$0</text>
+<line class="grid" x1="54" y1="155" x2="704" y2="155"/>
+<text class="ax" x="46" y="159" text-anchor="end">$25</text>
+<line class="grid" x1="54" y1="112" x2="704" y2="112"/>
+<text class="ax" x="46" y="116" text-anchor="end">$50</text>
+<line class="grid" x1="54" y1="69" x2="704" y2="69"/>
+<text class="ax" x="46" y="73" text-anchor="end">$75</text>
+<line class="grid" x1="54" y1="26" x2="704" y2="26"/>
+<text class="ax" x="46" y="30" text-anchor="end">$100</text>
+<rect x="135.3" y="182.5" width="54" height="15.5" fill="var(--accent)"/>
+<text class="val" x="162.3" y="175.5" text-anchor="middle">$9</text>
+<text class="ax" x="162.3" y="217" text-anchor="middle">300 поисков</text>
+<text class="ax" x="162.3" y="230" text-anchor="middle">в день</text>
+<rect x="322.0" y="146.4" width="54" height="51.6" fill="var(--accent)"/>
+<text class="val" x="349.0" y="139.4" text-anchor="middle">$30</text>
+<rect x="382.0" y="187.7" width="54" height="10.3" fill="var(--accent-2)"/>
+<text class="val" x="409.0" y="180.7" text-anchor="middle">$6</text>
+<text class="ax" x="379.0" y="217" text-anchor="middle">1000 поисков</text>
+<text class="ax" x="379.0" y="230" text-anchor="middle">в день</text>
+<rect x="568.7" y="43.2" width="54" height="154.8" fill="var(--accent)"/>
+<text class="val" x="595.7" y="36.2" text-anchor="middle">$90</text>
+<text class="ax" x="595.7" y="217" text-anchor="middle">3000 поисков</text>
+<text class="ax" x="595.7" y="230" text-anchor="middle">в день</text>
+<line class="axis" x1="54" y1="198" x2="704" y2="198"/>
+<rect x="54" y="235" width="11" height="11" fill="var(--accent)"/>
+<text class="ax" x="70" y="244">на каждом поиске</text>
+<rect x="264" y="235" width="11" height="11" fill="var(--accent-2)"/>
+<text class="ax" x="280" y="244">флажком, на ~20 % запросов</text>
+</svg>
     </div>
     <figcaption>Тариф — $0,001 за поиск. Считается <strong>за поиск, а не за объём текста</strong>: одна единица тарификации = запрос плюс до 100 документов, а мы отдаём 50 — то есть всегда ровно одна единица, сколько бы ни было текста.</figcaption>
   </figure>
@@ -243,6 +414,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
       <li>«структурная ошибка MCP-тула»</li>
     </ul>
     <p>Причина не в порядке выдачи. <strong>Нужного куска текста нет в выдаче вообще</strong> — первый шаг его не достаёт, и реранкеру нечего переставлять. Он тут бессилен не «пока», а по определению: он умеет только менять порядок того, что уже нашли.</p>
+    <p>Это та же стена, что и <strong>потолок в 86 %</strong> выше: там цифра переставала расти после третьей строки ровно потому, что для 4 запросов из 28 поднимать наверх было нечего. Разными словами — один и тот же дефект.</p>
     <p>Лечится это другим — тем, как мы режем документы на куски и насколько полон индекс. Это отдельная задача, и по масштабу она <strong>может дать больше, чем весь реранк</strong>: сейчас эти запросы дают ноль, а не «неудобный четвёртый результат».</p>
     <p style="margin-top:.9rem"><em>Аналогия.</em> Реранкер — это редактор, который блестяще расставит главы рукописи в правильном порядке. Нанимать его имеет смысл. Но если трёх глав в рукописи просто нет, никакая расстановка их не создаст.</p>
   </div>
@@ -268,7 +440,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
       <h3>Внедрять реранк флажком «глубокий поиск»</h3>
       <span class="price">$6–9/мес</span>
       <ul>
-        <li>Точность первого попадания на трудных запросах — с 32 % до 61 %.</li>
+        <li>Ответ попадает в первые три строки на трудных запросах — с 64 % до 86 % (а первой строкой — с 32 % до 61 %).</li>
         <li>Обычный поиск остаётся быстрым (113 мс) и бесплатным — флажок включается вручную или для заведомо сложных случаев.</li>
         <li>Отвалилась сеть или поставщик — обычный поиск продолжает работать, ломается только «глубокий» режим.</li>
         <li>Минус: зависимость от единственного живого поставщика, запасного нет.</li>
@@ -282,7 +454,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
         <li>Три запроса из 28 сейчас не находят ответ вообще ничем — там потолок не в порядке выдачи, а в полноте.</li>
         <li>Потенциальный выигрыш может превысить весь эффект реранка: ноль превращается в результат, а не четвёртое место в первое.</li>
         <li>Не требует денег и внешних зависимостей.</li>
-        <li>Минус: объём работ не оценён, срок неизвестен, а 32 % на остальных запросах остаются как есть.</li>
+        <li>Минус: объём работ не оценён, срок неизвестен, а 64 % на остальных запросах остаются как есть.</li>
       </ul>
     </div>
   </div>
@@ -292,10 +464,10 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
   <dl class="gloss">
     <dt>Реранкер (cross-encoder)</dt>
     <dd>Модель, которая перечитывает уже найденное вместе с самим вопросом и заново расставляет по важности.</dd>
-    <dt>Ответ первой строкой (R@1)</dt>
-    <dd>Доля запросов, где правильный ответ оказался на первом месте.</dd>
-    <dt>Общая точность (MRR)</dt>
-    <dd>Учитывает и не-первые места: ответ на 2-м месте засчитывается как ½, на 3-м — как ⅓. От 0 до 1.</dd>
+    <dt>В топ-3 / в топ-5 (R@3, R@5)</dt>
+    <dd>Доля запросов, где правильный ответ попал в первые три (пять) строк выдачи. Наш поиск отдаёт 5 строк, агент читает все.</dd>
+    <dt>В топ-1 (R@1)</dt>
+    <dd>Доля запросов, где правильный ответ оказался сразу первым.</dd>
     <dt>Превосходство доказано / не доказано</dt>
     <dd>Статистическая проверка «это не случайность». Порог 2,05: платный вариант — 3,46, локальный — 2,01.</dd>
   </dl>
@@ -305,163 +477,5 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border
   </footer>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script>
-const css = getComputedStyle(document.documentElement);
-const ink = css.getPropertyValue('--ink').trim();
-const soft = css.getPropertyValue('--ink-soft').trim();
-const grid = css.getPropertyValue('--border').trim();
-const accent = css.getPropertyValue('--accent').trim();
-const accent2 = css.getPropertyValue('--accent-2').trim();
-const muted = css.getPropertyValue('--muted-bar').trim();
-const sans = 'system-ui, sans-serif';
-
-if (!window.Chart) document.body.classList.add('no-charts');
-
-if (window.Chart) {
-  Chart.defaults.font.family = sans;
-  Chart.defaults.font.size = 12;
-  Chart.defaults.color = soft;
-  Chart.defaults.animation = false;
-
-  const labels5 = ['по словам', 'по смыслу', 'сейчас в проде', '+ реранкер\nпо сети', '+ реранкер\nлокально'];
-  const bar = (id, cfg) => new Chart(document.getElementById(id), cfg);
-  // 22000 — середина диапазона 17–28 с, точной цифры у локального арма нет
-  const fmtMs = v => v === 22000 ? '17–28 с' : (v >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + ' с' : v + ' мс');
-
-  // Значения печатаются НА столбиках: читатель не должен вычислять число по линейке сетки
-  const valueLabels = (fmt, opts = {}) => ({
-    id: 'valueLabels_' + Math.random(),
-    afterDatasetsDraw(chart) {
-      const { ctx } = chart;
-      ctx.save();
-      ctx.font = (opts.bold ? '600 ' : '') + '12px ' + sans;
-      ctx.textAlign = opts.horizontal ? 'center' : 'center';
-      ctx.textBaseline = opts.horizontal ? 'middle' : 'bottom';
-      chart.data.datasets.forEach((ds, di) => {
-        chart.getDatasetMeta(di).data.forEach((el, i) => {
-          const v = ds.data[i];
-          if (v == null) return;
-          if (opts.horizontal) {
-            // el.x — правый край сегмента; центр стопки считаем от базы
-            const w = Math.abs(el.x - el.base);
-            if (w < 22) return;
-            ctx.fillStyle = '#fff';
-            ctx.fillText(fmt(v), (el.x + el.base) / 2, el.y);
-            return;
-          }
-          ctx.fillStyle = ink;
-          ctx.fillText(fmt(v), el.x, el.y - 6);
-        });
-      });
-      ctx.restore();
-    }
-  });
-
-  bar('c1', {
-    type: 'bar',
-    data: {
-      labels: labels5,
-      datasets: [{
-        data: [25, 29, 32, 61, 57],
-        backgroundColor: [muted, muted, accent2, accent, muted],
-        borderWidth: 0,
-        maxBarThickness: 74
-      }]
-    },
-    options: {
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: c => c.parsed.y + '% запросов' } }
-      },
-      scales: {
-        y: { beginAtZero: true, max: 70, ticks: { callback: v => v + '%' }, grid: { color: grid }, border: { display: false } },
-        x: { grid: { display: false }, border: { color: grid } }
-      }
-    },
-    plugins: [valueLabels(v => v + '%', { bold: true })]
-  });
-
-  bar('c2', {
-    type: 'bar',
-    data: {
-      labels: labels5,
-      datasets: [{
-        data: [20, 97, 113, 1589, 22000],
-        backgroundColor: [muted, muted, accent2, accent, muted],
-        borderWidth: 0,
-        maxBarThickness: 74
-      }]
-    },
-    options: {
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: c => fmtMs(c.parsed.y) } }
-      },
-      scales: {
-        y: {
-          type: 'logarithmic',
-          min: 10, max: 30000,
-          ticks: {
-            callback: v => ({ 10: '10 мс', 100: '100 мс', 1000: '1 с', 10000: '10 с' })[v] || '',
-            autoSkip: false
-          },
-          // промежуточные линии логарифмической сетки только шумят — гасим
-          grid: { color: c => [10, 100, 1000, 10000].includes(c.tick.value) ? grid : 'transparent' },
-          border: { display: false }
-        },
-        x: { grid: { display: false }, border: { color: grid } }
-      }
-    },
-    plugins: [valueLabels(fmtMs, { bold: true })]
-  });
-
-  bar('c3', {
-    type: 'bar',
-    data: {
-      labels: ['реранкер по сети', 'реранкер локально'],
-      datasets: [
-        { label: 'улучшил', data: [13, 12], backgroundColor: accent, borderWidth: 0, maxBarThickness: 46 },
-        { label: 'без изменений', data: [14, 11], backgroundColor: muted, borderWidth: 0, maxBarThickness: 46 },
-        { label: 'УХУДШИЛ', data: [1, 5], backgroundColor: css.getPropertyValue('--danger').trim(), borderWidth: 0, maxBarThickness: 46 }
-      ]
-    },
-    options: {
-      indexAxis: 'y',
-      plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, padding: 14 } },
-        tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.x + ' запросов' } }
-      },
-      scales: {
-        x: { stacked: true, max: 28, ticks: { stepSize: 7 }, grid: { color: grid }, border: { display: false } },
-        y: { stacked: true, grid: { display: false }, border: { color: grid } }
-      }
-    },
-    plugins: [valueLabels(v => v, { horizontal: true, bold: true })]
-  });
-
-  bar('c4', {
-    type: 'bar',
-    data: {
-      labels: ['300 поисков\nв день', '1000 поисков\nв день', '3000 поисков\nв день'],
-      datasets: [
-        { label: 'на каждом поиске', data: [9, 30, 90], backgroundColor: accent, borderWidth: 0, maxBarThickness: 64 },
-        { label: 'флажком, на ~20 % запросов', data: [null, 6, null], backgroundColor: accent2, borderWidth: 0, maxBarThickness: 64 }
-      ]
-    },
-    options: {
-      plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, padding: 14 } },
-        tooltip: { callbacks: { label: c => c.dataset.label + ': $' + c.parsed.y + '/мес' } }
-      },
-      scales: {
-        y: { beginAtZero: true, max: 105, ticks: { callback: v => '$' + v }, grid: { color: grid }, border: { display: false } },
-        x: { grid: { display: false }, border: { color: grid } }
-      }
-    },
-    plugins: [valueLabels(v => '$' + v, { bold: true })]
-  });
-}
-</script>
 </body>
 </html>
