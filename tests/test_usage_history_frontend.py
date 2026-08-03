@@ -47,20 +47,25 @@ def _slot_text(browser: Browser, api_script: str) -> str:
     return result
 
 
-def _rows(count: int, *, provider_usage=None):
-    """Снимки в текущем 5h-окне — иначе период отфильтруется и точек не останется."""
+def _history(count: int, *, provider_usage=None, step: int = 30, skip: int = 0):
+    """Ответ /api/usage/history: снимки в текущем 5h-окне с шагом step минут.
+
+    skip — сколько шагов пропустить в середине (провал в данных).
+    """
     js = []
     for i in range(count):
+        age = step * (count - i) + (step * skip if i < count // 2 else 0)
         js.append(
             "{ts: new Date(Date.now() - %d * 60000).toISOString(),"
             " five_hour_pct: %d, five_hour_resets_at: resets,"
-            " providers: %s}" % (30 * (count - i), 10 + i * 5, provider_usage or "null")
+            " providers: %s}" % (age, 10 + i * 5, provider_usage or "null")
         )
-    return "[" + ",".join(js) + "]"
+    # Скобки обязательны: `() => {…}` читается как тело функции, а не объект.
+    return "({step_minutes: %d, rows: [%s]})" % (step, ",".join(js))
 
 
 def test_empty_history_says_what_is_missing(browser):
-    out = _slot_text(browser, "window.api = async () => [];")
+    out = _slot_text(browser, "window.api = async () => ({step_minutes: 5, rows: []});")
 
     assert "Снимков ещё нет" in out["anthropic"]
     assert "Collecting data" not in out["anthropic"]
@@ -84,7 +89,7 @@ def test_real_data_draws_a_chart_not_a_stub(browser):
     out = _slot_text(
         browser,
         "const resets = new Date(Date.now() + 3600000).toISOString();"
-        f"window.api = async () => {_rows(6)};",
+        f"window.api = async () => {_history(6)};",
     )
 
     assert "<svg" in out["anthropic"], out["anthropic"]
@@ -96,12 +101,22 @@ def test_provider_absent_from_history_is_not_the_same_as_no_data(browser):
     out = _slot_text(
         browser,
         "const resets = new Date(Date.now() + 3600000).toISOString();"
-        f"window.api = async () => {_rows(6)};",
+        f"window.api = async () => {_history(6)};",
     )
 
     assert "провайдера в истории нет" in out["codex"], out["codex"]
     assert "Снимки ведутся с" in out["codex"]
     assert "<svg" not in out["codex"]
+
+
+def test_hole_in_data_breaks_the_line_instead_of_bridging_it(browser):
+    """Через провал в снимках линия не проводится: график врал бы формой."""
+    prelude = "const resets = new Date(Date.now() + 3600000).toISOString();"
+    solid = _slot_text(browser, prelude + f"window.api = async () => {_history(8, step=10)};")
+    holed = _slot_text(browser, prelude + f"window.api = async () => {_history(8, step=10, skip=6)};")
+
+    assert solid["anthropic"].count('stroke="#38bdf8"') == 1, solid["anthropic"]
+    assert holed["anthropic"].count('stroke="#38bdf8"') == 2, holed["anthropic"]
 
 
 def test_history_request_gets_its_own_timeout(browser):

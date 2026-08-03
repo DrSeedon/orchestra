@@ -1657,11 +1657,16 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
     if not raw:
         return []
     step = timedelta(minutes=step_minutes)
+    # Дольше двух шагов тянуть последнее значение нельзя: снимки регулярно
+    # прерываются на часы (ночь, рестарт), и forward-fill рисовал ровную линию
+    # там, где данных не было вовсе. Точку не выдаём — на графике будет разрыв.
+    stale_limit = step * 2
     start = datetime.fromisoformat(raw[0]["ts"]).replace(tzinfo=timezone.utc)
     grid: list[dict] = []
     ri = 0
     t = start
     prev = raw[0]
+    prev_ts = start
     while t <= now:
         # Step-forward interpolation: for each grid point, use the last known
         # snapshot at or before that time — matches "last-value" chart semantics
@@ -1671,9 +1676,11 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
                 break
             ri += 1
             prev = raw[ri]
-        grid.append({**prev, "ts": t.isoformat()})
+            prev_ts = next_ts
+        if t - prev_ts <= stale_limit:
+            grid.append({**prev, "ts": t.isoformat()})
         t += step
-    if grid[-1].get("id") != raw[-1].get("id"):
+    if not grid or grid[-1].get("id") != raw[-1].get("id"):
         grid.append(raw[-1])
     return grid
 

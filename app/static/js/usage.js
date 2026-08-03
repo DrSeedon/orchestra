@@ -317,7 +317,7 @@ function renderUsageBar() {
     }
 }
 
-let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {}, _sparkError = '';
+let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {}, _sparkError = '', _sparkStepMin = 5;
 // Cache sparkline data for 5 minutes — tooltip opens frequently, avoid hammering /api/usage/history
 async function _loadSparkline(tipEl) {
     const slots = [...tipEl.querySelectorAll('[data-usage-history]')];
@@ -325,11 +325,17 @@ async function _loadSparkline(tipEl) {
     const now = Date.now();
     if (!_sparkData || now - _sparkDataTs >= 300000) {
         try {
-            // Год снимков — это мегабайты (замер 03.08: 8403 строки, 4.29 МБ), а общий
-            // таймаут api() = 5 с выбран для обычных мелких ответов. На этом запросе
-            // он срабатывал раньше ответа, и падение пряталось за пустым catch.
-            _sparkData = await api('/api/usage/history?hours=8760',
-                                   { signal: AbortSignal.timeout(30000) });
+            // Общий таймаут api() = 5 с выбран для мелких ответов и обрывался
+            // раньше этого запроса (год в 5-минутной сетке — 4.36 МБ), а падение
+            // пряталось за пустым catch. Сейчас сервер сам выбирает разрешение и
+            // возвращает шаг сетки вместе с данными, но запас по таймауту оставлен.
+            const history = await api('/api/usage/history?hours=8760',
+                                      { signal: AbortSignal.timeout(30000) });
+            if (!Array.isArray(history?.rows)) {
+                throw new Error(`ответ без rows: ${JSON.stringify(history).slice(0, 80)}`);
+            }
+            _sparkData = history.rows;
+            _sparkStepMin = Number(history.step_minutes) || 5;
             _sparkDataTs = now;
             _sparkError = '';
         } catch (e) {
@@ -447,11 +453,18 @@ function _renderSparklines(slot, providerFilter = null) {
         let yMin = Math.floor(Math.min(...allV)), yMax = Math.ceil(Math.max(...allV));
         if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
         const yRange = yMax - yMin || 1;
-        const toStr = (arr) => arr.map(p => {
-            const x = PL + p.t * gw;
-            const y = gh - ((Math.min(p.v, 100) - yMin) / yRange) * gh;
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-        }).join(' ');
+        const yOf = (p) => gh - ((Math.min(p.v, 100) - yMin) / yRange) * gh;
+        const toStr = (arr) => arr.map(p => `${(PL + p.t * gw).toFixed(1)},${yOf(p).toFixed(1)}`).join(' ');
+        // Точка с gap открывает новый отрезок: между ней и предыдущей снимков не
+        // было, и одна полилиния через дырку нарисовала бы выдуманные данные.
+        const segments = (arr) => {
+            const out = [];
+            for (const p of arr) {
+                if (p.gap || !out.length) out.push([]);
+                out[out.length - 1].push(p);
+            }
+            return out;
+        };
         const totalH = H + 12;
         let s = `<svg width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" style="display:block">`;
         s += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
@@ -461,9 +474,13 @@ function _renderSparklines(slot, providerFilter = null) {
             s += `<line x1="${mx}" y1="0" x2="${mx}" y2="${gh}" stroke="rgba(100,116,139,0.3)" stroke-width="0.5"/>`;
             s += `<text x="${mx}" y="${H + 11}" text-anchor="middle" fill="#64748b" font-size="8">${guide.label}</text>`;
         }
-        if (idealPts.length >= 2) s += `<polyline points="${toStr(idealPts)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
-        if (pts.length >= 2) s += `<polyline points="${toStr(pts)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
-        else if (pts.length === 1) { const px = PL + pts[0].t * gw, py = gh - ((Math.min(pts[0].v, 100) - yMin) / yRange) * gh; s += `<circle cx="${px}" cy="${py}" r="3" fill="${color}"/>`; }
+        for (const seg of segments(idealPts)) {
+            if (seg.length >= 2) s += `<polyline points="${toStr(seg)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
+        }
+        for (const seg of segments(pts)) {
+            if (seg.length >= 2) s += `<polyline points="${toStr(seg)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
+            else s += `<circle cx="${(PL + seg[0].t * gw).toFixed(1)}" cy="${yOf(seg[0]).toFixed(1)}" r="${pts.length === 1 ? 3 : 1.5}" fill="${color}"/>`;
+        }
         s += '</svg>';
         return s;
     };
@@ -484,18 +501,26 @@ function _renderSparklines(slot, providerFilter = null) {
         return guides;
     };
 
+    // Сервер отдаёт сетку с известным шагом и не выдаёт точку там, где снимков
+    // не было. Значит соседи дальше шага = провал в данных, а не редкая выборка.
+    const gapMs = _sparkStepMin * 1.5 * 60000;
+
     const mkPts = (slice) => {
         if (!slice.length) return { pts: [], ideal: [] };
         const t0 = new Date(slice[0].ts).getTime(), tN = new Date(slice[slice.length-1].ts).getTime();
         const range = tN - t0 || 1;
         const pts = [], ideal = [];
+        let prevMs = null;
         for (const point of slice) {
-            const t = (new Date(point.ts).getTime() - t0) / range;
-            pts.push({t, v:point.utilization});
-            if (!point.resets_at) { ideal.push({t, v:0}); continue; }
+            const ms = new Date(point.ts).getTime();
+            const t = (ms - t0) / range;
+            const gap = prevMs !== null && ms - prevMs > gapMs;
+            prevMs = ms;
+            pts.push({t, v:point.utilization, gap});
+            if (!point.resets_at) { ideal.push({t, v:0, gap}); continue; }
             const windowMs = point.window_minutes * 60000;
             const remain = new Date(point.resets_at) - new Date(point.ts);
-            ideal.push({t, v:Math.max(0, Math.min(100, (windowMs - remain) / windowMs * 100))});
+            ideal.push({t, v:Math.max(0, Math.min(100, (windowMs - remain) / windowMs * 100)), gap});
         }
         return { pts, ideal };
     };

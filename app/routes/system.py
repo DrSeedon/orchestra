@@ -978,12 +978,42 @@ async def _usage_snapshot_loop():
         await asyncio.sleep(SNAPSHOT_INTERVAL)
 
 
+# График рисует не весь запрошенный диапазон, а одно окно лимита (≤7 сут)
+# в 252 px — это 40 минут на пиксель. Шаг 30 мин даёт 1.3 точки на пиксель,
+# больше отдавать нечего рисовать: год в 5-минутной сетке — 4.32 МБ (замер 03.08).
+HISTORY_FINE_STEP = 5
+HISTORY_COARSE_STEP = 30
+# Сразу после недельного сброса текущий период — это часы, и на прореженной
+# сетке в нём остаётся 2-3 точки. Плюс решение «пора остановиться» принимают
+# по текущему 5h-окну, где нужна минутная детализация. Поэтому свежий хвост
+# всегда отдаём в полном разрешении.
+HISTORY_FINE_HOURS = 48
+
+
 @router.get("/api/usage/history")
-async def usage_history(hours: int = 24):
+async def usage_history(hours: int = 24, step_minutes: int = 0):
+    """История снимков: {step_minutes, rows}.
+
+    step_minutes — шаг сетки в прореженной части ответа. Фронт по нему решает,
+    где разрыв данных: расстояние между соседними точками больше шага = дырка,
+    её нельзя соединять линией.
+    """
+    if step_minutes < 0:
+        # шаг сетки идёт в `t += step`: отрицательный зациклит выборку намертво
+        raise HTTPException(400, "step_minutes must be >= 0")
     if not is_owner_mode():
-        return []
+        return {"step_minutes": step_minutes or HISTORY_FINE_STEP, "rows": []}
     from app.db import usage_get_history
-    return usage_get_history(hours)
+    if step_minutes:
+        return {"step_minutes": step_minutes, "rows": usage_get_history(hours, step_minutes)}
+    if hours <= HISTORY_FINE_HOURS:
+        return {"step_minutes": HISTORY_FINE_STEP,
+                "rows": usage_get_history(hours, HISTORY_FINE_STEP)}
+    coarse = usage_get_history(hours, HISTORY_COARSE_STEP)
+    fine = usage_get_history(HISTORY_FINE_HOURS, HISTORY_FINE_STEP)
+    cut = fine[0]["ts"] if fine else None
+    rows = [row for row in coarse if cut is None or row["ts"] < cut] + fine
+    return {"step_minutes": HISTORY_COARSE_STEP, "rows": rows}
 
 
 @router.get("/api/usage/analytics")
