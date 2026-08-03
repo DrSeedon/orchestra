@@ -17,6 +17,24 @@
 Заодно `git remote -v` ловит репозитории **без remote** (stargate-tactics) — их клонировать
 неоткуда, это отдельный блокер.
 
+## OOM/systemd: `systemctl show` врёт, ground truth — `/proc`
+`systemctl show <unit> -p OOMScoreAdjust` печатает **`infinity` у всех юнитов независимо от
+настройки**. По нему нельзя отличить «настроено» от «не настроено» — то есть нельзя проверить
+собственную работу. Реальное значение только тут:
+`cat /sys/fs/cgroup/system.slice/<unit>.service/cgroup.procs` → по каждому pid
+`cat /proc/<pid>/oom_score_adj`.
+
+Наследование потомками — **проверено, работает**: у `kesha-bot-vps` дочерние `claude` и
+`workspace-mcp` несут `adj` юнита. Значит `OOMScoreAdjust=` в юните защищает и CLI-агентов,
+а `MemoryMax`/`MemoryHigh` считают весь cgroup (оркестратор + воркеры) разом.
+
+## Перед защитой от OOM — померить, КТО реально жирный
+Интуиция «убьют самый жирный процесс, то есть наш» может быть перевёрнута. На VPS:
+бот Кеши 1446 МБ (пик 2297), Orchestra 142 МБ (пик 158) — в 10 раз меньше. Дефолт работал бы
+против требования, а не случайно за него. Мерить так:
+`systemctl show <unit> -p MemoryCurrent --value` и `memory.peak` в cgroup; заодно
+`journalctl -k | grep -c oom-kill` — были ли срабатывания вообще (было 0).
+
 ## Миграцию БД доказывать прогоном, а не чтением diff
 `app/db.py:370 _migrate()` аддитивен (CREATE TABLE IF NOT EXISTS + ALTER ADD COLUMN под
 `PRAGMA table_info`), но читать это недостаточно. Быстрый способ доказать:
