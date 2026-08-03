@@ -197,7 +197,7 @@ def test_series_order_does_not_depend_on_which_chunk_loaded_first(browser):
 def test_history_request_gets_its_own_timeout(browser):
     """4 МБ на общем 5-секундном таймауте api() обрывались раньше ответа."""
     source = USAGE_JS.read_text()
-    block = source.split("async function _fetchHistory", 1)[1].split("\n}", 1)[0]
+    block = source.split("async function _sparkFetch", 1)[1].split("\n}", 1)[0]
 
-    assert "api(" in block, "запрос истории уехал из _fetchHistory — проверка ослепла"
+    assert "api(" in block, "запрос истории уехал из _sparkFetch — проверка ослепла"
     assert "AbortSignal.timeout(30000)" in block

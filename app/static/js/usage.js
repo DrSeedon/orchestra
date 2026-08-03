@@ -329,7 +329,9 @@ function _sparkMessage(slot, text, isError) {
     slot.firstChild.textContent = text;
 }
 
-async function _fetchHistory(until) {
+// Имя с префиксом _spark: app.js уже держит глобальный _fetchHistory(name, scope)
+// и грузится ПОСЛЕ usage.js, поэтому его объявление перекрывало это.
+async function _sparkFetch(until) {
     // Общий таймаут api() = 5 с выбран для мелких ответов и обрывался раньше этого
     // запроса (год в 5-минутной сетке — 4.36 МБ), а падение пряталось за пустым catch.
     const query = until
@@ -360,7 +362,7 @@ async function _loadSparkline(tipEl) {
     const now = Date.now();
     if (!_sparkData || now - _sparkDataTs >= 300000) {
         try {
-            _sparkData = await _fetchHistory('');
+            _sparkData = await _sparkFetch('');
             _sparkDataTs = now;
             _sparkError = '';
         } catch (e) {
@@ -633,7 +635,7 @@ function _renderSparklines(slot, providerFilter = null) {
             if (delta > 0 && idx >= loaded - 1 && _sparkHasOlder()) {
                 _sparkMessage(slot, 'Загружаю предыдущий период…', false);
                 try {
-                    _sparkData = (await _fetchHistory(_sparkData[0].ts)).concat(_sparkData);
+                    _sparkData = (await _sparkFetch(_sparkData[0].ts)).concat(_sparkData);
                 } catch (e) {
                     _sparkError = `${e?.name || 'Error'}: ${e?.message || 'без текста'}`;
                     console.error(`usage history chunk failed: ${_sparkError}`);
