@@ -56,6 +56,7 @@ sudo systemctl status orchestra
 - `sudo systemctl` для `orchestra`/`telegram-bot-api` доступен технически, но это НЕ authorization: `restart/stop/start` — только по явной команде текущего юзера; `status` остаётся read-only. Рестарт прерывает active turns
 - После разрешённого рестарта SQLite-сессии и idle workers восстанавливаются; активные turns прерываются
 - **НЕ обновлять VPS самостоятельно** — git pull, systemctl restart на VPS делает только юзер вручную. Не пушить и не деплоить на VPS без команды
+- **Remotes:** `origin` (github.com/DrSeedon/orchestra) — наш публичный, держать актуальным. `enterprise` и `vadim` — ЧУЖИЕ, НЕ трогать никогда: ни push, ни pull, ни ветки
 - **TG /restart** — команда в TG группе для рестарта Orchestra
 - **Воркеры могут общаться друг с другом** через `send_message(to="worker-name")`. Пример: backend воркер добавил endpoint → пишет frontend-opus чтобы тот добавил кнопку. Оркестратор не нужен как посредник для координации между воркерами
 
