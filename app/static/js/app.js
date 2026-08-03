@@ -5533,7 +5533,7 @@ async function refreshSessions() {
             if (!eventSource) connectSSE();
         }
     } catch (e) {
-        if (e.name !== 'AbortError') { console.warn('refresh error:', e); _onServerError(); }
+        if (e.name !== 'AbortError') { console.warn('refresh error:', e); _onFetchFail(e); }
     } finally {
         refreshInProgress = false;
     }
@@ -5567,7 +5567,11 @@ function _showRebootOverlay() {
     const sub = document.createElement('div');
     sub.style.cssText = 'font-size:14px;color:#94a3b8;margin-top:8px';
     sub.textContent = 'Автоматическое переподключение...';
-    _rebootOverlay.append(spinner, msg, sub);
+    const close = document.createElement('button');
+    close.style.cssText = 'margin-top:24px;padding:8px 20px;border:1px solid #475569;border-radius:8px;background:transparent;color:#cbd5e1;font-size:14px;cursor:pointer';
+    close.textContent = 'Закрыть и продолжить работу';
+    close.onclick = _dismissRebootOverlay;
+    _rebootOverlay.append(spinner, msg, sub, close);
     document.body.appendChild(_rebootOverlay);
     const style = document.createElement('style');
     style.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
@@ -5575,9 +5579,17 @@ function _showRebootOverlay() {
     _pollReconnect();
 }
 
+// Escape hatch: if the overlay ever appears wrongly, the user must be able to get out of it
+function _dismissRebootOverlay() {
+    if (_rebootOverlay) _rebootOverlay.remove();
+    _rebootOverlay = null;
+    _rebootFails = 0;
+}
+
 async function _pollReconnect() {
-    while (true) {
+    while (_rebootOverlay) {
         await new Promise(r => setTimeout(r, 2000));
+        if (!_rebootOverlay) return;  // dismissed mid-sleep — must not reload the page anyway
         try {
             const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
             if (r.status < 502) { location.reload(); return; }
@@ -5589,6 +5601,14 @@ async function _pollReconnect() {
 function _onServerError() {
     _rebootFails++;
     if (_rebootFails >= 2) _showRebootOverlay();
+}
+
+// A timed-out request means the server is SLOW, not gone — under disk pressure /api/models
+// takes over 2s from a perfectly healthy server. A server that is actually down refuses the
+// connection (TypeError) or answers 502+ through the proxy, and both still raise the overlay.
+function _onFetchFail(e) {
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') return;
+    _onServerError();
 }
 
 // === Rate Limit Banner (Anthropic server-side rate_limit, not subscription) ===
@@ -5638,7 +5658,7 @@ function initHeartbeat() {
             const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
             if (r.status < 502) _onServerOk();
             else _onServerError();
-        } catch { _onServerError(); }
+        } catch (e) { _onFetchFail(e); }
     }, 3000);
 }
 
