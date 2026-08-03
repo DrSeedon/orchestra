@@ -171,76 +171,190 @@ function _scheduleChatInitialSettle() {
     }, 500);
 }
 
-// === Кеш отрисованного чата ===
-// Замер (docs/tasks/2/report.md): сеть отдаёт 100 сообщений за ~15 мс, а их отрисовка
-// (marked + DOMPurify + hljs в addChatEntry) стоит 170-450 мс и растягивает доставку
-// SSE-бурста до 0.6-1.3 с. Значит кешировать надо готовый DOM, а не ответы сервера —
-// иначе эта цена остаётся. Только in-memory: DOM не сериализуется, а localStorage
-// пережил бы рестарт сервера и показал бы историю пересозданной сессии.
-const _CHAT_CACHE_MAX = 8;  // порядок Map = LRU, вытесняем самый старый
-const _chatDomCache = new Map();  // _chatPositionKey() -> {frag, scrollTop, sessionId, logs}
-const _sessionIds = {};  // _chatPositionKey() -> session.id, заполняется в renderAgentList
-let _restoredFrom = null;  // {key, agent, sessionId} восстановленного из кеша чата
+// === Откуда берётся история чата (#8) ===
+// Раньше здесь жил кеш отрисованного DOM в памяти вкладки (#2): он давал 30 мс на
+// повторном заходе, но умирал на F5 и ключевался по ИМЕНИ агента, из-за чего проверка
+// на пересоздание сессии зависела от гонки с фоновым опросом. Теперь история берётся из
+// зеркала журнала в IndexedDB (см. _storeRead выше) — одинаково для первого захода,
+// повторного и после F5. Один источник, одна инвалидация.
+const _sessionIds = {};  // _chatPositionKey() -> session.id, заполняется в renderAgentList и _storeSync
+const _CHAT_PAGE = 100;  // столько строк показываем при заходе — как и раньше при limit=100
 
-// Снять чат в кеш. Вызывать до очистки #chat и до смены selectedAgent/currentScope.
-// Узлы, ещё не ставшие строкой лога, кешировать нельзя: их строка придёт в хвосте
-// с id больше lastId и нарисуется вторым экземпляром.
-//  - streamNode — черновик стрима. Обычно финальный 'text' превращает его в готовое
-//    сообщение (_finalizeStreamBubble), но при переключении агента ссылка теряется,
-//    поэтому черновик выкидываем: хвост нарисует финал заново.
-//  - unsettled — локальное эхо отправленного сообщения (какой пузырь чей, надёжно не
-//    определить) или отложенный из-за выделения текста финал стрима: его строка уже
-//    прочитана, в хвосте её не будет, выкинешь узел — потеряешь сообщение. В обоих
-//    случаях чат не кешируем вовсе, состояние живёт секунды.
-function _stashChatDom(agent, scope, unsettled, streamNode) {
-    const key = _chatPositionKey(scope, agent);
-    if (!key) return;
-    _chatDomCache.delete(key);  // прошлая копия этого агента уже неактуальна
-    if (unsettled) return;
-    streamNode?.remove();
-    const chat = $('#chat');
-    const meta = chatLogs[agent];
-    const sessionId = _sessionIds[key];
-    if (!chat?.firstChild || !sessionId || !meta?.lastId) return;
-    const frag = document.createDocumentFragment();
-    frag.append(...chat.childNodes);
-    _chatDomCache.set(key, {frag, scrollTop: chat.scrollTop, sessionId, logs: {...meta}});
-    while (_chatDomCache.size > _CHAT_CACHE_MAX) _chatDomCache.delete(_chatDomCache.keys().next().value);
+// === Зеркало журнала в IndexedDB (#8) ===
+// Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту,
+// ни одного UPDATE), поэтому сохранённая строка не может стать неверной — только исчезнуть.
+// Отсюда вся инвалидация сводится к трём правилам: чистим сессии, которых больше нет,
+// стираем всё при откате БД, и никогда не чистим по пустому списку.
+const _STORE_DB = 'orchestra';
+const _STORE_TAIL = 20;         // сколько строк на сессию тянем на холодную
+const _STORE_CAP = 16384;       // байт на сообщение; блоб со скриншотом приедет обрезанным
+const _STORE_SYNC_MS = 15000;
+let _storeDb = null;            // IDBDatabase | null (null = хранилища нет, работаем как раньше)
+let _storeReady = null;         // Promise, чтобы не открывать базу дважды
+let _storeOff = false;          // отключились навсегда: приватное окно, отказ квоты, старый сервер
+let _storeSessionMap = null;    // [{id, name, scope}] — последняя известная карта агентов
+
+// Одна точка, где хранилище объявляется недоступным. Причину печатаем всегда: пустой
+// catch тут стоил бы нам тихой деградации, которую никто не заметит месяцами.
+function _storeDisable(why, err) {
+    if (_storeOff) return;
+    _storeOff = true;
+    _storeDb = null;
+    console.warn(`[store] выключен: ${why}` + (err ? ` — ${err.name || 'Error'}: ${err.message || err}` : ''));
 }
 
-// Вернуть чат из кеша. true → DOM на месте и chatLogs[agent].lastId > 0,
-// значит connectSSE догрузит только хвост.
-function _restoreChatDom(agent, scope) {
-    const key = _chatPositionKey(scope, agent);
-    const hit = key && _chatDomCache.get(key);
-    if (!hit) return false;
-    const sessionId = _sessionIds[key];
-    if (!sessionId) return false;  // список сессий этого scope ещё не пришёл — грузим заново
-    // Агента убили и подняли заново под тем же именем → id сессии другой,
-    // её логи не продолжают старые. Показывать старую историю нельзя.
-    if (sessionId !== hit.sessionId) { _chatDomCache.delete(key); return false; }
-    _chatDomCache.delete(key);
-    const chat = $('#chat');
-    chat.innerHTML = '';
-    chat.appendChild(hit.frag);
-    chat.scrollTop = hit.scrollTop;
-    chatLogs[agent] = hit.logs;
-    _restoredFrom = {key, agent, sessionId};
-    return true;
+function _storeOpen() {
+    if (_storeOff) return Promise.resolve(null);
+    if (_storeReady) return _storeReady;
+    _storeReady = new Promise((resolve) => {
+        let rq;
+        try { rq = indexedDB.open(_STORE_DB, 1); }
+        catch (e) { _storeDisable('indexedDB.open бросил исключение', e); return resolve(null); }
+        rq.onupgradeneeded = () => {
+            const db = rq.result;
+            const logs = db.createObjectStore('logs', {keyPath: 'id'});
+            logs.createIndex('by_session', 'session_id');
+            db.createObjectStore('meta');
+        };
+        rq.onsuccess = () => { _storeDb = rq.result; resolve(_storeDb); };
+        rq.onerror = () => { _storeDisable('не удалось открыть IndexedDB', rq.error); resolve(null); };
+        rq.onblocked = () => { _storeDisable('IndexedDB заблокирована другой вкладкой'); resolve(null); };
+    });
+    return _storeReady;
 }
 
-// Пока агент не был выбран, его сессию могли пересоздать: _sessionIds чужого scope
-// обновляются только при заходе в него. Сверяемся после refreshSessions, до connectSSE —
-// иначе хвост новой сессии допишется к истории старой.
-function _dropStaleRestoredDom() {
-    if (!_restoredFrom) return;
-    const {key, agent, sessionId} = _restoredFrom;
-    _restoredFrom = null;
-    if (agent !== selectedAgent) return;  // успели переключиться ещё раз — чистить чужой чат нельзя
-    if (_sessionIds[key] === sessionId) return;
-    $('#chat').innerHTML = '';
-    chatLogs[agent] = { lastId: 0, firstId: null, initialCount: 0 };
-    scrollAfterLoad = true;
+function _storeTx(mode, names, body) {
+    return new Promise((resolve, reject) => {
+        const tx = _storeDb.transaction(names, mode);
+        let out;
+        tx.oncomplete = () => resolve(out);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+        out = body(tx);
+    });
+}
+
+// Одна синхронизация: холодная при пустой отметке, дальше только новое.
+// Возвращает число принятых строк (для замеров и тестов), null — если хранилища нет.
+async function _storeSync() {
+    const db = await _storeOpen();
+    if (!db) return null;
+    let watermark = 0, knownSessions = '';
+    try {
+        [watermark, knownSessions] = await _storeTx('readonly', ['meta'], (tx) => {
+            const m = tx.objectStore('meta');
+            const w = m.get('watermark'), s = m.get('sessions');
+            return new Promise((res) => { s.onsuccess = () => res([w.result || 0, s.result || '']); });
+        });
+    } catch (e) { _storeDisable('не читается watermark', e); return null; }
+
+    const url = `/api/logs/sync?after_id=${watermark}&tail=${_STORE_TAIL}&cap=${_STORE_CAP}`;
+    let data;
+    try {
+        const resp = await fetch(url, {cache: 'no-store'});
+        if (resp.status === 404) {
+            // Сервер ещё не перезапущен после мержа — маршрута нет. Это НЕ то же самое,
+            // что отсутствие __session в потоке (см. connectSSE): лечится рестартом.
+            _storeDisable('сервер не знает /api/logs/sync (404) — нужен рестарт orchestra');
+            return null;
+        }
+        if (!resp.ok) { _storeDisable(`/api/logs/sync ответил ${resp.status}`, new Error((await resp.text()).slice(0, 200))); return null; }
+        data = await resp.json();
+    } catch (e) { console.warn('[store] синхронизация не удалась:', e.name, e.message); return null; }
+
+    const live = data.live_sessions;
+    if (Array.isArray(live) && live.length) {
+        for (const s of live) _sessionIds[_chatPositionKey(s.scope, s.name)] = s.id;
+        _storeSessionMap = live;
+    }
+    // Полный обход индекса стоит денег, а список сессий меняется редко — сверяем его
+    // отпечаток и чистим только когда он реально изменился.
+    const liveKey = Array.isArray(live) ? live.map(s => s.id).sort().join(',') : '';
+    const needPrune = Array.isArray(live) && live.length > 0 && liveKey !== knownSessions;
+    try {
+        await _storeTx('readwrite', ['logs', 'meta'], (tx) => {
+            const logs = tx.objectStore('logs');
+            // Откатили или подменили БД: наша отметка выше, чем всё, что есть на сервере.
+            // Совпадения id при этом ничего не значат — стираем целиком.
+            if (watermark > data.max_log_id) {
+                console.warn(`[store] watermark ${watermark} > max_log_id ${data.max_log_id} — БД подменили, стираю зеркало`);
+                logs.clear();
+                watermark = 0;
+            }
+            for (const row of data.logs) logs.put(row);
+            // Пустой список — это сбой на той стороне, а не «сессий не осталось».
+            // Чистка необратима, поэтому по пустому списку не чистим никогда.
+            if (needPrune) {
+                const alive = new Set(live.map(s => s.id));
+                const cur = logs.index('by_session').openKeyCursor();
+                cur.onsuccess = () => {
+                    const c = cur.result;
+                    if (!c) return;
+                    if (!alive.has(c.key)) logs.delete(c.primaryKey);
+                    c.continue();
+                };
+            }
+            const meta = tx.objectStore('meta');
+            const top = data.logs.length ? data.logs[data.logs.length - 1].id : watermark;
+            meta.put(Math.max(top, watermark, 0), 'watermark');
+            if (needPrune) meta.put(liveKey, 'sessions');
+            // Карту имя+scope → id кладём В хранилище: после F5 она понадобится ДО того,
+            // как вернётся первый /api/sessions, иначе читать журнал будет нечем.
+            if (Array.isArray(live) && live.length) meta.put(live, 'session_map');
+        });
+    } catch (e) { _storeDisable('не пишется в IndexedDB', e); return null; }
+    return data.logs.length;
+}
+
+// Какой session_id у этого агента. Свежий ответ /api/sessions главнее, но после F5 его
+// ещё нет — тогда берём карту, сохранённую прошлой синхронизацией. Ошибиться тут не страшно:
+// поток назовёт настоящую сессию, и несовпадение вычистит чат (см. connectSSE).
+async function _storeSessionId(scope, name) {
+    const key = _chatPositionKey(scope, name);
+    if (!key) return null;
+    if (_sessionIds[key]) return _sessionIds[key];
+    if (!_storeSessionMap) {
+        const db = await _storeOpen();
+        if (!db) return null;
+        try {
+            _storeSessionMap = await _storeTx('readonly', ['meta'], (tx) => {
+                const r = tx.objectStore('meta').get('session_map');
+                return new Promise((res) => { r.onsuccess = () => res(r.result || []); });
+            });
+        } catch (e) { _storeDisable('не читается карта сессий', e); return null; }
+    }
+    const hit = _storeSessionMap.find((s) => s.name === name && s.scope === scope);
+    return hit ? hit.id : null;
+}
+
+// Последние `limit` строк сессии, по возрастанию id. Пусто → зеркала для неё нет.
+async function _storeRead(sessionId, limit) {
+    const db = await _storeOpen();
+    if (!db || !sessionId) return [];
+    try {
+        return await _storeTx('readonly', ['logs'], (tx) => {
+            const rows = [];
+            const cur = tx.objectStore('logs').index('by_session')
+                .openCursor(IDBKeyRange.only(sessionId), 'prev');   // от свежих к старым
+            return new Promise((res) => {
+                cur.onsuccess = () => {
+                    const c = cur.result;
+                    if (!c || rows.length >= limit) return res(rows.reverse());
+                    rows.push(c.value);
+                    c.continue();
+                };
+            });
+        });
+    } catch (e) { _storeDisable('не читается IndexedDB', e); return []; }
+}
+
+function initStoreSync() {
+    const kick = () => { _storeSync(); };
+    if (window.requestIdleCallback) requestIdleCallback(kick, {timeout: 3000});
+    else setTimeout(kick, 500);
+    setInterval(kick, _STORE_SYNC_MS);
+    // Вкладку разворачивают после простоя — подтянуть хвост сразу, не ждать интервала
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
 }
 
 function initChatPositionMemory() {
@@ -468,12 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('compactToolMode', window.compactMode);
             compactBtn.textContent = window.compactMode ? '📄' : '📋';
             compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
-            $('#chat').innerHTML = '';
-            _chatDomCache.clear();  // весь кеш отрисован в прежнем режиме
-            if (chatLogs[selectedAgent]) { chatLogs[selectedAgent].lastId = 0; chatLogs[selectedAgent].firstId = null; chatLogs[selectedAgent].initialCount = 0; }
-            scrollAfterLoad = true;
             _prepareChatAnchorRestore(false);
-            connectSSE();
+            _showChatFor(selectedAgent, currentScope);  // перерисовать всё в новом режиме
         });
     }
     const openFolderBtn = $('#open-folder-btn');
@@ -490,6 +600,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initBugReportBanner();
     initHeartbeat();
     _startCacheCountdown();
+    // Только после load: холодная синхронизация ~100 КБ не должна делить узкий канал
+    // с загрузкой самой страницы (HTTP/1.1, 6 соединений, одно занято SSE).
+    window.addEventListener('load', initStoreSync, {once: true});
 });
 
 let eventSource = null;
@@ -501,19 +614,53 @@ function scheduleRefresh() {
     }, 3000);
 }
 
+// Чей журнал сейчас в #chat. Сверяется с тем, что называет поток: сервер разрешает
+// name+scope в session_id сам, и только он знает правду. Раньше здесь была проверка
+// против _sessionIds, но она зависела от того, успел ли вернуться фоновый опрос
+// (при TTFB до 4 с он в полёте почти всегда) — гонку выиграть нельзя, можно только
+// перестать от неё зависеть.
+let _chatSessionId = null;
+
+// Поток говорит, что показываем чужую сессию: агента убили и подняли заново, или наша
+// карта устарела. Стираем чат и грузим историю правильной сессии — молчать тут нельзя,
+// иначе к старой истории допишется чужой хвост.
+function _onForeignSession(agent, realId) {
+    console.warn(`[chat] поток отдаёт сессию ${realId}, а показана ${_chatSessionId} — перезагружаю ${agent}`);
+    if (eventSource) { eventSource.close(); eventSource = null; }
+    _sessionIds[_chatPositionKey(currentScope, agent)] = realId;
+    _chatSessionId = realId;
+    _showChatFor(agent, currentScope);
+}
+
+// Пока история едет, eventSource намеренно null. Восстановительные вызовы connectSSE
+// (фоновый опрос в refreshSessions, переподключение по ошибке) в этот момент открыли бы
+// поток с after_id=0 — сервер выслал бы всю историю ещё раз, вторым несжатым потоком.
+// Ловилось не всегда: зависит от того, попал ли трёхсекундный опрос в эту паузу.
+let _chatLoading = false;
+
 // SSE reconnects on error — server may restart mid-session, don't lose the log stream
-function connectSSE() {
+function connectSSE(fromHistoryLoad) {
+    if (_chatLoading && !fromHistoryLoad) return;
     if (eventSource) { eventSource.close(); eventSource = null; }
     if (!selectedAgent || !currentScope) return;
     const targetAgent = selectedAgent;
     const lastId = chatLogs[selectedAgent]?.lastId || 0;
-    const limitParam = lastId === 0 ? '&limit=100' : '';
+    // limit нужен только в запасном режиме, когда истории у нас нет вовсе и её принесёт
+    // сам поток (_fetchHistory не смог). В обычной работе сюда приходят с lastId > 0.
+    const limitParam = lastId === 0 ? `&limit=${_CHAT_PAGE}` : '';
     const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
     eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
         if (selectedAgent !== targetAgent) return;
         try {
             const l = JSON.parse(event.data);
+            // Живые куски стрима идут без session_id — их пропускаем, их финал придёт
+            // строкой журнала, и вот она уже будет подписана.
+            if (l.session_id) {
+                if (_chatSessionId && l.session_id !== _chatSessionId) return _onForeignSession(targetAgent, l.session_id);
+                if (!_chatSessionId) _chatSessionId = l.session_id;
+            }
+            if (l.type === '__session') return;  // рукопожатие: сессию уже сверили выше
             if (l.type === 'user_message' && localMessages.size > 0) {
                 const isLocal = localMessages.has(l.content) ||
                     [...localMessages].some(m => l.content.endsWith(m)) ||
@@ -1550,12 +1697,71 @@ function selectOrchestrator(name, scope) {
     renderOrchTabs(orchData);
 }
 
+// Отрисовать готовые строки журнала и выставить отметки, от которых пляшет connectSSE.
+function _renderHistory(agent, rows) {
+    const meta = chatLogs[agent] = {lastId: 0, firstId: null, initialCount: 0};
+    for (const l of rows) {
+        addChatEntry(l.type, l.content, l.ts, null, l);
+        if (!Number.isFinite(l.id)) continue;
+        if (l.id > meta.lastId) meta.lastId = l.id;
+        if (meta.firstId === null || l.id < meta.firstId) meta.firstId = l.id;
+        meta.initialCount++;
+    }
+    updateLoadMoreBtn();
+    $('#chat').scrollTop = $('#chat').scrollHeight;
+    _scheduleChatInitialSettle();
+    _syncChatJumpButton();
+}
+
+// Промах зеркала: тянем историю обычным маршрутом. Он отдаёт application/json, который
+// nginx жмёт, — те же 100 сообщений едут в 5 раз меньшим объёмом, чем через SSE (D1).
+async function _fetchHistory(name, scope) {
+    try {
+        const q = new URLSearchParams({scope, before_id: String(2 ** 31 - 1), limit: String(_CHAT_PAGE)});
+        const rows = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
+        return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+        // Не молчим и не сдаёмся: пустой список → connectSSE пойдёт с after_id=0,
+        // и историю принесёт сам поток, как до всей этой затеи.
+        console.warn(`[chat] история ${name} не пришла — ${e.name}: ${e.message}; добираю потоком`);
+        return [];
+    }
+}
+
+// Показать чат агента: сперва из зеркала (сети нет вообще), иначе одним запросом.
+async function _showChatFor(name, scope) {
+    if (!name || !scope) return;
+    $('#chat').innerHTML = '';
+    chatLogs[name] = {lastId: 0, firstId: null, initialCount: 0};
+    scrollAfterLoad = true;
+    _chatLoading = true;
+    try {
+        const sid = await _storeSessionId(scope, name);
+        let rows = sid ? await _storeRead(sid, _CHAT_PAGE) : [];
+        // В зеркале сообщения обрезаны по байтам, и обрезанным в чате не место. Замер по
+        // живой БД: из шести обрезанных строк пять — tool_result, который вообще не создаёт
+        // своего узла (вливается в строку инструмента), а самая крупная — base64-скриншот
+        // на 636 КБ, который нарисовался бы битой картинкой. Помечать нечего и негде,
+        // поэтому такую историю берём с сервера целиком. Случай редкий: при боевых tail=20
+        // и cap=16 КБ в живой базе не обрезается НИ ОДНА строка.
+        const fromStore = rows.length > 0 && !rows.some((r) => r.trunc);
+        if (!fromStore) rows = await _fetchHistory(name, scope);
+        if (name !== selectedAgent || scope !== currentScope) return;  // успели уйти к другому агенту
+        // Чей журнал мы показали. Поток назовёт свою сессию, и несовпадение вычистит чат.
+        _chatSessionId = sid || (rows.length ? rows[0].session_id : null);
+        _renderHistory(name, rows);
+        connectSSE(true);
+        return fromStore;
+    } finally {
+        // Обязательно снимаем даже на раннем выходе: иначе восстановительный connectSSE
+        // окажется заблокирован навсегда и умерший поток никто не поднимет.
+        _chatLoading = false;
+    }
+}
+
 async function onOrchestratorChange() {
-    const prevAgent = selectedAgent, prevScope = currentScope;
-    const prevEcho = localMessages.size > 0 || _streamDeferredFinal !== null, prevStream = streamBubble;
     saveDraft();
     _captureChatReadFrontier();
-    _stashChatDom(prevAgent, prevScope, prevEcho, prevStream);
     if (eventSource) { eventSource.close(); eventSource = null; }
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
@@ -1577,25 +1783,22 @@ async function onOrchestratorChange() {
         localStorage.setItem('lastOrchScope', currentScope);
         localStorage.setItem('lastOrchName', selectedAgent);
     }
-    const cached = _restoreChatDom(selectedAgent, currentScope);
-    if (!cached) $('#chat').innerHTML = '';
-    scrollAfterLoad = !cached;
+    $('#chat').innerHTML = '';
     _prepareChatAnchorRestore(restoreUnreadAnchor);
-    // Бурста истории не будет — некому дорисовать разделитель непрочитанного
-    if (cached && _pendingChatRestore) _scheduleChatInitialSettle();
-    if (cached) _syncChatJumpButton();
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
-    await refreshSessions(); _dropStaleRestoredDom(); connectSSE(); initFilePanel();
+    // История и поток идут первыми и не ждут refreshSessions: тому нужно два круга
+    // (sessions+stats, затем orchestrators), а нам для показа чата не нужно ни одного (D2).
+    _showChatFor(selectedAgent, currentScope);
+    refreshSessions();
+    initFilePanel();
     if (_tasksTabActive) loadTasks();
     if (_jobsTabActive) loadJobs();
 }
 
 // === Agent Selection ===
 async function selectAgent(name) {
-    const prevAgent = selectedAgent, prevStream = streamBubble;
-    const prevEcho = localMessages.size > 0 || _streamDeferredFinal !== null;
     saveDraft();
     _captureChatReadFrontier();
     if (eventSource) { eventSource.close(); eventSource = null; }
@@ -1612,22 +1815,14 @@ async function selectAgent(name) {
     streamPending = '';
     _streamDeferredFinal = null;
     _resetCodexActivityState();
-    _stashChatDom(prevAgent, currentScope, prevEcho, prevStream);
-    const cached = _restoreChatDom(name, currentScope);
-    if (!cached) {
-        $('#chat').innerHTML = '';
-        chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
-    }
-    scrollAfterLoad = !cached;
+    $('#chat').innerHTML = '';
     _prepareChatAnchorRestore(false);
-    if (cached) _syncChatJumpButton();
     updateInputState();
     restoreDraft();
     renderAgentList();
     fetchAgentContext(name);
-    await refreshSessions();
-    _dropStaleRestoredDom();
-    connectSSE();
+    await _showChatFor(name, currentScope);
+    refreshSessions();  // не в критическом пути: чат уже на экране (D2)
 }
 
 function updateInputState() {
