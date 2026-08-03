@@ -95,6 +95,23 @@
   `8b5392d` and its squashed merge `f796a08` are different SHAs for the same
   change, so `^` on the wrong one yields the wrong parent.
 
+- `~/.claude/projects/**/*.jsonl` is a free, tier-1 telemetry corpus for any
+  question about real Claude behaviour: every assistant record carries
+  `message.usage` with `cache_read_input_tokens` / `cache_creation_input_tokens`,
+  and `{"type":"system","subtype":"compact_boundary"}` marks NATIVE compactions
+  with `compactMetadata.trigger/preTokens/postTokens/durationMs`. Orchestra's own
+  compacts are findable by the `PREVIOUS CONTEXT SUMMARY` preamble. Measure before
+  theorizing — this answered #126 with 0 paid calls. Grep for the string alone
+  matches my own file-reads of source code; assert on the parsed
+  `subtype`/`type` field instead.
+
+- Restating an assigned premise as a finding is the failure; check WHICH BRANCH a
+  line sits in. In `compact()` the orchestrator read
+  `self.session_id = pre_compact_session_id` as "the id is restored", but all
+  three occurrences are failure paths (retry, ack timeout, quota). The success
+  path does the opposite via `_ensure_backend(force_fresh=True)` →
+  `resume_session_id=None`. A line's meaning is its control flow, not its text.
+
 - Probe a "tool is unavailable" claim with the EXACT flags the code uses.
   `codex exec` from `/tmp` failed on a trust check (looks like a quota error but
   is not); rerun with the real flags gave the verbatim quota message and reset
