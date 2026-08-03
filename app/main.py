@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -83,8 +84,29 @@ async def lifespan(app: FastAPI):
     await manager.shutdown_all()
 
 
+class VersionedStatic(StaticFiles):
+    """Есть ?v= в URL → кешируем навсегда, нет → обязательная ревалидация.
+
+    Версию проставляет static_url() из app/deps.py. Ошибиться здесь можно только
+    в безопасную сторону: забыли версию — юзер платит лишним 304, а не сидит
+    неделю со старым кодом, как было без Cache-Control вовсе (задача #9).
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        # Только 200: закешировать навечно 404 по версионному URL — значит спрятать
+        # файл от юзера до конца жизни профиля браузера
+        versioned = b"v" in parse_qs(scope.get("query_string", b""))
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable"
+            if versioned and response.status_code == 200
+            else "no-cache"
+        )
+        return response
+
+
 app = FastAPI(title="Orchestra", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", VersionedStatic(directory="app/static"), name="static")
 
 from app.routes.tm import router as tm_router
 from app.routes.bg import router as bg_router

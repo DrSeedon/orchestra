@@ -70,14 +70,17 @@ async def dashboard(request: Request):
         "is_auth_enabled": is_auth_enabled(),
         "is_owner_mode": is_owner_mode(),
         "client_name": os.getenv("CLIENT_NAME", "Client"),
-    })
+    # Кешировать HTML нельзя: в нём лежат версии статики, устареет он — версии
+    # не обновятся, и весь механизм из #9 перестанет работать
+    }, headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     if not is_auth_enabled():
         return RedirectResponse("/", status_code=302)
-    return templates.TemplateResponse(request, "login.html", {"error": ""})
+    return templates.TemplateResponse(request, "login.html", {"error": ""},
+                                      headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/login")
