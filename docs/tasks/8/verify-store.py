@@ -69,7 +69,7 @@ async def main():
         page = await ctx.new_page()
         logs = []
         page.on("console", lambda m: logs.append(m.text))
-        await page.route("**/static/js/app.js",
+        await page.route("**/static/js/app.js*",
                          lambda r: r.fulfill(status=200, content_type="text/javascript",
                                              body=APP_JS.read_text()))
         await page.route("**/api/logs/sync*", handle_sync)
@@ -181,7 +181,7 @@ async def main():
         logs.clear()
         page2 = await ctx.new_page()
         page2.on("console", lambda m: logs.append(m.text))
-        await page2.route("**/static/js/app.js",
+        await page2.route("**/static/js/app.js*",
                           lambda r: r.fulfill(status=200, content_type="text/javascript",
                                               body=APP_JS.read_text()))
         payload_mode["mode"] = "404"
@@ -201,7 +201,7 @@ async def main():
         await page3.add_init_script(
             "Object.defineProperty(window, 'indexedDB', {get(){ throw new DOMException("
             "'нет доступа в приватном окне', 'SecurityError'); }});")
-        await page3.route("**/static/js/app.js",
+        await page3.route("**/static/js/app.js*",
                           lambda r: r.fulfill(status=200, content_type="text/javascript",
                                               body=APP_JS.read_text()))
         await page3.goto(BASE, wait_until="load")

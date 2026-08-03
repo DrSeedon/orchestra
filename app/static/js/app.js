@@ -353,8 +353,14 @@ function initStoreSync() {
     if (window.requestIdleCallback) requestIdleCallback(kick, {timeout: 3000});
     else setTimeout(kick, 500);
     setInterval(kick, _STORE_SYNC_MS);
-    // Вкладку разворачивают после простоя — подтянуть хвост сразу, не ждать интервала
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
+    // Единственное место, где обрабатывается «вкладку развернули». Дел здесь два и оба
+    // срочные: подтянуть хвост журнала и проверить, жив ли сервер, — при свёрнутой вкладке
+    // таймеры идут не по расписанию, и его возврат замечался через десятки секунд (#15).
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        kick();
+        _heartbeatProbe();
+    });
 }
 
 function initChatPositionMemory() {
@@ -1166,7 +1172,10 @@ async function restartServer() {
     try {
         await api('/api/restart', { method: 'POST' });
     } catch {}
-    setTimeout(() => location.reload(), 3000);
+    // Перезагрузки здесь больше нет: она стояла на 3 с, а старт сервиса занимает 4.3-13.9 с
+    // (замер по journalctl, docs/tasks/15/research.md) — то есть страница почти всегда
+    // перезагружалась в мёртвый сервер и юзер получал 502 от nginx вместо дашборда.
+    // Возврат ловит heartbeat и восстанавливает состояние на месте.
 }
 
 async function deleteOrchestrator() {
@@ -5748,6 +5757,7 @@ async function api(url, opts = {}) {
 // === Reboot Overlay ===
 let _rebootOverlay = null;
 let _rebootFails = 0;
+let _wasDown = false;   // был ли хоть один отказ с прошлого успешного ответа
 
 function _showRebootOverlay() {
     if (_rebootOverlay) return;
@@ -5784,17 +5794,50 @@ function _dismissRebootOverlay() {
 async function _pollReconnect() {
     while (_rebootOverlay) {
         await new Promise(r => setTimeout(r, 2000));
-        if (!_rebootOverlay) return;  // dismissed mid-sleep — must not reload the page anyway
+        if (!_rebootOverlay) return;  // dismissed mid-sleep — must not recover behind the user's back
         try {
             const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
-            if (r.status < 502) { location.reload(); return; }
+            if (r.status < 502) { _onServerOk(); return; }
         } catch {}
+    }
+}
+
+// Сервер снова отвечает. Раньше здесь была location.reload(), и это оказалось дорогим
+// способом сделать то, что уже умеет зеркало журнала из #8: историю догоняет одна дельта,
+// чат перерисовывается локально. Замер (docs/tasks/15/research.md): сама перезагрузка стоит
+// полсекунды, но клиент замечает возврат сервера через 1.7-159 с, медиана 23 с — платить
+// ещё и за перезагрузку незачем. Свежесть версии фронта перезагрузка всё равно не давала:
+// JS брался из кеша без обращения к серверу.
+let _recovering = false;
+async function _recoverAfterOutage() {
+    if (_recovering) return;   // _onServerOk зовут и heartbeat, и refreshSessions, и опрос
+    _recovering = true;
+    try {
+        _dismissRebootOverlay();
+        // Неподтверждённое серверу выбрасываем: рестарт мог потерять ход, и какой пузырь
+        // чей — надёжно не определить. Перезагрузка делала это молча, теперь делаем явно.
+        localMessages.clear();
+        pendingUserMsgs = [];
+        pendingBubble = null;
+        _finalizedBubble = null;
+        if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
+        streamBubble = null;
+        streamContent = '';
+        streamPending = '';
+        _streamDeferredFinal = null;
+        await _storeSync();
+        if (selectedAgent && currentScope) await _showChatFor(selectedAgent, currentScope);
+        refreshSessions();
+        loadOrchestrators();
+    } finally {
+        _recovering = false;
     }
 }
 
 // Two consecutive failures before showing overlay — one transient error shouldn't panic the UI
 function _onServerError() {
     _rebootFails++;
+    _wasDown = true;
     if (_rebootFails >= 2) _showRebootOverlay();
 }
 
@@ -5843,18 +5886,26 @@ function _parseRateLimitStatus(content) {
     return { retry: +m[1], max: +m[2], delay: +m[3] };
 }
 
+// Единственное место, где ловится переход «был недоступен → отвечает». Зовётся из
+// heartbeat, из refreshSessions и из опроса под оверлеем — потому восстановление и
+// защищено флагом, иначе чат перерисуется столько раз, сколько источников успело.
 function _onServerOk() {
     _rebootFails = 0;
+    if (!_wasDown) return;
+    _wasDown = false;
+    _recoverAfterOutage();
+}
+
+async function _heartbeatProbe() {
+    try {
+        const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+        if (r.status < 502) _onServerOk();
+        else _onServerError();
+    } catch (e) { _onFetchFail(e); }
 }
 
 function initHeartbeat() {
-    setInterval(async () => {
-        try {
-            const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
-            if (r.status < 502) _onServerOk();
-            else _onServerError();
-        } catch (e) { _onFetchFail(e); }
-    }, 3000);
+    setInterval(_heartbeatProbe, 3000);   // разворот вкладки обрабатывает initStoreSync
 }
 
 // === Tasks Panel ===
@@ -6726,7 +6777,7 @@ function _showProxyRestartBanner(name, wroteUrl) {
             e.stopPropagation();
             btn.textContent = '⏳ Рестарт...'; btn.disabled = true;
             try { await api('/api/restart', { method: 'POST' }); } catch {}
-            setTimeout(() => location.reload(), 3000);
+            // см. соседний обработчик рестарта: перезагрузка на 3 с била в мёртвый сервер
         });
     }
 }

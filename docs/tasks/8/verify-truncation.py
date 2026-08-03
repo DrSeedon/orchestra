@@ -71,7 +71,7 @@ async def main():
         page = await ctx.new_page()
         console = []
         page.on("console", lambda m: console.append(m.text))
-        await page.route("**/static/js/app.js",
+        await page.route("**/static/js/app.js*",
                          lambda r: r.fulfill(status=200, content_type="text/javascript",
                                              body=APP_JS.read_text()))
 

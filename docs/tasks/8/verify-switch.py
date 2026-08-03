@@ -47,7 +47,7 @@ async def main():
         page.on("console", lambda m: console.append(m.text))
         reqs = []
         page.on("request", lambda r: reqs.append(r.url.split(":8888")[-1]))
-        await page.route("**/static/js/app.js",
+        await page.route("**/static/js/app.js*",
                          lambda r: r.fulfill(status=200, content_type="text/javascript",
                                              body=APP_JS.read_text()))
 
