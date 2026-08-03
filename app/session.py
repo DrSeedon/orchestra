@@ -1373,6 +1373,13 @@ class AgentSession:
                 self._spawn_bg(self._flush_pending())
 
         self.last_summary = _bounded_summary(summary)
+        # compact() hands the session a NEW native session_id, and every later
+        # reconnect resumes it — a resumed CLI is never given system_prompt, so the
+        # role would only survive in whatever the summary happened to mention.
+        # Re-arm the injector so the next turn re-delivers it. Success path only:
+        # on the abort branches the pre-compact session is restored and its prompt
+        # is still live, so resetting there would buy a needless full re-inject.
+        self._prompt_injected = False
         if pre_compact_session_id:
             self.session_id_history.append({
                 "session_id": pre_compact_session_id,

@@ -2432,6 +2432,166 @@ class TestRateLimitClassification:
         session.send.assert_not_awaited()
 
 
+class TestCompactReArmsPromptInjection:
+    """#126: a resumed CLI is never given system_prompt (backend_claude.py:165-168).
+
+    compact() switches the session to a NEW native session_id, so every later
+    reconnect is a resume — the role would be gone. The injector at
+    session.py:680 is gated on `not _prompt_injected`, so compact must re-arm it.
+    """
+
+    @staticmethod
+    def _compact_backend(summary_text):
+        from app.events import AgentEvent
+
+        class CompactBackend:
+            session_id = None
+
+            def __init__(self):
+                self.sent = []
+
+            async def connect(self): pass
+            async def send(self, msg): self.sent.append(msg)
+            async def events(self):
+                yield AgentEvent(type="text", content=summary_text)
+                yield AgentEvent(
+                    type="turn_end",
+                    metadata={"ok": True, "stop_reason": "end_turn",
+                              "num_turns": 1, "session_id": "post-compact-sid"},
+                )
+            async def interrupt(self): pass
+            async def disconnect(self): pass
+            async def reconnect(self): pass
+
+        return CompactBackend()
+
+    async def _run_compact(self, session, monkeypatch):
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active", lambda: False
+        )
+        backend = self._compact_backend("TASK STATE: shipping #126. " + "x" * 250)
+        ack_set = False
+
+        async def fake_ensure_backend(force_fresh=False):
+            nonlocal ack_set
+            session._backend = backend
+            if not ack_set and session._compact_ack_event:
+                async def _set_ack():
+                    await asyncio.sleep(0.05)
+                    if session._compact_ack_event:
+                        session._compact_ack_event.set()
+                asyncio.create_task(_set_ack())
+                ack_set = True
+            return backend
+
+        with patch.object(session, "_make_backend", return_value=backend), \
+             patch.object(session, "_ensure_backend", side_effect=fake_ensure_backend):
+            return await session.compact(), backend
+
+    @pytest.mark.asyncio
+    async def test_successful_compact_rearms_prompt_injection(
+        self, session, monkeypatch
+    ):
+        session._log = MagicMock()
+        session._prompt_injected = True
+
+        result, _ = await self._run_compact(session, monkeypatch)
+
+        assert result["ok"] is True
+        assert session.session_id == "post-compact-sid", (
+            "compact must adopt the new native session id"
+        )
+        assert session._prompt_injected is False, (
+            "role must be re-injected on the next turn; a resumed CLI gets no system_prompt"
+        )
+
+    @pytest.mark.asyncio
+    async def test_failed_compact_leaves_injection_flag_untouched(
+        self, session, monkeypatch
+    ):
+        """Abort restores the pre-compact session, whose prompt is still live.
+
+        Re-arming there would buy a needless full re-inject (~270k input) after
+        every failed compact.
+        """
+        from app.events import AgentEvent
+
+        class LimitBackend:
+            async def connect(self): return None
+            async def send(self, _message): return None
+            async def events(self):
+                yield AgentEvent(
+                    type="text",
+                    content=(
+                        "You've hit your monthly spend limit · raise it at "
+                        "claude.ai/settings/usage"
+                    ),
+                )
+                yield AgentEvent(
+                    type="turn_end", metadata={"session_id": "bad-compact-session"}
+                )
+            async def disconnect(self): return None
+
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active", lambda: False
+        )
+        session.session_id = "original-session"
+        session._prompt_injected = True
+        session._log = MagicMock()
+        session._make_backend = MagicMock(return_value=LimitBackend())
+        session._ensure_backend = AsyncMock()
+
+        result = await session.compact()
+
+        assert result["ok"] is False
+        assert session.session_id == "original-session"
+        assert session._prompt_injected is True, (
+            "failed compact keeps the old session, so its prompt is still injected"
+        )
+
+    @pytest.mark.asyncio
+    async def test_role_is_back_in_the_prompt_on_the_turn_after_compact(
+        self, session, monkeypatch
+    ):
+        """End-to-end: the requirement is the ROLE returns, not that a flag flipped."""
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        session._log = MagicMock()
+        session._prompt_injected = True
+        session._current_prompt = "ROLE: full-cycle worker. STOP at every gate."
+
+        await self._run_compact(session, monkeypatch)
+
+        # Now the first turn after compact, over a RESUMED backend (no system_prompt).
+        sent = []
+        resumed = AsyncMock()
+        resumed.send = AsyncMock(side_effect=lambda m: sent.append(m))
+
+        async def events():
+            yield AgentEvent(type="turn_end", content="",
+                             metadata={"ok": True, "session_id": "post-compact-sid"})
+
+        resumed.events = lambda: events()
+        session._backend = resumed
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._persist = MagicMock()
+        monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
+
+        with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
+            await session.send("next task")
+
+        assert sent, "the turn after compact must reach the backend"
+        assert "[Orchestra platform note:" in sent[0], (
+            "role must be re-delivered after compact"
+        )
+        assert "ROLE: full-cycle worker. STOP at every gate." in sent[0], (
+            "the actual role text must be present, not just the wrapper"
+        )
+
+
 class TestCompactPromptContract:
     """#106 Q6: properties the measured GO rests on. Changing these invalidates the experiment."""
 

@@ -111,6 +111,18 @@
   three occurrences are failure paths (retry, ack timeout, quota). The success
   path does the opposite via `_ensure_backend(force_fresh=True)` →
   `resume_session_id=None`. A line's meaning is its control flow, not its text.
+  **Symmetrical trap, same task:** I then accepted a neighbour's "the system
+  prompt is never passed after compact" without checking the ack-turn branch —
+  where `force_fresh=True` makes it a COLD START that does get the prompt. Trace
+  the path to its end, not to the first branch that confirms the diagnosis;
+  a correction can be right about the defect and wrong about where it fires.
+
+- A measurement proving the CURRENT path is safe is not evidence for a NEW path.
+  #125 measured `cache_read=0.889` on the inject turn (append-to-tail keeps the
+  prefix) and offered it as the argument for sending `system_prompt` on every
+  resume — a different operation nobody had measured, and one that risks
+  invalidating the whole prefix on every reconnect. Ask "was this number measured
+  on the thing being proposed, or on the thing being replaced?"
 
 - Probe a "tool is unavailable" claim with the EXACT flags the code uses.
   `codex exec` from `/tmp` failed on a trust check (looks like a quota error but
