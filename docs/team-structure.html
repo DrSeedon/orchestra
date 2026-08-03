@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orchestra Team Structure</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-0:#07080a;--bg-1:#0d0f13;--bg-2:#13161c;--bg-3:#1a1e27;--bg-4:#222730;
+  --tx-0:#e8ecf4;--tx-1:#a0a8b8;--tx-2:#6b7385;
+  --cyan:#00d4aa;--cyan-dim:#00d4aa30;--cyan-glow:#00d4aa18;
+  --amber:#f0a030;--amber-dim:#f0a03030;
+  --red:#f05050;--red-dim:#f0505025;
+  --purple:#a78bfa;--purple-dim:#a78bfa25;
+  --blue:#60a5fa;--blue-dim:#60a5fa20;
+  --radius:10px;--radius-sm:6px;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg-0);color:var(--tx-0);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;line-height:1.6;
+  min-height:100vh;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%,var(--cyan-glow),transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%,#a78bfa08,transparent);
+}
+.page{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:40px 24px 80px}
+
+/* Header */
+.header{text-align:center;margin-bottom:56px;position:relative}
+.header::after{
+  content:'';display:block;width:120px;height:2px;margin:20px auto 0;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+}
+.header h1{
+  font-family:'JetBrains Mono',monospace;font-size:clamp(28px,5vw,42px);font-weight:700;
+  letter-spacing:-1px;
+  background:linear-gradient(135deg,var(--tx-0) 0%,var(--cyan) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.header .sub{color:var(--tx-2);font-size:14px;margin-top:8px;font-weight:300}
+
+/* Nav */
+.nav{
+  display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:48px;
+  position:sticky;top:0;z-index:100;padding:12px 0;
+  background:linear-gradient(180deg,var(--bg-0) 60%,transparent);
+}
+.nav a{
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;
+  color:var(--tx-2);text-decoration:none;
+  padding:6px 14px;border-radius:20px;border:1px solid var(--bg-4);
+  transition:all .2s;white-space:nowrap;
+}
+.nav a:hover{color:var(--cyan);border-color:var(--cyan-dim);background:var(--cyan-glow)}
+
+/* Sections */
+section{margin-bottom:56px}
+.section-head{
+  display:flex;align-items:center;gap:12px;margin-bottom:24px;
+  cursor:pointer;user-select:none;
+}
+.section-head h2{
+  font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;letter-spacing:-.5px;
+}
+.section-head .tag{
+  font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+  padding:3px 10px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;
+}
+.section-head .chevron{
+  margin-left:auto;color:var(--tx-2);transition:transform .3s;font-size:14px;
+}
+.section-head.collapsed .chevron{transform:rotate(-90deg)}
+.section-body{overflow:hidden;transition:max-height .4s ease,opacity .3s;max-height:4000px;opacity:1}
+.section-body.hidden{max-height:0;opacity:0;pointer-events:none}
+
+/* Heat map */
+.heatmap{display:flex;flex-direction:column;gap:10px}
+.heat-row{
+  display:grid;grid-template-columns:140px 80px 70px 1fr;align-items:center;gap:12px;
+  padding:10px 16px;border-radius:var(--radius-sm);background:var(--bg-2);
+  border:1px solid var(--bg-4);transition:border-color .2s;
+}
+.heat-row:hover{border-color:var(--cyan-dim)}
+.heat-zone{font-weight:600;font-size:14px}
+.heat-commits,.heat-loc{
+  font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx-1);text-align:right;
+}
+.heat-bar-wrap{position:relative;height:24px;border-radius:4px;overflow:hidden;background:var(--bg-4)}
+.heat-bar{
+  height:100%;border-radius:4px;position:relative;
+  transition:width .8s cubic-bezier(.22,1,.36,1);
+}
+.heat-bar::after{
+  content:attr(data-files);position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--bg-0);font-weight:600;
+  white-space:nowrap;
+}
+.heat-bar.h1{background:linear-gradient(90deg,#f05050,#f07050)}
+.heat-bar.h2{background:linear-gradient(90deg,#f0a030,#f0c040)}
+.heat-bar.h3{background:linear-gradient(90deg,#00d4aa,#40e0c0)}
+.heat-bar.h4{background:linear-gradient(90deg,#60a5fa,#80b8ff)}
+.heat-bar.h5{background:linear-gradient(90deg,#a78bfa,#c0a0ff)}
+.heat-bar.h6{background:linear-gradient(90deg,var(--tx-2),#8090a0)}
+.heat-legend{display:flex;gap:20px;margin-top:8px;justify-content:flex-end}
+.heat-legend span{font-size:11px;color:var(--tx-2);font-family:'JetBrains Mono',monospace}
+.heat-conclusion{
+  margin-top:14px;padding:12px 16px;border-radius:var(--radius-sm);
+  background:var(--cyan-glow);border-left:3px solid var(--cyan);
+  font-size:13px;color:var(--tx-1);
+}
+.heat-conclusion strong{color:var(--cyan)}
+
+/* Worker cards */
+.workers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.worker-card{
+  background:var(--bg-2);border:1px solid var(--bg-4);border-radius:var(--radius);
+  padding:20px;transition:all .3s;position:relative;overflow:hidden;
+}
+.worker-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  transition:opacity .3s;opacity:.6;
+}
+.worker-card:hover{border-color:var(--cyan-dim);transform:translateY(-2px);box-shadow:0 8px 32px #00000040}
+.worker-card:hover::before{opacity:1}
+.worker-card.permanent::before{background:linear-gradient(90deg,var(--cyan),var(--cyan)80%,transparent)}
+.worker-card.on-demand::before{background:linear-gradient(90deg,var(--amber),var(--amber)80%,transparent)}
+.worker-card.template::before{background:linear-gradient(90deg,var(--purple),var(--purple)80%,transparent)}
+.card-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.card-name{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700}
+.card-badge{
+  font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;
+  padding:3px 8px;border-radius:12px;letter-spacing:.3px;
+}
+.badge-opus48{background:#a78bfa25;color:#a78bfa;border:1px solid #a78bfa40}
+.badge-opus46{background:#60a5fa20;color:#60a5fa;border:1px solid #60a5fa40}
+.badge-sonnet{background:#00d4aa20;color:#00d4aa;border:1px solid #00d4aa40}
+.badge-haiku{background:#f0a03020;color:#f0a030;border:1px solid #f0a03040}
+.badge-fable{background:#f0505020;color:#f05050;border:1px solid #f0505040}
+.card-type{
+  margin-left:auto;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;
+  padding:3px 10px;border-radius:12px;
+}
+.type-permanent{background:var(--cyan-glow);color:var(--cyan)}
+.type-on-demand{background:var(--amber-dim);color:var(--amber)}
+.type-template{background:var(--purple-dim);color:var(--purple)}
+.card-owns{font-size:12px;color:var(--tx-2);margin-bottom:12px}
+.card-owns code{
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+  background:var(--bg-4);padding:1px 6px;border-radius:3px;color:var(--tx-1);
+}
+.card-section{margin-bottom:10px}
+.card-section-title{
+  font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+  color:var(--tx-2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;
+}
+.card-files{display:flex;flex-direction:column;gap:3px}
+.card-file{display:flex;align-items:center;gap:8px;font-size:12px}
+.card-file .fname{font-family:'JetBrains Mono',monospace;color:var(--tx-1);font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-file .floc{
+  font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx-2);
+  margin-left:auto;white-space:nowrap;
+}
+.card-file .fbar{width:40px;height:4px;border-radius:2px;background:var(--bg-4);flex-shrink:0}
+.card-file .fbar-fill{height:100%;border-radius:2px;background:var(--cyan);transition:width .6s}
+.card-pitfalls{
+  margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);
+  background:var(--amber-dim);border-left:2px solid var(--amber);
+}
+.card-pitfalls summary{
+  font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+  color:var(--amber);text-transform:uppercase;letter-spacing:1px;cursor:pointer;
+  list-style:none;display:flex;align-items:center;gap:6px;
+}
+.card-pitfalls summary::before{content:'>';font-size:12px;transition:transform .2s}
+.card-pitfalls[open] summary::before{transform:rotate(90deg)}
+.card-pitfalls ul{margin-top:8px;padding-left:16px;font-size:12px;color:var(--tx-1)}
+.card-pitfalls li{margin-bottom:4px}
+.card-pitfalls li code{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber)}
+.card-knowledge ul{padding-left:16px;font-size:12px;color:var(--tx-1)}
+.card-knowledge li{margin-bottom:3px}
+.card-knowledge code{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan)}
+.card-when{
+  margin-top:10px;font-size:12px;color:var(--tx-2);font-style:italic;
+  padding:8px 12px;background:var(--bg-3);border-radius:var(--radius-sm);
+}
+
+/* File tree */
+.file-tree{display:flex;flex-direction:column;gap:4px}
+.ft-row{
+  display:grid;grid-template-columns:160px 1fr 60px;gap:12px;align-items:center;
+  padding:8px 14px;border-radius:var(--radius-sm);
+  background:var(--bg-2);border:1px solid transparent;transition:all .2s;
+}
+.ft-row:hover{border-color:var(--bg-4);background:var(--bg-3)}
+.ft-area{font-size:13px;font-weight:500}
+.ft-files{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ft-loc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx-1);text-align:right}
+.ft-bar-wrap{height:6px;border-radius:3px;background:var(--bg-4);overflow:hidden;grid-column:1/-1;margin-top:-2px}
+.ft-bar{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.22,1,.36,1)}
+
+/* Model guide */
+.model-grid{display:flex;flex-direction:column;gap:6px}
+.model-row{
+  display:grid;grid-template-columns:200px 120px 1fr;gap:12px;align-items:center;
+  padding:10px 16px;border-radius:var(--radius-sm);
+  background:var(--bg-2);border:1px solid var(--bg-4);transition:all .2s;
+}
+.model-row:hover{border-color:var(--cyan-dim)}
+.model-row.deprecated{opacity:.4;text-decoration:line-through}
+.model-task{font-size:13px;font-weight:500}
+.model-name{font-family:'JetBrains Mono',monospace;font-size:12px}
+.model-why{font-size:12px;color:var(--tx-2)}
+
+/* Tests table */
+.tests-grid{display:flex;flex-direction:column;gap:4px}
+.test-row{
+  display:grid;grid-template-columns:220px 60px 1fr;gap:12px;align-items:center;
+  padding:8px 14px;border-radius:var(--radius-sm);background:var(--bg-2);
+}
+.test-file{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx-1)}
+.test-loc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx-2);text-align:right}
+.test-covers{font-size:12px;color:var(--tx-2)}
+
+/* Research */
+.research-grid{display:flex;flex-direction:column;gap:4px}
+.research-row{
+  display:grid;grid-template-columns:140px 240px 1fr;gap:12px;align-items:center;
+  padding:10px 14px;border-radius:var(--radius-sm);background:var(--bg-2);
+  border:1px solid transparent;transition:all .2s;
+}
+.research-row:hover{border-color:var(--bg-4)}
+.research-topic{font-weight:600;font-size:13px}
+.research-path{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan)}
+.research-desc{font-size:12px;color:var(--tx-2)}
+
+/* Anti-patterns */
+.antipatterns{display:flex;flex-direction:column;gap:8px}
+.anti-card{
+  display:grid;grid-template-columns:auto 1fr;gap:0 14px;
+  padding:14px 16px;border-radius:var(--radius-sm);
+  background:var(--bg-2);border:1px solid var(--bg-4);
+  border-left:3px solid var(--red);transition:all .2s;
+}
+.anti-card:hover{border-color:var(--red-dim);background:var(--bg-3)}
+.anti-icon{font-size:20px;grid-row:1/3}
+.anti-bad{font-size:13px;font-weight:600;color:var(--red)}
+.anti-good{font-size:12px;color:var(--tx-1);margin-top:4px}
+.anti-good code{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber)}
+
+/* VPS */
+.vps-steps{counter-reset:step}
+.vps-step{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:10px 0;border-bottom:1px solid var(--bg-3);
+}
+.vps-step::before{
+  counter-increment:step;content:counter(step);
+  font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;
+  color:var(--bg-0);background:var(--cyan);
+  width:24px;height:24px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.vps-step p{font-size:13px;color:var(--tx-1)}
+.vps-step code{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cyan)}
+
+/* Responsive */
+@media(max-width:768px){
+  .heat-row{grid-template-columns:100px 60px 50px 1fr;gap:8px;padding:8px 10px}
+  .workers-grid{grid-template-columns:1fr}
+  .model-row{grid-template-columns:1fr;gap:4px}
+  .research-row{grid-template-columns:1fr;gap:4px}
+  .ft-row{grid-template-columns:100px 1fr 50px}
+}
+
+/* Animations */
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+section{animation:fadeSlideUp .5s ease both}
+section:nth-child(2){animation-delay:.05s}
+section:nth-child(3){animation-delay:.1s}
+section:nth-child(4){animation-delay:.15s}
+section:nth-child(5){animation-delay:.2s}
+section:nth-child(6){animation-delay:.25s}
+section:nth-child(7){animation-delay:.3s}
+section:nth-child(8){animation-delay:.35s}
+section:nth-child(9){animation-delay:.4s}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="header">
+  <h1>Orchestra Team Structure</h1>
+  <p class="sub">Справочник для воспроизведения команды на другом инстансе Orchestra</p>
+</header>
+
+<nav class="nav">
+  <a href="#hotzones">Hot Zones</a>
+  <a href="#permanent">Постоянные</a>
+  <a href="#ondemand">По необходимости</a>
+  <a href="#templates">Шаблоны</a>
+  <a href="#filetree">Файлы</a>
+  <a href="#models">Модели</a>
+  <a href="#tests">Тесты</a>
+  <a href="#research">Research</a>
+  <a href="#anti">Антипаттерны</a>
+  <a href="#vps">VPS</a>
+</nav>
+
+<!-- HOT ZONES -->
+<section id="hotzones">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Горячие зоны</h2>
+    <span class="tag" style="background:var(--red-dim);color:var(--red)">git history</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="heatmap">
+      <div class="heat-row">
+        <span class="heat-zone">Backend core</span>
+        <span class="heat-commits">~103</span>
+        <span class="heat-loc">5 600</span>
+        <div class="heat-bar-wrap"><div class="heat-bar h1" style="width:0%" data-w="100%" data-files="session.py, manager.py, db.py, routes/"></div></div>
+      </div>
+      <div class="heat-row">
+        <span class="heat-zone">Frontend</span>
+        <span class="heat-commits">~94</span>
+        <span class="heat-loc">6 400</span>
+        <div class="heat-bar-wrap"><div class="heat-bar h2" style="width:0%" data-w="91%" data-files="app.js (5405), tool-renderers, usage, templates"></div></div>
+      </div>
+      <div class="heat-row">
+        <span class="heat-zone">Backend SDK</span>
+        <span class="heat-commits">~50</span>
+        <span class="heat-loc">1 313</span>
+        <div class="heat-bar-wrap"><div class="heat-bar h4" style="width:0%" data-w="48%" data-files="backend_claude.py, backend_opencode.py, backend_codex.py"></div></div>
+      </div>
+      <div class="heat-row">
+        <span class="heat-zone">TG Bridge</span>
+        <span class="heat-commits">~34</span>
+        <span class="heat-loc">1 680</span>
+        <div class="heat-bar-wrap"><div class="heat-bar h3" style="width:0%" data-w="33%" data-files="tg_bridge.py (1680 LOC)"></div></div>
+      </div>
+      <div class="heat-row">
+        <span class="heat-zone">Tests</span>
+        <span class="heat-commits">~20</span>
+        <span class="heat-loc">7 654</span>
+        <div class="heat-bar-wrap"><div class="heat-bar h6" style="width:0%" data-w="19%" data-files="31 file, tied to backend"></div></div>
+      </div>
+      <div class="heat-row">
+        <span class="heat-zone">Prompts</span>
+        <span class="heat-commits">~12</span>
+        <span class="heat-loc">600</span>
+        <div class="heat-bar-wrap"><div class="heat-bar h5" style="width:0%" data-w="12%" data-files="pipeline.yaml, roles/, modules/"></div></div>
+      </div>
+    </div>
+    <div class="heat-legend">
+      <span>commits/mo &#8594;</span>
+      <span>| LOC = lines of code</span>
+    </div>
+    <div class="heat-conclusion">
+      <strong>frontend + backend core</strong> = 80%+ всей работы. Постоянные воркеры — на эти зоны.
+    </div>
+  </div>
+</section>
+
+<!-- PERMANENT WORKERS -->
+<section id="permanent">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Системные воркеры</h2>
+    <span class="tag" style="background:var(--cyan-glow);color:var(--cyan)">постоянные</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="workers-grid">
+
+      <!-- BACKEND -->
+      <div class="worker-card permanent">
+        <div class="card-header">
+          <span class="card-name">backend</span>
+          <span class="card-badge badge-opus48">Opus 4.8</span>
+          <span class="card-type type-permanent">permanent</span>
+        </div>
+        <div class="card-owns">Владеет: <code>app/*.py</code> (кроме static/) &middot; <code>app/routes/</code> &middot; <code>tests/</code></div>
+        <div class="card-section">
+          <div class="card-section-title">Ключевые файлы</div>
+          <div class="card-files">
+            <div class="card-file"><span class="fname">tg_bridge.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="100%"></div></div><span class="floc">1680</span></div>
+            <div class="card-file"><span class="fname">manager.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="75%"></div></div><span class="floc">1253</span></div>
+            <div class="card-file"><span class="fname">db.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="70%"></div></div><span class="floc">1184</span></div>
+            <div class="card-file"><span class="fname">session.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="64%"></div></div><span class="floc">1069</span></div>
+            <div class="card-file"><span class="fname">workspace.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="51%"></div></div><span class="floc">853</span></div>
+            <div class="card-file"><span class="fname">mcp_stdio.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="44%"></div></div><span class="floc">747</span></div>
+            <div class="card-file"><span class="fname">backend_opencode.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="38%"></div></div><span class="floc">636</span></div>
+            <div class="card-file"><span class="fname">pipeline.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="29%"></div></div><span class="floc">495</span></div>
+            <div class="card-file"><span class="fname">bg_jobs.py</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="29%"></div></div><span class="floc">497</span></div>
+          </div>
+        </div>
+        <div class="card-section card-knowledge">
+          <div class="card-section-title">Ключевые знания</div>
+          <ul>
+            <li>Persistent client per session: connect once, <code>query()</code> injects mid-turn</li>
+            <li><code>session_cost.py</code> / <code>session_turns.py</code> — split из session.py</li>
+            <li>External MCP — тулы как отдельный процесс, не in-process</li>
+            <li>Rate-limit: 3 retries, 30/60/90s backoff</li>
+            <li><code>INTERNAL_TOKEN</code> header — auth для MCP&#8594;API</li>
+          </ul>
+        </div>
+        <details class="card-pitfalls">
+          <summary>Подводные камни</summary>
+          <ul>
+            <li><code>merge_worker</code> = squash merge &#8594; cherry-pick on conflict, NOT rebase</li>
+            <li><code>cost_cached</code> recomputed on-the-fly from <code>TOKEN_PRICES</code></li>
+            <li><code>_persist</code> timing vs status &#8594; status-desync bug (open)</li>
+            <li><code>create_session</code> deletes archived row for UNIQUE(name,scope)</li>
+            <li><code>_spawn_queue</code> bound to event loop &#8594; cross-test contamination</li>
+          </ul>
+        </details>
+      </div>
+
+      <!-- FRONTEND -->
+      <div class="worker-card permanent">
+        <div class="card-header">
+          <span class="card-name">frontend</span>
+          <span class="card-badge badge-opus48">Opus 4.8</span>
+          <span class="card-type type-permanent">permanent</span>
+        </div>
+        <div class="card-owns">Владеет: <code>app/static/</code> &middot; <code>app/templates/</code></div>
+        <div class="card-section">
+          <div class="card-section-title">Ключевые файлы</div>
+          <div class="card-files">
+            <div class="card-file"><span class="fname">app.js</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="100%"></div></div><span class="floc">5405</span></div>
+            <div class="card-file"><span class="fname">tool-renderers.js</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="9%"></div></div><span class="floc">500</span></div>
+            <div class="card-file"><span class="fname">usage.js</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="6%"></div></div><span class="floc">347</span></div>
+            <div class="card-file"><span class="fname">utils.js</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="2%"></div></div><span class="floc">86</span></div>
+            <div class="card-file"><span class="fname">style.css</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="3%"></div></div><span class="floc">161</span></div>
+            <div class="card-file"><span class="fname">dashboard.html</span><div class="fbar"><div class="fbar-fill" style="width:0%" data-w="5%"></div></div><span class="floc">&#8212;</span></div>
+          </div>
+        </div>
+        <div class="card-section card-knowledge">
+          <div class="card-section-title">Ключевые знания</div>
+          <ul>
+            <li>SSE race &#8594; <code>targetAgent</code> guard + <code>eventSource.close()</code></li>
+            <li>Stream bubble всегда последний: <code>_insert</code> вставляет ПЕРЕД ним</li>
+            <li><code>_stripXmlTags()</code> перед <code>marked.parse</code></li>
+            <li><code>overflow-hidden</code> на html+body обязателен</li>
+            <li><code>_etaToLimit()</code> — предсказывает rate limit hit</li>
+            <li>Stream replay: broker accumulator при SSE reconnect</li>
+          </ul>
+        </div>
+        <details class="card-pitfalls">
+          <summary>Подводные камни</summary>
+          <ul>
+            <li>Статика из main, не из worktree &#8594; Playwright мокай через <code>page.route</code></li>
+            <li><code>networkidle</code> не работает (SSE) &#8594; <code>domcontentloaded</code> + timeout</li>
+            <li>ES-модулей нет, порядок: utils&#8594;tool-renderers&#8594;usage&#8594;app.js</li>
+            <li>НЕ рестартить сервер для JS/CSS/HTML</li>
+            <li>Иногда нужны backend routes &#8594; координировать</li>
+          </ul>
+        </details>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ON DEMAND -->
+<section id="ondemand">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>По необходимости</h2>
+    <span class="tag" style="background:var(--amber-dim);color:var(--amber)">on demand</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="workers-grid">
+
+      <div class="worker-card on-demand">
+        <div class="card-header">
+          <span class="card-name">prompt-engineer</span>
+          <span class="card-badge badge-opus48">Opus 4.8</span>
+          <span class="card-type type-on-demand">on demand</span>
+        </div>
+        <div class="card-when">Когда: промпт-архитектура, новые роли/модули, decision tree</div>
+        <div class="card-owns" style="margin-top:10px">Владеет: <code>pipelines/default/prompts/</code> &middot; <code>pipeline.yaml</code></div>
+        <div class="card-section card-knowledge">
+          <div class="card-section-title">Ключевые знания</div>
+          <ul>
+            <li>Модульная сборка: base.md &#8594; prompt_layers &#8594; <code>_load_modules</code></li>
+            <li><code>is_orchestrator_role</code> &#8594; sub-orch получает инфру оркестратора</li>
+            <li>Codex review = Bash-primary (<code>timeout 300</code>)</li>
+          </ul>
+        </div>
+        <div class="card-section" style="margin-top:8px">
+          <div class="card-section-title">Созданные модули</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">
+            <span class="card-badge" style="background:var(--bg-4);color:var(--tx-1);border:1px solid var(--bg-4)">codex-debate</span>
+            <span class="card-badge" style="background:var(--bg-4);color:var(--tx-1);border:1px solid var(--bg-4)">self-improvement</span>
+            <span class="card-badge" style="background:var(--bg-4);color:var(--tx-1);border:1px solid var(--bg-4)">orchestration</span>
+            <span class="card-badge" style="background:var(--bg-4);color:var(--tx-1);border:1px solid var(--bg-4)">communication-style</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="worker-card on-demand">
+        <div class="card-header">
+          <span class="card-name">taskmanager</span>
+          <span class="card-badge badge-sonnet">Sonnet 5</span>
+          <span class="card-type type-on-demand">on demand</span>
+        </div>
+        <div class="card-when">Когда: фичи таск-трекера, YouGile sync, платёжная логика</div>
+        <div class="card-owns" style="margin-top:10px">Владеет: <code>app/tm.py</code> (965) &middot; <code>tm_yougile.py</code> &middot; <code>routes/tm.py</code></div>
+        <div class="card-section card-knowledge">
+          <div class="card-section-title">Ключевые знания</div>
+          <ul>
+            <li>CRUD задач, приоритеты 0=critical &#8594; 3=low</li>
+            <li><code>payment_receive</code> авто-распределяет (smallest debt first)</li>
+            <li>Цены в точных единицах (20000 = 20 000)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="worker-card on-demand">
+        <div class="card-header">
+          <span class="card-name">tg-refactor</span>
+          <span class="card-badge badge-opus48">Opus 4.8</span>
+          <span class="card-type type-on-demand">on demand</span>
+        </div>
+        <div class="card-when">Когда: рефакторинг tg_bridge.py (1680 LOC), TG-баги</div>
+        <div class="card-owns" style="margin-top:10px">Владеет: <code>app/tg_bridge.py</code> &middot; <code>app/routes/tg.py</code></div>
+        <div class="card-section card-knowledge">
+          <div class="card-section-title">План сплита</div>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+              <span style="color:var(--cyan)">&#9656;</span>
+              <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx-1)">tg_bot.py</code>
+              <span style="color:var(--tx-2)">&#8212; бот, команды, хендлеры</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+              <span style="color:var(--cyan)">&#9656;</span>
+              <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx-1)">tg_stream.py</code>
+              <span style="color:var(--tx-2)">&#8212; стриминг логов в топики</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+              <span style="color:var(--cyan)">&#9656;</span>
+              <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx-1)">tg_render.py</code>
+              <span style="color:var(--tx-2)">&#8212; форматирование, diff images</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+              <span style="color:var(--cyan)">&#9656;</span>
+              <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx-1)">tg_topics.py</code>
+              <span style="color:var(--tx-2)">&#8212; управление топиками</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- TEMPLATES -->
+<section id="templates">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Одноразовые шаблоны</h2>
+    <span class="tag" style="background:var(--purple-dim);color:var(--purple)">disposable</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="workers-grid">
+      <div class="worker-card template">
+        <div class="card-header">
+          <span class="card-name">full-cycle</span>
+          <span class="card-badge badge-opus48">Opus 4.8</span>
+          <span class="card-type type-template">template</span>
+        </div>
+        <div class="card-when">Когда: неизвестный scope, research, большие фичи (5+ файлов)</div>
+        <div class="card-section card-knowledge" style="margin-top:12px">
+          <div class="card-section-title">Pipeline</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <span style="background:var(--purple-dim);color:var(--purple);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">Research+Experiment</span>
+            <span style="color:var(--tx-2)">&#8594;</span>
+            <span style="background:var(--amber-dim);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">Plan + Codex review</span>
+            <span style="color:var(--tx-2)">&#8594;</span>
+            <span style="background:var(--cyan-glow);color:var(--cyan);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600">Implement (ticket by ticket)</span>
+          </div>
+          <ul style="margin-top:10px">
+            <li>2 approval gates: после Research, после Plan</li>
+            <li>Артефакты: <code>docs/tasks/&lt;id&gt;/research.md</code>, <code>plan.md</code>, <code>codex-review-*.md</code></li>
+            <li>Research-only &#8594; оркестратор стопит после Phase 1</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="worker-card template">
+        <div class="card-header">
+          <span class="card-name">worker</span>
+          <span class="card-badge badge-sonnet">Sonnet 5</span>
+          <span class="card-type type-template">template</span>
+        </div>
+        <div class="card-when">Когда: чёткая спека, известные файлы, баг-фикс</div>
+        <div class="card-section card-knowledge" style="margin-top:12px">
+          <div class="card-section-title">Workflow</div>
+          <ul>
+            <li>Без pipeline &#8212; сразу implement и commit</li>
+            <li>Паттерн: <code>fix-*</code>, <code>impl-*</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FILE TREE -->
+<section id="filetree">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Файловая карта</h2>
+    <span class="tag" style="background:var(--blue-dim);color:var(--blue)">21 area</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="file-tree" id="fileTreeContainer"></div>
+  </div>
+</section>
+
+<!-- MODELS -->
+<section id="models">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Выбор модели</h2>
+    <span class="tag" style="background:var(--purple-dim);color:var(--purple)">guide</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="model-grid">
+      <div class="model-row">
+        <span class="model-task">Оркестратор / суб-оркестратор</span>
+        <span class="model-name"><span class="card-badge badge-opus46">Opus 4.6</span></span>
+        <span class="model-why">Проактивный, читает между строк, лучший для координации</span>
+      </div>
+      <div class="model-row">
+        <span class="model-task">Full-cycle / reviewer</span>
+        <span class="model-name"><span class="card-badge badge-opus48">Opus 4.8</span></span>
+        <span class="model-why">Точный, буквальный &#8212; overthinking = фича для research</span>
+      </div>
+      <div class="model-row">
+        <span class="model-task">Чёткая спека, known files</span>
+        <span class="model-name"><span class="card-badge badge-sonnet">Sonnet 5</span></span>
+        <span class="model-why">Быстрый, дешёвый, точный для deterministic задач</span>
+      </div>
+      <div class="model-row">
+        <span class="model-task">System task (одноразовый)</span>
+        <span class="model-name"><span class="card-badge badge-haiku">Haiku 4.5</span></span>
+        <span class="model-why">Дёшево и сердито</span>
+      </div>
+      <div class="model-row">
+        <span class="model-task">Критический one-off review</span>
+        <span class="model-name"><span class="card-badge badge-fable">Fable 5</span></span>
+        <span class="model-why">$10/$50 per M. НЕ дефолт &#8212; burns limits 2x faster</span>
+      </div>
+      <div class="model-row deprecated">
+        <span class="model-task">Deprecated</span>
+        <span class="model-name" style="font-size:12px;color:var(--tx-2)">Opus 4.7</span>
+        <span class="model-why">Удалён</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTS -->
+<section id="tests">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Тесты</h2>
+    <span class="tag" style="background:var(--blue-dim);color:var(--blue)">31 file / 7654 LOC</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="tests-grid">
+      <div class="test-row"><span class="test-file">test_manager.py</span><span class="test-loc">1233</span><span class="test-covers">spawn/stop/merge/compact, spawn queue</span></div>
+      <div class="test-row"><span class="test-file">test_pipeline.py</span><span class="test-loc">786</span><span class="test-covers">pipeline loading, role resolution</span></div>
+      <div class="test-row"><span class="test-file">test_session.py</span><span class="test-loc">758</span><span class="test-covers">session lifecycle, turns</span></div>
+      <div class="test-row"><span class="test-file">test_backend_opencode.py</span><span class="test-loc">673</span><span class="test-covers">OpenCode SDK backend</span></div>
+      <div class="test-row"><span class="test-file">test_db.py</span><span class="test-loc">661</span><span class="test-covers">SQLite layer</span></div>
+      <div class="test-row"><span class="test-file">test_tg_bridge.py</span><span class="test-loc">469</span><span class="test-covers">TG integration</span></div>
+      <div class="test-row"><span class="test-file">test_api.py</span><span class="test-loc">449</span><span class="test-covers">API routes</span></div>
+      <div class="test-row"><span class="test-file">test_workspace.py</span><span class="test-loc">434</span><span class="test-covers">git worktree ops</span></div>
+    </div>
+    <div class="heat-conclusion" style="margin-top:12px;border-left-color:var(--amber)">
+      <strong style="color:var(--amber)">Known issue:</strong> полный прогон ~14 failures из-за <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--amber)">asyncio.Queue</code> bound to event loop (cross-test contamination). Каждый тест проходит в изоляции.
+    </div>
+  </div>
+</section>
+
+<!-- RESEARCH -->
+<section id="research">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Research артефакты</h2>
+    <span class="tag" style="background:var(--purple-dim);color:var(--purple)">13 topics</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="research-grid" id="researchContainer"></div>
+  </div>
+</section>
+
+<!-- ANTI-PATTERNS -->
+<section id="anti">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Антипаттерны</h2>
+    <span class="tag" style="background:var(--red-dim);color:var(--red)">6 lessons</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="antipatterns">
+      <div class="anti-card">
+        <span class="anti-icon">&#128165;</span>
+        <div class="anti-bad">Новая задача на работающего воркера</div>
+        <div class="anti-good">Спавнь нового или жди idle. Не queue'ить на running</div>
+      </div>
+      <div class="anti-card">
+        <span class="anti-icon">&#128123;</span>
+        <div class="anti-bad">Грепнул строку, решил что мёртвый код</div>
+        <div class="anti-good">Грепни РЕАЛЬНЫЕ импорты/reads перед удалением. Случай <code>app/prompts</code> &#8212; выглядел мёртвым, был живым fallback</div>
+      </div>
+      <div class="anti-card">
+        <span class="anti-icon">&#128176;</span>
+        <div class="anti-bad">Opus на тривиальном</div>
+        <div class="anti-good">Sonnet 5 для 1-файловых фиксов. Не палить контекст Opus на мелочи</div>
+      </div>
+      <div class="anti-card">
+        <span class="anti-icon">&#129300;</span>
+        <div class="anti-bad">Codex review на доверии</div>
+        <div class="anti-good">Проверяй output файл <code>docs/tasks/&lt;id&gt;/codex-review-*.md</code>. Opus иногда галлюцинирует "already ran"</div>
+      </div>
+      <div class="anti-card">
+        <span class="anti-icon">&#128194;</span>
+        <div class="anti-bad">Воркер пишет в main repo вместо worktree</div>
+        <div class="anti-good"><code>codex_review</code> cwd bug (BUGS.md). Workaround: проверять cwd</div>
+      </div>
+      <div class="anti-card">
+        <span class="anti-icon">&#128163;</span>
+        <div class="anti-bad">Два воркера в одних файлах</div>
+        <div class="anti-good">Гарантированный merge conflict. <code>owned_dirs</code> при spawn или sequential</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VPS -->
+<section id="vps">
+  <div class="section-head" onclick="toggleSection(this)">
+    <h2>Воспроизведение на VPS</h2>
+    <span class="tag" style="background:var(--cyan-glow);color:var(--cyan)">deploy</span>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="section-body">
+    <div class="vps-steps">
+      <div class="vps-step"><p>Оркестратор читает <code>team-structure.md</code> + <code>CLAUDE.md</code></p></div>
+      <div class="vps-step"><p>Воркеров спавнит по необходимости (не заранее!)</p></div>
+      <div class="vps-step"><p><code>system_prompt</code> = описание из секции выше + стандартный шаблон</p></div>
+      <div class="vps-step"><p>Git: все коммиты в <code>DrSeedon/orchestra.git</code>, координация через <code>git pull</code></p></div>
+      <div class="vps-step"><p>VPS-специфика: прокси не нужен (EU), <code>sudo NOPASSWD</code>, <code>telegram-bot-api</code> на <code>:8081</code></p></div>
+      <div class="vps-step"><p><code>docs/workers/{name}.md</code> &#8212; persistent memory, auto-inject при spawn/resume</p></div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+const FILE_DATA = [
+  {area:'Core',files:'session.py, session_turns/cost/hibernate/state.py',loc:1900,color:'var(--red)'},
+  {area:'Manager',files:'manager.py (spawn/stop/merge/compact)',loc:1253,color:'var(--red)'},
+  {area:'Backend SDK',files:'backend_claude/opencode/codex/protocol.py',loc:1313,color:'var(--amber)'},
+  {area:'MCP Server',files:'mcp_stdio.py (tools for agents)',loc:747,color:'var(--amber)'},
+  {area:'Pipeline',files:'pipeline.py, prompting.py',loc:696,color:'var(--purple)'},
+  {area:'DB',files:'db.py (SQLite — all tables)',loc:1184,color:'var(--red)'},
+  {area:'Routes',files:'sessions (788), system (907), proxy, tm, subagent, tg, bg',loc:2159,color:'var(--amber)'},
+  {area:'Frontend',files:'app.js (5405), tool-renderers, usage, utils',loc:6400,color:'var(--red)'},
+  {area:'Templates',files:'dashboard.html, login.html',loc:200,color:'var(--blue)'},
+  {area:'Prompts',files:'base.md, roles/, modules/, skills/',loc:600,color:'var(--purple)'},
+  {area:'TG Bridge',files:'tg_bridge.py (biggest file)',loc:1680,color:'var(--red)'},
+  {area:'Workspace',files:'workspace.py (git worktree ops)',loc:853,color:'var(--amber)'},
+  {area:'Background',files:'bg_jobs.py (timer/file/command/ssh/run/cron)',loc:497,color:'var(--cyan)'},
+  {area:'SSH',files:'ssh_tunnel.py (tunnels + SOCKS5)',loc:228,color:'var(--cyan)'},
+  {area:'Models',files:'models.py (catalog + pricing)',loc:287,color:'var(--cyan)'},
+  {area:'Streaming',files:'live_broker.py (SSE pub/sub), events.py',loc:110,color:'var(--blue)'},
+  {area:'Diff images',files:'diff_image.py (Pillow render for TG)',loc:401,color:'var(--cyan)'},
+  {area:'Tasks',files:'tm.py, tm_yougile.py, tm_import_yougile.py',loc:1535,color:'var(--amber)'},
+  {area:'Scripts',files:'check-proxies.sh, migrate_agent.py, setup-tg-bot-api.sh',loc:300,color:'var(--blue)'},
+  {area:'Tests',files:'31 files',loc:7654,color:'var(--purple)'},
+  {area:'Boot',files:'bootstrap.py, main.py',loc:185,color:'var(--blue)'},
+];
+
+const RESEARCH_DATA = [
+  {topic:'Стриминг',path:'docs/tasks/83/',desc:'SDK partial_messages, live_broker pub/sub'},
+  {topic:'Self-learning',path:'docs/tasks/85/',desc:'Haiku extraction, regex gate, approach comparison'},
+  {topic:'Cost-tokens',path:'docs/tasks/cost-tokens/',desc:'Raw cache tokens, on-the-fly recompute'},
+  {topic:'Proxy',path:'docs/tasks/proxy-fix/',desc:'.env single source, zombie tunnels, health-gate'},
+  {topic:'Subagents',path:'docs/tasks/subagent-telemetry/',desc:'Telemetry table, transcript endpoints, modal'},
+  {topic:'Migration',path:'docs/tasks/migration/',desc:'Cross-server agent migration (SSH-driven)'},
+  {topic:'Roles',path:'docs/tasks/cleanup/',desc:'Role consolidation, super-full-cycle'},
+  {topic:'App.js decomp',path:'docs/tasks/appjs-decomp/',desc:'app.js split: chat/tools/tasks/files/agents/sse'},
+  {topic:'Architecture',path:'docs/tasks/arch-audit/',desc:'Architecture audit'},
+  {topic:'Git safety',path:'docs/tasks/git-safety/',desc:'Git workflow guards'},
+  {topic:'Pipeline rebase',path:'docs/tasks/pipeline-rebase/',desc:'Pipeline config rebase/merge'},
+  {topic:'Prompt audit',path:'docs/tasks/prompt-audit/',desc:'Prompt quality audit'},
+  {topic:'TG 3bugs',path:'docs/tasks/tg-bridge-3bugs/',desc:'TG-specific bug investigation'},
+];
+
+function buildFileTree(){
+  const c=document.getElementById('fileTreeContainer');
+  const maxLoc=Math.max(...FILE_DATA.map(f=>f.loc));
+  FILE_DATA.sort((a,b)=>b.loc-a.loc).forEach((f,i)=>{
+    const pct=Math.max(3,(f.loc/maxLoc)*100);
+    const row=document.createElement('div');
+    row.className='ft-row';
+    row.innerHTML=`
+      <span class="ft-area">${f.area}</span>
+      <span class="ft-files">${f.files}</span>
+      <span class="ft-loc">${f.loc.toLocaleString()}</span>
+      <div class="ft-bar-wrap"><div class="ft-bar" style="width:0%;background:${f.color}" data-w="${pct}%"></div></div>
+    `;
+    row.style.animationDelay=`${i*30}ms`;
+    c.appendChild(row);
+  });
+}
+
+function buildResearch(){
+  const c=document.getElementById('researchContainer');
+  RESEARCH_DATA.forEach(r=>{
+    const row=document.createElement('div');
+    row.className='research-row';
+    row.innerHTML=`
+      <span class="research-topic">${r.topic}</span>
+      <span class="research-path">${r.path}</span>
+      <span class="research-desc">${r.desc}</span>
+    `;
+    c.appendChild(row);
+  });
+}
+
+function toggleSection(head){
+  head.classList.toggle('collapsed');
+  const body=head.nextElementSibling;
+  body.classList.toggle('hidden');
+}
+
+function animateBars(){
+  document.querySelectorAll('[data-w]').forEach(el=>{
+    const observer=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){
+          setTimeout(()=>{el.style.width=el.dataset.w},100);
+          observer.unobserve(el);
+        }
+      });
+    },{threshold:0.1});
+    observer.observe(el);
+  });
+}
+
+buildFileTree();
+buildResearch();
+requestAnimationFrame(()=>setTimeout(animateBars,200));
+</script>
+</body>
+</html>
