@@ -120,7 +120,9 @@ def db_exec_script(host: str, db: str, sql_script: str) -> None:
         local_sql = f.name
     remote_sql = f"/tmp/orch_migrate_{PurePosixPath(local_sql).name}"
     scp(local_sql, f"{host}:{remote_sql}")
-    ssh(host, f"sqlite3 {db!r} < {remote_sql}; rm -f {remote_sql}")
+    # rm must not mask sqlite3's exit code — a trailing `; rm` reports success even
+    # when sqlite3 is missing, and the migration silently writes nothing
+    ssh(host, f"sqlite3 {db!r} < {remote_sql}; rc=$?; rm -f {remote_sql}; exit $rc")
 
 
 # ── migration steps ──
@@ -139,6 +141,13 @@ def collect_agents(host: str, db: str, orch_name: str) -> tuple[dict, list[dict]
     workers = [r for r in rows
                if r["name"] != orch_name and r.get("status") != "archived"]
     return orch, workers
+
+
+def assert_sqlite3(*hosts: str) -> None:
+    """Fail before any mutation if a host lacks sqlite3 — the whole migration runs on it."""
+    for h in hosts:
+        if ssh(h, "command -v sqlite3", check=False).returncode != 0:
+            die(f"sqlite3 missing on {h} — install it (apt install sqlite3) and re-run")
 
 
 def assert_idle(orch: dict, workers: list[dict]) -> None:
@@ -216,6 +225,10 @@ def migrate_git(from_host, to_host, row, from_scope, to_scope, to_orch) -> str |
     ssh(to_host, f"cd {to_scope!r} && git worktree remove --force {new_wt!r} 2>/dev/null || true")
     ref = branch or "HEAD"
     r = ssh(to_host, f"cd {to_scope!r} && git worktree add {new_wt!r} {ref!r}", check=False)
+    if r.returncode != 0 and "dubious ownership" in r.stderr:
+        # target checkout belongs to the service user, we ssh as another — one-time exception
+        ssh(to_host, f"git config --global --add safe.directory {to_scope!r}", check=False)
+        r = ssh(to_host, f"cd {to_scope!r} && git worktree add {new_wt!r} {ref!r}", check=False)
     if r.returncode != 0:
         die(f"git worktree add failed for '{row['name']}' (ref={ref}): {r.stderr.strip()}")
     log(f"worktree [{row['name']}] → {new_wt}")
@@ -295,6 +308,7 @@ def main() -> None:
     to_db = remote_db(args.to_orchestra)
 
     print(f"▶ Migrating '{args.name}': {args.from_host} → {args.to_host}")
+    assert_sqlite3(args.from_host, args.to_host)
 
     # 1. collect + idle-gate
     orch, workers = collect_agents(args.from_host, from_db, args.name)
