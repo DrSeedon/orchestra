@@ -38,6 +38,60 @@ def pidfd_open_self() -> int:
     return fd
 
 
+def group_signal_supported() -> bool:
+    """Whether the kernel can signal a process group through a pidfd.
+
+    Probes the syscall instead of parsing a version: the capability arrived in
+    Linux 6.9, and only with it does a group stay reachable after its leader is
+    reaped. Below that we fall back to killpg, which is safe only while the
+    leader is unreaped — so callers that depend on the stronger guarantee must
+    ask here rather than assume.
+    """
+    if _pidfd_send_signal is None:
+        return False
+    fd = pidfd_open_self()
+    try:
+        if _pidfd_send_signal(fd, 0, None, PIDFD_SIGNAL_PROCESS_GROUP) == 0:
+            return True
+        return ctypes.get_errno() != errno.EINVAL
+    finally:
+        os.close(fd)
+
+
+def pidfd_pid(pidfd: int) -> int:
+    """PID behind a pidfd, or 0 once the kernel has reaped that process.
+
+    ``/proc/self/fdinfo/<fd>`` is the only way back from a pidfd to a pid. The
+    kernel reports ``Pid: 0`` (``-1`` when seen from another namespace) after
+    reaping — precisely the moment the number becomes free for reuse.
+    """
+    try:
+        with open(f"/proc/self/fdinfo/{pidfd}", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("Pid:"):
+                    return int(line.split()[1])
+    except (OSError, ValueError, IndexError):
+        return 0
+    return 0
+
+
+def _send_group_via_killpg(pidfd: int, sig: int) -> bool:
+    """Group-signal fallback anchored on the pidfd, for kernels below 6.9.
+
+    Safe for the same reason the flag is: while the leader is unreaped its pid
+    cannot be recycled, so its pgid still names OUR group. Once the pidfd shows
+    no pid, we report the group gone instead of signalling a stranger.
+    """
+    pid = pidfd_pid(pidfd)
+    if pid <= 0:
+        return False
+    try:
+        os.killpg(pid, sig)
+    except ProcessLookupError:
+        return False
+    return True
+
+
 def pidfd_send_group(pidfd: int, sig: int) -> bool:
     """Signal the retained process group; return False once the group is gone."""
     if _pidfd_send_signal is None:
@@ -49,6 +103,11 @@ def pidfd_send_group(pidfd: int, sig: int) -> bool:
     error = ctypes.get_errno()
     if error == errno.ESRCH:
         return False
+    if error == errno.EINVAL:
+        # PIDFD_SIGNAL_PROCESS_GROUP only exists since Linux 6.9; older kernels
+        # reject the flag outright, which killed every background job on a 6.8
+        # host. Probing the syscall beats parsing a version string.
+        return _send_group_via_killpg(pidfd, sig)
     raise OSError(error, os.strerror(error))
 
 

@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.pidfd_exec import group_signal_supported
+
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
@@ -811,6 +813,16 @@ time.sleep(30)
                 unrelated.terminate()
             await unrelated.wait()
 
+    @pytest.mark.skipif(
+        not group_signal_supported(),
+        reason=(
+            "reaching a group AFTER its leader is reaped requires "
+            "PIDFD_SIGNAL_PROCESS_GROUP (Linux 6.9+). Below that the pidfd is the only "
+            "safe anchor and it goes blank on reaping, so the killpg fallback reports "
+            "the group gone rather than signal a possibly recycled pgid. Deliberately "
+            "weaker: leaking an orphan beats killing a stranger's process group."
+        ),
+    )
     @pytest.mark.asyncio
     async def test_reaped_leader_retains_group_identity_for_kill_escalation(
         self, tmp_path, monkeypatch,
