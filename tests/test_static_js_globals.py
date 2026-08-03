@@ -20,8 +20,13 @@ _TOP_LEVEL = (
 
 
 def _page_scripts() -> list[str]:
-    """Порядок скриптов берём из шаблона, а не из списка в тесте: добавят файл — проверим и его."""
-    names = re.findall(r"static_url\('(js/[^']+\.js)'\)", TEMPLATE.read_text())
+    """Порядок скриптов берём из шаблона, а не из списка в тесте: добавят файл — проверим и его.
+
+    Матчим сам тег, а не имя хелпера внутри `{{ }}`: путь оборачивали уже дважды
+    (`/static/js/x.js` → `static_url('js/x.js')` → `g.asset('js/x.js')`), и каждый раз
+    это роняло матчеры, приколоченные к форме вызова.
+    """
+    names = re.findall(r"""<script\s+src="\{\{[^}]*?'(js/[^']+\.js)'""", TEMPLATE.read_text())
     return [name.split("/", 1)[1] for name in names]
 
 

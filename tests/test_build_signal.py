@@ -77,17 +77,23 @@ class TestModelsHeader:
 class TestTemplateCarriesBuild:
     def test_body_has_data_build(self):
         html = pathlib.Path("app/templates/dashboard.html").read_text()
-        assert "data-build=" in html and "build_id" in html
+        guard = pathlib.Path("app/templates/_globals.html").read_text()
+        assert "data-build=" in html
+        # #29 увёл страховку глобалов в _globals.html — литерал build_id живёт теперь там
+        assert "build_id" in guard
 
     def test_survives_a_process_that_does_not_know_build_id(self):
         """Окно между мержем и рестартом: шаблон уже новый, процесс ещё старый.
 
         Без страховки Jinja бросает UndefinedError и дашборд отдаёт 500 — то есть
         мерж кладёт прод до тех пор, пока человек не перезапустит сервис.
+
+        Здесь проверяется КОНКРЕТНО результат: атрибут на месте и пустой, потому что
+        app.js читает `document.body.dataset.build`. Что вообще ни один шаблон не падает
+        в таком окружении — отдельный страж, `tests/test_template_window.py`.
         """
-        from jinja2 import Environment
-        html = pathlib.Path("app/templates/dashboard.html").read_text()
-        body = [l for l in html.split("\n") if "data-build=" in l][0]
-        out = Environment().from_string(body).render(
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader("app/templates"), autoescape=True)
+        out = env.get_template("dashboard.html").render(
             currency_symbol="$", hide_thinking=False, is_auth_enabled=False, client_name="")
         assert 'data-build=""' in out
