@@ -1260,8 +1260,13 @@ function _showChatDropError(message) {
 }
 
 function _appendDroppedPath(input, path, url) {
+    // Присваивание value уводит каретку в конец — юзер в этот момент печатает,
+    // поэтому позицию возвращаем на место
+    const {selectionStart, selectionEnd} = input;
+    const focused = document.activeElement === input;
     input.value += (input.value ? '\n' : '') + path;
     input.focus();
+    if (focused) input.setSelectionRange(selectionStart, selectionEnd);
     pastedImages.push(url);
     showImagePreview(url, path);
 }
@@ -1270,22 +1275,7 @@ async function _handleChatDrop(input, dataTransfer) {
     _showChatDropError('');
     const files = [...(dataTransfer?.files || [])];
     if (files.length) {
-        const failures = [];
-        for (const file of files) {
-            const formData = new FormData();
-            formData.append('file', file, file.name);
-            try {
-                const resp = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = resp.headers.get('content-type')?.includes('application/json')
-                    ? await resp.json() : {};
-                if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-                if (!data.path) throw new Error('server returned no file path');
-                _appendDroppedPath(input, data.path, data.url || data.path);
-            } catch (error) {
-                failures.push(`${file.name}: ${error.message}`);
-            }
-        }
-        if (failures.length) _showChatDropError(`Upload failed — ${failures.join('; ')}`);
+        for (const file of files) await _trackUpload(_uploadToChat(file, file.name));
         input.focus();
         return;
     }
@@ -2160,6 +2150,15 @@ function _showAgentContextMenu(e, s) {
 // replaces the bubble with the canonical version.
 async function sendChat() {
     const input = $('#chat-input');
+    // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
+    // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
+    if (_pendingUploads.size) {
+        const btn = $('#send-btn');
+        const label = btn.textContent;
+        btn.textContent = '⏳';
+        await Promise.allSettled([..._pendingUploads]);
+        btn.textContent = label;
+    }
     const msg = input.value.trim();
     if (!msg || !currentScope || !selectedAgent) return;
     input.value = '';
@@ -2231,6 +2230,69 @@ function showWaitingIndicator() {
 }
 
 let pastedImages = [];
+// Работа с файлом, которую sendChat обязан дождаться — вся, от сжатия до ответа
+// сервера. Иначе сообщение уйдёт без картинки, а её путь допишется в уже пустое
+// поле осиротевшей строкой. Регистрируем на верхнем уровне, по разу на файл.
+const _pendingUploads = new Set();
+function _trackUpload(promise) {
+    _pendingUploads.add(promise);
+    promise.finally(() => _pendingUploads.delete(promise));
+    return promise;
+}
+
+// Одна дорога для paste и drop: ошибку показываем строкой над полем ввода,
+// путь ДОПИСЫВАЕМ в textarea и только после ответа сервера. Трогать input.value
+// во время загрузки нельзя — юзер в это время печатает, и его текст пропадёт.
+async function _uploadToChat(file, filename) {
+    const promise = (async () => {
+        const formData = new FormData();
+        formData.append('file', file, filename);
+        // Без таймаута зависший аплоад навсегда запер бы отправку в sendChat
+        const resp = await fetch('/api/upload', { method: 'POST', body: formData,
+                                                  signal: AbortSignal.timeout(60000) });
+        const data = resp.headers.get('content-type')?.includes('application/json')
+            ? await resp.json() : {};
+        if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+        if (!data.path) throw new Error('server returned no file path');
+        return data;
+    })();
+    try {
+        const data = await promise;
+        _appendDroppedPath($('#chat-input'), data.path, data.url || data.path);
+        return data;
+    } catch (error) {
+        // У TimeoutError и сетевых ошибок message бывает пустой — печатаем и класс.
+        // Дописываем к уже показанной ошибке: при дропе пачки файлов упасть может не один
+        const detail = `${filename}: ${error.name}: ${error.message}`;
+        const shown = $('#chat-drop-error')?.textContent;
+        _showChatDropError(shown ? `${shown}; ${detail}` : `Upload failed — ${detail}`);
+        return null;
+    }
+}
+
+// Аплоад с машины юзера идёт на 53-82 КБ/с (замер оттуда же): типичный retina-скриншот
+// 667 КБ ползёт 12 с, и это упирается в канал, а не в сервер — единственный способ
+// ускорить — отправить меньше байтов. WebP q=0.9 даёт 354 КБ (1.9×) при PSNR 38.6 дБ:
+// на кропе 1:1 текст неотличим от оригинала. Цифры — docs/tasks/5/report.md.
+// Только для вставки из буфера: дропнутый файл юзер выбрал сам, его формат не наш.
+const _COMPRESS_MIN_BYTES = 100 * 1024;  // мельче — экономия секунды не стоит работы CPU
+
+async function _compressScreenshot(file) {
+    if (file.size < _COMPRESS_MIN_BYTES) return {blob: file, ext: 'png'};
+    try {
+        const bitmap = await createImageBitmap(file);
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        canvas.getContext('2d').drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const blob = await canvas.convertToBlob({type: 'image/webp', quality: 0.9});
+        // Фото и мелкие картинки от WebP не выигрывают — тогда шлём как есть
+        if (blob.size < file.size) return {blob, ext: 'webp'};
+    } catch (error) {
+        // Не ошибка юзера: файл всё равно уйдёт оригиналом, поэтому в консоль, не в UI
+        console.warn('Screenshot compression skipped:', error.name, error.message);
+    }
+    return {blob: file, ext: 'png'};
+}
 
 async function handlePaste(e) {
     const items = e.clipboardData?.items;
@@ -2240,28 +2302,38 @@ async function handlePaste(e) {
         e.preventDefault();
         const file = item.getAsFile();
         if (!file) continue;
-        const input = $('#chat-input');
-        const oldText = input.value;
-        input.value = oldText + (oldText ? '\n' : '') + '⏳ uploading image...';
-        const formData = new FormData();
-        formData.append('file', file, `paste-${Date.now()}.png`);
-        try {
-            const resp = await fetch('/api/upload', { method: 'POST', body: formData });
-            const data = await resp.json();
-            if (data.path) {
-                pastedImages.push(data.url);
-                input.value = oldText + (oldText ? '\n' : '') + data.path;
-                showImagePreview(data.url, data.path);
-            }
-        } catch (err) {
-            input.value = oldText;
-        }
-        input.focus();
+        _showChatDropError('');
+        const removeChip = _showUploadingChip(file);
+        await _trackUpload((async () => {
+            const {blob, ext} = await _compressScreenshot(file);
+            await _uploadToChat(blob, `paste-${Date.now()}.${ext}`);
+        })());
+        removeChip();
         break;
     }
 }
 
-function showImagePreview(url, filePath) {
+// Пока файл летит, показываем его же из памяти браузера — сеть для этого не нужна.
+// Возвращает функцию снятия: сам узел + освобождение objectURL, чтобы не текла память.
+function _showUploadingChip(file) {
+    const objectUrl = URL.createObjectURL(file);
+    const container = _pastePreviewContainer();
+    const wrap = document.createElement('div');
+    wrap.className = 'relative';
+    wrap.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-xs">⏳</div>';
+    const img = document.createElement('img');
+    img.src = objectUrl;
+    img.className = 'h-16 rounded border border-slate-700 opacity-40';
+    wrap.prepend(img);
+    container.appendChild(wrap);
+    return () => {
+        wrap.remove();
+        URL.revokeObjectURL(objectUrl);
+        if (!container.children.length) container.remove();
+    };
+}
+
+function _pastePreviewContainer() {
     let container = $('#paste-preview');
     if (!container) {
         container = document.createElement('div');
@@ -2270,6 +2342,11 @@ function showImagePreview(url, filePath) {
         const inputRow = $('#chat-input').parentElement;
         inputRow.parentElement.insertBefore(container, inputRow);
     }
+    return container;
+}
+
+function showImagePreview(url, filePath) {
+    const container = _pastePreviewContainer();
     const wrap = document.createElement('div');
     wrap.className = 'relative';
     wrap.dataset.url = url;
