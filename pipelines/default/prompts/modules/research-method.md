@@ -64,7 +64,11 @@ primary source, flag the conflict — don't silently prefer the newer one.
 - Before a full run, pilot the complete measurement path on 2–3 candidates. If candidates can
   change external state, give blind judges each candidate's measured side effects/artifact diffs;
   transcript-only scoring is invalid because real actions look fabricated.
-- Run in /tmp / temp scripts, NEVER production. 2–3 iterations for confidence.
+- Run in scratch scripts, NEVER production. 2–3 iterations for confidence.
+  **Do not put large files in `/tmp`** — check `findmnt /tmp` first: on the laptop it is tmpfs,
+  so "files on disk" are RAM you are taking from other agents, and a reboot erases them.
+  Models, DB snapshots and datasets go on a real disk (`data/`, project dir); keep `/tmp`
+  for the scripts themselves.
 - Record raw numbers/outputs/errors verbatim.
 - One counter-example **lowers confidence**; it does not auto-flip your conclusion
   (single results don't falsify — accumulate evidence).
