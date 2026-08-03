@@ -1079,9 +1079,19 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
         git = result.get("git") if isinstance(result.get("git"), dict) else {}
         count = int(git.get("commits_merged") or 0)
         branch = git.get("worker_branch") or "?"
+        # Про добавку оркестратор обязан узнать из ПЕРВЫХ строк, а не найти в полях потом.
+        # Поля может не быть вовсе (старый сервер до рестарта) — тогда текст прежний.
+        drift = ""
+        if git.get("head_drift") == "BENIGN_ADVANCE":
+            pinned = str(git.get("worker_head_pinned") or "?")[:12]
+            merged_head = str(git.get("worker_head") or "?")[:12]
+            drift = (
+                f" NOTE: the worker committed after this operation was accepted — "
+                f"merged its branch as of {merged_head}, not the pinned {pinned}."
+            )
         text = (
             f"Merged {count} commit{'s' if count != 1 else ''} from branch {branch}. "
-            f"Operation {operation_id}: SUCCEEDED."
+            f"Operation {operation_id}: SUCCEEDED.{drift}"
         )
         return mcp_tool_result(result, text=text)
     if state == "PARTIAL":

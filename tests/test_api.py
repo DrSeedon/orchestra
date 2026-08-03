@@ -83,6 +83,18 @@ def _prepare_detached_merge(monkeypatch, session, *, head: str = "a" * 40):
         "app.workspace.inspect_worktree_identity",
         lambda _path: (session.branch, head),
     )
+    # Дрейф личности (#17) считается по НАСТОЯЩЕМУ git, а worktree здесь выдуманный.
+    # Эти тесты про другое — про пин и про статусы RAG, — поэтому дрейфа тут нет по условию.
+    # Поведение классификатора проверяется на живом репозитории в tests/test_identity_drift.py.
+    monkeypatch.setattr(
+        "app.workspace.classify_head_drift",
+        lambda _path, branch, expected: {
+            "class": "SAME",
+            "actual_branch": branch or session.branch,
+            "actual_head": expected or head,
+            "reason": "",
+        },
+    )
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
     monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
     return local_manager

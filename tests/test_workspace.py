@@ -854,7 +854,10 @@ class TestSwitchWorktreeBranch:
             capture_output=True, text=True, check=True,
         ).stdout.strip() == old_head
 
-    def test_same_branch_is_rejected_without_mutation(self, git_repo, wt_root):
+    def test_same_branch_is_idempotent_success_without_mutation(self, git_repo, wt_root):
+        """Раньше это был отказ. #17: повтор запроса в уже достигнутое состояние — успех,
+        иначе рассинхрон БД с git нечем чинить (ремонт отказывал именно потому, что git прав).
+        Неизменность дерева — то, ради чего тест был написан, — проверяется по-прежнему."""
         from app.workspace import create_worktree, switch_worktree_branch
 
         wt = create_worktree(str(git_repo), "worker-same", task_id="1")
@@ -867,8 +870,8 @@ class TestSwitchWorktreeBranch:
             wt.path, wt.branch, from_ref="main", force=True,
         )
 
-        assert result["ok"] is False
-        assert "already on branch" in result["error"]
+        assert result["ok"] is True
+        assert result["state"] == "already_on_branch"
         assert subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=wt.path,
             capture_output=True, text=True, check=True,

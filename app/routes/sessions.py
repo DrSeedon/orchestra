@@ -730,6 +730,7 @@ async def execute_merge_session(
     from app import tm as _tm
     from app.db import get_session
     from app.workspace import (
+        classify_head_drift,
         inspect_worktree_identity,
         merge_worktree_to_main,
         switch_worktree_branch,
@@ -871,6 +872,21 @@ async def execute_merge_session(
                         target_branch=target, worker_branch=pinned_branch,
                         worker_head=pinned_head, http_status=400,
                     )
+            # Личность перечитывается ЗДЕСЬ — после ожидания хода и под lifecycle-локом,
+            # то есть в последний момент, когда воркер уже не может ничего дописать.
+            # Пин не забывается: он уезжает в результат вместе с фактическим HEAD и классом.
+            drift = await asyncio.to_thread(
+                classify_head_drift, worktree_path, pinned_branch, pinned_head,
+            )
+            if drift["class"] == "FATAL":
+                return _merge_not_reached(
+                    f"worker identity drifted before merge: {drift['reason']}",
+                    target_branch=target,
+                    worker_branch=drift["actual_branch"] or pinned_branch,
+                    worker_head=drift["actual_head"] or pinned_head,
+                    http_status=409,
+                )
+            merge_head = drift["actual_head"] or pinned_head
             try:
                 result = await asyncio.to_thread(
                     merge_worktree_to_main,
@@ -878,7 +894,7 @@ async def execute_merge_session(
                     row_scope,
                     target_branch=target,
                     expected_worker_branch=pinned_branch,
-                    expected_worker_head=pinned_head,
+                    expected_worker_head=merge_head,
                 )
             except Exception as e:
                 return {
@@ -893,6 +909,9 @@ async def execute_merge_session(
                     "commit_point": "unknown",
                 }
 
+            if isinstance(result, dict):
+                result["head_drift"] = drift["class"]
+                result["worker_head_pinned"] = pinned_head
             if not result.get("ok"):
                 return result
 

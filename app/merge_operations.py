@@ -599,6 +599,10 @@ def normalize_merge_result(
             "worker_head": raw.get("worker_head") or None,
             "conflicts": conflicts,
             "commits_merged": int(raw.get("commits_merged") or 0),
+            # Класс дрейфа личности и запиннённый HEAD: поля ДОБАВЛЯЮТСЯ, старые не меняются,
+            # поэтому старый читатель их просто не заметит.
+            "head_drift": str(raw.get("head_drift") or "SAME"),
+            "worker_head_pinned": raw.get("worker_head_pinned") or None,
         },
         "task_links": {"status": link_status, "items": link_items},
         "rag": {"status": rag_status},
