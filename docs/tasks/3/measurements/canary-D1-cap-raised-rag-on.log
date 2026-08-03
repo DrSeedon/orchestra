@@ -1,0 +1,84 @@
+=== CANARY v2 label=D1-cap-raised-rag-on seconds=120 cadence=0.2s drive=RAG search 1/2s 2026-08-03 18:25:11 ===
+инструмент: /api/models (in-memory) | контроль: 127.0.0.1:8899/ping (отдельный процесс) | legacy: /api/role-icons (читает диск)
+--- условия ДО: {"pid": 79151, "rag_enabled": "true", "rag_onnx_threads": "<unset>", "rss_mb": 986, "onnxruntime_so_maps": 9, "onnx_model_maps": 0, "threads": 34, "nproc": 8, "mem_total_gb": 23.5, "uptime_min": 420.1, "loadavg": ["3.55", "4.27", "5.09"], "agent_procs": 9, "pressure_io": ["some avg10=3.01 avg60=3.02 avg300=12.33 total=1586142031", "full avg10=2.76 avg60=2.83 avg300=11.70 total=1500226375"], "pressure_cpu": ["some avg10=0.77 avg60=0.55 avg300=1.06 total=312245425", "full avg10=0.00 avg60=0.00 avg300=0.00 total=0"]}
+--- условия ПОСЛЕ: {"pid": 79151, "rag_enabled": "true", "rag_onnx_threads": "<unset>", "rss_mb": 1010, "onnxruntime_so_maps": 9, "onnx_model_maps": 0, "threads": 34, "nproc": 8, "mem_total_gb": 23.5, "uptime_min": 422.1, "loadavg": ["5.47", "4.79", "5.18"], "agent_procs": 9, "pressure_io": ["some avg10=1.08 avg60=1.05 avg300=8.34 total=1587239391", "full avg10=0.54 avg60=0.74 avg300=7.83 total=1501014430"], "pressure_cpu": ["some avg10=2.67 avg60=2.06 avg300=1.39 total=315163062", "full avg10=0.00 avg60=0.00 avg300=0.00 total=0"]}
+--- результаты ---
+  orchestra        n= 572  p50=     5.4  p90=    12.1  p99=     44.2  max=     71.2 ms
+      >   50ms:    4 (  0.7%)
+      >  100ms:    0 (  0.0%)
+      >  250ms:    0 (  0.0%)
+      >  500ms:    0 (  0.0%)
+      > 1000ms:    0 (  0.0%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  control          n= 572  p50=     2.0  p90= 30000.0  p99=  30000.0  max=  30000.0 ms
+      >   50ms:  119 ( 20.8%)
+      >  100ms:  119 ( 20.8%)
+      >  250ms:  119 ( 20.8%)
+      >  500ms:  119 ( 20.8%)
+      > 1000ms:  119 ( 20.8%)
+      > 2000ms:  119 ( 20.8%)   <<< порог фронта
+      > 5000ms:  119 ( 20.8%)
+  legacy           n= 114  p50=     4.0  p90=     8.4  p99=     24.6  max=     61.8 ms
+      >   50ms:    1 (  0.9%)
+      >  100ms:    0 (  0.0%)
+      >  250ms:    0 (  0.0%)
+      >  500ms:    0 (  0.0%)
+      > 1000ms:    0 (  0.0%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  медиана orchestra/control = 2.8×
+--- нагрузка RAG: 55 запросов /api/memory/search, ответы {200: 55} ---
+  rag-search(200)  n=  55  p50=   177.4  p90=   276.6  p99=   1020.1  max=   1020.1 ms
+      >   50ms:   55 (100.0%)
+      >  100ms:   55 (100.0%)
+      >  250ms:   11 ( 20.0%)
+      >  500ms:    1 (  1.8%)
+      > 1000ms:    1 (  1.8%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+--- страничные фолты сервера: minflt 73825/с, majflt 26/с ---
+--- cgroup orchestra.service: memory.high срабатываний 0/с, pgscan_direct 0/с, лимит high=8,589,934,592 current=3,313,958,912 ---
+  стоек нет — сравнивать не с чем
+--- стойки >250 мс: 0 ---
+--- ошибки: 119 ---
+  t=  83.3s control ConnectError: [Errno 111] Connection refused
+  t=  83.5s control ConnectError: [Errno 111] Connection refused
+  t=  83.7s control ConnectError: [Errno 111] Connection refused
+  t=  83.9s control ConnectError: [Errno 111] Connection refused
+  t=  84.1s control ConnectError: [Errno 111] Connection refused
+  t=  84.3s control ConnectError: [Errno 111] Connection refused
+  t=  84.5s control ConnectError: [Errno 111] Connection refused
+  t=  84.7s control ConnectError: [Errno 111] Connection refused
+  t=  84.9s control ConnectError: [Errno 111] Connection refused
+  t=  85.1s control ConnectError: [Errno 111] Connection refused
+  t=  85.3s control ConnectError: [Errno 111] Connection refused
+  t=  85.5s control ConnectError: [Errno 111] Connection refused
+  t=  85.7s control ConnectError: [Errno 111] Connection refused
+  t=  85.9s control ConnectError: [Errno 111] Connection refused
+  t=  86.2s control ConnectError: [Errno 111] Connection refused
+  t=  86.4s control ConnectError: [Errno 111] Connection refused
+  t=  86.6s control ConnectError: [Errno 111] Connection refused
+  t=  86.8s control ConnectError: [Errno 111] Connection refused
+  t=  87.0s control ConnectError: [Errno 111] Connection refused
+  t=  87.2s control ConnectError: [Errno 111] Connection refused
+  t=  87.4s control ConnectError: [Errno 111] Connection refused
+  t=  87.6s control ConnectError: [Errno 111] Connection refused
+  t=  87.8s control ConnectError: [Errno 111] Connection refused
+  t=  88.0s control ConnectError: [Errno 111] Connection refused
+  t=  88.2s control ConnectError: [Errno 111] Connection refused
+  t=  88.5s control ConnectError: [Errno 111] Connection refused
+  t=  88.7s control ConnectError: [Errno 111] Connection refused
+  t=  88.9s control ConnectError: [Errno 111] Connection refused
+  t=  89.1s control ConnectError: [Errno 111] Connection refused
+  t=  89.3s control ConnectError: [Errno 111] Connection refused
+  t=  89.5s control ConnectError: [Errno 111] Connection refused
+  t=  89.7s control ConnectError: [Errno 111] Connection refused
+  t=  89.9s control ConnectError: [Errno 111] Connection refused
+  t=  90.1s control ConnectError: [Errno 111] Connection refused
+  t=  90.3s control ConnectError: [Errno 111] Connection refused
+  t=  90.5s control ConnectError: [Errno 111] Connection refused
+  t=  90.8s control ConnectError: [Errno 111] Connection refused
+  t=  91.0s control ConnectError: [Errno 111] Connection refused
+  t=  91.2s control ConnectError: [Errno 111] Connection refused
+  t=  91.4s control ConnectError: [Errno 111] Connection refused

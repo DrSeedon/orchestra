@@ -1,0 +1,34 @@
+=== CANARY v2 label=rag-off seconds=120 cadence=0.2s 2026-08-03 11:26:30 ===
+инструмент: /api/models (in-memory) | контроль: 127.0.0.1:8899/ping (отдельный процесс) | legacy: /api/role-icons (читает диск)
+--- условия ДО: {"pid": 1031, "rag_enabled": "false", "rag_onnx_threads": "<unset>", "rss_mb": 179, "onnxruntime_so_maps": 0, "onnx_model_maps": 0, "threads": 25, "loadavg": ["7.04", "2.02", "0.70"], "agent_procs": 1, "pressure_io": ["some avg10=1.85 avg60=6.33 avg300=2.60 total=9464782", "full avg10=0.24 avg60=3.52 avg300=1.67 total=6310002"], "pressure_cpu": ["some avg10=20.44 avg60=15.16 avg300=4.51 total=15554366", "full avg10=0.00 avg60=0.00 avg300=0.00 total=0"]}
+--- условия ПОСЛЕ: {"pid": 1031, "rag_enabled": "false", "rag_onnx_threads": "<unset>", "rss_mb": 176, "onnxruntime_so_maps": 0, "onnx_model_maps": 0, "threads": 23, "loadavg": ["10.28", "5.08", "2.00"], "agent_procs": 1, "pressure_io": ["some avg10=1.01 avg60=1.24 avg300=1.80 total=10093479", "full avg10=0.51 avg60=0.60 avg300=1.12 total=6514675"], "pressure_cpu": ["some avg10=24.62 avg60=22.61 avg300=11.24 total=45793305", "full avg10=0.00 avg60=0.00 avg300=0.00 total=0"]}
+--- результаты ---
+  orchestra        n= 550  p50=     7.1  p90=    24.1  p99=    137.2  max=    476.2 ms
+      >   50ms:   35 (  6.4%)
+      >  100ms:   13 (  2.4%)
+      >  250ms:    2 (  0.4%)
+      >  500ms:    0 (  0.0%)
+      > 1000ms:    0 (  0.0%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  control          n= 550  p50=     2.1  p90=     6.3  p99=     48.5  max=    113.6 ms
+      >   50ms:    4 (  0.7%)
+      >  100ms:    3 (  0.5%)
+      >  250ms:    0 (  0.0%)
+      >  500ms:    0 (  0.0%)
+      > 1000ms:    0 (  0.0%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  legacy           n= 110  p50=     6.5  p90=    20.1  p99=     52.0  max=     53.3 ms
+      >   50ms:    3 (  2.7%)
+      >  100ms:    0 (  0.0%)
+      >  250ms:    0 (  0.0%)
+      >  500ms:    0 (  0.0%)
+      > 1000ms:    0 (  0.0%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  медиана orchestra/control = 3.5×
+--- стойки >250 мс: 2 ---
+  t=   34.3s orchestra      351.5ms
+  t=  105.6s orchestra      476.2ms
+--- ошибки: 0 ---
