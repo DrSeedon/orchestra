@@ -968,6 +968,57 @@ async def send_file(path: str, caption: str = "", as_document: bool = False) -> 
 
 
 @mcp.tool()
+async def send_chart(kind: str, title: str, data: dict, caption: str = "") -> str:
+    """Draw a chart from data and send it to the user's Telegram as a picture. One call.
+
+    Use it when the point is a SHAPE the reader should see: before/after across several
+    categories, values spanning orders of magnitude, a series over time, or a final state
+    in 2-4 numbers. Do not use it for a single number, a yes/no verdict, a list of files
+    or a status line — those read better as one line of text.
+
+    title — the punchline in words. Do NOT put numbers about the data in it: the tool
+    computes a factual line from what it actually drew and prints it under the title.
+
+    kind and the shape of `data`:
+      "bars"     — compare categories. Linear scale.
+      "bars_log" — same, when values differ by 100× or more (log scale; zero renders as
+                   an explicit "0", negatives are rejected).
+        {"unit": "МБ", "categories": ["1 сут", "год"],
+         "series": [{"name": "до", "values": [0.18, 4.25], "tone": "bad"},
+                    {"name": "после", "values": [0.17, 0.86], "tone": "good"}]}
+      "series"   — values over time; data gaps are detected and shaded, never bridged.
+        {"unit": "%", "series": [{"name": "5h", "points": [["2026-08-01T10:00:00", 12.3]]}]}
+      "cards"    — 2 to 4 big numbers as a final state. Values are strings.
+        {"metrics": [{"label": "на диске", "value": "401", "note": "5.54 МБ"},
+                     {"label": "в индексе", "value": "315", "tone": "bad"}]}
+
+    tone is optional: "good" | "bad" | "neutral" (default: palette colour by index).
+    Limits, enforced loudly: 2-8 categories, <=3 bar series, <=3 lines, <=4 cards.
+    """
+    from app.charts import ChartError, render_chart
+
+    try:
+        path = render_chart(kind, title, data)
+    except ChartError as exc:
+        raise ApiToolError(code="domain_error", message=f"Chart not drawn: {exc}")
+    except Exception as exc:
+        raise ApiToolError(
+            code="render_failed",
+            message=f"Chart render failed: {type(exc).__name__}: {exc}",
+            details={"kind": kind},
+        )
+    try:
+        sent = await send_file(path, caption or title)
+    except ApiToolError as exc:
+        # картинка нарисована и лежит на диске — путь обязан дойти до агента,
+        # иначе работа потеряна из-за сбоя доставки
+        exc.message = f"{exc.message} | chart kept at {path}"
+        exc.details = {**exc.details, "chart_path": path}
+        raise
+    return f"{sent} | chart: {path}"
+
+
+@mcp.tool()
 async def update_progress(percent: int, status: str) -> str:
     """Update task progress. percent: 0-100, status: short description of current step."""
     result = await _api("POST", f"/api/sessions/{WORKER_NAME}/progress", json={
