@@ -127,20 +127,21 @@ async def backfill_scope(project: str, root: Path | None = None,
         raise RuntimeError("RAG not initialized")
     from app import rag
     loop = asyncio.get_running_loop()
-    if session_name:
-        logs = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, 0, session_name)
-        logger.info(f"RAG backfill_scope[{project}] session={session_name}: {logs} logs")
-        return {"files": 0, "logs": logs}
     root = root or Path(project)
     files = logs = 0
     deadline = loop.time() + _PASS_BUDGET_SECONDS
     while True:
-        f = await rag.run(loop, "backfill_files", project, root, _FILE_SLICE)
-        l = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, _LOG_SLICE)
+        # session_name задан → файлы пропускаем: они не привязаны к сессии.
+        f = 0 if session_name else await rag.run(
+            loop, "backfill_files", project, root, _FILE_SLICE)
+        l = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, _LOG_SLICE, session_name)
         files += f
         logs += l
         if (f == 0 and l == 0) or loop.time() >= deadline:
             break
+    if session_name:
+        logger.info(f"RAG backfill_scope[{project}] session={session_name}: {logs} logs")
+        return {"files": 0, "logs": logs}
     pending = await rag.run(loop, "pending_files", project, root)
     _last_pending[_normalize_scope(project)] = pending
     logger.info(f"RAG backfill_scope[{project}]: {files} files, {logs} logs, {pending} still pending")
@@ -154,7 +155,8 @@ def index_status(scope: str) -> dict:
     key = _normalize_scope(scope)
     if key not in _last_pending:
         return {}
-    return {"pending_files": _last_pending[key], "indexing": key in _backfill_tasks}
+    running = any(k == key or k.startswith(f"{key}::") for k in _backfill_tasks)
+    return {"pending_files": _last_pending[key], "indexing": running}
 
 
 def _normalize_scope(scope: str) -> str:
@@ -170,7 +172,7 @@ def _observe_backfill_task(task: asyncio.Task[None]) -> None:
         logger.exception("RAG scheduler wrapper failed unexpectedly")
 
 
-async def _run_scheduled_backfill(key: str) -> None:
+async def _run_scheduled_backfill(key: str, scope: str, session_name: str) -> None:
     task = asyncio.current_task()
     loop = asyncio.get_running_loop()
     started = loop.time()
@@ -182,7 +184,7 @@ async def _run_scheduled_backfill(key: str) -> None:
             scan_started = loop.time()
             logger.info("RAG scheduled backfill start scope=%s scan=%d", key, scans)
             try:
-                result = await backfill_scope(key)
+                result = await backfill_scope(scope, session_name=session_name or None)
             except asyncio.CancelledError:
                 logger.info(
                     "RAG scheduled backfill wrapper cancelled scope=%s; "
@@ -225,8 +227,12 @@ async def _run_scheduled_backfill(key: str) -> None:
         _backfill_dirty.discard(key)
 
 
-def schedule_backfill(scope: str) -> str:
-    """Accept a live backfill, or coalesce one follow-up scan for the same scope."""
+def schedule_backfill(scope: str, session_name: str = "") -> str:
+    """Accept a live backfill, or coalesce one follow-up scan for the same key.
+
+    Единственный способ запустить индексацию: и триггер после мержа, и ручной reindex ходят
+    сюда. Работа уходит в фон, вызывающий получает управление сразу — синхронно ждать нельзя,
+    один лог стоит 1.3–2.9 с, и сессия на 500 логов держала HTTP-запрос дольше 6.5 минут."""
     if not scope or not scope.strip() or not is_ready():
         logger.warning("RAG scheduled backfill not ready scope=%r", scope)
         return "not_ready"
@@ -237,17 +243,20 @@ def schedule_backfill(scope: str) -> str:
         return "not_ready"
 
     normalized = _normalize_scope(scope)
-    current = _backfill_tasks.get(normalized)
+    # Ключ отделяет пересессионный прогон от общего: они не должны коалесцировать друг с
+    # другом, иначе явный ручной reindex тихо схлопнется в фоновый скан всего scope.
+    key = f"{normalized}::{session_name}" if session_name else normalized
+    current = _backfill_tasks.get(key)
     if current is not None and not current.done():
-        _backfill_dirty.add(normalized)
-        logger.info("RAG scheduled backfill coalesced scope=%s", normalized)
+        _backfill_dirty.add(key)
+        logger.info("RAG scheduled backfill coalesced scope=%s", key)
         return "coalesced"
 
     task = loop.create_task(
-        _run_scheduled_backfill(normalized),
-        name=f"rag-backfill:{normalized}",
+        _run_scheduled_backfill(key, normalized, session_name),
+        name=f"rag-backfill:{key}",
     )
-    _backfill_tasks[normalized] = task
+    _backfill_tasks[key] = task
     task.add_done_callback(_observe_backfill_task)
-    logger.info("RAG scheduled backfill accepted scope=%s", normalized)
+    logger.info("RAG scheduled backfill accepted scope=%s", key)
     return "accepted"

@@ -59,7 +59,7 @@ async def test_schedule_backfill_retains_and_coalesces_one_followup(ready_servic
     first_started = asyncio.Event()
     release_first = asyncio.Event()
 
-    async def fake_backfill(scope):
+    async def fake_backfill(scope, session_name=None):
         calls.append(scope)
         if len(calls) == 1:
             first_started.set()
@@ -90,7 +90,7 @@ async def test_coalesced_followup_runs_after_current_scan_fails(ready_service, m
     first_started = asyncio.Event()
     fail_first = asyncio.Event()
 
-    async def fake_backfill(_scope):
+    async def fake_backfill(_scope, session_name=None):
         nonlocal attempts
         attempts += 1
         if attempts == 1:
@@ -119,7 +119,7 @@ async def test_schedule_backfill_keeps_scopes_independent(ready_service, monkeyp
     both_started = asyncio.Event()
     release = asyncio.Event()
 
-    async def fake_backfill(scope):
+    async def fake_backfill(scope, session_name=None):
         calls.append(scope)
         if len(calls) == 2:
             both_started.set()
@@ -152,7 +152,7 @@ async def test_failed_backfill_is_logged_removed_and_can_be_rescheduled(
 ):
     attempts = 0
 
-    async def fake_backfill(_scope):
+    async def fake_backfill(_scope, session_name=None):
         nonlocal attempts
         attempts += 1
         if attempts == 1:
@@ -182,7 +182,7 @@ async def test_shutdown_cancels_retained_wrappers_and_clears_state(ready_service
     started = asyncio.Event()
     never = asyncio.Event()
 
-    async def fake_backfill(_scope):
+    async def fake_backfill(_scope, session_name=None):
         started.set()
         await never.wait()
 
@@ -282,3 +282,75 @@ async def test_index_status_stays_silent_until_a_pass_actually_ran(ready_service
     await ready_service.backfill_scope("/scope")
 
     assert ready_service.index_status("/scope") == {"pending_files": 2, "indexing": False}
+
+
+@pytest.mark.asyncio
+async def test_session_reindex_is_scheduled_separately_from_the_scope_pass(ready_service, monkeypatch):
+    """Ручной пересессионный reindex не должен схлопываться в фоновый скан всего scope:
+    его заказали явно, и «коалесцировано» означало бы «сделаем когда-нибудь другое»."""
+    seen: list[tuple] = []
+    release = asyncio.Event()
+
+    async def fake_backfill(scope, session_name=None):
+        seen.append((scope, session_name))
+        await release.wait()
+        return {"files": 0, "logs": 0}
+
+    monkeypatch.setattr(ready_service, "backfill_scope", fake_backfill)
+
+    assert ready_service.schedule_backfill("/scope") == "accepted"
+    assert ready_service.schedule_backfill("/scope", session_name="w1") == "accepted"
+    assert ready_service.schedule_backfill("/scope", session_name="w1") == "coalesced"
+    tasks = tuple(ready_service._backfill_tasks.values())
+    await asyncio.sleep(0)
+
+    assert len(tasks) == 2
+    assert set(ready_service._backfill_tasks) == {"/scope", "/scope::w1"}
+    # `indexing` обязан видеть и сессионный прогон: ключ у него составной
+    monkeypatch.setitem(ready_service._last_pending, "/scope", 5)
+    assert ready_service.index_status("/scope") == {"pending_files": 5, "indexing": True}
+
+    release.set()
+    await asyncio.gather(*tasks)
+    assert ("/scope", None) in seen and ("/scope", "w1") in seen
+
+
+@pytest.mark.asyncio
+async def test_session_pass_slices_logs_and_skips_files(ready_service, monkeypatch):
+    """Сессионный прогон шёл одним неограниченным запросом: 500 логов × 1.3-2.9 с — больше
+    6.5 минут. Теперь он идёт теми же срезами, что и общий, и файлы не трогает."""
+    seen: list[str] = []
+    state = _fake_rag_run(monkeypatch, files_left=99, logs_left=3, seen=seen)
+    monkeypatch.setattr(ready_service, "_LOG_SLICE", 2)
+
+    result = await ready_service.backfill_scope("/scope", session_name="w1")
+
+    assert result == {"files": 0, "logs": 3}
+    assert "backfill_files" not in seen, "логи сессии не привязаны к файлам scope"
+    assert "pending_files" not in seen, "долг по файлам к сессионному прогону не относится"
+    assert state["files"] == 99
+    assert seen.count("backfill_logs") > 1, "работа обязана нарезаться на срезы"
+
+
+@pytest.mark.asyncio
+async def test_reindex_endpoint_returns_control_immediately(monkeypatch):
+    """Эндпоинт держал HTTP-запрос до конца прогона и назывался при этом «fast»."""
+    from app.routes import memory as memory_route
+
+    calls: list[tuple] = []
+    monkeypatch.setattr(memory_route.rag_service, "is_enabled", lambda: True)
+    monkeypatch.setattr(memory_route.rag_service, "index_status", lambda scope: {"pending_files": 7})
+    monkeypatch.setattr(
+        memory_route.rag_service, "schedule_backfill",
+        lambda scope, session_name="": (calls.append((scope, session_name)), "accepted")[1])
+
+    async def never_awaited(*a, **k):
+        raise AssertionError("роут не имеет права ждать прогон")
+
+    monkeypatch.setattr(memory_route.rag_service, "backfill_scope", never_awaited)
+
+    out = await memory_route.memory_reindex(
+        memory_route.MemoryReindexRequest(scope="/scope/", session_name="w1"))
+
+    assert out == {"ok": True, "status": "accepted", "index": {"pending_files": 7}}
+    assert calls == [("/scope", "w1")]
