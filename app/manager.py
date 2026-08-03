@@ -339,8 +339,9 @@ class SessionManager:
         return self._session_locks[session_id]
 
     def start_background_tasks(self) -> None:
-        if not getattr(self, '_cleanup_task', None) or self._cleanup_task.done():
-            self._cleanup_task = asyncio.create_task(self._periodic_db_cleanup())
+        # log retention REMOVED by owner decision: agent history is research data. The old
+        # `_periodic_db_cleanup` dropped logs older than 7 days every 6h, silently destroying
+        # every transcript past a week while `sessions` rows survived since May. Never restore
         if not getattr(self, '_wt_cleanup_task', None) or self._wt_cleanup_task.done():
             self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
 
@@ -1516,20 +1517,6 @@ class SessionManager:
             logger.info(f"Restart notice injected: {session.name}")
         except Exception as e:
             logger.warning(f"Failed to inject restart notice to {session.name}: {e}")
-
-    async def _periodic_db_cleanup(self) -> None:
-        CLEANUP_INTERVAL = 6 * 3600
-        while True:
-            try:
-                await asyncio.sleep(CLEANUP_INTERVAL)
-                from app.db import cleanup_old_logs
-                deleted = await asyncio.to_thread(cleanup_old_logs, 7)
-                if deleted:
-                    logger.info(f"DB cleanup: deleted {deleted} old log entries")
-            except asyncio.CancelledError:
-                return
-            except Exception as e:
-                logger.warning(f"DB cleanup failed: {e}")
 
     async def _periodic_worktree_cleanup(self) -> None:
         WT_CLEANUP_INTERVAL = 24 * 3600

@@ -1067,15 +1067,16 @@ def get_stats(scope: str | None = None) -> dict:
 
 
 def cleanup_old_logs(days: int = 7) -> int:
-    with _conn() as c:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-        cur = c.execute("DELETE FROM logs WHERE ts < ?", (cutoff,))
-        deleted = cur.rowcount
-    with _conn() as c:
-        # Checkpoint after bulk delete: reclaims WAL disk space that stays
-        # allocated otherwise until the next checkpoint or DB restart
-        c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    return deleted
+    """REMOVED by owner decision — agent history is research data, never delete it.
+
+    Kept as a loud tombstone: this function used to drop `logs` older than 7 days on a
+    6-hour timer, which silently destroyed every diary older than a week while `sessions`
+    rows survived since May. Any caller is a bug.
+    """
+    raise RuntimeError(
+        "cleanup_old_logs is disabled: agent logs must never be deleted. "
+        "If disk pressure is real, export to files first and ask the owner."
+    )
 
 
 # ── Background Jobs ──
