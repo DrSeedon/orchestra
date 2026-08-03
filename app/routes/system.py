@@ -15,7 +15,7 @@ import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -991,29 +991,38 @@ HISTORY_FINE_HOURS = 48
 
 
 @router.get("/api/usage/history")
-async def usage_history(hours: int = 24, step_minutes: int = 0):
-    """История снимков: {step_minutes, rows}.
+async def usage_history(hours: int = 24, step_minutes: int = 0, until: str = ""):
+    """История снимков: {step_minutes, rows, oldest_ts}.
 
     step_minutes — шаг сетки в прореженной части ответа. Фронт по нему решает,
     где разрыв данных: расстояние между соседними точками больше шага = дырка,
     её нельзя соединять линией.
+    until — правая граница окна (исключительно). Фронт грузит период по клику ◀,
+    передавая время самой старой уже загруженной точки. oldest_ts — время первого
+    снимка вообще, по нему видно, осталось ли что грузить.
     """
     if step_minutes < 0:
         # шаг сетки идёт в `t += step`: отрицательный зациклит выборку намертво
         raise HTTPException(400, "step_minutes must be >= 0")
+    from app.db import usage_get_history, usage_history_oldest_ts, usage_history_ts_before
+    step = step_minutes or (HISTORY_FINE_STEP if hours <= HISTORY_FINE_HOURS
+                            else HISTORY_COARSE_STEP)
     if not is_owner_mode():
-        return {"step_minutes": step_minutes or HISTORY_FINE_STEP, "rows": []}
-    from app.db import usage_get_history
-    if step_minutes:
-        return {"step_minutes": step_minutes, "rows": usage_get_history(hours, step_minutes)}
-    if hours <= HISTORY_FINE_HOURS:
-        return {"step_minutes": HISTORY_FINE_STEP,
-                "rows": usage_get_history(hours, HISTORY_FINE_STEP)}
-    coarse = usage_get_history(hours, HISTORY_COARSE_STEP)
-    fine = usage_get_history(HISTORY_FINE_HOURS, HISTORY_FINE_STEP)
-    cut = fine[0]["ts"] if fine else None
-    rows = [row for row in coarse if cut is None or row["ts"] < cut] + fine
-    return {"step_minutes": HISTORY_COARSE_STEP, "rows": rows}
+        return {"step_minutes": step, "rows": [], "oldest_ts": ""}
+    if until:
+        # Окно навигации привязываем к данным: после простоя длиннее запрошенного
+        # куска календарное окно пришло бы пустым, и ◀ упёрлась бы в него навсегда.
+        previous = usage_history_ts_before(until)
+        if previous:
+            until = (datetime.fromisoformat(previous) + timedelta(microseconds=1)).isoformat()
+    rows = usage_get_history(hours, step, until)
+    # Хвост в полном разрешении нужен только живому виду: в куске из прошлого
+    # «последние 48 часов» — это такое же прошлое, детализация там не нужна.
+    if not until and not step_minutes and hours > HISTORY_FINE_HOURS:
+        fine = usage_get_history(HISTORY_FINE_HOURS, HISTORY_FINE_STEP)
+        cut = fine[0]["ts"] if fine else None
+        rows = [row for row in rows if cut is None or row["ts"] < cut] + fine
+    return {"step_minutes": step, "rows": rows, "oldest_ts": usage_history_oldest_ts()}
 
 
 @router.get("/api/usage/analytics")

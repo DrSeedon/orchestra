@@ -113,6 +113,65 @@ async def test_long_range_is_thinned_but_keeps_a_fine_tail(db, owner):
 
 
 @pytest.mark.asyncio
+async def test_chunks_join_without_overlap(db, owner):
+    """Кусок по клику ◀ примыкает к загруженному, а не дублирует его границу."""
+    now = datetime.now(timezone.utc)
+    _seed(db, _every(now - timedelta(days=12), now, 5))
+
+    first = await system.usage_history(hours=168)
+    second = await system.usage_history(hours=168, until=first["rows"][0]["ts"])
+
+    assert second["rows"], "предыдущий период пуст — стрелка ◀ упрётся в пустоту"
+    assert second["rows"][-1]["ts"] < first["rows"][0]["ts"]
+
+
+@pytest.mark.asyncio
+async def test_navigation_window_anchors_to_data_not_calendar(db, owner):
+    """После простоя длиннее окна календарный кусок пришёл бы пустым, и ◀ умерла бы."""
+    now = datetime.now(timezone.utc)
+    _seed(db, [
+        *_every(now - timedelta(days=40), now - timedelta(days=39), 5),
+        *_every(now - timedelta(days=2), now, 5),
+    ])
+
+    live = await system.usage_history(hours=168)
+    older = await system.usage_history(hours=168, until=live["rows"][0]["ts"])
+
+    assert older["rows"], "кусок пуст: окно считалось по календарю, а не по данным"
+    assert older["rows"][-1]["ts"] <= (now - timedelta(days=39)).isoformat(), "кусок не из старого блока"
+
+
+@pytest.mark.asyncio
+async def test_historical_chunk_has_no_fine_tail(db, owner):
+    """«Последние 48 часов» внутри куска из прошлого — такое же прошлое."""
+    now = datetime.now(timezone.utc)
+    _seed(db, _every(now - timedelta(days=12), now, 5))
+
+    first = await system.usage_history(hours=168)
+    older = await system.usage_history(hours=168, until=first["rows"][0]["ts"])
+    rows = older["rows"]
+    spacing = {
+        round((datetime.fromisoformat(b["ts"]) - datetime.fromisoformat(a["ts"])).total_seconds() / 60)
+        for a, b in zip(rows, rows[1:])
+    }
+
+    assert spacing == {30}, spacing
+
+
+@pytest.mark.asyncio
+async def test_oldest_ts_is_the_first_snapshot_ever(db, owner):
+    """По нему фронт понимает, что за пределами загруженного куска ещё есть история."""
+    now = datetime.now(timezone.utc)
+    first_moment = now - timedelta(days=40)
+    _seed(db, [first_moment, *_every(now - timedelta(days=2), now, 5)])
+
+    answer = await system.usage_history(hours=168)
+
+    assert answer["oldest_ts"] == first_moment.isoformat()
+    assert answer["rows"][0]["ts"] > answer["oldest_ts"], "иначе стрелка ◀ не появится"
+
+
+@pytest.mark.asyncio
 async def test_explicit_step_is_honoured(db, owner):
     now = datetime.now(timezone.utc)
     _seed(db, _every(now - timedelta(hours=6), now, 5))

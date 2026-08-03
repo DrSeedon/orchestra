@@ -1641,13 +1641,31 @@ def _usage_providers_from_row(row: dict) -> dict:
     return {"anthropic": {"label": "Claude", "windows": windows}} if windows else {}
 
 
-def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
-    now = datetime.now(timezone.utc)
-    cutoff = (now - timedelta(hours=hours)).isoformat()
+def usage_history_oldest_ts() -> str:
+    """Время самого первого снимка — по нему фронт понимает, есть ли что грузить дальше."""
+    with _conn() as c:
+        row = c.execute("SELECT ts FROM usage_snapshots ORDER BY id ASC LIMIT 1").fetchone()
+        return row["ts"] if row else ""
+
+
+def usage_history_ts_before(ts: str) -> str:
+    """Ближайший снимок старше ts. Окно навигации привязано к данным, а не к календарю."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT ts FROM usage_snapshots WHERE ts < ? ORDER BY ts DESC LIMIT 1", (ts,)
+        ).fetchone()
+        return row["ts"] if row else ""
+
+
+def usage_get_history(hours: int = 24, step_minutes: int = 5, until: str = "") -> list[dict]:
+    # until — правая граница окна, исключительно: фронт передаёт время самой старой
+    # уже загруженной точки, и следующий кусок обязан к ней примыкать, а не дублировать её.
+    end = datetime.fromisoformat(until) if until else datetime.now(timezone.utc)
+    cutoff = (end - timedelta(hours=hours)).isoformat()
     with _conn() as c:
         rows = c.execute(
-            "SELECT * FROM usage_snapshots WHERE ts > ? ORDER BY ts ASC",
-            (cutoff,),
+            "SELECT * FROM usage_snapshots WHERE ts > ? AND ts < ? ORDER BY ts ASC",
+            (cutoff, end.isoformat()),
         ).fetchall()
         raw = []
         for db_row in rows:
@@ -1667,7 +1685,7 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5) -> list[dict]:
     t = start
     prev = raw[0]
     prev_ts = start
-    while t <= now:
+    while t < end:
         # Step-forward interpolation: for each grid point, use the last known
         # snapshot at or before that time — matches "last-value" chart semantics
         while ri < len(raw) - 1:

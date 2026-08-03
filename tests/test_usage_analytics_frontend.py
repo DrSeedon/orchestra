@@ -278,7 +278,8 @@ def test_template_uses_wide_analytics_shell_and_leaf_script():
     assert "max-w-3xl" not in source.split('id="analytics-modal"', 1)[1].split(
         "<!-- Agent activity modal -->", 1
     )[0]
-    assert '<script src="/static/js/analytics.js"></script>' in source
+    # #9 заменил прямые пути на версионные: `{{ static_url('js/analytics.js') }}`
+    assert "static_url('js/analytics.js')" in source
 
 
 def test_model_cost_and_task_money_have_separate_currency_sources(browser):
@@ -323,10 +324,10 @@ def test_model_cost_and_task_money_have_separate_currency_sources(browser):
     page.close()
 
     template = TEMPLATE.read_text()
-    assert template.index("/static/js/utils.js") < template.index(
-        "/static/js/usage.js"
-    ) < template.index("/static/js/analytics.js") < template.index(
-        "/static/js/app.js"
+    assert template.index("js/utils.js") < template.index(
+        "js/usage.js"
+    ) < template.index("js/analytics.js") < template.index(
+        "js/app.js"
     )
 
 
