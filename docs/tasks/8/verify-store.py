@@ -6,7 +6,7 @@
 
 Запуск: uv run python docs/tasks/8/verify-store.py
 """
-import asyncio, json, pathlib, subprocess, sys
+import asyncio, json, pathlib, sqlite3, subprocess, sys
 
 from playwright.async_api import async_playwright
 
@@ -21,8 +21,9 @@ for line in open("/home/kesha/orchestra/.env"):
         k, v = line.split("=", 1)
         ENV[k.strip()] = v.strip()
 
-if not DB_COPY.exists():
-    subprocess.run(["sqlite3", str(ROOT.parents[2] / "orchestra/data/orchestra.db"),
+if not DB_COPY.exists() or not sqlite3.connect(DB_COPY).execute(
+        "SELECT 1 FROM sqlite_master WHERE name='logs'").fetchone():
+    subprocess.run(["sqlite3", "/home/kesha/orchestra/data/orchestra.db",
                     f".backup {DB_COPY}"], check=True)
 
 sys.path.insert(0, str(ROOT))

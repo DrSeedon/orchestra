@@ -12,7 +12,7 @@
 """
 import asyncio, json, pathlib, subprocess, sqlite3, sys
 
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 APP_JS = ROOT / "app/static/js/app.js"
@@ -25,7 +25,8 @@ for line in open("/home/kesha/orchestra/.env"):
         k, v = line.split("=", 1)
         ENV[k.strip()] = v.strip()
 
-if not DB_COPY.exists():
+if not DB_COPY.exists() or not sqlite3.connect(DB_COPY).execute(
+        "SELECT 1 FROM sqlite_master WHERE name='logs'").fetchone():
     subprocess.run(["sqlite3", "/home/kesha/orchestra/data/orchestra.db",
                     f".backup {DB_COPY}"], check=True)
 sys.path.insert(0, str(ROOT))
@@ -105,6 +106,16 @@ async def main():
               len([u for u in reqs if "/logs?" in u]) == 1,
               str([u[-44:] for u in reqs if "/logs?" in u]))
 
+        # Ждём саму картинку, а не «полторы секунды»: 166-килобайтная история с сервера
+        # приезжала и за 5 с, и фиксированная пауза краснела через раз на ровном месте.
+        waited = ""
+        try:
+            await page.wait_for_function(
+                "() => [...document.querySelectorAll('#chat img')]"
+                ".some(i => i.src.startsWith('data:image'))", timeout=10000)
+        except PWTimeout as e:
+            waited = f"; data:image не появилась за 10 с ({type(e).__name__})"
+
         node = await page.evaluate("""(id) => {
           const n = document.querySelector(`#chat [data-chat-log-id="${id}"]`);
           const imgs = [...document.querySelectorAll('#chat img')];
@@ -113,7 +124,7 @@ async def main():
         }""", victim["id"])
         check("картинка из 636-килобайтного сообщения отрисована",
               node["imgs"] > 0 and any(s.startswith("data:image") for s in node["src"]),
-              f'изображений {node["imgs"]}, префиксы {node["src"][:2]}')
+              f'изображений {node["imgs"]}, префиксы {node["src"][:2]}{waited}')
         check("битых изображений нет", node["broken"] == 0,
               f'битых {node["broken"]} из {node["imgs"]}')
 

@@ -6,7 +6,7 @@
 
 Запуск: uv run python docs/tasks/8/verify-switch.py
 """
-import asyncio, json, pathlib, subprocess, sys
+import asyncio, json, pathlib, sqlite3, subprocess, sys
 
 from playwright.async_api import async_playwright
 
@@ -21,7 +21,8 @@ for line in open("/home/kesha/orchestra/.env"):
         k, v = line.split("=", 1)
         ENV[k.strip()] = v.strip()
 
-if not DB_COPY.exists():
+if not DB_COPY.exists() or not sqlite3.connect(DB_COPY).execute(
+        "SELECT 1 FROM sqlite_master WHERE name='logs'").fetchone():
     subprocess.run(["sqlite3", "/home/kesha/orchestra/data/orchestra.db",
                     f".backup {DB_COPY}"], check=True)
 sys.path.insert(0, str(ROOT))
@@ -63,8 +64,13 @@ async def main():
         await page.wait_for_function("typeof _showChatFor === 'function'")
         await page.wait_for_timeout(5000)          # даём холодной синхронизации осесть
 
+        await page.wait_for_selector(".agent-item", timeout=15000)
         names = await page.evaluate(
             "[...document.querySelectorAll('.agent-item .text-xs.font-medium')].map(e=>e.textContent)")
+        # Без этого пустой список агентов даёт три ВАКУУМНО зелёные проверки (all([]) == True),
+        # и прогон выглядит успешным, ничего не проверив.
+        if len(names) < 4:
+            sys.exit(f"список агентов не отрисовался ({names}) — прогон недействителен")
 
         # --- 1. переключение при попадании в зеркало ---
         hits = []
