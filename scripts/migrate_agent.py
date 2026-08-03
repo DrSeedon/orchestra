@@ -18,8 +18,11 @@ target's orchestra root / scope root.
         --to-scope   /home/kesha/projects/Parsing
 
 Two path encodings are handled (matching the app):
-  - CLI transcript dir : cwd.replace('/', '-').lstrip('-')          (case preserved)
+  - CLI transcript dir : cwd.replace('/', '-')                      (leading '-' kept)
   - worktree subdir    : <root>/worktrees/<slugify(scope)>/<name>   (lowercased)
+
+Everything is created over ssh as root, but Orchestra and the Claude CLI run as the
+service user — so every path we write is handed over with chown and verified.
 
 Preconditions (fail loud): the orchestrator and every non-archived worker must be IDLE.
 """
@@ -35,8 +38,15 @@ from pathlib import PurePosixPath
 # ── path encodings (mirror app/manager.py:_migrate_cli_session and app/workspace.py) ──
 
 def enc_cli_dir(cwd: str) -> str:
-    """~/.claude/projects/<this> — cwd with '/'→'-', leading '-' stripped. Case preserved."""
-    return cwd.replace("/", "-").lstrip("-")
+    """~/.claude/projects/<this> — cwd with '/'→'-'. Case preserved.
+
+    The leading '-' (from the leading '/') is part of the name and must stay:
+    stripping it produced a directory the CLI never reads, so transcripts were
+    written beside the real ones and every migrated agent silently resumed with
+    no history. Verified against 23 real (cwd → dirname) pairs read out of the
+    transcripts themselves: with the strip 0/23 matched, without it 23/23.
+    """
+    return cwd.replace("/", "-")
 
 
 def slugify_scope(scope: str) -> str:
@@ -83,6 +93,38 @@ def die(msg: str) -> None:
 
 def log(msg: str) -> None:
     print(f"  {msg}")
+
+
+def target_service_user(to_host: str, to_orch: str) -> tuple[str, str]:
+    """Who Orchestra actually runs as on the target, plus that user's home.
+
+    Derived from the owner of the installation directory, NOT from the ssh login:
+    we log in as root, but systemd runs the service under its own user. Anything
+    left behind as root is unusable to it — git refuses with "dubious ownership",
+    and '~' would resolve to /root instead of the service user's home.
+    """
+    user = ssh(to_host, f"stat -c %U {to_orch!r}").stdout.strip()
+    if not user:
+        die(f"cannot determine the owner of {to_orch} on {to_host}")
+    home = ssh(to_host, f"getent passwd {user!r} | cut -d: -f6").stdout.strip()
+    if not home:
+        die(f"cannot determine the home directory of user '{user}' on {to_host}")
+    log(f"target service user: {user} (home {home})")
+    return user, home
+
+
+def give_to_service_user(to_host: str, path: str, user: str) -> None:
+    """Hand a freshly created path to the service user, and prove it took effect."""
+    before = ssh(
+        to_host, f"find {path!r} ! -user {user!r} -printf . 2>/dev/null | wc -c",
+    ).stdout.strip()
+    ssh(to_host, f"chown -R {user}:{user} {path!r}")
+    after = ssh(
+        to_host, f"find {path!r} ! -user {user!r} -printf . 2>/dev/null | wc -c",
+    ).stdout.strip()
+    if after != "0":
+        die(f"chown -R {user} did not take on {path}: {after} entries still foreign")
+    log(f"owner {path} → {user} (было чужих: {before})")
 
 
 # ── DB access over SSH (sqlite3 CLI on the remote, JSON out) ──
@@ -156,14 +198,17 @@ def assert_idle(orch: dict, workers: list[dict]) -> None:
         die(f"agents not IDLE (running): {', '.join(busy)} — stop them first")
 
 
-def copy_transcript(from_host, to_host, session_id, from_cwd, to_cwd) -> None:
+def copy_transcript(from_host, to_host, session_id, from_cwd, to_cwd,
+                    to_user: str, to_home: str, from_home: str) -> None:
     """Copy <session_id>.jsonl (+ optional <session_id>/ subdir) into target-encoded dir."""
     if not session_id:
         log("no session_id — skipping transcript (fresh agent, nothing to replay)")
         return
-    src_dir = f"~/.claude/projects/{enc_cli_dir(from_cwd)}"
-    dst_dir = f"~/.claude/projects/{enc_cli_dir(to_cwd)}"
-    ssh(to_host, f"mkdir -p {dst_dir}")
+    # Explicit homes, never '~': we ssh as root on both ends, while the transcripts
+    # live under the service user. '~' silently pointed at /root on both sides.
+    src_dir = f"{from_home.rstrip('/')}/.claude/projects/{enc_cli_dir(from_cwd)}"
+    dst_dir = f"{to_home.rstrip('/')}/.claude/projects/{enc_cli_dir(to_cwd)}"
+    ssh(to_host, f"mkdir -p {dst_dir!r}")
 
     # flat transcript file
     exists = ssh(from_host, f"test -f {src_dir}/{session_id}.jsonl && echo yes || echo no").stdout.strip()
@@ -178,6 +223,9 @@ def copy_transcript(from_host, to_host, session_id, from_cwd, to_cwd) -> None:
     if has_sub == "yes":
         _relay_dir(from_host, to_host, f"{src_dir}/{session_id}", f"{dst_dir}/")
         log(f"v2.1 subdir {session_id}/ → {enc_cli_dir(to_cwd)}/")
+
+    # relayed as root — hand the whole project dir to the user the CLI runs as
+    give_to_service_user(to_host, dst_dir, to_user)
 
 
 def _relay_file(from_host, to_host, src, dst) -> None:
@@ -195,7 +243,7 @@ def _relay_dir(from_host, to_host, src, dst) -> None:
     scp(local, f"{to_host}:{dst}", recursive=True)
 
 
-def migrate_git(from_host, to_host, row, from_scope, to_scope, to_orch) -> str | None:
+def migrate_git(from_host, to_host, row, from_scope, to_scope, to_orch, to_user) -> str | None:
     """Push worker branch (if any), recreate worktree on target. Returns new worktree_path or None."""
     wt = row.get("worktree_path") or ""
     branch = row.get("branch") or ""
@@ -231,6 +279,11 @@ def migrate_git(from_host, to_host, row, from_scope, to_scope, to_orch) -> str |
         r = ssh(to_host, f"cd {to_scope!r} && git worktree add {new_wt!r} {ref!r}", check=False)
     if r.returncode != 0:
         die(f"git worktree add failed for '{row['name']}' (ref={ref}): {r.stderr.strip()}")
+    # Created over ssh as root. Left that way, Git refuses to work in it
+    # ("dubious ownership") and worker_wip / kill_worker start failing — which
+    # leaves force-kill as the only route and drops the unmerged-work guard.
+    give_to_service_user(to_host, new_wt, to_user)
+    give_to_service_user(to_host, f"{new_root}/worktrees/{slugify_scope(new_scope)}", to_user)
     log(f"worktree [{row['name']}] → {new_wt}")
     return new_wt
 
@@ -281,14 +334,18 @@ def build_children_copy(from_host, from_db, session_row_id: str,
     return script
 
 
-def copy_scope_files(from_host, to_host, from_scope, to_scope, worker_names) -> None:
+def copy_scope_files(from_host, to_host, from_scope, to_scope, worker_names, to_user) -> None:
     """CLAUDE.md + docs/workers/<name>.md — travel with the scope repo but copy explicitly
     so migration works even if the target repo is behind."""
     ssh(to_host, f"mkdir -p {to_scope}/docs/workers")
+    give_to_service_user(to_host, f"{to_scope}/docs/workers", to_user)
     for rel in ["CLAUDE.md"] + [f"docs/workers/{n}.md" for n in worker_names]:
         exists = ssh(from_host, f"test -f {from_scope}/{rel} && echo yes || echo no").stdout.strip()
         if exists == "yes":
             _relay_file(from_host, to_host, f"{from_scope}/{rel}", f"{to_scope}/{rel}")
+            # relayed as root into the service user's repo — root-owned files there
+            # make the tree unusable to git for the very user that must commit them
+            give_to_service_user(to_host, f"{to_scope}/{rel}", to_user)
             log(f"scope file → {rel}")
 
 
@@ -329,18 +386,21 @@ def main() -> None:
 
     sql_script = "BEGIN;\n"
 
+    to_user, to_home = target_service_user(args.to_host, args.to_orchestra)
+    _, from_home = target_service_user(args.from_host, args.from_orchestra)
+
     # 2. per-agent: transcript + git + row + children
     print("→ transcripts")
     for r in all_rows:
         copy_transcript(args.from_host, args.to_host, r.get("session_id"),
-                        r["cwd"], rewrite_cwd(r, args))
+                        r["cwd"], rewrite_cwd(r, args), to_user, to_home, from_home)
 
     print("→ git worktrees")
     new_wts: dict[str, str | None] = {}
     for r in workers:
         new_wts[r["id"]] = migrate_git(args.from_host, args.to_host, r,
                                        args.from_scope, args.to_scope,
-                                       args.to_orchestra)
+                                       args.to_orchestra, to_user)
 
     print("→ DB rows")
     for r in all_rows:
@@ -353,7 +413,7 @@ def main() -> None:
 
     print("→ scope files (CLAUDE.md + worker memory)")
     copy_scope_files(args.from_host, args.to_host, args.from_scope, args.to_scope,
-                     [w["name"] for w in workers])
+                     [w["name"] for w in workers], to_user)
 
     sql_script += "COMMIT;\n"
     print("→ applying DB script on target")

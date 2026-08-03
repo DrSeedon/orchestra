@@ -42,6 +42,12 @@
   ]
  ],
  [
+  "/api/logs/sync",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/memory/reindex",
   [
    "POST"
@@ -234,7 +240,7 @@
   ]
  ],
  [
- "/api/sessions/{name}/description",
+  "/api/sessions/{name}/description",
   [
    "POST"
   ]

@@ -913,6 +913,12 @@ def add_log(
     content: str,
     event_id: str = "",
 ) -> int:
+    """ИНВАРИАНТ: строки logs неизменяемы — только этот INSERT и оптовый DELETE по
+    возрасту в cleanup_old_logs. Ни одного UPDATE. На этом стоит зеркало журнала в
+    браузере (#8): сохранённая строка не может стать неверной, только исчезнуть.
+    Появится первый UPDATE logs (например, редактирование сообщения) — зеркало начнёт
+    врать МОЛЧА; чинить придётся get_logs_sync и клиентское хранилище вместе.
+    """
     with _conn() as c:
         cur = c.execute(
             """INSERT INTO logs (session_id, ts, type, content, event_id)
@@ -1018,6 +1024,66 @@ def get_logs_before(session_id: str, before_id: int, limit: int = 500) -> list[d
             (session_id, before_id, limit),
         ).fetchall()
         return [dict(r) for r in reversed(rows)]
+
+
+_SYNC_COLS = "id, session_id, ts, type, content, event_id"
+
+
+def _cap_content(row: dict, cap: int) -> dict:
+    """Обрезать content до cap БАЙТ (не символов) и пометить обрезку.
+
+    Байты, а не символы: бюджет клиентского зеркала считается в байтах, а кириллица
+    в UTF-8 даёт 2 байта на символ — по символам потолок уехал бы вдвое. Срез может
+    разрубить символ пополам, поэтому errors="ignore".
+    """
+    raw = (row.get("content") or "").encode()
+    if len(raw) <= cap:
+        return row
+    row["content"] = raw[:cap].decode(errors="ignore")
+    row["trunc"] = len(raw)  # исходная длина в байтах — её показывает кнопка «загрузить целиком»
+    return row
+
+
+def get_logs_sync(after_id: int = 0, tail: int = 20, cap: int = 16384) -> dict:
+    """Журнал всех сессий всех проектов одним ответом — для зеркала в браузере.
+
+    after_id == 0 — холодный старт: последние ``tail`` строк на каждую сессию.
+    after_id > 0  — инкремент: всё, что появилось после этой отметки.
+
+    ``live_sessions`` — полный список сессий БЕЗ фильтров, по ``{id, name, scope}``.
+    Логи висят на sessions(id) с ON DELETE CASCADE (и foreign_keys=ON), поэтому
+    удалённая сессия уносит свой журнал, и клиент обязан это повторить. Отсюда же
+    требование к вызывающему: пустой список означает сбой, а не «сессий нет» — по нему
+    нельзя вычищать зеркало.
+
+    Имя и scope нужны не для красоты: после F5 браузер знает, какого агента показывать,
+    но не знает его session_id, а логи ключуются именно по нему. Сохранённая карта
+    имя+scope → id даёт показать историю до первого сетевого ответа.
+    """
+    with _conn() as c:
+        max_log_id = c.execute("SELECT COALESCE(MAX(id), 0) FROM logs").fetchone()[0]
+        live = [{"id": r["id"], "name": r["name"], "scope": r["scope"]}
+                for r in c.execute("SELECT id, name, scope FROM sessions")]
+        if after_id > 0:
+            rows = c.execute(
+                f"SELECT {_SYNC_COLS} FROM logs WHERE id > ? ORDER BY id ASC",
+                (after_id,),
+            ).fetchall()
+        else:
+            rows = c.execute(
+                f"""WITH ranked AS (
+                        SELECT {_SYNC_COLS},
+                               ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY id DESC) rn
+                        FROM logs
+                    )
+                    SELECT {_SYNC_COLS} FROM ranked WHERE rn <= ? ORDER BY id ASC""",
+                (tail,),
+            ).fetchall()
+        return {
+            "max_log_id": max_log_id,
+            "live_sessions": live,
+            "logs": [_cap_content(dict(r), cap) for r in rows],
+        }
 
 
 def get_stats(scope: str | None = None) -> dict:

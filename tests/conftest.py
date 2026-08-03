@@ -44,6 +44,30 @@ def make_backend_mock() -> AsyncMock:
 
 
 @pytest.fixture(autouse=True)
+def _hermetic_dashboard_env(monkeypatch):
+    """Тест не должен зависеть от того, на чьей машине он запущен.
+
+    Источника протечки два, и гасить надо оба:
+    1) systemd-юнит Orchestra подаёт ``EnvironmentFile=.env``, поэтому у агента
+       ``DASHBOARD_USER`` уже лежит в ``os.environ`` — файла в чекауте при этом нет
+       (проверено: чистый клон main без .env всё равно давал 401);
+    2) ``lifespan`` зовёт ``load_dotenv()``, который затянет ``.env`` обратно уже
+       после любой предварительной очистки.
+
+    С включённым auth все запросы к ``/api/`` получают 401 вместо ожидаемого кода:
+    на CI такие тесты зелёные, у владельца красные. Тест, зависящий от чужого
+    окружения, хуже красного — он не воспроизводится.
+
+    Нужен включённый auth внутри теста — выставь переменные своим ``monkeypatch.setenv``.
+    """
+    import dotenv
+
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: False)
+    for key in ("DASHBOARD_USER", "DASHBOARD_PASSWORD", "OWNER_MODE"):
+        monkeypatch.delenv(key, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _no_tg_bridge(monkeypatch):
     """Не зовём реальный Telegram Bot API в обычных тестах.
 

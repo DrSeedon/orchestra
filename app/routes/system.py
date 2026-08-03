@@ -846,6 +846,10 @@ async def _get_usage_data(
         "grok": grok_data,
         "orchestra": _get_agents_cost(),
         "voice_cost_usd": round(_get_voice_cost_usd(), 4),
+        # Единственное РЕАЛЬНОЕ число в этой панели (остальные — API-эквивалент).
+        # Свободная строка, потому что тариф не выражается одним числом: "$200+$20/мес".
+        # Не задано → фронт строку не рисует, чтобы не показывать устаревшую цену.
+        "subscription_cost": os.getenv("SUBSCRIPTION_COST", ""),
     }
 
 
@@ -877,8 +881,12 @@ SNAPSHOT_INTERVAL = 300
 
 
 async def _collect_usage_snapshot() -> None:
+    import shutil
+
+    from app.backend_codex import CODEX_BIN
     from app.db import usage_save_snapshot
     anthropic_data = None
+    anthropic_error = ""
     token, refresh_token, _tier = _read_oauth_credentials()
     if token:
         try:
@@ -888,40 +896,60 @@ async def _collect_usage_snapshot() -> None:
                 new_token = await _refresh_oauth_token(refresh_token)
                 if new_token:
                     anthropic_data = await _fetch_anthropic_usage(new_token)
-        except Exception:
+        except Exception as e:
             anthropic_data = None
+            anthropic_error = f"{type(e).__name__}: {e}"
     if anthropic_data:
         _usage_cache["data"] = anthropic_data
         _usage_cache["ts"] = time.time()
         _save_usage_cache()
 
+    codex_error = ""
     try:
         codex_data = await _fetch_codex_usage()
-    except Exception:
+    except Exception as e:
         codex_data = None
+        codex_error = f"{type(e).__name__}: {e}"
     if codex_data:
         _codex_usage_cache["data"] = codex_data
         _codex_usage_cache["ts"] = time.time()
 
     grok_data = None
-    token = _read_grok_token()
-    if token:
+    grok_error = ""
+    grok_token = _read_grok_token()
+    if grok_token:
         try:
-            grok_data = await _fetch_grok_usage(token)
-        except Exception:
+            grok_data = await _fetch_grok_usage(grok_token)
+        except Exception as e:
             grok_data = None
+            grok_error = f"{type(e).__name__}: {e}"
     if grok_data:
         _grok_usage_cache["data"] = grok_data
         _grok_usage_cache["ts"] = time.time()
 
-    snapshot_anthropic = anthropic_data or _usage_cache.get("data")
-    snapshot_codex = codex_data or _codex_usage_cache.get("data")
-    providers = _provider_usage_snapshot(snapshot_anthropic, snapshot_codex, grok_data)
+    # В историю идут ТОЛЬКО свежие ответы. Подстановка кеша (как было раньше)
+    # штампует последнее известное значение новым временем — рисует ровную
+    # линию там, где провайдер на самом деле молчал.
+    providers = _provider_usage_snapshot(anthropic_data, codex_data, grok_data)
+    # Спросили, но не ответил → явная метка. Без неё «молчит» неотличимо от
+    # «не настроен»: в обоих случаях ключа провайдера просто нет.
+    for provider_id, label, asked, answered, error in (
+        ("anthropic", "Claude", bool(token), anthropic_data, anthropic_error),
+        ("codex", "Codex", bool(shutil.which(CODEX_BIN)), codex_data, codex_error),
+        ("grok", "Grok", bool(grok_token), grok_data, grok_error),
+    ):
+        if asked and not answered:
+            providers[provider_id] = {
+                "label": label,
+                "windows": [],
+                "status": "unavailable",
+                "error": error or "no data",
+            }
     if not providers:
         return
 
-    fh = (snapshot_anthropic or {}).get("five_hour") or {}
-    sd = (snapshot_anthropic or {}).get("seven_day") or {}
+    fh = (anthropic_data or {}).get("five_hour") or {}
+    sd = (anthropic_data or {}).get("seven_day") or {}
     cost = sum(s.cost_usd for s in manager.sessions.values())
     active = sum(1 for s in manager.sessions.values() if s.status.value == "running")
     usage_save_snapshot(

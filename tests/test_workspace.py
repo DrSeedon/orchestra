@@ -55,8 +55,11 @@ class TestValidateRepoRoot:
 
         not_git = tmp_path / "not-git"
         not_git.mkdir()
-        with pytest.raises(ValueError, match="repo_path is not a Git repository"):
+        # The message must carry Git's own reason: asserting a cause of our own
+        # invention is what let "dubious ownership" masquerade as "no such branch".
+        with pytest.raises(ValueError, match="git cannot read repo_path") as excinfo:
             validate_repo_root(str(not_git))
+        assert "not a git repository" in str(excinfo.value).lower()
 
     def test_nested_directory_reports_discovered_root(self, git_repo):
         from app.workspace import validate_repo_root
@@ -146,11 +149,60 @@ class TestCreateWorktree:
 
     def test_copies_from_parent_fallback(self, git_repo, wt_root):
         from app.workspace import create_worktree
-        (git_repo / "CLAUDE.md").unlink()
+        # The parent fallback only applies to files the repo does NOT track — a tracked
+        # CLAUDE.md belongs to the repo (see test_tracked_project_file_not_overwritten).
+        subprocess.run(["git", "rm", "-q", "CLAUDE.md"], cwd=git_repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-qm", "drop"], cwd=git_repo, capture_output=True, check=True)
         parent = git_repo.parent
         (parent / "CLAUDE.md").write_text("# parent instructions")
         wt = create_worktree(str(git_repo), "worker-1")
         assert (Path(wt.path) / "CLAUDE.md").read_text() == "# parent instructions"
+
+    def test_tracked_project_file_not_overwritten(self, git_repo, wt_root):
+        """A repo that TRACKS a copied file owns it: `info/exclude` cannot ignore a tracked
+        path, so overwriting it would leave the worker's tree dirty forever (task #12)."""
+        from app.workspace import create_worktree
+        (git_repo / ".env").write_text("SECRET=machine-local")  # differs from the committed one
+        wt = create_worktree(str(git_repo), "worker-1")
+        assert (Path(wt.path) / ".env").read_text() == "SECRET=123"
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt.path, capture_output=True, text=True,
+        )
+        assert status.stdout.strip() == ""
+
+    def test_spawn_into_repo_tracking_skills_leaves_clean_tree(self, git_repo, wt_root):
+        """End-to-end #12: the seedon case — repo versions `.claude/skills/*/SKILL.md`, so
+        `info/exclude` is powerless. Spawn + skill injection must still leave `git status`
+        empty, otherwise the worker can never satisfy "clean tree before DONE"."""
+        from app.prompting import inject_skills_to_worktree
+        from app.workspace import create_worktree
+        own = git_repo / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        own.parent.mkdir(parents=True)
+        own.write_text("# repo's own skill\n")
+        subprocess.run(["git", "add", "-A"], cwd=git_repo, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-qm", "skills"], cwd=git_repo, capture_output=True, check=True)
+
+        wt = create_worktree(str(git_repo), "worker-1")
+        inject_skills_to_worktree(["codex-debate"], wt.path)
+
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt.path, capture_output=True, text=True,
+        )
+        assert status.stdout.strip() == "", f"spawn dirtied the tree: {status.stdout}"
+
+    def test_copied_untracked_file_does_not_dirty_tree(self, git_repo, wt_root):
+        """The `.env` half of task #12: an untracked copy must land excluded, otherwise every
+        repo without it in .gitignore needs a manual `info/exclude` line before merges work."""
+        from app.pipeline import Worktree
+        from app.workspace import create_worktree
+        (git_repo / "local.env").write_text("SECRET=1")  # untracked, no .gitignore
+        cfg = Worktree(symlinks=[], copies=["local.env"])
+        wt = create_worktree(str(git_repo), "worker-1", worktree_cfg=cfg)
+        assert (Path(wt.path) / "local.env").read_text() == "SECRET=1"
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt.path, capture_output=True, text=True,
+        )
+        assert status.stdout.strip() == ""
 
     def test_exists_raises(self, git_repo, wt_root):
         from app.workspace import create_worktree
@@ -172,9 +224,9 @@ class TestCreateWorktree:
         assert status.stdout.strip() == ""
 
     def test_exclude_claude_dir_idempotent(self, git_repo, wt_root):
-        from app.workspace import create_worktree, _exclude_claude_dir
+        from app.workspace import create_worktree, _exclude_worktree_artifacts
         wt = create_worktree(str(git_repo), "worker-1")
-        _exclude_claude_dir(Path(wt.path))  # second call (create already ran it once)
+        _exclude_worktree_artifacts(Path(wt.path))  # second call (create already ran it once)
         common = subprocess.run(
             ["git", "rev-parse", "--git-common-dir"],
             cwd=wt.path, capture_output=True, text=True,
@@ -191,8 +243,9 @@ class TestCreateWorktree:
         from app.workspace import create_worktree
         not_git = tmp_path / "not-a-repo"
         not_git.mkdir()
-        with pytest.raises(ValueError, match="repo_path is not a Git repository"):
+        with pytest.raises(ValueError, match="git cannot read repo_path") as excinfo:
             create_worktree(str(not_git), "worker-1")
+        assert "not a git repository" in str(excinfo.value).lower()
 
     def test_nested_repo_path_raises_instead_of_using_parent(self, git_repo, wt_root):
         from app.workspace import create_worktree
@@ -1267,7 +1320,10 @@ class TestMergeTarget:
 
         def fail_final_snapshot(args, **kwargs):
             nonlocal target_ref_calls
-            if args == ["git", "show-ref", "--verify", "refs/heads/main"]:
+            # Match on the ref, not on exact argv: existence probes now go through
+            # _inspect_branch_ref ("--verify --quiet"), while the final snapshot still
+            # reads stdout for the OID. Pinning argv counted only that last call.
+            if args[:3] == ["git", "show-ref", "--verify"] and args[-1] == "refs/heads/main":
                 target_ref_calls += 1
                 if target_ref_calls == 3:
                     return subprocess.CompletedProcess(

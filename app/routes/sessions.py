@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import get_logs, get_logs_before, get_all_sessions
+from app.db import get_logs, get_logs_before, get_logs_sync, get_all_sessions
 from app.deps import manager
 from app.models import resolve_model, MODELS
 from app.session import AgentStatus
@@ -305,6 +305,11 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
         c = _conn()
         q = broker.subscribe(session_id)  # session_id == manager.get_session_id == session.id
         try:
+            # Первым делом называем сессию, которую мы разрешили из name+scope. Клиент
+            # держит историю по session_id и до этого события знает её лишь по своей карте,
+            # которая могла устареть (агента убили и подняли под тем же именем). Правду
+            # знает только сервер, и он обязан сказать её ДО первой строки истории.
+            yield f"data: {json.dumps({'type': '__session', 'session_id': session_id})}\n\n"
             # initial history first (one-shot) — preserves load-more behavior
             if after_id == 0:
                 for log in get_logs_before(session_id, before_id=2**31 - 1, limit=limit):
@@ -348,6 +353,19 @@ async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: 
     if before_id > 0:
         return get_logs_before(session_id, before_id, limit)
     return get_logs(session_id, after_id=after_id)
+
+
+@router.get("/api/logs/sync")
+async def logs_sync(after_id: int = 0, tail: int = 20, cap: int = 16384):
+    """Зеркало журнала для браузера: все сессии всех проектов одним ответом.
+
+    Scope не принимает намеренно — пользователь один, а смысл именно в том, чтобы
+    переключение в чужой проект было мгновенным. Замер: tail=20 по всем сессиям —
+    ~100 КБ gzip, инкремент — единицы КБ.
+    """
+    return get_logs_sync(after_id=max(after_id, 0),
+                         tail=max(1, min(tail, 200)),
+                         cap=max(256, min(cap, 1 << 20)))
 
 
 @router.post("/api/sessions/{name}/send")
