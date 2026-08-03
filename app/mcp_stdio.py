@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import os
+import shutil
 import re
 import shlex
 import sys
@@ -1691,7 +1692,28 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
 
 # Wrapper reloads Orchestra .env on every invocation, so Codex review follows the same
 # currently selected proxy as workers, Cursor, and the dashboard service.
-_CODEX_BIN = "/home/maxim/.local/bin/codex"
+def _codex_bin() -> str:
+    """Путь к codex, разрешаемый В МОМЕНТ ВЫЗОВА, а не константой при импорте.
+
+    Была константа `/home/maxim/.local/bin/codex` — путь с ноутбука. После переезда на VPS
+    (пользователь kesha) такого каталога нет вовсе, и каждый вызов падал в
+    `/bin/sh: ...: not found`, exit 127 — до самого codex дело не доходило. Снаружи это
+    выглядело как «Codex сломался», хотя бинарник стоит и работает.
+
+    Порядок: `CODEX_BIN` из окружения (явное переопределение) -> `which codex` -> пусто.
+    Пусто здесь НЕ исключение: решает вызывающий, ему нужен внятный текст, а не падение из
+    середины сборки shell-команды."""
+    override = os.environ.get("CODEX_BIN", "").strip()
+    if override:
+        return override
+    return shutil.which("codex") or ""
+
+
+_CODEX_MISSING_HINT = (
+    "codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. "
+    "Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. "
+    "Проверить: `which codex`"
+)
 _REVIEW_CONTEXT = (
     "PROJECT CONTEXT (calibrate review severity):\n"
     "- Scale: small team, MVP stage\n"
@@ -1764,11 +1786,17 @@ async def codex_review(
     codex_out = round_tmp
     q = shlex.quote
 
+    # Разрешаем бинарник ДО сборки команды: иначе несуществующий путь уезжает в shell и
+    # возвращается голым exit 127 из фоновой джобы, где его никто не связывает с причиной.
+    codex_bin = _codex_bin()
+    if not codex_bin:
+        return _CODEX_MISSING_HINT
+
     if mode == "review":
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
         fresh_review = (
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec review"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --json"
             f" -o {q(codex_out)}"
         )
@@ -1784,7 +1812,7 @@ async def codex_review(
             # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
             codex = (
                 f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec resume {q(prev_uuid)}"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec resume {q(prev_uuid)}"
                 f" --skip-git-repo-check --full-auto --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
                 f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
@@ -1818,7 +1846,7 @@ async def codex_review(
         subcmd = f"exec resume {prev_uuid}" if is_resume else "exec"
         codex = (
             f"printf '%s' {q(exec_prompt)} > {q(prompt_file)}; "
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} {subcmd}"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} {subcmd}"
             f"{sandbox} --skip-git-repo-check --full-auto --json"
             f" -o {q(codex_out)} - < {q(prompt_file)}"
         )
@@ -1827,7 +1855,7 @@ async def codex_review(
             # without one the prompt has nothing concrete to review, so let resume fail loud.
             # Writes to codex_out (=round_tmp) so the recovery is appended, not overwriting history.
             fresh_exec = (
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec"
                 f" -s workspace-write --skip-git-repo-check --full-auto --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
             )
