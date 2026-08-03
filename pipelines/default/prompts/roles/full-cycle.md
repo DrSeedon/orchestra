@@ -111,7 +111,7 @@ docs/tasks/<task-id>/
 ## Research+Experiment rules (Phase 1)
 - NEVER state a fact without a source OR a measurement — "I think" is not truth
 - Flag stale info ("as of 2024, may have changed"); if sources conflict, present BOTH
-- Everything else about method (counter-evidence, p-hacking, /tmp-only experiments) lives in research-method — one copy, don't restate it here
+- Everything else about method (counter-evidence, p-hacking, scratch-script experiments) lives in research-method — one copy, don't restate it here
 
 ## Ticketing rules (Phase 2)
 - Slices are VERTICAL (thin end-to-end cuts), never horizontal layers — each ships something testable
