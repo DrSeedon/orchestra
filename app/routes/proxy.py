@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.auth import is_auth_enabled
+from app.auth import is_owner_mode
 from app.proxy_manager import proxy_manager, _parse_proxy_list
 from app.ssh_tunnel import tunnel_status
 
@@ -19,8 +19,8 @@ router = APIRouter(tags=["proxy"])
 ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
-def _block_if_enterprise():
-    if is_auth_enabled():
+def _require_owner():
+    if not is_owner_mode():
         raise HTTPException(403, "Not available")
 
 
@@ -49,13 +49,13 @@ def _set_env_proxy(url: str) -> None:
 
 @router.get("/api/proxy/list")
 async def proxy_list():
-    _block_if_enterprise()
+    _require_owner()
     return await proxy_manager.list_proxies()
 
 
 @router.post("/api/proxy/check/{proxy_id}")
 async def proxy_check(proxy_id: str):
-    _block_if_enterprise()
+    _require_owner()
     result = await proxy_manager.check_proxy(proxy_id)
     if result.get("error"):
         return JSONResponse(result, status_code=400)
@@ -72,7 +72,7 @@ async def proxy_set_env(body: SetEnvBody):
 
     NOT hot-switch: os.environ is untouched. .env is the single source of truth.
     """
-    _block_if_enterprise()
+    _require_owner()
     entry = next((e for e in _parse_proxy_list() if e.id == body.id), None)
     if not entry:
         return JSONResponse({"ok": False, "error": "proxy not found"}, status_code=404)
@@ -82,5 +82,5 @@ async def proxy_set_env(body: SetEnvBody):
 
 @router.get("/api/tunnel/status")
 async def api_tunnel_status():
-    _block_if_enterprise()
+    _require_owner()
     return tunnel_status()

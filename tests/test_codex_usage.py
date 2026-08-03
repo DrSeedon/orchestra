@@ -424,7 +424,7 @@ async def test_usage_endpoint_adds_codex_without_changing_anthropic(monkeypatch)
         "primary": {"utilization": 6, "window_minutes": 10080, "resets_at": None},
         "secondary": None,
     }
-    monkeypatch.setattr(system, "is_auth_enabled", lambda: False)
+    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
     monkeypatch.setattr(system, "_usage_cache", {"data": anthropic, "ts": time.time(), "token": None})
     monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
     monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(return_value=codex))
@@ -442,7 +442,7 @@ async def test_usage_endpoint_adds_codex_without_changing_anthropic(monkeypatch)
 @pytest.mark.asyncio
 async def test_codex_failure_does_not_break_anthropic_usage(monkeypatch):
     anthropic = {"five_hour": {"utilization": 12}}
-    monkeypatch.setattr(system, "is_auth_enabled", lambda: False)
+    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
     monkeypatch.setattr(system, "_usage_cache", {"data": anthropic, "ts": time.time(), "token": None})
     monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
     monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(side_effect=RuntimeError("not logged in")))
@@ -461,7 +461,7 @@ async def test_missing_anthropic_credentials_preserves_codex_capacity(monkeypatc
         "plan_type": "pro",
         "primary": {"utilization": 22, "window_minutes": 10080},
     }
-    monkeypatch.setattr(system, "is_auth_enabled", lambda: False)
+    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
     monkeypatch.setattr(
         system,
         "_usage_cache",
@@ -493,7 +493,7 @@ async def test_missing_anthropic_credentials_preserves_codex_capacity(monkeypatc
 
 @pytest.mark.asyncio
 async def test_forced_provider_refresh_never_authorizes_stale_capacity(monkeypatch):
-    monkeypatch.setattr(system, "is_auth_enabled", lambda: False)
+    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
     monkeypatch.setattr(
         system,
         "_usage_cache",
@@ -527,7 +527,7 @@ async def test_forced_provider_refresh_never_authorizes_stale_capacity(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_internal_provider_refresh_works_when_dashboard_auth_is_enabled(
+async def test_internal_provider_refresh_works_when_not_owner_mode(
     monkeypatch,
 ):
     anthropic = {
@@ -536,7 +536,7 @@ async def test_internal_provider_refresh_works_when_dashboard_auth_is_enabled(
             "resets_at": "2026-07-25T15:00:00Z",
         }
     }
-    monkeypatch.setattr(system, "is_auth_enabled", lambda: True)
+    monkeypatch.setattr(system, "is_owner_mode", lambda: False)
     monkeypatch.setattr(
         system,
         "_read_oauth_credentials",

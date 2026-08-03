@@ -23,7 +23,7 @@ from fastapi import APIRouter, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
-from app.auth import is_auth_enabled
+from app.auth import is_auth_enabled, is_owner_mode
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
 from app.deps import manager, templates
 from app.models import (
@@ -68,6 +68,7 @@ async def dashboard(request: Request):
         "currency_symbol": os.getenv("CURRENCY_SYMBOL", "₽"),
         "hide_thinking": is_auth_enabled(),
         "is_auth_enabled": is_auth_enabled(),
+        "is_owner_mode": is_owner_mode(),
         "client_name": os.getenv("CLIENT_NAME", "Client"),
     })
 
@@ -299,7 +300,7 @@ async def get_pipelines():
 @router.get("/api/profiles")
 async def get_profiles():
     """Все профили Claude: ``[{name, config_dir}]``."""
-    if is_auth_enabled():
+    if not is_owner_mode():
         raise HTTPException(403, "Not available")
     return list_profiles()
 
@@ -307,7 +308,7 @@ async def get_profiles():
 @router.post("/api/profiles")
 async def create_profile(req: ProfileRequest):
     """Создать или обновить профиль."""
-    if is_auth_enabled():
+    if not is_owner_mode():
         raise HTTPException(403, "Not available")
     if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,49}$", req.name):
         return JSONResponse(
@@ -328,7 +329,7 @@ async def create_profile(req: ProfileRequest):
 @router.delete("/api/profiles/{name}")
 async def remove_profile(name: str):
     """Удалить профиль."""
-    if is_auth_enabled():
+    if not is_owner_mode():
         raise HTTPException(403, "Not available")
     try:
         delete_profile(name)
@@ -850,8 +851,8 @@ async def _get_usage_data(
 
 @router.get("/api/usage")
 async def get_usage():
-    if is_auth_enabled():
-        return {"usage": None}
+    if not is_owner_mode():
+        return None
     return await _get_usage_data()
 
 
@@ -944,7 +945,7 @@ async def _usage_snapshot_loop():
 
 @router.get("/api/usage/history")
 async def usage_history(hours: int = 24):
-    if is_auth_enabled():
+    if not is_owner_mode():
         return []
     from app.db import usage_get_history
     return usage_get_history(hours)

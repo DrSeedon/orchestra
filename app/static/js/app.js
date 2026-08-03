@@ -171,6 +171,78 @@ function _scheduleChatInitialSettle() {
     }, 500);
 }
 
+// === Кеш отрисованного чата ===
+// Замер (docs/tasks/2/report.md): сеть отдаёт 100 сообщений за ~15 мс, а их отрисовка
+// (marked + DOMPurify + hljs в addChatEntry) стоит 170-450 мс и растягивает доставку
+// SSE-бурста до 0.6-1.3 с. Значит кешировать надо готовый DOM, а не ответы сервера —
+// иначе эта цена остаётся. Только in-memory: DOM не сериализуется, а localStorage
+// пережил бы рестарт сервера и показал бы историю пересозданной сессии.
+const _CHAT_CACHE_MAX = 8;  // порядок Map = LRU, вытесняем самый старый
+const _chatDomCache = new Map();  // _chatPositionKey() -> {frag, scrollTop, sessionId, logs}
+const _sessionIds = {};  // _chatPositionKey() -> session.id, заполняется в renderAgentList
+let _restoredFrom = null;  // {key, agent, sessionId} восстановленного из кеша чата
+
+// Снять чат в кеш. Вызывать до очистки #chat и до смены selectedAgent/currentScope.
+// Узлы, ещё не ставшие строкой лога, кешировать нельзя: их строка придёт в хвосте
+// с id больше lastId и нарисуется вторым экземпляром.
+//  - streamNode — черновик стрима. Обычно финальный 'text' превращает его в готовое
+//    сообщение (_finalizeStreamBubble), но при переключении агента ссылка теряется,
+//    поэтому черновик выкидываем: хвост нарисует финал заново.
+//  - unsettled — локальное эхо отправленного сообщения (какой пузырь чей, надёжно не
+//    определить) или отложенный из-за выделения текста финал стрима: его строка уже
+//    прочитана, в хвосте её не будет, выкинешь узел — потеряешь сообщение. В обоих
+//    случаях чат не кешируем вовсе, состояние живёт секунды.
+function _stashChatDom(agent, scope, unsettled, streamNode) {
+    const key = _chatPositionKey(scope, agent);
+    if (!key) return;
+    _chatDomCache.delete(key);  // прошлая копия этого агента уже неактуальна
+    if (unsettled) return;
+    streamNode?.remove();
+    const chat = $('#chat');
+    const meta = chatLogs[agent];
+    const sessionId = _sessionIds[key];
+    if (!chat?.firstChild || !sessionId || !meta?.lastId) return;
+    const frag = document.createDocumentFragment();
+    frag.append(...chat.childNodes);
+    _chatDomCache.set(key, {frag, scrollTop: chat.scrollTop, sessionId, logs: {...meta}});
+    while (_chatDomCache.size > _CHAT_CACHE_MAX) _chatDomCache.delete(_chatDomCache.keys().next().value);
+}
+
+// Вернуть чат из кеша. true → DOM на месте и chatLogs[agent].lastId > 0,
+// значит connectSSE догрузит только хвост.
+function _restoreChatDom(agent, scope) {
+    const key = _chatPositionKey(scope, agent);
+    const hit = key && _chatDomCache.get(key);
+    if (!hit) return false;
+    const sessionId = _sessionIds[key];
+    if (!sessionId) return false;  // список сессий этого scope ещё не пришёл — грузим заново
+    // Агента убили и подняли заново под тем же именем → id сессии другой,
+    // её логи не продолжают старые. Показывать старую историю нельзя.
+    if (sessionId !== hit.sessionId) { _chatDomCache.delete(key); return false; }
+    _chatDomCache.delete(key);
+    const chat = $('#chat');
+    chat.innerHTML = '';
+    chat.appendChild(hit.frag);
+    chat.scrollTop = hit.scrollTop;
+    chatLogs[agent] = hit.logs;
+    _restoredFrom = {key, agent, sessionId};
+    return true;
+}
+
+// Пока агент не был выбран, его сессию могли пересоздать: _sessionIds чужого scope
+// обновляются только при заходе в него. Сверяемся после refreshSessions, до connectSSE —
+// иначе хвост новой сессии допишется к истории старой.
+function _dropStaleRestoredDom() {
+    if (!_restoredFrom) return;
+    const {key, agent, sessionId} = _restoredFrom;
+    _restoredFrom = null;
+    if (agent !== selectedAgent) return;  // успели переключиться ещё раз — чистить чужой чат нельзя
+    if (_sessionIds[key] === sessionId) return;
+    $('#chat').innerHTML = '';
+    chatLogs[agent] = { lastId: 0, firstId: null, initialCount: 0 };
+    scrollAfterLoad = true;
+}
+
 function initChatPositionMemory() {
     const chat = $('#chat');
     const button = $('#chat-jump-latest');
@@ -397,6 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
             compactBtn.textContent = window.compactMode ? '📄' : '📋';
             compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
             $('#chat').innerHTML = '';
+            _chatDomCache.clear();  // весь кеш отрисован в прежнем режиме
             if (chatLogs[selectedAgent]) { chatLogs[selectedAgent].lastId = 0; chatLogs[selectedAgent].firstId = null; chatLogs[selectedAgent].initialCount = 0; }
             scrollAfterLoad = true;
             _prepareChatAnchorRestore(false);
@@ -1488,8 +1561,11 @@ function selectOrchestrator(name, scope) {
 }
 
 async function onOrchestratorChange() {
+    const prevAgent = selectedAgent, prevScope = currentScope;
+    const prevEcho = localMessages.size > 0 || _streamDeferredFinal !== null, prevStream = streamBubble;
     saveDraft();
     _captureChatReadFrontier();
+    _stashChatDom(prevAgent, prevScope, prevEcho, prevStream);
     if (eventSource) { eventSource.close(); eventSource = null; }
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
@@ -1511,19 +1587,25 @@ async function onOrchestratorChange() {
         localStorage.setItem('lastOrchScope', currentScope);
         localStorage.setItem('lastOrchName', selectedAgent);
     }
-    $('#chat').innerHTML = '';
-    scrollAfterLoad = true;
+    const cached = _restoreChatDom(selectedAgent, currentScope);
+    if (!cached) $('#chat').innerHTML = '';
+    scrollAfterLoad = !cached;
     _prepareChatAnchorRestore(restoreUnreadAnchor);
+    // Бурста истории не будет — некому дорисовать разделитель непрочитанного
+    if (cached && _pendingChatRestore) _scheduleChatInitialSettle();
+    if (cached) _syncChatJumpButton();
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
-    await refreshSessions(); connectSSE(); initFilePanel();
+    await refreshSessions(); _dropStaleRestoredDom(); connectSSE(); initFilePanel();
     if (_tasksTabActive) loadTasks();
     if (_jobsTabActive) loadJobs();
 }
 
 // === Agent Selection ===
 async function selectAgent(name) {
+    const prevAgent = selectedAgent, prevStream = streamBubble;
+    const prevEcho = localMessages.size > 0 || _streamDeferredFinal !== null;
     saveDraft();
     _captureChatReadFrontier();
     if (eventSource) { eventSource.close(); eventSource = null; }
@@ -1540,15 +1622,21 @@ async function selectAgent(name) {
     streamPending = '';
     _streamDeferredFinal = null;
     _resetCodexActivityState();
-    $('#chat').innerHTML = '';
-    chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
-    scrollAfterLoad = true;
+    _stashChatDom(prevAgent, currentScope, prevEcho, prevStream);
+    const cached = _restoreChatDom(name, currentScope);
+    if (!cached) {
+        $('#chat').innerHTML = '';
+        chatLogs[name] = { lastId: 0, firstId: null, initialCount: 0 };
+    }
+    scrollAfterLoad = !cached;
     _prepareChatAnchorRestore(false);
+    if (cached) _syncChatJumpButton();
     updateInputState();
     restoreDraft();
     renderAgentList();
     fetchAgentContext(name);
     await refreshSessions();
+    _dropStaleRestoredDom();
     connectSSE();
 }
 
@@ -1763,6 +1851,7 @@ function renderAgentList(sessions) {
 
     for (const s of sessions) {
         if (s.color) agentColors[s.name] = s.color;
+        _sessionIds[_chatPositionKey(currentScope, s.name)] = s.id;  // ключ валидности кеша чата
     }
 
     const byName = new Map();
@@ -6228,7 +6317,10 @@ function initProxy() {
 
 async function loadProxyList() {
     try {
-        const data = await (await fetch('/api/proxy/list')).json();
+        const resp = await fetch('/api/proxy/list');
+        // Unchecked resp.ok used to fall through to "No proxies configured" — a 403/500 must not read as "empty"
+        if (!resp.ok) throw new Error(`${resp.status}: ${(await resp.text()).slice(0, 120)}`);
+        const data = await resp.json();
         const list = $('#proxy-list');
         if (!list) return;
         list.innerHTML = '';
@@ -6322,7 +6414,11 @@ async function loadProxyList() {
             $('#proxy-flag').textContent = active.flag || '🌐';
             $('#proxy-ip').textContent = active.ip || '';
         }
-    } catch (e) { console.warn('loadProxyList failed:', e); }
+    } catch (e) {
+        console.warn('loadProxyList failed:', e);
+        const list = $('#proxy-list');
+        if (list) list.innerHTML = `<div class="text-[10px] text-red-400 text-center py-2">Proxy list failed:<br>${escHtml(String((e && e.message) || e))}</div>`;
+    }
 }
 
 function _showProxyRestartBanner(name, wroteUrl) {
