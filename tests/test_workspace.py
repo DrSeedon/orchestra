@@ -55,8 +55,11 @@ class TestValidateRepoRoot:
 
         not_git = tmp_path / "not-git"
         not_git.mkdir()
-        with pytest.raises(ValueError, match="repo_path is not a Git repository"):
+        # The message must carry Git's own reason: asserting a cause of our own
+        # invention is what let "dubious ownership" masquerade as "no such branch".
+        with pytest.raises(ValueError, match="git cannot read repo_path") as excinfo:
             validate_repo_root(str(not_git))
+        assert "not a git repository" in str(excinfo.value).lower()
 
     def test_nested_directory_reports_discovered_root(self, git_repo):
         from app.workspace import validate_repo_root
@@ -191,8 +194,9 @@ class TestCreateWorktree:
         from app.workspace import create_worktree
         not_git = tmp_path / "not-a-repo"
         not_git.mkdir()
-        with pytest.raises(ValueError, match="repo_path is not a Git repository"):
+        with pytest.raises(ValueError, match="git cannot read repo_path") as excinfo:
             create_worktree(str(not_git), "worker-1")
+        assert "not a git repository" in str(excinfo.value).lower()
 
     def test_nested_repo_path_raises_instead_of_using_parent(self, git_repo, wt_root):
         from app.workspace import create_worktree
@@ -1267,7 +1271,10 @@ class TestMergeTarget:
 
         def fail_final_snapshot(args, **kwargs):
             nonlocal target_ref_calls
-            if args == ["git", "show-ref", "--verify", "refs/heads/main"]:
+            # Match on the ref, not on exact argv: existence probes now go through
+            # _inspect_branch_ref ("--verify --quiet"), while the final snapshot still
+            # reads stdout for the OID. Pinning argv counted only that last call.
+            if args[:3] == ["git", "show-ref", "--verify"] and args[-1] == "refs/heads/main":
                 target_ref_calls += 1
                 if target_ref_calls == 3:
                     return subprocess.CompletedProcess(

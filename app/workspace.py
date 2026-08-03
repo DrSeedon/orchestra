@@ -243,7 +243,11 @@ def validate_repo_root(repo_path: str) -> Path:
         cwd=str(repo), capture_output=True, text=True,
     )
     if bare_check.returncode != 0:
-        raise ValueError(f"repo_path is not a Git repository: {repo_path}")
+        # Git exits 128 both for "not a repository" and for "refuses to work here"
+        # (dubious ownership, unreadable .git). Asserting the first one hides the
+        # second and sends the caller chasing branches that exist.
+        detail = bare_check.stderr.strip() or bare_check.stdout.strip() or f"exit {bare_check.returncode}"
+        raise ValueError(f"git cannot read repo_path {repo_path}: {detail}")
     if bare_check.stdout.strip() == "true":
         raise ValueError(
             f"repo_path is a bare Git repository; a primary working tree is required: {repo_path}"
@@ -254,7 +258,8 @@ def validate_repo_root(repo_path: str) -> Path:
         cwd=str(repo), capture_output=True, text=True,
     )
     if top_check.returncode != 0:
-        raise ValueError(f"repo_path is not a Git working tree: {repo_path}")
+        detail = top_check.stderr.strip() or top_check.stdout.strip() or f"exit {top_check.returncode}"
+        raise ValueError(f"git cannot read the working tree at {repo_path}: {detail}")
     discovered_root = Path(top_check.stdout.strip()).resolve()
     if discovered_root != repo:
         raise ValueError(
@@ -268,7 +273,8 @@ def validate_repo_root(repo_path: str) -> Path:
         cwd=str(repo), capture_output=True, text=True,
     )
     if common_check.returncode != 0:
-        raise ValueError(f"repo_path is not a Git working tree: {repo_path}")
+        detail = common_check.stderr.strip() or common_check.stdout.strip() or f"exit {common_check.returncode}"
+        raise ValueError(f"git cannot read the git dir at {repo_path}: {detail}")
     common_dir = Path(common_check.stdout.strip())
     if not common_dir.is_absolute():
         common_dir = repo / common_dir
@@ -299,11 +305,7 @@ def resolve_base_branch(repo_path: str, requested: str = "") -> str:
             ["git", "check-ref-format", "--branch", branch],
             cwd=str(repo), capture_output=True, text=True,
         )
-        exists = _git_cmd(
-            ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        if valid.returncode != 0 or exists.returncode != 0:
+        if valid.returncode != 0 or _inspect_branch_ref(repo, branch) is None:
             raise ValueError(f"local base branch '{branch}' does not exist in {repo}")
         return branch
 
@@ -327,11 +329,7 @@ def resolve_base_branch(repo_path: str, requested: str = "") -> str:
                 "pass base_branch explicitly"
             )
         remote_branch = symbolic_targets.pop()
-        exists = _git_cmd(
-            ["git", "show-ref", "--verify", f"refs/heads/{remote_branch}"],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        if exists.returncode != 0:
+        if _inspect_branch_ref(repo, remote_branch) is None:
             raise ValueError(
                 f"symbolic remote HEAD points to '{remote_branch}', but no matching "
                 "local branch exists; pass base_branch explicitly"
@@ -340,11 +338,7 @@ def resolve_base_branch(repo_path: str, requested: str = "") -> str:
 
     well_known = []
     for candidate in ("main", "master"):
-        exists = _git_cmd(
-            ["git", "show-ref", "--verify", f"refs/heads/{candidate}"],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        if exists.returncode == 0:
+        if _inspect_branch_ref(repo, candidate) is not None:
             well_known.append(candidate)
     if len(well_known) == 1:
         return well_known[0]
@@ -1093,14 +1087,17 @@ def merge_worktree_to_main(
                 if child_error:
                     result = {"ok": False, "error": child_error}
                 else:
-                    ref_verify = _git_cmd(
-                        ["git", "show-ref", "--verify", f"refs/heads/{target_branch}"],
-                        cwd=str(repo), capture_output=True, text=True,
-                    )
-                    if ref_verify.returncode != 0:
-                        result = {"ok": False, "error": f"target branch '{target_branch}' does not exist"}
+                    try:
+                        target_before_ref = _inspect_branch_ref(repo, target_branch)
+                    except RuntimeError as e:
+                        # Git refused to read refs at all (ownership, broken repo).
+                        # That is not evidence the target branch is missing.
+                        result = {"ok": False, "error": str(e)}
                     else:
-                        target_before = ref_verify.stdout.split()[0]
+                        if target_before_ref is None:
+                            result = {"ok": False, "error": f"target branch '{target_branch}' does not exist"}
+                        else:
+                            target_before = target_before_ref
                         try:
                             owner = _branch_worktree_path(str(repo), target_branch)
                         except RuntimeError as e:
