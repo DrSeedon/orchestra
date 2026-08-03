@@ -161,6 +161,23 @@ DONE WHEN: наблюдаемое условие завершения.
   `compact()` не трогает memory). Записал урок перед DONE и ждёшь компакт — продублируй в
   handoff summary, иначе новая сессия работает по старой версии файла.
 
+## Где в Orchestra смотреть замеры по промптам (найдено 2026-08-03, #125)
+
+- `turn_usage` в `orchestra.db` — ПОТУРНОВЫЕ `input/output/cache_read/cache_create` + модель и
+  `stop_reason`. Это единственное место с гранулярностью хода: `sessions.total_*` — пожизненные
+  суммы и для сравнения режимов бесполезны. Работать только по копии в `/tmp`.
+- **Ключ join'а — `sessions.id` (Orchestra row id), НЕ `sessions.session_id` (нативный UUID).**
+  И `logs.session_id`, и `turn_usage.session_id` держат именно row id. Join через нативный UUID
+  молча даёт 0 строк — я так и получил пустой результат, прежде чем проверил ключ.
+- Инжект системного промпта в логах почти невидим: `session.py` пишет `user_message` ДО добавления
+  префикса. Единственный след — `status` `prompt updated → <hash>`, и только для ветки
+  `templates_changed`. Любая статистика по инжектам — нижняя граница, так и писать.
+- Пресет `claude_code` ИЗВЛЕКАЕМ: `strings -n 60 ~/.local/share/claude/versions/<ver>` (275 MB,
+  not stripped). Промпт склеивается функциями, искать по `"# Doing tasks"`, `"# Tone and style"`,
+  `"# Using your tools"`. Наши `<code-quality>` правила — почти дословный дубль пресета.
+- Сигнатуры в кеше: дописали в хвост → `cache_read` цел, растут `cache_create`/`input`; переписали
+  системный префикс → `cache_read` в ноль. Отличать эти два режима по `cache_read`, не по стоимости.
+
 ## Антипаттерны и замена
 
 - `be careful / use judgment / when familiar` → observable trigger + action + completion bar.
