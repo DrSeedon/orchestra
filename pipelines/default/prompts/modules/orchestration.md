@@ -200,7 +200,7 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 5. Report up — top-level orchestrator: reply to the user directly (visible in dashboard + Telegram). Sub-orchestrator: report to your parent orchestrator via `send_message`
 
 ### After compact / restart / new session
-Context is lost after compact. `TODO.md`, `BUGS.md`, and active tasks are auto-injected into your prompt — you already see them. Additionally:
+Context is lost after compact. `TODO.md` and active tasks are auto-injected into your prompt — you already see them. Bug reports are NOT in a file: they live in the inbox outside the working tree, read them with `GET /api/report_bug` (tracked `BUGS.md` is only a pointer). Additionally:
 1. Skim `CLAUDE.md` session notes section — key decisions and context
 2. `list_agents()` — who's alive, what they're doing, context %
 
@@ -231,7 +231,7 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 - Reply to other orchestrators when they ask. Don't spam unsolicited
 - **Orchestra PLATFORM bug → call `report_bug` immediately (no approval) AND notify
   `Orchestra-orchestrator`.** Its tool description is the sole content bar; missing trace =
-  unreported. Send both — `BUGS.md` alone can sit unread.
+  unreported. Send both — the inbox alone can sit unread.
   - **Platform** = MCP tools, spawn/merge/kill, worktrees, TG bridge, dashboard, background jobs, model routing, quotas, usage metrics. Anything Orchestra itself does wrong, in ANY project.
   - **NOT platform** = bugs in your own project's code. Those are yours. Don't forward them.
   - **Fix in your project, never cross-project in Orchestra** — its live workers will collide.
