@@ -337,8 +337,7 @@ async function _sparkFetch(until) {
     const query = until
         ? `hours=${_SPARK_VIEW_HOURS}&until=${encodeURIComponent(until)}`
         : `hours=${_SPARK_VIEW_HOURS}`;
-    const history = await api(`/api/usage/history?${query}`,
-                              { signal: AbortSignal.timeout(30000) });
+    const history = await api(`/api/usage/history?${query}`, { timeoutMs: 30000 });
     if (!Array.isArray(history?.rows)) {
         throw new Error(`ответ без rows: ${JSON.stringify(history).slice(0, 80)}`);
     }

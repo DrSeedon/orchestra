@@ -44,8 +44,17 @@ function _chatPositionKey(scope = currentScope, agent = selectedAgent) {
     return scope && agent ? `${scope}\u0000${agent}` : '';
 }
 
+// Чтение scrollHeight/scrollTop/clientHeight заставляет браузер посчитать раскладку
+// СИНХРОННО. На вставке сообщений это делалось на каждый узел (замер аудита: 6.9 мс на
+// узел, 405 мс на пачку). В пределах одного кадра ответ измениться не может — юзер за
+// кадр никуда не уехал, — поэтому меряем один раз и переиспользуем. Кеш живёт до конца
+// кадра и сбрасывается любым скроллом: только он двигает положение по-настоящему.
+let _atBottomCache = null;
 function _chatAtBottom(chat = $('#chat')) {
-    return !chat || chat.scrollHeight - chat.scrollTop - chat.clientHeight < _CHAT_BOTTOM_GAP;
+    if (_atBottomCache !== null) return _atBottomCache;
+    _atBottomCache = !chat || chat.scrollHeight - chat.scrollTop - chat.clientHeight < _CHAT_BOTTOM_GAP;
+    requestAnimationFrame(() => { _atBottomCache = null; });
+    return _atBottomCache;
 }
 
 function _chatReadReceipts() {
@@ -394,6 +403,7 @@ function initChatPositionMemory() {
     if (!chat || !button || chat.dataset.positionReady === '1') return;
     chat.dataset.positionReady = '1';
     chat.addEventListener('scroll', () => {
+        _atBottomCache = null;   // положение изменилось — кеш кадра больше не годится
         // Состояние следования меняет ТОЛЬКО ввод юзера (см. _userScrolled ниже).
         // По любому событию scroll его пересчитывать нельзя: браузерный scroll
         // anchoring сам подкручивает позицию при изменении высоты над вьюпортом и шлёт
@@ -5742,6 +5752,11 @@ function initFilePanel() {
 }
 
 // === Refresh Loop ===
+// Отдельный ритм для списка оркестраторов (55 КБ): метки непрочитанного по чужим
+// вкладкам не требуют трёхсекундной свежести. Отметка ставится ДО запроса, иначе
+// параллельные заходы успеют войти все.
+let _orchFreshAt = 0;
+const _ORCH_REFRESH_MS = 15000;
 let refreshInProgress = false; // single-flight guard — skips if previous refresh is still in flight
 async function refreshSessions() {
     if (refreshInProgress) return;
@@ -5757,8 +5772,10 @@ async function refreshSessions() {
         if (!capturedScope) return;
 
         const [sessions, stats] = await Promise.all([
-            api(`/api/sessions?scope=${encodeURIComponent(capturedScope)}`, { signal }),
-            api(`/api/stats?scope=${encodeURIComponent(capturedScope)}`, { signal }),
+            // Бюджет больше дефолтного: /api/sessions — сотни килобайт, а канал юзера
+            // 15–80 КБ/с. Но он ЕСТЬ: иначе зависший ответ вешает весь цикл обновления.
+            api(`/api/sessions?scope=${encodeURIComponent(capturedScope)}`, { signal, timeoutMs: 20000 }),
+            api(`/api/stats?scope=${encodeURIComponent(capturedScope)}`, { signal, timeoutMs: 20000 }),
         ]);
 
         if (capturedScope !== currentScope) return;
@@ -5767,8 +5784,12 @@ async function refreshSessions() {
         $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd} (w/o cache)</span>`;
         renderAgentList(sessions);
 
-        try {
-            const freshOrchs = await api('/api/orchestrators', { signal });
+        // Список оркестраторов нужен для меток непрочитанного по ЧУЖИМ вкладкам, но он
+        // весит 55 КБ и раньше тянулся каждые 3 с вместе с сессиями — 1.1 МБ в минуту на
+        // канале 15–80 КБ/с. Метка, опоздавшая на десяток секунд, никому не мешает.
+        if (Date.now() - _orchFreshAt >= _ORCH_REFRESH_MS) try {
+            _orchFreshAt = Date.now();
+            const freshOrchs = await api('/api/orchestrators', { signal, timeoutMs: 20000 });
             for (const fo of freshOrchs) {
                 const existing = orchData.find(o => o.name === fo.name);
                 if (existing) {
@@ -5800,8 +5821,16 @@ async function refreshSessions() {
 
 // === API ===
 // 5s timeout on all API calls — prevents hanging tabs when the server restarts mid-fetch
+const _API_TIMEOUT_MS = 5000;
+// Таймаут ставится ВСЕГДА, даже когда вызывающий передал свой signal. Раньше здесь было
+// `opts.signal || AbortSignal.timeout(5000)`: свой signal (у нас это AbortController для
+// single-flight) молча отменял таймаут, и зависший ответ висел вечно. В refreshSessions
+// это фатально — `refreshInProgress` снимается в finally, который при зависании не
+// наступает никогда, и список сессий больше не обновляется до перезагрузки страницы.
+// Свой бюджет — параметром timeoutMs, а не собственным signal: одна ручка вместо двух.
 async function api(url, opts = {}) {
-    const signal = opts.signal || AbortSignal.timeout(5000);
+    const timeout = AbortSignal.timeout(opts.timeoutMs ?? _API_TIMEOUT_MS);
+    const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
     const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal });
     if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
     return resp.json();
