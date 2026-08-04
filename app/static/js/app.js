@@ -5802,10 +5802,12 @@ async function refreshSessions() {
         if (!capturedScope) return;
 
         const [sessions, stats] = await Promise.all([
-            // Бюджет больше дефолтного: /api/sessions — сотни килобайт, а канал юзера
-            // 15–80 КБ/с. Но он ЕСТЬ: иначе зависший ответ вешает весь цикл обновления.
-            api(`/api/sessions?scope=${encodeURIComponent(capturedScope)}`, { signal, timeoutMs: 20000 }),
-            api(`/api/stats?scope=${encodeURIComponent(capturedScope)}`, { signal, timeoutMs: 20000 }),
+            // Свой бюджет тут был 20 с — из предположения, что канал юзера 15–80 КБ/с.
+            // Замер perf это опроверг: здоровый ответ приезжает за секунды, а сломанный не
+            // приезжает вовсе. Длинное ожидание не спасало ни одного запроса, зато мешало
+            // повтору, поэтому здесь теперь дефолтный бюджет и три попытки.
+            api(`/api/sessions?scope=${encodeURIComponent(capturedScope)}`, { signal }),
+            api(`/api/stats?scope=${encodeURIComponent(capturedScope)}`, { signal }),
         ]);
 
         if (capturedScope !== currentScope) return;
@@ -5819,7 +5821,7 @@ async function refreshSessions() {
         // канале 15–80 КБ/с. Метка, опоздавшая на десяток секунд, никому не мешает.
         if (Date.now() - _orchFreshAt >= _ORCH_REFRESH_MS) try {
             _orchFreshAt = Date.now();
-            const freshOrchs = await api('/api/orchestrators', { signal, timeoutMs: 20000 });
+            const freshOrchs = await api('/api/orchestrators', { signal });
             for (const fo of freshOrchs) {
                 const existing = orchData.find(o => o.name === fo.name);
                 if (existing) {
@@ -5850,20 +5852,75 @@ async function refreshSessions() {
 }
 
 // === API ===
-// 5s timeout on all API calls — prevents hanging tabs when the server restarts mid-fetch
-const _API_TIMEOUT_MS = 5000;
+// Таймаут и число попыток — из замера perf (33 попытки крупного ответа через канал юзера):
+// здоровый ответ приходит за 0.6–1.9 с без разброса, а сломанный не приходит НИКОГДА —
+// между сервером и юзером сидит посредник, который подтверждает нам 165 КБ, а до браузера
+// доносит 19–23 КБ. Каждая попытка падает с вероятностью ~0.48. Отсюда: 3.5 с не режет ни
+// одного здорового ответа, а три попытки опускают «сломано навсегда» с 48% до ~5% ценой
+// худшего случая ~10 с вместо нынешних 45–90.
+const _API_TIMEOUT_MS = 3500;
+const _API_ATTEMPTS = 3;
+// Мутации остаются на прежних 5 с: повтора у них нет (не идемпотентны), и работу на сервере
+// они делают ДО ответа — оборвать спавн воркера на 3.5 с значит соврать юзеру про неудачу.
+const _API_MUTATION_TIMEOUT_MS = 5000;
 // Таймаут ставится ВСЕГДА, даже когда вызывающий передал свой signal. Раньше здесь было
 // `opts.signal || AbortSignal.timeout(5000)`: свой signal (у нас это AbortController для
 // single-flight) молча отменял таймаут, и зависший ответ висел вечно. В refreshSessions
 // это фатально — `refreshInProgress` снимается в finally, который при зависании не
 // наступает никогда, и список сессий больше не обновляется до перезагрузки страницы.
 // Свой бюджет — параметром timeoutMs, а не собственным signal: одна ручка вместо двух.
+// Повторяем ТОЛЬКО GET и только обрыв: 4xx/5xx — это ответ сервера, повтор его не изменит,
+// а не-GET повторять нельзя, он не идемпотентен. Свой timeoutMs = вызывающий заявил, что
+// запрос долгий по своей природе (агрегация usage) — такой бюджет он и получает, без повторов.
 async function api(url, opts = {}) {
-    const timeout = AbortSignal.timeout(opts.timeoutMs ?? _API_TIMEOUT_MS);
-    const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
-    const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal });
-    if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
-    return resp.json();
+    const isGet = !opts.method || opts.method.toUpperCase() === 'GET';
+    const attempts = (isGet && opts.timeoutMs === undefined) ? _API_ATTEMPTS : 1;
+    for (let attempt = 1; ; attempt++) {
+        const timeout = AbortSignal.timeout(opts.timeoutMs ?? (isGet ? _API_TIMEOUT_MS : _API_MUTATION_TIMEOUT_MS));
+        const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+        try {
+            const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal });
+            if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
+            const data = await resp.json();
+            _hideNetFailBanner(url);
+            return data;
+        } catch (e) {
+            // Отмена вызывающим (смена scope, single-flight) — намеренная, повтор воскресил бы
+            // запрос, который уже никому не нужен.
+            if (opts.signal?.aborted) throw e;
+            const broken = e.name === 'TimeoutError' || e.name === 'TypeError';
+            if (!broken || attempt >= attempts) {
+                if (broken && attempts > 1) _showNetFailBanner(url, attempts);
+                throw e;
+            }
+            console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${e.name}`);
+        }
+    }
+}
+
+// После исчерпания попыток юзер должен видеть причину, а не пустой экран: обрыв происходит
+// МЕЖДУ браузером и сервером, сервер при этом жив, поэтому оверлей «сервер перезагружается»
+// тут врал бы. Снимает баннер успех ТОГО ЖЕ пути, а не любой: посредник режет крупные
+// ответы, мелкие при этом ходят нормально и стёрли бы сообщение через миллисекунды —
+// замерено, в первом прогоне баннер не доживал до конца окна.
+let _netFailPath = null;
+
+function _showNetFailBanner(url, attempts) {
+    _netFailPath = url.split('?')[0];
+    const banner = document.getElementById('net-fail-banner');
+    if (!banner) return;
+    banner.classList.remove('hidden');
+    banner.classList.add('flex');
+    banner.innerHTML = `📡 <b>Ответ не дошёл</b> — ${escHtml(_netFailPath)}: ${attempts} попытки по ${(_API_TIMEOUT_MS / 1000).toFixed(1)} с. <span class="text-red-300/70">Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.</span>`;
+}
+
+function _hideNetFailBanner(url) {
+    if (!_netFailPath || url.split('?')[0] !== _netFailPath) return;
+    _netFailPath = null;
+    const banner = document.getElementById('net-fail-banner');
+    if (!banner) return;
+    banner.classList.add('hidden');
+    banner.classList.remove('flex');
 }
 
 // === Usage Bar ===
