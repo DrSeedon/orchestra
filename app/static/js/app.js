@@ -1931,6 +1931,21 @@ function updateInputState() {
 let contextCache = {};
 let agentColors = {};
 
+// Единственный владелец соответствия «агент → цвет». Серый = цвет ещё не приехал.
+function _senderColor(sender) {
+    return agentColors[sender] || Object.entries(agentColors).find(([k]) => k.startsWith(sender))?.[1] || '#64748b';
+}
+
+// Список агентов приходит позже истории чата → подписи, нарисованные серым фолбэком, перекрасить.
+function _repaintSenderColors() {
+    for (const div of $('#chat').querySelectorAll('[data-from]')) {
+        const color = _senderColor(div.dataset.from);
+        div.style.borderLeft = `3px solid ${color}`;
+        const label = div.querySelector('.chat-from-label');
+        if (label) label.style.color = color;
+    }
+}
+
 let _MODELS = [];
 let _modelsLoaded = false;
 async function _ensureModels() {
@@ -2111,10 +2126,15 @@ function renderAgentList(sessions) {
     const list = $('#agent-list');
     list.innerHTML = '';
 
+    let colorsChanged = false;
     for (const s of sessions) {
-        if (s.color) agentColors[s.name] = s.color;
+        if (s.color && agentColors[s.name] !== s.color) {
+            agentColors[s.name] = s.color;
+            colorsChanged = true;
+        }
         _sessionIds[_chatPositionKey(currentScope, s.name)] = s.id;  // ключ валидности кеша чата
     }
+    if (colorsChanged) _repaintSenderColors();
 
     const byName = new Map();
     for (const s of sessions) byName.set(s.name, s);
@@ -3811,11 +3831,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (fromMatch) {
             const sender = fromMatch[1];
             const msg = fromMatch[2];
-            const senderColor = agentColors[sender] || Object.entries(agentColors).find(([k]) => k.startsWith(sender))?.[1] || '#64748b';
+            const senderColor = _senderColor(sender);
+            div.dataset.from = sender;  // якорь для _repaintSenderColors, если список агентов ещё не приехал
             div.style.borderLeft = `3px solid ${senderColor}`;
             div.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot';
             const label = document.createElement('div');
-            label.className = 'text-xs mb-1';
+            label.className = 'text-xs mb-1 chat-from-label';
             label.style.color = senderColor;
             label.textContent = `${sender} → ${selectedAgent}`;
             div.appendChild(label);
