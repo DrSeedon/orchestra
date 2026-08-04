@@ -17,6 +17,14 @@ logger = logging.getLogger("orchestra.merge_operations")
 
 ACTIVE_STATES = ("PENDING", "RUNNING", "PARTIAL", "UNKNOWN")
 TERMINAL_STATES = ("SUCCEEDED", "PARTIAL", "FAILED", "UNKNOWN")
+
+# Стадии, чей провал НЕ разводит git и БД сессий: индекс поиска и подготовка следующей
+# задачи. Когда коммит в target уже состоялся, а провалились только они, операция
+# терминальна — иначе вторичный шаг навсегда блокирует мержи воркера.
+# `TASK_LINK_PARTIAL` здесь нет намеренно: «номера не существует» до стадийных провалов
+# не доходит вовсе (см. `_link_status`), а недоступная БД задач обязана оставаться
+# провалом. Спорить про границу — здесь, в одном месте, а не в трёх ветках `if`.
+SECONDARY_STAGES = ("RAG_NOT_READY", "RAG_STATUS_INVALID", "NEXT_TASK_FAILED")
 _runner_tasks: dict[str, asyncio.Task[None]] = {}
 
 
@@ -63,6 +71,20 @@ def _action(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": _text(message, code)}
 
 
+# Инструкция без разрешённого действия не выполняется: чужой оркестратор смержил руками
+# не по недисциплинированности, а потому что «do not merge manually» не называло выхода.
+_RESOLVE_HINT = (
+    "When the outcome is reconciled, close it with resolve_merge_operation("
+    "operation_id='{operation_id}', reason=...) — that is the only way to unblock "
+    "new merges for this worker."
+)
+
+
+def _blocking_action(code: str, message: str, operation_id: str) -> dict[str, str]:
+    """next_action у блокирующего состояния обязан НАЗЫВАТЬ разрешённое действие."""
+    return _action(code, f"{message} {_RESOLVE_HINT.format(operation_id=operation_id)}")
+
+
 def _base_result(
     operation_id: str,
     state: str,
@@ -96,6 +118,7 @@ def _base_result(
         "lifecycle": {"status": "NOT_RUN"},
         "next_task": {"status": "NOT_REQUESTED"},
         "error": error,
+        "warnings": [],
         "next_action": next_action or _action(
             "CHECK_SAME_OPERATION",
             f"Check operation {operation_id}; do not merge manually.",
@@ -203,6 +226,89 @@ def _terminal_snapshot_matches(
     )
 
 
+def _blocked_by_active(
+    active: dict[str, Any], requested_operation_id: str,
+) -> tuple[dict[str, Any], bool, int]:
+    """Новый operation_id операции не создал: воркера держит незакрытая предыдущая.
+
+    Возвращается её сохранённый результат, поэтому вызывающий обязан узнать из ПЕРВЫХ
+    строк, что смотрит на чужую операцию, а не на свою (иначе он читает старую ветку
+    как исход своего мержа). В хранилище ничего не пишется.
+    """
+    state = active["state"]
+    result = active["result"]
+    if state in {"PENDING", "RUNNING"}:
+        return result, False, 202
+    blocking_id = str(result.get("operation_id") or active["operation_id"])
+    blocked = {
+        **result,
+        "next_action": _blocking_action(
+            "RESOLVE_BLOCKING_OPERATION",
+            f"Operation {requested_operation_id} was NOT created and nothing was merged "
+            f"for it: unresolved {state} operation {blocking_id} still holds this worker, "
+            f"and this response describes THAT operation.",
+            blocking_id,
+        ),
+    }
+    return blocked, False, 200
+
+
+def resolve_operation(
+    operation_id: str, *, reason: str, actor: str = "",
+) -> tuple[dict[str, Any], int]:
+    """Единственный писатель `resolved_at`: человек снял блокировку с разобранной операции.
+
+    Состояние НЕ меняется — оно остаётся записью о том, что произошло. Закрывается только
+    блокировка, ровно как это делалось руками через SQL. `UNKNOWN` закрывается лишь здесь
+    и никогда автоматически: неизвестный git-исход, закрытый автоматом, — это потерянные
+    данные без следа.
+    """
+    reason = _text(reason, "")
+    if not reason:
+        error = _error(
+            "RESOLUTION_REASON_REQUIRED",
+            "reason is required: it is the record of how the outcome was reconciled",
+            operation_id=operation_id, status=400,
+        )
+        return _base_result(operation_id, "FAILED", error=error), 400
+    with _conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM merge_operations WHERE operation_id=?", (operation_id,),
+        ).fetchone()
+        if not row:
+            return operation_not_found_result(operation_id), 404
+        record = _decode_record(row)
+        result = record["result"]
+        if record["resolved_at"]:
+            return result, 200
+        if record["state"] not in {"PARTIAL", "UNKNOWN"}:
+            error = _error(
+                "OPERATION_NOT_BLOCKING",
+                f"operation is {record['state']}: only PARTIAL or UNKNOWN block new merges",
+                operation_id=operation_id, status=409,
+            )
+            return {**result, "error": error}, 409
+        now = _now()
+        resolved = {
+            **result,
+            "resolution": {"resolved_at": now, "reason": reason, "actor": actor},
+            "next_action": _action(
+                "NONE",
+                f"Operation {operation_id} is resolved; new merges for this worker are "
+                f"unblocked. Its state stays {record['state']} as the record of what happened.",
+            ),
+        }
+        connection.execute(
+            """UPDATE merge_operations
+               SET resolved_at=?, resolution_outcome=?, resolution_actor=?,
+                   result_json=?, result_hash=?, updated_at=?
+               WHERE operation_id=? AND resolved_at IS NULL""",
+            (now, reason, actor, _json(resolved), _hash(resolved), now, operation_id),
+        )
+        return resolved, 200
+
+
 def accept_operation_snapshot(
     *,
     operation_id: str,
@@ -238,9 +344,7 @@ def accept_operation_snapshot(
             (accepted["session_id"],),
         ).fetchone()
         if active_row:
-            active = _decode_record(active_row)
-            state = active["state"]
-            return active["result"], False, 202 if state in {"PENDING", "RUNNING"} else 200
+            return _blocked_by_active(_decode_record(active_row), operation_id)
 
         terminal_rows = connection.execute(
             """SELECT * FROM merge_operations
@@ -304,9 +408,7 @@ def accept_operation_snapshot(
             ).fetchone()
             if not active_row:
                 raise
-            active = _decode_record(active_row)
-            state = active["state"]
-            return active["result"], False, 202 if state in {"PENDING", "RUNNING"} else 200
+            return _blocked_by_active(_decode_record(active_row), operation_id)
     return result, True, 202
 
 
@@ -378,23 +480,38 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
     return current, ""
 
 
-def _link_status(items: Any) -> tuple[str, dict[str, Any], list[str]]:
+def _link_status(items: Any) -> tuple[str, dict[str, Any], list[str], list[str]]:
+    """Разложить исходы привязки на провалы и предупреждения.
+
+    «Номер не существует» — про ИСТОРИЮ: номер уже в коммите, чинить нечего, и провалом
+    он делает ветку непригодной навсегда. «Номер есть, но привязка не удалась» — про
+    СОСТОЯНИЕ (исключение, недоступная БД задач), там повтор может помочь, и это провал.
+    Отличаются по маркеру `reason` из `tm.link_commits_to_task`; ответ без маркера
+    (старый сервер) считается провалом — консервативно.
+    """
     if not isinstance(items, dict) or not items:
-        return "NOT_RUN", {}, []
+        return "NOT_RUN", {}, [], []
     normalized: dict[str, Any] = {}
     successes = 0
     failures: list[str] = []
+    warnings: list[str] = []
     for task_ref, info in items.items():
         normalized[str(task_ref)] = info
         ok = isinstance(info, dict) and bool(info.get("ok") or info.get("id"))
         if ok:
             successes += 1
+            continue
+        detail = info.get("error") if isinstance(info, dict) else "invalid link result"
+        text = f"{task_ref}: {_text(detail, 'link failed without detail')}"
+        if isinstance(info, dict) and info.get("reason") == "TASK_NOT_FOUND":
+            warnings.append(text)
         else:
-            detail = info.get("error") if isinstance(info, dict) else "invalid link result"
-            failures.append(f"{task_ref}: {_text(detail, 'link failed without detail')}")
-    if not failures:
-        return "SUCCEEDED", normalized, []
-    return ("PARTIAL" if successes else "FAILED"), normalized, failures
+            failures.append(text)
+    if failures:
+        return ("PARTIAL" if successes else "FAILED"), normalized, failures, warnings
+    if warnings:
+        return "WARNED", normalized, [], warnings
+    return "SUCCEEDED", normalized, [], []
 
 
 def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str, Any], dict[str, str]]:
@@ -498,7 +615,7 @@ def normalize_merge_result(
     else:
         git_status = "FAILED"
 
-    link_status, link_items, link_failures = _link_status(raw.get("linked_tasks"))
+    link_status, link_items, link_failures, link_warnings = _link_status(raw.get("linked_tasks"))
     lifecycle = raw.get("lifecycle_status")
     lifecycle_status = (
         "SUCCEEDED" if isinstance(lifecycle, dict) and lifecycle.get("ok")
@@ -546,6 +663,15 @@ def normalize_merge_result(
             _text(switch.get("error") or task_status.get("error"), "next-task transition failed"),
         ))
 
+    warnings: list[dict[str, str]] = [
+        {"code": "TASK_LINK_NOT_FOUND", "message": text} for text in link_warnings
+    ]
+    primary_failures = [item for item in stage_failures if item[0] not in SECONDARY_STAGES]
+    warnings += [
+        {"code": code, "message": detail}
+        for code, detail in stage_failures if code in SECONDARY_STAGES
+    ]
+
     error: dict[str, Any] | None = None
     next_action = _action("NONE", "Merge operation completed; no retry is required.")
     retryable = False
@@ -557,25 +683,32 @@ def normalize_merge_result(
             status=raw.get("_http_status"), outcome_unknown=True,
             details={"upstream_state": raw_state, "commit_point": raw_point},
         )
-        next_action = _action(
+        next_action = _blocking_action(
             "RECONCILE_SAME_OPERATION",
             "Reconcile this operation before any retry; do not merge manually.",
+            operation_id,
         )
-    elif raw_state == "partial" or commit_point == "REACHED" and (not raw.get("ok") or stage_failures):
+    elif raw_state == "partial" or commit_point == "REACHED" and (not raw.get("ok") or primary_failures):
         state = "PARTIAL"
-        code, detail = stage_failures[0] if stage_failures else ("POST_COMMIT_PARTIAL", message)
-        retryable = code == "RAG_NOT_READY"
+        code, detail = primary_failures[0] if primary_failures else ("POST_COMMIT_PARTIAL", message)
         error = _error(
             code, detail, operation_id=operation_id,
-            status=raw.get("_http_status"), retryable=retryable,
+            status=raw.get("_http_status"),
             details={"failed_stages": [item[0] for item in stage_failures]},
         )
-        next_action = _action(
+        next_action = _blocking_action(
             "FINALIZE_SAME_OPERATION",
             "Finalize this operation; do not repeat or manually apply the Git merge.",
+            operation_id,
         )
-    elif raw.get("ok") and not stage_failures:
+    elif raw.get("ok") and not primary_failures:
         state = "SUCCEEDED"
+        if warnings:
+            next_action = _action(
+                "REVIEW_WARNINGS_OUTSIDE_MERGE",
+                "Merge committed; no merge retry is required. Handle these outside the merge: "
+                + "; ".join(warning["message"] for warning in warnings),
+            )
     else:
         state = "FAILED"
         code, details, next_action = _classify_failure(raw, message)
@@ -609,6 +742,9 @@ def normalize_merge_result(
         "lifecycle": {"status": lifecycle_status},
         "next_task": {"status": next_status},
         "error": error,
+        # Поле ДОБАВЛЯЕТСЯ: то, что не меняет состояние операции, но исчезнуть молча не
+        # имеет права. Старый читатель его не заметит.
+        "warnings": warnings,
         "next_action": next_action,
     }
     return result
@@ -662,9 +798,10 @@ def _unknown_from_record(record: dict[str, Any], message: str, *, exception_type
         "UNKNOWN_OUTCOME", message, operation_id=record["operation_id"],
         outcome_unknown=True, details={"exception_type": exception_type},
     )
-    result["next_action"] = _action(
+    result["next_action"] = _blocking_action(
         "RECONCILE_SAME_OPERATION",
         "Reconcile this operation before any retry; do not merge manually.",
+        record["operation_id"],
     )
     return result
 
@@ -695,9 +832,10 @@ def _mark_terminal_snapshot_failure(
             if "TERMINAL_SNAPSHOT_FAILED" not in failures:
                 failures.append("TERMINAL_SNAPSHOT_FAILED")
             details["terminal_snapshot_error"] = detail
-    result["next_action"] = _action(
+    result["next_action"] = _blocking_action(
         "FINALIZE_SAME_OPERATION",
         "Verify and finalize this operation; do not repeat or manually apply the Git merge.",
+        operation_id,
     )
 
 

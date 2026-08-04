@@ -104,6 +104,10 @@
 
 ## Тесты: ловушки, на которых я уже терял время
 
+- **Мерж целиком проверяется без менеджера сессий**: `create_worktree` на настоящем репо +
+  monkeypatch ОДНОЙ функции `app.routes.sessions.execute_merge_session` (её импортируют
+  внутри `_run_operation`, поэтому патч доезжает). Дальше работают настоящие
+  `merge_worktree_to_main` и `tm.link_commits_to_task`. Стенд — `tests/test_merge_stuck.py` (#80).
 - **Константа в СИГНАТУРЕ не подменяется monkeypatch'ем** — значение по умолчанию считается
   при определении функции. Константу, которую будут подменять, читать в ТЕЛЕ
   (`limit = CONST if limit is None else limit`).

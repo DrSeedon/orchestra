@@ -1146,9 +1146,20 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
                 f" NOTE: the worker committed after this operation was accepted — "
                 f"merged its branch as of {merged_head}, not the pinned {pinned}."
             )
+        # Предупреждение, не попавшее в первые строки, исчезает молча: структурный
+        # результат читают не всегда, текст — всегда.
+        warnings = result.get("warnings") if isinstance(result.get("warnings"), list) else []
+        notes = "; ".join(
+            str(warning.get("message") or warning.get("code") or "")
+            for warning in warnings if isinstance(warning, dict)
+        )
         text = (
             f"Merged {count} commit{'s' if count != 1 else ''} from branch {branch}. "
             f"Operation {operation_id}: SUCCEEDED.{drift}"
+            + (
+                f" WARNINGS (the merge itself needs no retry): {_safe_response_text(notes)}"
+                if notes else ""
+            )
         )
         return mcp_tool_result(result, text=text)
     if state == "PARTIAL":
@@ -1303,6 +1314,67 @@ async def merge_worker(
             details={"exception_type": type(exc).__name__},
         )
         return _merge_tool_result(result)
+
+
+@mcp.tool()
+async def resolve_merge_operation(operation_id: str, reason: str) -> CallToolResult:
+    """Close a PARTIAL/UNKNOWN merge operation you have already reconciled.
+
+    This is the ONLY way to unblock merges for a worker held by such an operation.
+    Reconcile FIRST (check what actually landed in the target branch), then call this
+    with what you found in `reason`. The operation keeps its state as the record; only
+    the block is lifted. SUCCEEDED/FAILED operations are refused — they block nothing.
+    """
+    body = {"reason": reason, "actor": "mcp"}
+    try:
+        payload = await _api(
+            "POST", f"/api/merge-operations/{operation_id}/resolve", json=body,
+        )
+        result = _merge_payload_result(payload)
+    except ApiToolError as api_error:
+        if isinstance(api_error.result, dict):
+            result = api_error.result
+            error = result.get("error") if isinstance(result.get("error"), dict) else None
+            message = str((error or {}).get("message") or api_error.message)
+            return mcp_tool_result(
+                result, error=error, is_error=True,
+                text=f"Merge operation {operation_id} was not resolved: {message}",
+            )
+        if api_error.status == 404:
+            # Роут живёт в памяти systemd до рестарта: старый сервер молча проигнорировал
+            # бы запрос, и вызывающий решил бы, что снял блокировку.
+            return mcp_tool_result(
+                {"operation_id": operation_id, "resolved": False},
+                error={
+                    "code": "RESOLVE_API_UPGRADE_REQUIRED",
+                    "message": (
+                        "resolve route is unavailable in the live server; "
+                        "the operation is still blocking"
+                    ),
+                    "status": api_error.status,
+                    "retryable": False,
+                    "request_id": operation_id,
+                    "retry_after_seconds": None,
+                    "outcome_unknown": False,
+                    "details": {"method": "POST", "path": api_error.details.get("path", "")},
+                },
+                is_error=True,
+                text=(
+                    f"This Orchestra server cannot resolve merge operations yet "
+                    f"(no /api/merge-operations/{{id}}/resolve route). Operation "
+                    f"{operation_id} is still blocking; a server restart is required."
+                ),
+            )
+        raise
+    resolution = result.get("resolution") if isinstance(result.get("resolution"), dict) else {}
+    state = str(result.get("operation_state") or "?")
+    return mcp_tool_result(
+        result,
+        text=(
+            f"Merge operation {operation_id} resolved (state stays {state}); merges for "
+            f"this worker are unblocked. Reason: {_safe_response_text(str(resolution.get('reason') or reason))}"
+        ),
+    )
 
 
 @mcp.tool()

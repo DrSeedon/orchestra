@@ -375,6 +375,9 @@ def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str = "
                 return {
                     "ok": False,
                     "added": 0,
+                    # «Номера не существует» — это про ИСТОРИЮ коммитов, чинить нечего;
+                    # маркер отличает его от «номер есть, но привязка не удалась».
+                    "reason": "TASK_NOT_FOUND",
                     "error": f"task '{task_ref}' not found",
                 }
             existing = json.loads(task["git_commits"]) if task["git_commits"] else []

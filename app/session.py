@@ -33,6 +33,8 @@ if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
 from app.db import add_log, get_logs, save_session, tool_error_add
 
+from app.blobs import store_images
+
 logger = logging.getLogger(__name__)
 
 
@@ -1050,7 +1052,11 @@ class AgentSession:
             if "send_message" in tool_name or "mcp__orchestra__send_message" in tool_name:
                 self._did_report = True
         elif event.type == "tool_result":
-            self._log("tool_result", event.content)
+            # Тело картинки уезжает в файл, в журнал идёт ссылка (#78). Копируем не файл
+            # с диска, а то, что уже в руках: путь лежит в ПРЕДЫДУЩЕЙ строке журнала и у
+            # части строк его нет вовсе, а рабочие копии воркеров штатно сносятся —
+            # ссылка на чужой файл протухала у 18 из 50 строк.
+            self._log("tool_result", store_images(self.id, event.content))
         elif event.type == "file_change":
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")

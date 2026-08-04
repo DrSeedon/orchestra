@@ -72,6 +72,12 @@
   ]
  ],
  [
+  "/api/merge-operations/{operation_id}/resolve",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/merge-operations/{operation_id}",
   [
    "GET"

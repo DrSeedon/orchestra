@@ -880,6 +880,9 @@ async def test_merge_links_commits_with_normalized_sqlite_results(db, monkeypatc
     assert result["linked_tasks"]["999"] == {
         "ok": False,
         "added": 0,
+        # #80: маркер отличает «номера не существует» (предупреждение) от «привязка
+        # сломалась» (провал стадии) — см. app/merge_operations._link_status.
+        "reason": "TASK_NOT_FOUND",
         "error": "task '999' not found",
     }
     with tm._conn() as conn:

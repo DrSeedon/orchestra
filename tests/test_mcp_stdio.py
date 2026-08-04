@@ -1461,3 +1461,77 @@ async def test_search_memory_reports_index_debt_and_tolerates_its_absence(
     assert ("7 файлов ещё не проиндексированы" in out) is expect_debt
     if payload["results"]:
         assert "a.md" in out
+
+
+@pytest.mark.asyncio
+async def test_merge_warning_is_visible_in_the_tool_text(monkeypatch):
+    """#80: успешный мерж с ненайденным номером задачи не читается как чистый успех."""
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+
+    async def fake_api(method, path, **kw):
+        return {"result": {
+            "schema_version": 1,
+            "operation_id": kw["json"]["operation_id"],
+            "operation_state": "SUCCEEDED",
+            "retryable": False,
+            "commit_point": "REACHED",
+            "git": {"status": "SUCCEEDED", "worker_branch": "task-80/w", "commits_merged": 6},
+            "task_links": {"status": "WARNED", "items": {}},
+            "warnings": [{"code": "TASK_LINK_NOT_FOUND", "message": "18: task '18' not found"}],
+            "error": None,
+            "next_action": {"code": "REVIEW_WARNINGS_OUTSIDE_MERGE", "message": "review"},
+        }, "error": None}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="sales")
+
+    assert out.isError is False
+    text = out.content[0].text
+    assert "SUCCEEDED" in text
+    assert "task '18' not found" in text
+
+
+@pytest.mark.asyncio
+async def test_resolve_merge_operation_reports_upgrade_required_on_old_server(monkeypatch):
+    """Старый роут молча проглотил бы запрос — вызывающий решил бы, что снял блокировку."""
+    import app.mcp_stdio as m
+
+    async def fake_api(method, path, **kw):
+        raise m.ApiToolError(
+            code="http_4xx", message="Not Found", status=404,
+            request_id="r", details={"method": "POST", "path": path},
+        )
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.resolve_merge_operation(operation_id="op-1", reason="reconciled")
+
+    assert out.isError is True
+    assert "restart" in out.content[0].text
+    assert "still blocking" in out.content[0].text
+
+
+@pytest.mark.asyncio
+async def test_resolve_merge_operation_reports_server_refusal(monkeypatch):
+    import app.mcp_stdio as m
+
+    async def fake_api(method, path, **kw):
+        raise m.ApiToolError(
+            code="domain_error", message="conflict", status=409, request_id="r",
+            details={"method": "POST", "path": path},
+            result={
+                "operation_id": "op-1",
+                "operation_state": "SUCCEEDED",
+                "error": {
+                    "code": "OPERATION_NOT_BLOCKING",
+                    "message": "operation is SUCCEEDED: only PARTIAL or UNKNOWN block new merges",
+                },
+            },
+        )
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.resolve_merge_operation(operation_id="op-1", reason="nothing to close")
+
+    assert out.isError is True
+    assert "OPERATION_NOT_BLOCKING" in out.content[0].text or "only PARTIAL" in out.content[0].text

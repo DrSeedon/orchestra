@@ -10,6 +10,7 @@ from app.merge_operations import (
     ensure_operation_runner,
     get_operation_record,
     operation_not_found_result,
+    resolve_operation,
 )
 
 router = APIRouter(prefix="/api/merge-operations", tags=["merge-operations"])
@@ -40,6 +41,17 @@ async def create_merge_operation(req: dict):
         scope=str(req.get("scope") or ""),
         target=str(req.get("target") or ""),
         next_task_id=str(req.get("next_task_id") or ""),
+    )
+    return _response(result, status_code)
+
+
+@router.post("/{operation_id}/resolve")
+async def resolve_merge_operation(operation_id: str, req: dict):
+    result, status_code = await asyncio.to_thread(
+        resolve_operation,
+        operation_id,
+        reason=str(req.get("reason") or ""),
+        actor=str(req.get("actor") or ""),
     )
     return _response(result, status_code)
 
