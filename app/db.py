@@ -71,6 +71,14 @@ def init_db() -> None:
                 finished_at TEXT,
                 UNIQUE(name, scope)
             );
+            CREATE TABLE IF NOT EXISTS undelivered_facts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                dedupe_key TEXT NOT NULL,
+                text TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(session_id, dedupe_key)
+            );
             CREATE TABLE IF NOT EXISTS profiles (
                 name TEXT PRIMARY KEY,
                 config_dir TEXT NOT NULL DEFAULT '',
@@ -1823,3 +1831,60 @@ def find_merge_proof(scope: str, branch: str) -> dict | None:
     if merged:
         heads.add(merged)
     return {"operation_id": row["operation_id"], "heads": sorted(h for h in heads if h)}
+
+
+# Потолок фактов на сессию. Цифра НЕ измерена: недоставки редки по построению, мерить
+# было бы не на чем. Переполнение не отбрасывается молча — оно сворачивается в видимую
+# строку, поэтому реальный масштаб станет виден на первом же инциденте (#50).
+FACTS_PER_SESSION = 20
+
+
+def enqueue_fact(session_id: str, dedupe_key: str, text: str) -> bool:
+    """Поставить в очередь ФАКТ недоставки для сессии. Повтор того же события — не дубль.
+
+    Очередь durable намеренно: недоставка и рестарт — один и тот же сценарий, и очередь
+    в памяти (`_pending_messages`, P1 из #35) терялась бы ровно тогда, когда нужна.
+    """
+    with _conn() as c:
+        cur = c.execute(
+            """INSERT INTO undelivered_facts (session_id, dedupe_key, text, created_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(session_id, dedupe_key) DO NOTHING""",
+            (session_id, dedupe_key, text, datetime.now(timezone.utc).isoformat()),
+        )
+        return cur.rowcount == 1
+
+
+def peek_facts(session_id: str, limit: int = FACTS_PER_SESSION) -> dict:
+    """Факты для показа агенту: последние `limit` плюс число свёрнутых старых.
+
+    Ключи возвращаются ВСЕ, включая свёрнутые: их существование агенту сообщено, значит
+    гасить надо и их — иначе счётчик «и ещё N» рос бы вечно.
+    """
+    with _conn() as c:
+        rows = c.execute(
+            """SELECT dedupe_key, text, created_at FROM undelivered_facts
+                WHERE session_id = ? ORDER BY id""",
+            (session_id,),
+        ).fetchall()
+    if not rows:
+        return {"facts": [], "collapsed": 0, "keys": []}
+    shown = rows[-limit:] if limit > 0 else []
+    return {
+        "facts": [{"text": r["text"], "created_at": r["created_at"]} for r in shown],
+        "collapsed": len(rows) - len(shown),
+        "keys": [r["dedupe_key"] for r in rows],
+    }
+
+
+def ack_facts(session_id: str, keys: list[str]) -> int:
+    """Погасить факты, которые ДОШЛИ. Зовётся только после возврата из backend.send."""
+    if not keys:
+        return 0
+    with _conn() as c:
+        cur = c.execute(
+            f"DELETE FROM undelivered_facts WHERE session_id = ? AND dedupe_key IN "
+            f"({','.join('?' * len(keys))})",
+            (session_id, *keys),
+        )
+        return cur.rowcount

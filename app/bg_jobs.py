@@ -540,6 +540,7 @@ class BgJobManager:
                 worker=target_name,
                 what=f"результат фоновой задачи {job_id}",
                 reason=f"{type(e).__name__}: {e}",
+                dedupe_key=f"bgjob:{job_id}",
             )
 
     def _expire(self, job_id: str) -> None:

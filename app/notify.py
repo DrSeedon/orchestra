@@ -24,7 +24,7 @@ def orchestrator_for_scope(scope: str) -> dict | None:
 
 
 async def report_undelivered(session_manager, *, scope: str, worker: str,
-                             what: str, reason: str) -> str:
+                             what: str, reason: str, dedupe_key: str = "") -> str:
     """Сообщить оркестратору scope о недоставке. Возвращает, что фактически вышло.
 
     Рекурсии нет: если не доставлено само уведомление, второго уведомления не будет —
@@ -46,6 +46,12 @@ async def report_undelivered(session_manager, *, scope: str, worker: str,
         outcome = (f"уведомить {orch['name']} не удалось: "
                    f"{type(error).__name__}: {error}")
         logger.warning("undelivered %s for %s: %s", what, worker, outcome)
+        # Строку в истории видит человек, факт в очереди — сам агент, со следующим
+        # успешным сообщением (#50). Без ключа очередь не заводим: невидимая склейка
+        # двух разных событий в одно хуже двух записей.
+        if dedupe_key:
+            _queue_fact(orch["id"], dedupe_key,
+                        f"{what} для воркера «{worker}» не доставлено: {reason}")
         return outcome
     logger.warning("undelivered %s for %s: reported to %s", what, worker, orch["name"])
     return f"сообщено оркестратору {orch['name']}"
@@ -105,6 +111,20 @@ def _record_undelivered_bug(orch: dict, reporter: str, title: str,
             f"подал {reporter}) не доставлено: {outcome}. Сам репорт в сторе, "
             f"читать: GET /api/report_bug",
         )
+        _queue_fact(orch["id"], f"bug:{record_id}",
+                    f"уведомление о баг-репорте «{title}» (подал {reporter}) "
+                    f"не доставлено; сам репорт в сторе: GET /api/report_bug")
     except Exception as log_error:
         logger.warning("could not record undelivered bug notice for %s: %s: %s",
                        orch["name"], type(log_error).__name__, log_error)
+
+
+def _queue_fact(session_id: str, dedupe_key: str, text: str) -> None:
+    """Поставить факт в очередь адресата, не мешая основному пути при сбое."""
+    from app.db import enqueue_fact
+
+    try:
+        enqueue_fact(session_id, dedupe_key, text)
+    except Exception as error:
+        logger.warning("could not queue fact %s for %s: %s: %s",
+                       dedupe_key, session_id, type(error).__name__, error)

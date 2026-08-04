@@ -566,6 +566,48 @@ class AgentSession:
         )
         return build_backend(self.backend_type, context)
 
+    def _attach_pending_facts(self, message: str) -> tuple[str, list[str]]:
+        """Приписать к сообщению ФАКТЫ о недоставке, накопленные для этой сессии (#50).
+
+        Это НЕ ретрай: исходные сообщения не пересылаются, едет только факт, что они не
+        дошли. Иначе ждущий агент не узнаёт о недоставке никогда — запись в `logs` типа
+        `system` в контекст не попадает (измерено в #47).
+
+        Не бросает НИЧЕГО: сообщение важнее факта. Сбой очереди → уходит как раньше.
+        """
+        try:
+            from app.db import peek_facts
+
+            pending = peek_facts(self.id)
+        except Exception as error:
+            logger.warning(f"[{self.name}] pending facts unavailable: "
+                           f"{type(error).__name__}: {error}")
+            return message, []
+        if not pending["facts"]:
+            return message, []
+        lines = [f"- {f['created_at'][11:16]} {f['text']}" for f in pending["facts"]]
+        if pending["collapsed"]:
+            lines.append(f"- …и ещё {pending['collapsed']} событий, свёрнуто; "
+                         f"полностью — в истории сессии")
+        head = (
+            f"[Orchestra platform note: пока тебя не было, до тебя не дошло "
+            f"{len(pending['facts']) + pending['collapsed']} событий. Это факты, а не "
+            f"повтор сообщений — исходные сообщения НЕ пересылались.]"
+        )
+        return f"{head}\n" + "\n".join(lines) + f"\n---\n{message}", pending["keys"]
+
+    def _ack_pending_facts(self, keys: list[str]) -> None:
+        """Погасить факты, которые уехали в бэкенд. Только после возврата из send."""
+        if not keys:
+            return
+        try:
+            from app.db import ack_facts
+
+            ack_facts(self.id, keys)
+        except Exception as error:
+            logger.warning(f"[{self.name}] could not ack delivered facts: "
+                           f"{type(error).__name__}: {error}")
+
     def _spawn_bg(self, coro) -> asyncio.Task:
         task = asyncio.create_task(coro)
         self._background_tasks.add(task)
@@ -650,7 +692,9 @@ class AgentSession:
                     return
                 try:
                     backend = await self._ensure_backend()
-                    await backend.send(message)
+                    injected, fact_keys = self._attach_pending_facts(message)
+                    await backend.send(injected)
+                    self._ack_pending_facts(fact_keys)
                     if self.backend_type == "codex":
                         self._log("status", "message steered into active Codex turn")
                     return
@@ -738,6 +782,7 @@ class AgentSession:
             # send() can raise (e.g. opencode prompt_async 404/5xx) AFTER status=RUNNING and
             # BEFORE the listen task is created — without this, a failed submit strands the
             # agent in RUNNING forever (task #97). Reset to IDLE on failure.
+            message, fact_keys = self._attach_pending_facts(message)
             outbound_message = message
             pending_handoff = self.runtime_handoff
             if pending_handoff:
@@ -760,6 +805,7 @@ class AgentSession:
                     self._persist()
                     self._turns.publish_turn_finished()
                 raise
+            self._ack_pending_facts(fact_keys)
             if pending_handoff and self.runtime_handoff == pending_handoff:
                 self.runtime_handoff = ""
                 self._persist()
@@ -1041,7 +1087,9 @@ class AgentSession:
                 self._persist()
                 self._hibernated = False
                 backend = await self._ensure_backend()
+                combined, fact_keys = self._attach_pending_facts(combined)
                 await backend.send(combined)
+                self._ack_pending_facts(fact_keys)
                 if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
                     self._listen_task = asyncio.create_task(self._turn_event_loop())
                     self._listen_task.add_done_callback(self._on_task_done)

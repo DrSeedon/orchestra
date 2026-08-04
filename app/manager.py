@@ -105,6 +105,20 @@ async def wait_for_session_lock(lock, *, what: str, worker: str, limit: float | 
         lock.release()
 
 
+def _auto_report_key(worker_session, worker_name: str) -> str:
+    """Ключ дедупликации автоотчёта (#50).
+
+    Стабильного id хода в системе нет: `_turn_gen` — счётчик в памяти сессии, он
+    обнуляется рестартом. Поэтому ключ строится из id сессии и номера хода, а когда
+    сессия недоступна — из имени и времени, и это ВИДНО в самом ключе (`notrack`).
+    Два быстрых автоотчёта тогда дадут две записи; это лучше, чем невидимо склеить
+    два разных события в одно.
+    """
+    if worker_session is not None:
+        return f"autoreport:{worker_session.id}:{getattr(worker_session, '_turn_gen', 0)}"
+    return f"autoreport:{worker_name}:notrack:{datetime.now(timezone.utc).isoformat()}"
+
+
 def next_adhoc_branch(worker_name: str) -> str:
     """Имя ветки для авто-переключения перед доставкой сообщения.
 
@@ -1491,6 +1505,7 @@ class SessionManager:
             worker=worker_name,
             what="автоотчёт",
             reason=detail,
+            dedupe_key=_auto_report_key(worker_session, worker_name),
         )
         # Причина не дублируется: в исходе попытки она чаще всего та же самая, и запись
         # раздувается вдвое ровно там, где её будет читать человек.

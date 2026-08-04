@@ -681,6 +681,7 @@ async def run_wake_job(
                     worker=target["name"],
                     what="пробуждение после сброса лимита",
                     reason=f"{type(delivery_error).__name__}: {delivery_error}",
+                    dedupe_key=f"wake:{job_id}:{target_id}",
                 )
                 deliveries.pop(target_id, None)
                 _persist_deliveries(
