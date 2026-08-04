@@ -754,6 +754,8 @@ async function loadMoreLogs() {
         // prepend в правильном порядке (logs уже ASC из db)
         // фиксируем anchor = текущий firstChild, вставляем все перед ним по порядку
         const anchor = chat.firstChild;
+        _replayingHistory = true;
+        try {
         for (const l of logs) {
             addChatEntry(l.type, l.content, l.ts, anchor);
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
@@ -761,6 +763,7 @@ async function loadMoreLogs() {
                 chatLogs[selectedAgent].firstId = l.id;
             }
         }
+        } finally { _replayingHistory = false; }
         chat.scrollTop = chat.scrollHeight - oldHeight;
         // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
         if (logs.length >= 500) _addLoadMoreBtn();
@@ -1707,8 +1710,15 @@ function selectOrchestrator(name, scope) {
 }
 
 // Отрисовать готовые строки журнала и выставить отметки, от которых пляшет connectSSE.
+// Отличает проигрывание истории от живой строки: часть отрисовки имеет побочные эффекты
+// (обновить панель задач), и в прошлом они не нужны. Флаг, а не параметр, потому что
+// addChatEntry зовут из десятка мест и протаскивать признак через все — шум.
+let _replayingHistory = false;
+
 function _renderHistory(agent, rows) {
     const meta = chatLogs[agent] = {lastId: 0, firstId: null, initialCount: 0};
+    _replayingHistory = true;
+    try {
     for (const l of rows) {
         addChatEntry(l.type, l.content, l.ts, null, l);
         if (!Number.isFinite(l.id)) continue;
@@ -1716,6 +1726,7 @@ function _renderHistory(agent, rows) {
         if (meta.firstId === null || l.id < meta.firstId) meta.firstId = l.id;
         meta.initialCount++;
     }
+    } finally { _replayingHistory = false; }
     updateLoadMoreBtn();
     $('#chat').scrollTop = $('#chat').scrollHeight;
     _scheduleChatInitialSettle();
@@ -1745,12 +1756,15 @@ async function _completeChatPage(name, scope) {
     if (name !== selectedAgent || scope !== currentScope) return 0;  // успели уйти к другому
     const chat = $('#chat');
     const anchor = chat.firstChild;
+    _replayingHistory = true;
+    try {
     for (const row of older) {
         addChatEntry(row.type, row.content, row.ts, anchor, row);
         if (!Number.isFinite(row.id)) continue;
         if (meta.firstId === null || row.id < meta.firstId) meta.firstId = row.id;
         meta.initialCount++;
     }
+    } finally { _replayingHistory = false; }
     // Добор уходит ВВЕРХ, юзер остаётся у свежего сообщения.
     chat.scrollTop = chat.scrollHeight;
     updateLoadMoreBtn();
@@ -4939,7 +4953,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     }
                 }
                 addTimestamp(lastTool, ts);
-                if (['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__payment_receive'].includes(tn)) loadTasks();
+                // Панель задач обновляется на ЖИВОМ вызове инструмента. При отрисовке
+                // истории те же строки — это прошлое, и каждая из них дёргала бы полную
+                // перезагрузку панели: замер по живому дашборду — 8 пар запросов
+                // /api/tm/tasks + /api/tm/payments/status за 250 мс на одном заходе.
+                if (!_replayingHistory
+                    && ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__payment_receive'].includes(tn)) loadTasks();
                 return;
             }
             const _orchSimpleResults = {
@@ -6105,17 +6124,24 @@ const STATUS_LABELS = {
 const COLLAPSED_DEFAULT = new Set(['backlog', 'paid', 'cancelled']);
 let _taskCollapsed = {};
 
+const _scopesWithoutClient = new Set();   // scope → клиент не привязан, спрашивать бесполезно
+
 async function loadTasks() {
     const panel = document.getElementById('tasks-panel');
     if (!panel) return;
     try {
         const scope = currentScope || '';
+        // К проекту может быть не привязан клиент — тогда роут отвечает 404 «No client
+        // specified…». Это не сбой, а конфигурация, и она не меняется на ходу. Панель
+        // опрашивается каждые 5 с, поэтому без отметки мы стучались бы в этот 404
+        // двенадцать раз в минуту и столько же раз красили консоль.
         const [tasksResp, payResp] = await Promise.all([
             fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
-            fetch('/api/tm/payments/status').catch(() => null),
+            _scopesWithoutClient.has(scope) ? null : fetch('/api/tm/payments/status').catch(() => null),
         ]);
+        if (payResp && payResp.status === 404) _scopesWithoutClient.add(scope);
         const data = await tasksResp.json();
-        const payData = payResp ? await payResp.json().catch(() => null) : null;
+        const payData = payResp && payResp.ok ? await payResp.json().catch(() => null) : null;
         renderTasksPanel(panel, data, payData);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
