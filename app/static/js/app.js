@@ -1180,6 +1180,9 @@ const _unreadTabs = new Set();
 async function loadOrchestrators() {
     try {
         const allOrchs = await api('/api/orchestrators');
+        // Данные только что получены. Без этой отметки дроссель в refreshSessions считает
+        // их протухшими и через полсекунды тянет тот же список второй раз (#71).
+        _orchFreshAt = Date.now();
         // Sub-orchestrators (have parent) get TG topics but don't show in top tab bar
         orchData = allOrchs.filter(o => !o.parent_name);
         const picker = $('#orch-picker');
