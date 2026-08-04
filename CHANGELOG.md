@@ -1,6 +1,15 @@
 # Changelog
 
-## v2.35.1 — 2026-08-04 — #53 плашка «Новые bug reports» убрана
+## v2.35.2 — 2026-08-04 — #53 осиротевший `GET /api/report_bug/status` удалён
+
+### Removed
+- 🧹 **`GET /api/report_bug/status`** (`app/routes/system.py`) вместе с полями `has_reports` и `version` из `_bug_snapshot()` — они существовали только ради него (`version` был версией для `localStorage` плашки, `has_reports` вычислялся только чтобы её посчитать). Ушёл и sha256 по fingerprint'у снимка: считать его больше некому.
+  - **Triggered case**: в #53 удалена плашка «Новые bug reports», а звала этот роут только она.
+  - Маршрутная поверхность: из `tests/route_surface_snapshot.json` ушёл **ровно один** маршрут `("/api/report_bug/status", ("GET",))`, не добавилось ничего — сверял симметричной разницей, а не глазами.
+
+### Known tradeoff
+- ⚠️ **`GET /api/report_bug` НЕ удалён, хотя вызывающего кода у него тоже не осталось.** Он единственный читатель приватного стора `~/.local/state/orchestra/bug-inbox/records/`, куда `POST /api/report_bug` кладёт каждый репорт отдельным файлом вне git. На момент правки там 7 живых репортов от четырёх агентов (03.08, 28 371 B), и **ни одного из них нет в `BUGS.md` репозитория** — файл не пополнялся с 01.08. Плюс `POST` возвращает агенту строку `Bug reported: … Read: /api/report_bug` дословно (`app/mcp_stdio.py:1418`): удалив GET, платформа рассылала бы ссылку на 404. Дверь к стору нужна другая — отдельной задачей.
+- ⚠️ Поле `snapshot["inbox"]` не читает никто и до этой правки не читал — чужой мёртвый код, не трогал. — 2026-08-04 — #53 плашка «Новые bug reports» убрана
 
 ### Removed
 - 🐛 **Плашка о новых баг-репортах и её опрос** (`app/templates/dashboard.html`, `app/static/js/app.js`). По прямому требованию юзера. Ушли `#bug-report-banner`, 106 строк клиентского кода (`_BUG_INBOX_SEEN_KEY`, `_bugSafeText`, `_hideBugReportBanner`, `_showBugReportError`, `_refreshBugReportStatus`, `initBugReportBanner`), ключ `orchestraBugInboxSeenVersion` в localStorage и два теста плашки.

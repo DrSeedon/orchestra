@@ -284,10 +284,9 @@ def bug_state(tmp_path, monkeypatch):
 
 
 class TestBugReports:
-    def test_publish_read_status_and_private_modes(self, client, bug_state):
+    def test_publish_read_and_private_modes(self, client, bug_state):
         description = "Location: app/x.py:7\n" + ("trace <unsafe>\n" * 8192)
 
-        before = client.get("/api/report_bug/status")
         response = client.post("/api/report_bug", json={
             "title": "full trace",
             "description": description,
@@ -295,24 +294,13 @@ class TestBugReports:
             "scope": "/project",
         })
         reader = client.get("/api/report_bug")
-        after = client.get("/api/report_bug/status")
 
-        assert before.json() == {
-            "has_reports": False,
-            "version": "",
-            "record_count": 0,
-            "view_url": "/api/report_bug",
-        }
         assert response.status_code == 200
         assert response.json()["view_url"] == "/api/report_bug"
         assert response.json()["record_id"].endswith(".md")
         assert reader.status_code == 200
         assert description in reader.text
         assert "## [" in reader.text
-        assert after.json()["has_reports"] is True
-        assert after.json()["record_count"] == 1
-        assert after.json()["version"]
-        assert len(after.content) < 256
 
         inbox = bug_state / "bug-inbox"
         for directory in (bug_state, inbox, inbox / "tmp", inbox / "records"):

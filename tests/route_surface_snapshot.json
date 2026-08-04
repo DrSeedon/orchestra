@@ -180,12 +180,6 @@
   ]
  ],
  [
-  "/api/report_bug/status",
-  [
-   "GET"
-  ]
- ],
- [
   "/api/restart",
   [
    "POST"

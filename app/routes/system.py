@@ -1332,21 +1332,10 @@ def _bug_snapshot() -> dict:
             ),
             key=lambda item: item["name"],
         )
-        fingerprint = json.dumps(
-            {
-                "legacy": legacy,
-                "count": len(records),
-                "latest": records[-1] if records else None,
-            },
-            sort_keys=True,
-        ).encode()
-        has_reports = bool(records or (legacy and legacy["size"]))
         return {
             "inbox": str(inbox),
             "legacy": legacy,
             "records": records,
-            "has_reports": has_reports,
-            "version": hashlib.sha256(fingerprint).hexdigest()[:20] if has_reports else "",
         }
 
 
@@ -1413,22 +1402,6 @@ async def read_bug_reports():
         media_type="text/markdown",
         headers={"Content-Disposition": 'inline; filename="BUGS.md"'},
     )
-
-
-@router.get("/api/report_bug/status")
-async def bug_report_status():
-    try:
-        snapshot = await asyncio.to_thread(_bug_snapshot)
-    except Exception as exc:
-        error = _bug_error(exc)
-        logger.exception(f"report_bug status failed: {error}")
-        return JSONResponse({"error": error}, status_code=500)
-    return {
-        "has_reports": snapshot["has_reports"],
-        "version": snapshot["version"],
-        "record_count": len(snapshot["records"]),
-        "view_url": "/api/report_bug",
-    }
 
 
 @router.get("/api/orchestrators")
