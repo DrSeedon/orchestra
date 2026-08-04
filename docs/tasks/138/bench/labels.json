@@ -1,0 +1,43 @@
+{
+  "_meta": {
+    "task": "#138 — pre-registered classification of the 28 #134 queries by GOLD-CHUNK RHETORICAL FORM.",
+    "why": "Orchestrator hypothesis: corpus documents the FIXED state, agent searches by SYMPTOM. If true, gold chunks written in symptom->cause->fix form should be retrieved better than gold chunks written as 'what we fixed' announcements.",
+    "protocol": "Labels assigned by READING the gold chunk text only (data/bench138_golds.txt), BEFORE running any retrieval measurement. Labels are a property of the DOCUMENT FORM, not of the query and not of the result.",
+    "pass_fail_fixed_before_run": "Group difference in MRR is meaningful ONLY if it exceeds the metric's own split-half noise measured on this same n=28 sample (median 0.1048 per #135). Below that -> NOT PROVEN, per #135 discipline.",
+    "label_values": {
+      "symptom_first": "Text names the FAILURE/symptom in the same voice an agent would complain in ('X ломается', 'не обновляется', 'блокирует', 'конфликтует'). Includes Грабли-style symptom->cause->fix and bug reports.",
+      "fixed_state": "Text announces the RESOLVED state or the shipped change ('роль возвращается', 'shipped', '### Fixed', 'теперь загорается только когда'). The defect appears only as past tense / implied.",
+      "neutral_ref": "Descriptive/reference material with no failure framing at all: API docs, tables, config semantics, pricing, contracts, plans."
+    }
+  },
+  "labels": [
+    {"i": 0,  "gold": [6000],              "label": "fixed_state",  "why": "CHANGELOG '### Fixed — Роль ВОЗВРАЩАЕТСЯ в промпт после компактизации'. Query says 'ТЕРЯЕТ'. This is the orchestrator's canonical example."},
+    {"i": 1,  "gold": [6188],              "label": "fixed_state",  "why": "CHANGELOG '### Fixed — cost_usd overcounting x85 ... Delta tracking'. Announces the repair."},
+    {"i": 2,  "gold": [4041],              "label": "symptom_first","why": "BUGS.md report: 'скиллы ... НЕ ОБНОВЛЯЕТСЯ после создания' + repro. Failure stated in present tense."},
+    {"i": 3,  "gold": [247001],            "label": "symptom_first","why": "research.md 'Bug 1 — untracked .claude/skills/ BLOCKS merge — CONFIRMED'. Defect is the heading."},
+    {"i": 4,  "gold": [3291038,3291039],   "label": "neutral_ref",  "why": "Measurement summary of memory attribution. No failure framing, it is a confidence table."},
+    {"i": 5,  "gold": [2717010],           "label": "neutral_ref",  "why": "Comparison table exec vs exec resume. Reference semantics."},
+    {"i": 6,  "gold": [2124006],           "label": "neutral_ref",  "why": "Describes how backend routing works. Mechanism description, no defect."},
+    {"i": 7,  "gold": [398869001],         "label": "neutral_ref",  "why": "Explains prompt composition (дописывается, не заменяет). Answers a how-does-it-work question."},
+    {"i": 8,  "gold": [316738002],         "label": "symptom_first","why": "'агент отменяет ход целиком ... воркер загадочно бросает задачи, без единой строчки ошибки'. Symptom stated vividly."},
+    {"i": 9,  "gold": [3164036],           "label": "neutral_ref",  "why": "Env-var table from Grok docs. Pure reference."},
+    {"i": 10, "gold": [3163026],           "label": "neutral_ref",  "why": "Permission rule semantics from Grok docs. Pure reference."},
+    {"i": 11, "gold": [174012],            "label": "neutral_ref",  "why": "Confidence table with pricing/release facts."},
+    {"i": 12, "gold": [2718020,266000000], "label": "neutral_ref",  "why": "Recommendations on cost tracking + the original research request. No failure framing."},
+    {"i": 13, "gold": [290246001],         "label": "neutral_ref",  "why": "Recommendation text ('do not globally substring-block sleep because...'). Prescriptive, not symptom."},
+    {"i": 14, "gold": [3301037,3313034],   "label": "neutral_ref",  "why": "Error-envelope contract spec + plan outcome. Design contract."},
+    {"i": 15, "gold": [3310014],           "label": "neutral_ref",  "why": "Contract text on error codes. Spec voice."},
+    {"i": 16, "gold": [2124006],           "label": "neutral_ref",  "why": "Same chunk as i=6: mechanism description of turn usage."},
+    {"i": 17, "gold": [198005],            "label": "symptom_first","why": "'Risks / edge cases — orchestra key COLLISION: custom dict must never override'. Names the hazard as hazard."},
+    {"i": 18, "gold": [223008],            "label": "symptom_first","why": "Race description: 'delayed compact turn/started OVERWRITES _active_turn_id'. Failure mechanism in present tense."},
+    {"i": 19, "gold": [3100013],           "label": "symptom_first","why": "'Bash style / escaping — NOT the problem ... The real escaping-adjacent defect is different'. Refutation of a symptom claim."},
+    {"i": 20, "gold": [372000000,376869001],"label": "neutral_ref", "why": "Task statement + review notes on classifier methodology. Neither symptom nor fix announcement."},
+    {"i": 21, "gold": [304000000],         "label": "fixed_state",  "why": "'Красная точка ТЕПЕРЬ загорается только когда ... воркеры на неё не влияют'. Post-fix announcement."},
+    {"i": 22, "gold": [234377000],         "label": "fixed_state",  "why": "'Persistent Codex sessions SHIPPED' + checklist of what now works."},
+    {"i": 23, "gold": [363754000],         "label": "neutral_ref",  "why": "Task assignment describing the decision (личка only). Requirements voice."},
+    {"i": 24, "gold": [376623001],         "label": "symptom_first","why": "'Оценка только по стенограмме ПРЕВРАЩАЕТ реальные действия в мнимую выдумку' + живой кейс провала. Failure framing."},
+    {"i": 25, "gold": [3297037],           "label": "symptom_first","why": "Audit finding P3-32: 'не задаёт ни события, ни безопасного способа' + 'Несовместимость:'. Defect statement."},
+    {"i": 26, "gold": [3297038],           "label": "symptom_first","why": "Audit finding P3-33: 'скопирован в два base и уже РАЗЪЕХАЛСЯ'. Defect statement."},
+    {"i": 27, "gold": [2726050],           "label": "neutral_ref",  "why": "Confidence summary of a survey. Descriptive."}
+  ]
+}

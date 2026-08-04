@@ -1,0 +1,250 @@
+=== rewrite.log ===
+arm             MRR    R@3    R@5
+prod         0.4893   0.64   0.75
+hyde         0.6173   0.75   0.82
+keyword      0.5071   0.61   0.64
+q+hyde       0.5726   0.75   0.86
+
+CONTROL reproduces #134 baseline (0.4893/0.64/0.75): YES
+
+arm             dMRR       t   verdict (need |t|>2.052 AND |d|>0.1048)
+hyde         +0.1280    1.45   NOT PROVEN
+keyword      +0.0179    0.16   NOT PROVEN
+q+hyde       +0.0833    1.76   NOT PROVEN
+
+label            n      prod      hyde   keyword    q+hyde
+fixed_state      4    0.3833    0.6250    0.3333    0.3208
+neutral_ref     15    0.4278    0.5300    0.4444    0.5944
+symptom_first    9    0.6389    0.7593    0.6889    0.6481
+
+wrote /home/kesha/orchestra/data/bench138/rewrite_results.json
+=== distractors.log ===
+
+### MISS Q1 [fixed_state] cost_usd завышен в несколько раз, откуда переучёт
+   1. LOG:text/None  :: Found the critical cost logic at `session_cost.py:30-45`. Let me read the full method — this is where BUG 4 li
+   2. docs/tasks/cost-tokens/plan.md  :: ## What NOT to touch
+- `cost_usd` (SDK `total_cost_usd`) и его накопление в `apply_turn_result:37-43`.
+- `cost
+   3. docs/tasks/cost-tokens/research.md  :: ### 5. Прецедент пересчёта
+`_reconstruct_costs` (db.py:260) уже пересчитывал `cost_usd` из логов при миграции
+   4. LOG:text/None  :: **Все четыре маркера видны** — включая DELTA на символе 10357. Файл в 11142 символа НЕ обрезан. README, похоже
+   5. LOG:text/None  :: Confirmed the divergence:
+- **Claude** (`backend_claude.py:370`): `total_cost_usd` = SDK's **cumulative** sess
+
+### MISS Q4 [neutral_ref] сколько памяти держат Serena language server деревья
+   1. LOG:agent_msg/Orchestra-orchestrator  :: [from:Orchestra-orchestrator] НОВАЯ ЗАДАЧА #112 — ресёрч по Serena MCP. Ты свободен, #103 закрыт. ПОВОД: машин
+   2. docs/tasks/112/research.md  :: ### M2 — процессные деревья и языки Снимок `/proc` меняется вместе с числом активных workers/reviews. В 14:14
+   3. docs/tasks/113/research.md  :: GiB | SwapPss, GiB | retained, GiB | |---|---:|---:|---:|---:|---:|---:| | Serena + её language servers | 79 в
+   4. LOG:text/None  :: **Виновник памяти найден, и это не то, что мы думали.**
+
+Главный едок — **поисковая модель внутри самого серви
+   5. LOG:agent_msg/Orchestra-orchestrator  :: только явное «отменяю #N» / «не делай #N». #103 закрыт и смержен, Codex APPROVED. ВОЗОБНОВЛЯЙ #112 — Serena, з
+
+### MISS Q8 [symptom_first] grok отменяет ход после запроса разрешения
+   1. LOG:text/None  :: T5 в main — `2c33547`, 1074 теста. Флейк проверил лично: пять прогонов подряд, 66/66 каждый. **Главное: грок-в
+   2. LOG:agent_msg/Orchestra-orchestrator  :: [from:Orchestra-orchestrator] Переключил: ты на `task-91/audit-worktree` от main (`d7eecec`). Приступай к T4.
+   3. LOG:agent_msg/Orchestra-orchestrator  :: codex_spark → свой, grok → если доступно). ЧЕСТНОЕ ОГРАНИЧЕНИЕ — заложи в дизайн, не пытайся обойти: точную де
+   4. LOG:agent_msg/Orchestra-orchestrator  :: 2 секунды после DONE-репорта, считая что воркер договорил. Твой же замер по 46 финальным репортам: реальный хв
+   5. LOG:text/None  :: до отгрузки. Если бы он ничего не находил — вот это был бы повод пугаться, значит не проверял. **Пример послед
+
+### MISS Q13 [neutral_ref] почему нельзя глобально блокировать sleep у агентов
+   1. docs/tasks/codex-sleep/research.md  :: ### D. Block all `sleep` in permissions — not as the primary fix
+
+An absolute substring ban is too broad. The
+   2. CLAUDE.md  :: **Codex / Sol** - Свежие правила «не работают» у Sol-воркеров → Codex грузит проектный `AGENTS.md` максимум на
+   3. LOG:agent_msg/Orchestra-orchestrator  :: про «нет данных → не будим и говорим почему», а не про «есть флаг → всё запрещено». Сегодняшний практический в
+   4. LOG:user_msg/None  :: (kill_worker) → спавнить нового с тем же именем → "session already exists". **Fix:** проверь что DELETE FROM s
+   5. docs/archive/refactor-v1/CODEX_REVIEW_v1.1.md  :: blocking: app/manager.py:142 - `ensure_loaded()` не синхронизирован. Два одновременных `/send` или `/context`
+
+### MISS Q14 [neutral_ref] что должно быть в структурированной ошибке MCP тула
+   1. LOG:agent_msg/Orchestra-orchestrator  :: или команда • что уже проверено И ИСКЛЮЧЕНО — это экономит следующему человеку часы. Сегодня два оркестратора
+   2. docs/tasks/prompt-audit/review.md  :: для MVP, где детерминизм > минимализм (и Codex это подчеркнул), **сохранение явных guardrails важнее экономии
+   3. docs/tasks/116/plan.md  :: ## 3. MCP error contract и совместимость с #115 Canonical envelope: ```json { "code": "transport_timeout|conne
+   4. docs/tasks/131/migration-plan.md  :: ### Проверка B — наследование живыми агентами (главное)
+Смысл в том, что защита обязана дойти до `claude`/MCP,
+   5. LOG:agent_msg/feat-freshness  :: [from:feat-freshness] #116 Phase 2 coordination: T3 centralizes MCP HTTP failures into one envelope `{code,mes
+
+### MISS Q17 [symptom_first] коллизия ключа orchestra в кастомном словаре mcp серверов
+   1. docs/tasks/95/research.md  :: ### F4 — Our stdio MCP connects; model calls Orchestra tools. CONFIRMED (measurement) `session/new` with `mcpS
+   2. docs/HANDOFF-from-laptop.md  :: ## КЛЮЧЕВАЯ МЕХАНИКА — снимает 90% вопросов про MCP
+Orchestra выдаёт MCP **пер-сессионно**: `manager.py:307 _m
+   3. docs/tasks/codex-integration/research.md  :: **⚠️ Не баг, но риск: MCP-конфиг codex-воркера — глобальный, не per-worker.** - `backend_codex.py` НЕ передаёт
+   4. LOG:text/None  :: Всё прояснилось, и это снимает главное опасение всех троих. Отвечу разом — механика одна.
+
+**Ключевой факт:**
+   5. LOG:agent_msg/grok-backend  :: слой ровно один, 16-строчный `BackendLike`. Дублирую 220 строк плумбинга, фабрику не строю. **(1) Изоляция MCP
+
+### MISS Q20 [neutral_ref] как понять что merge делали руками, а не через merge_worker
+   1. LOG:agent_msg/Orchestra-orchestrator  :: [from:Orchestra-orchestrator] #115: выяснить, как на самом деле происходят мержи в Orchestra и как сделать это
+   2. LOG:agent_msg/Orchestra-orchestrator  :: `⚠️ 112: FAILED — task '112' not found` — привязка коммитов к задаче падает, но сам мерж проходит ЧТО ВЫЯСНИТЬ
+   3. LOG:agent_msg/Orchestra-orchestrator  :: НИ ОДИН путь отказа не должен возвращать пустую строку. Сегодня `merge_worker` четырежды вернул `Error executi
+   4. LOG:text/None  :: Запустил аудит — задача **#90**, воркер `audit-worktree` (Sol, full-cycle), гейт после фазы аудита. **Что в ск
+   5. pipelines/default/prompts/modules/orchestration.md  :: # worker commits "WIP: #192", reports STOPPED
+merge_worker("backend")
+send_message("backend", "#999: urgent fi
+
+=== top-5 occupancy across all 28 queries (140 slots) ===
+  69 (49.3%)  log
+  46 (32.9%)  file:docs/tasks
+  11 ( 7.9%)  file:root (CLAUDE/CHANGELOG/...)
+   8 ( 5.7%)  file:data/ (vendored)
+   6 ( 4.3%)  file:docs/ other
+
+corpus share for reference: data/ = 20.6% of file chunks
+misses: [1, 4, 8, 13, 14, 17, 20]
+=== logvsfile.log ===
+queries whose gold is (at least partly) a LOG chunk: 9/28
+
+arm                   MRR    R@5
+prod (4 legs)      0.4893   0.75
+files only         0.4268   0.61
+logs only          0.1696   0.21
+
+arm                   dMRR       t   verdict (|t|>2.052 AND |d|>0.1048)
+files only         -0.0625   -0.81   NOT PROVEN
+logs only          -0.3196   -3.92   PROVEN
+
+subset                      n   prod (4 legs)      files only       logs only
+gold IS a log chunk         9          0.4481          0.0000          0.5278
+gold is a FILE chunk       19          0.5088          0.6289          0.0000
+=== mechanism.log ===
+queries whose gold is a FILE chunk: 19
+baseline assignment-marker rate over all 8435 log chunks: 14.9%
+
+=== P1/P2 per query (gold in a FILE) ===
+Q    rank_full  rank_filesonly  logs_above  query
+0            3               3           0  почему воркер после компактизации теряет сво
+1           13               7           6  cost_usd завышен в несколько раз, откуда пер
+2            1               1           0  скиллы в worktree воркера устарели и не синх
+3            1               1           0  untracked .claude/skills блокирует merge вор
+4           10               5           5  сколько памяти держат Serena language server
+5            1               1           0  чем codex exec отличается от codex exec resu
+6            3               3           0  как роутится backend по имени модели
+9            2               2           0  какие переменные окружения нужны для headles
+10           4               3           1  как grok читает defaultMode и permissions al
+11           2               2           0  сколько стоит Grok и когда он вышел
+14          32              17          15  что должно быть в структурированной ошибке M
+15           1               1           0  пустая строка error недопустима, какой контр
+16           2               1           1  как считается turn usage и откуда берутся ке
+17           6               4           2  коллизия ключа orchestra в кастомном словаре
+18           2               1           1  гонка turn/start и отложенного compact перез
+19           1               1           0  правда ли escaping в bash у Sol виноват в ре
+25           4               1           3  почему periodic опрос PM-фич конфликтует с з
+26           1               1           0  platform contract продублирован в двух base 
+27           2               2           0  есть ли у нас замкнутый цикл самоулучшения с
+
+P1: queries where >=1 LOG sits above gold: 8/19
+P2: gold's rank improves when log legs removed: 8/19 (unchanged 11)
+
+=== P3: the 34 distinct log chunks that outrank a file gold ===
+  [      ] text       Found the critical cost logic at `session_cost.py:30-45`. Let me read the full method —
+  [      ] text       **Все четыре маркера видны** — включая DELTA на символе 10357. Файл в 11142 символа НЕ о
+  [      ] text       Confirmed the divergence:
+- **Claude** (`backend_claude.py:370`): `total_cost_usd` = SDK
+  [      ] text       **BUG 4 CONFIRMED — this is the cost-accumulation defect.** The logic at line 37-43 assu
+  [      ] text       Смержено. Это фронт — **рестарт не нужен, обнови страницу и увидишь**.
+
+Развёл по смыслу
+  [      ] text       Skills block works (13KB, both skills present, empty/missing/no-skills cases graceful).
+  [ASSIGN] agent_msg  [from:Orchestra-orchestrator] НОВАЯ ЗАДАЧА #112 — ресёрч по Serena MCP. Ты свободен, #10
+  [      ] text       **Виновник памяти найден, и это не то, что мы думали.**
+
+Главный едок — **поисковая моде
+  [ASSIGN] agent_msg  только явное «отменяю #N» / «не делай #N». #103 закрыт и смержен, Codex APPROVED. ВОЗОБН
+  [      ] agent_msg  памяти. ПОКА НЕ ВОЗОБНОВЛЯЙ #112. Сначала ответь на вопрос выше — одной-двумя строками.
+  [ASSIGN] agent_msg  ленивый старт языковых серверов. Проверь по CHANGELOG/релизам, а не по ощущениям. Если о
+  [ASSIGN] text       Вижу — `AskUserQuestion` уже блокируется через `can_use_tool` callback (returns `Permiss
+  [      ] agent_msg  или команда • что уже проверено И ИСКЛЮЧЕНО — это экономит следующему человеку часы. Сег
+  [ASSIGN] agent_msg  [from:feat-freshness] #116 Phase 2 coordination: T3 centralizes MCP HTTP failures into o
+  [ASSIGN] agent_msg  [from:feat-freshness] #116 фиксирует совместимый MCP shape: `structuredContent={result:<
+  [      ] text       DONE отправлен.
+
+Итог: codex-debate.md переписан на MCP-only (`codex_review(target, outp
+  [      ] agent_msg  at `:246-273`. Minimal design 1. Central `ApiToolError` raised by `_api`, carrying `code
+  [      ] text       Прочитал весь файл. Assumptions перед переписыванием (think before coding):
+- MCP `codex
+  [ASSIGN] agent_msg  [from:feat-freshness] #116-T5 готов: commit `7565904` (`#116 T5: add typed MCP error con
+  [      ] agent_msg  подхваты». 2. Если замещает — отлично, фиксируем контрактом и тестом. 3. Если мерджит —
+  [      ] user_msg   is **not measured**. 3. **§7.2 — `type: "http"` for url-based MCP NOT verified.** Only `
+  [      ] text       Оба утверждения COG **подтверждены полностью**:
+
+1. `switch_worktree_branch` принимает `
+  [      ] user_msg   [14:17] /mnt/data/Projects/Python/orchestra/data/uploads/5ab0635516d2.png че за баг захо
+  [      ] user_msg   structuredContent={'result': None, 'error': {'code': 'domain_error'}}, isError=True)\n\n
+  [ASSIGN] agent_msg  [from:Orchestra-orchestrator] #111 ПЛАН ОДОБРЕН, смержил (`2762e31`). Реализуй. Живая пр
+  [      ] text       Now I have the complete picture. `self.mcp_servers` = `{"orchestra": {"command": ..., "a
+  [ASSIGN] agent_msg  [from:Orchestra-orchestrator] Баг: Usage analytics не показывает данные за прошлые недел
+  [ASSIGN] agent_msg  [from:Orchestra-orchestrator] #101 — писать процент квоты на момент хода в `turn_usage`.
+  [      ] text       Всё прояснилось, и это снимает главное опасение всех троих. Отвечу разом — механика одна
+  [      ] agent_msg  слой ровно один, 16-строчный `BackendLike`. Дублирую 220 строк плумбинга, фабрику не стр
+  [ASSIGN] agent_msg  [from:fix-idle-inbox] RESEARCH DONE #97: механизм CONFIRMED. Native Codex compact оставл
+  [      ] text       — и это при интервале 5 минут | | Codex | **subprocess** — запуск CLI на каждый опрос |
+  [      ] text       — при учащении опроса цена растёт не в запросах, а в процессах. 4. ⚪️ `_read_grok_usage`
+  [      ] text       Codex снова решил ревьюить тесты до смерти и не успел сформулировать вердикт 🙃 Это инфра
+
+P3: assignment-marker rate among displacers: 11/34 = 32.4%
+    baseline over whole log corpus:          14.9%
+    kinds of displacers: {'text': 16, 'agent_msg': 15, 'user_msg': 3}
+    one-sided binomial p (>= 11 of 34 at baseline 0.149): 0.0082
+
+=== VERDICT ===
+P1 FAILS: logs physically occupy slots above the file gold in 8/19 queries
+P2 HOLDS: removing logs promotes gold in 8/19
+P3 HOLDS: displacers are 32.4% assignment-like vs 14.9% baseline (p=0.0082)
+=== concentration.log ===
+logs ABOVE gold (P1 true)    n=8   prod=0.1875  files-only=0.4729  delta=+0.2854
+logs inert (P1 false)        n=11  prod=0.7424  files-only=0.7424  delta=+0.0000
+ALL file-gold queries        n=19  prod=0.5088  files-only=0.6289  delta=+0.1202
+
+share of the total gain contributed by the 8 affected queries: 100.0%
+=== split_design.log ===
+design                    MRR all  file-gold  log-gold   R@any  items
+prod fused top5            0.4893     0.5088    0.4481    0.75      5
+A: group fused top5        0.4863     0.6053    0.2352    0.75      5
+B: files5+logs5            0.4597     0.6289    0.1023    0.82     10
+B: files3+logs3            0.4536     0.6053    0.1333    0.71      6
+B: files5+logs3            0.4557     0.6289    0.0899    0.79      8
+B: files3+logs5            0.4587     0.6053    0.1492    0.75      8
+
+=== orchestrator's constraint: log-gold queries must NOT regress vs prod ===
+A: group fused top5      log-gold 0.2352 vs prod 0.4481  REGRESSION
+B: files5+logs5          log-gold 0.1023 vs prod 0.4481  REGRESSION
+B: files3+logs3          log-gold 0.1333 vs prod 0.4481  REGRESSION
+B: files5+logs3          log-gold 0.0899 vs prod 0.4481  REGRESSION
+B: files3+logs5          log-gold 0.1492 vs prod 0.4481  REGRESSION
+=== split_diag.log ===
+scoring         all  file-gold  log-gold
+prod         0.4893     0.5088    0.4481
+concat       0.4597     0.6289    0.1023
+best         0.5964     0.6289    0.5278
+within       0.5964     0.6289    0.5278
+
+=== per-query, log-gold subset: where does gold sit in the LOG list? ===
+  Q7   prod=0.333 within_log_list=0.500  наш системный промпт заменяет пресет Claude Code и
+  Q8   prod=0.000 within_log_list=0.000  grok отменяет ход после запроса разрешения
+  Q12  prod=1.000 within_log_list=1.000  отслеживаем ли мы стоимость голосовой транскрипции
+  Q13  prod=0.000 within_log_list=0.000  почему нельзя глобально блокировать sleep у агенто
+  Q20  prod=0.000 within_log_list=0.000  как понять что merge делали руками, а не через mer
+  Q21  prod=0.200 within_log_list=0.250  красная точка непрочитанного загорается от воркеро
+  Q22  prod=1.000 within_log_list=1.000  persistent Codex сессии и что происходит при проту
+  Q23  prod=0.500 within_log_list=1.000  команда limits в личке с ботом, почему не в топика
+  Q24  prod=1.000 within_log_list=1.000  оценка только по стенограмме без побочных эффектов
+=== split_verify.log ===
+arm                budget  R@budget  file-gold  log-gold  med.pos
+prod fused top5         5      0.75       0.79      0.67      2.0
+split 3+2               5      0.71       0.79      0.56      1.0
+split 2+3               5      0.61       0.63      0.56      1.0
+split 4+1               5      0.71       0.84      0.44      1.0
+split 5+5              10      0.82       0.89      0.67      1.0
+
+=== EQUAL BUDGET (5 items): does any query LOSE its answer vs prod? ===
+split 3+2    lost=[21]  won=[]
+split 2+3    lost=[0, 6, 10, 21]  won=[]
+split 4+1    lost=[7, 21]  won=[17]
+=== budget_curve.log ===
+ budget  prod fused  split n/2+n/2  prod MRR  split MRR
+      5        0.75           0.61    0.4893     0.5357
+      6        0.75           0.71    0.4893     0.5714
+      8        0.75           0.75    0.4893     0.5804
+     10        0.79           0.79    0.4929     0.5875
+     12        0.79           0.79    0.4929     0.5875

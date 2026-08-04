@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "task": "#138 — layer 4: query rewriting (symptom -> solution-language). #135 never touched this layer.",
+    "hypothesis": "Corpus documents the FIXED state; agent asks by SYMPTOM. If the mismatch is real, restating the query in the corpus's own resolved/technical voice should raise MRR.",
+    "protocol": "Rewrites written by hand BEFORE running, from the QUERY TEXT ONLY. The gold chunk text was NOT consulted while writing a rewrite - otherwise this measures my ability to copy the answer, not the value of rewriting. Author: rag-max.",
+    "arms": {
+      "hyde": "HyDE-style: a hypothetical ANSWER passage in the voice our docs use (fix/mechanism statement).",
+      "keyword": "Decomposition to technical identifiers/subsystem nouns, symptom words dropped."
+    },
+    "honesty_note": "This is the weakest link in the study: a human rewrite is an UPPER BOUND, not a shippable system. Production would need a local model to produce these. Read the result as 'is this layer worth automating at all', not as a deployable gain."
+  },
+  "rewrites": [
+    {"i":0,  "q":"почему воркер после компактизации теряет свою роль", "hyde":"роль возвращается в промпт после компактизации, флаг переинжекта системного промпта при реконнекте сессии", "keyword":"компактизация роль системный промпт реинжект сессия"},
+    {"i":1,  "q":"cost_usd завышен в несколько раз, откуда переучёт", "hyde":"cost_usd считается как delta, CLI отдаёт cumulative cost, переучёт устранён delta tracking", "keyword":"cost_usd cumulative delta tracking стоимость подсчёт"},
+    {"i":2,  "q":"скиллы в worktree воркера устарели и не синхронизируются", "hyde":"скиллы копируются в worktree при создании и синхронизируются при реконнекте бэкенда", "keyword":"skills worktree синхронизация inject_skills_to_worktree"},
+    {"i":3,  "q":"untracked .claude/skills блокирует merge воркера", "hyde":"untracked .claude/skills исключается через git info/exclude, merge не блокируется", "keyword":"untracked .claude/skills merge git status porcelain info/exclude"},
+    {"i":4,  "q":"сколько памяти держат Serena language server деревья", "hyde":"per-agent Serena language-server деревья удерживают гигабайты retained RSS, измерено", "keyword":"Serena language server память RSS retained per-agent"},
+    {"i":5,  "q":"чем codex exec отличается от codex exec resume по кешу", "hyde":"codex exec resume продолжает сохранённый thread и переиспользует prompt_cache_key", "keyword":"codex exec resume thread prompt_cache_key кеш"},
+    {"i":6,  "q":"как роутится backend по имени модели", "hyde":"backend_for_model маршрутизирует gpt- в codex, claude- в claude, остальное в opencode", "keyword":"backend_for_model models.py роутинг backend модель"},
+    {"i":7,  "q":"наш системный промпт заменяет пресет Claude Code или дописывается", "hyde":"системный промпт дописывается к пресету Claude Code, а не заменяет его", "keyword":"system_prompt пресет append backend_claude"},
+    {"i":8,  "q":"grok отменяет ход после запроса разрешения", "hyde":"grok принимает optionId allow-once/reject-once, несовпадение id читается как отмена хода", "keyword":"grok session/request_permission optionId allow-once turn_end interrupted"},
+    {"i":9,  "q":"какие переменные окружения нужны для headless режима", "hyde":"переменные окружения headless режима: XAI_API_KEY, GROK_HOME, GROK_LOG_FILE", "keyword":"headless environment variables XAI_API_KEY GROK_HOME"},
+    {"i":10, "q":"как grok читает defaultMode и permissions allow deny ask", "hyde":"grok читает defaultMode из permissions, allow/deny/ask транслируются в нативные правила", "keyword":"defaultMode permissions allow deny ask rule matching"},
+    {"i":11, "q":"сколько стоит Grok и когда он вышел", "hyde":"Grok 4.5 вышел 08.07.2026, цены 2/6/0.50 за миллион токенов", "keyword":"Grok 4.5 pricing release date стоимость"},
+    {"i":12, "q":"отслеживаем ли мы стоимость голосовой транскрипции", "hyde":"стоимость голосовой транскрипции отслеживается через Deepgram billing по тегам", "keyword":"Deepgram транскрипция стоимость billing tag отслеживание"},
+    {"i":13, "q":"почему нельзя глобально блокировать sleep у агентов", "hyde":"глобально блокировать sleep нельзя, потому что bounded restart и тестовые паузы легитимны", "keyword":"sleep блокировка PreToolUse guard bounded restart"},
+    {"i":14, "q":"что должно быть в структурированной ошибке MCP тула", "hyde":"структурированная ошибка MCP несёт code, message, status, retryable, request_id", "keyword":"MCP structured error code message retryable request_id envelope"},
+    {"i":15, "q":"пустая строка error недопустима, какой контракт по кодам ошибок", "hyde":"для любого отказа code и message непустые, exception class хранится в details", "keyword":"error code message непустые контракт UPSTREAM_EMPTY_ERROR details"},
+    {"i":16, "q":"как считается turn usage и откуда берутся кешированные токены", "hyde":"turn usage берёт input/cached/output токены из события turn.completed", "keyword":"turn usage cached tokens turn.completed backend_codex"},
+    {"i":17, "q":"коллизия ключа orchestra в кастомном словаре mcp серверов", "hyde":"кастомный ключ orchestra отбрасывается, дефолтный сервер orchestra не переопределяется", "keyword":"orchestra key collision mcp_servers merge order custom dict"},
+    {"i":18, "q":"гонка turn/start и отложенного compact перезаписывает active turn id", "hyde":"listener снимает снапшот id из turn/start, отложенный compact не перезаписывает _active_turn_id", "keyword":"turn/start _active_turn_id compact гонка listener snapshot"},
+    {"i":19, "q":"правда ли escaping в bash у Sol виноват в ретраях", "hyde":"escaping в bash не является причиной ретраев, измеримого штрафа нет", "keyword":"Sol bash escaping ретраи tool_errors замер"},
+    {"i":20, "q":"как понять что merge делали руками, а не через merge_worker", "hyde":"ручной merge определяется отсутствием привязанного коммита с распознаваемой ссылкой на задачу", "keyword":"merge_worker manual merge классификатор linked commits task reference"},
+    {"i":21, "q":"красная точка непрочитанного загорается от воркеров", "hyde":"красная точка загорается только когда оркестратор закончил ход, воркеры на неё не влияют", "keyword":"красная точка непрочитанное оркестратор ход дашборд"},
+    {"i":22, "q":"persistent Codex сессии и что происходит при протухшем UUID", "hyde":"protухший UUID даёт graceful fallback на свежую сессию, UUID хранится в codex_sessions.json", "keyword":"persistent Codex session UUID stale fallback codex_sessions.json"},
+    {"i":23, "q":"команда limits в личке с ботом, почему не в топиках группы", "hyde":"команда limits регистрируется только в личном чате, в топиках группы не регистрируется", "keyword":"limits команда личный чат топики группы регистрация"},
+    {"i":24, "q":"оценка только по стенограмме без побочных эффектов ломает судейство", "hyde":"судьям передаются измеренные побочные эффекты и диффы, иначе реальные действия помечаются как галлюцинации", "keyword":"судья стенограмма побочные эффекты диффы галлюцинации пилот"},
+    {"i":25, "q":"почему periodic опрос PM-фич конфликтует с запретом Monitor", "hyde":"периодический опрос не задаёт интервала и stop condition, тогда как Monitor и background process запрещены", "keyword":"periodic опрос PM Monitor background jobs cron интервал"},
+    {"i":26, "q":"platform contract продублирован в двух base и разъехался", "hyde":"platform contract скопирован в два base и разъехался, auto-report и cross-project описаны по-разному", "keyword":"platform contract base.md дубль pipelines default tasks-pm"},
+    {"i":27, "q":"есть ли у нас замкнутый цикл самоулучшения с evaluator gate", "hyde":"Orchestra имеет scaffold primitives, но не durable evaluator-gated closed loop", "keyword":"self-improvement closed loop evaluator gate scaffold primitives"}
+  ]
+}
