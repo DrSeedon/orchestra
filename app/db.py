@@ -1074,13 +1074,26 @@ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -
             c.close()
 
 
-def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes: int = 0) -> list[dict]:
+def get_log(log_id: int) -> dict | None:
+    """Одна строка журнала целиком, без потолка — за ней приходят по кнопке «загрузить
+    целиком», когда обрезанного текста не хватило (#74)."""
+    with _conn() as c:
+        row = c.execute("SELECT * FROM logs WHERE id = ?", (log_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes: int = 0,
+                    cap: int = 0) -> list[dict]:
     """Страница истории НАЗАД от before_id.
 
     ``max_bytes > 0`` — потолок на суммарный content ответа (#72). Считать порцию строками
     недостаточно: 25 строк в разных чатах дают от 5.2 до 46.6 КБ gzip, а канал юзера рвёт
     крупные ответы. Первая строка отдаётся всегда, даже если одна перебирает бюджет: иначе
     жирная строка даёт пустой ответ, и клиентский добор зациклится, ни разу не сдвинувшись.
+
+    ``cap > 0`` — потолок на ОДНУ строку, тот же механизм, что у зеркала (#74). Без него
+    бюджет выше бессилен против одиночного base64-блоба: у seo-cro такая строка едет одна
+    на 507 КБ. Обрезанная строка помечается ``trunc`` и в чате получает видимый маркер.
     """
     with _conn() as c:
         rows = c.execute(
@@ -1089,7 +1102,9 @@ def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes
         ).fetchall()
         out, used = [], 0
         for r in rows:
-            d = dict(r)
+            # Сперва потолок, потом бюджет: бюджет обязан считать то, что реально поедет,
+            # иначе жирная строка съедает его целиком, будучи обрезанной до килобайта.
+            d = _cap_content(dict(r), cap) if cap else dict(r)
             size = len((d.get("content") or "").encode())
             if max_bytes and out and used + size > max_bytes:
                 break

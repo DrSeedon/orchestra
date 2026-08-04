@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import get_logs, get_logs_before, get_logs_sync, get_all_sessions
+from app.db import get_log, get_logs, get_logs_before, get_logs_sync, get_all_sessions
 from app.deps import manager
 from app.models import resolve_model, MODELS
 from app.session import AgentStatus
@@ -410,13 +410,15 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
 @router.get("/api/sessions/{name}/logs")
 async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0,
-                           limit: int = 500, max_bytes: int = 0):
+                           limit: int = 500, max_bytes: int = 0, cap: int = 0):
     limit = min(limit, 1000)
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     if before_id > 0:
-        return get_logs_before(session_id, before_id, limit, max(0, min(max_bytes, 1 << 20)))
+        return get_logs_before(session_id, before_id, limit,
+                               max(0, min(max_bytes, 1 << 20)),
+                               max(0, min(cap, 1 << 20)))
     return get_logs(session_id, after_id=after_id)
 
 
@@ -432,6 +434,19 @@ async def logs_sync(after_id: int = 0, tail: int = 20, cap: int = 16384):
     return get_logs_sync(after_id=max(after_id, 0),
                          tail=max(0, min(tail, 200)),
                          cap=max(256, min(cap, 1 << 20)))
+
+
+@router.get("/api/logs/{log_id}")
+async def get_single_log(log_id: int):
+    """Одна строка журнала целиком — для кнопки «загрузить целиком» под обрезанной (#74).
+
+    Объявлен ПОСЛЕ /api/logs/sync намеренно: маршруты разбираются по порядку, и путь
+    ``sync`` должен достаться своему обработчику, а не свалиться сюда с 422.
+    """
+    row = get_log(log_id)
+    if not row:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return row
 
 
 @router.post("/api/sessions/{name}/send")

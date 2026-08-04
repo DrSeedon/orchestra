@@ -229,6 +229,50 @@ class TestHistoryChunkBudget:
         assert seen == [f"m{i}" + "x" * 900 for i in range(20)]
 
 
+class TestFatRowCap:
+    """#74 — одиночная жирная строка не должна ехать ответом на полмегабайта."""
+
+    def test_cap_truncates_row_and_marks_it(self, db):
+        from app.db import add_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        add_log("s1", datetime.now(timezone.utc), "tool_result", "b" * 50000)
+        rows = get_logs_before("s1", 2 ** 31 - 1, limit=10, max_bytes=0, cap=1024)
+        assert len(rows[0]["content"].encode()) == 1024
+        assert rows[0]["trunc"] == 50000          # исходная длина в байтах — её показывает маркер
+
+    def test_capped_row_no_longer_blows_the_budget(self, db):
+        """Потолок строки и бюджет порции должны работать вместе, а не по отдельности."""
+        from app.db import add_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        for _ in range(5):
+            add_log("s1", datetime.now(timezone.utc), "tool_result", "b" * 50000)
+        rows = get_logs_before("s1", 2 ** 31 - 1, limit=5, max_bytes=4096, cap=1024)
+        assert sum(len(r["content"].encode()) for r in rows) <= 4096
+        assert len(rows) == 4                     # 4 × 1024 укладывается в бюджет, пятая нет
+
+    def test_no_cap_means_full_row(self, db):
+        from app.db import add_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        add_log("s1", datetime.now(timezone.utc), "tool_result", "b" * 50000)
+        rows = get_logs_before("s1", 2 ** 31 - 1, limit=10)
+        assert len(rows[0]["content"]) == 50000
+        assert "trunc" not in rows[0]
+
+    def test_get_log_returns_the_row_whole(self, db):
+        """Кнопка «загрузить целиком» обязана приносить ИСХОДНУЮ строку, а не ту же обрезку."""
+        from app.db import add_log, get_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        add_log("s1", datetime.now(timezone.utc), "tool_result", "b" * 50000)
+        capped = get_logs_before("s1", 2 ** 31 - 1, limit=10, cap=1024)[0]
+        full = get_log(capped["id"])
+        assert len(full["content"]) == 50000
+        assert "trunc" not in full
+
+    def test_get_log_missing_is_none(self, db):
+        from app.db import get_log
+        assert get_log(10 ** 9) is None
+
+
 class TestColdSyncWithoutPrefetch:
     """#72 — дашборд ходит с tail=0: карта сессий есть, строк журнала нет."""
 

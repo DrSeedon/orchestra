@@ -90,6 +90,43 @@ function _stampChatLogNode(node, payload) {
     node.dataset.chatLogId = String(Math.max(id, Number(node.dataset.chatLogId) || 0));
 }
 
+// Обрезанное сообщение не должно выглядеть законченным. Маркер вешается в _insert —
+// единственной воронке, через которую узлы попадают в чат, поэтому он один на все ветки
+// отрисовки (текст, инструмент, картинка).
+function _fmtKb(bytes) {
+    return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} МБ` : `${Math.round(bytes / 1024)} КБ`;
+}
+
+function _attachTruncNotice(node, row, type, ts) {
+    const shown = new TextEncoder().encode(row.content || '').length;
+    const notice = document.createElement('div');
+    notice.className = 'trunc-notice';
+    const text = document.createElement('span');
+    text.textContent = `✂️ показано ${_fmtKb(shown)} из ${_fmtKb(row.trunc)}`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'trunc-load';
+    btn.textContent = 'загрузить целиком';
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'гружу…';
+        let full;
+        try {
+            full = await api(`/api/logs/${row.id}`);
+        } catch (e) {
+            // Молчать нельзя: юзер нажал и должен увидеть, что именно не вышло.
+            btn.disabled = false;
+            btn.textContent = `не вышло (${e.name}) — ещё раз`;
+            return;
+        }
+        // Рисуем заново той же функцией, что и всё остальное: одна отрисовка на все случаи.
+        addChatEntry(type, full.content, ts, node, {...full, trunc: 0});
+        node.remove();
+    });
+    notice.append(text, btn);
+    node.appendChild(notice);
+}
+
 function _captureChatReadFrontier() {
     if (scrollAfterLoad) return;
     const chat = $('#chat');
@@ -218,8 +255,13 @@ const _CHAT_FIRST_PAINT = 20;
 // гуляет на три порядка. Бюджет 24 КБ content держит худшую порцию в пределах ~10 КБ по
 // проводу у всех проверенных агентов — ниже порога, на котором посредник у юзера рвёт ответ.
 const _CHAT_CHUNK = 25;
-const _CHAT_CHUNK_BYTES = 24000;
-const _CHAT_MAX_CHUNKS = 12;   // страховка от бесконечного добора: 100 строк по 24 КБ — это 4-6 порций
+// 16 000 Б, а не 24 000: base64 не сжимается вообще, и порция из обрезанных блобов на 24 КБ
+// сырых даёт 19 КБ по проводу — выше порога. С 16 000 худшая порция ВО ВСЕЙ БД (прогон по
+// всей истории каждой сессии, не по последней сотне) — 14.5 КБ, сессий сверх порога ноль.
+const _CHAT_CHUNK_BYTES = 16000;
+// Страховка от бесконечного добора. Двадцать, а не двенадцать: с меньшим бюджетом порций
+// нужно больше, и на двенадцати два самых тяжёлых чата (bizdev, payroll) не добирали сотню.
+const _CHAT_MAX_CHUNKS = 20;
 
 // === Зеркало журнала в IndexedDB (#8) ===
 // Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту,
@@ -1739,8 +1781,8 @@ async function _completeChatPage(name, scope) {
         if (need <= 0) return added;
         let older;
         try {
-            const q = new URLSearchParams({scope, before_id: String(meta.firstId),
-                                           limit: String(need), max_bytes: String(_CHAT_CHUNK_BYTES)});
+            const q = new URLSearchParams({scope, before_id: String(meta.firstId), limit: String(need),
+                                           max_bytes: String(_CHAT_CHUNK_BYTES), cap: String(_STORE_CAP)});
             older = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
         } catch (e) {
             // Молчать нельзя: юзер увидит короткий чат и не поймёт, почему он короткий.
@@ -1810,8 +1852,8 @@ async function _storePut(rows) {
 // nginx жмёт, — те же 100 сообщений едут в 5 раз меньшим объёмом, чем через SSE (D1).
 async function _fetchHistory(name, scope) {
     try {
-        const q = new URLSearchParams({scope, before_id: String(2 ** 31 - 1),
-                                       limit: String(_CHAT_CHUNK), max_bytes: String(_CHAT_CHUNK_BYTES)});
+        const q = new URLSearchParams({scope, before_id: String(2 ** 31 - 1), limit: String(_CHAT_CHUNK),
+                                       max_bytes: String(_CHAT_CHUNK_BYTES), cap: String(_STORE_CAP)});
         const rows = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
         if (!Array.isArray(rows)) return [];
         // Обязательно в зеркало: эти строки СТАРШЕ watermark, инкремент их уже не принесёт
@@ -1837,13 +1879,11 @@ async function _showChatFor(name, scope) {
     try {
         const sid = await _storeSessionId(scope, name);
         let rows = sid ? await _storeRead(sid, _CHAT_PAGE) : [];
-        // В зеркале сообщения обрезаны по байтам, и обрезанным в чате не место. Замер по
-        // живой БД: из шести обрезанных строк пять — tool_result, который вообще не создаёт
-        // своего узла (вливается в строку инструмента), а самая крупная — base64-скриншот
-        // на 636 КБ, который нарисовался бы битой картинкой. Помечать нечего и негде,
-        // поэтому такую историю берём с сервера целиком. Случай редкий: при боевых tail=20
-        // и cap=16 КБ в живой базе не обрезается НИ ОДНА строка.
-        const fromStore = rows.length > 0 && !rows.some((r) => r.trunc);
+        // Обрезанная строка раньше делала всю историю непригодной: пометить её было нечем,
+        // и битую картинку показывать нельзя. Теперь у обрезки есть видимый маркер и кнопка
+        // «загрузить целиком» (#74), а сервер режет тем же потолком, что и зеркало, — так что
+        // обрезка перестала быть поводом перекачивать страницу целиком.
+        const fromStore = rows.length > 0;
         if (!fromStore) rows = await _fetchHistory(name, scope);
         if (name !== selectedAgent || scope !== currentScope) return;  // успели уйти к другому агенту
         // Чей журнал мы показали. Поток назовёт свою сессию, и несовпадение вычистит чат.
@@ -3457,6 +3497,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     let _insertedBeforeStream = false;
     const _insert = (el) => {
         _stampChatLogNode(el, payload);
+        if (payload && payload.trunc) _attachTruncNotice(el, payload, type, ts);
         if (anchor) return chat.insertBefore(el, anchor);
         const wasAtBottom = _chatAtBottom(chat);
         let inserted;
@@ -3529,7 +3570,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const div = document.createElement('div');
         div.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot';
         const b64Match = content.match(/['"]?data['"]?\s*[:=]\s*['"]([A-Za-z0-9+/=\s]{500,})['"]/);
-        if (b64Match) {
+        if (b64Match && !(payload && payload.trunc)) {
             const img = document.createElement('img');
             img.src = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
             img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;cursor:pointer';
