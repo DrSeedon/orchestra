@@ -81,9 +81,8 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 ### Phase 3: IMPLEMENT ticket-by-ticket + Codex review
 1. Implement tickets in `blocked-by` order. Take ONE ticket at a time to keep context lean.
 2. After each ticket: check it against its AC (self-verify). If AC fails — fix before moving on.
-3. Test: `UV_CACHE_DIR=/mnt/data/uv-cache uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
+3. Test: `uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
    then read the log ONCE. Never poll a long command with repeated empty `write_stdin`/`wait`.
-   The cache goes on a real disk, NOT `/tmp`: it grew to 797 MB of tmpfs (= RAM taken from other agents).
    If `git status` ever shows a modified `uv.lock` after a test run — STOP, don't commit it. It means
    the `[options] exclude-newer` barrier (`pyproject.toml` + `uv.lock`) got lost and deps re-resolved
    themselves; restore it instead of committing ~800 lines of silent upgrades.
