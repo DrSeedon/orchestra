@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23083344'/><rect x='7' y='17' width='4' height='9' fill='%2367e8f9'/><rect x='14' y='11' width='4' height='15' fill='%2367e8f9'/><rect x='21' y='6' width='4' height='20' fill='%23f59e0b'/></svg>"/>
+<title>Реранкер для поиска по памяти агентов — итоги проверки</title>
+<style>
+:root {
+  --bg: #0e0e12;
+  --surface: #16161c;
+  --surface-2: #1c1c24;
+  --border: #2a2a32;
+  --ink: #f1f1f4;
+  --ink-soft: #a8a8b3;
+  --accent: #22d3ee;
+  --accent-soft: #22d3ee22;
+  --accent-2: #f59e0b;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --muted-bar: #45454f;
+
+  --serif: Charter, "Iowan Old Style", "Source Serif 4", ui-serif, Georgia, serif;
+  --sans: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --surface-2: #f5f5f0;
+    --border: #e7e5df;
+    --ink: #1a1a1f;
+    --ink-soft: #555560;
+    --accent: #0e7490;
+    --accent-soft: #0e749018;
+    --accent-2: #b45309;
+    --muted-bar: #c4c4cc;
+  }
+}
+
+@media print {
+  :root {
+    --bg: #fff; --surface: #f8f8f8; --surface-2: #f0f0f0;
+    --border: #ddd; --ink: #000; --ink-soft: #555;
+  }
+  .no-print { display: none !important; }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  section { break-inside: avoid; }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html { background: var(--bg); color: var(--ink); }
+body { font: 17px/1.55 var(--serif); max-width: 76ch; margin: 3rem auto 5rem; padding: 0 1.25rem; }
+
+h1 { font: 600 2rem/1.15 var(--sans); letter-spacing: -.02em; margin-bottom: .6rem; }
+h2 { font: 600 1.25rem/1.2 var(--sans); letter-spacing: -.01em; margin: 3rem 0 .9rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+h3 { font: 600 1rem/1.3 var(--sans); margin: 1.8rem 0 .5rem; }
+p { margin-bottom: .9rem; }
+strong { font-weight: 600; }
+a { color: var(--accent); }
+
+.crumb { font: 500 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: .8rem; }
+.meta { font: 13px/1.5 var(--sans); color: var(--ink-soft); margin-bottom: 2rem; }
+.tldr { font-size: 1.1rem; border-left: 3px solid var(--accent); padding: .2rem 0 .2rem 1.1rem; margin: 1.5rem 0 2rem; }
+.tldr b { color: var(--accent); font-weight: 600; }
+
+.lead-numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 2rem 0; }
+.lead-numbers div { background: var(--surface); padding: .9rem 1rem; }
+.lead-numbers .n { font: 600 1.45rem/1.15 var(--sans); letter-spacing: -.02em; display: block; margin-bottom: .35rem; white-space: nowrap; }
+.lead-numbers .n.up { color: var(--accent); }
+.lead-numbers .n.down { color: var(--accent-2); }
+.lead-numbers .l { font: 13px/1.35 var(--sans); color: var(--ink-soft); }
+
+.scroll-x { overflow-x: auto; margin: 1.2rem 0; }
+.scroll-x table { margin: 0; min-width: 34rem; }
+table { width: 100%; border-collapse: collapse; font: 14px/1.4 var(--sans); margin: 1.2rem 0; }
+th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-weight: 600; color: var(--ink-soft); font-size: 12.5px; letter-spacing: .02em; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.now td { background: var(--surface-2); }
+tr.win td { background: var(--accent-soft); }
+tr.now td:first-child, tr.win td:first-child { font-weight: 600; }
+.tag { font: 600 10px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: .25em .45em; border: 1px solid var(--border); border-radius: 3px; color: var(--ink-soft); white-space: nowrap; }
+.tag.bench { border-color: var(--accent-2); color: var(--accent-2); }
+.tag.prod { border-color: var(--ok); color: var(--ok); }
+
+figure { margin: 1.6rem 0 2rem; }
+figcaption { font: 13px/1.45 var(--sans); color: var(--ink-soft); margin-top: .6rem; }
+.chart-box { background: var(--surface); border: 1px solid var(--border); padding: 1rem .8rem .6rem; }
+.chart-box h4 { font: 600 13px/1.3 var(--sans); margin: 0 0 .8rem .2rem; }
+svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .axis { stroke: var(--border); stroke-width: 1; }
+.chart .ax { fill: var(--ink-soft); font: 12px var(--sans); }
+.chart .val { fill: var(--ink); font: 600 12.5px var(--sans); }
+.chart .val-in { fill: #fff; font: 600 12.5px var(--sans); }
+.chart .gap { fill: var(--accent); font: 600 11px var(--sans); }
+
+.callout { border: 1px solid var(--border); border-left: 3px solid var(--accent-2); background: var(--surface); padding: 1.1rem 1.3rem; margin: 1.8rem 0; }
+.callout h3 { margin-top: 0; color: var(--accent-2); }
+.callout p:last-child { margin-bottom: 0; }
+.callout.plain { border-left-color: var(--accent); }
+.callout.plain h3 { color: var(--accent); }
+
+.q-list { list-style: none; padding: 0; margin: 1rem 0; font: 14px/1.5 var(--sans); }
+.q-list li { padding: .45rem 0 .45rem 1.6rem; border-bottom: 1px solid var(--border); position: relative; }
+.q-list li::before { content: "✕"; position: absolute; left: .2rem; color: var(--danger); font-size: 12px; top: .55rem; }
+
+ul.plain { padding-left: 1.2rem; margin: .8rem 0 1rem; }
+ul.plain li { margin-bottom: .5rem; }
+
+.fork { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin: 1.5rem 0 1rem; }
+.opt { border: 1px solid var(--border); background: var(--surface); padding: 1.1rem 1.2rem; }
+.opt h3 { margin-top: 0; font-size: 1.05rem; }
+.opt .letter { font: 600 12px/1 var(--sans); letter-spacing: .1em; color: var(--ink-soft); display: block; margin-bottom: .5rem; }
+.opt ul { font: 14px/1.5 var(--sans); padding-left: 1.1rem; margin: .6rem 0 0; }
+.opt li { margin-bottom: .4rem; }
+.opt .price { font: 600 1.3rem/1 var(--sans); display: block; margin: .5rem 0 .3rem; }
+.opt.a .price { color: var(--accent); }
+.opt.b .price { color: var(--accent-2); }
+
+.gloss { font: 13.5px/1.5 var(--sans); color: var(--ink-soft); border-top: 1px solid var(--border); margin-top: 3rem; padding-top: 1.2rem; }
+.gloss dt { font-weight: 600; color: var(--ink); margin-top: .8rem; }
+.gloss dd { margin: .2rem 0 0; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font: 13px/1.5 var(--sans); color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="crumb">Итоги проверки · Поиск по памяти агентов</p>
+    <h1>Стоит ли добавлять «второго читателя» в поиск</h1>
+    <p class="meta">Задача #134 · 28 тестовых запросов, правильные ответы размечены вручную · измерения на стенде, не в проде</p>
+  </header>
+
+  <p class="tldr">Наш поиск по памяти агентов сейчас находит правильный ответ <b>в первых трёх строках в 64 % случаев</b>. Если добавить реранкер — модель, которая перечитывает найденное и заново расставляет по важности — станет <b>86 %</b>. Плата за это: поиск замедляется с <b>0,1 с до 1,6 с</b> и становится платным (~$9–30/мес). И отдельно: <b>3 запроса из 28 не находит вообще ничто</b> — там реранкер бессилен по определению, и это, возможно, важнее его самого.</p>
+
+  <div class="lead-numbers">
+    <div><span class="n">64 % → <em style="font-style:normal" class="up">86 %</em></span><span class="l">ответ в первых трёх строках</span></div>
+    <div><span class="n down">0,1 с → 1,6 с</span><span class="l">время одного поиска</span></div>
+    <div><span class="n down">$9–30</span><span class="l">в месяц при 300–1000 поисках в день</span></div>
+    <div><span class="n" style="color:var(--danger)">3 из 28</span><span class="l">запросов не находит ни один вариант</span></div>
+  </div>
+
+  <p style="font:14px/1.5 var(--sans); color: var(--ink-soft); margin: -.6rem 0 2rem">Почему смотрим на три строки, а не на первую: наш поиск по умолчанию отдаёт <strong>5 результатов</strong> (<code>limit=5</code>), и агент читает их все. Поэтому важно, попал ли ответ в первые строки вообще, — хотя попадание именно первой строкой тоже полезно и оно в таблице есть.</p>
+
+  <h2>Что это вообще за штука</h2>
+
+  <p>Поиск работает в два шага. Сначала система быстро выгребает из памяти агентов полсотни кусков текста, которые <em>похожи</em> на запрос — по словам и по смыслу. Это дёшево и мгновенно, но грубо: нужный кусок часто оказывается на четвёртом или пятом месте, а сверху лежит что-то формально похожее.</p>
+
+  <p>Реранкер — это второй шаг. Отдельная модель <strong>перечитывает эти 50 кусков вместе с самим вопросом</strong> и заново расставляет их по важности. Она умнее и медленнее первого шага: тот сравнивает запрос и текст по отдельности, а эта читает пару «вопрос + текст» целиком и оценивает, отвечает ли текст на вопрос (в терминах — <em>cross-encoder</em>). Отсюда и весь эффект, и вся цена: 50 внимательных прочтений вместо одного грубого сопоставления.</p>
+
+  <p class="callout plain"><strong>Ключевое ограничение, из которого дальше следует всё.</strong> Реранкер только <em>переставляет</em> то, что нашёл первый шаг. Если нужного куска в этих 50 нет — переставлять нечего, и никакая модель делу не поможет.</p>
+
+  <h2>Что измеряли и что получилось</h2>
+
+  <p>Взяли 28 реальных вопросов к памяти агентов, для каждого руками отметили, какой кусок текста является правильным ответом. Прогнали пять вариантов поиска и посмотрели, на каком месте оказывается правильный ответ.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead>
+      <tr>
+        <th>Вариант поиска</th>
+        <th class="num">в топ-1</th>
+        <th class="num">в топ-3</th>
+        <th class="num">в топ-5</th>
+        <th class="num">Скорость</th>
+        <th class="num">Деньги</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Только по словам (текстовый поиск)</td><td class="num">25 %</td><td class="num">39 %</td><td class="num">54 %</td><td class="num">20 мс</td><td class="num">$0</td></tr>
+      <tr><td>Только по смыслу (векторный)</td><td class="num">29 %</td><td class="num">50 %</td><td class="num">64 %</td><td class="num">97 мс</td><td class="num">$0</td></tr>
+      <tr class="now"><td>Сейчас в проде: оба сразу <span class="tag prod">прод</span></td><td class="num">32 %</td><td class="num">64 %</td><td class="num">75 %</td><td class="num">113 мс</td><td class="num">$0</td></tr>
+      <tr class="win"><td>+ реранкер по сети <span class="tag bench">бенч</span></td><td class="num">61 %</td><td class="num">86 %</td><td class="num">86 %</td><td class="num">1 589 мс</td><td class="num">$0,001/поиск</td></tr>
+      <tr><td>+ реранкер на своём железе <span class="tag bench">бенч</span></td><td class="num">57 %</td><td class="num">75 %</td><td class="num">82 %</td><td class="num">17–28 с</td><td class="num">$0, но 3,02 ГиБ памяти</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p style="font:13.5px/1.5 var(--sans); color: var(--ink-soft)"><span class="tag bench">бенч</span> — измерено на тестовом стенде, в проде не работало ни дня. <span class="tag prod">прод</span> — то, что работает прямо сейчас. «В топ-3» — доля запросов, где правильный ответ попал в первые три строки. У платного варианта максимум по скорости: половина запросов укладывается в 1,6 с, но каждый двадцатый занимает до 3,3 с.</p>
+
+  <figure>
+    <div class="chart-box">
+      <h4>Как часто правильный ответ попадает в первые три строки</h4>
+<svg class="chart" viewBox="0 0 720 300" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="54" y1="246" x2="704" y2="246"/>
+<text class="ax" x="46" y="250" text-anchor="end">0%</text>
+<line class="grid" x1="54" y1="191" x2="704" y2="191"/>
+<text class="ax" x="46" y="195" text-anchor="end">25%</text>
+<line class="grid" x1="54" y1="136" x2="704" y2="136"/>
+<text class="ax" x="46" y="140" text-anchor="end">50%</text>
+<line class="grid" x1="54" y1="81" x2="704" y2="81"/>
+<text class="ax" x="46" y="85" text-anchor="end">75%</text>
+<line class="grid" x1="54" y1="26" x2="704" y2="26"/>
+<text class="ax" x="46" y="30" text-anchor="end">100%</text>
+<rect x="87.0" y="160.2" width="64.0" height="85.8" fill="var(--muted-bar)"/>
+<text class="val" x="119.0" y="153.2" text-anchor="middle">39%</text>
+<text class="ax" x="119.0" y="265" text-anchor="middle">только текст</text>
+<rect x="217.0" y="136.0" width="64.0" height="110.0" fill="var(--muted-bar)"/>
+<text class="val" x="249.0" y="129.0" text-anchor="middle">50%</text>
+<text class="ax" x="249.0" y="265" text-anchor="middle">только смысл</text>
+<rect x="347.0" y="105.2" width="64.0" height="140.8" fill="var(--accent-2)"/>
+<text class="val" x="379.0" y="98.2" text-anchor="middle">64%</text>
+<text class="ax" x="379.0" y="265" text-anchor="middle">сейчас</text>
+<text class="ax" x="379.0" y="278" text-anchor="middle">в проде</text>
+<rect x="477.0" y="56.8" width="64.0" height="189.2" fill="var(--accent)"/>
+<text class="val" x="509.0" y="49.8" text-anchor="middle">86%</text>
+<text class="ax" x="509.0" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="509.0" y="278" text-anchor="middle">по сети</text>
+<rect x="607.0" y="81.0" width="64.0" height="165.0" fill="var(--muted-bar)"/>
+<text class="val" x="639.0" y="74.0" text-anchor="middle">75%</text>
+<text class="ax" x="639.0" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="639.0" y="278" text-anchor="middle">локально</text>
+<line class="axis" x1="54" y1="246" x2="704" y2="246"/>
+</svg>
+    </div>
+    <figcaption>Главная картинка. Два выделенных столбика — то, что есть сейчас, и то, что предлагается. Остальные варианты приглушены: их никто не предлагает включать.</figcaption>
+  </figure>
+
+  <h2>Чем глубже смотришь, тем меньше выигрыш</h2>
+
+  <p>Тот же результат с другой стороны — и здесь виден механизм. Слева направо растёт число строк, которые мы разрешаем прочитать: сначала только первую, потом две, три, пять.</p>
+
+  <figure>
+    <div class="chart-box">
+      <h4>Прод против платного реранкера на разной глубине</h4>
+<svg class="chart" viewBox="0 0 720 290" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="54" y1="238" x2="704" y2="238"/>
+<text class="ax" x="46" y="242" text-anchor="end">0%</text>
+<line class="grid" x1="54" y1="185" x2="704" y2="185"/>
+<text class="ax" x="46" y="189" text-anchor="end">25%</text>
+<line class="grid" x1="54" y1="132" x2="704" y2="132"/>
+<text class="ax" x="46" y="136" text-anchor="end">50%</text>
+<line class="grid" x1="54" y1="79" x2="704" y2="79"/>
+<text class="ax" x="46" y="83" text-anchor="end">75%</text>
+<line class="grid" x1="54" y1="26" x2="704" y2="26"/>
+<text class="ax" x="46" y="30" text-anchor="end">100%</text>
+<rect x="87.2" y="170.2" width="43" height="67.8" fill="var(--accent-2)"/>
+<text class="val" x="108.8" y="163.2" text-anchor="middle">32%</text>
+<rect x="135.2" y="108.7" width="43" height="129.3" fill="var(--accent)"/>
+<text class="val" x="156.8" y="101.7" text-anchor="middle">61%</text>
+<text class="ax" x="135.2" y="257" text-anchor="middle">топ-1</text>
+<text class="gap" x="135.2" y="274" text-anchor="middle">+29 п.п.</text>
+<rect x="249.8" y="123.5" width="43" height="114.5" fill="var(--accent-2)"/>
+<text class="val" x="271.2" y="116.5" text-anchor="middle">54%</text>
+<rect x="297.8" y="55.7" width="43" height="182.3" fill="var(--accent)"/>
+<text class="val" x="319.2" y="48.7" text-anchor="middle">86%</text>
+<text class="ax" x="297.8" y="257" text-anchor="middle">топ-2</text>
+<text class="gap" x="297.8" y="274" text-anchor="middle">+32 п.п.</text>
+<rect x="412.2" y="102.3" width="43" height="135.7" fill="var(--accent-2)"/>
+<text class="val" x="433.8" y="95.3" text-anchor="middle">64%</text>
+<rect x="460.2" y="55.7" width="43" height="182.3" fill="var(--accent)"/>
+<text class="val" x="481.8" y="48.7" text-anchor="middle">86%</text>
+<text class="ax" x="460.2" y="257" text-anchor="middle">топ-3</text>
+<text class="gap" x="460.2" y="274" text-anchor="middle">+22 п.п.</text>
+<rect x="574.8" y="79.0" width="43" height="159.0" fill="var(--accent-2)"/>
+<text class="val" x="596.2" y="72.0" text-anchor="middle">75%</text>
+<rect x="622.8" y="55.7" width="43" height="182.3" fill="var(--accent)"/>
+<text class="val" x="644.2" y="48.7" text-anchor="middle">86%</text>
+<text class="ax" x="622.8" y="257" text-anchor="middle">топ-5</text>
+<text class="gap" x="622.8" y="274" text-anchor="middle">+11 п.п.</text>
+<line class="axis" x1="54" y1="238" x2="704" y2="238"/>
+</svg>
+    </div>
+    <figcaption>Янтарные столбики — как сейчас, бирюзовые — с реранкером. Под каждой парой — размер выигрыша. <strong>Чем меньше строк агент читает, тем больше даёт реранкер:</strong> на первой строке разрыв 29 п.п., а на пяти — всего 11 п.п. Логично: реранкер не находит новое, он поднимает наверх уже найденное, и чем глубже мы и так готовы смотреть, тем меньше нам нужна его помощь.</figcaption>
+  </figure>
+
+  <div class="callout">
+    <h3>86 % — это не результат реранкера, это потолок самого поиска</h3>
+    <p>В таблице у платного варианта <strong>в топ-3 и в топ-5 стоит одно и то же число — 86 %</strong>. Это не опечатка и не совпадение. Начиная с третьей строки цифра перестаёт расти, потому что <strong>расти уже нечему</strong>: реранкер поднял наверх всё, что первый шаг вообще сумел найти.</p>
+    <p>Оставшиеся <strong>14 % — это 4 запроса из 28</strong>, для которых нужного куска текста нет в выдаче в принципе. Хоть три строки читай, хоть пятьдесят — его там нет. Отсюда практический вывод: <strong>потолок поиска задаёт не порядок результатов, а их полнота</strong>, и упирается он ровно в ту же стену, о которой ниже — в недостающие куски индекса.</p>
+  </div>
+
+  <h2>Чем платим: скорость</h2>
+
+  <figure>
+    <div class="chart-box">
+      <h4>Время одного поиска, логарифмическая шкала</h4>
+<svg class="chart" viewBox="0 0 720 300" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="62" y1="246" x2="704" y2="246"/>
+<text class="ax" x="54" y="250" text-anchor="end">10 мс</text>
+<line class="grid" x1="62" y1="191" x2="704" y2="191"/>
+<text class="ax" x="54" y="195" text-anchor="end">100 мс</text>
+<line class="grid" x1="62" y1="136" x2="704" y2="136"/>
+<text class="ax" x="54" y="140" text-anchor="end">1 с</text>
+<line class="grid" x1="62" y1="81" x2="704" y2="81"/>
+<text class="ax" x="54" y="85" text-anchor="end">10 с</text>
+<line class="grid" x1="62" y1="26" x2="704" y2="26"/>
+<text class="ax" x="54" y="30" text-anchor="end">100 с</text>
+<rect x="94.2" y="229.4" width="64.0" height="16.6" fill="var(--muted-bar)"/>
+<text class="val" x="126.2" y="222.4" text-anchor="middle">20 мс</text>
+<text class="ax" x="126.2" y="265" text-anchor="middle">только текст</text>
+<rect x="222.6" y="191.7" width="64.0" height="54.3" fill="var(--muted-bar)"/>
+<text class="val" x="254.6" y="184.7" text-anchor="middle">97 мс</text>
+<text class="ax" x="254.6" y="265" text-anchor="middle">только смысл</text>
+<rect x="351.0" y="188.1" width="64.0" height="57.9" fill="var(--accent-2)"/>
+<text class="val" x="383.0" y="181.1" text-anchor="middle">113 мс</text>
+<text class="ax" x="383.0" y="265" text-anchor="middle">сейчас</text>
+<text class="ax" x="383.0" y="278" text-anchor="middle">в проде</text>
+<rect x="479.4" y="124.9" width="64.0" height="121.1" fill="var(--accent)"/>
+<text class="val" x="511.4" y="117.9" text-anchor="middle">1,6 с</text>
+<text class="ax" x="511.4" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="511.4" y="278" text-anchor="middle">по сети</text>
+<rect x="607.8" y="62.2" width="64.0" height="183.8" fill="var(--muted-bar)"/>
+<text class="val" x="639.8" y="55.2" text-anchor="middle">17–28 с</text>
+<text class="ax" x="639.8" y="265" text-anchor="middle">+ реранкер</text>
+<text class="ax" x="639.8" y="278" text-anchor="middle">локально</text>
+<line class="axis" x1="62" y1="246" x2="704" y2="246"/>
+</svg>
+    </div>
+    <figcaption><strong>Шкала логарифмическая</strong> — каждое деление вверх означает не «плюс столько-то», а <strong>в десять раз больше</strong>. Иначе картинку не построить: 113 мс и 28 000 мс на обычной линейке выглядели бы как пылинка рядом с домом. Практический смысл: платный вариант медленнее нынешнего <strong>в 14 раз</strong>, а свой локальный — <strong>в 150–250 раз</strong>.</figcaption>
+  </figure>
+
+  <p>1,6 секунды — это ощутимо, но терпимо: столько же грузится обычная страница. 20 секунд — это уже не поиск, а ожидание, за которое агент успевает бросить задачу.</p>
+
+  <h2>Почему свой вариант на своём железе не прошёл</h2>
+
+  <p>Локальный реранкер выглядел заманчиво: бесплатно и без внешней зависимости. По средней точности он даёт около трёх четвертей эффекта платного. Но <strong>«улучшает в среднем» и «улучшает надёжно» — разные вещи</strong>, и здесь они разошлись.</p>
+
+  <figure>
+    <div class="chart-box">
+      <h4>Что случилось с каждым из 28 запросов</h4>
+<svg class="chart" viewBox="0 0 720 190" role="img" preserveAspectRatio="xMidYMid meet">
+<text class="ax" x="122" y="45.0" text-anchor="end">реранкер по сети</text>
+<rect x="132.0" y="20" width="263.7" height="42" fill="var(--accent)"/>
+<text class="val-in" x="263.9" y="45.0" text-anchor="middle">13</text>
+<rect x="395.7" y="20" width="284.0" height="42" fill="var(--muted-bar)"/>
+<text class="val-in" x="537.7" y="45.0" text-anchor="middle">14</text>
+<rect x="679.7" y="20" width="20.3" height="42" fill="var(--danger)"/>
+<text class="val-in" x="689.9" y="45.0" text-anchor="middle">1</text>
+<text class="ax" x="122" y="117.0" text-anchor="end">реранкер локально</text>
+<rect x="132.0" y="92" width="243.4" height="42" fill="var(--accent)"/>
+<text class="val-in" x="253.7" y="117.0" text-anchor="middle">12</text>
+<rect x="375.4" y="92" width="223.1" height="42" fill="var(--muted-bar)"/>
+<text class="val-in" x="487.0" y="117.0" text-anchor="middle">11</text>
+<rect x="598.6" y="92" width="101.4" height="42" fill="var(--danger)"/>
+<text class="val-in" x="649.3" y="117.0" text-anchor="middle">5</text>
+<rect x="132" y="151" width="11" height="11" fill="var(--accent)"/>
+<text class="ax" x="148" y="160">улучшил</text>
+<rect x="292" y="151" width="11" height="11" fill="var(--muted-bar)"/>
+<text class="ax" x="308" y="160">без изменений</text>
+<rect x="452" y="151" width="11" height="11" fill="var(--danger)"/>
+<text class="ax" x="468" y="160">УХУДШИЛ</text>
+</svg>
+    </div>
+    <figcaption>Улучшений почти поровну — 13 против 12. А вот <strong>поломок впятеро больше: 5 против 1</strong>. Именно поэтому локальный вариант «улучшает в среднем, но слишком нестабильно, чтобы утверждать это наверняка».</figcaption>
+  </figure>
+
+  <p>Формально это проверяется статистическим тестом: чтобы считать превосходство доказанным, показатель должен перевалить за 2,05. Платный вариант дал <strong>3,46 — превосходство доказано</strong>. Локальный — <strong>2,01, то есть не дотянул буквально на волосок</strong>. Соблазн округлить велик, но смягчать нельзя: тест меряет не «стало ли лучше», а «уверены ли мы, что это не случайность». На 5 поломках из 28 такой уверенности нет.</p>
+
+  <p>К этому добавляются ещё две оси, каждой из которых хватило бы самой по себе:</p>
+
+  <ul class="plain">
+    <li><strong>17–28 секунд на запрос</strong> вместо 1,6 у платного.</li>
+    <li><strong>3,02 ГиБ памяти на пике</strong> — при том, что сама модель весит 1,40 ГиБ. Память съедает не хранение модели, а само чтение полусотни документов. На рабочем ноутбуке столько отдать некуда.</li>
+  </ul>
+
+  <p>Отдельно про цифру, которая могла бы ввести в заблуждение: в первом замере локальный вариант показал <strong>84 секунды</strong>, и напрашивалось объяснение «это просто модель один раз загружается». Проверили отдельным прогоном на уже прогретой модели — <strong>нет</strong>. Загрузка занимает 13,6 с и происходит однократно за всё время работы процесса; остальное — честное время работы на каждом запросе. То есть 17–28 с никуда не денутся, сколько ни грей.</p>
+
+  <h2>Чем платим: деньги</h2>
+
+  <figure>
+    <div class="chart-box">
+      <h4>Стоимость в месяц при разной нагрузке</h4>
+<svg class="chart" viewBox="0 0 720 250" role="img" preserveAspectRatio="xMidYMid meet">
+<line class="grid" x1="54" y1="198" x2="704" y2="198"/>
+<text class="ax" x="46" y="202" text-anchor="end">$0</text>
+<line class="grid" x1="54" y1="155" x2="704" y2="155"/>
+<text class="ax" x="46" y="159" text-anchor="end">$25</text>
+<line class="grid" x1="54" y1="112" x2="704" y2="112"/>
+<text class="ax" x="46" y="116" text-anchor="end">$50</text>
+<line class="grid" x1="54" y1="69" x2="704" y2="69"/>
+<text class="ax" x="46" y="73" text-anchor="end">$75</text>
+<line class="grid" x1="54" y1="26" x2="704" y2="26"/>
+<text class="ax" x="46" y="30" text-anchor="end">$100</text>
+<rect x="135.3" y="182.5" width="54" height="15.5" fill="var(--accent)"/>
+<text class="val" x="162.3" y="175.5" text-anchor="middle">$9</text>
+<text class="ax" x="162.3" y="217" text-anchor="middle">300 поисков</text>
+<text class="ax" x="162.3" y="230" text-anchor="middle">в день</text>
+<rect x="322.0" y="146.4" width="54" height="51.6" fill="var(--accent)"/>
+<text class="val" x="349.0" y="139.4" text-anchor="middle">$30</text>
+<rect x="382.0" y="187.7" width="54" height="10.3" fill="var(--accent-2)"/>
+<text class="val" x="409.0" y="180.7" text-anchor="middle">$6</text>
+<text class="ax" x="379.0" y="217" text-anchor="middle">1000 поисков</text>
+<text class="ax" x="379.0" y="230" text-anchor="middle">в день</text>
+<rect x="568.7" y="43.2" width="54" height="154.8" fill="var(--accent)"/>
+<text class="val" x="595.7" y="36.2" text-anchor="middle">$90</text>
+<text class="ax" x="595.7" y="217" text-anchor="middle">3000 поисков</text>
+<text class="ax" x="595.7" y="230" text-anchor="middle">в день</text>
+<line class="axis" x1="54" y1="198" x2="704" y2="198"/>
+<rect x="54" y="235" width="11" height="11" fill="var(--accent)"/>
+<text class="ax" x="70" y="244">на каждом поиске</text>
+<rect x="264" y="235" width="11" height="11" fill="var(--accent-2)"/>
+<text class="ax" x="280" y="244">флажком, на ~20 % запросов</text>
+</svg>
+    </div>
+    <figcaption>Тариф — $0,001 за поиск. Считается <strong>за поиск, а не за объём текста</strong>: одна единица тарификации = запрос плюс до 100 документов, а мы отдаём 50 — то есть всегда ровно одна единица, сколько бы ни было текста.</figcaption>
+  </figure>
+
+  <p>Оранжевая отметка — вариант «включать не всегда»: если реранк работает не на каждом поиске, а по флажку «глубокий поиск» примерно на пятой части запросов, при тысяче поисков в день выходит <strong>около $6/мес</strong>.</p>
+
+  <p><strong>Дешевле почти негде.</strong> Использован самый дешёвый тариф у поставщика — соседние стоят $0,002 и $0,0025 за поиск. Проверили ещё 17 альтернативных моделей у агрегатора (Jina, Voyage, BGE, Qwen3, Amazon, Google, mixedbread) — <strong>все отвечают «такой модели не существует»</strong>. Живой вариант ровно один, запасного поставщика на этом рынке у нас нет. Это отдельный риск: цена и доступность зависят от одной компании.</p>
+
+  <div class="callout">
+    <h3>Главная находка — и она важнее самого реранкера</h3>
+    <p><strong>Три запроса из 28 не находит ни один из пяти вариантов.</strong> Ни текстовый, ни смысловой, ни их сочетание, ни платный реранкер, ни локальный:</p>
+    <ul class="q-list">
+      <li>«grok отменяет ход»</li>
+      <li>«нельзя блокировать sleep»</li>
+      <li>«структурная ошибка MCP-тула»</li>
+    </ul>
+    <p>Причина не в порядке выдачи. <strong>Нужного куска текста нет в выдаче вообще</strong> — первый шаг его не достаёт, и реранкеру нечего переставлять. Он тут бессилен не «пока», а по определению: он умеет только менять порядок того, что уже нашли.</p>
+    <p>Это та же стена, что и <strong>потолок в 86 %</strong> выше: там цифра переставала расти после третьей строки ровно потому, что для 4 запросов из 28 поднимать наверх было нечего. Разными словами — один и тот же дефект.</p>
+    <p>Лечится это другим — тем, как мы режем документы на куски и насколько полон индекс. Это отдельная задача, и по масштабу она <strong>может дать больше, чем весь реранк</strong>: сейчас эти запросы дают ноль, а не «неудобный четвёртый результат».</p>
+    <p style="margin-top:.9rem"><em>Аналогия.</em> Реранкер — это редактор, который блестяще расставит главы рукописи в правильном порядке. Нанимать его имеет смысл. Но если трёх глав в рукописи просто нет, никакая расстановка их не создаст.</p>
+  </div>
+
+  <h2>Чего мы не знаем</h2>
+
+  <ul class="plain">
+    <li><strong>Какая доля запросов в реальном трафике вообще трудная.</strong> От этого зависит вся экономика: если сложных запросов мало, реранк большую часть времени работает вхолостую и платно.</li>
+    <li><strong>Платный вариант прогнали один раз.</strong> Повтора не делалось, а решение платить опирается именно на это число.</li>
+    <li><strong>28 запросов — мало.</strong> Достаточно, чтобы увидеть эффект, недостаточно, чтобы точно оценить его величину.</li>
+    <li><strong>1000 поисков в день — оценка, а не замер.</strong> Реальный трафик не считали, поэтому и суммы в месяц ориентировочные.</li>
+    <li><strong>Не измеряли</strong>, сколько документов оптимально отдавать реранкеру и как лучше резать тексты на куски — а это как раз то, что упирается в главную находку выше.</li>
+    <li><strong>Внешнего ревью не было</strong> — независимая проверка (Codex) недоступна до 8 августа.</li>
+  </ul>
+
+  <h2>Решение, которое нужно принять</h2>
+
+  <p>Оба варианта осмысленны, и они не исключают друг друга — вопрос в том, что делать первым.</p>
+
+  <div class="fork">
+    <div class="opt a">
+      <span class="letter">Вариант A</span>
+      <h3>Внедрять реранк флажком «глубокий поиск»</h3>
+      <span class="price">$6–9/мес</span>
+      <ul>
+        <li>Ответ попадает в первые три строки на трудных запросах — с 64 % до 86 % (а первой строкой — с 32 % до 61 %).</li>
+        <li>Обычный поиск остаётся быстрым (113 мс) и бесплатным — флажок включается вручную или для заведомо сложных случаев.</li>
+        <li>Отвалилась сеть или поставщик — обычный поиск продолжает работать, ломается только «глубокий» режим.</li>
+        <li>Минус: зависимость от единственного живого поставщика, запасного нет.</li>
+      </ul>
+    </div>
+    <div class="opt b">
+      <span class="letter">Вариант B</span>
+      <h3>Сначала чинить дыры в индексе</h3>
+      <span class="price">$0</span>
+      <ul>
+        <li>Три запроса из 28 сейчас не находят ответ вообще ничем — там потолок не в порядке выдачи, а в полноте.</li>
+        <li>Потенциальный выигрыш может превысить весь эффект реранка: ноль превращается в результат, а не четвёртое место в первое.</li>
+        <li>Не требует денег и внешних зависимостей.</li>
+        <li>Минус: объём работ не оценён, срок неизвестен, а 64 % на остальных запросах остаются как есть.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>Локальный вариант в развилку не вынесен сознательно: он отпал сразу по трём осям — превосходство не доказано, 17–28 секунд на запрос и 3 ГиБ памяти.</p>
+
+  <dl class="gloss">
+    <dt>Реранкер (cross-encoder)</dt>
+    <dd>Модель, которая перечитывает уже найденное вместе с самим вопросом и заново расставляет по важности.</dd>
+    <dt>В топ-3 / в топ-5 (R@3, R@5)</dt>
+    <dd>Доля запросов, где правильный ответ попал в первые три (пять) строк выдачи. Наш поиск отдаёт 5 строк, агент читает все.</dd>
+    <dt>В топ-1 (R@1)</dt>
+    <dd>Доля запросов, где правильный ответ оказался сразу первым.</dd>
+    <dt>Превосходство доказано / не доказано</dt>
+    <dd>Статистическая проверка «это не случайность». Порог 2,05: платный вариант — 3,46, локальный — 2,01.</dd>
+  </dl>
+
+  <footer>
+    Источник данных: <code>docs/tasks/134/research.md</code>, задача #134. Все числа получены на тестовом стенде: 28 запросов, правильные ответы размечены вручную. В проде реранкер не работал ни дня.
+  </footer>
+</main>
+
+</body>
+</html>

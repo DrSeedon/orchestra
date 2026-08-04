@@ -539,6 +539,7 @@ async def _send_expandable(
     *,
     important: bool = False,
     telemetry_key=None,
+    batch_bucket=None,
 ):
     from aiogram.types import MessageEntity
     from aiogram.enums import MessageEntityType
@@ -555,6 +556,7 @@ async def _send_expandable(
         entities=entities,
         important=important,
         telemetry_key=telemetry_key,
+        batch_bucket=batch_bucket,
     )
 
 
@@ -786,6 +788,7 @@ async def _reset_tg_delivery_state() -> None:
         await asyncio.gather(*list(_tg_result_tasks), return_exceptions=True)
     _tg_result_tasks.clear()
     _tg_result_wrappers.clear()
+    _tg_tool_batches.clear()
     _tg_call_sequence = 0
 
 
@@ -1167,6 +1170,19 @@ def _tg_ordered_sequences(state: _TgDeliveryState) -> list[int]:
 def _tg_first_ordered_sequence(state: _TgDeliveryState) -> int | None:
     sequences = _tg_ordered_sequences(state)
     return min(sequences) if sequences else None
+
+
+_tg_tool_batches: dict = {}
+
+
+def _tg_tool_batch(thread_id, orch_name) -> list:
+    """Накопитель тел тул-сообщений для одного (топик, агент).
+
+    Живёт между вызовами, потому что схлопывание в очереди происходит уже
+    ПОСЛЕ возврата из _tg_send_safe: пока предыдущее сообщение не ушло,
+    следующие дописываются в тот же bucket и уезжают вместе с ним.
+    """
+    return _tg_tool_batches.setdefault(("tool", thread_id, orch_name), [])
 
 
 def _tg_oldest_telemetry(state: _TgDeliveryState, now: float):
@@ -1578,20 +1594,67 @@ async def _tg_call_safe(
 
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
                          entities=None, important: bool = False,
-                         telemetry_key=None, best_effort: bool = False):
+                         telemetry_key=None, best_effort: bool = False,
+                         batch_bucket=None):
+    # Тулы копятся в bucket и уезжают ОДНИМ сообщением: TG даёт 20 сообщений
+    # на 60 с в группу, поэтому «каждый тул = своё сообщение» физически
+    # недостижимо — без батча пачка вызовов теряется на rate-лимите, а при
+    # схлопывании по ключу выживал только последний текст.
+    if batch_bucket is not None and text:
+        batch_bucket.append(text)
+
     async def _send(coalesced_count: int = 1):
         payload = text
-        if not important and coalesced_count > 1:
+        taken_batch = []
+        if batch_bucket is not None:
+            # Склейка не должна перерасти лимит TG: сообщение целиком уйдёт
+            # в отказ, и потеряется ВСЯ пачка вместо одного тула. Что не влезло —
+            # остаётся в bucket и уедет следующим сообщением.
+            size = 0
+            while batch_bucket:
+                nxt = batch_bucket[0]
+                nxt_size = _utf16_len(nxt) + 2
+                if taken_batch and size + nxt_size > TG_MSG_LIMIT:
+                    break
+                taken_batch.append(batch_bucket.pop(0))
+                size += nxt_size
+            if batch_bucket:
+                # Хвост не влез — ставим ещё один заход, иначе он застрянет
+                # в bucket навсегда: очередь этот вызов уже отработала.
+                _track_tg_result(_tg_send_safe(
+                    chat_id, "", thread_id,
+                    telemetry_key=telemetry_key,
+                    batch_bucket=batch_bucket,
+                ))
+            if taken_batch:
+                payload = "\n\n".join(taken_batch)
+        elif not important and coalesced_count > 1:
             payload = f"{text}\n\n⏱ {coalesced_count} events coalesced"
+        # offsets entities посчитаны под ОДИН body — в склейке они указывают не туда
+        send_entities = None if payload is not text else entities
+        # Одно тело тула само по себе может быть длиннее лимита — режем,
+        # иначе TG отобьёт сообщение целиком
+        chunks = _split_message(payload) if _utf16_len(payload) > TG_MSG_LIMIT else [payload]
+        if len(chunks) > 1:
+            send_entities = None
         try:
-            return await bot.send_message(
-                chat_id, payload, message_thread_id=thread_id,
-                parse_mode=None, entities=entities,
-            )
+            sent = None
+            for chunk in chunks:
+                sent = await bot.send_message(
+                    chat_id, chunk, message_thread_id=thread_id,
+                    parse_mode=None, entities=send_entities,
+                )
+            return sent
         except TelegramBadRequest:
-            if not entities:
+            if not send_entities:
                 raise
             return _TgSendEntityRejected(payload, thread_id)
+        except Exception:
+            # Пачка уже вынута из bucket — вернём её назад, иначе тела
+            # исчезнут молча вместе с упавшей отправкой
+            if taken_batch and batch_bucket is not None:
+                batch_bucket[:0] = taken_batch
+            raise
 
     result = await _tg_call_safe(
         chat_id,
@@ -3024,23 +3087,23 @@ async def stream_logs(orch_name: str, thread_id: int):
                                     await _tg_send_safe(
                                         config["group_id"], chunk, thread_id,
                                         entities=aio_ents,
-                                        telemetry_key=(
-                                            thread_id,
-                                            orch_name,
-                                            "send_message",
-                                            chunk_index,
+                                        telemetry_key=("tool", thread_id, orch_name),
+                                        batch_bucket=_tg_tool_batch(
+                                            thread_id, orch_name,
                                         ),
                                     )
                             except Exception as _e:
                                 logger.debug(f"send_message pretty format failed: {_e}")
                                 _last_tool_msg = await _send_expandable(
                                     config["group_id"], thread_id, header, tool_body,
-                                    telemetry_key=(thread_id, orch_name),
+                                    telemetry_key=("tool", thread_id, orch_name),
+                                batch_bucket=_tg_tool_batch(thread_id, orch_name),
                                 )
                         else:
                             _last_tool_msg = await _send_expandable(
                                 config["group_id"], thread_id, header, tool_body,
-                                telemetry_key=(thread_id, orch_name),
+                                telemetry_key=("tool", thread_id, orch_name),
+                                batch_bucket=_tg_tool_batch(thread_id, orch_name),
                             )
                         try:
                             m_text, m_ents = md_convert(f"{header}\n{tool_body}")
@@ -3115,7 +3178,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                             await _send_expandable(
                                 config["group_id"], thread_id,
                                 f"📎 {result_preview}", result_body,
-                                telemetry_key=(thread_id, orch_name),
+                                telemetry_key=("tool", thread_id, orch_name),
+                                batch_bucket=_tg_tool_batch(thread_id, orch_name),
                             )
                         try:
                             m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")

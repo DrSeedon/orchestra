@@ -778,9 +778,10 @@ class TestSendDiffImage:
             await asyncio.gather(stream, return_exceptions=True)
 
         assert calls[0].get("important", False) is False
-        assert calls[0]["telemetry_key"] == (
-            42, "orch", "send_message", 0,
-        )
+        # #141: тулы одного топика делят ключ и уезжают одним батчем,
+        # поэтому chunk_index в ключе больше нет — содержимое копится в bucket
+        assert calls[0]["telemetry_key"] == ("tool", 42, "orch")
+        assert calls[0]["batch_bucket"] is not None
 
     @pytest.mark.asyncio
     async def test_read_image_uses_important_isolated_preview(
@@ -4359,3 +4360,178 @@ class TestSilentFallbacksAreLogged:
         text, ents = tb._md_entities("plain text")
         assert isinstance(text, str)
         assert "markdown→entities failed" not in caplog.text
+
+
+class TestToolMessagesAllDelivered141:
+    """#141: содержимое ВСЕХ вызовов тулов доходит до юзера, ничего не теряется."""
+
+    @pytest.mark.asyncio
+    async def test_burst_of_tool_calls_loses_no_content(self, tb, monkeypatch):
+        calls = []
+
+        async def send_message(chat_id, text, **kwargs):
+            calls.append(text)
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        bucket = tb._tg_tool_batch(77, "orch")
+        futures = [
+            await tb._tg_send_safe(
+                -100, f"tool-{i}", 77,
+                telemetry_key=("tool", 77, "orch"),
+                batch_bucket=bucket,
+            )
+            for i in range(24)
+        ]
+        await asyncio.gather(*[f for f in futures if f is not None])
+
+        delivered = "\n".join(calls)
+        missing = [i for i in range(24) if f"tool-{i}" not in delivered]
+        assert not missing, f"потеряно: {missing}"
+        assert tb._tg_delivery_snapshot(-100)["telemetry_dropped"] == 0
+
+    @pytest.mark.asyncio
+    async def test_reliable_text_not_blocked_by_tool_burst(self, tb, monkeypatch):
+        calls = []
+
+        async def send_message(chat_id, text, **kwargs):
+            calls.append(text)
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        bucket = tb._tg_tool_batch(77, "orch")
+        for i in range(24):
+            await tb._tg_send_safe(
+                -100, f"tool-{i}", 77,
+                telemetry_key=("tool", 77, "orch"),
+                batch_bucket=bucket,
+            )
+        await tb._tg_send_safe(-100, "ответ юзеру", 77, important=True)
+
+        assert "ответ юзеру" in calls
+        assert tb._tg_delivery_snapshot(-100)["reliable_overflow"] == 0
+
+    @pytest.mark.asyncio
+    async def test_batched_message_drops_stale_entities(self, tb, monkeypatch):
+        """entities посчитаны под один body — в склейке их слать нельзя."""
+        seen = []
+
+        async def send_message(chat_id, text, **kwargs):
+            seen.append((text, kwargs.get("entities")))
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        from aiogram.types import MessageEntity
+        ent = [MessageEntity(type="bold", offset=0, length=4)]
+        bucket = tb._tg_tool_batch(77, "orch")
+        f1 = await tb._tg_send_safe(
+            -100, "aaaa", 77, entities=ent,
+            telemetry_key=("tool", 77, "orch"), batch_bucket=bucket,
+        )
+        f2 = await tb._tg_send_safe(
+            -100, "bbbb", 77, entities=ent,
+            telemetry_key=("tool", 77, "orch"), batch_bucket=bucket,
+        )
+        await asyncio.gather(*[f for f in (f1, f2) if f is not None])
+
+        for text, entities in seen:
+            if "\n\n" in text:
+                assert entities is None, "склейка ушла со старыми offsets"
+
+    @pytest.mark.asyncio
+    async def test_large_bodies_split_across_messages_without_loss(
+        self, tb, monkeypatch,
+    ):
+        """Батч не должен превышать лимит TG — иначе отказ убьёт всю пачку."""
+        calls = []
+
+        async def send_message(chat_id, text, **kwargs):
+            calls.append(text)
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        bucket = tb._tg_tool_batch(77, "orch")
+        body = "X" * 900
+        futures = [
+            await tb._tg_send_safe(
+                -100, f"tool-{i}-{body}", 77,
+                telemetry_key=("tool", 77, "orch"),
+                batch_bucket=bucket,
+            )
+            for i in range(20)
+        ]
+        await asyncio.gather(*[f for f in futures if f is not None])
+        for _ in range(30):
+            if not bucket:
+                break
+            await asyncio.sleep(0)
+        await asyncio.sleep(0.05)
+
+        delivered = "\n".join(calls)
+        missing = [i for i in range(20) if f"tool-{i}-" not in delivered]
+        assert not missing, f"потеряно: {missing}"
+        assert not [c for c in calls if tb._utf16_len(c) > tb.TG_MSG_LIMIT]
+        assert bucket == [], "хвост застрял в bucket"
+
+    @pytest.mark.asyncio
+    async def test_single_oversized_body_is_split_not_rejected(
+        self, tb, monkeypatch,
+    ):
+        """Одно тело длиннее лимита TG режется, а не улетает в отказ целиком."""
+        calls = []
+
+        async def send_message(chat_id, text, **kwargs):
+            calls.append(text)
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        bucket = tb._tg_tool_batch(77, "orch")
+        future = await tb._tg_send_safe(
+            -100, "tool-huge-" + "X" * 5000, 77,
+            telemetry_key=("tool", 77, "orch"), batch_bucket=bucket,
+        )
+        if future is not None:
+            await future
+
+        assert not [c for c in calls if tb._utf16_len(c) > tb.TG_MSG_LIMIT]
+        assert "tool-huge-" in "\n".join(calls)
+
+    @pytest.mark.asyncio
+    async def test_failed_send_returns_batch_to_bucket(self, tb, monkeypatch):
+        """Упавшая отправка не должна молча съедать вынутые тела."""
+        async def send_message(chat_id, text, **kwargs):
+            raise RuntimeError("TG упал")
+
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = send_message
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        bucket = tb._tg_tool_batch(77, "orch")
+        futures = [
+            await tb._tg_send_safe(
+                -100, f"tool-{i}", 77,
+                telemetry_key=("tool", 77, "orch"), batch_bucket=bucket,
+            )
+            for i in range(4)
+        ]
+        await asyncio.gather(
+            *[f for f in futures if f is not None], return_exceptions=True,
+        )
+
+        assert bucket, "тела исчезли вместе с упавшей отправкой"
+        assert any("tool-0" in item for item in bucket)

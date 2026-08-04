@@ -1,0 +1,950 @@
+[
+ {
+  "q": "почему воркер после компактизации теряет свою роль",
+  "gold": [
+   6000
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 6000,
+    "found": true,
+    "source": "file",
+    "path": "CHANGELOG.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 801,
+    "text_head": "# Changelog ## v2.30.0 — 2026-08-03 — #126 роль переживает сжатие контекста ### Fixed - 🧠 **Роль возвращается в промпт после компактизации** (`app/session.py`, `compact()`). На успешном пути сжатия добавлен `self._prompt_injected = False` — один флаг, +7 строк прода. - **Точка отказа — не «после компакта», а первый реконнект после компакта.** Формулировка важна для поиска: сразу после сжатия агент"
+   }
+  ],
+  "ranks": {
+   "vec_file": 11,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 2,
+   "fts_file_len": 1348,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 3,
+   "rrf_deep": 3
+  }
+ },
+ {
+  "q": "cost_usd завышен в несколько раз, откуда переучёт",
+  "gold": [
+   6188
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 6188,
+    "found": true,
+    "source": "file",
+    "path": "CHANGELOG.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 800,
+    "text_head": "### Fixed - 🔴 **cost_usd overcounting x85** — CLI отдаёт cumulative cost, мы складывали как delta. $24,609 → $302 реальных. Delta tracking + реконструкция из логов. `session.py`, `db.py` - 🧟 **Codex zombie detection** — `_codex_turn_loop` не ставил IDLE при timeout/error. Heartbeat проверял backend=None → skip. Теперь: finally блок + zombie check до backend check. `session.py` (#11) - 💥 **Compact "
+   }
+  ],
+  "ranks": {
+   "vec_file": 3,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 112,
+   "fts_file_len": 1026,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 13,
+   "rrf_deep": 20
+  }
+ },
+ {
+  "q": "скиллы в worktree воркера устарели и не синхронизируются",
+  "gold": [
+   4041
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 4041,
+    "found": true,
+    "source": "file",
+    "path": "BUGS.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 721,
+    "text_head": "## [2026-07-26 09:45 UTC] `.claude/skills/` в Claude-worktree не обновляется после создания\n- **Reporter:** Orchestra-orchestrator\n- **Scope:** /mnt/data/Projects/Python/orchestra\nСкиллы копируются в worktree воркера при СОЗДАНИИ и больше не синхронизируются. У воркера\n`audit-fullcycle` в `.claude/skills/` до сих пор лежит `self-analysis`, удалённый из пайплайна\n2026-07-26. Тот же класс, что был у"
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 1,
+   "fts_file_len": 1159,
+   "fts_log": null,
+   "fts_log_len": 1749,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "untracked .claude/skills блокирует merge воркера",
+  "gold": [
+   247001
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 247001,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/fix-worktree-gitignore/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 1192,
+    "text_head": "## Findings\n\n### Bug 1 — untracked `.claude/skills/` blocks merge — **CONFIRMED (for external repos only)**\n\nAtomic claims:\n- `inject_skills_to_worktree` copies skills to `worktree/.claude/skills/<name>/SKILL.md` — measured, `app/prompting.py:197-199`.\n- `merge_worker`/`switch` reject on `git status --porcelain` non-empty output, which **includes untracked files** (`??`) — measured, `app/workspace"
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 1,
+   "fts_file_len": 2000,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "сколько памяти держат Serena language server деревья",
+  "gold": [
+   3291038,
+   3291039
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3291038,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/113/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 799,
+    "text_head": "## Итог и confidence - **CONFIRMED:** крупнейший измеренный управляемый класс — per-agent Serena/language-server trees (4.09 GiB в #112); локальные live CLI/MCP тоже удерживают гигабайты. Serena и локальные строки не являются одним атомарным snapshot. - **CONFIRMED:** main PID держал 1.60 GiB retained baseline и делал обратимый transient peak до 2.40 GiB (lifetime RSS HWM 3.0 GiB). Связь burst с m"
+   },
+   {
+    "chunk_id": 3291039,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/113/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 749,
+    "text_head": "не исключён. - **CONFIRMED:** текущим 8–9 idle trees атрибутировано 3.3–3.5 GiB retained. Фактическое освобождение после hibernation не измерено. - **CONFIRMED:** swap набрался после свежего boot и даёт measurable major faults/I/O stalls; reboot не устраняет обнаруженные источники cardinality, хотя повторный профиль не гарантирован. - **LIKELY:** RAG/ONNX — dominant contributor к большим anonymous"
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 18,
+   "fts_file_len": 924,
+   "fts_log": null,
+   "fts_log_len": 808,
+   "rrf_pool20": 10,
+   "rrf_deep": 10
+  }
+ },
+ {
+  "q": "чем codex exec отличается от codex exec resume по кешу",
+  "gold": [
+   2717010
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 2717010,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/codex-cache-research/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 1060,
+    "text_head": "### 3. `codex exec` против `codex exec resume`\n\n**CONFIRMED — CLI help/manual + source.**\n\n| Команда | Thread/transcript | `prompt_cache_key` | Cache consequence |\n|---|---|---|---|\n| `codex exec ...` | Новый thread | Новый thread id | First turn может получить partial internal hit, но full session-prefix reuse не гарантирован |\n| `codex exec resume <SESSION_ID> ...` | Продолжает сохранённый threa"
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 1,
+   "fts_file_len": 2000,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "как роутится backend по имени модели",
+  "gold": [
+   2124006
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 2124006,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/codex-integration/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 813,
+    "text_head": "события (`:100-102`). - Turn usage: input/cached/output токены из `turn.completed` (`backend_codex.py:152-180`). - **Роутинг backend по модели** (CONFIRMED): `models.py:backend_for_model()` → `gpt-*` = `codex`, `claude-*` = `claude`, остальное = `opencode` (`models.py:118-127, 282-287`). Присваивается в `manager.py:504` (`bt = backend_for_model(model)`). - **Turn-loop для codex:** `session.py:_cod"
+   }
+  ],
+  "ranks": {
+   "vec_file": 2,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 11,
+   "fts_file_len": 1864,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 3,
+   "rrf_deep": 3
+  }
+ },
+ {
+  "q": "наш системный промпт заменяет пресет Claude Code или дописывается",
+  "gold": [
+   398869001
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 398869001,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "agent_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 801,
+    "text_head": "self.system_prompt}`. То есть наш промпт **дописывается** к пресету Claude Code, а не заменяет его • `app/backend_claude.py:165-166` — если есть `resume_id`, `system_prompt` **вообще не задаётся**, SDK берёт сохранённый • `app/session.py:680-688` — при первом сообщении после резюма свежий промпт инжектится **первым user-сообщением** с плашкой `[Orchestra platform note: your role instructions were "
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 5,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 2000,
+   "fts_log": 1,
+   "fts_log_len": 2000,
+   "rrf_pool20": 3,
+   "rrf_deep": 3
+  }
+ },
+ {
+  "q": "grok отменяет ход после запроса разрешения",
+  "gold": [
+   316738002
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 316738002,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "agent_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 804,
+    "text_head": "обрывался сам. Мы отвечали на `session/request_permission` полем `optionId: \"allow\"` — **id, который я выдумал в T1** по конвенции ACP и никогда не проверял. Реально агент предлагает **`allow-once` / `reject-once`**. Несовпадение читается как «ничего не выбрано» → агент отменяет ход целиком. Как это выглядело: `tool_use` есть, `tool_result` есть, вывод команды получен — и `turn_end ok=False stop=i"
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 43,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 1847,
+   "fts_log": 45,
+   "fts_log_len": 2000,
+   "rrf_pool20": null,
+   "rrf_deep": 28
+  }
+ },
+ {
+  "q": "какие переменные окружения нужны для headless режима",
+  "gold": [
+   3164036
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3164036,
+    "found": true,
+    "source": "file",
+    "path": "data/grok-home/docs/user-guide/14-headless-mode.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 914,
+    "text_head": "## Environment Variables for Headless\n\nKey environment variables that affect headless mode:\n\n| Variable                        | Description                                                   |\n| ------------------------------- | ------------------------------------------------------------- |\n| `XAI_API_KEY`        | API key for authentication (required when no browser login)   |\n| `GROK_HOME`     "
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 12,
+   "fts_file_len": 1459,
+   "fts_log": null,
+   "fts_log_len": 1682,
+   "rrf_pool20": 2,
+   "rrf_deep": 2
+  }
+ },
+ {
+  "q": "как grok читает defaultMode и permissions allow deny ask",
+  "gold": [
+   3163026
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3163026,
+    "found": true,
+    "source": "file",
+    "path": "data/grok-home/docs/user-guide/22-permissions-and-safety.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 802,
+    "text_head": "`plan`. Grok reads `defaultMode` from its canonical location under `permissions`; a top-level `defaultMode` is also accepted when the nested key is absent. `permissions.allow`, `permissions.deny`, and `permissions.ask` entries are translated into native rules and then matched with the semantics in the [Rule Matching Reference](#rule-matching-reference). Translation notes: - Rules for MCP tools mus"
+   }
+  ],
+  "ranks": {
+   "vec_file": 7,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 3,
+   "fts_file_len": 2000,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 4,
+   "rrf_deep": 4
+  }
+ },
+ {
+  "q": "сколько стоит Grok и когда он вышел",
+  "gold": [
+   174012
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 174012,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/grok-research/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 705,
+    "text_head": "## Confidence per finding (сводка)\n\n| Finding | Confidence | Reason (tier) |\n|---|---|---|\n| Grok 4.5 вышел 08.07.2026, Cursor-trained | CONFIRMED | multi-secondary согласованно |\n| Grok CLI headless subprocess-friendly | CONFIRMED | primary (docs.x.ai) |\n| Pricing $2/$6/$0.50 | CONFIRMED | primary (pricing page) + multi-secondary |\n| API free tier | UNCERTAIN | источники конфликтуют |\n| Grok 4.5 "
+   }
+  ],
+  "ranks": {
+   "vec_file": 4,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 3,
+   "fts_file_len": 1132,
+   "fts_log": null,
+   "fts_log_len": 1272,
+   "rrf_pool20": 2,
+   "rrf_deep": 2
+  }
+ },
+ {
+  "q": "отслеживаем ли мы стоимость голосовой транскрипции",
+  "gold": [
+   2718020,
+   266000000
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 2718020,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/deepgram-research/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 803,
+    "text_head": "invoice truth периодически читать billing breakdown по tag; dashboard estimate не должен смешиваться с виртуальным LLM `cost_usd`. 4. **При необходимости строгой изоляции создать отдельный Deepgram API key для Orchestra.** Tags достаточно для аналитики; отдельный accessor лучше для revoke/quota и защищает атрибуцию от callers, забывших tag. 5. **Не переключаться на `multi` по аналогии с Codex.** С"
+   },
+   {
+    "chunk_id": 266000000,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "user_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 1105,
+    "text_head": "[15:03] Research: Deepgram voice transcription в Orchestra — конфигурация, стоимость, отслеживание.\n\n**Вопросы:**\n1. Как сейчас настроен Deepgram в Orchestra? Найди конфиг (MCP server, API key, модель, язык)\n2. Отслеживаем ли мы стоимость голосовых транскрипций? Есть ли метрика сколько денег уходит на voice?\n3. Как Codex MCP настроил Deepgram для себя — найди его конфигурацию:\n   - Проверь `~/.cod"
+   }
+  ],
+  "ranks": {
+   "vec_file": 126,
+   "vec_file_len": 2000,
+   "vec_log": 1,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 78,
+   "fts_log": 1,
+   "fts_log_len": 98,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "почему нельзя глобально блокировать sleep у агентов",
+  "gold": [
+   290246001
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 290246001,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "agent_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 710,
+    "text_head": "(A) add the shared base no-external-wait rule, then (C) remove the merge RUNNING→IDLE retry race; use a targeted PreToolUse standalone-sleep guard only if telemetry still shows violations. Do not globally substring-block sleep because bounded restart/test cases are legitimate. Evidence: docs/tasks/codex-sleep/research.md; all 74 annotations: docs/tasks/codex-sleep/sleep-call-annotations.tsv; Codex"
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 137,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 555,
+   "fts_log": 11,
+   "fts_log_len": 752,
+   "rrf_pool20": 44,
+   "rrf_deep": 22
+  }
+ },
+ {
+  "q": "что должно быть в структурированной ошибке MCP тула",
+  "gold": [
+   3301037,
+   3313034
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3301037,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/116/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 809,
+    "text_head": "### 4.2 Минимальная граница Один `ApiToolError` в `_api` должен нести: ```json { \"code\": \"transport_timeout|http_429|http_5xx|invalid_response|domain_error\", \"message\": \"human readable\", \"status\": 429, \"retryable\": false, \"request_id\": \"client/server id\", \"retry_after_seconds\": 24, \"outcome_unknown\": true } ``` Один MCP adapter должен превратить его в `CallToolResult(..., isError=True)` и сохранит"
+   },
+   {
+    "chunk_id": 3313034,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/116/plan.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 804,
+    "text_head": "- **Outcome:** every decision-relevant MCP failure has non-empty human text and machine-readable `{result,error}`; #115 reuses the same contract. - **Files:** `app/mcp_stdio.py`, `tests/test_mcp_stdio.py`, `tests/test_mcp_codex_review.py` only where protocol fixture is shared. - **Dependency:** **independent of #93/#94/#113/#115**. It is a prerequisite consumed by **#115 T1**, not the reverse. - *"
+   }
+  ],
+  "ranks": {
+   "vec_file": 9,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 323,
+   "fts_file_len": 2000,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 32,
+   "rrf_deep": 35
+  }
+ },
+ {
+  "q": "пустая строка error недопустима, какой контракт по кодам ошибок",
+  "gold": [
+   3310014
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3310014,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/115/plan.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 1151,
+    "text_head": "`error=null` допустим только когда ни один stage не требует error detail. Для\nлюбого отказа `code` и `message` непустые; exception class хранится в `details`.\nFallback — конкретный код вроде `UPSTREAM_EMPTY_ERROR`, но никогда пустая строка.\nRAG scheduler semantics фиксированы: `ACCEPTED` и `COALESCED` означают принятую\nlive retained scheduler работу и сами по себе не делают operation partial. Это "
+   }
+  ],
+  "ranks": {
+   "vec_file": 3,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 1,
+   "fts_file_len": 1109,
+   "fts_log": null,
+   "fts_log_len": 1242,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "как считается turn usage и откуда берутся кешированные токены",
+  "gold": [
+   2124006
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 2124006,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/codex-integration/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 813,
+    "text_head": "события (`:100-102`). - Turn usage: input/cached/output токены из `turn.completed` (`backend_codex.py:152-180`). - **Роутинг backend по модели** (CONFIRMED): `models.py:backend_for_model()` → `gpt-*` = `codex`, `claude-*` = `claude`, остальное = `opencode` (`models.py:118-127, 282-287`). Присваивается в `manager.py:504` (`bt = backend_for_model(model)`). - **Turn-loop для codex:** `session.py:_cod"
+   }
+  ],
+  "ranks": {
+   "vec_file": 8,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 5,
+   "fts_file_len": 2000,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 2,
+   "rrf_deep": 2
+  }
+ },
+ {
+  "q": "коллизия ключа orchestra в кастомном словаре mcp серверов",
+  "gold": [
+   198005
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 198005,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/24/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 656,
+    "text_head": "## Risks / edge cases\n- **`orchestra` key collision**: custom dict must never override the default orchestra server. Merge order: start with orchestra, then add custom keys, explicitly drop/skip a custom `\"orchestra\"` key (log a warning).\n- **Invalid JSON** from `spawn_worker` string param → return a clear error, don't crash the spawn.\n- **`mcp_servers` must be `dict`** at the API layer; if someon"
+   }
+  ],
+  "ranks": {
+   "vec_file": 2,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 54,
+   "fts_file_len": 2000,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 6,
+   "rrf_deep": 10
+  }
+ },
+ {
+  "q": "гонка turn/start и отложенного compact перезаписывает active turn id",
+  "gold": [
+   223008
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 223008,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/97/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 804,
+    "text_head": "stores it in `_active_turn_id`. Orchestra then creates the per-turn `_turn_event_loop` (`app/backend_codex.py:328-337`; `app/session.py:538-546,602-625`). 4. That listener does not snapshot the id returned by `turn/start`. It first drains the old compact notifications. The delayed compact `turn/started` overwrites `_active_turn_id` with the compact turn id (`app/backend_codex.py:621-625`). 5. The "
+   }
+  ],
+  "ranks": {
+   "vec_file": 3,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 1,
+   "fts_file_len": 2000,
+   "fts_log": null,
+   "fts_log_len": 2000,
+   "rrf_pool20": 2,
+   "rrf_deep": 2
+  }
+ },
+ {
+  "q": "правда ли escaping в bash у Sol виноват в ретраях",
+  "gold": [
+   3100013
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3100013,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/sol-efficiency/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 1005,
+    "text_head": "### 3.5 Bash style / escaping — not the problem\n`zsh -lc` + escaping is **91 %** of Sol Bash calls, but total Bash *input* is 1 483 kB of 4 192 kB, and median command is 201 chars. No measurable retry penalty from broken escaping: near-identical consecutive commands are half Claude's rate. **`tool_errors` is empty (0 rows)** despite shipping 07-18, so I cannot measure tool-level failures directly "
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 1,
+   "fts_file_len": 1187,
+   "fts_log": null,
+   "fts_log_len": 1060,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "как понять что merge делали руками, а не через merge_worker",
+  "gold": [
+   372000000,
+   376869001
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 372000000,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "agent_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 545,
+    "text_head": "[from:research-merge] Read-only research for parent worker research-merge, task #115. Measure across ALL Orchestra-managed projects how many worker merges were performed via merge_worker vs manually. Use live SQLite, git history/reflogs, and logs; define a reproducible classifier, quantify ambiguity, list projects with systematic manual merges and evidence for why. DO NOT edit any files or refs, d"
+   },
+   {
+    "chunk_id": 376869001,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "user_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 830,
+    "text_head": "treats all 32 absent hashes as manual-path damage, but the official path only links commits whose subject contains a recognized task reference and whose task resolves in the caller’s project. Report how many of the 32 satisfy both conditions; commits without a parseable/resolvable ref would remain unlinked even through `merge_worker`. Three positive controls validate the machinery, not the full 32"
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 2,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 2000,
+   "fts_log": 60,
+   "fts_log_len": 2000,
+   "rrf_pool20": 14,
+   "rrf_deep": 22
+  }
+ },
+ {
+  "q": "красная точка непрочитанного загорается от воркеров",
+  "gold": [
+   304000000
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 304000000,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "text",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 558,
+    "text_head": "Смержено, обновляй.\n\nКрасная точка теперь загорается только когда оркестратор реально закончил ход — воркеры на неё не влияют. Проверено обоими сценариями со скриншотами: воркер ушёл в ожидание — точки нет, оркестратор договорил — точка есть.\n\nЗаодно он свёл создание и удаление точки в одну функцию. Это уже третий раз за сегодня, когда в дашборде находится дубль: сначала словари статусов, потом ри"
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 3,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 150,
+   "fts_log": 3,
+   "fts_log_len": 444,
+   "rrf_pool20": 5,
+   "rrf_deep": 5
+  }
+ },
+ {
+  "q": "persistent Codex сессии и что происходит при протухшем UUID",
+  "gold": [
+   234377000
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 234377000,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "text",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 526,
+    "text_head": "Смержено, запушено, воркер убит.\n\n**Persistent Codex sessions shipped:**\n- ✅ `codex_review(resume=True)` — переиспользует Codex thread (debate continuation)\n- ✅ Session UUID → `codex_sessions.json` в worktree\n- ✅ Stale UUID → graceful fallback на fresh session\n- ✅ full-cycle.md — second opinion на research (Phase 1) + debate-on-disagreement (Phase 2)\n- ✅ Codex = \"adversarial, not rubber stamp\"\n\nНу"
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 2,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 2000,
+   "fts_log": 2,
+   "fts_log_len": 2000,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "команда limits в личке с ботом, почему не в топиках группы",
+  "gold": [
+   363754000
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 363754000,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "agent_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 799,
+    "text_head": "[from:Orchestra-orchestrator] НОВАЯ ЗАДАЧА: команда `/limits` в личном чате с ботом. Ты знаешь очередь доставки TG досконально — поэтому тебе. ЧТО НУЖНО: юзер пишет боту В ЛИЧКУ `/limits` → получает остаток квот. Решение юзера: ТОЛЬКО личный чат, в топиках группы команду не регистрировать. Закреплённое сообщение и автопост при пороге он ОТКЛОНИЛ — не реализовывать, даже если покажется полезным. ДА"
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 3,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 347,
+   "fts_log": 1,
+   "fts_log_len": 525,
+   "rrf_pool20": 2,
+   "rrf_deep": 2
+  }
+ },
+ {
+  "q": "оценка только по стенограмме без побочных эффектов ломает судейство",
+  "gold": [
+   376623001
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 376623001,
+    "found": true,
+    "source": "log",
+    "path": null,
+    "kind": "agent_msg",
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 807,
+    "text_head": "в исходные данные ИЗМЕРЕННЫЕ побочные эффекты каждого кандидата и прогоняй пилот на 2-3 кандидатах до полного запуска. Оценка только по стенограмме превращает реальные действия в мнимую выдумку.» ЖИВОЙ КЕЙС ДЛЯ ОБОСНОВАНИЯ (можешь сослаться коротко): в #106 оба судьи получили только стенограмму без фактических диффов файлов и массово пометили НАСТОЯЩИЕ изменения как галлюцинации. Два полных прогон"
+   }
+  ],
+  "ranks": {
+   "vec_file": null,
+   "vec_file_len": 2000,
+   "vec_log": 1,
+   "vec_log_len": 2000,
+   "fts_file": null,
+   "fts_file_len": 1733,
+   "fts_log": 6,
+   "fts_log_len": 2000,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "почему periodic опрос PM-фич конфликтует с запретом Monitor",
+  "gold": [
+   3297037
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3297037,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/118/audit.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 944,
+    "text_head": "### P3-32 — tasks-pm «периодически опрашивай» не задаёт ни события, ни безопасного способа\n\n- **Места:** `pipelines/tasks-pm/prompts/roles/pm-glava.md:23-28` требует периодически\n  опрашивать PM-фичи; `pipelines/tasks-pm/prompts/base.md:26-36,43-46` запрещает Monitor/\n  background process и описывает только старый one-shot набор jobs.\n- **Несовместимость:** обязательная периодичность не имеет инте"
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 24,
+   "fts_file_len": 285,
+   "fts_log": null,
+   "fts_log_len": 324,
+   "rrf_pool20": 4,
+   "rrf_deep": 4
+  }
+ },
+ {
+  "q": "platform contract продублирован в двух base и разъехался",
+  "gold": [
+   3297038
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 3297038,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/118/audit.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 889,
+    "text_head": "### P3-33 — platform contract скопирован в два base и уже разъехался\n\n- **Места:** дубли `pipelines/default/prompts/base.md:2-25,28-42` и\n  `pipelines/tasks-pm/prompts/base.md:1-36`; background jobs дополнительно продублированы в\n  `default/modules/background-jobs.md:1-23`.\n- **Несовместимость:** tasks-pm знает старый auto-report точнее, но неверно даёт workers\n  cross-project access и считает job"
+   }
+  ],
+  "ranks": {
+   "vec_file": 1,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 1,
+   "fts_file_len": 1240,
+   "fts_log": null,
+   "fts_log_len": 842,
+   "rrf_pool20": 1,
+   "rrf_deep": 1
+  }
+ },
+ {
+  "q": "есть ли у нас замкнутый цикл самоулучшения с evaluator gate",
+  "gold": [
+   2726050
+  ],
+  "gold_chunks": [
+   {
+    "chunk_id": 2726050,
+    "found": true,
+    "source": "file",
+    "path": "docs/tasks/self-improve-survey/research.md",
+    "kind": null,
+    "project": "/mnt/data/Projects/Python/orchestra",
+    "in_vec": true,
+    "in_fts": true,
+    "len": 1052,
+    "text_head": "## 10. Confidence summary\n\n- **CONFIRMED:** Orchestra имеет scaffold primitives, но не durable evaluator-gated closed loop.\n- **CONFIRMED:** RAG реализует explicit objects + hybrid Read, но не outcome-driven full memory loop.\n- **CONFIRMED:** `📝 RULE` — qualitative prompt-refinement proposal; durable self-improvement появляется\n  только после commit approved change.\n- **CONFIRMED:** evaluator/regr"
+   }
+  ],
+  "ranks": {
+   "vec_file": 2,
+   "vec_file_len": 2000,
+   "vec_log": null,
+   "vec_log_len": 2000,
+   "fts_file": 3,
+   "fts_file_len": 1142,
+   "fts_log": null,
+   "fts_log_len": 1894,
+   "rrf_pool20": 2,
+   "rrf_deep": 2
+  }
+ }
+]

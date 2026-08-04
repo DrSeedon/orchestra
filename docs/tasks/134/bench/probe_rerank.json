@@ -1,0 +1,129 @@
+{
+ "paths": {
+  "/rerank": {
+   "status": 200,
+   "body": "{\"id\":\"gen-rerank-1785755485-GwTtCKAk3a5FwOCvgm1s\",\"model\":\"rerank-v3.5\",\"results\":[{\"index\":0,\"relevance_score\":0.3016093,\"document\":{\"text\":\"воркер завис из-за MCP\"}},{\"index\":1,\"relevance_score\":0.019630643,\"document\":{\"text\":\"как приготовить борщ\"}}],\"usage\":{\"search_units\":1,\"cost\":0.001},\"provider\":\"Cohere\"}"
+  },
+  "/reranks": {
+   "status": 404,
+   "body": "404 Not Found"
+  },
+  "/rerankings": {
+   "status": 404,
+   "body": "404 Not Found"
+  },
+  "/v1/rerank": {
+   "status": 404,
+   "body": "<!DOCTYPE html><html data-dpl-id=\"dpl_HoHzibCGfMsxhMwWj14MKCuNbYCm\" lang=\"en\" class=\"jakarta_e63cc4aa-module__25MUSG__variable gordita_e308731d-module__arnLQG__variable geistmono_157ca88a-module__LlhcQW__variable\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, minimum-scale=1\"/><link rel=\"preload\" as=\"image\" imageSrcSet=\"/brand/v2/nav-lockup-light.png 1x, /brand/v2/nav-lockup-light@2x.png 2x\"/><link rel=\"preload\" as=\"image\" imageSrcSet=\"/brand/v2/nav-lockup-dark.png 1x, /brand/v2/nav-lockup-dark@2x.png 2x\"/><link rel=\"stylesheet\" href=\"/_next/s"
+  },
+  "/embeddings/rerank": {
+   "status": 404,
+   "body": "404 Not Found"
+  }
+ },
+ "models_on_rerank": {
+  "cohere/rerank-v3.5": {
+   "status": 200,
+   "body": "{\"id\":\"gen-rerank-1785755489-RfQnLQrVNFRiI8yh1OHX\",\"model\":\"rerank-v3.5\",\"results\":[{\"index\":0,\"relevance_score\":0.3016093,\"document\":{\"text\":\"воркер завис из-за MCP\"}},{\"index\":1,\"relevance_score\":0.019630643,\"document\":{\"text\":\"как приготовить борщ\"}}],\"usage\":{\"search_units\":1,\"cost\":0.001},\"provider\":\"Cohere\"}"
+  },
+  "cohere/rerank-english-v3.0": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model cohere/rerank-english-v3.0 does not exist\",\"code\":400}}"
+  },
+  "cohere/rerank-multilingual-v3.0": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model cohere/rerank-multilingual-v3.0 does not exist\",\"code\":400}}"
+  },
+  "jina/jina-reranker-v2-base-multilingual": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model jina/jina-reranker-v2-base-multilingual does not exist\",\"code\":400}}"
+  },
+  "jinaai/jina-reranker-v2-base-multilingual": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model jinaai/jina-reranker-v2-base-multilingual does not exist\",\"code\":400}}"
+  },
+  "baai/bge-reranker-v2-m3": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model baai/bge-reranker-v2-m3 does not exist\",\"code\":400}}"
+  },
+  "BAAI/bge-reranker-v2-m3": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model baai/bge-reranker-v2-m3 does not exist\",\"code\":400}}"
+  },
+  "mixedbread-ai/mxbai-rerank-large-v1": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model mixedbread-ai/mxbai-rerank-large-v1 does not exist\",\"code\":400}}"
+  },
+  "voyage/rerank-2": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model voyage/rerank-2 does not exist\",\"code\":400}}"
+  },
+  "voyageai/rerank-2": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model voyageai/rerank-2 does not exist\",\"code\":400}}"
+  },
+  "qwen/qwen3-reranker-8b": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model qwen/qwen3-reranker-8b does not exist\",\"code\":400}}"
+  },
+  "qwen/qwen3-reranker-4b": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model qwen/qwen3-reranker-4b does not exist\",\"code\":400}}"
+  }
+ },
+ "models_on_embeddings": {
+  "cohere/rerank-v3.5": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model cohere/rerank-v3.5 does not exist\",\"code\":400}}"
+  },
+  "cohere/rerank-english-v3.0": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model cohere/rerank-english-v3.0 does not exist\",\"code\":400}}"
+  },
+  "cohere/rerank-multilingual-v3.0": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model cohere/rerank-multilingual-v3.0 does not exist\",\"code\":400}}"
+  },
+  "jina/jina-reranker-v2-base-multilingual": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model jina/jina-reranker-v2-base-multilingual does not exist\",\"code\":400}}"
+  },
+  "jinaai/jina-reranker-v2-base-multilingual": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model jinaai/jina-reranker-v2-base-multilingual does not exist\",\"code\":400}}"
+  },
+  "baai/bge-reranker-v2-m3": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model baai/bge-reranker-v2-m3 does not exist\",\"code\":400}}"
+  },
+  "BAAI/bge-reranker-v2-m3": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model baai/bge-reranker-v2-m3 does not exist\",\"code\":400}}"
+  },
+  "mixedbread-ai/mxbai-rerank-large-v1": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model mixedbread-ai/mxbai-rerank-large-v1 does not exist\",\"code\":400}}"
+  },
+  "voyage/rerank-2": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model voyage/rerank-2 does not exist\",\"code\":400}}"
+  },
+  "voyageai/rerank-2": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model voyageai/rerank-2 does not exist\",\"code\":400}}"
+  },
+  "qwen/qwen3-reranker-8b": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model qwen/qwen3-reranker-8b does not exist\",\"code\":400}}"
+  },
+  "qwen/qwen3-reranker-4b": {
+   "status": 400,
+   "body": "{\"error\":{\"message\":\"Model qwen/qwen3-reranker-4b does not exist\",\"code\":400}}"
+  }
+ },
+ "catalog": {
+  "status": 200,
+  "total": 337,
+  "rerank_or_embed_ids": []
+ }
+}

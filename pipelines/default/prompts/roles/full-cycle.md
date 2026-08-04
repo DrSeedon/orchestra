@@ -84,6 +84,9 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 3. Test: `UV_CACHE_DIR=/mnt/data/uv-cache uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
    then read the log ONCE. Never poll a long command with repeated empty `write_stdin`/`wait`.
    The cache goes on a real disk, NOT `/tmp`: it grew to 797 MB of tmpfs (= RAM taken from other agents).
+   If `git status` ever shows a modified `uv.lock` after a test run — STOP, don't commit it. It means
+   the `[options] exclude-newer` barrier (`pyproject.toml` + `uv.lock`) got lost and deps re-resolved
+   themselves; restore it instead of committing ~800 lines of silent upgrades.
 4. Apply the review gate in the pipeline rules below to the git diff — it decides run vs. skip; do not treat this numbered step as an unconditional run. If it runs: fix CRITICAL/HIGH, re-run if needed.
 5. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
 6. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).

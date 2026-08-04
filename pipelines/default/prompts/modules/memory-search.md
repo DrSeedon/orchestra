@@ -13,7 +13,7 @@ search repeats work and burns quota. Open attributed hits; no useful hit → ins
 **Skip only for:** an exact local edit naming file + line/function + desired change; typo/format-only
 work; running a named command/test; current-status lookup. Use grep for exact strings/current lines.
 
-Index: `docs/tasks/*.md`, `CLAUDE.md`, `BUGS.md`, agent messages. Scope is this repo; fresh merges
+Index: `docs/tasks/*.md`, `CLAUDE.md`, agent messages. Scope is this repo; fresh merges
 can lag, so verify current code. Use `cross_project=True` only when the task explicitly spans
 repositories or shared infrastructure across them.
 </memory-search>
