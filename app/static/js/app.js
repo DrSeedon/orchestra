@@ -393,112 +393,6 @@ function restoreDraft() {
     }
 }
 
-const _BUG_INBOX_SEEN_KEY = 'orchestraBugInboxSeenVersion';
-
-function _bugSafeText(value) {
-    return DOMPurify.sanitize(String(value ?? ''), {ALLOWED_TAGS: [], ALLOWED_ATTR: []});
-}
-
-function _hideBugReportBanner() {
-    const banner = document.getElementById('bug-report-banner');
-    if (!banner) return;
-    banner.classList.add('hidden');
-    banner.classList.remove('flex');
-    banner.replaceChildren();
-}
-
-function _showBugReportError(error) {
-    const name = error?.name || 'Error';
-    const detail = error?.message || String(error || 'unknown error');
-    const banner = document.getElementById('bug-report-banner');
-    if (!banner) return;
-    const text = document.createElement('span');
-    text.textContent = _bugSafeText(`🐛 Inbox error — ${name}: ${detail}`);
-    banner.replaceChildren(text);
-    banner.classList.remove('hidden');
-    banner.classList.add('flex');
-}
-
-async function _fetchBugInbox(url) {
-    const response = await fetch(url, {headers: {'Accept': 'text/markdown'}});
-    const body = await response.text();
-    if (!response.ok) {
-        const error = new Error(body || `HTTP ${response.status}`);
-        error.name = `HTTP${response.status}`;
-        throw error;
-    }
-    return body;
-}
-
-async function _readBugInbox(version, viewUrl) {
-    const readerWindow = window.open('', '_blank');
-    if (!readerWindow) {
-        _showBugReportError({name: 'PopupBlockedError', message: 'reader window was blocked'});
-        return;
-    }
-    readerWindow.opener = null;
-    readerWindow.document.title = 'Orchestra bug reports';
-    readerWindow.document.body.textContent = 'Loading bug reports…';
-    try {
-        const markdown = await _fetchBugInbox(viewUrl);
-        const rendered = DOMPurify.sanitize(marked.parse(markdown));
-        readerWindow.document.body.style.cssText = 'margin:0;padding:24px;background:#0f172a;color:#cbd5e1;font:14px/1.55 system-ui,sans-serif;overflow-wrap:anywhere';
-        readerWindow.document.body.innerHTML = rendered;
-        localStorage.setItem(_BUG_INBOX_SEEN_KEY, version);
-        _hideBugReportBanner();
-    } catch (error) {
-        readerWindow.close();
-        _showBugReportError(error);
-    }
-}
-
-function _showBugReportBanner(version, viewUrl) {
-    const banner = document.getElementById('bug-report-banner');
-    if (!banner) return;
-    const text = document.createElement('span');
-    text.textContent = _bugSafeText('🐛 Новые bug reports');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = 'Прочитать';
-    button.className = 'shrink-0 rounded bg-amber-500/20 px-2 py-1 font-medium text-amber-100 hover:bg-amber-500/30';
-    button.addEventListener('click', () => _readBugInbox(version, viewUrl));
-    banner.replaceChildren(text, button);
-    banner.classList.remove('hidden');
-    banner.classList.add('flex');
-}
-
-async function _refreshBugReportStatus() {
-    try {
-        const response = await fetch('/api/report_bug/status');
-        const body = await response.text();
-        if (!response.ok) {
-            const error = new Error(body || `HTTP ${response.status}`);
-            error.name = `HTTP${response.status}`;
-            throw error;
-        }
-        const status = JSON.parse(body);
-        if (!status.has_reports || !status.version) {
-            _hideBugReportBanner();
-            return;
-        }
-        const viewUrl = new URL(status.view_url || '/api/report_bug', window.location.origin);
-        if (viewUrl.origin !== window.location.origin || viewUrl.pathname !== '/api/report_bug') {
-            throw new TypeError(`unsafe bug inbox URL: ${viewUrl.href}`);
-        }
-        if (localStorage.getItem(_BUG_INBOX_SEEN_KEY) === status.version) {
-            _hideBugReportBanner();
-            return;
-        }
-        _showBugReportBanner(status.version, viewUrl.href);
-    } catch (error) {
-        _showBugReportError(error);
-    }
-}
-
-function initBugReportBanner() {
-    _refreshBugReportStatus();
-    setInterval(_refreshBugReportStatus, 30000);
-}
 
 document.addEventListener('DOMContentLoaded', () => {
     $('#send-btn').addEventListener('click', sendChat);
@@ -606,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleRefresh();
     initFilePreviewModal();
     initUsageBar();
-    initBugReportBanner();
     initHeartbeat();
     _startCacheCountdown();
     // Только после load: холодная синхронизация ~100 КБ не должна делить узкий канал

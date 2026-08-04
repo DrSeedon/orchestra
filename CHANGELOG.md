@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.35.1 — 2026-08-04 — #53 плашка «Новые bug reports» убрана
+
+### Removed
+- 🐛 **Плашка о новых баг-репортах и её опрос** (`app/templates/dashboard.html`, `app/static/js/app.js`). По прямому требованию юзера. Ушли `#bug-report-banner`, 106 строк клиентского кода (`_BUG_INBOX_SEEN_KEY`, `_bugSafeText`, `_hideBugReportBanner`, `_showBugReportError`, `_refreshBugReportStatus`, `initBugReportBanner`), ключ `orchestraBugInboxSeenVersion` в localStorage и два теста плашки.
+  - Побочно исчез `setInterval(_refreshBugReportStatus, 30000)`: ответ 99 B (112 B по проводу), два запроса в минуту, то есть **1200 круговых обходов и ~131 КБ за 10-часовой день** ради элемента, которого больше нет.
+  - **Серверная часть не тронута**: `POST /api/report_bug` нужен MCP-тулу `report_bug`. У `GET /api/report_bug` и `GET /api/report_bug/status` потребителей во фронте больше нет — судьба роутов за оркестратором, самовольно не удалялись.
+  - Отрисовка вызова инструмента `mcp__orchestra__report_bug` в ленте чата сохранена — это другой механизм.
+
 ## v2.35.0 — 2026-08-04 — #49 chart.js со своего домена, страница больше ни от кого не зависит
 
 ### Changed
