@@ -179,6 +179,9 @@ function _scheduleChatInitialSettle() {
 // повторного и после F5. Один источник, одна инвалидация.
 const _sessionIds = {};  // _chatPositionKey() -> session.id, заполняется в renderAgentList и _storeSync
 const _CHAT_PAGE = 100;  // столько строк показываем при заходе — как и раньше при limit=100
+// Столько строк рисуем в ПЕРВОМ кадре; остальное — после него. Двадцать — это ровно то,
+// что раньше лежало в зеркале и давало чат за 871 мс против 1186 мс на сотне строк.
+const _CHAT_FIRST_PAINT = 20;
 
 // === Зеркало журнала в IndexedDB (#8) ===
 // Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту,
@@ -1753,23 +1756,39 @@ async function _completeChatPage(name, scope) {
         return 0;
     }
     if (!Array.isArray(older) || !older.length) return 0;
+    if (!_prependHistory(name, scope, older)) return 0;
+    _storePut(older);
+    return older.length;
+}
+
+// Дорисовать старые строки НАД уже показанными. Один владелец на два случая: остаток
+// страницы из зеркала (первый кадр рисует только хвост) и добор с сервера.
+function _prependHistory(name, scope, rows) {
     if (name !== selectedAgent || scope !== currentScope) return 0;  // успели уйти к другому
+    const meta = chatLogs[name];
+    if (!meta || !rows.length) return 0;
     const chat = $('#chat');
     const anchor = chat.firstChild;
     _replayingHistory = true;
     try {
-    for (const row of older) {
-        addChatEntry(row.type, row.content, row.ts, anchor, row);
-        if (!Number.isFinite(row.id)) continue;
-        if (meta.firstId === null || row.id < meta.firstId) meta.firstId = row.id;
-        meta.initialCount++;
-    }
+        for (const row of rows) {
+            addChatEntry(row.type, row.content, row.ts, anchor, row);
+            if (!Number.isFinite(row.id)) continue;
+            if (meta.firstId === null || row.id < meta.firstId) meta.firstId = row.id;
+            meta.initialCount++;
+        }
     } finally { _replayingHistory = false; }
-    // Добор уходит ВВЕРХ, юзер остаётся у свежего сообщения.
+    // Дорисовка уходит ВВЕРХ, юзер остаётся у свежего сообщения.
     chat.scrollTop = chat.scrollHeight;
     updateLoadMoreBtn();
-    _storePut(older);
-    return older.length;
+    return rows.length;
+}
+
+// Выполнить после того, как первый кадр УЖЕ нарисован: один rAF срабатывает ДО отрисовки,
+// поэтому нужен второй.
+function _afterPaint(fn) {
+    if (typeof requestAnimationFrame !== 'function') return setTimeout(fn, 0);
+    requestAnimationFrame(() => requestAnimationFrame(fn));
 }
 
 // Кладём в зеркало то, что уже скачали и показали. Отдельно от _storeSync: тот ходит
@@ -1821,12 +1840,19 @@ async function _showChatFor(name, scope) {
         if (name !== selectedAgent || scope !== currentScope) return;  // успели уйти к другому агенту
         // Чей журнал мы показали. Поток назовёт свою сессию, и несовпадение вычистит чат.
         _chatSessionId = sid || (rows.length ? rows[0].session_id : null);
-        _renderHistory(name, rows);
+        // Первый кадр — только хвост. Отрисовка сотни строк разом стоит 0.8–0.9 с длинных
+        // задач главного потока, и чат появляется на ~300 мс позже, чем когда рисуются два
+        // десятка (замер perf, docs/tasks/32/measurements). Сеть тут ни при чём: цифра
+        // снята на попадании в зеркало, где сетевых запросов ноль.
+        const head = rows.length > _CHAT_FIRST_PAINT ? rows.slice(0, -_CHAT_FIRST_PAINT) : [];
+        _renderHistory(name, head.length ? rows.slice(-_CHAT_FIRST_PAINT) : rows);
         connectSSE(true);
-        // Зеркало держит _STORE_TAIL строк на сессию — это один ход агента, а не страница.
-        // Дорисовываем до _CHAT_PAGE в фоне, чат уже на экране. Без await: держать
-        // _chatLoading до конца добора значит заблокировать восстановительный connectSSE.
-        if (fromStore && rows.length < _CHAT_PAGE) _completeChatPage(name, scope);
+        // Остаток страницы и добор с сервера идут строго по очереди: и то и другое
+        // вставляет НАД первой строкой, а серверные строки старше остатка зеркала.
+        _afterPaint(() => {
+            _prependHistory(name, scope, head);
+            if (fromStore) _completeChatPage(name, scope);
+        });
         return fromStore;
     } finally {
         // Обязательно снимаем даже на раннем выходе: иначе восстановительный connectSSE
