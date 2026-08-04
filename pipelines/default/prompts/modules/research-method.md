@@ -38,6 +38,19 @@ string matches.
 Judge retrieval relevance before using it. Irrelevant retrieval **poisons**
 reasoning — discard it, don't reason on top of it.
 
+**Prior art — has someone already solved this?**
+RUN THIS WHEN the task turns on the behavior of a system outside our code (a protocol, someone
+else's service, an unfamiliar library or format) — before you start deep diagnosis or design.
+SKIP IT when the answer lives entirely in our own code: a known file/function, a clear repro,
+a spec you were handed. Most tasks skip it.
+Look for a working solution, not opinions: the project's own source and issue tracker, and
+engineering write-ups by people who hit it in production. Timebox it — 2-3 sources, and if
+nothing matches your symptom, stop and go diagnose.
+Someone else's fix is **tier 2 at best (Step 3): a hypothesis about OUR system, never a verdict.**
+Reproduce it here before you act on it, and say in `research.md` whether it matched.
+Measured: #143 spent half a day tracing a network stall by hand; the mechanism had been published
+a year earlier and surfaced on the first web search — run AFTER the diagnosis, not before it.
+
 ### Step 3 — Rank every source by evidence tier (not by authority or recency)
 Rank what a claim rests on, best → worst:
 1. **Direct measurement** — you ran it, reproducible numbers (strongest)
