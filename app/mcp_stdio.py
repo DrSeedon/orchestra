@@ -36,6 +36,9 @@ SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 SEARCH_DEADLINE_S = 5.0
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
+# Имя агента меняется и может быть переиспользовано; id — нет. Нужен там, где
+# идентичность СОХРАНЯЕТСЯ и сравнивается позже: держатель тест-лока (#82).
+SESSION_ID = os.environ.get("ORCHESTRA_SESSION_ID", "")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 ACCESS_MODE = os.environ.get("ORCHESTRA_ACCESS_MODE", "full").strip().lower()
@@ -683,6 +686,7 @@ async def acquire_test_lock(reason: str = "") -> str:
     Всегда вызывай release_test_lock() после прогона."""
     result = await _api("POST", "/api/test-lock/acquire", json={
         "scope": SCOPE, "holder": WORKER_NAME, "reason": reason,
+        "holder_session_id": SESSION_ID,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Lock error: {result['error']}"
@@ -696,7 +700,7 @@ async def acquire_test_lock(reason: str = "") -> str:
 async def release_test_lock() -> str:
     """Освободить глобальный тест-лок (если ты его держишь). Вызывай сразу после полного прогона."""
     result = await _api("POST", "/api/test-lock/release", json={
-        "scope": SCOPE, "holder": WORKER_NAME,
+        "scope": SCOPE, "holder": WORKER_NAME, "holder_session_id": SESSION_ID,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Lock error: {result['error']}"

@@ -2659,3 +2659,40 @@ class TestDeleteOrphanGuard:
         self._mk(client, "lonely")
         r = client.delete("/api/sessions/lonely", params={"scope": "/tmp"})
         assert r.status_code == 200
+
+
+def test_rename_updates_children_parent_reference(client):
+    """#82: дети ссылаются на родителя ИМЕНЕМ, и по нему же идёт авто-репорт."""
+    from datetime import datetime, timezone
+    from app.db import _conn, get_all_sessions, save_session
+
+    now = datetime.now(timezone.utc).isoformat()
+    base = {
+        "cwd": "/s", "model": "m", "system_prompt": "", "status": "idle",
+        "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
+        "base_branch": "main", "is_orchestrator": False, "color": "",
+        "created_at": now, "finished_at": None, "task_id": "", "needs_switch": 0,
+    }
+    save_session({**base, "id": "p-1", "name": "old-parent", "scope": "/s"})
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO sessions (id, name, scope, cwd, model, system_prompt, status, "
+            "created_at, parent_id, parent_name) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            ("c-1", "child", "/s", "/s", "m", "", "idle", now, "p-1", "old-parent"),
+        )
+        # Чужой ребёнок с тем же именем родителя, но другим id — трогать нельзя.
+        c.execute(
+            "INSERT INTO sessions (id, name, scope, cwd, model, system_prompt, status, "
+            "created_at, parent_id, parent_name) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            ("c-2", "other-child", "/s", "/s", "m", "", "idle", now, "p-other", "old-parent"),
+        )
+
+    response = client.post(
+        "/api/sessions/old-parent/rename", json={"scope": "/s", "new_name": "new-parent"},
+    )
+
+    assert response.status_code == 200
+    rows = {row["id"]: row for row in get_all_sessions("/s")}
+    assert rows["c-1"]["parent_name"] == "new-parent"
+    assert rows["c-2"]["parent_name"] == "old-parent"
+    assert rows["p-1"]["name"] == "new-parent"

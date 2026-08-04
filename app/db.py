@@ -123,6 +123,7 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS test_lock (
                 scope TEXT PRIMARY KEY,
                 holder TEXT NOT NULL,
+                holder_session_id TEXT NOT NULL DEFAULT '',
                 reason TEXT DEFAULT '',
                 acquired_at TEXT NOT NULL
             );
@@ -409,6 +410,9 @@ def _migrate(c) -> None:
     # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
     # Never drop columns: old Orchestra versions reading the same DB must still work.
     _guard_session_id(c)
+    lock_cols = {row[1] for row in c.execute("PRAGMA table_info(test_lock)").fetchall()}
+    if lock_cols and "holder_session_id" not in lock_cols:
+        c.execute("ALTER TABLE test_lock ADD COLUMN holder_session_id TEXT NOT NULL DEFAULT ''")
     cols = {row[1] for row in c.execute("PRAGMA table_info(sessions)").fetchall()}
     if "color" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN color TEXT DEFAULT ''")
@@ -1335,6 +1339,12 @@ def bg_claim_trigger(job_id: str) -> bool:
         return cur.rowcount > 0
 
 
+def bg_get_job(job_id: str) -> dict | None:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM bg_jobs WHERE id = ?", (job_id,)).fetchone()
+        return dict(row) if row else None
+
+
 def bg_finish_trigger(job_id: str, last_output: str = "") -> None:
     with _conn() as c:
         c.execute(
@@ -1807,34 +1817,58 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5, until: str = "") -
 
 # ── Test Lock ──
 
-def acquire_test_lock(scope: str, holder: str, reason: str = "") -> tuple[bool, str | None]:
+def _same_lock_holder(row, holder: str, holder_session_id: str) -> bool:
+    """Тот же держатель?
+
+    По НЕИЗМЕНЯЕМОМУ id, когда он известен обеим сторонам: имя агента меняется
+    `rename_worker` и может быть занято другим агентом — тогда сравнение по строке либо
+    не даёт снять свой лок, либо даёт снять ЧУЖОЙ. Строка от старого сервера id не имеет,
+    и для неё остаётся сравнение по имени — иначе живой лок стал бы неснимаемым в окне
+    между мержем и рестартом.
+    """
+    stored_id = row["holder_session_id"] if "holder_session_id" in row.keys() else ""
+    if stored_id and holder_session_id:
+        return stored_id == holder_session_id
+    return row["holder"] == holder
+
+
+def acquire_test_lock(scope: str, holder: str, reason: str = "",
+                      holder_session_id: str = "") -> tuple[bool, str | None]:
     """Захватить глобальный тест-лок для scope.
 
     Возвращает (ok, current_holder):
     - (True, None)   — лок свободен, захвачен
-    - (True, holder) — лок уже за этим же holder (идемпотентно), reason обновлён
+    - (True, holder) — лок уже за этим же держателем (идемпотентно), reason обновлён
     - (False, name)  — занят другим, name = текущий держатель
     """
     now = datetime.now(timezone.utc).isoformat()
     with _conn() as c:
-        row = c.execute("SELECT holder FROM test_lock WHERE scope = ?", (scope,)).fetchone()
+        row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
         if row is not None:
-            if row["holder"] == holder:
-                c.execute("UPDATE test_lock SET reason = ?, acquired_at = ? WHERE scope = ?",
-                          (reason, now, scope))
+            if _same_lock_holder(row, holder, holder_session_id):
+                # Имя держателя могло смениться с момента захвата — показываем текущее.
+                c.execute(
+                    "UPDATE test_lock SET holder = ?, holder_session_id = ?, reason = ?, "
+                    "acquired_at = ? WHERE scope = ?",
+                    (holder, holder_session_id or row["holder_session_id"], reason, now, scope),
+                )
                 return True, holder
             return False, row["holder"]
         c.execute(
-            "INSERT INTO test_lock (scope, holder, reason, acquired_at) VALUES (?, ?, ?, ?)",
-            (scope, holder, reason, now),
+            "INSERT INTO test_lock (scope, holder, holder_session_id, reason, acquired_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (scope, holder, holder_session_id, reason, now),
         )
         return True, None
 
 
-def release_test_lock(scope: str, holder: str) -> bool:
-    """Освободить лок. True — освобождён (был за этим holder); False — не держатель / лок свободен."""
+def release_test_lock(scope: str, holder: str, holder_session_id: str = "") -> bool:
+    """Освободить лок. True — освобождён (был за этим держателем); False — не держатель."""
     with _conn() as c:
-        cur = c.execute("DELETE FROM test_lock WHERE scope = ? AND holder = ?", (scope, holder))
+        row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
+        if row is None or not _same_lock_holder(row, holder, holder_session_id):
+            return False
+        cur = c.execute("DELETE FROM test_lock WHERE scope = ?", (scope,))
         return cur.rowcount > 0
 
 

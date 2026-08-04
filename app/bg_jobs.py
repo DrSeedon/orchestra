@@ -22,7 +22,7 @@ from app.db import (
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
     bg_reset_stale_triggering, bg_cleanup_old,
     bg_cron_should_fire, bg_cron_record_fire,
-    bg_get_jobs, bg_fail_job_if_active, bg_replace_job,
+    bg_get_jobs, bg_get_job, bg_fail_job_if_active, bg_replace_job,
     bg_reset_wake_triggering,
 )
 from app.pidfd_exec import pidfd_send_group
@@ -509,16 +509,39 @@ class BgJobManager:
         if not session.last_task_sender and session.parent_name:
             session.last_task_sender = session.parent_name
 
+    async def _load_job_target(self, job_id: str, target_name: str):
+        """Найти цель джоба по НЕИЗМЕНЯЕМОМУ id из его же строки.
+
+        Имя, записанное при создании, к моменту срабатывания могло смениться
+        (`rename_worker`) или уже принадлежать ДРУГОМУ агенту — разбудить по нему значит
+        либо не разбудить никого молча, либо разбудить чужого. Имя оставлено для человека.
+        """
+        row = bg_get_job(job_id) or {}
+        target_session_id = str(row.get("target_session_id") or "")
+        if not target_session_id:
+            logger.error(
+                f"bg_job {job_id}: no target_session_id "
+                f"(name at creation: {target_name!r}) — refusing to wake by name"
+            )
+            return None, "job has no target_session_id"
+        session = await self._session_manager.ensure_loaded_by_id(target_session_id)
+        if not session:
+            logger.warning(
+                f"bg_job {job_id}: target session {target_session_id} "
+                f"(name at creation: {target_name!r}) not found"
+            )
+            return None, "target session not found"
+        return session, ""
+
     async def _trigger(self, job_id: str, message: str,
                        target_name: str, target_scope: str, output: str = "") -> None:
         claimed = bg_claim_trigger(job_id)
         if not claimed:
             return
         try:
-            session = await self._session_manager.ensure_loaded(target_name, target_scope)
+            session, failure = await self._load_job_target(job_id, target_name)
             if not session:
-                bg_fail_job(job_id, "target session not found")
-                logger.warning(f"bg_job {job_id}: target {target_name} not found")
+                bg_fail_job(job_id, failure)
                 return
             body = f"[Background job completed] {message}"
             if output:
@@ -558,9 +581,8 @@ class BgJobManager:
                f"The process produced no output or hung. Check the target tool "
                f"(codex auth/proxy/sandbox) and retry.")
         try:
-            session = await self._session_manager.ensure_loaded(target_name, target_scope)
+            session, _failure = await self._load_job_target(job_id, target_name)
             if not session:
-                logger.warning(f"bg_job {job_id}: timeout, target {target_name} not found")
                 return
             body = f"[Background job TIMED OUT] {err}"
             if output:
@@ -576,9 +598,8 @@ class BgJobManager:
         """Persist a failed run and wake the waiting agent with an explicit failure."""
         bg_fail_job(job_id, error)
         try:
-            session = await self._session_manager.ensure_loaded(target_name, target_scope)
+            session, _failure = await self._load_job_target(job_id, target_name)
             if not session:
-                logger.warning(f"bg_job {job_id}: failed, target {target_name} not found")
                 return
             body = f"[Background job FAILED] {message}\n{error}"
             if output:
@@ -645,9 +666,9 @@ class BgJobManager:
         if not bg_cron_should_fire(job_id):
             return
         try:
-            session = await self._session_manager.ensure_loaded(target_name, target_scope)
+            session, _failure = await self._load_job_target(job_id, target_name)
             if not session:
-                logger.warning(f"cron {job_id}: target {target_name} not found, skipping fire")
+                # Расписание живёт дальше: цель могла быть выгружена временно.
                 return
             await self._session_manager.send(
                 session.id, f"[Cron job fired] {message}",
@@ -700,15 +721,8 @@ class BgJobManager:
                 return
             if not bg_cron_should_fire(job_id):
                 return
-            session = await self._session_manager.ensure_loaded(
-                target_name, target_scope,
-            )
+            session, _failure = await self._load_job_target(job_id, target_name)
             if not session:
-                logger.warning(
-                    "cron_command %s: target %s not found, skipping match",
-                    job_id,
-                    target_name,
-                )
                 return
             self._restore_report_provenance(session)
             body = f"[Cron command matched] {message}"

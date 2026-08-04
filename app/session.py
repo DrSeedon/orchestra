@@ -223,6 +223,12 @@ class AgentSession:
     needs_switch: bool = False
     last_task_sender: str = ""
 
+    # Имя сменилось, пока жил этот коннект. env MCP-подпроцесса замораживается при его
+    # старте, поэтому подпроцесс надо поднять заново — но только на ГРАНИЦЕ хода:
+    # дисконнект внутри хода оборвал бы живой ход. Флаг идемпотентен: два переименования
+    # за ход дают одну пересборку.
+    _identity_stale: bool = field(default=False, repr=False)
+
     # False → detached DB-hydrate (manager._hydrate_row): data only, no backend/tasks.
     # NEVER call start()/send()/_persist() on a detached session.
     loaded: bool = True
@@ -737,6 +743,8 @@ class AgentSession:
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True
 
+            await self._apply_pending_identity_restart()
+
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 self._manually_interrupted = False
                 self._did_report = False
@@ -854,6 +862,20 @@ class AgentSession:
             await asyncio.to_thread(inject_skills_to_worktree, skills, path, home_dir)
         except Exception as e:
             logger.warning(f"[{self.name}] skill refresh failed: {e}")
+    async def _apply_pending_identity_restart(self) -> bool:
+        """Погасить бэкенд, если имя сменилось, — но только на ГРАНИЦЕ хода.
+
+        Дисконнект внутри живого хода оборвал бы его, поэтому в RUNNING только копим
+        флаг. Упавший ход флаг не съедает: он доживает до начала следующего, а если
+        коннекта не станет вовсе (гибернация, рестарт), новый бэкенд и так строится из
+        уже пересобранного `mcp_servers`. Повторный вызов — no-op.
+        """
+        if not self._identity_stale or self.status == AgentStatus.RUNNING:
+            return False
+        self._identity_stale = False
+        self._log("status", "identity changed — restarting MCP subprocess")
+        await self._disconnect_backend()
+        return True
 
     async def _ensure_backend(self, force_fresh: bool = False):
         if self._backend is not None:

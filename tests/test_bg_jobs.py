@@ -31,6 +31,8 @@ def mgr_mock():
     sess.send = AsyncMock()
     m.ensure_loaded = AsyncMock(return_value=sess)
     m.ensure_loaded_any = AsyncMock(return_value=sess)
+    # #82: пробуждение идёт по неизменяемому id, а не по имени.
+    m.ensure_loaded_by_id = AsyncMock(return_value=sess)
 
     async def deliver(_session_id, message):
         await sess.send(message)
@@ -214,6 +216,8 @@ class TestFireCron:
         m = MagicMock()
         m.ensure_loaded = AsyncMock(return_value=None)
         m.ensure_loaded_any = AsyncMock(return_value=None)
+        # #82: цель ищется по id — без этого мока тест зеленел бы на TypeError в except.
+        m.ensure_loaded_by_id = AsyncMock(return_value=None)
         mgr.set_session_manager(m)
         now = datetime.now(timezone.utc)
         bg_save_job({
@@ -886,3 +890,96 @@ os._exit(0)
             if unrelated.returncode is None:
                 unrelated.terminate()
             await unrelated.wait()
+
+
+class TestWakeByImmutableId:
+    """#82: имя цели могло смениться или уже принадлежать ДРУГОМУ агенту."""
+
+    @staticmethod
+    def _job(job_id, now, *, session_id="s-1", name="w1"):
+        return {
+            "id": job_id, "type": "run", "config": json.dumps({"command": "true"}),
+            "message": "review done", "target_session_id": session_id,
+            "target_name": name, "target_scope": "/s", "created_by_name": "orch",
+            "status": "active",
+            "expires_at": (now + timedelta(hours=1)).isoformat(),
+            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+        }
+
+    @pytest.mark.asyncio
+    async def test_renamed_target_is_woken_by_id_not_by_stale_name(self, db, mgr_mock):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("wake-renamed", datetime.now(timezone.utc)))
+
+        # Имя в джобе — то, что было при создании; сессия давно называется иначе.
+        await mgr._trigger("wake-renamed", "review done", "old-name", "/s", "")
+
+        manager.ensure_loaded_by_id.assert_awaited_once_with("s-1")
+        manager.ensure_loaded.assert_not_awaited()
+        session.send.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_missing_session_id_fails_loud_without_falling_back_to_name(
+        self, db, mgr_mock, caplog,
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+
+        caplog.set_level("ERROR", logger="app.bg_jobs")
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("wake-no-id", datetime.now(timezone.utc), session_id=""))
+
+        await mgr._trigger("wake-no-id", "review done", "w1", "/s", "")
+
+        manager.ensure_loaded.assert_not_awaited()
+        manager.ensure_loaded_by_id.assert_not_awaited()
+        session.send.assert_not_awaited()
+        row = [j for j in bg_get_jobs() if j["id"] == "wake-no-id"][0]
+        assert row["status"] == "failed"
+        assert "target_session_id" in row["error"]
+        assert "refusing to wake by name" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_vanished_session_is_reported_with_both_id_and_name(
+        self, db, mgr_mock, caplog,
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        caplog.set_level("WARNING", logger="app.bg_jobs")
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        manager.ensure_loaded_by_id = AsyncMock(return_value=None)
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("wake-gone", datetime.now(timezone.utc), session_id="s-gone"))
+
+        await mgr._trigger("wake-gone", "review done", "w1", "/s", "")
+
+        assert "s-gone" in caplog.text and "w1" in caplog.text
+        session.send.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_archived_session_is_not_woken_even_though_row_exists(self, db):
+        """ensure_loaded_by_id на настоящем менеджере: архивную сессию не будим."""
+        from app.manager import SessionManager
+        from app.db import save_session
+
+        save_session({
+            "id": "arch-1", "name": "gone", "scope": "/s", "cwd": "/s", "model": "m",
+            "system_prompt": "", "status": "archived", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": "", "branch": "", "base_branch": "main",
+            "is_orchestrator": False, "color": "",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None, "task_id": "", "needs_switch": 0,
+        })
+        manager = SessionManager()
+
+        assert await manager.ensure_loaded_by_id("arch-1") is None
+        assert await manager.ensure_loaded_by_id("does-not-exist") is None

@@ -643,6 +643,75 @@ class TestTestLock:
         assert ok is False  # не держатель — не освобождает
         assert get_test_lock("/s")["holder"] == "coder-a"
 
+    def test_renamed_holder_still_releases_its_own_lock(self, db):
+        """#82: имя держателя сменилось между захватом и снятием — id не сменился."""
+        from app.db import acquire_test_lock, release_test_lock, get_test_lock
+
+        acquire_test_lock(scope="/s", holder="old-name", reason="full suite",
+                          holder_session_id="sess-1")
+        assert release_test_lock(scope="/s", holder="new-name",
+                                 holder_session_id="sess-1") is True
+        assert get_test_lock("/s") is None
+
+    def test_reused_name_cannot_release_someone_elses_lock(self, db):
+        """#82: старое имя освободилось и досталось ДРУГОМУ агенту."""
+        from app.db import acquire_test_lock, release_test_lock, get_test_lock
+
+        acquire_test_lock(scope="/s", holder="shared-name", reason="mine",
+                          holder_session_id="sess-1")
+        assert release_test_lock(scope="/s", holder="shared-name",
+                                 holder_session_id="sess-2") is False
+        assert get_test_lock("/s")["holder_session_id"] == "sess-1"
+        assert acquire_test_lock(scope="/s", holder="shared-name", reason="theirs",
+                                 holder_session_id="sess-2") == (False, "shared-name")
+
+    def test_row_without_id_still_compares_by_name(self, db):
+        """Лок, взятый старым сервером (окно мерж→рестарт), обязан сниматься."""
+        from app.db import _conn, acquire_test_lock, release_test_lock
+
+        with _conn() as c:
+            c.execute(
+                "INSERT INTO test_lock (scope, holder, reason, acquired_at) "
+                "VALUES ('/s', 'legacy-holder', 'old server', '2026-08-04T00:00:00+00:00')",
+            )
+        assert acquire_test_lock(scope="/s", holder="someone-else", reason="",
+                                 holder_session_id="sess-9") == (False, "legacy-holder")
+        assert release_test_lock(scope="/s", holder="legacy-holder",
+                                 holder_session_id="sess-1") is True
+
+    def test_holder_name_shown_is_the_current_one_after_rename(self, db):
+        """Держателя ищут глазами по имени — оно обязано быть актуальным."""
+        from app.db import acquire_test_lock, get_test_lock
+
+        acquire_test_lock(scope="/s", holder="old-name", reason="r1",
+                          holder_session_id="sess-1")
+        acquire_test_lock(scope="/s", holder="new-name", reason="r2",
+                          holder_session_id="sess-1")
+        row = get_test_lock("/s")
+        assert row["holder"] == "new-name"
+        assert row["reason"] == "r2"
+
+    def test_migration_adds_holder_id_to_an_existing_lock_table(self, tmp_path, monkeypatch):
+        """Аддитивная миграция на БД, где колонки ещё нет."""
+        import sqlite3
+        import app.db as dbmod
+
+        legacy = tmp_path / "legacy.db"
+        with sqlite3.connect(legacy) as raw:
+            raw.execute(
+                "CREATE TABLE test_lock (scope TEXT PRIMARY KEY, holder TEXT NOT NULL, "
+                "reason TEXT DEFAULT '', acquired_at TEXT NOT NULL)"
+            )
+            raw.execute(
+                "INSERT INTO test_lock VALUES ('/s', 'legacy', '', '2026-08-04T00:00:00+00:00')"
+            )
+        monkeypatch.setattr(dbmod, "DB_PATH", legacy)
+        dbmod.init_db()
+
+        row = dbmod.get_test_lock("/s")
+        assert row["holder"] == "legacy" and row["holder_session_id"] == ""
+        assert dbmod.release_test_lock(scope="/s", holder="legacy") is True
+
     def test_lock_isolated_by_scope(self, db):
         from app.db import acquire_test_lock
         assert acquire_test_lock(scope="/a", holder="x", reason="")[0] is True

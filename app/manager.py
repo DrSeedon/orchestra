@@ -388,7 +388,8 @@ def _parse_custom_mcp(raw) -> dict:
 
 
 def _make_mcp_config(name: str, scope: str, role: str = "worker",
-                     parent_name: str = "", extra: dict | None = None) -> dict:
+                     parent_name: str = "", extra: dict | None = None,
+                     session_id: str = "") -> dict:
     env = {
         **MCP_BASE_ENV,
         "ORCHESTRA_URL": "http://127.0.0.1:8888",
@@ -397,6 +398,9 @@ def _make_mcp_config(name: str, scope: str, role: str = "worker",
         "ORCHESTRA_ACCESS_MODE": "full",
         "WORKER_NAME": name,
         "PARENT_NAME": parent_name,
+        # Имя агент может сменить, id — нет. Всё, что СОХРАНЯЕТСЯ и сравнивается позже
+        # (держатель тест-лока), обязано опираться на него, а не на имя (#82).
+        "ORCHESTRA_SESSION_ID": session_id,
     }
     cfg = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": env, "alwaysLoad": True}}
     if extra:
@@ -643,13 +647,15 @@ class SessionManager:
         _rr_effort = get_role(pipeline, role)
         raw_effort = getattr(_rr_effort, "effort", None) if _rr_effort else None
         effort = raw_effort if isinstance(raw_effort, str) and raw_effort else None
+        session_id = str(uuid.uuid4())
         session = AgentSession(
-            id=str(uuid.uuid4()), name=name, scope=scope, cwd=cwd, model=model,
+            id=session_id, name=name, scope=scope, cwd=cwd, model=model,
             system_prompt=prompt, role=role,
             parent_id=parent_id, parent_name=parent_name,
             pipeline=pipeline, profile=profile,
             color="" if is_orch else self._pick_color(),
-            mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name, extra=custom_mcp),
+            mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name,
+                                         extra=custom_mcp, session_id=session_id),
             mcp_servers_custom=custom_mcp,
             backend_type=bt, effort=effort, task_id=task_id, description=description,
             base_branch=base_branch,
@@ -961,6 +967,30 @@ class SessionManager:
         archive_session(session_id)
         self.sessions.pop(session_id, None)
 
+    def refresh_identity(self, session) -> str:
+        """Пересобрать MCP-конфиг сессии под её ТЕКУЩИЕ имя и родителя.
+
+        `WORKER_NAME`/`PARENT_NAME` попадают в env MCP-подпроцесса один раз — при его
+        старте, — поэтому переименование обязано поднять подпроцесс заново. Конфиг
+        обновляем СРАЗУ: любой следующий коннект строит бэкенд из `session.mcp_servers`,
+        значит упавший ход, гибернация и рестарт чинятся сами. Живой бэкенд гасится не
+        здесь, а на границе хода (`session.send`) — дисконнект внутри хода оборвал бы его.
+
+        Незагруженной сессии не нужно ничего: её конфиг всё равно строится заново из
+        строки БД при загрузке (`_load_from_db`). Это не поломка, чинить нечего.
+        """
+        if not session.loaded:
+            return "not-loaded"
+        session.mcp_servers = _make_mcp_config(
+            session.name, session.scope, session.role,
+            parent_name=session.parent_name, extra=session.mcp_servers_custom,
+            session_id=session.id,
+        )
+        if session._backend is None:
+            return "config-only"
+        session._identity_stale = True
+        return "restart-pending"
+
     async def change_orchestrator_scope(self, name: str, old_scope: str,
                                          new_scope: str, new_cwd: str) -> dict:
         """Move an idle, worker-free orchestrator to a new scope/cwd.
@@ -1022,7 +1052,8 @@ class SessionManager:
                 self._migrate_cli_session(session.session_id, old_scope, new_scope)
             session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
                                                    parent_name=session.parent_name,
-                                                   extra=session.mcp_servers_custom)
+                                                   extra=session.mcp_servers_custom,
+                                                   session_id=session.id)
             session._persist()
             if session._persist_task:
                 await asyncio.gather(session._persist_task, return_exceptions=True)
@@ -1340,6 +1371,20 @@ class SessionManager:
             return None
         return await self._load_from_db(db_row)
 
+    async def ensure_loaded_by_id(self, session_id: str) -> Optional[AgentSession]:
+        """Загрузить сессию по НЕИЗМЕНЯЕМОМУ id.
+
+        Имя меняется `rename_worker` и может быть занято другим агентом, поэтому всё, что
+        сохранило ссылку РАНЬШЕ (bg-джобы), обязано будить по id, а не по имени.
+        """
+        session = self.sessions.get(session_id)
+        if session:
+            return session
+        db_row = get_session(session_id)
+        if not db_row or db_row.get("status") == "archived":
+            return None
+        return await self._load_from_db(db_row)
+
     async def ensure_loaded_any(self, name: str) -> Optional[AgentSession]:
         for s in self.sessions.values():
             if s.name == name:
@@ -1409,7 +1454,8 @@ class SessionManager:
             profile=db_row.get("profile", ""),
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role,
-                                         parent_name=db_row.get("parent_name", ""), extra=custom_mcp),
+                                         parent_name=db_row.get("parent_name", ""),
+                                         extra=custom_mcp, session_id=db_row["id"]),
             mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, effort=db_row.get("effort") or None,
             runtime_handoff=db_row.get("runtime_handoff") or "",

@@ -52,6 +52,8 @@ class TestLockRequest(BaseModel):
     scope: str
     holder: str
     reason: str = ""
+    # Поле ДОБАВЛЯЕТСЯ: старый MCP его не шлёт, и тогда держатель сравнивается по имени.
+    holder_session_id: str = ""
 
 
 class ChangeScopeRequest(BaseModel):
@@ -1479,14 +1481,18 @@ async def test_lock_status_endpoint(scope: str):
 @router.post("/api/test-lock/acquire")
 async def acquire_lock_endpoint(req: TestLockRequest):
     from app.db import acquire_test_lock
-    ok, holder = acquire_test_lock(req.scope, req.holder, req.reason)
+    ok, holder = acquire_test_lock(
+        req.scope, req.holder, req.reason, holder_session_id=req.holder_session_id,
+    )
     return {"acquired": ok, "holder": holder}
 
 
 @router.post("/api/test-lock/release")
 async def release_lock_endpoint(req: TestLockRequest):
     from app.db import release_test_lock
-    ok = release_test_lock(req.scope, req.holder)
+    ok = release_test_lock(
+        req.scope, req.holder, holder_session_id=req.holder_session_id,
+    )
     return {"released": ok}
 
 

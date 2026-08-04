@@ -610,6 +610,27 @@ async def change_model(name: str, req: dict):
     return result
 
 
+def _rename_parent_references(parent_id: str, old_name: str, new_name: str) -> int:
+    """Дети ссылаются на родителя ИМЕНЕМ (`sessions.parent_name`), и по нему же идёт
+    авто-репорт. Родителя переименовали → ссылка указывает в пустоту, а если имя займёт
+    другой агент — на ЧУЖУЮ живую сессию. Ищем детей по неизменяемому `parent_id` (#82).
+    """
+    from app.db import _conn
+
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE sessions SET parent_name=? WHERE parent_id=? AND parent_name=?",
+            (new_name, parent_id, old_name),
+        )
+        updated = cur.rowcount
+    for child in manager.sessions.values():
+        if child.parent_id == parent_id and child.parent_name == old_name:
+            child.parent_name = new_name
+            # У ребёнка старое имя родителя лежит в PARENT_NAME его MCP-подпроцесса.
+            manager.refresh_identity(child)
+    return updated
+
+
 @router.post("/api/sessions/{name}/rename")
 async def rename_session(name: str, req: dict):
     scope = req.get("scope", "")
@@ -651,6 +672,10 @@ async def rename_session(name: str, req: dict):
         if new_branch:
             session.branch = new_branch
         session._persist()
+        # Имя уехало в env MCP-подпроцесса при его старте: без пересборки агент до конца
+        # коннекта представляется старым именем (#82).
+        manager.refresh_identity(session)
+    _rename_parent_references(sid, name, new_name)
     if old_branch and new_branch:
         wt_path = (session.worktree_path if session else None) or found.worktree_path
         if wt_path and Path(wt_path).is_dir():

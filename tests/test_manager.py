@@ -2769,3 +2769,89 @@ class TestLiveChildren:
         from app.db import save_session
         save_session(self._row("lonely", "", "idle"))
         assert mgr._live_children("parent-w", "/proj") == []
+
+
+class TestIdentityRefreshOnRename:
+    """#82: WORKER_NAME замораживается в env MCP-подпроцесса при его старте."""
+
+    @staticmethod
+    def _live_session(monkeypatch, *, backend=None, name="old-name"):
+        from app.session import AgentSession
+
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        session = AgentSession(
+            id="rn-1", name=name, scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]", system_prompt="p", role="worker",
+        )
+        session.loaded = True
+        session._backend = backend
+        return session
+
+    def test_rebuilds_config_and_defers_restart_to_turn_boundary(self, mgr, monkeypatch):
+        from tests.conftest import make_backend_mock
+
+        session = self._live_session(monkeypatch, backend=make_backend_mock())
+        session.name = "new-name"
+
+        assert mgr.refresh_identity(session) == "restart-pending"
+        assert session.mcp_servers["orchestra"]["env"]["WORKER_NAME"] == "new-name"
+        # Живой бэкенд НЕ гасим здесь: дисконнект внутри хода оборвал бы ход.
+        assert session._backend is not None
+        assert session._identity_stale is True
+
+    def test_second_rename_in_the_same_turn_is_still_one_restart(self, mgr, monkeypatch):
+        from tests.conftest import make_backend_mock
+
+        session = self._live_session(monkeypatch, backend=make_backend_mock())
+        session.name = "second"
+        mgr.refresh_identity(session)
+        session.name = "third"
+        mgr.refresh_identity(session)
+
+        assert session._identity_stale is True
+        assert session.mcp_servers["orchestra"]["env"]["WORKER_NAME"] == "third"
+
+    def test_session_without_live_backend_needs_no_restart(self, mgr, monkeypatch):
+        session = self._live_session(monkeypatch, backend=None)
+        session.name = "renamed"
+
+        assert mgr.refresh_identity(session) == "config-only"
+        assert session._identity_stale is False
+        assert session.mcp_servers["orchestra"]["env"]["WORKER_NAME"] == "renamed"
+
+    def test_not_loaded_session_needs_nothing(self, mgr, monkeypatch):
+        session = self._live_session(monkeypatch)
+        session.loaded = False
+
+        assert mgr.refresh_identity(session) == "not-loaded"
+        assert session.mcp_servers == {}
+
+    @pytest.mark.asyncio
+    async def test_restart_happens_on_turn_boundary_not_inside_a_live_turn(
+        self, mgr, monkeypatch,
+    ):
+        """Оба случая: живой ход не рвём, упавший ход флаг не съедает."""
+        from tests.conftest import make_backend_mock
+        from app.session import AgentStatus
+
+        backend = make_backend_mock()
+        session = self._live_session(monkeypatch, backend=backend)
+        session.name = "renamed-mid-turn"
+        mgr.refresh_identity(session)
+
+        session.status = AgentStatus.RUNNING
+        assert await session._apply_pending_identity_restart() is False
+        backend.disconnect.assert_not_awaited()
+        assert session._identity_stale is True
+
+        # Ход упал, не дойдя до конца: статус вернулся, флаг цел — гасим ЗДЕСЬ.
+        session.status = AgentStatus.IDLE
+        assert await session._apply_pending_identity_restart() is True
+        backend.disconnect.assert_awaited_once()
+        assert session._identity_stale is False
+        assert session._backend is None
+
+        # Повторный вызов — no-op, а не второй перезапуск.
+        assert await session._apply_pending_identity_restart() is False
+        backend.disconnect.assert_awaited_once()
