@@ -1381,11 +1381,23 @@ async def report_bug_endpoint(req: Request):
         error = _bug_error(exc)
         logger.exception(f"report_bug failed: {error}")
         return JSONResponse({"error": error}, status_code=500)
+    # Запись в стор уже состоялась и не должна зависеть от судьбы уведомления (#56):
+    # репорт зарегистрирован, даже если сообщать о нём некому или не вышло.
+    try:
+        from app.notify import notify_bug_report
+
+        notified = await notify_bug_report(
+            manager, scope=scope, reporter=reporter, title=title, record_id=record_id,
+        )
+    except Exception as notify_error:
+        notified = f"уведомление упало: {type(notify_error).__name__}: {notify_error}"
+        logger.warning("bug report %s notification failed: %s", record_id, notified)
     return {
         "result": f"Bug reported: {title}. Read: /api/report_bug",
         "record_id": record_id,
         "path": record_path,
         "view_url": "/api/report_bug",
+        "notified": notified,
     }
 
 

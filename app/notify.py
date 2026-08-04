@@ -49,3 +49,62 @@ async def report_undelivered(session_manager, *, scope: str, worker: str,
         return outcome
     logger.warning("undelivered %s for %s: reported to %s", what, worker, orch["name"])
     return f"сообщено оркестратору {orch['name']}"
+
+
+async def notify_bug_report(session_manager, *, scope: str, reporter: str,
+                            title: str, record_id: str) -> str:
+    """Сказать оркестратору scope, что в его проекте подан баг-репорт (#56).
+
+    Раньше репорт просто ложился в приватный стор: ни уведомления, ни отметки о прочтении.
+    Семь штук пролежали двое суток, включая репорты оркестраторов чужих проектов.
+
+    Уведомление шлётся РОВНО один раз, при публикации записи; ретраев нет намеренно —
+    повтор POST создаёт вторую запись, и два уведомления на два репорта это правда,
+    а не дубль. Автору собственного репорта не шлём: он и так знает.
+    """
+    orch = orchestrator_for_scope(scope)
+    if not orch:
+        outcome = f"некому сообщить: в scope {scope} нет оркестратора"
+        logger.warning("bug report %s from %s: %s", record_id, reporter, outcome)
+        return outcome
+    if orch["name"] == reporter:
+        return f"не отправлено: {reporter} — автор репорта и адресат одновременно"
+    text = (
+        f"BUG REPORT в твоём scope: «{title}»\n"
+        f"Подал: {reporter}. Запись: {record_id}.\n"
+        f"Полный текст — GET /api/report_bug. Разбор и приоритет — на тебе; "
+        f"платформа его только зарегистрировала."
+    )
+    try:
+        await session_manager.send(orch["id"], text)
+    except Exception as error:
+        outcome = f"уведомить {orch['name']} не удалось: {type(error).__name__}: {error}"
+        logger.warning("bug report %s from %s: %s", record_id, reporter, outcome)
+        _record_undelivered_bug(orch, reporter, title, record_id, outcome)
+        return outcome
+    logger.info("bug report %s from %s reported to %s", record_id, reporter, orch["name"])
+    return f"сообщено оркестратору {orch['name']}"
+
+
+def _record_undelivered_bug(orch: dict, reporter: str, title: str,
+                            record_id: str, outcome: str) -> None:
+    """След, не зависящий от сломанного канала (#47): в истории сессии адресата.
+
+    До самого агента запись не доедет — `system` в контекст не попадает, это проверено
+    в #47. Её читает человек в дашборде, и это лучшее, что доступно, когда доставка
+    отказала: сам репорт при этом уже лежит в сторе и не потерян.
+    """
+    from datetime import datetime, timezone
+
+    from app.db import add_log
+
+    try:
+        add_log(
+            orch["id"], datetime.now(timezone.utc), "system",
+            f"[доставка] уведомление о баг-репорте «{title}» (запись {record_id}, "
+            f"подал {reporter}) не доставлено: {outcome}. Сам репорт в сторе, "
+            f"читать: GET /api/report_bug",
+        )
+    except Exception as log_error:
+        logger.warning("could not record undelivered bug notice for %s: %s: %s",
+                       orch["name"], type(log_error).__name__, log_error)
