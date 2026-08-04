@@ -26,7 +26,8 @@
     <script src="{{ g.asset('css/vendor/marked.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/purify.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/diff_match_patch.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <!-- defer: нужен только модалке аналитики, но без него блокировал разбор документа -->
+    <script defer src="{{ g.asset('css/vendor/chart.umd.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/highlight.min.js') }}"></script>
     <link rel="stylesheet" href="{{ g.asset('css/vendor/highlight-github-dark.min.css') }}">
     <link rel="stylesheet" href="{{ g.asset('css/style.css') }}">
