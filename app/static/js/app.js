@@ -1722,6 +1722,55 @@ function _renderHistory(agent, rows) {
     _syncChatJumpButton();
 }
 
+// Добор страницы до _CHAT_PAGE и запись добранного в зеркало: следующий заход к этому
+// же агенту снова бесплатный. Поднять _STORE_TAIL вместо этого нельзя — инкрементальная
+// синхронизация (after_id > 0) tail ИГНОРИРУЕТ, поэтому уже заведённое зеркало никогда
+// не дозаполнится, а холодная синхронизация подорожала бы с 123 до 569 КБ gzip ради 23
+// сессий, из которых юзер открывает шесть. Цифры — docs/tasks/32/report.md.
+async function _completeChatPage(name, scope) {
+    const meta = chatLogs[name];
+    if (!meta || !meta.firstId) return 0;
+    const need = _CHAT_PAGE - (meta.initialCount || 0);
+    if (need <= 0) return 0;
+    let older;
+    try {
+        const q = new URLSearchParams({scope, before_id: String(meta.firstId), limit: String(need)});
+        older = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
+    } catch (e) {
+        // Молчать нельзя: юзер увидит короткий чат и не поймёт, почему он короткий.
+        console.warn(`[chat] добор истории для ${name} не удался: ${e?.name}: ${e?.message}`);
+        return 0;
+    }
+    if (!Array.isArray(older) || !older.length) return 0;
+    if (name !== selectedAgent || scope !== currentScope) return 0;  // успели уйти к другому
+    const chat = $('#chat');
+    const anchor = chat.firstChild;
+    for (const row of older) {
+        addChatEntry(row.type, row.content, row.ts, anchor, row);
+        if (!Number.isFinite(row.id)) continue;
+        if (meta.firstId === null || row.id < meta.firstId) meta.firstId = row.id;
+        meta.initialCount++;
+    }
+    // Добор уходит ВВЕРХ, юзер остаётся у свежего сообщения.
+    chat.scrollTop = chat.scrollHeight;
+    updateLoadMoreBtn();
+    _storePut(older);
+    return older.length;
+}
+
+// Кладём в зеркало то, что уже скачали и показали. Отдельно от _storeSync: тот ходит
+// за инкрементом по watermark, а здесь строки СТАРШЕ watermark, и трогать отметку нельзя.
+async function _storePut(rows) {
+    const db = await _storeOpen();
+    if (!db || !rows || !rows.length) return;
+    try {
+        await _storeTx('readwrite', ['logs'], (tx) => {
+            const logs = tx.objectStore('logs');
+            for (const row of rows) if (Number.isFinite(row.id)) logs.put(row);
+        });
+    } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
+}
+
 // Промах зеркала: тянем историю обычным маршрутом. Он отдаёт application/json, который
 // nginx жмёт, — те же 100 сообщений едут в 5 раз меньшим объёмом, чем через SSE (D1).
 async function _fetchHistory(name, scope) {
@@ -1760,6 +1809,10 @@ async function _showChatFor(name, scope) {
         _chatSessionId = sid || (rows.length ? rows[0].session_id : null);
         _renderHistory(name, rows);
         connectSSE(true);
+        // Зеркало держит _STORE_TAIL строк на сессию — это один ход агента, а не страница.
+        // Дорисовываем до _CHAT_PAGE в фоне, чат уже на экране. Без await: держать
+        // _chatLoading до конца добора значит заблокировать восстановительный connectSSE.
+        if (fromStore && rows.length < _CHAT_PAGE) _completeChatPage(name, scope);
         return fromStore;
     } finally {
         // Обязательно снимаем даже на раннем выходе: иначе восстановительный connectSSE
