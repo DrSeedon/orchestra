@@ -46,7 +46,7 @@ You describe the goal. The orchestrator (Claude) breaks it down, assigns workers
 git clone https://github.com/DrSeedon/orchestra.git
 cd orchestra
 cp .env.example .env
-uv sync
+uv sync              # or: uv sync --extra rag   (semantic memory, see Features)
 
 # Run
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
@@ -138,8 +138,18 @@ An idle agent costs nothing: Claude and Codex workers hibernate after their idle
 ### 🐞 Durable Bug Inbox
 Agents file platform bugs through `report_bug`. Reports land in the service state directory outside every Git checkout — one immutable record per report, published by atomic rename — so a bug filed mid-task can never dirty a worktree and block merges. Unread reports raise a banner in the dashboard.
 
+### 🧠 Semantic Memory
+Agents search past work by meaning, not by grep: `search_memory("how did we solve X")` runs hybrid
+retrieval (vector + FTS5, fused with RRF) over task docs, project rules and prior agent messages,
+reindexed on every merge. Optional — install with `uv sync --extra rag` and set `RAG_ENABLED=true`;
+without it Orchestra runs unchanged and nothing ML is loaded.
+
 ### 📊 Real-Time Dashboard
 HTMX + SSE dashboard shows every agent, their status, context usage, cache hit rate, current task, and live logs. No polling, no refresh.
+
+Chat history is mirrored into IndexedDB and rendered from there, so switching between agents normally
+costs no network round trip; on a cache miss it is one gzipped fetch. The stream opens straight at the
+tail and names its own session, so one agent's history can never bleed into another's view.
 
 ## Real Projects Built with Orchestra
 
@@ -196,6 +206,7 @@ DEEPGRAM_API_KEY=your_key
 - `claude-agent-sdk` — Claude Code SDK (persistent client per session)
 - Codex, Grok and OpenCode runtimes behind one backend contract (JSON-RPC over stdio)
 - SQLite (WAL mode), git worktrees
+- fastembed + sqlite-vec — optional semantic memory (`--extra rag`)
 - Tailwind CSS, highlight.js, marked.js (bundled offline)
 - aiogram 3.x (Telegram bridge)
 - Deepgram Nova-3 (voice transcription)
