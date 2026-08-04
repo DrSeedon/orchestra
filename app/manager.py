@@ -28,6 +28,7 @@ from app.workspace import (
     create_worktree, discard_prepared_worktree, remove_worktree,
     parse_owned_dirs, dirs_overlap,
     validate_repo_root, resolve_base_branch as resolve_git_base_branch,
+    repo_root,
 )
 from app.models import (
     CONTEXT_LIMITS,
@@ -405,6 +406,21 @@ def _make_mcp_config(name: str, scope: str, role: str = "worker",
                 continue
             cfg[k] = v
     return cfg
+
+
+def _crosses_repo_boundary(parent_dir: str, child_repo: str) -> bool:
+    """Родитель и ребёнок в РАЗНЫХ репозиториях? Спрашиваем git, а не сравниваем пути.
+
+    Каталог `seedon/site` лежит внутри `seedon`, но это другой репозиторий; префиксное
+    сравнение путей ответило бы «тот же» (#69). Не смогли определить — считаем, что
+    граница НЕ пересечена: тогда исходная ошибка о ненайденной ветке уйдёт наверх как есть,
+    без выдуманного объяснения.
+    """
+    try:
+        return repo_root(parent_dir) != repo_root(child_repo)
+    except Exception as exc:
+        logger.warning("не смог сравнить репозитории '%s' и '%s': %s", parent_dir, child_repo, exc)
+        return False
 
 
 class SessionManager:
@@ -1270,17 +1286,35 @@ class SessionManager:
         if rr is None or rr.base_branch_strategy == "main":
             return resolve_git_base_branch(repo_path)
         parent_branch = ""
+        parent_dir = ""
         if parent_name:
             ps = self.get_by_name(parent_name, scope)
             if ps is not None:
                 parent_branch = ps.branch or ""
+                parent_dir = ps.worktree_path or ps.cwd or ""
         if not parent_branch:
             logger.warning(
                 "base_branch_strategy=parent, но у родителя '%s' нет ветки — "
                 "resolving repository mainline",
                 parent_name)
             return resolve_git_base_branch(repo_path)
-        return resolve_git_base_branch(repo_path, parent_branch)
+        try:
+            return resolve_git_base_branch(repo_path, parent_branch)
+        except ValueError:
+            # Ветка родителя может жить в ДРУГОМ репозитории: в одном scope их бывает
+            # несколько (у seedon `site/` и `infra/` — свои git root'ы со своими origin).
+            # «Ответвись от родителя» через границу репозитория не значит ничего — там
+            # другая история. Берём mainline репозитория РЕБЁНКА, но громко: молчаливая
+            # подмена базы хуже отказа. Если репозиторий ТОТ ЖЕ, отсутствие ветки —
+            # настоящая ошибка, и она летит дальше (#69).
+            if parent_dir and _crosses_repo_boundary(parent_dir, repo_path):
+                logger.warning(
+                    "base_branch_strategy=parent: ветка '%s' родителя '%s' живёт в другом "
+                    "репозитории (%s), воркер спавнится в %s — база взята из mainline его "
+                    "репозитория",
+                    parent_branch, parent_name, parent_dir, repo_path)
+                return resolve_git_base_branch(repo_path)
+            raise
 
     @staticmethod
     def _role_is_orchestrator(pipeline: str, role: str) -> bool:

@@ -320,9 +320,11 @@ def test_migrated_worker_can_actually_commit(migration_stand):
     row = {"name": "vanilla-frontend", "branch": s.branch,
            "scope": str(s.src), "worktree_path": "/old/worktrees/vanilla-frontend"}
 
+    src_repo, dst_repo, target = migrate_agent.target_worktree(
+        "root@src", row, str(s.src), str(s.dst), str(s.orch),
+    )
     new_wt = migrate_agent.migrate_git(
-        "root@src", "root@dst", row,
-        str(s.src), str(s.dst), str(s.orch), s.me,
+        "root@src", "root@dst", row, src_repo, dst_repo, target, s.me,
     )
 
     wt = pathlib.Path(new_wt)
@@ -343,9 +345,11 @@ def test_nothing_is_left_behind_for_the_login_user(migration_stand):
     row = {"name": "vanilla-frontend", "branch": s.branch,
            "scope": str(s.src), "worktree_path": "/old/worktrees/vanilla-frontend"}
 
+    src_repo, dst_repo, target = migrate_agent.target_worktree(
+        "root@src", row, str(s.src), str(s.dst), str(s.orch),
+    )
     new_wt = migrate_agent.migrate_git(
-        "root@src", "root@dst", row,
-        str(s.src), str(s.dst), str(s.orch), s.me,
+        "root@src", "root@dst", row, src_repo, dst_repo, target, s.me,
     )
 
     for path in (new_wt, str(s.dst / ".git")):
@@ -362,8 +366,160 @@ def test_no_permanent_safe_directory_is_written_on_the_host(migration_stand):
     row = {"name": "vanilla-frontend", "branch": s.branch,
            "scope": str(s.src), "worktree_path": "/old/worktrees/vanilla-frontend"}
 
-    migrate_agent.migrate_git("root@src", "root@dst", row,
-                              str(s.src), str(s.dst), str(s.orch), s.me)
+    src_repo, dst_repo, target = migrate_agent.target_worktree(
+        "root@src", row, str(s.src), str(s.dst), str(s.orch),
+    )
+    migrate_agent.migrate_git("root@src", "root@dst", row, src_repo, dst_repo, target, s.me)
 
     assert not [c for c in s.calls if "config --global" in c]
     assert [c for c in s.calls if "-c safe.directory=" in c]
+
+
+# ── репозиторий воркера: спрашиваем git, а не выводим из scope ──
+
+class TestWorkerRepoIsAskedOfGit:
+    """#69: один scope может держать несколько независимых репозиториев.
+
+    У seedon внутри проекта лежат `site/` и `infra/` — свои git root'ы со своими origin.
+    Слаг каталога worktree платформа считает от REPO ROOT (`create_worktree`), поэтому
+    расчёт от scope уводит перенесённую копию туда, куда платформа никогда не заглянет.
+    """
+
+    ROW = {
+        "id": "s1", "name": "seo-cro",
+        "scope": "/home/kesha/projects/seedon",
+        "worktree_path": "/home/kesha/orchestra/worktrees/home-kesha-projects-seedon-site/seo-cro",
+    }
+
+    def test_nested_repo_defines_slug_and_target(self, monkeypatch):
+        def _ssh(host, cmd, *, check=True, capture=True):
+            assert "rev-parse --git-common-dir" in cmd
+            return subprocess.CompletedProcess(
+                [], 0, stdout="/home/kesha/projects/seedon/site\n", stderr="",
+            )
+
+        monkeypatch.setattr(migrate_agent, "ssh", _ssh)
+
+        src, dst, wt = migrate_agent.target_worktree(
+            "root@src", self.ROW,
+            "/home/kesha/projects/seedon", "/srv/projects/seedon", "/srv/orchestra",
+        )
+
+        assert src == "/home/kesha/projects/seedon/site"
+        assert dst == "/srv/projects/seedon/site"
+        # слаг от РЕПОЗИТОРИЯ: .../srv-projects-seedon-site/..., а не .../srv-projects-seedon/...
+        assert wt == "/srv/orchestra/worktrees/srv-projects-seedon-site/seo-cro"
+
+    def test_scope_slug_would_have_been_wrong(self, monkeypatch):
+        """Прямая проверка регрессии: расчёт от scope даёт ДРУГОЙ каталог."""
+        monkeypatch.setattr(migrate_agent, "ssh", lambda *a, **k: subprocess.CompletedProcess(
+            [], 0, stdout="/home/kesha/projects/seedon/site\n", stderr="",
+        ))
+        _, _, wt = migrate_agent.target_worktree(
+            "root@src", self.ROW,
+            "/home/kesha/projects/seedon", "/srv/projects/seedon", "/srv/orchestra",
+        )
+        slug_dir = wt.split("/worktrees/")[1].split("/")[0]
+        assert slug_dir == migrate_agent.slugify_repo("/srv/projects/seedon/site")
+        assert slug_dir != migrate_agent.slugify_repo("/srv/projects/seedon")
+
+    def test_unreadable_worktree_falls_back_to_scope_loudly(self, monkeypatch, capsys):
+        """Каталог не читается → фолбэк на scope, но С ПРЕДУПРЕЖДЕНИЕМ, а не молча."""
+        monkeypatch.setattr(migrate_agent, "ssh", lambda *a, **k: subprocess.CompletedProcess(
+            [], 128, stdout="", stderr="fatal: not a git repository",
+        ))
+
+        repo = migrate_agent.worker_repo("root@src", self.ROW, "/home/kesha/projects/seedon")
+
+        assert repo == "/home/kesha/projects/seedon"
+        assert "cannot read the repository" in capsys.readouterr().out
+
+    def test_orchestrator_without_worktree_uses_scope(self, monkeypatch):
+        monkeypatch.setattr(migrate_agent, "ssh", lambda *a, **k: pytest.fail(
+            "для сессии без worktree git спрашивать незачем"))
+
+        assert migrate_agent.worker_repo(
+            "root@src", {"name": "orch", "worktree_path": ""}, "/home/kesha/projects/seedon",
+        ) == "/home/kesha/projects/seedon"
+
+
+@pytest.fixture
+def nested_stand(tmp_path, monkeypatch):
+    """Проект с ВЛОЖЕННЫМ независимым репозиторием — как `seedon/site` у seedon."""
+    import getpass
+    me = getpass.getuser()
+    src_proj, dst_proj, orch = tmp_path / "src", tmp_path / "dst", tmp_path / "orch"
+    branch = "feat/site-worker"
+
+    def run(*args, cwd=None):
+        subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
+
+    for proj in (src_proj, dst_proj):
+        run("git", "init", "-q", "-b", "main", str(proj))
+        run("git", "-C", str(proj), "config", "user.email", "w@t")
+        run("git", "-C", str(proj), "config", "user.name", "W")
+        (proj / "root.txt").write_text("root\n")
+        run("git", "-C", str(proj), "add", "-A")
+        run("git", "-C", str(proj), "commit", "-qm", "root")
+
+    src_site = src_proj / "site"
+    run("git", "init", "-q", "-b", "main", str(src_site))
+    run("git", "-C", str(src_site), "config", "user.email", "w@t")
+    run("git", "-C", str(src_site), "config", "user.name", "W")
+    (src_site / "site.txt").write_text("site\n")
+    run("git", "-C", str(src_site), "add", "-A")
+    run("git", "-C", str(src_site), "commit", "-qm", "site")
+    run("git", "-C", str(src_site), "branch", branch)
+    run("git", "clone", "-q", str(src_site), str(dst_proj / "site"))
+    run("git", "-C", str(dst_proj / "site"), "config", "user.email", "w@t")
+    run("git", "-C", str(dst_proj / "site"), "config", "user.name", "W")
+
+    # рабочая копия воркера на ИСХОДНОМ хосте — принадлежит вложенному репозиторию
+    src_wt = tmp_path / "src-worktrees" / "site-worker"
+    run("git", "-C", str(src_site), "worktree", "add", "-q", str(src_wt), branch)
+    orch.mkdir()
+
+    def local_ssh(host, cmd, *, check=True, capture=True):
+        argv = ["sudo", "bash", "-c", cmd] if host.startswith("root@") else ["bash", "-c", cmd]
+        return subprocess.run(argv, check=check, text=True, capture_output=capture)
+
+    def local_scp(source, dest, *, recursive=False):
+        argv = ["sudo", "cp"] + (["-r"] if recursive else []) + [_strip_host(source), _strip_host(dest)]
+        subprocess.run(argv, check=True, capture_output=True)
+
+    monkeypatch.setattr(migrate_agent, "ssh", local_ssh)
+    monkeypatch.setattr(migrate_agent, "scp", local_scp)
+    yield SimpleNamespace(me=me, src_proj=src_proj, dst_proj=dst_proj, orch=orch,
+                          src_wt=src_wt, branch=branch)
+    subprocess.run(["sudo", "chown", "-R", f"{me}:{me}", str(tmp_path)], capture_output=True)
+
+
+@requires_two_users
+def test_nested_repo_worker_migrates_into_its_own_repo(nested_stand):
+    """#69 сквозняком: воркер вложенного репозитория приезжает в СВОЙ репозиторий и коммитит.
+
+    До правки бандл собирался из корневого репо (ветки там нет), а путь считался от scope —
+    копия оказывалась в каталоге, куда платформа не заглядывает.
+    """
+    s = nested_stand
+    row = {"id": "s1", "name": "site-worker", "branch": s.branch,
+           "scope": str(s.src_proj), "worktree_path": str(s.src_wt)}
+
+    src_repo, dst_repo, target = migrate_agent.target_worktree(
+        "root@src", row, str(s.src_proj), str(s.dst_proj), str(s.orch),
+    )
+
+    assert src_repo == str(s.src_proj / "site"), "репозиторий обязан прийти из git, а не из scope"
+    assert dst_repo == str(s.dst_proj / "site")
+    assert target.split("/worktrees/")[1].split("/")[0] == migrate_agent.slugify_repo(dst_repo)
+
+    new_wt = migrate_agent.migrate_git("root@src", "root@dst", row,
+                                       src_repo, dst_repo, target, s.me)
+
+    wt = pathlib.Path(new_wt)
+    assert (wt / "site.txt").is_file(), "приехало содержимое вложенного репо, а не корневого"
+    (wt / "site.txt").write_text("worker edit\n")
+    subprocess.run(["git", "-C", str(wt), "add", "-A"], check=True, capture_output=True)
+    commit = subprocess.run(["git", "-C", str(wt), "commit", "-m", "work"],
+                            capture_output=True, text=True)
+    assert commit.returncode == 0, commit.stderr

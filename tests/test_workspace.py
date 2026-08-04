@@ -2175,3 +2175,39 @@ class TestBrokenWorktreeIsVisible:
 
     def test_session_without_worktree_is_untouched(self):
         assert self._session("")._display_status() == "idle"
+
+
+class TestParentStrategyAcrossRepos:
+    """#69: `strategy=parent` через границу репозитория не значит ничего — там другая история."""
+
+    def _repo(self, path, branch="main"):
+        import subprocess as sp
+        path.mkdir(parents=True, exist_ok=True)
+        sp.run(["git", "init", "-q", "-b", "main", str(path)], check=True, capture_output=True)
+        sp.run(["git", "-C", str(path), "config", "user.email", "a@b"], check=True, capture_output=True)
+        sp.run(["git", "-C", str(path), "config", "user.name", "A"], check=True, capture_output=True)
+        (path / "f.txt").write_text("x")
+        sp.run(["git", "-C", str(path), "add", "-A"], check=True, capture_output=True)
+        sp.run(["git", "-C", str(path), "commit", "-qm", "init"], check=True, capture_output=True)
+        if branch != "main":
+            sp.run(["git", "-C", str(path), "branch", branch], check=True, capture_output=True)
+        return path
+
+    def test_nested_repo_is_a_different_repo(self, tmp_path):
+        from app.manager import _crosses_repo_boundary
+        parent = self._repo(tmp_path / "proj")
+        nested = self._repo(tmp_path / "proj" / "site")
+
+        assert _crosses_repo_boundary(str(parent), str(nested)) is True
+
+    def test_same_repo_is_not_a_boundary(self, tmp_path):
+        from app.manager import _crosses_repo_boundary
+        repo = self._repo(tmp_path / "proj")
+
+        assert _crosses_repo_boundary(str(repo), str(repo)) is False
+
+    def test_unknown_repo_does_not_invent_an_explanation(self, tmp_path):
+        """Не смогли определить — НЕ выдаём «другой репозиторий»: исходная ошибка честнее."""
+        from app.manager import _crosses_repo_boundary
+
+        assert _crosses_repo_boundary(str(tmp_path / "nope"), str(tmp_path / "also-nope")) is False

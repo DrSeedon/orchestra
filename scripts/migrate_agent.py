@@ -49,9 +49,16 @@ def enc_cli_dir(cwd: str) -> str:
     return cwd.replace("/", "-")
 
 
-def slugify_scope(scope: str) -> str:
-    """worktrees/<this>/<name> — app/workspace.py _slugify: non-alnum→'-', collapse, lower."""
-    slug = re.sub(r"[^a-zA-Z0-9]", "-", scope).strip("-")
+def slugify_repo(repo_root: str) -> str:
+    """worktrees/<this>/<name> — mirrors app/workspace.py::_slugify.
+
+    Feed it the REPOSITORY ROOT, never the session scope. The platform builds the directory
+    from `_slugify(str(repo))` on purpose (`create_worktree`): one scope can hold several
+    independent repositories — seedon keeps `site/` and `infra/` inside the project directory,
+    each with its own origin. Slugging the scope puts the migrated copy in a directory the
+    platform will never look in (#67, #69).
+    """
+    slug = re.sub(r"[^a-zA-Z0-9]", "-", repo_root).strip("-")
     slug = re.sub(r"-+", "-", slug)
     return slug.lower()[:80]
 
@@ -104,6 +111,34 @@ def git_at(host: str, repo: str, args: str, *, check: bool = True) -> subprocess
     only visiting, and it would grant root access it does not need after we leave.
     """
     return ssh(host, f"git -c safe.directory={repo!r} -C {repo!r} {args}", check=check)
+
+
+def worker_repo(host: str, row: dict, fallback_scope: str) -> str:
+    """Repository that OWNS this worker's worktree, asked of git — not guessed from scope.
+
+    `scope` is the project directory; the repository is whatever `--git-common-dir` says.
+    They differ whenever a project keeps independent repositories inside itself (seedon has
+    `site/` and `infra/`, each with its own origin). Bundling from the scope in that case
+    fetches a repository that does not contain the worker's branch at all (#67, #69).
+
+    `safe.directory` is passed per command and never written into the login user's config:
+    we visit as root while the checkout belongs to the service user.
+    """
+    wt = row.get("worktree_path") or ""
+    if wt:
+        r = ssh(
+            host,
+            f"cd {wt!r} && cd \"$(git -c safe.directory='*' rev-parse --git-common-dir)/..\" && pwd",
+            check=False,
+        )
+        root = r.stdout.strip()
+        if r.returncode == 0 and root:
+            return root
+        detail = r.stderr.strip() or f"exit {r.returncode}"
+        log(f"⚠ cannot read the repository of '{row['name']}' from {wt} on {host}: {detail} — "
+            f"falling back to the scope {fallback_scope}. If this project keeps nested "
+            f"repositories, that fallback is wrong: verify before trusting the migration.")
+    return fallback_scope.rstrip("/")
 
 
 def unit_service_user(host: str, unit: str) -> str:
@@ -315,42 +350,60 @@ def _relay_dir(from_host, to_host, src, dst) -> None:
     scp(local, f"{to_host}:{dst}", recursive=True)
 
 
-def migrate_git(from_host, to_host, row, from_scope, to_scope, to_orch, to_user) -> str | None:
+def target_worktree(from_host: str, row: dict, from_scope: str, to_scope: str,
+                    to_orch: str) -> tuple[str, str, str]:
+    """``(src_repo, dst_repo, new_worktree_path)`` — единый расчёт для транскрипта, git и БД.
+
+    Считается ОДИН раз на воркера: расходящиеся копии этой формулы уже стоили нам того, что
+    перенесённая копия оказывалась в каталоге, куда платформа не смотрит.
+    """
+    src_repo = worker_repo(from_host, row, from_scope)
+    dst_repo = rewrite_path(src_repo, from_scope, to_scope)
+    new_wt = f"{to_orch.rstrip('/')}/worktrees/{slugify_repo(dst_repo)}/{row['name']}"
+    return src_repo, dst_repo, new_wt
+
+
+def migrate_git(from_host, to_host, row, src_repo, dst_repo, new_wt, to_user) -> str | None:
     """Push worker branch (if any), recreate worktree on target. Returns new worktree_path or None."""
     wt = row.get("worktree_path") or ""
     branch = row.get("branch") or ""
     if not wt:
         return None  # orchestrator: works directly in scope, no worktree
 
-    new_scope = rewrite_path(row["scope"], from_scope, to_scope)
-    new_root = to_orch.rstrip("/")
-    new_wt = f"{new_root}/worktrees/{slugify_scope(new_scope)}/{row['name']}"
+    wt_parent = str(PurePosixPath(new_wt).parent)
+    exists = ssh(to_host, f"test -d {dst_repo!r}/.git && echo yes || echo no").stdout.strip()
+    if exists != "yes":
+        die(f"target repository {dst_repo} does not exist on {to_host} (worker "
+            f"'{row['name']}' lives in {src_repo}, which is not the scope root). Clone or "
+            f"copy it there first — migrating the worker into the wrong repository would "
+            f"silently give it someone else's history")
 
-    # Ensure the branch exists on the target scope repo. Simplest robust path:
+    # Ensure the branch exists on the target repo. Simplest robust path:
     # bundle the worker branch from source and fetch it on target.
     if branch:
         bundle_remote = f"/tmp/orch_{row['name']}.bundle"
-        # bundle from the source scope repo (worktree shares .git objects). Errors are NOT
-        # swallowed: a lost bundle means lost worker commits, and `git worktree add` below
-        # would then fail with "invalid reference" — the symptom, never the cause.
-        b = git_at(from_host, from_scope, f"bundle create {bundle_remote} {branch}", check=False)
+        # bundle from the repository that OWNS the worktree (it shares .git objects) — not
+        # from the scope. Errors are NOT swallowed: a lost bundle means lost worker commits,
+        # and `git worktree add` below would then fail with "invalid reference" — the
+        # symptom, never the cause.
+        b = git_at(from_host, src_repo, f"bundle create {bundle_remote} {branch}", check=False)
         if b.returncode != 0:
             die(f"git bundle create failed for branch '{branch}' on {from_host}: "
                 f"{b.stderr.strip() or f'exit {b.returncode}'}")
         _relay_file(from_host, to_host, bundle_remote, bundle_remote)
-        f = git_at(to_host, to_scope, f"fetch {bundle_remote} {branch}:{branch}", check=False)
+        f = git_at(to_host, dst_repo, f"fetch {bundle_remote} {branch}:{branch}", check=False)
         if f.returncode != 0:
             die(f"git fetch of the worker bundle failed on {to_host} (branch '{branch}'): "
                 f"{f.stderr.strip() or f'exit {f.returncode}'}")
         ssh(from_host, f"rm -f {bundle_remote}")
         ssh(to_host, f"rm -f {bundle_remote}")
 
-    ssh(to_host, f"mkdir -p {new_root}/worktrees/{slugify_scope(new_scope)}")
+    ssh(to_host, f"mkdir -p {wt_parent!r}")
     # remove any stale worktree at this path, then add fresh. Fail loud — a missing
     # branch here means the bundle didn't carry the worker's commits (data loss risk).
-    git_at(to_host, to_scope, f"worktree remove --force {new_wt!r}", check=False)
+    git_at(to_host, dst_repo, f"worktree remove --force {new_wt!r}", check=False)
     ref = branch or "HEAD"
-    r = git_at(to_host, to_scope, f"worktree add {new_wt!r} {ref!r}", check=False)
+    r = git_at(to_host, dst_repo, f"worktree add {new_wt!r} {ref!r}", check=False)
     if r.returncode != 0:
         die(f"git worktree add failed for '{row['name']}' (ref={ref}): {r.stderr.strip()}")
     # Everything above ran over ssh as the login user. Left that way, Git refuses to work
@@ -361,8 +414,8 @@ def migrate_git(from_host, to_host, row, from_scope, to_scope, to_orch, to_user)
     # Miss the target repo's .git and the migrated worker can read but never commit —
     # which is worse than a loud failure, because it looks healthy.
     give_to_service_user(to_host, new_wt, to_user)
-    give_to_service_user(to_host, f"{new_root}/worktrees/{slugify_scope(new_scope)}", to_user)
-    give_to_service_user(to_host, f"{to_scope.rstrip('/')}/.git", to_user)
+    give_to_service_user(to_host, wt_parent, to_user)
+    give_to_service_user(to_host, f"{dst_repo.rstrip('/')}/.git", to_user)
     log(f"worktree [{row['name']}] → {new_wt}")
     return new_wt
 
@@ -473,18 +526,30 @@ def main() -> None:
     to_user, to_home = target_service_user(args.to_host, args.to_orchestra, args.to_unit)
     _, from_home = target_service_user(args.from_host, args.from_orchestra, args.from_unit)
 
-    # 2. per-agent: transcript + git + row + children
+    # 2. per-agent: transcript + git + row + children.
+    # Целевой путь считается ОДИН раз на воркера и переиспользуется — транскрипт, worktree и
+    # строка БД обязаны говорить об одном и том же каталоге.
+    targets: dict[str, tuple[str, str, str]] = {
+        r["id"]: target_worktree(args.from_host, r, args.from_scope, args.to_scope,
+                                 args.to_orchestra)
+        for r in all_rows if r.get("worktree_path")
+    }
+    for r in all_rows:
+        t = targets.get(r["id"])
+        if t and t[0].rstrip("/") != args.from_scope.rstrip("/"):
+            log(f"[{r['name']}] репозиторий {t[0]} → {t[1]} (вложен в scope, не равен ему)")
+
     print("→ transcripts")
     for r in all_rows:
         copy_transcript(args.from_host, args.to_host, r.get("session_id"),
-                        r["cwd"], rewrite_cwd(r, args), to_user, to_home, from_home)
+                        r["cwd"], rewrite_cwd(r, args, targets), to_user, to_home, from_home)
 
     print("→ git worktrees")
     new_wts: dict[str, str | None] = {}
     for r in workers:
+        src_repo, dst_repo, new_wt = targets[r["id"]]
         new_wts[r["id"]] = migrate_git(args.from_host, args.to_host, r,
-                                       args.from_scope, args.to_scope,
-                                       args.to_orchestra, to_user)
+                                       src_repo, dst_repo, new_wt, to_user)
 
     print("→ DB rows")
     for r in all_rows:
@@ -508,11 +573,14 @@ def main() -> None:
     print(f"  ⚠ then retire source (kill_worker/archive) so one session_id isn't live on two hosts.")
 
 
-def rewrite_cwd(row: dict, args) -> str:
-    """Target cwd for the CLI transcript dir: worktree→worktree, orchestrator→scope."""
+def rewrite_cwd(row: dict, args, targets: dict[str, tuple[str, str, str]]) -> str:
+    """Target cwd for the CLI transcript dir: worktree→worktree, orchestrator→scope.
+
+    Путь воркера берётся из общего расчёта (`target_worktree`), а не пересчитывается здесь:
+    транскрипт обязан лечь в тот же каталог, в котором окажется рабочая копия.
+    """
     if row.get("worktree_path"):
-        new_scope = rewrite_path(row["scope"], args.from_scope, args.to_scope)
-        return f"{args.to_orchestra.rstrip('/')}/worktrees/{slugify_scope(new_scope)}/{row['name']}"
+        return targets[row["id"]][2]
     return rewrite_path(row["cwd"], args.from_scope, args.to_scope)
 
 

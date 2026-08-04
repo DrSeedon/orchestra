@@ -206,6 +206,16 @@ def _resolve_commit_oid(repo: Path, ref: str) -> str:
     return start.stdout.strip()
 
 
+def repo_root(path: str) -> str:
+    """Repository that owns ``path``, asked of Git — never guessed from the directory layout.
+
+    One scope can hold several independent repositories (seedon keeps `site/` and `infra/`
+    inside the project directory, each with its own origin), so "same directory tree" and
+    "same repository" are different questions (#67, #69).
+    """
+    return str(_resolve_repo(path, path))
+
+
 def _create_branch_ref(repo: Path, branch: str, initial_oid: str) -> None:
     created = _git_cmd(
         ["git", "update-ref", f"refs/heads/{branch}", initial_oid, ""],
