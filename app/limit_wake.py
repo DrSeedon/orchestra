@@ -670,13 +670,24 @@ async def run_wake_job(
             )
             try:
                 await session_manager.send(session.id, message)
-            except Exception:
+            except Exception as delivery_error:
+                # Непроснувшийся воркер — это остановленная работа, а не косметика (#30).
+                # Запись в состоянии джоба остаётся, но у неё появляется адресат.
+                from app.notify import report_undelivered
+
+                outcome = await report_undelivered(
+                    session_manager,
+                    scope=target["scope"],
+                    worker=target["name"],
+                    what="пробуждение после сброса лимита",
+                    reason=f"{type(delivery_error).__name__}: {delivery_error}",
+                )
                 deliveries.pop(target_id, None)
                 _persist_deliveries(
                     job_id,
                     config,
                     deliveries,
-                    f"delivery failed for {target['name']}",
+                    f"delivery failed for {target['name']}; {outcome}",
                 )
                 raise
             deliveries[target_id]["state"] = "delivered"

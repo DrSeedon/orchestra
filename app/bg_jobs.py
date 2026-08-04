@@ -26,6 +26,7 @@ from app.db import (
     bg_reset_wake_triggering,
 )
 from app.pidfd_exec import pidfd_send_group
+from app.tasks import spawn_supervised
 
 logger = logging.getLogger(__name__)
 
@@ -416,7 +417,7 @@ class BgJobManager:
             )
         else:
             return
-        task = asyncio.create_task(coro)
+        task = spawn_supervised(coro, f"наблюдатель фоновой задачи {job_id}")
         self._tasks[job_id] = task
         task.add_done_callback(
             lambda finished: (
@@ -529,6 +530,17 @@ class BgJobManager:
         except Exception as e:
             bg_fail_job(job_id, str(e)[:500])
             logger.error(f"bg_job {job_id}: trigger failed: {e}")
+            # Факт в состоянии джоба виден только глазами в дашборде — это не уведомление.
+            # Адресат — оркестратор scope: он ставил джоб, ему и решать (#30).
+            from app.notify import report_undelivered
+
+            await report_undelivered(
+                self._session_manager,
+                scope=target_scope,
+                worker=target_name,
+                what=f"результат фоновой задачи {job_id}",
+                reason=f"{type(e).__name__}: {e}",
+            )
 
     def _expire(self, job_id: str) -> None:
         bg_expire_job(job_id)

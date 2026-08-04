@@ -24,6 +24,8 @@ from aiogram.exceptions import (
 from aiogram.client.default import DefaultBotProperties
 from telegramify_markdown import convert as md_convert
 
+from app.tasks import spawn_supervised
+
 logger = logging.getLogger("tg-bridge")
 logger.setLevel(logging.DEBUG)
 if not logger.handlers:
@@ -311,7 +313,7 @@ async def _arm_debounce(sid: str, buf: "_BufState"):
     if buf.debounce_task and not buf.debounce_task.done():
         buf.debounce_task.cancel()
     buf.phase = _Phase.COLLECTING
-    buf.debounce_task = asyncio.create_task(_debounce_elapsed(sid))
+    buf.debounce_task = spawn_supervised(_debounce_elapsed(sid), f"дебаунс доставки {sid}")
 
 
 async def _debounce_elapsed(sid: str):
@@ -362,7 +364,53 @@ async def _flush_batch(sid: str, batch: list):
     local_tz = timezone(timedelta(hours=7))
     now = datetime.now(local_tz).strftime("%H:%M")
     combined = f"[{now}] {combined}"
-    await _manager.send(sid, combined)
+    try:
+        await _manager.send(sid, combined)
+    except Exception as error:
+        # Недоставку обязан увидеть ЮЗЕР, а не журнал сервера: этот путь вызывается из
+        # фоновой задачи дебаунса, и раньше исключение умирало в ней молча (#30, замер:
+        # 0 сообщений в чат). Для человека на том конце это неотличимо от «агент прочитал
+        # и не ответил».
+        await _report_undelivered_to_user(sid, valid, error)
+
+
+async def _report_undelivered_to_user(sid: str, valid: list, error: Exception) -> None:
+    """Один ответ на батч: коротко юзеру в чат, подробности — в журнал и в историю сессии."""
+    name = sid
+    try:
+        session = _manager.get(sid) if _manager else None
+        name = getattr(session, "name", None) or sid
+    except Exception:
+        pass
+    detail = f"{type(error).__name__}: {error}"
+    logger.warning("TG delivery to %s failed, user notified: %s", name, detail)
+
+    # Факт недоставки переживает недоступность TG: строка в истории сессии видна в дашборде,
+    # в отличие от строки журнала, которую никто не читает.
+    try:
+        from app.db import add_log
+
+        add_log(sid, datetime.now(timezone.utc), "system",
+                f"[доставка] сообщение из Telegram НЕ доставлено: {detail}")
+    except Exception as log_error:
+        logger.warning("could not record undelivered message for %s: %s: %s",
+                       name, type(log_error).__name__, log_error)
+
+    first = next((m for m, _c in valid if m is not None), None)
+    if first is None or bot is None:
+        logger.warning("no chat to answer about undelivered message for %s", name)
+        return
+    text = (
+        f"⚠️ Сообщение агенту «{name}» не доставлено — он его не получил.\n"
+        f"Повтори через минуту. Техническая причина записана в журнал."
+    )
+    try:
+        await _tg_send_safe(first.chat.id, text,
+                            thread_id=getattr(first, "message_thread_id", None),
+                            important=True)
+    except Exception as send_error:
+        logger.warning("could not tell the user about undelivered message for %s: %s: %s",
+                       name, type(send_error).__name__, send_error)
 
 
 def _sender_tag(msg: types.Message) -> str:
@@ -855,7 +903,7 @@ async def _tg_delivery_state_for(chat_id: int) -> _TgDeliveryState:
 
 
 def _track_tg_result(coro) -> asyncio.Task:
-    task = asyncio.create_task(coro)
+    task = spawn_supervised(coro, "отправка результата в TG")
     _tg_result_tasks.add(task)
     task.add_done_callback(_tg_result_tasks.discard)
     return task
@@ -1876,7 +1924,7 @@ async def _tg_send_isolated_photo(
                     completion.set_result(None)
                 _cleanup()
 
-    continuation = asyncio.create_task(_finish_marker())
+    continuation = spawn_supervised(_finish_marker(), "завершение приёма медиа")
     state.image_admission_tasks.add(continuation)
     continuation.add_done_callback(state.image_admission_tasks.discard)
     return asyncio.shield(completion)
@@ -2028,7 +2076,7 @@ def _ensure_owned_task(registry: dict, key, coro_factory) -> asyncio.Task:
     current = registry.get(key)
     if current is not None and not current.done():
         return current
-    task = asyncio.create_task(coro_factory())
+    task = spawn_supervised(coro_factory(), f"фоновая задача TG {key}")
     registry[key] = task
     _tasks.append(task)
 

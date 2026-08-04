@@ -53,6 +53,7 @@ from app.db import (
     get_session, get_session_by_name, get_all_sessions, publish_ready_session,
     archive_session, get_stats, update_session_lifecycle,
 )
+from app.tasks import spawn_supervised
 
 logger = logging.getLogger(__name__)
 
@@ -1547,7 +1548,8 @@ class SessionManager:
                         session.status = AgentStatus.WAITING
                         session._persist()
                 elif row["id"] in was_running:
-                    asyncio.create_task(self._inject_restart_notice(session))
+                    spawn_supervised(self._inject_restart_notice(session),
+                                     f"уведомление о рестарте для {session.name}")
             except Exception as e:
                 logger.error(f"Failed to resume {row['name']}: {e}")
 
@@ -1565,7 +1567,8 @@ class SessionManager:
                         session.status = AgentStatus.WAITING
                         session._persist()
                 elif row["id"] in was_running:
-                    asyncio.create_task(self._inject_restart_notice(session))
+                    spawn_supervised(self._inject_restart_notice(session),
+                                     f"уведомление о рестарте для {session.name}")
             except Exception as e:
                 logger.error(f"Failed to resume worker {row['name']}: {e}")
 
