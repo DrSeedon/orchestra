@@ -37,6 +37,9 @@ MODEL_POOLING = "cls"  # bge-m3 = CLS. E5 = mean.
 RRF_K = 60
 # bump при ЛЮБОМ изменении схемы vec/fts → старые таблицы дропаются и ребилдятся из backfill.
 # v1: файлы (vec_files) + логи (vec_logs) с project namespace. Индекс производный, дроп безопасен.
+# СМЕНА МОДЕЛИ ЭМБЕДДИНГА — тоже повод бампнуть: `index_file` переиспользует вектора
+# неизменившихся чанков (#73), поэтому без дропа старые вектора останутся в индексе навсегда
+# и будут соседствовать с новыми в одном поиске.
 SCHEMA_VERSION = 1
 POOL_MULT = 4  # candidate pool = limit * POOL_MULT перед RRF
 
@@ -420,9 +423,23 @@ class RagMemory:
             self.conn.execute("DELETE FROM fts_files WHERE rowid=?", (cid,))
         self.conn.execute("DELETE FROM file_chunks WHERE file_id=?", (file_id,))
 
+    def _reusable_vectors(self, file_id: int) -> dict[str, bytes]:
+        """{текст чанка → готовый вектор} по прошлой версии файла.
+
+        Ключ — ТЕКСТ, а не позиция: `CHANGELOG.md` растёт дописыванием блока СВЕРХУ, у чанков
+        меняется индекс, а содержимое остаётся. Замер #73 по пяти его последним версиям:
+        новых текстов 0.6–11.2 % при 352 чанках, то есть 89–99 % эмбеддингов считались заново
+        без единого изменения в тексте (352 × 2.2 с ≈ 775 с на файл при бюджете прохода 300 с).
+        """
+        rows = self.conn.execute(
+            "SELECT c.text, v.embedding FROM file_chunks c JOIN vec_files v USING(chunk_id) "
+            "WHERE c.file_id=?", (file_id,)).fetchall()
+        return {r["text"]: r["embedding"] for r in rows}
+
     def index_file(self, project: str, rel_path: str, content: str, mtime: float = 0.0) -> int:
         """Индексирует файл проекта. Дедуп по sha256: тот же контент → no-op. Изменился → удаляем
-        старые чанки + переиндексируем. Возвращает число проиндексированных чанков (0 = skip)."""
+        старые чанки + переиндексируем, считая эмбеддинги ТОЛЬКО для новых по тексту чанков.
+        Возвращает число проиндексированных чанков (0 = skip)."""
         chunks = _chunk_file(rel_path, content)
         if not chunks:
             return 0
@@ -432,7 +449,15 @@ class RagMemory:
         ).fetchone()
         if existing and existing["sha256"] == sha:
             return 0  # контент не изменился
-        vecs = self._embed(chunks, is_query=False)
+        reused = self._reusable_vectors(existing["file_id"]) if existing else {}
+        fresh = [c for c in chunks if c not in reused]
+        # Порядок сохраняется: `fresh` идёт в том же порядке, что и chunks, поэтому вектора
+        # разбираются по одному ровно для тех чанков, которых не было в прошлой версии.
+        new_vecs = iter(self._embed(fresh, is_query=False) if fresh else ())
+        blobs = [reused[c] if c in reused else _pack(next(new_vecs)) for c in chunks]
+        if len(fresh) < len(chunks):
+            logger.info(f"RAG index_file[{rel_path}] переиспользовано "
+                        f"{len(chunks) - len(fresh)}/{len(chunks)} чанков")
         self.conn.execute("BEGIN")
         try:
             if existing:
@@ -445,11 +470,11 @@ class RagMemory:
                     "INSERT INTO files(project, path, sha256, mtime) VALUES(?,?,?,?)",
                     (project, rel_path, sha, mtime))
                 file_id = int(cur.lastrowid)
-            for idx, (chunk, vec) in enumerate(zip(chunks, vecs)):
+            for idx, (chunk, blob) in enumerate(zip(chunks, blobs)):
                 cid = file_id * CHUNK_STRIDE + idx
                 self.conn.execute(
                     "INSERT INTO vec_files(chunk_id, file_id, project, embedding) VALUES(?,?,?,?)",
-                    (cid, file_id, project, _pack(vec)))
+                    (cid, file_id, project, blob))
                 self.conn.execute(
                     "INSERT INTO file_chunks(chunk_id, file_id, text) VALUES(?,?,?)",
                     (cid, file_id, chunk))

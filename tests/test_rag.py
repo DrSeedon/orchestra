@@ -660,3 +660,50 @@ def test_walk_indexes_everything_when_git_is_unavailable(mem, tmp_path, monkeypa
 
     monkeypatch.setattr(rag.subprocess, "run", boom)
     assert len(mem._walk_files(kb)) == 2
+
+
+@needs_model
+def test_reindex_reuses_embeddings_of_unchanged_chunks(mem, monkeypatch):
+    """Переиндексация считает эмбеддинги только для НОВЫХ по тексту чанков.
+
+    Замер #73: `CHANGELOG.md` — 352 чанка × 2.2 с ≈ 775 с на переиндексацию при бюджете
+    прохода 300 с, а меняется в нём 0.6–11.2 % текстов. Ключ переиспользования — текст чанка,
+    не позиция: блок дописывается СВЕРХУ, у чанков меняется индекс, а не содержимое.
+    """
+    # Секции длиннее MD_MIN_MERGE: короткие чанкер сливает с соседними, и тогда при дописывании
+    # меняется ТЕКСТ соседа, а не только его позиция. На реальном CHANGELOG секции крупные —
+    # оттуда и 0.6–11.2 % новых текстов вместо 100 %.
+    head = "# Раздел А\n\n" + "первый раздел с подробным описанием и деталями. " * 12 + "\n\n"
+    tail = "## Раздел Б\n\n" + "второй раздел про совершенно другое, тоже подробно. " * 12 + "\n\n"
+    mem.index_file("/proj/a", "log.md", head + tail)
+    before = {r[0] for r in mem.conn.execute("SELECT text FROM file_chunks").fetchall()}
+
+    embedded: list[list[str]] = []
+    original = mem._embed
+    monkeypatch.setattr(mem, "_embed", lambda texts, **kw: embedded.append(list(texts)) or original(texts, **kw))
+
+    added = "# Новое\n\n" + "свежая запись, которой в прошлой версии файла не было. " * 12 + "\n\n"
+    n = mem.index_file("/proj/a", "log.md", added + head + tail)
+
+    assert n == len(before) + 1, "новый блок сверху добавляет чанк, старые сохраняются"
+    assert len(embedded) == 1
+    assert len(embedded[0]) == 1, f"переэмбеддить надо только новый чанк, а не {len(embedded[0])}"
+    assert "свежая запись" in embedded[0][0]
+    # старые тексты на месте, только с новыми chunk_id
+    after = {r[0] for r in mem.conn.execute("SELECT text FROM file_chunks").fetchall()}
+    assert before <= after
+
+
+@needs_model
+def test_reused_vectors_are_the_same_bytes(mem):
+    """Переложенный вектор обязан быть тем же, иначе поиск поедет незаметно."""
+    body = "# Тема\n\n" + "текст раздела достаточной длины для самостоятельного чанка. " * 12 + "\n\n"
+    mem.index_file("/proj/a", "doc.md", body)
+    old = mem.conn.execute("SELECT c.text, v.embedding FROM file_chunks c "
+                           "JOIN vec_files v USING(chunk_id)").fetchall()
+    mem.index_file("/proj/a", "doc.md",
+                   body + "## Хвост\n\n" + "дописанный раздел с новым текстом внутри. " * 12 + "\n")
+    new = {r["text"]: r["embedding"] for r in mem.conn.execute(
+        "SELECT c.text, v.embedding FROM file_chunks c JOIN vec_files v USING(chunk_id)").fetchall()}
+    for row in old:
+        assert new[row["text"]] == row["embedding"]
