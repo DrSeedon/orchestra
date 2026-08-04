@@ -1428,6 +1428,13 @@ async def list_orchestrators():
     waiting_scopes = {s.scope for s in manager.sessions.values() if s.status.value == "waiting"}
     turn_map = get_last_turn_map()
     for o in result:
+        # Системный промпт — 92.8% веса этого ответа по проводу (19.8 КБ из 21.3 КБ на
+        # пяти записях, замер в docs/tasks/71/research.md), и в списке его не читает никто:
+        # ни дашборд, ни MCP. За полным промптом ходят в GET /api/sessions/{name}/prompt.
+        # Срезается ЗДЕСЬ, а не в to_dict(): его же отдаёт /api/sessions/{name}, где промпт
+        # нужен. И в обоих путях сразу — активные сессии и строки БД лежат в одном списке,
+        # иначе поле осталось бы у половины записей.
+        o.pop("system_prompt", None)
         o["any_running"] = o.get("scope", "") in running_scopes
         o["any_waiting"] = o.get("scope", "") in waiting_scopes
         if not o.get("last_turn_ts"):
