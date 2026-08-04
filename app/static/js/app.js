@@ -1235,16 +1235,23 @@ function _setHiddenTabs(set) {
 // One status vocabulary for the whole dashboard — sidebar badges and orch tabs.
 // Icon carries the state, so it no longer rides on hue alone (idle/waiting were
 // indistinguishable as plain yellow vs orange dots).
-const _STATUS_ICON = {running: '⚡', idle: '☕️', waiting: '⏳'};
-const _STATUS_COLOR = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b'};
-const _STATUS_BG = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)'};
+const _STATUS_ICON = {running: '⚡', idle: '☕️', waiting: '⏳', broken: '⛔'};
+// broken красный, а не серый: это не «нет данных», а «задачу слать бесполезно».
+// error/stopped/starting приходят только в выводе инструментов (см. _STATUS_COLOR ниже).
+const _STATUS_COLOR = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b', broken: '#ef4444',
+                       error: '#ef4444', stopped: '#6b7280', starting: '#f97316'};
+const _STATUS_BG = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)',
+                    broken: 'rgba(239,68,68,0.15)'};
 const _STATUS_TITLE = {
     running: 'running — агент выполняет задачу',
     waiting: 'waiting — агент ждёт фоновую задачу или подтверждение',
     idle: 'idle — агент простаивает',
+    broken: 'broken — worktree агента не существует: задачу слать бесполезно, нужен спавн заново',
 };
 
 function _orchState(o) {
+    // broken важнее занятости: у сломанного worktree «running» не значит ничего.
+    if (o.status === 'broken') return 'broken';
     if (o.status === 'running' || o.any_running) return 'running';
     if (o.any_waiting) return 'waiting';
     return 'idle';
@@ -1252,6 +1259,7 @@ function _orchState(o) {
 
 function _paintStatusDot(dot, o) {
     const state = _orchState(o);
+    dot.style.color = state === 'broken' ? _STATUS_COLOR.broken : '';
     dot.textContent = _STATUS_ICON[state];
     dot.style.backgroundColor = _STATUS_BG[state];
     dot.title = _STATUS_TITLE[state];
@@ -2307,6 +2315,7 @@ function createAgentItem(s) {
     statusEl.style.padding = '1px 6px';
     statusEl.style.borderRadius = '4px';
     statusEl.textContent = `${_STATUS_ICON[s.status] || '●'} ${s.status}`;
+    if (_STATUS_TITLE[s.status]) statusEl.title = _STATUS_TITLE[s.status];
     nameRow.append(nameEl, statusEl);
 
     const meta = document.createElement('div');
@@ -4908,7 +4917,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                         lastTool.appendChild(container);
                     }
                 } else if (tn === 'mcp__orchestra__get_worker_info') {
-                    const stColor = {'running':'#22c55e','idle':'#eab308','error':'#ef4444','stopped':'#6b7280','starting':'#f97316'}[parsed.status] || '#94a3b8';
+                    const stColor = _STATUS_COLOR[parsed.status] || '#94a3b8';
                     const modelShort = _modelLabel(parsed.model);
                     if (hdr) {
                         hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${parsed.status || '?'}</span>`;
