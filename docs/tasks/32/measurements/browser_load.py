@@ -67,6 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   mark('agentsListed', '.agent-item', 1);
   mark('chatFirst', '#chat > *', 1);
+  // 20 СТРОК журнала дают ~11-12 узлов (tool_result вливается в узел инструмента),
+  // поэтому первый кадр ловит метка на 10, а не на 20.
+  mark('chat10', '#chat > *', 10);
   mark('chat20', '#chat > *', 20);
 });
 """
@@ -129,7 +132,9 @@ async def main():
 
         # три плеча: первый заход, второй (зеркало заполнено синхронизацией),
         # третий (в зеркале уже лежит добранная страница — если добор её пишет)
-        arms = [await arm(ctx, "cold"), await arm(ctx, "warm1"), await arm(ctx, "warm2")]
+        arms = [await arm(ctx, "cold")]
+        if not os.environ.get("PERF32_ONLY_COLD"):
+            arms += [await arm(ctx, "warm1"), await arm(ctx, "warm2")]
         await ctx.close()
     OUT.write_text(json.dumps({a["label"]: a for a in arms}, ensure_ascii=False, indent=1))
     for d in arms:
