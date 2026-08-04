@@ -573,9 +573,9 @@ class SessionManager:
             if p_session:
                 parent_id = p_session.id
 
-        # R2: валидация спавна ДО любых side-effects (worktree/start). Только
-        # манифест-путь (validate_spawn) — legacy frontmatter-fallback (role_can_spawn
-        # из app/prompts) удалён. Нет манифеста → FileNotFoundError пробрасывается
+        # R2: валидация спавна ДО любых side-effects (worktree/start). Единственный
+        # источник прав — манифест пайплайна: другого пути принятия решения о спавне
+        # в коде нет. Нет манифеста → FileNotFoundError пробрасывается
         # (fail loud, единый источник = pipelines/).
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")

@@ -1615,34 +1615,11 @@ class TestCanSpawn:
         pl.load_pipeline.cache_clear()
         return rdir
 
-    def test_role_can_spawn_absent_is_none(self, roles_dir):
-        from app.prompting import role_can_spawn as _role_can_spawn
-        self._write_role(roles_dir, "boss", "name: boss\nmodel: opus")
-        assert _role_can_spawn("boss") is None
-
-    def test_role_can_spawn_yaml_null_is_none(self, roles_dir):
-        from app.prompting import role_can_spawn as _role_can_spawn
-        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn:")
-        assert _role_can_spawn("boss") is None
-
-    def test_role_can_spawn_non_list_is_none(self, roles_dir):
-        from app.prompting import role_can_spawn as _role_can_spawn
-        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: worker")
-        assert _role_can_spawn("boss") is None
-
-    def test_role_can_spawn_empty_list_is_terminal(self, roles_dir):
-        from app.prompting import role_can_spawn as _role_can_spawn
-        self._write_role(roles_dir, "leaf", "name: leaf\ncan_spawn: []")
-        assert _role_can_spawn("leaf") == []
-
-    def test_role_can_spawn_whitelist(self, roles_dir):
-        from app.prompting import role_can_spawn as _role_can_spawn
-        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker, reviewer]")
-        assert _role_can_spawn("boss") == ["worker", "reviewer"]
-
-    def test_role_can_spawn_missing_file_is_none(self, roles_dir):
-        from app.prompting import role_can_spawn as _role_can_spawn
-        assert _role_can_spawn("ghost") is None
+    # REMOVED (#34): six unit tests of role_can_spawn (absent / YAML-null / non-list /
+    # [] / whitelist / missing file). The function itself is gone — it had no callers in
+    # app/ since 1bff39a, and `can_spawn` was never present in any role frontmatter, before
+    # or after the pipelines/ migration. Spawn rights are decided solely by the manifest
+    # (validate_spawn), covered by tests/test_pipeline.py + tests/test_default_pipeline.py.
 
     @pytest.mark.asyncio
     async def test_whitelist_allows_listed(self, mgr, roles_dir):

@@ -25,6 +25,7 @@ roles:
     modules: [git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: true
+    tg: {emoji: "👑"}
     when: Managing a team of workers, decomposing tasks, approving plans
     not_for: Direct implementation — delegate to workers
     description: >
@@ -55,6 +56,7 @@ roles:
     modules: [git-workflow, report-format, self-improvement, memory-search]
     can_spawn: []
     allow_unrouted_workers: false
+    tg: {emoji: "⚙️"}
     when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
     not_for: Tasks needing research or unknown scope — use full-cycle
     description: >
@@ -70,6 +72,7 @@ roles:
     modules: [research-method, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: false
+    tg: {emoji: "🔄"}
     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
     not_for: Trivial bug fixes, config changes, one-line implementation from a clear spec
     description: >

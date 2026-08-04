@@ -376,3 +376,68 @@ class TestCodexProjectSkills:
         assert str(pipeline_skill.resolve()) in result
         assert str(project_skill.resolve()) not in result
         assert str(pipelines.resolve()) in result
+
+
+class TestRoleIcons:
+    """#34: icons come from the manifest, not from role .md frontmatter."""
+
+    @pytest.fixture
+    def manifest_root(self, tmp_path, monkeypatch):
+        from app import pipeline
+
+        root = tmp_path / "pipelines"
+        (root / "default").mkdir(parents=True)
+        monkeypatch.setattr(pipeline, "PIPELINES_DIR", root)
+        pipeline.load_pipeline.cache_clear()
+        yield root / "default" / "pipeline.yaml"
+        pipeline.load_pipeline.cache_clear()
+
+    def test_reads_tg_emoji_and_skips_roles_without_one(self, manifest_root):
+        from app.prompting import get_role_icons
+
+        manifest_root.write_text(
+            "name: default\n"
+            "description: Test\n"
+            "validation: fail-open\n"
+            "defaults: {model: opus}\n"
+            "roles:\n"
+            "  boss: {kind: orchestrator, label: Boss, order: 0, can_spawn: ['*'],"
+            " tg: {emoji: \"👑\"}}\n"
+            "  hand: {kind: worker, label: Hand, order: 1, can_spawn: []}\n",
+            encoding="utf-8",
+        )
+        assert get_role_icons() == {"boss": "👑"}
+
+    def test_ignores_role_file_frontmatter(self, manifest_root, monkeypatch):
+        """A role .md with `icon:` must NOT contribute — the manifest is the only source.
+
+        `_PROMPTS_DIR` is pointed at that file on purpose: the frontmatter reader this
+        replaced would answer {"hand": "🚫"} here, so the test discriminates.
+        """
+        from app import prompting
+        from app.prompting import get_role_icons
+
+        monkeypatch.setattr(prompting, "_PROMPTS_DIR", manifest_root.parent / "prompts")
+        manifest_root.write_text(
+            "name: default\n"
+            "description: Test\n"
+            "validation: fail-open\n"
+            "defaults: {model: opus}\n"
+            "roles:\n"
+            "  hand: {kind: worker, label: Hand, order: 0, can_spawn: []}\n",
+            encoding="utf-8",
+        )
+        roles = manifest_root.parent / "prompts" / "roles"
+        roles.mkdir(parents=True)
+        (roles / "hand.md").write_text("---\nname: hand\nicon: \"🚫\"\n---\n\nBody\n")
+        assert get_role_icons() == {}
+
+    def test_real_default_pipeline_covers_every_role(self):
+        """Guards the live defect: an orchestrator rendered as ⚙️ in MCP list_agents."""
+        from app.pipeline import DEFAULT_PIPELINE, load_pipeline
+        from app.prompting import get_role_icons
+
+        icons = get_role_icons()
+        assert icons["orchestrator"] == "👑"
+        assert set(icons) == set(load_pipeline(DEFAULT_PIPELINE).roles)
+        assert len(set(icons.values())) == len(icons)  # no two roles share an icon
