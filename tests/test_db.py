@@ -1043,3 +1043,41 @@ class TestChangeScope:
         assert "error" in res
         assert get_session("orch-uuid-1")["scope"] == "/new/proj"  # untouched
         assert get_test_lock("/new/proj") is not None  # lock not orphaned
+
+
+class TestLastTurnMap:
+    """get_last_turn_map() runs on every /api/sessions — it must not scan the logs table."""
+
+    QUERY = (
+        "SELECT session_id, MAX(ts) AS last_ts FROM logs "
+        "WHERE type='status' AND content LIKE 'turn ended%' "
+        "GROUP BY session_id"
+    )
+
+    def _session(self, sid, name):
+        return {
+            "id": sid, "name": name, "scope": "/proj", "cwd": "/proj",
+            "model": "claude-opus-5[1m]", "system_prompt": "", "status": "idle",
+            "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
+            "is_orchestrator": False, "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        }
+
+    def test_returns_last_turn_per_session(self, db):
+        from app.db import save_session, add_log, get_last_turn_map
+        save_session(self._session("s-1", "w1"))
+        save_session(self._session("s-2", "w2"))
+        t0 = datetime(2026, 8, 4, 10, 0, tzinfo=timezone.utc)
+        add_log("s-1", t0, "status", "turn ended (12 tools)")
+        add_log("s-1", t0 + timedelta(minutes=5), "status", "turn ended (3 tools)")
+        add_log("s-1", t0 + timedelta(minutes=9), "status", "turn started")
+        add_log("s-2", t0 + timedelta(minutes=1), "text", "turn ended — not a status row")
+        m = get_last_turn_map()
+        assert m["s-1"] == (t0 + timedelta(minutes=5)).isoformat()
+        assert "s-2" not in m
+
+    def test_query_uses_status_index_not_full_scan(self, db):
+        """Without idx_logs_status SQLite reads content of EVERY log row to LIKE-match it."""
+        with sqlite3.connect(db) as c:
+            plan = " ".join(str(r) for r in c.execute("EXPLAIN QUERY PLAN " + self.QUERY))
+        assert "idx_logs_status" in plan, plan

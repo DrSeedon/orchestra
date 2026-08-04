@@ -83,6 +83,9 @@ def init_db() -> None:
                 event_id TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
+            -- get_last_turn_map() runs on every /api/sessions; without this it scans
+            -- every logs row (14 MB of content) to LIKE-match 8% of them: 16 ms → 0.6 ms.
+            CREATE INDEX IF NOT EXISTS idx_logs_status ON logs(session_id, ts) WHERE type='status';
             CREATE INDEX IF NOT EXISTS idx_sessions_scope ON sessions(scope, is_orchestrator, status);
 
             CREATE TABLE IF NOT EXISTS subagents (
