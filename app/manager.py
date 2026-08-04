@@ -1164,7 +1164,16 @@ class SessionManager:
             sets = ", ".join(f"{k}=?" for k in fields)
             vals = [int(v) if isinstance(v, bool) else v for v in fields.values()]
             with _conn() as c:
-                c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id))
+                cur = c.execute(
+                    f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id),
+                )
+                if cur.rowcount == 0:
+                    # Молчаливый ноль здесь означал бы, что поля «сохранены» только
+                    # в памяти вызывающего, а в БД их нет (#54).
+                    logger.warning(
+                        "UPDATE sessions changed 0 rows: fields %s for id=%r not persisted",
+                        list(fields), found.id,
+                    )
         return found
 
     async def persist_lifecycle(

@@ -46,7 +46,9 @@ def init_db() -> None:
     with _conn() as c:
         c.executescript("""
             CREATE TABLE IF NOT EXISTS sessions (
-                id TEXT PRIMARY KEY,
+                -- NOT NULL для новых БД; существующие закрывает триггер в _guard_session_id:
+                -- ужесточить колонку без перестройки таблицы SQLite не даёт (#54)
+                id TEXT PRIMARY KEY NOT NULL,
                 name TEXT NOT NULL,
                 scope TEXT NOT NULL,
                 cwd TEXT NOT NULL,
@@ -370,9 +372,35 @@ def _reconstruct_costs(c) -> None:
                   (round(real_cost, 4), s["id"]))
 
 
+def _guard_session_id(c) -> None:
+    """Запретить строку-призрак: `sessions.id` не может быть NULL или пустым (#54).
+
+    `id TEXT PRIMARY KEY` в SQLite ПУСКАЕТ NULL — проверено вставкой на копии живой БД:
+    две строки с `id=NULL` прошли, а `UPDATE … WHERE id=?` по такой строке меняет ноль
+    строк молча. Сессия существует, но ни одно обновление до неё не доходит: статус, счётчик
+    ходов и `session_id` навсегда остаются теми, что были при вставке.
+
+    Триггер, а не `NOT NULL`, по двум причинам: колонку в SQLite нельзя ужесточить без
+    перестройки таблицы (а на неё завязан `logs … REFERENCES sessions(id) ON DELETE CASCADE`),
+    и `NOT NULL` не ловит пустую строку — а она даёт ровно тот же призрак.
+    """
+    c.executescript("""
+        CREATE TRIGGER IF NOT EXISTS sessions_id_required_insert
+        BEFORE INSERT ON sessions
+        WHEN NEW.id IS NULL OR TRIM(NEW.id) = ''
+        BEGIN SELECT RAISE(ABORT, 'sessions.id must be non-empty'); END;
+
+        CREATE TRIGGER IF NOT EXISTS sessions_id_required_update
+        BEFORE UPDATE OF id ON sessions
+        WHEN NEW.id IS NULL OR TRIM(NEW.id) = ''
+        BEGIN SELECT RAISE(ABORT, 'sessions.id must be non-empty'); END;
+    """)
+
+
 def _migrate(c) -> None:
     # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
     # Never drop columns: old Orchestra versions reading the same DB must still work.
+    _guard_session_id(c)
     cols = {row[1] for row in c.execute("PRAGMA table_info(sessions)").fetchall()}
     if "color" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN color TEXT DEFAULT ''")
@@ -623,6 +651,13 @@ def save_session(
     *,
     _connection: sqlite3.Connection | None = None,
 ) -> None:
+    # Пустой id — не «почти валидная» строка, а невидимка: все UPDATE … WHERE id=?
+    # по ней меняют ноль строк молча (#54). Падать здесь, а не позже и не в другом месте.
+    if not str(s.get("id") or "").strip():
+        raise ValueError(
+            f"session id is required and must be non-empty "
+            f"(name={s.get('name')!r}, scope={s.get('scope')!r})"
+        )
     s.setdefault("context_pct", 0)
     s.setdefault("context_tokens", 0)
     s.setdefault("progress_pct", 0)
@@ -754,6 +789,13 @@ def update_session_lifecycle(
                WHERE id=? AND status != 'archived'""",
             (branch, base_branch, task_id, int(needs_switch), session_id),
         )
+        if cur.rowcount == 0:
+            # Ноль строк — это не «нечего менять», это промах по идентичности (#54):
+            # строка либо архивная, либо её id не совпадает ни с чем (пустой/призрак).
+            logger.warning(
+                "UPDATE sessions changed 0 rows: lifecycle for id=%r not persisted",
+                session_id,
+            )
         return cur.rowcount == 1
 
 
@@ -903,10 +945,14 @@ def delete_archived_session(name: str, scope: str) -> None:
 
 def archive_session(session_id: str) -> None:
     with _conn() as c:
-        c.execute(
+        cur = c.execute(
             "UPDATE sessions SET status='archived', finished_at=? WHERE id=?",
             (datetime.now(timezone.utc).isoformat(), session_id),
         )
+        if cur.rowcount == 0:
+            logger.warning(
+                "UPDATE sessions changed 0 rows: session id=%r not archived", session_id,
+            )
 
 
 def add_log(
