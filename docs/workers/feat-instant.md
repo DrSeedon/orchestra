@@ -123,6 +123,13 @@ squash не создаёт коммита, и `git log -1 main` показыва
 Общая точка моков мержа — `_prepare_detached_merge` в `tests/test_api.py` (там же живут
 выдуманные пути вроде `/wt`, на которых настоящий git падает).
 
+## Константа в СИГНАТУРЕ не подменяется monkeypatch'ем
+
+`def f(limit=LOCK_WAIT_LIMIT_SECONDS)` вычисляется при определении функции — `monkeypatch.setattr(mod, "LOCK_WAIT_LIMIT_SECONDS", 0.3)` молча не действует, и тест уходит в реальные 25 с
+или проходит не тем путём. Константу, которую собираются подменять, читать В ТЕЛЕ
+(`limit = CONST if limit is None else limit`). Поймал в #27 только потому, что тест проверял
+ПОВЕДЕНИЕ (пришёл ли 409), а не факт вызова.
+
 ## Живая БД для замеров объёмов
 
 `sqlite3.connect("file:/home/kesha/orchestra/data/orchestra.db?mode=ro", uri=True)` — читать

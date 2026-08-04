@@ -1673,7 +1673,11 @@ def branch_content_status(worktree_path: str, base_ref: str) -> dict:
 
 def switch_worktree_branch(worktree_path: str, new_branch: str,
                            from_ref: str = "",
-                           force: bool = False) -> dict:
+                           force: bool = False,
+                           expect_absent: bool = False) -> dict:
+    """expect_absent=True — вызывающий создаёт ЗАВЕДОМО новую ветку (авто-switch перед
+    доставкой). Тогда существующая ветка того же имени — отказ, а не переиспользование:
+    усыновление чужой истории должно быть невозможно, а не маловероятно (#27, E2)."""
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), str(wt))
     with repo_mutation_lock(repo):
@@ -1767,6 +1771,25 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                 "error": (
                     f"worker is already on branch '{new_branch}', but requested base "
                     f"'{from_ref}' is not merged into it"
+                ),
+            }
+
+        # Второй слой (#27): вызывающий ждал свежую ветку, а имя занято — значит на нём
+        # лежит ЧУЖАЯ история. Переселять на неё нельзя даже молча-успешно: новая работа
+        # легла бы поверх старой, а мерж принёс бы в main обе. Показываем, чью работу
+        # система отказалась усыновить, — имя, HEAD и дату последнего коммита.
+        if expect_absent and target_existed:
+            when = _git_cmd(
+                ["git", "log", "-1", "--format=%cI", new_branch],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+            last = when.stdout.strip() if when.returncode == 0 else "дата недоступна"
+            return {
+                "ok": False,
+                "state": "target_branch_exists",
+                "error": (
+                    f"branch '{new_branch}' already exists (HEAD {target_head}, last commit "
+                    f"{last}) — refusing to adopt someone else's history; a fresh branch was expected"
                 ),
             }
 

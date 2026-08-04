@@ -2016,7 +2016,9 @@ async def test_switch_failure_restores_previous_lifecycle_and_does_not_update_ta
         "w", {"scope": "/s", "task_id": "91", "force": True},
     )
 
-    assert result == {"ok": False, "error": "target busy"}
+    # waited_seconds добавлено в #27 намеренно: ожидание лока обязано быть видно и в отказе.
+    assert result["ok"] is False and result["error"] == "target busy"
+    assert "waited_seconds" in result
     row = get_session("switch-normal-failure")
     assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
         "task-90/w", stored_base_branch, "90", 0,
