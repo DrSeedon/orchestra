@@ -5,6 +5,12 @@
 > содержания: ниже сперва блок VPS, затем блок ноутбука. Формат чинится задачей #52.
 
 
+<!-- ниже — велось вручную до 04.08.2026 -->
+<!-- tasks: 100, 103, 104, 108, 109, 111, 113, 114, 115, 12, 120, 126, 13, 131, 139, 141, 15, 16, 17, 18, 19, 2, 20, 21, 22, 27, 28, 29, 30, 31, 32, 33, 34, 37, 38, 4, 40, 42, 44, 45, 47, 49, 5, 50, 52, 53, 54, 55, 56, 58, 59, 61, 62, 64, 66, 67, 68, 69, 8, 88, 89, 9, 90, 91, 92, 93, 95, 97, 98-grok-runtime-audit, 98-limit-wake, 99, adhoc-231036, arch-audit, claude-md-cleanup, codex-cache-research, codex-cwd, codex-sessions, codex-sleep, codex-worker-parity, context-engineering, cost-tokens, fix-worktree-gitignore, git-safety, guards, pipeline-rebase, polish-tg, proxy-fix, rag-orchestra, rag-vps-deploy, refactor-ecs, self-analysis, sol-runtime-fixes, subagent-telemetry, tg-bridge-3bugs, tg-message-delivery, usage-analytics, visibility, worker-spawning, wt-cleanup -->
+
+> Всё, что ниже, писали руками до перехода на сборку из отчётов (#52).
+> Новые записи добавляет `scripts/build-changelog.py` — ВЫШЕ этой границы.
+
 ## v2.35.5 — 2026-08-04 — #69 миграция больше не путает scope с репозиторием
 
 ### Fixed
