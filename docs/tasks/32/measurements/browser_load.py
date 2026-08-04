@@ -18,10 +18,16 @@ from playwright.async_api import async_playwright
 # сжатия и даёт завышенные байты — так был испорчен первый прогон.
 BASE = os.environ.get("PERF32_BASE", "https://orchestra.seedon.ru")
 ENV = {}
-for line in open("/home/kesha/orchestra/.env"):
-    if "=" in line and not line.strip().startswith("#"):
-        k, v = line.split("=", 1)
-        ENV[k.strip()] = v.strip().strip('"')
+_env_file = os.environ.get("PERF32_ENV", "/home/kesha/orchestra/.env")
+if os.path.exists(_env_file):
+    for line in open(_env_file):
+        if "=" in line and not line.strip().startswith("#"):
+            k, v = line.split("=", 1)
+            ENV[k.strip()] = v.strip().strip('"')
+# на чужой машине .env нет — креды приходят переменными окружения
+for k in ("DASHBOARD_USER", "DASHBOARD_PASSWORD"):
+    if os.environ.get(k):
+        ENV[k] = os.environ[k]
 
 LABEL = sys.argv[1] if len(sys.argv) > 1 else "run"
 WAIT = float(sys.argv[2]) if len(sys.argv) > 2 else 15.0
@@ -117,7 +123,8 @@ async def arm(ctx, label):
 
 
 async def main():
-    profile = pathlib.Path(f"/tmp/perf32-profile-{LABEL}")
+    # НЕ в /tmp по умолчанию на чужой машине: там tmpfs, то есть RAM юзера
+    profile = pathlib.Path(os.environ.get("PERF32_PROFILE_DIR", "/tmp")) / f"perf32-profile-{LABEL}"
     async with async_playwright() as pw:
         ctx = await pw.chromium.launch_persistent_context(
             str(profile), headless=True, viewport={"width": 1600, "height": 1000})
