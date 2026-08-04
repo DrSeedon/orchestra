@@ -29,6 +29,9 @@ let refreshController = null;
 // UI debounce: rapid-fire messages from the user are batched into one send before the timer fires
 const UI_DEBOUNCE_MS = 2500;
 let scrollAfterLoad = true;
+// Следуем ли за новыми сообщениями. Правило как в мессенджерах: внизу — следуем,
+// ушёл читать выше — не трогаем вообще. Снимается в обработчике scroll.
+let _chatFollow = true;
 let drafts = {};
 
 const _CHAT_BOTTOM_GAP = 80;
@@ -120,6 +123,25 @@ function _markChatHasNewBelow() {
     if (scrollAfterLoad || _chatAtBottom()) return;
     _chatHasNewBelow = true;
     _syncChatJumpButton();
+}
+
+// Держим низ, пока юзер внизу. Спрашивать _chatAtBottom() в момент вызова нельзя:
+// содержимое уже выросло, и мы формально «не внизу» — решает состояние _chatFollow,
+// снятое обработчиком scroll ДО роста. Склейка через rAF: поток дописывает текст
+// десятками мутаций подряд, а прижать достаточно один раз за кадр.
+let _followPinRaf = null;
+// Поднимается обработчиками ввода и означает «следующее событие scroll — от юзера».
+let _userScrolled = false;
+function _pinChatBottom(chat) {
+    chat.scrollTop = chat.scrollHeight;
+}
+function _keepPinnedIfFollowing() {
+    if (!_chatFollow || _followPinRaf) return;
+    _followPinRaf = requestAnimationFrame(() => {
+        _followPinRaf = null;
+        const chat = $('#chat');
+        if (_chatFollow && chat) _pinChatBottom(chat);
+    });
 }
 
 function _scrollChatToBottom(behavior = 'auto') {
@@ -372,9 +394,43 @@ function initChatPositionMemory() {
     if (!chat || !button || chat.dataset.positionReady === '1') return;
     chat.dataset.positionReady = '1';
     chat.addEventListener('scroll', () => {
+        // Состояние следования меняет ТОЛЬКО ввод юзера (см. _userScrolled ниже).
+        // По любому событию scroll его пересчитывать нельзя: браузерный scroll
+        // anchoring сам подкручивает позицию при изменении высоты над вьюпортом и шлёт
+        // такое же событие. Замер: высота +1326 px, scrollTop уехал +328 САМ, и
+        // следование выключалось на ровном месте. Кнопку и отметку прочтения обновляем
+        // в любом случае.
+        if (_userScrolled) {
+            _userScrolled = false;
+            _chatFollow = _chatAtBottom(chat);
+        }
         _syncChatJumpButton();
         _scheduleChatReadCapture();
     }, {passive: true});
+    // Ввод, которым юзер двигает чат: колесо, тач, клавиши, перетаскивание полосы.
+    // Отпускание кнопки/пальца тоже считаем вводом — иначе после перетаскивания
+    // полосы вниз состояние осталось бы от первого события середины жеста.
+    for (const type of ['wheel', 'touchmove', 'touchend', 'keydown', 'pointerdown', 'pointerup']) {
+        chat.addEventListener(type, () => {
+            _userScrolled = true;
+            // pointerup/touchend приходят ПОСЛЕ последнего scroll — пересчитываем сразу,
+            // иначе состояние осталось бы от середины жеста.
+            if (type === 'pointerup' || type === 'touchend') {
+                _userScrolled = false;
+                _chatFollow = _chatAtBottom(chat);
+                _syncChatJumpButton();
+            }
+        }, {passive: true});
+    }
+    // Высота растёт не только от новых узлов: поток дописывает текст в УЖЕ вставленный
+    // блок инструмента, картинки и подсветка кода дорастают после вставки. На таких
+    // изменениях никто не прижимал низ — замер на живом потоке: 44 строки, высота
+    // 13583 → 14691, а вид уехал на 716 px от низа (то же самое и в main, это не
+    // регрессия #59, а вторая половина той же задачи).
+    new MutationObserver(_keepPinnedIfFollowing)
+        .observe(chat, {childList: true, subtree: true, characterData: true});
+    // Событие load не всплывает — отсюда capture.
+    chat.addEventListener('load', _keepPinnedIfFollowing, true);
     button.addEventListener('click', () => _scrollChatToBottom('smooth'));
 }
 
@@ -595,10 +651,13 @@ function connectSSE(fromHistoryLoad) {
                     updateLoadMoreBtn();
                 }
             }
-            if (scrollAfterLoad) {
-                $('#chat').scrollTop = $('#chat').scrollHeight;
-                _scheduleChatInitialSettle();
-            }
+            // Следуем за новыми сообщениями ТОЛЬКО если юзер внизу — правило одно для
+            // всех путей вставки. Раньше здесь стоял безусловный прыжок под флагом
+            // scrollAfterLoad, а _scheduleChatInitialSettle перевзводил его таймер на
+            // КАЖДОМ сообщении: у болтливого агента флаг не сбрасывался никогда, и чат
+            // утаскивало вниз, даже когда юзер читал в 11 632 px от низа (замер #59).
+            if (_chatAtBottom()) $('#chat').scrollTop = $('#chat').scrollHeight;
+            if (scrollAfterLoad) _scheduleChatInitialSettle();
         } catch (e) { console.warn('SSE parse:', e); }
     };
     eventSource.onerror = () => {
@@ -1662,6 +1721,9 @@ function _prependHistory(name, scope, rows) {
     if (!meta || !rows.length) return 0;
     const chat = $('#chat');
     const anchor = chat.firstChild;
+    const wasAtBottom = _chatAtBottom(chat);
+    const heightBefore = chat.scrollHeight;
+    const desiredTop = chat.scrollTop;
     _replayingHistory = true;
     try {
         for (const row of rows) {
@@ -1671,8 +1733,10 @@ function _prependHistory(name, scope, rows) {
             meta.initialCount++;
         }
     } finally { _replayingHistory = false; }
-    // Дорисовка уходит ВВЕРХ, юзер остаётся у свежего сообщения.
-    chat.scrollTop = chat.scrollHeight;
+    // Дорисовка уходит ВВЕРХ. Юзер внизу — держим его внизу; читает выше — компенсируем
+    // прирост высоты, чтобы текст под курсором не уехал (иначе добор из #38 сам себе рывок).
+    if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    else chat.scrollTop = desiredTop + (chat.scrollHeight - heightBefore);
     updateLoadMoreBtn();
     return rows.length;
 }
@@ -2410,7 +2474,7 @@ function finalizePending() {
 function showWaitingIndicator() {
     removeWaitingIndicator();
     const chat = $('#chat');
-    const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+    const wasAtBottom = _chatAtBottom(chat);
     const div = document.createElement('div');
     div.id = 'waiting-indicator';
     div.className = 'flex items-center gap-2 text-xs text-slate-500 py-2 px-3';
@@ -3404,7 +3468,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             div.style.color = '#64748b';
         }
         addTimestamp(div, ts);
-        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        const wasAtBottom = _chatAtBottom(chat);
         _insert(div);
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
@@ -3488,7 +3552,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             }
         }
         const line = buildCompactToolLine(type, content, ts);
-        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        const wasAtBottom = _chatAtBottom(chat);
         _insert(line);
         // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
         while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
@@ -3610,7 +3674,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             badge.textContent = `⚡ ${content}`;
         }
         addTimestamp(badge, ts);
-        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        const wasAtBottom = _chatAtBottom(chat);
         _insert(badge);
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
@@ -3700,7 +3764,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             }
         }
         addTimestamp(el, ts);
-        const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+        const wasAtBottom = _chatAtBottom(chat);
         _insert(el);
         if (type === 'subagent_start' && subId) {
             _flushPendingSubagentLogs(subId, subId);
@@ -4514,7 +4578,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             }
             addTimestamp(target, ts);
             if (!lastTool) {
-                const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+                const wasAtBottom = _chatAtBottom(chat);
                 _insert(div);
                 if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
             }
@@ -4536,7 +4600,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             } else {
                 div.appendChild(errDiv);
                 addTimestamp(div, ts);
-                const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+                const wasAtBottom = _chatAtBottom(chat);
                 _insert(div);
                 if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
             }
@@ -5459,7 +5523,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             sep.appendChild(wsStandalone);
             div.appendChild(sep);
             addTimestamp(div, ts);
-            const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+            const wasAtBottom = _chatAtBottom(chat);
             _insert(div);
             if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
             return;
@@ -5480,7 +5544,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 _renderJsonGrid(sData, gridWrap);
                 div.appendChild(gridWrap);
                 addTimestamp(div, ts);
-                const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+                const wasAtBottom = _chatAtBottom(chat);
                 _insert(div);
                 if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
                 return;
@@ -5524,7 +5588,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     addCopyBtn(div, content);
     addTimestamp(div, ts);
-    const wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+    const wasAtBottom = _chatAtBottom(chat);
     _insert(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
     if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
