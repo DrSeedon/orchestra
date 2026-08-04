@@ -95,36 +95,108 @@ def log(msg: str) -> None:
     print(f"  {msg}")
 
 
-def target_service_user(to_host: str, to_orch: str) -> tuple[str, str]:
-    """Who Orchestra actually runs as on the target, plus that user's home.
+def git_at(host: str, repo: str, args: str, *, check: bool = True) -> subprocess.CompletedProcess:
+    """Run git over ssh inside a repo owned by somebody else.
 
-    Derived from the owner of the installation directory, NOT from the ssh login:
-    we log in as root, but systemd runs the service under its own user. Anything
-    left behind as root is unusable to it — git refuses with "dubious ownership",
-    and '~' would resolve to /root instead of the service user's home.
+    We log in as root while the repo belongs to the service user, so git refuses with
+    "dubious ownership". The exception is passed per command and never written into the
+    login user's global config: that would be a permanent change on a machine we are
+    only visiting, and it would grant root access it does not need after we leave.
     """
-    user = ssh(to_host, f"stat -c %U {to_orch!r}").stdout.strip()
-    if not user:
-        die(f"cannot determine the owner of {to_orch} on {to_host}")
-    home = ssh(to_host, f"getent passwd {user!r} | cut -d: -f6").stdout.strip()
+    return ssh(host, f"git -c safe.directory={repo!r} -C {repo!r} {args}", check=check)
+
+
+def unit_service_user(host: str, unit: str) -> str:
+    """``User=`` of a LOADED systemd unit; '' when the unit isn't there.
+
+    ``LoadState`` has to be read alongside: ``systemctl show <missing-unit> -p User``
+    prints an empty ``User=`` and exits 0 — indistinguishable from a live unit running
+    as root. Same trap as ``OOMScoreAdjust`` (see CLAUDE.md: a check that prints the same
+    on success and on failure is not a check). Empty ``User=`` on a loaded unit is
+    systemd's default, i.e. root.
+    """
+    r = ssh(host, f"systemctl show {unit!r} -p LoadState -p User", check=False)
+    if r.returncode != 0:
+        return ""
+    fields = dict(line.split("=", 1) for line in r.stdout.splitlines() if "=" in line)
+    if fields.get("LoadState") != "loaded":
+        return ""
+    return fields.get("User", "").strip() or "root"
+
+
+def target_service_user(host: str, orch_root: str, unit: str) -> tuple[str, str]:
+    """Who Orchestra actually runs as on `host`, plus that user's home.
+
+    Ground truth is the systemd unit, NOT the ssh login and NOT the owner of the
+    installation directory: we log in as root, and a checkout can sit under a foreign
+    owner while the service runs as someone else — that is exactly the state this VPS
+    was in on 2026-08-03 (3021 root-owned files under `User=kesha`). Handing files to
+    the directory's owner in that moment would recreate the bug being fixed, and report
+    success. Anything left behind as the wrong user is unusable to the service: git
+    refuses with "dubious ownership", and '~' resolves to /root.
+    """
+    user = unit_service_user(host, unit)
+    if user:
+        log(f"service user on {host}: {user} (from systemd unit '{unit}')")
+    else:
+        user = ssh(host, f"stat -c %U {orch_root!r}").stdout.strip()
+        if not user:
+            die(f"cannot determine the owner of {orch_root} on {host}")
+        log(f"⚠ systemd unit '{unit}' is not loaded on {host} — falling back to the owner "
+            f"of {orch_root}: {user}. This is a guess, not the service identity: verify it "
+            f"before trusting the migration (pass --to-unit/--from-unit if the unit is named "
+            f"differently).")
+    home = ssh(host, f"getent passwd {user!r} | cut -d: -f6").stdout.strip()
     if not home:
-        die(f"cannot determine the home directory of user '{user}' on {to_host}")
-    log(f"target service user: {user} (home {home})")
+        die(f"cannot determine the home directory of user '{user}' on {host}")
+    log(f"  home {home}")
     return user, home
+
+
+def _foreign_entries(host: str, path: str, user: str) -> list[str]:
+    """Entries under `path` not owned by `user`.
+
+    Fails loud when the path cannot be inspected. The previous form
+    (`find … 2>/dev/null | wc -c`) printed 0 both when everything was already owned and
+    when the path did not exist at all — certifying a chown that never happened.
+    """
+    r = ssh(
+        host,
+        f"test -e {path!r} || exit 66; find {path!r} ! -user {user!r} -printf '%p\\n'",
+        check=False,
+    )
+    if r.returncode == 66:
+        die(f"{path} does not exist on {host} — nothing to hand over to '{user}'")
+    if r.returncode != 0:
+        detail = r.stderr.strip() or f"exit {r.returncode}"
+        die(f"cannot inspect ownership of {path} on {host}: {detail}")
+    return [line for line in r.stdout.splitlines() if line]
+
+
+def _mode_snapshot(host: str, path: str) -> list[str]:
+    """`<mode> <path>` for every entry — to prove chown changed owners and nothing else."""
+    r = ssh(host, f"find {path!r} -printf '%m %p\\n'", check=False)
+    if r.returncode != 0:
+        detail = r.stderr.strip() or f"exit {r.returncode}"
+        die(f"cannot read permissions of {path} on {host}: {detail}")
+    return sorted(line for line in r.stdout.splitlines() if line)
 
 
 def give_to_service_user(to_host: str, path: str, user: str) -> None:
     """Hand a freshly created path to the service user, and prove it took effect."""
-    before = ssh(
-        to_host, f"find {path!r} ! -user {user!r} -printf . 2>/dev/null | wc -c",
-    ).stdout.strip()
+    before = _foreign_entries(to_host, path, user)
+    modes_before = _mode_snapshot(to_host, path)
     ssh(to_host, f"chown -R {user}:{user} {path!r}")
-    after = ssh(
-        to_host, f"find {path!r} ! -user {user!r} -printf . 2>/dev/null | wc -c",
-    ).stdout.strip()
-    if after != "0":
-        die(f"chown -R {user} did not take on {path}: {after} entries still foreign")
-    log(f"owner {path} → {user} (было чужих: {before})")
+    after = _foreign_entries(to_host, path, user)
+    if after:
+        die(f"chown -R {user} did not take on {path}: {len(after)} entries still foreign, "
+            f"e.g. {', '.join(after[:3])}")
+    modes_after = _mode_snapshot(to_host, path)
+    if modes_after != modes_before:
+        changed = [m for m in modes_after if m not in set(modes_before)][:3]
+        die(f"chown changed permissions under {path} — we change the owner, never the mode: "
+            f"{', '.join(changed) or 'entry set differs'}")
+    log(f"owner {path} → {user} (было чужих: {len(before)}, режимы не тронуты)")
 
 
 # ── DB access over SSH (sqlite3 CLI on the remote, JSON out) ──
@@ -258,32 +330,39 @@ def migrate_git(from_host, to_host, row, from_scope, to_scope, to_orch, to_user)
     # bundle the worker branch from source and fetch it on target.
     if branch:
         bundle_remote = f"/tmp/orch_{row['name']}.bundle"
-        # bundle from the source scope repo (worktree shares .git objects)
-        ssh(from_host, f"cd {from_scope!r} && git bundle create {bundle_remote} {branch} 2>/dev/null || true")
-        has_bundle = ssh(from_host, f"test -s {bundle_remote} && echo yes || echo no").stdout.strip()
-        if has_bundle == "yes":
-            _relay_file(from_host, to_host, bundle_remote, bundle_remote)
-            ssh(to_host, f"cd {to_scope!r} && git fetch {bundle_remote} {branch}:{branch} 2>/dev/null || true")
-            ssh(from_host, f"rm -f {bundle_remote}")
-            ssh(to_host, f"rm -f {bundle_remote}")
+        # bundle from the source scope repo (worktree shares .git objects). Errors are NOT
+        # swallowed: a lost bundle means lost worker commits, and `git worktree add` below
+        # would then fail with "invalid reference" — the symptom, never the cause.
+        b = git_at(from_host, from_scope, f"bundle create {bundle_remote} {branch}", check=False)
+        if b.returncode != 0:
+            die(f"git bundle create failed for branch '{branch}' on {from_host}: "
+                f"{b.stderr.strip() or f'exit {b.returncode}'}")
+        _relay_file(from_host, to_host, bundle_remote, bundle_remote)
+        f = git_at(to_host, to_scope, f"fetch {bundle_remote} {branch}:{branch}", check=False)
+        if f.returncode != 0:
+            die(f"git fetch of the worker bundle failed on {to_host} (branch '{branch}'): "
+                f"{f.stderr.strip() or f'exit {f.returncode}'}")
+        ssh(from_host, f"rm -f {bundle_remote}")
+        ssh(to_host, f"rm -f {bundle_remote}")
 
     ssh(to_host, f"mkdir -p {new_root}/worktrees/{slugify_scope(new_scope)}")
     # remove any stale worktree at this path, then add fresh. Fail loud — a missing
     # branch here means the bundle didn't carry the worker's commits (data loss risk).
-    ssh(to_host, f"cd {to_scope!r} && git worktree remove --force {new_wt!r} 2>/dev/null || true")
+    git_at(to_host, to_scope, f"worktree remove --force {new_wt!r}", check=False)
     ref = branch or "HEAD"
-    r = ssh(to_host, f"cd {to_scope!r} && git worktree add {new_wt!r} {ref!r}", check=False)
-    if r.returncode != 0 and "dubious ownership" in r.stderr:
-        # target checkout belongs to the service user, we ssh as another — one-time exception
-        ssh(to_host, f"git config --global --add safe.directory {to_scope!r}", check=False)
-        r = ssh(to_host, f"cd {to_scope!r} && git worktree add {new_wt!r} {ref!r}", check=False)
+    r = git_at(to_host, to_scope, f"worktree add {new_wt!r} {ref!r}", check=False)
     if r.returncode != 0:
         die(f"git worktree add failed for '{row['name']}' (ref={ref}): {r.stderr.strip()}")
-    # Created over ssh as root. Left that way, Git refuses to work in it
-    # ("dubious ownership") and worker_wip / kill_worker start failing — which
-    # leaves force-kill as the only route and drops the unmerged-work guard.
+    # Everything above ran over ssh as the login user. Left that way, Git refuses to work
+    # for the service user and worker_wip / kill_worker start failing — which leaves
+    # force-kill as the only route and drops the unmerged-work guard.
+    # The worktree alone is NOT enough: for a linked worktree Git also checks the gitdir
+    # (.git/worktrees/<name>), and a commit additionally locks .git/refs/heads/<branch>.
+    # Miss the target repo's .git and the migrated worker can read but never commit —
+    # which is worse than a loud failure, because it looks healthy.
     give_to_service_user(to_host, new_wt, to_user)
     give_to_service_user(to_host, f"{new_root}/worktrees/{slugify_scope(new_scope)}", to_user)
+    give_to_service_user(to_host, f"{to_scope.rstrip('/')}/.git", to_user)
     log(f"worktree [{row['name']}] → {new_wt}")
     return new_wt
 
@@ -358,6 +437,11 @@ def main() -> None:
     ap.add_argument("--to-orchestra", required=True, help="orchestra root on target")
     ap.add_argument("--from-scope", required=True, help="project scope path on source")
     ap.add_argument("--to-scope", required=True, help="project scope path on target")
+    ap.add_argument("--to-unit", default="orchestra",
+                    help="systemd unit of the target Orchestra — its User= is who owns the "
+                         "migrated files (default: orchestra)")
+    ap.add_argument("--from-unit", default="orchestra",
+                    help="systemd unit of the source Orchestra (default: orchestra)")
     ap.add_argument("--dry-run", action="store_true", help="print plan, don't mutate target")
     args = ap.parse_args()
 
@@ -386,8 +470,8 @@ def main() -> None:
 
     sql_script = "BEGIN;\n"
 
-    to_user, to_home = target_service_user(args.to_host, args.to_orchestra)
-    _, from_home = target_service_user(args.from_host, args.from_orchestra)
+    to_user, to_home = target_service_user(args.to_host, args.to_orchestra, args.to_unit)
+    _, from_home = target_service_user(args.from_host, args.from_orchestra, args.from_unit)
 
     # 2. per-agent: transcript + git + row + children
     print("→ transcripts")
