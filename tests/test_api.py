@@ -1062,7 +1062,7 @@ async def test_merge_exposes_raw_rag_backfill_status(db, monkeypatch, status):
     )
     scheduled = []
 
-    def fake_schedule(scope):
+    def fake_schedule(scope, session_name=""):
         scheduled.append(scope)
         return status
 
@@ -1112,7 +1112,7 @@ async def test_merge_returns_before_blocked_rag_backfill(db, monkeypatch):
     started = asyncio.Event()
     release = asyncio.Event()
 
-    async def blocked_backfill(_scope):
+    async def blocked_backfill(_scope, session_name=None):
         started.set()
         await release.wait()
         return {"files": 1, "logs": 0}

@@ -371,6 +371,13 @@ async def list_models(response: Response):
     }
 
 
+@router.head("/api/models")
+async def head_models():
+    """Heartbeat'у нужны только статус и версия сборки — тело GET'а он выбрасывает.
+    Тот же заголовок, что у GET: без него баннер обновления замолчит, не сломавшись."""
+    return Response(status_code=200, headers={"X-Orchestra-Build": build_id()})
+
+
 @router.post("/api/models/refresh")
 async def refresh_models_endpoint():
     from app.models import refresh_models

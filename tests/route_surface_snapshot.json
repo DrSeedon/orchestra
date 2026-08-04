@@ -84,6 +84,12 @@
   ]
  ],
  [
+  "/api/models",
+  [
+   "HEAD"
+  ]
+ ],
+ [
   "/api/models/refresh",
   [
    "POST"

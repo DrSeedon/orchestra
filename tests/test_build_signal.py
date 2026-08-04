@@ -73,6 +73,24 @@ class TestModelsHeader:
         assert r.headers["X-Orchestra-Build"] == build_id()
         assert set(r.json()) == {"models", "provider_metadata", "proxy_connected"}
 
+    def test_head_carries_same_build_header_with_empty_body(self, tmp_path, monkeypatch):
+        """Проверка не «метод разрешён», а «заголовок тот же»: heartbeat читает только его,
+        и без заголовка баннер обновления замолчал бы, не сломавшись."""
+        from fastapi.testclient import TestClient
+        monkeypatch.setattr("app.db.DB_PATH", tmp_path / "t.db")
+        from app.db import init_db
+        init_db()
+        from app.main import app
+        with TestClient(app) as client:
+            monkeypatch.delenv("DASHBOARD_USER", raising=False)
+            monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+            head = client.head("/api/models")
+            get = client.get("/api/models")
+        assert head.status_code == 200, head.text
+        assert head.headers.get("X-Orchestra-Build")
+        assert head.headers["X-Orchestra-Build"] == get.headers["X-Orchestra-Build"]
+        assert head.content == b""
+
 
 class TestTemplateCarriesBuild:
     def test_body_has_data_build(self):
