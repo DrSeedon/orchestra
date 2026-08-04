@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import struct
+import subprocess
 import time
 from pathlib import Path
 
@@ -55,6 +56,41 @@ EXCLUDED_DIRS = {".git", ".claude", ".gemini", ".kiro", ".github", ".serena",
                  ".claude-plugin", "node_modules", "__pycache__", ".venv", "worktrees"}
 # codex-review-*.md = дебаты до 406KB, шум > сигнал (plan §0) → блэклист по имени.
 EXCLUDED_FILE_RE = re.compile(r"codex-review.*\.md$")
+
+# Как часто слой печатает, что он жив. Прогон живёт минутами, а между стартом и финальной
+# строкой журнал молчал целиком — понять «идёт или встало» было нечем (#44).
+_PROGRESS_SECONDS = 30.0
+
+
+def _drop_git_ignored(root: Path, paths: list[Path]) -> list[Path]:
+    """Выбросить то, что git игнорирует: это рабочий мусор, а не знание проекта.
+
+    Замер #63: 459 из 490 файлов в долге индексации были `data/bench138/` — корпус чужого
+    бенчмарка, лежащий под `.gitignore`. Он и сделал долг несходящимся, а поиск — шумным.
+    Игнор — уже принятое решение репозитория, дублировать его списком имён нельзя: следующий
+    временный корпус будет называться иначе.
+
+    git недоступен, корень не репозиторий, любой сбой → отдаём всё как есть. Пустая память
+    хуже шумной, и молчаливое сужение корпуса заметить нельзя."""
+    if not paths:
+        return paths
+    payload = b"\0".join(str(p).encode() for p in paths)
+    try:
+        r = subprocess.run(["git", "-C", str(root), "check-ignore", "--stdin", "-z"],
+                           input=payload, capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.warning(f"RAG: git check-ignore не отработал ({e!r}) — индексирую всё")
+        return paths
+    # 0 — что-то игнорируется, 1 — ничего; всё остальное (128: не репозиторий, dubious
+    # ownership) — сбой, и отличать его от «ничего не игнорируется» обязательно.
+    if r.returncode not in (0, 1):
+        logger.warning(f"RAG: git check-ignore rc={r.returncode} "
+                       f"({r.stderr.decode(errors='replace').strip()[:120]}) — индексирую всё")
+        return paths
+    ignored = {p for p in r.stdout.decode(errors="replace").split("\0") if p}
+    if ignored:
+        logger.info(f"RAG: пропущено {len(ignored)} .md под .gitignore")
+    return [p for p in paths if str(p) not in ignored]
 # md heading-aware: секция > MD_MAX режем по параграфам, секция < MD_MIN мержим с соседней.
 MD_MAX_CHUNK = 1500
 MD_MIN_MERGE = 250
@@ -482,10 +518,12 @@ class RagMemory:
         return len(content or "") >= MIN_LOG_LEN
 
     def backfill_logs(self, project: str, orchestra_db: Path, batch_size: int = 500,
-                      session_name: str | None = None) -> int:
+                      session_name: str | None = None, deadline: float | None = None) -> int:
         """Индексирует логи проекта из orchestra.db (user_message/text). ATTACH read-only,
         джойн logs+sessions по scope=project. type/kind/length фильтр. Дедуп по logs_indexed.
         session_name задан → только логи этой сессии (быстрый reindex одного агента).
+        `deadline` (шкала time.monotonic) проверяется ПЕРЕД каждым логом: один лог бывает
+        размером 651 КБ, и без обрыва в середине он съедает весь бюджет прогона.
         Возвращает число проиндексированных логов."""
         import sqlite3
         try:
@@ -513,7 +551,16 @@ class RagMemory:
         finally:
             self.conn.execute("DETACH DATABASE orch")
         count = 0
+        next_report = time.monotonic() + _PROGRESS_SECONDS
         for r in rows:
+            now = time.monotonic()
+            if deadline is not None and count and now >= deadline:
+                logger.info(f"RAG backfill_logs[{project}] budget spent: {count} logs this slice")
+                break
+            if now >= next_report:
+                left = f", {deadline - now:.0f}s budget left" if deadline else ""
+                logger.info(f"RAG backfill_logs[{project}] progress: {count}/{len(rows)} logs{left}")
+                next_report = now + _PROGRESS_SECONDS
             kind, author = _classify_log(r["type"], r["content"])
             if not self._log_is_signal(kind, r["content"]):
                 # помечаем как обработанный, чтобы не пересматривать каждый backfill
@@ -680,7 +727,8 @@ class RagMemory:
         return out
 
     def _walk_files(self, root: Path) -> list[Path]:
-        """Все .md под root, пропуская EXCLUDED_DIRS и EXCLUDED_FILE_RE. Абсолютные пути."""
+        """Все .md под root, пропуская EXCLUDED_DIRS, EXCLUDED_FILE_RE и игнорируемое git'ом.
+        Абсолютные пути."""
         import os
         found: list[Path] = []
         for dirpath, dirnames, filenames in os.walk(root):
@@ -688,12 +736,15 @@ class RagMemory:
             for fn in filenames:
                 if Path(fn).suffix.lower() in FILE_EXTENSIONS and not EXCLUDED_FILE_RE.search(fn):
                     found.append(Path(dirpath) / fn)
-        return found
+        return _drop_git_ignored(root, found)
 
-    def backfill_files(self, project: str, root: Path, limit: int = 0) -> int:
+    def backfill_files(self, project: str, root: Path, limit: int = 0,
+                       deadline: float | None = None) -> int:
         """Индексирует .md проекта. Дедуп по sha256 → повторный запуск дёшев. Не-UTF8 → skip.
         `limit` > 0 → остановиться после стольких (ре)индексаций; остальное догонит следующий
         проход (дедуп делает продолжение с места обрыва бесплатным). Возвращает число (ре)индексаций.
+        `deadline` (шкала time.monotonic) проверяется ПЕРЕД каждым файлом: бюджет прогона обязан
+        обрывать слой в середине, иначе один слой съедает прогон целиком и второй не начинается.
 
         Порядок шагов — часть контракта, а не деталь. Prune идёт ПЕРВЫМ, а файлы обходятся от
         свежих к старым:
@@ -725,7 +776,18 @@ class RagMemory:
                 return 0.0
 
         count = 0
+        next_report = time.monotonic() + _PROGRESS_SECONDS
         for abs_path in sorted(disk_paths, key=_mtime, reverse=True):
+            now = time.monotonic()
+            # `count and` — гарантия продвижения: слой обязан обработать хотя бы один элемент,
+            # иначе прогон с уже истёкшим бюджетом стал бы холостым и долг не двигался бы вовсе.
+            if deadline is not None and count and now >= deadline:
+                logger.info(f"RAG backfill_files[{project}] budget spent: {count} files this slice")
+                break
+            if now >= next_report:
+                left = f", {deadline - now:.0f}s budget left" if deadline else ""
+                logger.info(f"RAG backfill_files[{project}] progress: {count} files{left}")
+                next_report = now + _PROGRESS_SECONDS
             rel = str(abs_path.relative_to(root))
             try:
                 content = abs_path.read_text(encoding="utf-8")

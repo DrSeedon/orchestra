@@ -79,27 +79,40 @@ def _no_tg_bridge(monkeypatch):
     monkeypatch.setattr(tb, "stop_bridge", AsyncMock())
 
 
-def pytest_terminal_summary(terminalreporter, exitstatus, config):
-    """Кричать о пропущенных тестах, которым нужны два владельца файлов.
+# Маркер → (заголовок, чем объяснить пропуск). Такие тесты проверяют то, что заглушками не
+# проверяется, а молчаливый `skipped` даёт ту же зелёную сводку, что и пройденный тест.
+_LOUD_SKIPS = {
+    "needs_two_users": (
+        "ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ",
+        "нет беспарольного sudo. Владение файлами нельзя проверить заглушками — "
+        "нужны два реальных владельца.",
+    ),
+    "needs_model": (
+        "ПРОПУЩЕН РЕАЛЬНЫЙ СЛОЙ RAG",
+        "в этом окружении нет эмбеддера. Индексация, чанкинг и поиск заглушками не "
+        "моделируются — правка RAG этим прогоном НЕ проверена. Ставить deps в worktree НЕ "
+        "надо, прогнать интерпретатором сервера:\n"
+        "  /home/kesha/orchestra/.venv/bin/python -m pytest tests/test_rag.py",
+    ),
+}
 
-    Такой тест проверяет то, что заглушками не проверяется (реальный chown, реальный git),
-    и его пропуск в обычной сводке выглядит точно так же, как успех. Печатаем отдельной
-    строкой, сколько именно проверок НЕ выполнялось и почему.
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Кричать о пропущенных тестах, чей пропуск неотличим от успеха.
+
+    Печатаем отдельной строкой, сколько именно проверок НЕ выполнялось и почему.
     """
-    skipped = [
-        report for report in terminalreporter.stats.get("skipped", [])
-        if "needs_two_users" in getattr(report, "keywords", {})
-    ]
-    if not skipped:
-        return
-    names = ", ".join(sorted(report.nodeid.split("::")[-1] for report in skipped))
-    terminalreporter.write_sep("=", "ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ", red=True, bold=True)
-    terminalreporter.write_line(
-        f"{len(skipped)} теста(ов) миграции не выполнялись: нет беспарольного sudo. "
-        f"Владение файлами нельзя проверить заглушками — нужны два реальных владельца.",
-        red=True,
-    )
-    terminalreporter.write_line(f"  {names}", red=True)
+    for marker, (headline, why) in _LOUD_SKIPS.items():
+        skipped = [
+            report for report in terminalreporter.stats.get("skipped", [])
+            if marker in getattr(report, "keywords", {})
+        ]
+        if not skipped:
+            continue
+        names = ", ".join(sorted(report.nodeid.split("::")[-1] for report in skipped))
+        terminalreporter.write_sep("=", headline, red=True, bold=True)
+        terminalreporter.write_line(f"{len(skipped)} теста(ов) не выполнялись: {why}", red=True)
+        terminalreporter.write_line(f"  {names}", red=True)
 
 
 @pytest.fixture(autouse=True)

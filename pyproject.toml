@@ -59,4 +59,5 @@ testpaths = ["tests"]
 norecursedirs = ["worktrees", ".venv", "data", "docs"]
 markers = [
     "needs_two_users: требует беспарольного sudo — владение файлами не моделируется заглушками",
+    "needs_model: требует эмбеддер (orchestra[rag]) — индексация и поиск не моделируются заглушками",
 ]

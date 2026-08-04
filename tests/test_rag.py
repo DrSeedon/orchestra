@@ -7,6 +7,8 @@ Embed-dependent tests are marked `@pytest.mark.rag` and skip when fastembed/mode
 """
 
 import sqlite3
+import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -28,7 +30,19 @@ def _rag_available() -> bool:
         return False
 
 
-needs_model = pytest.mark.skipif(not _rag_available(), reason="RAG deps/model not available")
+def needs_model(test):
+    """Пометить тест как требующий эмбеддера и пропустить, если его нет.
+
+    Маркер нужен ОТДЕЛЬНО от `skipif`: по нему `tests/conftest.py` печатает в конце прогона
+    громкую строку. Эмбеддинг заглушками не моделируется, а молчаливый `skipped` даёт ту же
+    зелёную сводку, что и пройденный. В worktree воркера без `orchestra[rag]` так скипается
+    ВЕСЬ реальный слой RAG — и правка индексации выглядит проверенной, не будучи ею.
+    """
+    test = pytest.mark.needs_model(test)
+    return pytest.mark.skipif(
+        not _rag_available(),
+        reason="нет эмбеддера: /home/kesha/orchestra/.venv/bin/python -m pytest tests/test_rag.py",
+    )(test)
 
 
 # ---------------------------------------------------------------- T1: chunkers (pure, no model)
@@ -578,3 +592,71 @@ def test_pending_files_counts_missing_and_stale(mem, tmp_path):
 
     (kb / "empty.md").write_text("", encoding="utf-8")
     assert mem.pending_files("/proj/a", kb) == 1, "пустой файл не может висеть в долге вечно"
+
+
+@needs_model
+def test_backfill_files_stops_inside_the_slice_on_deadline(mem, tmp_path):
+    """Бюджет обязан рвать слой ВНУТРИ. Пока он проверялся только между срезами, один срез
+    длиной 27 минут съедал прогон целиком, и за прогон индексировалось ровно _FILE_SLICE
+    файлов — при долге в сотни файлов это «не догонит никогда» (#44)."""
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    for i in range(5):
+        (kb / f"doc{i}.md").write_text(f"# Doc {i}\n\nсодержимое документа номер {i} подлиннее",
+                                       encoding="utf-8")
+    # дедлайн уже истёк: слой обязан сделать РОВНО один файл — не ноль (иначе долг не движется)
+    # и не все пять (иначе бюджет ничего не ограничивает)
+    n = mem.backfill_files("/proj/a", kb, deadline=time.monotonic() - 1)
+    assert n == 1
+    assert mem.conn.execute("SELECT COUNT(*) FROM files").fetchone()[0] == 1
+    # остаток догоняется следующим вызовом, с места обрыва
+    assert mem.backfill_files("/proj/a", kb) == 4
+
+
+@needs_model
+def test_backfill_logs_stops_inside_the_slice_on_deadline(mem, tmp_path):
+    odb = tmp_path / "orchestra.db"
+    long_text = "агент проанализировал root cause и починил баг через мозаику тайлов. " * 5
+    _make_orchestra_db(odb,
+        sessions=[("s1", "w1", "/proj/a")],
+        logs=[("s1", "t", "text", long_text + str(i)) for i in range(4)])
+    n = mem.backfill_logs("/proj/a", odb, deadline=time.monotonic() - 1)
+    assert n == 1
+    assert mem.backfill_logs("/proj/a", odb) == 3
+
+
+@needs_model
+def test_backfill_skips_git_ignored_files(mem, tmp_path):
+    """Игнорируемое git'ом — рабочий мусор, а не знание проекта.
+
+    Замер #63: 459 из 490 файлов в долге были корпусом чужого бенчмарка под `.gitignore`,
+    и именно они делали долг несходящимся.
+    """
+    kb = tmp_path / "repo"
+    kb.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=kb, check=True)
+    (kb / ".gitignore").write_text("data/\n", encoding="utf-8")
+    (kb / "README.md").write_text("# Readme\n\nреальный документ проекта подлиннее", encoding="utf-8")
+    (kb / "data").mkdir()
+    (kb / "data" / "corpus.md").write_text("# Corpus\n\nчужой бенчмарк, индексу не нужен",
+                                           encoding="utf-8")
+
+    assert mem.backfill_files("/proj/a", kb) == 1
+    paths = {r[0] for r in mem.conn.execute("SELECT path FROM files").fetchall()}
+    assert paths == {"README.md"}
+
+
+@needs_model
+def test_walk_indexes_everything_when_git_is_unavailable(mem, tmp_path, monkeypatch):
+    """Сбой git не имеет права молча сужать корпус: пустая память хуже шумной."""
+    kb = tmp_path / "notrepo"          # не git-репозиторий вовсе → rc=128
+    kb.mkdir()
+    (kb / "a.md").write_text("# A\n\nдокумент один достаточной длины", encoding="utf-8")
+    (kb / "b.md").write_text("# B\n\nдокумент два достаточной длины", encoding="utf-8")
+    assert len(mem._walk_files(kb)) == 2
+
+    def boom(*a, **k):
+        raise OSError("git отсутствует")
+
+    monkeypatch.setattr(rag.subprocess, "run", boom)
+    assert len(mem._walk_files(kb)) == 2

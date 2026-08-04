@@ -152,22 +152,31 @@ async def backfill_scope(project: str, root: Path | None = None,
     места обрыва: файлы дедуплицируются по sha256, логи — по `logs_indexed`. Один запланированный
     прогон не занимает write-executor дольше `_PASS_BUDGET_SECONDS`; недоделанное догонит
     следующий триггер. Догнать корпус за один прогон и не пытаемся: медиана жизни процесса —
-    25 минут, полный догон — десятки минут, и схема «всё за раз» не сходится by design."""
+    25 минут, полный догон — десятки минут, и схема «всё за раз» не сходится by design.
+
+    Бюджет обязан обрывать слой ВНУТРИ, а не между срезами. Пока дедлайн проверялся только
+    здесь, один срез логов длиной 27 минут съедал прогон целиком: до второй итерации дело не
+    доходило, и за прогон индексировалось ровно `_FILE_SLICE` файлов — при долге в 481 файл
+    это «не догонит никогда» (#44). Половина остатка каждому слою: иначе слой, который идёт
+    первым, забирает весь бюджет, и второй голодает."""
     if not _initialized:
         raise RuntimeError("RAG not initialized")
     from app import rag
     loop = asyncio.get_running_loop()
     root = root or Path(project)
     files = logs = 0
-    deadline = loop.time() + _PASS_BUDGET_SECONDS
+    deadline = time.monotonic() + _PASS_BUDGET_SECONDS
     while True:
-        # session_name задан → файлы пропускаем: они не привязаны к сессии.
+        now = time.monotonic()
+        # Половина остатка файловому слою, остальное логам: слой, идущий первым, иначе
+        # забирает весь бюджет, и второй голодает.
         f = 0 if session_name else await rag.run(
-            loop, "backfill_files", project, root, _FILE_SLICE)
-        l = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, _LOG_SLICE, session_name)
+            loop, "backfill_files", project, root, _FILE_SLICE, now + (deadline - now) / 2)
+        l = await rag.run(loop, "backfill_logs", project, _ORCHESTRA_DB, _LOG_SLICE,
+                          session_name, deadline)
         files += f
         logs += l
-        if (f == 0 and l == 0) or loop.time() >= deadline:
+        if (f == 0 and l == 0) or time.monotonic() >= deadline:
             break
     if session_name:
         logger.info(f"RAG backfill_scope[{project}] session={session_name}: {logs} logs")
