@@ -1074,13 +1074,28 @@ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -
             c.close()
 
 
-def get_logs_before(session_id: str, before_id: int, limit: int = 500) -> list[dict]:
+def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes: int = 0) -> list[dict]:
+    """Страница истории НАЗАД от before_id.
+
+    ``max_bytes > 0`` — потолок на суммарный content ответа (#72). Считать порцию строками
+    недостаточно: 25 строк в разных чатах дают от 5.2 до 46.6 КБ gzip, а канал юзера рвёт
+    крупные ответы. Первая строка отдаётся всегда, даже если одна перебирает бюджет: иначе
+    жирная строка даёт пустой ответ, и клиентский добор зациклится, ни разу не сдвинувшись.
+    """
     with _conn() as c:
         rows = c.execute(
             "SELECT * FROM logs WHERE session_id = ? AND id < ? ORDER BY id DESC LIMIT ?",
             (session_id, before_id, limit),
         ).fetchall()
-        return [dict(r) for r in reversed(rows)]
+        out, used = [], 0
+        for r in rows:
+            d = dict(r)
+            size = len((d.get("content") or "").encode())
+            if max_bytes and out and used + size > max_bytes:
+                break
+            out.append(d)
+            used += size
+        return list(reversed(out))
 
 
 _SYNC_COLS = "id, session_id, ts, type, content, event_id"
@@ -1105,6 +1120,9 @@ def get_logs_sync(after_id: int = 0, tail: int = 20, cap: int = 16384) -> dict:
     """Журнал всех сессий всех проектов одним ответом — для зеркала в браузере.
 
     after_id == 0 — холодный старт: последние ``tail`` строк на каждую сессию.
+    ``tail == 0`` — только карта сессий и отметка, без единой строки журнала: зеркало
+    наполняется тем, что юзер реально открыл (#72). Раньше клиент просил tail=20 на все
+    сессии и получал 145 КБ по проводу ради строк, из которых рисовалось ~5%.
     after_id > 0  — инкремент: всё, что появилось после этой отметки.
 
     ``live_sessions`` — полный список сессий БЕЗ фильтров, по ``{id, name, scope}``.

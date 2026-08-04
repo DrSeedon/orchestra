@@ -409,13 +409,14 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
 
 @router.get("/api/sessions/{name}/logs")
-async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0, limit: int = 500):
+async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0,
+                           limit: int = 500, max_bytes: int = 0):
     limit = min(limit, 1000)
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
     if before_id > 0:
-        return get_logs_before(session_id, before_id, limit)
+        return get_logs_before(session_id, before_id, limit, max(0, min(max_bytes, 1 << 20)))
     return get_logs(session_id, after_id=after_id)
 
 
@@ -423,12 +424,13 @@ async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: 
 async def logs_sync(after_id: int = 0, tail: int = 20, cap: int = 16384):
     """Зеркало журнала для браузера: все сессии всех проектов одним ответом.
 
-    Scope не принимает намеренно — пользователь один, а смысл именно в том, чтобы
-    переключение в чужой проект было мгновенным. Замер: tail=20 по всем сессиям —
-    ~100 КБ gzip, инкремент — единицы КБ.
+    Scope не принимает намеренно — пользователь один, а логи ключуются по session_id.
+    ``tail=0`` — карта сессий без строк журнала; дашборд ходит именно так с #72, потому
+    что предзагрузка на все сессии стоила 145 КБ по проводу, а рисовалось из неё ~5%.
+    Инкремент (after_id > 0) tail игнорирует и весит единицы КБ.
     """
     return get_logs_sync(after_id=max(after_id, 0),
-                         tail=max(1, min(tail, 200)),
+                         tail=max(0, min(tail, 200)),
                          cap=max(256, min(cap, 1 << 20)))
 
 

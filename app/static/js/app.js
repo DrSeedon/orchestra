@@ -213,6 +213,13 @@ const _CHAT_PAGE = 100;  // столько строк показываем пр�
 // Столько строк рисуем в ПЕРВОМ кадре; остальное — после него. Двадцать — это ровно то,
 // что раньше лежало в зеркале и давало чат за 871 мс против 1186 мс на сотне строк.
 const _CHAT_FIRST_PAINT = 20;
+// Порция добора истории — И по строкам, И по байтам. Одних строк мало: замер по живой БД
+// дал на 25 строках от 5.2 до 46.6 КБ gzip в разных чатах, потому что размер сообщения
+// гуляет на три порядка. Бюджет 24 КБ content держит худшую порцию в пределах ~10 КБ по
+// проводу у всех проверенных агентов — ниже порога, на котором посредник у юзера рвёт ответ.
+const _CHAT_CHUNK = 25;
+const _CHAT_CHUNK_BYTES = 24000;
+const _CHAT_MAX_CHUNKS = 12;   // страховка от бесконечного добора: 100 строк по 24 КБ — это 4-6 порций
 
 // === Зеркало журнала в IndexedDB (#8) ===
 // Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту,
@@ -220,7 +227,14 @@ const _CHAT_FIRST_PAINT = 20;
 // Отсюда вся инвалидация сводится к трём правилам: чистим сессии, которых больше нет,
 // стираем всё при откате БД, и никогда не чистим по пустому списку.
 const _STORE_DB = 'orchestra';
-const _STORE_TAIL = 20;         // сколько строк на сессию тянем на холодную
+// Холодная синхронизация НЕ тянет строки: tail=0 — только карта сессий и отметка.
+// Замер (#72, по проводу через домен): tail=20 на все сессии стоил 145.5 КБ, а рисовалось
+// из них ~5% — хвост открытого агента. Причём даже при попадании в зеркало страница чата
+// всё равно добиралась с сервера (в зеркале 20 строк, показываем 100), так что предзагрузка
+// экономила не запрос, а один кадр отрисовки. Зеркало наполняется тем, что юзер открыл
+// (_storePut в _fetchHistory/_completeChatPage) и живёт между заходами — F5 по-прежнему
+// рисует открытого агента без сети.
+const _STORE_TAIL = 0;
 const _STORE_CAP = 16384;       // байт на сообщение; блоб со скриншотом приедет обрезанным
 const _STORE_SYNC_MS = 15000;
 let _storeDb = null;            // IDBDatabase | null (null = хранилища нет, работаем как раньше)
@@ -1706,29 +1720,39 @@ function _renderHistory(agent, rows) {
     _syncChatJumpButton();
 }
 
-// Добор страницы до _CHAT_PAGE и запись добранного в зеркало: следующий заход к этому
-// же агенту снова бесплатный. Поднять _STORE_TAIL вместо этого нельзя — инкрементальная
-// синхронизация (after_id > 0) tail ИГНОРИРУЕТ, поэтому уже заведённое зеркало никогда
-// не дозаполнится, а холодная синхронизация подорожала бы с 123 до 569 КБ gzip ради 23
-// сессий, из которых юзер открывает шесть. Цифры — docs/tasks/32/report.md.
+// Добор страницы до _CHAT_PAGE порциями по _CHAT_CHUNK и запись добранного в зеркало:
+// следующий заход к этому же агенту снова бесплатный. Порции последовательные — каждая
+// следующая опирается на firstId предыдущей. Сотню строк одним ответом не берём: это
+// 27.1 КБ, а канал юзера рвёт крупные ответы (#70, #72).
+// Предзагружать зеркало на все сессии вместо этого нельзя: инкрементальная синхронизация
+// (after_id > 0) tail ИГНОРИРУЕТ, дозаполнить уже заведённое зеркало она не может, а
+// холодная предзагрузка стоила 145.5 КБ по проводу ради строк, из которых рисуется ~5%.
 async function _completeChatPage(name, scope) {
-    const meta = chatLogs[name];
-    if (!meta || !meta.firstId) return 0;
-    const need = _CHAT_PAGE - (meta.initialCount || 0);
-    if (need <= 0) return 0;
-    let older;
-    try {
-        const q = new URLSearchParams({scope, before_id: String(meta.firstId), limit: String(need)});
-        older = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
-    } catch (e) {
-        // Молчать нельзя: юзер увидит короткий чат и не поймёт, почему он короткий.
-        console.warn(`[chat] добор истории для ${name} не удался: ${e?.name}: ${e?.message}`);
-        return 0;
+    let added = 0;
+    for (let i = 0; i < _CHAT_MAX_CHUNKS; i++) {
+        const meta = chatLogs[name];
+        if (!meta || !meta.firstId) return added;
+        const need = Math.min(_CHAT_PAGE - (meta.initialCount || 0), _CHAT_CHUNK);
+        if (need <= 0) return added;
+        let older;
+        try {
+            const q = new URLSearchParams({scope, before_id: String(meta.firstId),
+                                           limit: String(need), max_bytes: String(_CHAT_CHUNK_BYTES)});
+            older = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
+        } catch (e) {
+            // Молчать нельзя: юзер увидит короткий чат и не поймёт, почему он короткий.
+            console.warn(`[chat] добор истории для ${name} не удался: ${e?.name}: ${e?.message}`);
+            return added;
+        }
+        // Пустой ответ — единственный признак конца журнала. «Строк меньше, чем просили»
+        // им больше не является: столько же могло срезать бюджетом байт.
+        if (!Array.isArray(older) || !older.length) return added;
+        if (!_prependHistory(name, scope, older)) return added;     // юзер ушёл к другому агенту
+        _storePut(older);
+        added += older.length;
     }
-    if (!Array.isArray(older) || !older.length) return 0;
-    if (!_prependHistory(name, scope, older)) return 0;
-    _storePut(older);
-    return older.length;
+    console.warn(`[chat] добор истории ${name} остановлен на ${_CHAT_MAX_CHUNKS} порциях — добрано ${added} строк`);
+    return added;
 }
 
 // Дорисовать старые строки НАД уже показанными. Один владелец на два случая: остаток
@@ -1783,9 +1807,15 @@ async function _storePut(rows) {
 // nginx жмёт, — те же 100 сообщений едут в 5 раз меньшим объёмом, чем через SSE (D1).
 async function _fetchHistory(name, scope) {
     try {
-        const q = new URLSearchParams({scope, before_id: String(2 ** 31 - 1), limit: String(_CHAT_PAGE)});
+        const q = new URLSearchParams({scope, before_id: String(2 ** 31 - 1),
+                                       limit: String(_CHAT_CHUNK), max_bytes: String(_CHAT_CHUNK_BYTES)});
         const rows = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
-        return Array.isArray(rows) ? rows : [];
+        if (!Array.isArray(rows)) return [];
+        // Обязательно в зеркало: эти строки СТАРШЕ watermark, инкремент их уже не принесёт
+        // никогда. Без этой записи в зеркале осталась бы дыра ровно на самом свежем куске
+        // истории — а холодная синхронизация его больше не привозит (#72).
+        _storePut(rows);
+        return rows;
     } catch (e) {
         // Не молчим и не сдаёмся: пустой список → connectSSE пойдёт с after_id=0,
         // и историю принесёт сам поток, как до всей этой затеи.
@@ -1826,7 +1856,7 @@ async function _showChatFor(name, scope) {
         // вставляет НАД первой строкой, а серверные строки старше остатка зеркала.
         _afterPaint(() => {
             _prependHistory(name, scope, head);
-            if (fromStore) _completeChatPage(name, scope);
+            _completeChatPage(name, scope);   // и после промаха зеркала: _fetchHistory берёт одну порцию
         });
         return fromStore;
     } finally {

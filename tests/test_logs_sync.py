@@ -185,6 +185,62 @@ class TestRoute:
         assert seen == {"after_id": 0, "tail": 200, "cap": 256}
 
 
+class TestHistoryChunkBudget:
+    """#72 — страница истории едет порциями, ограниченными БАЙТАМИ, а не только строками."""
+
+    def test_budget_cuts_the_chunk_by_bytes(self, db):
+        from app.db import add_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        for i in range(10):
+            add_log("s1", datetime.now(timezone.utc), "text", "x" * 1000)
+        rows = get_logs_before("s1", 2 ** 31 - 1, limit=10, max_bytes=3500)
+        assert len(rows) == 3          # четвёртая перебрала бы бюджет
+        assert [r["content"] for r in rows] == ["x" * 1000] * 3
+
+    def test_row_bigger_than_budget_still_comes_alone(self, db):
+        """Иначе жирная строка даёт пустой ответ, и клиентский добор зациклится на ней."""
+        from app.db import add_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        add_log("s1", datetime.now(timezone.utc), "text", "y" * 100)
+        add_log("s1", datetime.now(timezone.utc), "text", "z" * 50000)
+        rows = get_logs_before("s1", 2 ** 31 - 1, limit=10, max_bytes=1000)
+        assert [len(r["content"]) for r in rows] == [50000]
+
+    def test_no_budget_means_no_limit(self, db):
+        from app.db import add_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        for i in range(5):
+            add_log("s1", datetime.now(timezone.utc), "text", "x" * 10000)
+        assert len(get_logs_before("s1", 2 ** 31 - 1, limit=10)) == 5
+
+    def test_chunks_walk_back_without_gaps_or_repeats(self, db):
+        """Клиент ходит назад по firstId — проверяем, что склейка порций даёт ровный ряд."""
+        from app.db import add_log, get_logs_before, save_session
+        save_session(_session("s1", "back"))
+        for i in range(20):
+            add_log("s1", datetime.now(timezone.utc), "text", f"m{i}" + "x" * 900)
+        seen, before = [], 2 ** 31 - 1
+        for _ in range(10):
+            rows = get_logs_before("s1", before, limit=25, max_bytes=3000)
+            if not rows:
+                break
+            seen = [r["content"] for r in rows] + seen
+            before = min(r["id"] for r in rows)
+        assert seen == [f"m{i}" + "x" * 900 for i in range(20)]
+
+
+class TestColdSyncWithoutPrefetch:
+    """#72 — дашборд ходит с tail=0: карта сессий есть, строк журнала нет."""
+
+    def test_tail_zero_returns_map_without_logs(self, db):
+        from app.db import get_logs_sync
+        _fill({"s1": 30, "s2": 5})
+        out = get_logs_sync(after_id=0, tail=0)
+        assert out["logs"] == []
+        assert {s["id"] for s in out["live_sessions"]} == {"s1", "s2"}
+        assert out["max_log_id"] > 0
+
+
 class TestStreamHandshake:
     @pytest.mark.asyncio
     async def test_stream_names_its_session_before_any_history(self, db):
