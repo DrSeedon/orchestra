@@ -21,6 +21,27 @@ const _analyticsViews = {
     reliability: 'Надёжность',
 };
 
+// Chart.js — 204 КБ ради одной диаграммы в этой модалке. Он качался на КАЖДОЙ загрузке
+// дашборда, а модалку открывают единицы раз в день (#64). Теперь грузится при открытии,
+// один раз за жизнь страницы. Адрес берётся из шаблона — там же, где версия для кеша.
+let _chartJsPromise = null;
+
+function _ensureChartJs() {
+    if (typeof Chart !== 'undefined') return Promise.resolve();
+    if (_chartJsPromise) return _chartJsPromise;
+    const src = document.getElementById('analytics-modal')?.dataset.chartSrc;
+    _chartJsPromise = src
+        ? new Promise((resolve, reject) => {
+            const el = document.createElement('script');
+            el.src = src;
+            el.onload = resolve;
+            el.onerror = () => reject(new Error(`не загрузился ${src}`));
+            document.head.appendChild(el);
+        })
+        : Promise.reject(new Error('в разметке модалки нет data-chart-src'));
+    return _chartJsPromise;
+}
+
 function openAnalyticsModal() {
     const modal = document.getElementById('analytics-modal');
     if (!modal) return;
@@ -28,6 +49,8 @@ function openAnalyticsModal() {
     modal.classList.add('flex');
     _analyticsRenderControls();
     document.addEventListener('keydown', _analyticsEscHandler);
+    // старт загрузки заранее, параллельно запросу данных; отказ покажет _analyticsRenderChart
+    _ensureChartJs().catch(() => {});
     _analyticsLoad();
 }
 
@@ -497,10 +520,19 @@ function _analyticsStatus(label, value, tone) {
     return `<div><span>${label}</span><strong class="analytics-text-${tone}">${_analyticsNumber(value)}</strong></div>`;
 }
 
-function _analyticsRenderChart(daily) {
-    if (!daily.length || typeof Chart === 'undefined') return;
+async function _analyticsRenderChart(daily) {
+    if (!daily.length) return;
     const canvas = document.getElementById('analytics-chart');
     if (!canvas) return;
+    try {
+        await _ensureChartJs();
+    } catch (e) {
+        // Молчать нельзя: пустое место на графике выглядит как «данных нет»
+        canvas.replaceWith(Object.assign(document.createElement('div'), {
+            className: 'analytics-text-warn', textContent: `График не отрисован: ${e.message}`,
+        }));
+        return;
+    }
     _analyticsChart = new Chart(canvas, {
         type: 'bar',
         data: {

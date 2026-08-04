@@ -5,32 +5,22 @@
     <meta charset="UTF-8">
     <link rel="icon" href="{{ g.asset('favicon.svg') }}" type="image/svg+xml">
     <title>🎼 Orchestra</title>
-    <script src="{{ g.asset('css/vendor/tailwind.js') }}"></script>
-    <script>
-      // Design tokens via Tailwind config (CDN). Lift faint slate shades to meet WCAG AA
-      // on the #0a0e17 bg, and route sans utilities to Inter (hybrid typography).
-      tailwind.config = {
-        theme: { extend: {
-          fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-            mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'monospace'],
-          },
-          colors: { slate: {
-            400: '#a6b3c6',  // was #94a3b8 — meta/secondary
-            500: '#8595ab',  // was #64748b — faint labels (AA on bg)
-            600: '#6b7c93',  // was #475569 — faintest still-readable
-          } },
-        } },
-      };
-    </script>
     <script src="{{ g.asset('css/vendor/marked.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/purify.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/diff_match_patch.js') }}"></script>
-    <!-- defer: нужен только модалке аналитики, но без него блокировал разбор документа -->
-    <script defer src="{{ g.asset('css/vendor/chart.umd.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/highlight.min.js') }}"></script>
     <link rel="stylesheet" href="{{ g.asset('css/vendor/highlight-github-dark.min.css') }}">
     <link rel="stylesheet" href="{{ g.asset('css/style.css') }}">
+    <!-- Собранный CSS вместо Play-CDN Tailwind: тот же результат, но без 407 КБ компилятора,
+         который пересобирал стили в браузере на каждую вставку узла (#64).
+         Токены и content-пути — в tailwind.config.js, пересборка — scripts/build-tailwind.sh.
+
+         ПОСЛЕ style.css, и это не опечатка. Play CDN дописывал свои правила в <head> в
+         рантайме, то есть последним, и style.css писался под этот порядок. Поставь этот
+         <link> выше — при равной специфичности выиграет style.css, и поедет line-height у
+         432 узлов, height у 208 и font-size у 40 (замерено сравнением computed styles,
+         docs/tasks/64/measurements/computed_diff.py). -->
+    <link rel="stylesheet" href="{{ g.asset('css/vendor/tailwind.css') }}">
 </head>
 <body class="h-screen overflow-hidden flex flex-col" data-build="{{ g.build() }}" data-currency="{{ currency_symbol }}" data-hide-thinking="{{ 'true' if hide_thinking else 'false' }}" data-auth-enabled="{{ 'true' if is_auth_enabled else 'false' }}" data-client-name="{{ client_name }}">
     <div id="rate-limit-banner" class="hidden items-center justify-center gap-2 px-4 py-2 bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs"></div>
@@ -180,7 +170,7 @@
     </div>
 
     <!-- Analytics Modal -->
-    <div id="analytics-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" onclick="if(event.target===this)closeAnalyticsModal()">
+    <div id="analytics-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" data-chart-src="{{ g.asset('css/vendor/chart.umd.min.js') }}" onclick="if(event.target===this)closeAnalyticsModal()">
       <div class="analytics-shell">
         <div class="analytics-topbar">
           <div class="analytics-title">

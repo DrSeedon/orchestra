@@ -1,0 +1,610 @@
+[
+ {
+  "nav": {
+   "domContentLoaded": 748.3,
+   "load": 749.2
+  },
+  "longtasks": [
+   {
+    "start": 182.2,
+    "dur": 228
+   },
+   {
+    "start": 418.5,
+    "dur": 56
+   },
+   {
+    "start": 497.8,
+    "dur": 130
+   },
+   {
+    "start": 758,
+    "dur": 57
+   },
+   {
+    "start": 837.6,
+    "dur": 109
+   },
+   {
+    "start": 1041.7,
+    "dur": 78
+   },
+   {
+    "start": 1122.2,
+    "dur": 67
+   },
+   {
+    "start": 1269,
+    "dur": 276
+   },
+   {
+    "start": 1616.1,
+    "dur": 775
+   }
+  ],
+  "marks": {
+   "agentsListed": 1054,
+   "chatFirst": 1502.5,
+   "chat20": 2329.1
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "base",
+  "now_at_stop": 8786.800000011921,
+  "cpu_total_ms": 8806.0,
+  "loadavg": [
+   "10.17",
+   "7.59",
+   "5.32"
+  ],
+  "by_file": {
+   "(inline/vm)": 7111.200000000011,
+   "app.js": 945.7999999999975,
+   "tailwind.js": 570.2999999999965,
+   "marked.min.js": 102.09999999999984,
+   "purify.min.js": 69.59999999999991,
+   "highlight.min.js": 14.200000000000014,
+   "chart.umd.min.js": 4.299999999999999,
+   "usage.js": 3.7999999999999994,
+   "utils.js": 3.499999999999999,
+   "tool-renderers.js": 2.1,
+   "diff_match_patch.js": 0.3
+  },
+  "pair": 0
+ },
+ {
+  "nav": {
+   "domContentLoaded": 423.5,
+   "load": 424.4
+  },
+  "longtasks": [
+   {
+    "start": 254.7,
+    "dur": 70
+   },
+   {
+    "start": 336.3,
+    "dur": 58
+   },
+   {
+    "start": 606.6,
+    "dur": 188
+   },
+   {
+    "start": 814.2,
+    "dur": 522
+   }
+  ],
+  "marks": {
+   "agentsListed": 577.9,
+   "chatFirst": 795,
+   "chat20": 1316
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "tailwind_static",
+  "now_at_stop": 8443.10000000894,
+  "cpu_total_ms": 8458.0,
+  "loadavg": [
+   "10.07",
+   "7.61",
+   "5.34"
+  ],
+  "by_file": {
+   "(inline/vm)": 7552.29999999999,
+   "app.js": 676.8000000000027,
+   "marked.min.js": 94.50000000000016,
+   "purify.min.js": 69.20000000000009,
+   "highlight.min.js": 36.90000000000006,
+   "chart.umd.min.js": 12.699999999999989,
+   "usage.js": 2.3000000000000003,
+   "utils.js": 1.7999999999999998,
+   "tool-renderers.js": 0.8
+  },
+  "pair": 0
+ },
+ {
+  "nav": {
+   "domContentLoaded": 707,
+   "load": 707.7
+  },
+  "longtasks": [
+   {
+    "start": 103.7,
+    "dur": 106
+   },
+   {
+    "start": 211.9,
+    "dur": 307
+   },
+   {
+    "start": 522.4,
+    "dur": 116
+   },
+   {
+    "start": 804.6,
+    "dur": 75
+   },
+   {
+    "start": 1039.9,
+    "dur": 162
+   },
+   {
+    "start": 1227.7,
+    "dur": 629
+   }
+  ],
+  "marks": {
+   "agentsListed": 931.4,
+   "chatFirst": 1180.1,
+   "chat20": 1799.5
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "base",
+  "now_at_stop": 8729.29999999702,
+  "cpu_total_ms": 8742.0,
+  "loadavg": [
+   "10.51",
+   "7.79",
+   "5.42"
+  ],
+  "by_file": {
+   "(inline/vm)": 7414.599999999986,
+   "app.js": 656.7000000000015,
+   "tailwind.js": 494.59999999998877,
+   "marked.min.js": 72.0000000000001,
+   "purify.min.js": 57.90000000000009,
+   "highlight.min.js": 9.499999999999998,
+   "utils.js": 2.8000000000000007,
+   "tool-renderers.js": 2.1,
+   "usage.js": 1.2999999999999998,
+   "chart.umd.min.js": 1.2,
+   "diff_match_patch.js": 0.2
+  },
+  "pair": 1
+ },
+ {
+  "nav": {
+   "domContentLoaded": 285.1,
+   "load": 292.5
+  },
+  "longtasks": [
+   {
+    "start": 403.5,
+    "dur": 167
+   },
+   {
+    "start": 584,
+    "dur": 586
+   }
+  ],
+  "marks": {
+   "chatFirst": 570.4,
+   "chat20": 1132.2,
+   "agentsListed": 1190.1
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "tailwind_static",
+  "now_at_stop": 8316.800000011921,
+  "cpu_total_ms": 8331.3,
+  "loadavg": [
+   "10.51",
+   "7.88",
+   "5.47"
+  ],
+  "by_file": {
+   "(inline/vm)": 7321.499999999991,
+   "app.js": 780.5000000000028,
+   "marked.min.js": 90.60000000000018,
+   "purify.min.js": 68.30000000000008,
+   "highlight.min.js": 37.60000000000007,
+   "chart.umd.min.js": 12.099999999999987,
+   "utils.js": 3.8000000000000003,
+   "usage.js": 3.000000000000001,
+   "tool-renderers.js": 1.0999999999999999,
+   "tailwind.js": 1.0,
+   "diff_match_patch.js": 0.2
+  },
+  "pair": 1
+ },
+ {
+  "nav": {
+   "domContentLoaded": 619.8,
+   "load": 621.3
+  },
+  "longtasks": [
+   {
+    "start": 100.5,
+    "dur": 54
+   },
+   {
+    "start": 155.6,
+    "dur": 281
+   },
+   {
+    "start": 439.5,
+    "dur": 103
+   },
+   {
+    "start": 688.4,
+    "dur": 68
+   },
+   {
+    "start": 797.1,
+    "dur": 81
+   },
+   {
+    "start": 883.4,
+    "dur": 60
+   },
+   {
+    "start": 987.3,
+    "dur": 62
+   },
+   {
+    "start": 1096.6,
+    "dur": 207
+   },
+   {
+    "start": 1337.3,
+    "dur": 673
+   }
+  ],
+  "marks": {
+   "agentsListed": 900.1,
+   "chatFirst": 1269.3,
+   "chat20": 1929.6
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "base",
+  "now_at_stop": 8655.40000000596,
+  "cpu_total_ms": 8668.6,
+  "loadavg": [
+   "10.34",
+   "7.93",
+   "5.52"
+  ],
+  "by_file": {
+   "(inline/vm)": 7191.100000000013,
+   "app.js": 755.1999999999983,
+   "tailwind.js": 572.0999999999968,
+   "marked.min.js": 76.79999999999988,
+   "purify.min.js": 57.89999999999996,
+   "highlight.min.js": 8.7,
+   "chart.umd.min.js": 4.799999999999999,
+   "utils.js": 2.1,
+   "usage.js": 1.5,
+   "tool-renderers.js": 1.2
+  },
+  "pair": 2
+ },
+ {
+  "nav": {
+   "domContentLoaded": 512.1,
+   "load": 513.6
+  },
+  "longtasks": [
+   {
+    "start": 168.3,
+    "dur": 81
+   },
+   {
+    "start": 265.4,
+    "dur": 105
+   },
+   {
+    "start": 433.5,
+    "dur": 80
+   },
+   {
+    "start": 687.2,
+    "dur": 53
+   },
+   {
+    "start": 847.3,
+    "dur": 401
+   },
+   {
+    "start": 1274,
+    "dur": 1053
+   }
+  ],
+  "marks": {
+   "agentsListed": 760.6,
+   "chatFirst": 1248.5,
+   "chat20": 2299.3
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "tailwind_static",
+  "now_at_stop": 8742.60000000894,
+  "cpu_total_ms": 8833.2,
+  "loadavg": [
+   "10.85",
+   "8.13",
+   "5.61"
+  ],
+  "by_file": {
+   "(inline/vm)": 7395.800000000014,
+   "app.js": 975.3000000000014,
+   "marked.min.js": 203.89999999999966,
+   "purify.min.js": 108.99999999999986,
+   "highlight.min.js": 96.19999999999982,
+   "chart.umd.min.js": 43.100000000000044,
+   "usage.js": 7.399999999999999,
+   "utils.js": 4.1000000000000005,
+   "tailwind.js": 2.2,
+   "tool-renderers.js": 1.7999999999999998,
+   "diff_match_patch.js": 0.6
+  },
+  "pair": 2
+ },
+ {
+  "nav": {
+   "domContentLoaded": 837.6,
+   "load": 838.2
+  },
+  "longtasks": [
+   {
+    "start": 225.1,
+    "dur": 225
+   },
+   {
+    "start": 453.4,
+    "dur": 188
+   },
+   {
+    "start": 642.1,
+    "dur": 95
+   },
+   {
+    "start": 896.1,
+    "dur": 190
+   },
+   {
+    "start": 1227.8,
+    "dur": 70
+   },
+   {
+    "start": 1298.8,
+    "dur": 59
+   },
+   {
+    "start": 1424.7,
+    "dur": 183
+   },
+   {
+    "start": 1627.1,
+    "dur": 707
+   }
+  ],
+  "marks": {
+   "agentsListed": 1234.1,
+   "chatFirst": 1576.6,
+   "chat20": 2228.3
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "base",
+  "now_at_stop": 8860.90000000596,
+  "cpu_total_ms": 8878.7,
+  "loadavg": [
+   "10.18",
+   "8.08",
+   "5.62"
+  ],
+  "by_file": {
+   "(inline/vm)": 7759.2000000000035,
+   "tailwind.js": 483.20000000000437,
+   "app.js": 475.3000000000001,
+   "marked.min.js": 97.19999999999993,
+   "purify.min.js": 40.19999999999999,
+   "highlight.min.js": 2.9999999999999996,
+   "usage.js": 2.5999999999999996,
+   "chart.umd.min.js": 2.0,
+   "tool-renderers.js": 1.3,
+   "utils.js": 0.8999999999999999
+  },
+  "pair": 3
+ },
+ {
+  "nav": {
+   "domContentLoaded": 388.5,
+   "load": 389.1
+  },
+  "longtasks": [
+   {
+    "start": 146.2,
+    "dur": 54
+   },
+   {
+    "start": 211,
+    "dur": 108
+   },
+   {
+    "start": 320.8,
+    "dur": 69
+   },
+   {
+    "start": 814.4,
+    "dur": 189
+   },
+   {
+    "start": 1016.1,
+    "dur": 572
+   }
+  ],
+  "marks": {
+   "agentsListed": 705.2,
+   "chatFirst": 1004.1,
+   "chat20": 1565.6
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "tailwind_static",
+  "now_at_stop": 8468.70000000298,
+  "cpu_total_ms": 8487.5,
+  "loadavg": [
+   "10.08",
+   "8.09",
+   "5.64"
+  ],
+  "by_file": {
+   "(inline/vm)": 7426.60000000001,
+   "app.js": 819.9999999999989,
+   "marked.min.js": 110.49999999999976,
+   "purify.min.js": 84.89999999999989,
+   "highlight.min.js": 28.700000000000014,
+   "chart.umd.min.js": 6.199999999999998,
+   "usage.js": 2.1999999999999997,
+   "utils.js": 2.1999999999999997,
+   "tool-renderers.js": 1.8,
+   "tailwind.js": 1.0
+  },
+  "pair": 3
+ },
+ {
+  "nav": {
+   "domContentLoaded": 550.3,
+   "load": 551
+  },
+  "longtasks": [
+   {
+    "start": 144.1,
+    "dur": 219
+   },
+   {
+    "start": 365.6,
+    "dur": 101
+   },
+   {
+    "start": 924.7,
+    "dur": 226
+   },
+   {
+    "start": 1187.6,
+    "dur": 632
+   }
+  ],
+  "marks": {
+   "agentsListed": 754.9,
+   "chatFirst": 1112.9,
+   "chat20": 1754.3
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "base",
+  "now_at_stop": 8582,
+  "cpu_total_ms": 8594.9,
+  "loadavg": [
+   "9.53",
+   "8.04",
+   "5.65"
+  ],
+  "by_file": {
+   "(inline/vm)": 7149.400000000011,
+   "tailwind.js": 660.0999999999809,
+   "app.js": 619.5999999999987,
+   "marked.min.js": 90.99999999999986,
+   "purify.min.js": 58.19999999999996,
+   "highlight.min.js": 11.400000000000006,
+   "chart.umd.min.js": 6.599999999999998,
+   "utils.js": 2.6999999999999997,
+   "tool-renderers.js": 1.8,
+   "usage.js": 0.8999999999999999,
+   "diff_match_patch.js": 0.3
+  },
+  "pair": 4
+ },
+ {
+  "nav": {
+   "domContentLoaded": 392.7,
+   "load": 394
+  },
+  "longtasks": [
+   {
+    "start": 254.2,
+    "dur": 92
+   },
+   {
+    "start": 717.5,
+    "dur": 261
+   },
+   {
+    "start": 988.8,
+    "dur": 630
+   }
+  ],
+  "marks": {
+   "agentsListed": 659.9,
+   "chatFirst": 979.3,
+   "chat20": 1592.7
+  },
+  "chatNodes": 60,
+  "domNodes": 1717,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "stub": "tailwind_static",
+  "now_at_stop": 8444.79999999702,
+  "cpu_total_ms": 8471.0,
+  "loadavg": [
+   "9.96",
+   "8.18",
+   "5.72"
+  ],
+  "by_file": {
+   "(inline/vm)": 7400.400000000012,
+   "app.js": 790.7999999999986,
+   "marked.min.js": 134.70000000000016,
+   "purify.min.js": 82.79999999999991,
+   "highlight.min.js": 43.49999999999994,
+   "utils.js": 5.999999999999999,
+   "chart.umd.min.js": 5.099999999999999,
+   "usage.js": 3.2999999999999994,
+   "tool-renderers.js": 2.999999999999999,
+   "diff_match_patch.js": 0.6
+  },
+  "pair": 4
+ }
+]

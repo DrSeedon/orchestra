@@ -1,0 +1,3494 @@
+[
+ [
+  {
+   "first": 348.7,
+   "quiet": 4279.2,
+   "muts": 190,
+   "nodes": 192,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 6658.1,
+     "dur": 28,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 9046.8,
+     "dur": 29.9,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/sessions",
+     "start": 9103.8,
+     "dur": 30.3,
+     "wire": 2324,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 9104.1,
+     "dur": 63.4,
+     "wire": 451,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/back/logs",
+     "start": 9127.1,
+     "dur": 66.8,
+     "wire": 21921,
+     "decoded": 78316
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 9173.3,
+     "dur": 68.4,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 9174.9,
+     "dur": 72.5,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 9614.9,
+     "dur": 30.2,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 9695.7,
+     "dur": 42.2,
+     "wire": 2325,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 9696.1,
+     "dur": 44.5,
+     "wire": 450,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 9745.2,
+     "dur": 44.4,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 9746.2,
+     "dur": 48.1,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/files",
+     "start": 10637.9,
+     "dur": 15.4,
+     "wire": 799,
+     "decoded": 2545
+    },
+    {
+     "name": "api/models",
+     "start": 12557.4,
+     "dur": 12.7,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 12813,
+     "dur": 59.7,
+     "wire": 2325,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 12813.3,
+     "dur": 61,
+     "wire": 449,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 12881,
+     "dur": 20.4,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 12881.8,
+     "dur": 24,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 56,
+   "action": "переключение агента → #1",
+   "cpu_busy_ms": 864.0,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     288.3
+    ],
+    [
+     "(program)",
+     "",
+     218.1
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     71.7
+    ],
+    [
+     "(garbage collector)",
+     "",
+     27.3
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     20.7
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     19.2
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     17.7
+    ],
+    [
+     "put",
+     "",
+     10.8
+    ]
+   ],
+   "net_n": 18,
+   "net_wire": 121758,
+   "net_decoded": 351273
+  },
+  {
+   "first": 146.4,
+   "quiet": 2828.1,
+   "muts": 131,
+   "nodes": 137,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 12881.8,
+     "dur": 24,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 13368.3,
+     "dur": 7.6,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/sessions",
+     "start": 13453.6,
+     "dur": 40,
+     "wire": 2325,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 13453.9,
+     "dur": 46,
+     "wire": 449,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/logs",
+     "start": 13462,
+     "dur": 52.6,
+     "wire": 24918,
+     "decoded": 86737
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 13502.9,
+     "dur": 43.3,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 13504.4,
+     "dur": 42.8,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 15557.2,
+     "dur": 25.6,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 15570.7,
+     "dur": 18.3,
+     "wire": 2213,
+     "decoded": 4722
+    },
+    {
+     "name": "api/sessions",
+     "start": 15924.7,
+     "dur": 27.8,
+     "wire": 2322,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 15925.1,
+     "dur": 43.7,
+     "wire": 444,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 15977.1,
+     "dur": 48.9,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 15978.8,
+     "dur": 65.9,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 57,
+   "action": "переключение агента → #0",
+   "cpu_busy_ms": 639.9,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     324.0
+    ],
+    [
+     "(program)",
+     "",
+     117.0
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     24.3
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     24.3
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     22.0
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     9.7
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     8.8
+    ],
+    [
+     "put",
+     "",
+     5.4
+    ]
+   ],
+   "net_n": 13,
+   "net_wire": 100349,
+   "net_decoded": 289162
+  },
+  {
+   "first": 227.8,
+   "quiet": 2231.4,
+   "muts": 163,
+   "nodes": 186,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 15978.8,
+     "dur": 65.9,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 17725.5,
+     "dur": 16.3,
+     "wire": 424,
+     "decoded": 130
+    },
+    {
+     "name": "api/sessions",
+     "start": 17829.4,
+     "dur": 118.7,
+     "wire": 2325,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 17830.8,
+     "dur": 126.1,
+     "wire": 449,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/frontend/logs",
+     "start": 17919.3,
+     "dur": 49.2,
+     "wire": 17395,
+     "decoded": 115467
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 17960.3,
+     "dur": 31.1,
+     "wire": 429,
+     "decoded": 130
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 17962.4,
+     "dur": 32.3,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 18556.7,
+     "dur": 15.4,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 19066,
+     "dur": 37.3,
+     "wire": 2325,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 19066.3,
+     "dur": 36.6,
+     "wire": 444,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 19108.3,
+     "dur": 8.5,
+     "wire": 424,
+     "decoded": 130
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 19112.9,
+     "dur": 24.3,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/files",
+     "start": 20637.2,
+     "dur": 13.9,
+     "wire": 799,
+     "decoded": 2545
+    }
+   ],
+   "chatNodes": 63,
+   "action": "переключение агента → #2",
+   "cpu_busy_ms": 918.4,
+   "top": [
+    [
+     "(program)",
+     "",
+     257.8
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     204.1
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     70.3
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     35.7
+    ],
+    [
+     "(garbage collector)",
+     "",
+     32.0
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     23.9
+    ],
+    [
+     "querySelectorAll",
+     "",
+     13.6
+    ],
+    [
+     "_streamRenderTick",
+     "app.js",
+     13.2
+    ]
+   ],
+   "net_n": 13,
+   "net_wire": 91404,
+   "net_decoded": 315712
+  },
+  {
+   "first": 2220.4,
+   "quiet": 2821.8,
+   "muts": 3,
+   "nodes": 3,
+   "res": [
+    {
+     "name": "api/models",
+     "start": 24573.2,
+     "dur": 172.4,
+     "wire": 1047,
+     "decoded": 4732
+    }
+   ],
+   "chatNodes": 64,
+   "action": "вкладка FILES",
+   "cpu_busy_ms": 27.3,
+   "top": [
+    [
+     "(program)",
+     "",
+     17.8
+    ],
+    [
+     "elementsFromPoint",
+     "",
+     2.3
+    ],
+    [
+     "(anonymous)",
+     "",
+     2.3
+    ],
+    [
+     "elementFromPoint",
+     "",
+     0.9
+    ],
+    [
+     "(anonymous)",
+     "",
+     0.5
+    ],
+    [
+     "(anonymous)",
+     "",
+     0.5
+    ],
+    [
+     "previewNode",
+     "",
+     0.5
+    ],
+    [
+     "innerSerialize",
+     "",
+     0.5
+    ]
+   ],
+   "net_n": 1,
+   "net_wire": 1047,
+   "net_decoded": 4732
+  },
+  {
+   "first": 117.6,
+   "quiet": 3558.9,
+   "muts": 26,
+   "nodes": 26,
+   "res": [
+    {
+     "name": "api/sessions",
+     "start": 25466.8,
+     "dur": 3460.3,
+     "wire": 2325,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 25467,
+     "dur": 3969.7,
+     "wire": 450,
+     "decoded": 190
+    },
+    {
+     "name": "api/files",
+     "start": 27118.3,
+     "dur": 2326,
+     "wire": 356,
+     "decoded": 25
+    },
+    {
+     "name": "api/models",
+     "start": 27561.6,
+     "dur": 1891.7,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 29445.7,
+     "dur": 61.4,
+     "wire": 429,
+     "decoded": 130
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 29452.7,
+     "dur": 59,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 30557.2,
+     "dur": 15.9,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 30576.5,
+     "dur": 20.2,
+     "wire": 4593,
+     "decoded": 15265
+    },
+    {
+     "name": "api/files",
+     "start": 30647.4,
+     "dur": 76.5,
+     "wire": 794,
+     "decoded": 2545
+    },
+    {
+     "name": "api/files",
+     "start": 30871,
+     "dur": 10.7,
+     "wire": 356,
+     "decoded": 25
+    }
+   ],
+   "chatNodes": 64,
+   "action": "раскрыть первую папку",
+   "cpu_busy_ms": 377.8,
+   "top": [
+    [
+     "(program)",
+     "",
+     176.1
+    ],
+    [
+     "(garbage collector)",
+     "",
+     110.2
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     25.1
+    ],
+    [
+     "(anonymous)",
+     "tailwind.js",
+     5.3
+    ],
+    [
+     "(anonymous)",
+     "",
+     4.6
+    ],
+    [
+     "put",
+     "",
+     4.6
+    ],
+    [
+     "fetch",
+     "",
+     4.6
+    ],
+    [
+     "querySelectorAll",
+     "",
+     4.0
+    ]
+   ],
+   "net_n": 10,
+   "net_wire": 33178,
+   "net_decoded": 95584
+  },
+  {
+   "first": 351,
+   "quiet": 3958.2,
+   "muts": 26,
+   "nodes": 32,
+   "res": [
+    {
+     "name": "api/tm/tasks",
+     "start": 31338.9,
+     "dur": 185.3,
+     "wire": 4205,
+     "decoded": 14425
+    },
+    {
+     "name": "api/tm/payments/status",
+     "start": 31339.1,
+     "dur": 63.4,
+     "wire": 386,
+     "decoded": 69
+    },
+    {
+     "name": "api/sessions",
+     "start": 32579.3,
+     "dur": 40.6,
+     "wire": 2325,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 32579.6,
+     "dur": 44.5,
+     "wire": 445,
+     "decoded": 190
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 32631.3,
+     "dur": 44,
+     "wire": 429,
+     "decoded": 130
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 32631.9,
+     "dur": 49.1,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 33560,
+     "dur": 9.8,
+     "wire": 1051,
+     "decoded": 4732
+    }
+   ],
+   "chatNodes": 65,
+   "action": "вкладка TASKS",
+   "cpu_busy_ms": 225.1,
+   "top": [
+    [
+     "(program)",
+     "",
+     153.6
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     25.7
+    ],
+    [
+     "(garbage collector)",
+     "",
+     4.1
+    ],
+    [
+     "(anonymous)",
+     "tailwind.js",
+     3.7
+    ],
+    [
+     "querySelectorAll",
+     "",
+     3.7
+    ],
+    [
+     "_chatAtBottom",
+     "app.js",
+     1.8
+    ],
+    [
+     "_chatAtBottom",
+     "app.js",
+     1.8
+    ],
+    [
+     "renderTasksPanel",
+     "app.js",
+     0.9
+    ]
+   ],
+   "net_n": 7,
+   "net_wire": 30622,
+   "net_decoded": 87486
+  },
+  {
+   "first": 147.6,
+   "quiet": 5879.7,
+   "muts": 180,
+   "nodes": 182,
+   "res": [
+    {
+     "name": "api/models",
+     "start": 33560,
+     "dur": 9.8,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 35618.4,
+     "dur": 72.4,
+     "wire": 68958,
+     "decoded": 303933
+    },
+    {
+     "name": "api/stats",
+     "start": 35618.6,
+     "dur": 89.5,
+     "wire": 450,
+     "decoded": 186
+    },
+    {
+     "name": "api/files",
+     "start": 35619.3,
+     "dur": 86.6,
+     "wire": 817,
+     "decoded": 2640
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 35619.9,
+     "dur": 97.4,
+     "wire": 959,
+     "decoded": 1459
+    },
+    {
+     "name": "api/tm/payments/status",
+     "start": 35620.1,
+     "dur": 93.6,
+     "wire": 386,
+     "decoded": 69
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/logs",
+     "start": 35860.9,
+     "dur": 86.2,
+     "wire": 46006,
+     "decoded": 162374
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/context",
+     "start": 35866.8,
+     "dur": 92.9,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 35870.3,
+     "dur": 93.8,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 36576.6,
+     "dur": 25.9,
+     "wire": 959,
+     "decoded": 1459
+    },
+    {
+     "name": "api/models",
+     "start": 36580.2,
+     "dur": 20.4,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 38868.8,
+     "dur": 121.7,
+     "wire": 68954,
+     "decoded": 303933
+    },
+    {
+     "name": "api/stats",
+     "start": 38869.1,
+     "dur": 107.7,
+     "wire": 445,
+     "decoded": 186
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/context",
+     "start": 39003.5,
+     "dur": 9.5,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 39007.4,
+     "dur": 28.3,
+     "wire": 21784,
+     "decoded": 56317
+    },
+    {
+     "name": "api/models",
+     "start": 39556.5,
+     "dur": 10.7,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 41339.8,
+     "dur": 14.2,
+     "wire": 959,
+     "decoded": 1459
+    }
+   ],
+   "chatNodes": 58,
+   "action": "переключение проекта (вкладка оркестратора)",
+   "cpu_busy_ms": 1294.3,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     495.9
+    ],
+    [
+     "(program)",
+     "",
+     262.5
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     60.7
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     56.2
+    ],
+    [
+     "(garbage collector)",
+     "",
+     47.3
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     31.6
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     17.9
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     15.6
+    ]
+   ],
+   "net_n": 17,
+   "net_wire": 236349,
+   "net_decoded": 904649
+  },
+  {
+   "first": 133.6,
+   "quiet": 4585.9,
+   "muts": 178,
+   "nodes": 186,
+   "res": [
+    {
+     "name": "api/tm/tasks",
+     "start": 41339.8,
+     "dur": 14.2,
+     "wire": 959,
+     "decoded": 1459
+    },
+    {
+     "name": "api/sessions",
+     "start": 41917,
+     "dur": 56.2,
+     "wire": 2327,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 41917.5,
+     "dur": 72.3,
+     "wire": 451,
+     "decoded": 191
+    },
+    {
+     "name": "api/files",
+     "start": 41918.1,
+     "dur": 73.5,
+     "wire": 799,
+     "decoded": 2545
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 41918.4,
+     "dur": 82.3,
+     "wire": 4200,
+     "decoded": 14425
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 42428.2,
+     "dur": 35.9,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 42430.1,
+     "dur": 36.5,
+     "wire": 21785,
+     "decoded": 56317
+    },
+    {
+     "name": "api/files",
+     "start": 42433.1,
+     "dur": 34.3,
+     "wire": 351,
+     "decoded": 25
+    },
+    {
+     "name": "api/models",
+     "start": 42557.6,
+     "dur": 11,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 45427.7,
+     "dur": 47.7,
+     "wire": 2324,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 45428,
+     "dur": 49,
+     "wire": 446,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 45480.9,
+     "dur": 7.6,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 45482.1,
+     "dur": 27.8,
+     "wire": 21784,
+     "decoded": 56317
+    },
+    {
+     "name": "api/models",
+     "start": 45556.6,
+     "dur": 6.6,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 45565,
+     "dur": 10.3,
+     "wire": 5124,
+     "decoded": 14436
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 46340.2,
+     "dur": 23.7,
+     "wire": 4205,
+     "decoded": 14425
+    }
+   ],
+   "chatNodes": 57,
+   "action": "возврат на первый проект",
+   "cpu_busy_ms": 808.3,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     347.3
+    ],
+    [
+     "(program)",
+     "",
+     178.6
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     50.0
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     33.9
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     20.5
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     14.0
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     8.2
+    ],
+    [
+     "querySelectorAll",
+     "",
+     7.9
+    ]
+   ],
+   "net_n": 16,
+   "net_wire": 67705,
+   "net_decoded": 193301
+  }
+ ],
+ [
+  {
+   "first": 520.3,
+   "quiet": 4223.2,
+   "muts": 162,
+   "nodes": 164,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 6596.1,
+     "dur": 60.3,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 9124.6,
+     "dur": 52.2,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/sessions",
+     "start": 9199.1,
+     "dur": 81.1,
+     "wire": 2318,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 9199.5,
+     "dur": 87.5,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/models",
+     "start": 9719.5,
+     "dur": 37.6,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 9738.2,
+     "dur": 71.9,
+     "wire": 378,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 9738.9,
+     "dur": 77,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/files",
+     "start": 10546.6,
+     "dur": 11.1,
+     "wire": 799,
+     "decoded": 2545
+    },
+    {
+     "name": "api/files",
+     "start": 10560.1,
+     "dur": 8.7,
+     "wire": 351,
+     "decoded": 25
+    },
+    {
+     "name": "api/models",
+     "start": 12420.9,
+     "dur": 10.3,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 12722.7,
+     "dur": 41.5,
+     "wire": 2319,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 12723,
+     "dur": 43.8,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 12780.6,
+     "dur": 5.8,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 12785.2,
+     "dur": 27.5,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 54,
+   "action": "переключение агента → #1",
+   "cpu_busy_ms": 608.1,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     229.8
+    ],
+    [
+     "(program)",
+     "",
+     177.2
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     35.9
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     25.2
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     16.6
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     12.8
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     6.8
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     4.8
+    ]
+   ],
+   "net_n": 14,
+   "net_wire": 75251,
+   "net_decoded": 204794
+  },
+  {
+   "first": 130.2,
+   "quiet": 2769.6,
+   "muts": 131,
+   "nodes": 137,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 12785.2,
+     "dur": 27.5,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 13362.1,
+     "dur": 21.4,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/sessions",
+     "start": 13464.4,
+     "dur": 75.1,
+     "wire": 2319,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 13465.2,
+     "dur": 77.9,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 14056,
+     "dur": 6.4,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 14058.1,
+     "dur": 31.9,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 15420.9,
+     "dur": 106.9,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 15425.4,
+     "dur": 108.1,
+     "wire": 3218,
+     "decoded": 8772
+    },
+    {
+     "name": "api/sessions",
+     "start": 15831,
+     "dur": 29.5,
+     "wire": 2319,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 15831.3,
+     "dur": 54.7,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 15925.7,
+     "dur": 15.4,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 15940.5,
+     "dur": 38.8,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 57,
+   "action": "переключение агента → #0",
+   "cpu_busy_ms": 911.8,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     431.4
+    ],
+    [
+     "(program)",
+     "",
+     192.6
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     42.0
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     37.9
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     24.8
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     18.3
+    ],
+    [
+     "(garbage collector)",
+     "",
+     15.9
+    ],
+    [
+     "querySelectorAll",
+     "",
+     9.0
+    ]
+   ],
+   "net_n": 12,
+   "net_wire": 76418,
+   "net_decoded": 206477
+  },
+  {
+   "first": 154.3,
+   "quiet": 1631.9,
+   "muts": 138,
+   "nodes": 155,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 15940.5,
+     "dur": 38.8,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 17649.8,
+     "dur": 14.5,
+     "wire": 422,
+     "decoded": 129
+    },
+    {
+     "name": "api/sessions",
+     "start": 17713.3,
+     "dur": 43.2,
+     "wire": 2316,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 17713.6,
+     "dur": 44.8,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 18024.6,
+     "dur": 8.9,
+     "wire": 422,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 18025.7,
+     "dur": 36.2,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 18422.4,
+     "dur": 17,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 19003.7,
+     "dur": 57.7,
+     "wire": 2316,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 19003.9,
+     "dur": 58.4,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 19075.9,
+     "dur": 9.1,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 19083.8,
+     "dur": 37.2,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/files",
+     "start": 20546.4,
+     "dur": 9.5,
+     "wire": 799,
+     "decoded": 2545
+    },
+    {
+     "name": "api/files",
+     "start": 20558.5,
+     "dur": 7,
+     "wire": 351,
+     "decoded": 25
+    },
+    {
+     "name": "api/models",
+     "start": 21420.6,
+     "dur": 10.1,
+     "wire": 1047,
+     "decoded": 4732
+    }
+   ],
+   "chatNodes": 62,
+   "action": "переключение агента → #2",
+   "cpu_busy_ms": 676.3,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     296.6
+    ],
+    [
+     "(program)",
+     "",
+     140.3
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     34.5
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     33.4
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     13.9
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     12.5
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     12.2
+    ],
+    [
+     "querySelectorAll",
+     "",
+     7.3
+    ]
+   ],
+   "net_n": 14,
+   "net_wire": 75393,
+   "net_decoded": 205001
+  },
+  {
+   "first": 425.3,
+   "quiet": 3556.1,
+   "muts": 34,
+   "nodes": 36,
+   "res": [
+    {
+     "name": "api/sessions",
+     "start": 22129.6,
+     "dur": 26.8,
+     "wire": 2316,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 22129.8,
+     "dur": 28.7,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 22162,
+     "dur": 17.5,
+     "wire": 422,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 22167.7,
+     "dur": 36.8,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 24420.8,
+     "dur": 8.9,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 25212.5,
+     "dur": 31.6,
+     "wire": 2319,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 25215.6,
+     "dur": 29.3,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 25249.2,
+     "dur": 41.3,
+     "wire": 422,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 25250.2,
+     "dur": 46.6,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 62,
+   "action": "вкладка FILES",
+   "cpu_busy_ms": 102.1,
+   "top": [
+    [
+     "(program)",
+     "",
+     67.6
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     10.6
+    ],
+    [
+     "fetch",
+     "",
+     2.7
+    ],
+    [
+     "querySelectorAll",
+     "",
+     2.3
+    ],
+    [
+     "fetch",
+     "",
+     2.0
+    ],
+    [
+     "query",
+     "",
+     1.3
+    ],
+    [
+     "(anonymous)",
+     "",
+     1.3
+    ],
+    [
+     "fetch",
+     "",
+     1.0
+    ]
+   ],
+   "net_n": 9,
+   "net_wire": 50987,
+   "net_decoded": 141252
+  },
+  {
+   "first": 217,
+   "quiet": 2345.4,
+   "muts": 18,
+   "nodes": 19,
+   "res": [
+    {
+     "name": "api/models",
+     "start": 27420.8,
+     "dur": 10.3,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 28306.1,
+     "dur": 33.4,
+     "wire": 2316,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 28307.5,
+     "dur": 37.6,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 28350.6,
+     "dur": 27.1,
+     "wire": 422,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 28351.3,
+     "dur": 30.7,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 62,
+   "action": "раскрыть первую папку",
+   "cpu_busy_ms": 159.8,
+   "top": [
+    [
+     "(program)",
+     "",
+     77.3
+    ],
+    [
+     "(garbage collector)",
+     "",
+     56.5
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     5.9
+    ],
+    [
+     "querySelectorAll",
+     "",
+     1.9
+    ],
+    [
+     "(anonymous)",
+     "tailwind.js",
+     1.5
+    ],
+    [
+     "_matchesSimple",
+     "",
+     1.1
+    ],
+    [
+     "_cached",
+     "",
+     1.1
+    ],
+    [
+     "refreshSessions",
+     "app.js",
+     1.1
+    ]
+   ],
+   "net_n": 5,
+   "net_wire": 26013,
+   "net_decoded": 72992
+  },
+  {
+   "first": 58,
+   "quiet": 4312.2,
+   "muts": 76,
+   "nodes": 88,
+   "res": [
+    {
+     "name": "api/models",
+     "start": 30422.4,
+     "dur": 24.5,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 30434.9,
+     "dur": 20.4,
+     "wire": 2827,
+     "decoded": 6180
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 30494.4,
+     "dur": 37.3,
+     "wire": 4205,
+     "decoded": 14425
+    },
+    {
+     "name": "api/tm/payments/status",
+     "start": 30494.6,
+     "dur": 33.7,
+     "wire": 386,
+     "decoded": 69
+    },
+    {
+     "name": "api/files",
+     "start": 30611.5,
+     "dur": 11.6,
+     "wire": 799,
+     "decoded": 2545
+    },
+    {
+     "name": "api/sessions",
+     "start": 31395.8,
+     "dur": 46.3,
+     "wire": 2319,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 31396.2,
+     "dur": 47.3,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 31447.2,
+     "dur": 22.4,
+     "wire": 422,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 31449.2,
+     "dur": 24.1,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 33421,
+     "dur": 12.2,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 34483,
+     "dur": 45.6,
+     "wire": 2319,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 34483.2,
+     "dur": 48.5,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 34545,
+     "dur": 117.7,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 34546.7,
+     "dur": 124.8,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 63,
+   "action": "вкладка TASKS",
+   "cpu_busy_ms": 747.8,
+   "top": [
+    [
+     "(program)",
+     "",
+     371.9
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     104.7
+    ],
+    [
+     "(garbage collector)",
+     "",
+     43.9
+    ],
+    [
+     "_streamRenderTick",
+     "app.js",
+     28.7
+    ],
+    [
+     "querySelectorAll",
+     "",
+     14.4
+    ],
+    [
+     "(anonymous)",
+     "tailwind.js",
+     10.6
+    ],
+    [
+     "renderTasksPanel",
+     "app.js",
+     5.9
+    ],
+    [
+     "visitTick",
+     "tailwind.js",
+     3.0
+    ]
+   ],
+   "net_n": 14,
+   "net_wire": 60267,
+   "net_decoded": 169203
+  },
+  {
+   "first": 87.2,
+   "quiet": 6295.7,
+   "muts": 198,
+   "nodes": 201,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 34546.7,
+     "dur": 124.8,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions",
+     "start": 34852.2,
+     "dur": 185.9,
+     "wire": 68954,
+     "decoded": 303933
+    },
+    {
+     "name": "api/stats",
+     "start": 34852.8,
+     "dur": 176,
+     "wire": 445,
+     "decoded": 186
+    },
+    {
+     "name": "api/files",
+     "start": 34853.6,
+     "dur": 176.1,
+     "wire": 817,
+     "decoded": 2640
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 34854.2,
+     "dur": 177.2,
+     "wire": 959,
+     "decoded": 1459
+    },
+    {
+     "name": "api/tm/payments/status",
+     "start": 34855.2,
+     "dur": 175.4,
+     "wire": 386,
+     "decoded": 69
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 35767.6,
+     "dur": 64.7,
+     "wire": 959,
+     "decoded": 1459
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/context",
+     "start": 35772.2,
+     "dur": 84.7,
+     "wire": 378,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 35774,
+     "dur": 87.8,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 36422,
+     "dur": 56.3,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 37682.8,
+     "dur": 71.2,
+     "wire": 68954,
+     "decoded": 303933
+    },
+    {
+     "name": "api/stats",
+     "start": 37683.2,
+     "dur": 59.2,
+     "wire": 445,
+     "decoded": 186
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/context",
+     "start": 37777.2,
+     "dur": 10.5,
+     "wire": 378,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 37784.6,
+     "dur": 53.5,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 39421.5,
+     "dur": 82.2,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 40496.1,
+     "dur": 15.1,
+     "wire": 964,
+     "decoded": 1459
+    },
+    {
+     "name": "api/sessions",
+     "start": 40846.1,
+     "dur": 61.1,
+     "wire": 68954,
+     "decoded": 303933
+    },
+    {
+     "name": "api/stats",
+     "start": 40846.4,
+     "dur": 51.3,
+     "wire": 445,
+     "decoded": 186
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/context",
+     "start": 40922.9,
+     "dur": 10.3,
+     "wire": 378,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 40930.1,
+     "dur": 28.5,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 58,
+   "action": "переключение проекта (вкладка оркестратора)",
+   "cpu_busy_ms": 1205.2,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     502.6
+    ],
+    [
+     "(program)",
+     "",
+     303.4
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     50.2
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     27.7
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     27.3
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     24.6
+    ],
+    [
+     "(anonymous)",
+     "tailwind.js",
+     23.9
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     20.2
+    ]
+   ],
+   "net_n": 20,
+   "net_wire": 302638,
+   "net_decoded": 1154359
+  },
+  {
+   "first": 313.8,
+   "quiet": 6106.1,
+   "muts": 192,
+   "nodes": 202,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 40930.1,
+     "dur": 28.5,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions",
+     "start": 41450.3,
+     "dur": 48.3,
+     "wire": 2315,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 41450.7,
+     "dur": 49.3,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/files",
+     "start": 41451.5,
+     "dur": 49.3,
+     "wire": 794,
+     "decoded": 2545
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 41451.9,
+     "dur": 69.2,
+     "wire": 4200,
+     "decoded": 14425
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 42083.2,
+     "dur": 17.2,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 42085.2,
+     "dur": 34.2,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 42420.9,
+     "dur": 9.3,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 43997.9,
+     "dur": 27.2,
+     "wire": 2321,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 43998.2,
+     "dur": 27.7,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 44037.4,
+     "dur": 24.4,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 44039.7,
+     "dur": 29.6,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 45431.2,
+     "dur": 13.7,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 45439.3,
+     "dur": 10.3,
+     "wire": 4517,
+     "decoded": 12364
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 45495.4,
+     "dur": 21.9,
+     "wire": 4205,
+     "decoded": 14425
+    },
+    {
+     "name": "api/sessions",
+     "start": 47084.1,
+     "dur": 50.2,
+     "wire": 2321,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 47084.5,
+     "dur": 50.2,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 47142,
+     "dur": 82.3,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 47144.7,
+     "dur": 90.2,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 57,
+   "action": "возврат на первый проект",
+   "cpu_busy_ms": 1033.5,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     452.5
+    ],
+    [
+     "(program)",
+     "",
+     237.9
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     42.7
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     40.4
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     28.4
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     15.8
+    ],
+    [
+     "(garbage collector)",
+     "",
+     13.6
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     12.6
+    ]
+   ],
+   "net_n": 19,
+   "net_wire": 112534,
+   "net_decoded": 314327
+  }
+ ],
+ [
+  {
+   "first": 309.4,
+   "quiet": 4489.3,
+   "muts": 167,
+   "nodes": 172,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 6591.5,
+     "dur": 45.1,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 8875.5,
+     "dur": 7.3,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/sessions",
+     "start": 8947.9,
+     "dur": 46.5,
+     "wire": 2318,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 8948.2,
+     "dur": 46.8,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 9299.3,
+     "dur": 10.3,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 9300.2,
+     "dur": 49.7,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 9469.8,
+     "dur": 14.2,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 9797,
+     "dur": 28.6,
+     "wire": 2321,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 9797.3,
+     "dur": 26.6,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 9829,
+     "dur": 26.8,
+     "wire": 378,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 9829.8,
+     "dur": 33.7,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/files",
+     "start": 10558.4,
+     "dur": 20.6,
+     "wire": 799,
+     "decoded": 2545
+    },
+    {
+     "name": "api/models",
+     "start": 12469.8,
+     "dur": 62.6,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 12873.2,
+     "dur": 90.5,
+     "wire": 2318,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 12873.5,
+     "dur": 93.4,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/back/context",
+     "start": 12993.8,
+     "dur": 9.7,
+     "wire": 378,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 12995.3,
+     "dur": 53.1,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 57,
+   "action": "переключение агента → #1",
+   "cpu_busy_ms": 830.4,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     314.8
+    ],
+    [
+     "(program)",
+     "",
+     177.2
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     56.7
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     30.7
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     25.0
+    ],
+    [
+     "(garbage collector)",
+     "",
+     23.3
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     18.9
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     16.5
+    ]
+   ],
+   "net_n": 17,
+   "net_wire": 99817,
+   "net_decoded": 272960
+  },
+  {
+   "first": 186.6,
+   "quiet": 3047.1,
+   "muts": 131,
+   "nodes": 137,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 12995.3,
+     "dur": 53.1,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 13276.2,
+     "dur": 7.7,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/sessions",
+     "start": 13446,
+     "dur": 63.7,
+     "wire": 2321,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 13446.2,
+     "dur": 68.1,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 13860.5,
+     "dur": 15,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 13861.7,
+     "dur": 24.2,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 15469.8,
+     "dur": 13.7,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 15495.9,
+     "dur": 18.7,
+     "wire": 5049,
+     "decoded": 15051
+    },
+    {
+     "name": "api/sessions",
+     "start": 16059.3,
+     "dur": 31.9,
+     "wire": 2320,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 16063.2,
+     "dur": 31.2,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 16097.3,
+     "dur": 7.2,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 16098.4,
+     "dur": 41.7,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 57,
+   "action": "переключение агента → #0",
+   "cpu_busy_ms": 659.2,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     333.4
+    ],
+    [
+     "(program)",
+     "",
+     120.8
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     39.9
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     27.3
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     19.2
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     16.6
+    ],
+    [
+     "selectAgent",
+     "app.js",
+     6.2
+    ],
+    [
+     "querySelectorAll",
+     "",
+     6.2
+    ]
+   ],
+   "net_n": 12,
+   "net_wire": 78262,
+   "net_decoded": 212756
+  },
+  {
+   "first": 145.5,
+   "quiet": 1782.7,
+   "muts": 137,
+   "nodes": 152,
+   "res": [
+    {
+     "name": "api/orchestrators",
+     "start": 16098.4,
+     "dur": 41.7,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 17606.8,
+     "dur": 11.5,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/sessions",
+     "start": 17706.4,
+     "dur": 38.6,
+     "wire": 2320,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 17706.7,
+     "dur": 40.4,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 18125.9,
+     "dur": 52.8,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 18127.8,
+     "dur": 48.3,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 18478.3,
+     "dur": 15.5,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 19145.4,
+     "dur": 46.7,
+     "wire": 2320,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 19146.8,
+     "dur": 39.6,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 19196.2,
+     "dur": 31.7,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 19196.8,
+     "dur": 37.9,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/files",
+     "start": 20558.9,
+     "dur": 21.1,
+     "wire": 799,
+     "decoded": 2545
+    },
+    {
+     "name": "api/models",
+     "start": 21470.5,
+     "dur": 11,
+     "wire": 1047,
+     "decoded": 4732
+    }
+   ],
+   "chatNodes": 62,
+   "action": "переключение агента → #2",
+   "cpu_busy_ms": 587.5,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     271.6
+    ],
+    [
+     "(program)",
+     "",
+     114.5
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     31.8
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     25.3
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     19.8
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     12.3
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     9.9
+    ],
+    [
+     "parseFromString",
+     "",
+     8.0
+    ]
+   ],
+   "net_n": 13,
+   "net_wire": 75051,
+   "net_decoded": 204976
+  },
+  {
+   "first": 598.6,
+   "quiet": 3775,
+   "muts": 34,
+   "nodes": 36,
+   "res": [
+    {
+     "name": "api/sessions",
+     "start": 22248.4,
+     "dur": 49.7,
+     "wire": 2318,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 22248.8,
+     "dur": 49.8,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 22308.3,
+     "dur": 40.8,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 22309.7,
+     "dur": 43.7,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 24470.8,
+     "dur": 33.5,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 25367.9,
+     "dur": 34.9,
+     "wire": 2318,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 25377.9,
+     "dur": 34.3,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 25419.7,
+     "dur": 57.9,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 25420.7,
+     "dur": 60.8,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 62,
+   "action": "вкладка FILES",
+   "cpu_busy_ms": 116.8,
+   "top": [
+    [
+     "(program)",
+     "",
+     68.1
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     17.8
+    ],
+    [
+     "elementsFromPoint",
+     "",
+     4.0
+    ],
+    [
+     "querySelectorAll",
+     "",
+     2.9
+    ],
+    [
+     "(anonymous)",
+     "",
+     2.5
+    ],
+    [
+     "fetch",
+     "",
+     2.5
+    ],
+    [
+     "(anonymous)",
+     "tailwind.js",
+     2.2
+    ],
+    [
+     "fetch",
+     "",
+     1.5
+    ]
+   ],
+   "net_n": 9,
+   "net_wire": 51002,
+   "net_decoded": 141252
+  },
+  {
+   "first": 199,
+   "quiet": 2930.9,
+   "muts": 21,
+   "nodes": 21,
+   "res": [
+    {
+     "name": "api/files",
+     "start": 26231.3,
+     "dur": 15.1,
+     "wire": 351,
+     "decoded": 25
+    },
+    {
+     "name": "api/models",
+     "start": 27479.6,
+     "dur": 16.4,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 28683.8,
+     "dur": 23.1,
+     "wire": 2315,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 28710.8,
+     "dur": 102,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 28832,
+     "dur": 11.6,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 28841.4,
+     "dur": 47.4,
+     "wire": 21781,
+     "decoded": 56318
+    }
+   ],
+   "chatNodes": 62,
+   "action": "раскрыть первую папку",
+   "cpu_busy_ms": 177.9,
+   "top": [
+    [
+     "(program)",
+     "",
+     96.3
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     25.8
+    ],
+    [
+     "querySelectorAll",
+     "",
+     5.5
+    ],
+    [
+     "fetch",
+     "",
+     5.5
+    ],
+    [
+     "_cached",
+     "",
+     2.8
+    ],
+    [
+     "(anonymous)",
+     "",
+     2.8
+    ],
+    [
+     "_matchesSimple",
+     "",
+     2.4
+    ],
+    [
+     "(anonymous)",
+     "tailwind.js",
+     2.4
+    ]
+   ],
+   "net_n": 6,
+   "net_wire": 26377,
+   "net_decoded": 73017
+  },
+  {
+   "first": 184.4,
+   "quiet": 4277.6,
+   "muts": 42,
+   "nodes": 49,
+   "res": [
+    {
+     "name": "api/tm/tasks",
+     "start": 30476.1,
+     "dur": 58.4,
+     "wire": 4205,
+     "decoded": 14425
+    },
+    {
+     "name": "api/tm/payments/status",
+     "start": 30476.8,
+     "dur": 47.4,
+     "wire": 391,
+     "decoded": 69
+    },
+    {
+     "name": "api/models",
+     "start": 30492.6,
+     "dur": 19.8,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 30499.6,
+     "dur": 33.2,
+     "wire": 3331,
+     "decoded": 9603
+    },
+    {
+     "name": "api/files",
+     "start": 30626.2,
+     "dur": 16.7,
+     "wire": 794,
+     "decoded": 2545
+    },
+    {
+     "name": "api/files",
+     "start": 30714.5,
+     "dur": 12.6,
+     "wire": 351,
+     "decoded": 25
+    },
+    {
+     "name": "api/sessions",
+     "start": 31967.5,
+     "dur": 44.3,
+     "wire": 2318,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 31967.7,
+     "dur": 48.2,
+     "wire": 452,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/frontend/context",
+     "start": 32018.5,
+     "dur": 43.7,
+     "wire": 427,
+     "decoded": 129
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 32021.2,
+     "dur": 62.6,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 33516.4,
+     "dur": 11.4,
+     "wire": 1047,
+     "decoded": 4732
+    }
+   ],
+   "chatNodes": 63,
+   "action": "вкладка TASKS",
+   "cpu_busy_ms": 628.4,
+   "top": [
+    [
+     "(program)",
+     "",
+     351.4
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     55.4
+    ],
+    [
+     "(garbage collector)",
+     "",
+     48.3
+    ],
+    [
+     "_streamRenderTick",
+     "app.js",
+     12.5
+    ],
+    [
+     "querySelectorAll",
+     "",
+     6.8
+    ],
+    [
+     "renderTasksPanel",
+     "app.js",
+     5.4
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     5.0
+    ],
+    [
+     "visitTick",
+     "tailwind.js",
+     3.2
+    ]
+   ],
+   "net_n": 11,
+   "net_wire": 36148,
+   "net_decoded": 104391
+  },
+  {
+   "first": 73.7,
+   "quiet": 5891.7,
+   "muts": 182,
+   "nodes": 185,
+   "res": [
+    {
+     "name": "api/models",
+     "start": 33516.4,
+     "dur": 11.4,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 34775.9,
+     "dur": 89.7,
+     "wire": 68958,
+     "decoded": 303933
+    },
+    {
+     "name": "api/stats",
+     "start": 34776.1,
+     "dur": 85.5,
+     "wire": 450,
+     "decoded": 186
+    },
+    {
+     "name": "api/files",
+     "start": 34776.4,
+     "dur": 84.7,
+     "wire": 817,
+     "decoded": 2640
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 34776.7,
+     "dur": 91.9,
+     "wire": 959,
+     "decoded": 1459
+    },
+    {
+     "name": "api/tm/payments/status",
+     "start": 34776.8,
+     "dur": 94.2,
+     "wire": 386,
+     "decoded": 69
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/context",
+     "start": 35380.5,
+     "dur": 6.6,
+     "wire": 373,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 35381.7,
+     "dur": 42.7,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 35478.1,
+     "dur": 13.8,
+     "wire": 959,
+     "decoded": 1459
+    },
+    {
+     "name": "api/models",
+     "start": 36470,
+     "dur": 12.3,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 38376.2,
+     "dur": 58.6,
+     "wire": 68954,
+     "decoded": 303933
+    },
+    {
+     "name": "api/stats",
+     "start": 38376.4,
+     "dur": 52.7,
+     "wire": 445,
+     "decoded": 186
+    },
+    {
+     "name": "api/sessions/seedon-orchestrator/context",
+     "start": 38458.7,
+     "dur": 32.5,
+     "wire": 378,
+     "decoded": 60
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 38459.8,
+     "dur": 34.7,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 39469.8,
+     "dur": 7.8,
+     "wire": 1051,
+     "decoded": 4732
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 40477.8,
+     "dur": 18,
+     "wire": 964,
+     "decoded": 1459
+    }
+   ],
+   "chatNodes": 58,
+   "action": "переключение проекта (вкладка оркестратора)",
+   "cpu_busy_ms": 714.1,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     252.9
+    ],
+    [
+     "(program)",
+     "",
+     165.4
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     43.2
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     38.9
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     17.0
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     11.9
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     10.0
+    ],
+    [
+     "querySelectorAll",
+     "",
+     7.3
+    ]
+   ],
+   "net_n": 16,
+   "net_wire": 190354,
+   "net_decoded": 742276
+  },
+  {
+   "first": 185.3,
+   "quiet": 4645.8,
+   "muts": 194,
+   "nodes": 203,
+   "res": [
+    {
+     "name": "api/tm/tasks",
+     "start": 40477.8,
+     "dur": 18,
+     "wire": 964,
+     "decoded": 1459
+    },
+    {
+     "name": "api/sessions",
+     "start": 41101.7,
+     "dur": 31.7,
+     "wire": 2322,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 41103.9,
+     "dur": 47.2,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/files",
+     "start": 41106.6,
+     "dur": 52.2,
+     "wire": 794,
+     "decoded": 2545
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 41108.9,
+     "dur": 51.4,
+     "wire": 4200,
+     "decoded": 14425
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 41167.5,
+     "dur": 26.6,
+     "wire": 431,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 41169.5,
+     "dur": 27.2,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/files",
+     "start": 41181.8,
+     "dur": 19.7,
+     "wire": 351,
+     "decoded": 25
+    },
+    {
+     "name": "api/sessions",
+     "start": 41670.8,
+     "dur": 37.8,
+     "wire": 2318,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 41671.1,
+     "dur": 40.1,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 41727,
+     "dur": 56.2,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 41729.3,
+     "dur": 62.5,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 42469.7,
+     "dur": 11.6,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/sessions",
+     "start": 44813.6,
+     "dur": 46.7,
+     "wire": 2322,
+     "decoded": 11622
+    },
+    {
+     "name": "api/stats",
+     "start": 44813.9,
+     "dur": 51.3,
+     "wire": 447,
+     "decoded": 191
+    },
+    {
+     "name": "api/sessions/Orchestra-orchestrator/context",
+     "start": 44901,
+     "dur": 23.8,
+     "wire": 426,
+     "decoded": 131
+    },
+    {
+     "name": "api/orchestrators",
+     "start": 44904.7,
+     "dur": 28.5,
+     "wire": 21781,
+     "decoded": 56318
+    },
+    {
+     "name": "api/models",
+     "start": 45469.9,
+     "dur": 18.1,
+     "wire": 1047,
+     "decoded": 4732
+    },
+    {
+     "name": "api/tm/tasks",
+     "start": 45477.5,
+     "dur": 74.9,
+     "wire": 4205,
+     "decoded": 14425
+    },
+    {
+     "name": "api/logs/sync",
+     "start": 45482.2,
+     "dur": 45.1,
+     "wire": 2961,
+     "decoded": 7172
+    }
+   ],
+   "chatNodes": 57,
+   "action": "возврат на первый проект",
+   "cpu_busy_ms": 1212.8,
+   "top": [
+    [
+     "addChatEntry",
+     "app.js",
+     562.4
+    ],
+    [
+     "(program)",
+     "",
+     285.3
+    ],
+    [
+     "pf",
+     "tailwind.js",
+     54.6
+    ],
+    [
+     "addChatEntry",
+     "app.js",
+     38.7
+    ],
+    [
+     "addTimestamp",
+     "app.js",
+     33.7
+    ],
+    [
+     "_prependHistory",
+     "app.js",
+     20.9
+    ],
+    [
+     "(garbage collector)",
+     "",
+     15.9
+    ],
+    [
+     "(anonymous)",
+     "purify.min.js",
+     12.8
+    ]
+   ],
+   "net_n": 20,
+   "net_wire": 90498,
+   "net_decoded": 254301
+  }
+ ]
+]

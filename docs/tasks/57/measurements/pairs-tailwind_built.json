@@ -1,0 +1,588 @@
+[
+ {
+  "nav": {
+   "domContentLoaded": 468.7,
+   "load": 469.6
+  },
+  "longtasks": [
+   {
+    "start": 89.8,
+    "dur": 164
+   },
+   {
+    "start": 258,
+    "dur": 110
+   },
+   {
+    "start": 368.2,
+    "dur": 68
+   },
+   {
+    "start": 794.2,
+    "dur": 73
+   },
+   {
+    "start": 951.5,
+    "dur": 228
+   },
+   {
+    "start": 1204.6,
+    "dur": 231
+   }
+  ],
+  "marks": {
+   "agentsListed": 734.3,
+   "chatFirst": 1149.5,
+   "chat20": 1383
+  },
+  "chatNodes": 56,
+  "domNodes": 1643,
+  "styleSheets": 3,
+  "cssRules": 610,
+  "stub": "base",
+  "now_at_stop": 8499.39999999106,
+  "cpu_total_ms": 8516.8,
+  "loadavg": [
+   "5.70",
+   "6.08",
+   "7.20"
+  ],
+  "by_file": {
+   "(inline/vm)": 7653.899999999988,
+   "tailwind.js": 438.39999999999105,
+   "app.js": 284.09999999999917,
+   "purify.min.js": 73.1000000000001,
+   "marked.min.js": 62.39999999999995,
+   "highlight.min.js": 11.200000000000005,
+   "chart.umd.min.js": 4.8,
+   "usage.js": 2.6999999999999997,
+   "tool-renderers.js": 0.8,
+   "diff_match_patch.js": 0.4,
+   "utils.js": 0.4
+  },
+  "pair": 0
+ },
+ {
+  "nav": {
+   "domContentLoaded": 371,
+   "load": 371.6
+  },
+  "longtasks": [
+   {
+    "start": 281,
+    "dur": 61
+   },
+   {
+    "start": 562.4,
+    "dur": 173
+   },
+   {
+    "start": 743.1,
+    "dur": 169
+   }
+  ],
+  "marks": {
+   "agentsListed": 501.3,
+   "chatFirst": 735.8,
+   "chat20": 888.9
+  },
+  "chatNodes": 56,
+  "domNodes": 1643,
+  "styleSheets": 3,
+  "cssRules": 716,
+  "stub": "tailwind_built",
+  "now_at_stop": 8400.29999999702,
+  "cpu_total_ms": 8420.5,
+  "loadavg": [
+   "5.65",
+   "6.06",
+   "7.19"
+  ],
+  "by_file": {
+   "(inline/vm)": 7863.899999999995,
+   "app.js": 338.0999999999997,
+   "marked.min.js": 104.80000000000004,
+   "purify.min.js": 69.6,
+   "highlight.min.js": 27.3,
+   "chart.umd.min.js": 8.5,
+   "usage.js": 7.0,
+   "utils.js": 4.699999999999999,
+   "tool-renderers.js": 0.5
+  },
+  "pair": 0
+ },
+ {
+  "nav": {
+   "domContentLoaded": 564,
+   "load": 564.3
+  },
+  "longtasks": [
+   {
+    "start": 128.9,
+    "dur": 200
+   },
+   {
+    "start": 331.4,
+    "dur": 121
+   },
+   {
+    "start": 452.5,
+    "dur": 82
+   },
+   {
+    "start": 797.7,
+    "dur": 226
+   },
+   {
+    "start": 1046.7,
+    "dur": 188
+   }
+  ],
+  "marks": {
+   "agentsListed": 697.2,
+   "chatFirst": 986.7,
+   "chat20": 1191.2
+  },
+  "chatNodes": 56,
+  "domNodes": 1643,
+  "styleSheets": 3,
+  "cssRules": 610,
+  "stub": "base",
+  "now_at_stop": 8600,
+  "cpu_total_ms": 8619.1,
+  "loadavg": [
+   "6.10",
+   "6.14",
+   "7.20"
+  ],
+  "by_file": {
+   "(inline/vm)": 7517.599999999986,
+   "tailwind.js": 578.999999999989,
+   "app.js": 326.9999999999996,
+   "marked.min.js": 101.00000000000016,
+   "purify.min.js": 62.199999999999974,
+   "highlight.min.js": 16.000000000000007,
+   "chart.umd.min.js": 7.200000000000002,
+   "utils.js": 2.0,
+   "tool-renderers.js": 1.6,
+   "usage.js": 1.2
+  },
+  "pair": 1
+ },
+ {
+  "nav": {
+   "domContentLoaded": 376,
+   "load": 376.7
+  },
+  "longtasks": [
+   {
+    "start": 254,
+    "dur": 74
+   },
+   {
+    "start": 329.1,
+    "dur": 123
+   },
+   {
+    "start": 611.1,
+    "dur": 50
+   },
+   {
+    "start": 704.7,
+    "dur": 178
+   },
+   {
+    "start": 890.9,
+    "dur": 234
+   }
+  ],
+  "marks": {
+   "agentsListed": 608.4,
+   "chatFirst": 883.4,
+   "chat20": 1097.5
+  },
+  "chatNodes": 57,
+  "domNodes": 1708,
+  "styleSheets": 3,
+  "cssRules": 716,
+  "stub": "tailwind_built",
+  "now_at_stop": 8419.59999999404,
+  "cpu_total_ms": 8439.1,
+  "loadavg": [
+   "6.23",
+   "6.17",
+   "7.20"
+  ],
+  "by_file": {
+   "(inline/vm)": 7912.299999999986,
+   "app.js": 310.7999999999993,
+   "marked.min.js": 87.90000000000019,
+   "purify.min.js": 70.40000000000009,
+   "highlight.min.js": 49.29999999999995,
+   "utils.js": 4.4,
+   "chart.umd.min.js": 2.8,
+   "usage.js": 1.2000000000000002,
+   "tool-renderers.js": 1.2000000000000002,
+   "tailwind.js": 1.2
+  },
+  "pair": 1
+ },
+ {
+  "nav": {
+   "domContentLoaded": 754.8,
+   "load": 755.4
+  },
+  "longtasks": [
+   {
+    "start": 199.2,
+    "dur": 263
+   },
+   {
+    "start": 466.8,
+    "dur": 109
+   },
+   {
+    "start": 576.2,
+    "dur": 60
+   },
+   {
+    "start": 637.4,
+    "dur": 60
+   },
+   {
+    "start": 844.3,
+    "dur": 66
+   },
+   {
+    "start": 915.3,
+    "dur": 52
+   },
+   {
+    "start": 986.1,
+    "dur": 76
+   },
+   {
+    "start": 1094,
+    "dur": 75
+   },
+   {
+    "start": 1231.4,
+    "dur": 307
+   },
+   {
+    "start": 1570.8,
+    "dur": 250
+   }
+  ],
+  "marks": {
+   "agentsListed": 1010.8,
+   "chatFirst": 1500.6,
+   "chat20": 1752.2
+  },
+  "chatNodes": 58,
+  "domNodes": 1948,
+  "styleSheets": 3,
+  "cssRules": 619,
+  "stub": "base",
+  "now_at_stop": 8789,
+  "cpu_total_ms": 8811.6,
+  "loadavg": [
+   "6.04",
+   "6.13",
+   "7.18"
+  ],
+  "by_file": {
+   "(inline/vm)": 7543.999999999988,
+   "tailwind.js": 723.8999999999887,
+   "app.js": 363.7999999999993,
+   "marked.min.js": 106.70000000000017,
+   "purify.min.js": 65.5,
+   "utils.js": 3.9999999999999996,
+   "chart.umd.min.js": 3.1999999999999997,
+   "usage.js": 2.0,
+   "tool-renderers.js": 1.6,
+   "highlight.min.js": 0.4,
+   "analytics.js": 0.4
+  },
+  "pair": 2
+ },
+ {
+  "nav": {
+   "domContentLoaded": 563.4,
+   "load": 564.1
+  },
+  "longtasks": [
+   {
+    "start": 380.7,
+    "dur": 137
+   },
+   {
+    "start": 730.3,
+    "dur": 191
+   },
+   {
+    "start": 933.2,
+    "dur": 191
+   }
+  ],
+  "marks": {
+   "agentsListed": 698.3,
+   "chatFirst": 921.5,
+   "chat20": 1102.1
+  },
+  "chatNodes": 56,
+  "domNodes": 1656,
+  "styleSheets": 3,
+  "cssRules": 716,
+  "stub": "tailwind_built",
+  "now_at_stop": 8588.70000000298,
+  "cpu_total_ms": 8604.0,
+  "loadavg": [
+   "5.95",
+   "6.11",
+   "7.16"
+  ],
+  "by_file": {
+   "(inline/vm)": 8130.699999999985,
+   "app.js": 292.79999999999944,
+   "marked.min.js": 86.60000000000018,
+   "purify.min.js": 60.79999999999999,
+   "highlight.min.js": 12.100000000000001,
+   "chart.umd.min.js": 11.600000000000003,
+   "utils.js": 4.8,
+   "tailwind.js": 1.6,
+   "usage.js": 0.8,
+   "diff_match_patch.js": 0.4,
+   "tool-renderers.js": 0.4
+  },
+  "pair": 2
+ },
+ {
+  "nav": {
+   "domContentLoaded": 530.1,
+   "load": 531.1
+  },
+  "longtasks": [
+   {
+    "start": 81.8,
+    "dur": 55
+   },
+   {
+    "start": 142.3,
+    "dur": 216
+   },
+   {
+    "start": 362.6,
+    "dur": 98
+   },
+   {
+    "start": 783.3,
+    "dur": 199
+   },
+   {
+    "start": 1006.1,
+    "dur": 181
+   },
+   {
+    "start": 6691.9,
+    "dur": 60
+   }
+  ],
+  "marks": {
+   "agentsListed": 686.4,
+   "chatFirst": 946.8,
+   "chat20": 1135.6
+  },
+  "chatNodes": 58,
+  "domNodes": 1764,
+  "styleSheets": 3,
+  "cssRules": 610,
+  "stub": "base",
+  "now_at_stop": 8581.79999999702,
+  "cpu_total_ms": 8593.6,
+  "loadavg": [
+   "7.06",
+   "6.34",
+   "7.23"
+  ],
+  "by_file": {
+   "(inline/vm)": 7426.799999999988,
+   "tailwind.js": 665.5999999999897,
+   "app.js": 332.59999999999957,
+   "marked.min.js": 100.00000000000016,
+   "purify.min.js": 69.40000000000005,
+   "highlight.min.js": 13.300000000000008,
+   "chart.umd.min.js": 5.500000000000001,
+   "utils.js": 2.4,
+   "tool-renderers.js": 1.2000000000000002,
+   "usage.js": 0.4
+  },
+  "pair": 3
+ },
+ {
+  "nav": {
+   "domContentLoaded": 241.9,
+   "load": 242.7
+  },
+  "longtasks": [
+   {
+    "start": 420.7,
+    "dur": 227
+   },
+   {
+    "start": 654.8,
+    "dur": 194
+   }
+  ],
+  "marks": {
+   "agentsListed": 347.7,
+   "chatFirst": 648.1,
+   "chat20": 826.6
+  },
+  "chatNodes": 58,
+  "domNodes": 1739,
+  "styleSheets": 3,
+  "cssRules": 716,
+  "stub": "tailwind_built",
+  "now_at_stop": 8268.5,
+  "cpu_total_ms": 8288.2,
+  "loadavg": [
+   "7.31",
+   "6.42",
+   "7.24"
+  ],
+  "by_file": {
+   "(inline/vm)": 7719.599999999989,
+   "app.js": 340.19999999999925,
+   "marked.min.js": 107.50000000000016,
+   "purify.min.js": 67.10000000000002,
+   "highlight.min.js": 26.799999999999976,
+   "chart.umd.min.js": 17.7,
+   "utils.js": 2.8,
+   "usage.js": 1.6,
+   "tool-renderers.js": 1.6,
+   "diff_match_patch.js": 0.4
+  },
+  "pair": 3
+ },
+ {
+  "nav": {
+   "domContentLoaded": 619.9,
+   "load": 622.3
+  },
+  "longtasks": [
+   {
+    "start": 178.7,
+    "dur": 231
+   },
+   {
+    "start": 413.4,
+    "dur": 119
+   },
+   {
+    "start": 532.8,
+    "dur": 51
+   },
+   {
+    "start": 727.7,
+    "dur": 56
+   },
+   {
+    "start": 844.3,
+    "dur": 53
+   },
+   {
+    "start": 943.8,
+    "dur": 216
+   },
+   {
+    "start": 1182.9,
+    "dur": 205
+   }
+  ],
+  "marks": {
+   "agentsListed": 794.8,
+   "chatFirst": 1128,
+   "chat20": 1335.3
+  },
+  "chatNodes": 59,
+  "domNodes": 2027,
+  "styleSheets": 3,
+  "cssRules": 619,
+  "stub": "base",
+  "now_at_stop": 8661.20000000298,
+  "cpu_total_ms": 8679.8,
+  "loadavg": [
+   "6.81",
+   "6.34",
+   "7.21"
+  ],
+  "by_file": {
+   "(inline/vm)": 7661.799999999983,
+   "tailwind.js": 568.9999999999894,
+   "app.js": 303.4999999999993,
+   "marked.min.js": 88.60000000000022,
+   "purify.min.js": 58.999999999999986,
+   "highlight.min.js": 18.0,
+   "chart.umd.min.js": 4.9,
+   "utils.js": 3.4,
+   "tool-renderers.js": 1.2000000000000002,
+   "usage.js": 0.7
+  },
+  "pair": 4
+ },
+ {
+  "nav": {
+   "domContentLoaded": 300.4,
+   "load": 301.1
+  },
+  "longtasks": [
+   {
+    "start": 213.7,
+    "dur": 62
+   },
+   {
+    "start": 381.5,
+    "dur": 72
+   },
+   {
+    "start": 602.8,
+    "dur": 183
+   },
+   {
+    "start": 795.2,
+    "dur": 228
+   }
+  ],
+  "marks": {
+   "agentsListed": 503.7,
+   "chatFirst": 786.5,
+   "chat20": 996.2
+  },
+  "chatNodes": 57,
+  "domNodes": 1729,
+  "styleSheets": 3,
+  "cssRules": 716,
+  "stub": "tailwind_built",
+  "now_at_stop": 8326.699999988079,
+  "cpu_total_ms": 8346.5,
+  "loadavg": [
+   "6.50",
+   "6.28",
+   "7.18"
+  ],
+  "by_file": {
+   "(inline/vm)": 7797.699999999985,
+   "app.js": 351.89999999999884,
+   "marked.min.js": 97.3000000000002,
+   "purify.min.js": 63.79999999999999,
+   "highlight.min.js": 31.49999999999997,
+   "chart.umd.min.js": 6.400000000000001,
+   "usage.js": 3.0,
+   "utils.js": 2.6,
+   "tool-renderers.js": 1.1,
+   "tailwind.js": 0.7
+  },
+  "pair": 4
+ }
+]

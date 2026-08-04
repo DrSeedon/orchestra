@@ -1,0 +1,2902 @@
+{
+ "cold": {
+  "nav": {
+   "domContentLoaded": 503.2,
+   "load": 504.4
+  },
+  "longtasks": [
+   {
+    "start": 194.5,
+    "dur": 157
+   },
+   {
+    "start": 354.4,
+    "dur": 81
+   },
+   {
+    "start": 963.4,
+    "dur": 241
+   },
+   {
+    "start": 1244.2,
+    "dur": 548
+   }
+  ],
+  "marks": {
+   "agentsListed": 675,
+   "chatFirst": 1172.7,
+   "chat20": 1743.2
+  },
+  "chatNodes": 60,
+  "domNodes": 1649,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "label": "cold",
+  "stub": "",
+  "now_at_stop": 8540.09999999404,
+  "wallclock_s": 8.77,
+  "loadavg": [
+   "4.87",
+   "4.83",
+   "3.75"
+  ],
+  "cpu_total_ms": 8562.7,
+  "profile_span_ms": 8563.8,
+  "metrics": {
+   "Nodes": 4510,
+   "LayoutCount": 76,
+   "RecalcStyleCount": 77,
+   "LayoutDuration": 0.2421,
+   "RecalcStyleDuration": 0.3469,
+   "ScriptDuration": 0.2301,
+   "TaskDuration": 1.6219,
+   "JSHeapUsedSize": 10485088
+  },
+  "top": [
+   {
+    "fn": "(idle)",
+    "url": "",
+    "line": 0,
+    "hits": 20144,
+    "self_ms": 6693.1,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addChatEntry",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3312,
+    "hits": 1431,
+    "self_ms": 475.5,
+    "stack": [
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(program)",
+    "url": "",
+    "line": 0,
+    "hits": 1152,
+    "self_ms": 382.8,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(garbage collector)",
+    "url": "",
+    "line": 0,
+    "hits": 256,
+    "self_ms": 85.1,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addChatEntry",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3312,
+    "hits": 223,
+    "self_ms": 74.1,
+    "stack": [
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addTimestamp",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2636,
+    "hits": 131,
+    "self_ms": 43.5,
+    "stack": [
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "pf",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 119,
+    "self_ms": 39.5,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addTimestamp",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2636,
+    "hits": 77,
+    "self_ms": 25.6,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_syncChatJumpButton",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 105,
+    "hits": 63,
+    "self_ms": 20.9,
+    "stack": [
+     "chat.addEventListener.passive",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_prependHistory",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1659,
+    "hits": 59,
+    "self_ms": 19.6,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 278,
+    "hits": 45,
+    "self_ms": 15.0,
+    "stack": [
+     "(anonymous)",
+     "_storeTx",
+     "_storeSync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "emStrong",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 37,
+    "hits": 38,
+    "self_ms": 12.6,
+    "stack": [
+     "inlineTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "pf",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 31,
+    "self_ms": 10.3,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 30,
+    "self_ms": 10.0,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_renderHistory",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1614,
+    "hits": 28,
+    "self_ms": 9.3,
+    "stack": [
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "getRegex",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 12,
+    "hits": 27,
+    "self_ms": 9.0,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 24,
+    "self_ms": 8.0,
+    "stack": [
+     "(anonymous)",
+     "Nt",
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 22,
+    "self_ms": 7.3,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 20,
+    "hits": 22,
+    "self_ms": 7.3,
+    "stack": [
+     "each",
+     "walk",
+     "raw",
+     "comment",
+     "stringify",
+     "body",
+     "root",
+     "stringify",
+     "ca",
+     "generate",
+     "stringify",
+     "runAsync"
+    ]
+   },
+   {
+    "fn": "paragraph",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 36,
+    "hits": 22,
+    "self_ms": 7.3,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "html",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 35,
+    "hits": 21,
+    "self_ms": 7.0,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "querySelectorAll",
+    "url": "",
+    "line": 0,
+    "hits": 18,
+    "self_ms": 6.0,
+    "stack": [
+     "pf",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 17,
+    "self_ms": 5.6,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "divideColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "Yo",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 17,
+    "self_ms": 5.6,
+    "stack": [
+     "as",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "visitTick",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 23,
+    "hits": 17,
+    "self_ms": 5.6,
+    "stack": [
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "insertBefore",
+    "url": "",
+    "line": 0,
+    "hits": 17,
+    "self_ms": 5.6,
+    "stack": [
+     "_insert",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "list",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 28,
+    "hits": 16,
+    "self_ms": 5.3,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "blockTokens",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 38,
+    "hits": 15,
+    "self_ms": 5.0,
+    "stack": [
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "o.sanitize",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 14,
+    "self_ms": 4.7,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "vt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 14,
+    "self_ms": 4.7,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "runAsync",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 23,
+    "hits": 13,
+    "self_ms": 4.3,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "fh",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 12,
+    "self_ms": 4.0,
+    "stack": [
+     "(anonymous)",
+     "fh",
+     "borderColor",
+     "V_",
+     "il",
+     "Vh",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "runOnRoot",
+     "runAsync",
+     "async"
+    ]
+   },
+   {
+    "fn": "da",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 18,
+    "hits": 12,
+    "self_ms": 4.0,
+    "stack": [
+     "da",
+     "da",
+     "da",
+     "clone",
+     "(anonymous)",
+     "Qt",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "o.sanitize",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 12,
+    "self_ms": 4.0,
+    "stack": [
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 12,
+    "self_ms": 4.0,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "vt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 12,
+    "self_ms": 4.0,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_insert",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3322,
+    "hits": 12,
+    "self_ms": 4.0,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 11,
+    "hits": 11,
+    "self_ms": 3.7,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "as",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 31,
+    "hits": 11,
+    "self_ms": 3.7,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 11,
+    "self_ms": 3.7,
+    "stack": [
+     "(anonymous)",
+     "Nt",
+     "o.sanitize",
+     "safe",
+     "_taskCardBodyHtml",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "da",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 18,
+    "hits": 10,
+    "self_ms": 3.3,
+    "stack": [
+     "clone",
+     "(anonymous)",
+     "Qt",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 40,
+    "hits": 10,
+    "self_ms": 3.3,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "each",
+     "walk",
+     "(anonymous)",
+     "each",
+     "walk",
+     "walkDecls",
+     "add",
+     "OnceExit",
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 40,
+    "hits": 10,
+    "self_ms": 3.3,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "each",
+     "walk",
+     "(anonymous)",
+     "each",
+     "walk",
+     "walkDecls",
+     "add",
+     "OnceExit",
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "inlineTokens",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 47,
+    "hits": 10,
+    "self_ms": 3.3,
+    "stack": [
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 10,
+    "self_ms": 3.3,
+    "stack": [
+     "o.sanitize",
+     "_taskDescriptionHtml",
+     "_taskCardBodyHtml",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "querySelectorAll",
+    "url": "",
+    "line": 0,
+    "hits": 10,
+    "self_ms": 3.3,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "table",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 35,
+    "hits": 9,
+    "self_ms": 3.0,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 8,
+    "self_ms": 2.7,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "outlineColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 8,
+    "self_ms": 2.7,
+    "stack": [
+     "fh",
+     "(anonymous)",
+     "fh",
+     "borderColor",
+     "V_",
+     "il",
+     "Vh",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "runOnRoot",
+     "runAsync"
+    ]
+   },
+   {
+    "fn": "disabled",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 41,
+    "hits": 8,
+    "self_ms": 2.7,
+    "stack": [
+     "disabledDecl",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "each",
+     "walk",
+     "(anonymous)",
+     "each",
+     "walk",
+     "walkDecls",
+     "add",
+     "OnceExit"
+    ]
+   },
+   {
+    "fn": "fetch",
+    "url": "",
+    "line": 0,
+    "hits": 8,
+    "self_ms": 2.7,
+    "stack": [
+     "api",
+     "fetchAgentContext",
+     "updateAgentInfo",
+     "createAgentItem",
+     "buildNode",
+     "renderAgentList",
+     "refreshSessions",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_createFileItem",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 5574,
+    "hits": 8,
+    "self_ms": 2.7,
+    "stack": [
+     "loadFileTree",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "RegExp: ^([`~]+|[^`~])(?:(?= *\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-]+@)|[\\s\\S]*?(?:(?=[\\\\<!\\[`*~_]|\\b_| *\\n|https?:\\/\\/|ftp:\\/\\/|www\\.|$)|[^ ](?= *\\n)|[^a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-]+@)))",
+    "url": "",
+    "line": 0,
+    "hits": 8,
+    "self_ms": 2.7,
+    "stack": [
+     "inlineText",
+     "inlineTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 7,
+    "self_ms": 2.3,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "placeholderColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "da",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 18,
+    "hits": 7,
+    "self_ms": 2.3,
+    "stack": [
+     "(anonymous)",
+     "da",
+     "clone",
+     "(anonymous)",
+     "Qt",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "disabledDecl",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 41,
+    "hits": 7,
+    "self_ms": 2.3,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "each",
+     "walk",
+     "(anonymous)",
+     "each",
+     "walk",
+     "walkDecls",
+     "add",
+     "OnceExit",
+     "runAsync"
+    ]
+   },
+   {
+    "fn": "renderUsageBar",
+    "url": "https://orchestra.seedon.ru/static/js/usage.js?v=18c859e2ea5c2b6b",
+    "line": 123,
+    "hits": 7,
+    "self_ms": 2.3,
+    "stack": [
+     "fetchUsage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_chatAtBottom",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 44,
+    "hits": 7,
+    "self_ms": 2.3,
+    "stack": [
+     "_syncChatJumpButton",
+     "chat.addEventListener.passive",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "cur.onsuccess",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 293,
+    "hits": 7,
+    "self_ms": 2.3,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 6,
+    "self_ms": 2.0,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "borderColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   }
+  ],
+  "by_file": {
+   "(inline/vm)": 7208.600000000009,
+   "app.js": 731.5999999999983,
+   "tailwind.js": 426.7000000000044,
+   "marked.min.js": 91.49999999999997,
+   "purify.min.js": 67.79999999999995,
+   "highlight.min.js": 9.2,
+   "chart.umd.min.js": 3.799999999999999,
+   "utils.js": 2.8999999999999995,
+   "usage.js": 2.5999999999999996,
+   "tool-renderers.js": 1.6,
+   "diff_match_patch.js": 0.3
+  }
+ },
+ "warm1": {
+  "nav": {
+   "domContentLoaded": 450.5,
+   "load": 451.7
+  },
+  "longtasks": [
+   {
+    "start": 120,
+    "dur": 163
+   },
+   {
+    "start": 286.3,
+    "dur": 83
+   },
+   {
+    "start": 566.4,
+    "dur": 53
+   },
+   {
+    "start": 629.7,
+    "dur": 50
+   },
+   {
+    "start": 702.7,
+    "dur": 53
+   },
+   {
+    "start": 826.8,
+    "dur": 208
+   },
+   {
+    "start": 1122.9,
+    "dur": 578
+   }
+  ],
+  "marks": {
+   "agentsListed": 636.4,
+   "chatFirst": 1006.4,
+   "chat20": 1670.9
+  },
+  "chatNodes": 60,
+  "domNodes": 1649,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "label": "warm1",
+  "stub": "",
+  "now_at_stop": 8515.29999999702,
+  "wallclock_s": 8.88,
+  "loadavg": [
+   "4.74",
+   "4.80",
+   "3.75"
+  ],
+  "cpu_total_ms": 8534.8,
+  "profile_span_ms": 8536.0,
+  "metrics": {
+   "Nodes": 7891,
+   "LayoutCount": 76,
+   "RecalcStyleCount": 78,
+   "LayoutDuration": 0.2923,
+   "RecalcStyleDuration": 0.3749,
+   "ScriptDuration": 0.1582,
+   "TaskDuration": 1.7602,
+   "JSHeapUsedSize": 17750896
+  },
+  "top": [
+   {
+    "fn": "(idle)",
+    "url": "",
+    "line": 0,
+    "hits": 17267,
+    "self_ms": 6578.4,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addChatEntry",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3312,
+    "hits": 1550,
+    "self_ms": 590.5,
+    "stack": [
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(program)",
+    "url": "",
+    "line": 0,
+    "hits": 891,
+    "self_ms": 339.5,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(garbage collector)",
+    "url": "",
+    "line": 0,
+    "hits": 175,
+    "self_ms": 66.7,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addChatEntry",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3312,
+    "hits": 168,
+    "self_ms": 64.0,
+    "stack": [
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addTimestamp",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2636,
+    "hits": 121,
+    "self_ms": 46.1,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "pf",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 109,
+    "self_ms": 41.5,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addTimestamp",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2636,
+    "hits": 69,
+    "self_ms": 26.3,
+    "stack": [
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_prependHistory",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1659,
+    "hits": 68,
+    "self_ms": 25.9,
+    "stack": [
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_syncChatJumpButton",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 105,
+    "hits": 57,
+    "self_ms": 21.7,
+    "stack": [
+     "chat.addEventListener.passive",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "emStrong",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 37,
+    "hits": 55,
+    "self_ms": 21.0,
+    "stack": [
+     "inlineTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 28,
+    "self_ms": 10.7,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "getRegex",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 12,
+    "hits": 27,
+    "self_ms": 10.3,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3836,
+    "hits": 27,
+    "self_ms": 10.3,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "Yo",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 25,
+    "self_ms": 9.5,
+    "stack": [
+     "as",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 25,
+    "self_ms": 9.5,
+    "stack": [
+     "(anonymous)",
+     "Nt",
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "querySelectorAll",
+    "url": "",
+    "line": 0,
+    "hits": 23,
+    "self_ms": 8.8,
+    "stack": [
+     "pf",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "pf",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 22,
+    "self_ms": 8.4,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "html",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 35,
+    "hits": 22,
+    "self_ms": 8.4,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 22,
+    "self_ms": 8.4,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "paragraph",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 36,
+    "hits": 21,
+    "self_ms": 8.0,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "o.sanitize",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 15,
+    "self_ms": 5.7,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1693,
+    "hits": 15,
+    "self_ms": 5.7,
+    "stack": [
+     "(anonymous)",
+     "_storeTx",
+     "_storePut",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "table",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 35,
+    "hits": 14,
+    "self_ms": 5.3,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "fh",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 13,
+    "self_ms": 5.0,
+    "stack": [
+     "(anonymous)",
+     "fh",
+     "borderColor",
+     "V_",
+     "il",
+     "Vh",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "runOnRoot",
+     "runAsync",
+     "async"
+    ]
+   },
+   {
+    "fn": "insertBefore",
+    "url": "",
+    "line": 0,
+    "hits": 13,
+    "self_ms": 5.0,
+    "stack": [
+     "_insert",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 12,
+    "self_ms": 4.6,
+    "stack": [
+     "(anonymous)",
+     "Nt",
+     "o.sanitize",
+     "safe",
+     "_taskCardBodyHtml",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "blockquote",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 17,
+    "hits": 11,
+    "self_ms": 4.2,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "inlineTokens",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 47,
+    "hits": 11,
+    "self_ms": 4.2,
+    "stack": [
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 11,
+    "self_ms": 4.2,
+    "stack": [
+     "o.sanitize",
+     "_taskDescriptionHtml",
+     "_taskCardBodyHtml",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "da",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 18,
+    "hits": 10,
+    "self_ms": 3.8,
+    "stack": [
+     "da",
+     "da",
+     "da",
+     "clone",
+     "(anonymous)",
+     "Qt",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "list",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 28,
+    "hits": 10,
+    "self_ms": 3.8,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1,
+    "hits": 9,
+    "self_ms": 3.4,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 9,
+    "self_ms": 3.4,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "blockTokens",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 38,
+    "hits": 9,
+    "self_ms": 3.4,
+    "stack": [
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "vt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 9,
+    "self_ms": 3.4,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "querySelectorAll",
+    "url": "",
+    "line": 0,
+    "hits": 9,
+    "self_ms": 3.4,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 11,
+    "hits": 8,
+    "self_ms": 3.0,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 8,
+    "self_ms": 3.0,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "ringColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "as",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 31,
+    "hits": 8,
+    "self_ms": 3.0,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_stampChatLogNode",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 75,
+    "hits": 8,
+    "self_ms": 3.0,
+    "stack": [
+     "_insert",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "fh",
+     "(anonymous)",
+     "fh",
+     "borderColor",
+     "V_",
+     "il",
+     "Vh",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "runOnRoot",
+     "runAsync"
+    ]
+   },
+   {
+    "fn": "fetch",
+    "url": "",
+    "line": 0,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "refreshSessions",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 5682,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "o.sanitize",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "vt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "lheading",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 36,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "inlineTokens",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 47,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_insert",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3322,
+    "hits": 7,
+    "self_ms": 2.7,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "gradientColorStops",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "fh",
+     "(anonymous)",
+     "fh",
+     "divideColor",
+     "V_",
+     "il",
+     "Vh",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "runOnRoot",
+     "runAsync"
+    ]
+   },
+   {
+    "fn": "T_",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "Yo",
+     "as",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "S",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 31,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "Yo",
+     "as",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "$r",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "Ae",
+     "bg",
+     "S",
+     "Yo",
+     "as",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "visitTick",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 23,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 20,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "(anonymous)",
+     "each",
+     "walk",
+     "(anonymous)",
+     "each",
+     "walk",
+     "walkDecls",
+     "add",
+     "OnceExit",
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_renderHistory",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1614,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "(anonymous)",
+     "Nt",
+     "o.sanitize",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "lex",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 37,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "lex",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 37,
+    "hits": 6,
+    "self_ms": 2.3,
+    "stack": [
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_prependHistory",
+     "_completeChatPage",
+     "(root)"
+    ]
+   }
+  ],
+  "by_file": {
+   "(inline/vm)": 7042.099999999984,
+   "app.js": 844.1999999999988,
+   "tailwind.js": 458.2999999999898,
+   "marked.min.js": 115.80000000000015,
+   "purify.min.js": 71.10000000000007,
+   "highlight.min.js": 5.900000000000001,
+   "chart.umd.min.js": 4.7,
+   "utils.js": 3.4999999999999996,
+   "usage.js": 2.6999999999999997,
+   "tool-renderers.js": 1.6
+  }
+ },
+ "warm2": {
+  "nav": {
+   "domContentLoaded": 452.5,
+   "load": 453.4
+  },
+  "longtasks": [
+   {
+    "start": 88.6,
+    "dur": 159
+   },
+   {
+    "start": 250.5,
+    "dur": 107
+   },
+   {
+    "start": 357.6,
+    "dur": 59
+   },
+   {
+    "start": 468.3,
+    "dur": 88
+   },
+   {
+    "start": 737,
+    "dur": 75
+   },
+   {
+    "start": 880,
+    "dur": 167
+   },
+   {
+    "start": 1079.2,
+    "dur": 682
+   },
+   {
+    "start": 7878.6,
+    "dur": 81
+   }
+  ],
+  "marks": {
+   "agentsListed": 670.6,
+   "chatFirst": 1025.3,
+   "chat20": 1688.3
+  },
+  "chatNodes": 62,
+  "domNodes": 1687,
+  "styleSheets": 3,
+  "cssRules": 611,
+  "label": "warm2",
+  "stub": "",
+  "now_at_stop": 8484.90000000596,
+  "wallclock_s": 8.68,
+  "loadavg": [
+   "4.68",
+   "4.79",
+   "3.75"
+  ],
+  "cpu_total_ms": 8501.0,
+  "profile_span_ms": 8502.0,
+  "metrics": {
+   "Nodes": 8115,
+   "LayoutCount": 81,
+   "RecalcStyleCount": 96,
+   "LayoutDuration": 0.3396,
+   "RecalcStyleDuration": 0.4067,
+   "ScriptDuration": 0.3971,
+   "TaskDuration": 2.0689,
+   "JSHeapUsedSize": 27588736
+  },
+  "top": [
+   {
+    "fn": "(idle)",
+    "url": "",
+    "line": 0,
+    "hits": 18006,
+    "self_ms": 6651.7,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addChatEntry",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3312,
+    "hits": 1146,
+    "self_ms": 423.3,
+    "stack": [
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(program)",
+    "url": "",
+    "line": 0,
+    "hits": 1042,
+    "self_ms": 384.9,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addChatEntry",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3312,
+    "hits": 186,
+    "self_ms": 68.7,
+    "stack": [
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "pf",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 165,
+    "self_ms": 61.0,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(garbage collector)",
+    "url": "",
+    "line": 0,
+    "hits": 157,
+    "self_ms": 58.0,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addTimestamp",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2636,
+    "hits": 102,
+    "self_ms": 37.7,
+    "stack": [
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_syncChatJumpButton",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 105,
+    "hits": 68,
+    "self_ms": 25.1,
+    "stack": [
+     "chat.addEventListener.passive",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addTimestamp",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2636,
+    "hits": 57,
+    "self_ms": 21.1,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "emStrong",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 37,
+    "hits": 43,
+    "self_ms": 15.9,
+    "stack": [
+     "inlineTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_selectionTouchesStream",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2715,
+    "hits": 35,
+    "self_ms": 12.9,
+    "stack": [
+     "_streamRenderTick",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "pf",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 34,
+    "self_ms": 12.6,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 26,
+    "self_ms": 9.6,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "html",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 35,
+    "hits": 25,
+    "self_ms": 9.2,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "paragraph",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 36,
+    "hits": 24,
+    "self_ms": 8.9,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "querySelectorAll",
+    "url": "",
+    "line": 0,
+    "hits": 23,
+    "self_ms": 8.5,
+    "stack": [
+     "pf",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 64,
+    "hits": 22,
+    "self_ms": 8.1,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "getRegex",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 12,
+    "hits": 20,
+    "self_ms": 7.4,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_streamRenderTick",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 2757,
+    "hits": 19,
+    "self_ms": 7.0,
+    "stack": [
+     "(root)"
+    ]
+   },
+   {
+    "fn": "list",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 28,
+    "hits": 18,
+    "self_ms": 6.6,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "$",
+    "url": "https://orchestra.seedon.ru/static/js/utils.js?v=18c837b1c4bb4d05",
+    "line": 6,
+    "hits": 18,
+    "self_ms": 6.6,
+    "stack": [
+     "_streamRenderTick",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "da",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 18,
+    "hits": 17,
+    "self_ms": 6.3,
+    "stack": [
+     "da",
+     "da",
+     "da",
+     "clone",
+     "(anonymous)",
+     "Qt",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "visitTick",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 23,
+    "hits": 17,
+    "self_ms": 6.3,
+    "stack": [
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 16,
+    "self_ms": 5.9,
+    "stack": [
+     "(anonymous)",
+     "Nt",
+     "o.sanitize",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "html",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 35,
+    "hits": 16,
+    "self_ms": 5.9,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "_streamRenderTick",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "addChatEntry",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 3312,
+    "hits": 15,
+    "self_ms": 5.5,
+    "stack": [
+     "eventSource.onmessage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 14,
+    "self_ms": 5.2,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "divideColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "_renderHistory",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1614,
+    "hits": 13,
+    "self_ms": 4.8,
+    "stack": [
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_captureChatReadFrontier",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 81,
+    "hits": 13,
+    "self_ms": 4.8,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "paragraph",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 36,
+    "hits": 13,
+    "self_ms": 4.8,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "_streamRenderTick",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "querySelectorAll",
+    "url": "",
+    "line": 0,
+    "hits": 12,
+    "self_ms": 4.4,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 11,
+    "hits": 11,
+    "self_ms": 4.1,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 11,
+    "self_ms": 4.1,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "outlineColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "Yo",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 11,
+    "self_ms": 4.1,
+    "stack": [
+     "as",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "T_",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 11,
+    "self_ms": 4.1,
+    "stack": [
+     "Yo",
+     "as",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 40,
+    "hits": 11,
+    "self_ms": 4.1,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "each",
+     "walk",
+     "(anonymous)",
+     "each",
+     "walk",
+     "walkDecls",
+     "add",
+     "OnceExit",
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "inlineTokens",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 47,
+    "hits": 11,
+    "self_ms": 4.1,
+    "stack": [
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 10,
+    "self_ms": 3.7,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "boxShadowColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 10,
+    "self_ms": 3.7,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "fill",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 10,
+    "self_ms": 3.7,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "placeholderColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 10,
+    "self_ms": 3.7,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "stroke",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "table",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 35,
+    "hits": 10,
+    "self_ms": 3.7,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "o.sanitize",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 10,
+    "self_ms": 3.7,
+    "stack": [
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 9,
+    "self_ms": 3.3,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "ringColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 9,
+    "self_ms": 3.3,
+    "stack": [
+     "fh",
+     "(anonymous)",
+     "fh",
+     "borderColor",
+     "V_",
+     "il",
+     "Vh",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "runOnRoot",
+     "runAsync"
+    ]
+   },
+   {
+    "fn": "da",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 18,
+    "hits": 9,
+    "self_ms": 3.3,
+    "stack": [
+     "clone",
+     "(anonymous)",
+     "Qt",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "block",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 13,
+    "hits": 9,
+    "self_ms": 3.3,
+    "stack": [
+     "rule",
+     "stringify",
+     "body",
+     "root",
+     "stringify",
+     "ca",
+     "generate",
+     "stringify",
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "wt",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 9,
+    "self_ms": 3.3,
+    "stack": [
+     "o.sanitize",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "blockquote",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "line": 17,
+    "hits": 9,
+    "self_ms": 3.3,
+    "stack": [
+     "blockTokens",
+     "lex",
+     "lex",
+     "E.parseMarkdown",
+     "k",
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "_prependHistory",
+    "url": "https://orchestra.seedon.ru/static/js/app.js?v=18c8832f235b4e30",
+    "line": 1659,
+    "hits": 9,
+    "self_ms": 3.3,
+    "stack": [
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "renderUsageBar",
+    "url": "https://orchestra.seedon.ru/static/js/usage.js?v=18c859e2ea5c2b6b",
+    "line": 123,
+    "hits": 8,
+    "self_ms": 3.0,
+    "stack": [
+     "fetchUsage",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "o.sanitize",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "line": 2,
+    "hits": 8,
+    "self_ms": 3.0,
+    "stack": [
+     "addChatEntry",
+     "_renderHistory",
+     "_showChatFor",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "insertBefore",
+    "url": "",
+    "line": 0,
+    "hits": 8,
+    "self_ms": 3.0,
+    "stack": [
+     "_insert",
+     "addChatEntry",
+     "_prependHistory",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 7,
+    "self_ms": 2.6,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "gradientColorStops",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "St",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 1,
+    "hits": 7,
+    "self_ms": 2.6,
+    "stack": [
+     "(anonymous)",
+     "St",
+     "e",
+     "ringOffsetColor",
+     "(anonymous)",
+     "hx",
+     "na",
+     "zr",
+     "v2",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)"
+    ]
+   },
+   {
+    "fn": "fh",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 27,
+    "hits": 7,
+    "self_ms": 2.6,
+    "stack": [
+     "(anonymous)",
+     "fh",
+     "borderColor",
+     "V_",
+     "il",
+     "Vh",
+     "(anonymous)",
+     "(anonymous)",
+     "(anonymous)",
+     "runOnRoot",
+     "runAsync",
+     "async"
+    ]
+   },
+   {
+    "fn": "da",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 18,
+    "hits": 7,
+    "self_ms": 2.6,
+    "stack": [
+     "(anonymous)",
+     "da",
+     "clone",
+     "(anonymous)",
+     "Qt",
+     "(anonymous)",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "(anonymous)",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 40,
+    "hits": 7,
+    "self_ms": 2.6,
+    "stack": [
+     "(anonymous)",
+     "(anonymous)",
+     "each",
+     "walk",
+     "(anonymous)",
+     "each",
+     "walk",
+     "walkDecls",
+     "add",
+     "OnceExit",
+     "runAsync",
+     "(root)"
+    ]
+   },
+   {
+    "fn": "raw",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 13,
+    "hits": 7,
+    "self_ms": 2.6,
+    "stack": [
+     "decl",
+     "stringify",
+     "body",
+     "block",
+     "rule",
+     "stringify",
+     "body",
+     "root",
+     "stringify",
+     "ca",
+     "generate",
+     "stringify"
+    ]
+   },
+   {
+    "fn": "raw",
+    "url": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "line": 13,
+    "hits": 7,
+    "self_ms": 2.6,
+    "stack": [
+     "body",
+     "block",
+     "rule",
+     "stringify",
+     "body",
+     "root",
+     "stringify",
+     "ca",
+     "generate",
+     "stringify",
+     "runAsync",
+     "(root)"
+    ]
+   }
+  ],
+  "by_file": {
+   "(inline/vm)": 7139.699999999985,
+   "app.js": 659.5999999999999,
+   "tailwind.js": 511.3999999999895,
+   "marked.min.js": 115.5000000000001,
+   "purify.min.js": 60.09999999999998,
+   "highlight.min.js": 11.300000000000006,
+   "utils.js": 9.600000000000001,
+   "usage.js": 3.4,
+   "chart.umd.min.js": 1.2000000000000002,
+   "tool-renderers.js": 1.2000000000000002
+  }
+ }
+}
