@@ -57,3 +57,6 @@ exclude-newer = "2026-07-09T10:16:55.018333899Z"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["worktrees", ".venv", "data", "docs"]
+markers = [
+    "needs_two_users: требует беспарольного sudo — владение файлами не моделируется заглушками",
+]

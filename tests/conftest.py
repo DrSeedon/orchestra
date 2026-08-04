@@ -77,3 +77,26 @@ def _no_tg_bridge(monkeypatch):
     import app.tg_bridge as tb
     monkeypatch.setattr(tb, "start_bridge", AsyncMock())
     monkeypatch.setattr(tb, "stop_bridge", AsyncMock())
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Кричать о пропущенных тестах, которым нужны два владельца файлов.
+
+    Такой тест проверяет то, что заглушками не проверяется (реальный chown, реальный git),
+    и его пропуск в обычной сводке выглядит точно так же, как успех. Печатаем отдельной
+    строкой, сколько именно проверок НЕ выполнялось и почему.
+    """
+    skipped = [
+        report for report in terminalreporter.stats.get("skipped", [])
+        if "needs_two_users" in getattr(report, "keywords", {})
+    ]
+    if not skipped:
+        return
+    names = ", ".join(sorted(report.nodeid.split("::")[-1] for report in skipped))
+    terminalreporter.write_sep("=", "ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ", red=True, bold=True)
+    terminalreporter.write_line(
+        f"{len(skipped)} теста(ов) миграции не выполнялись: нет беспарольного sudo. "
+        f"Владение файлами нельзя проверить заглушками — нужны два реальных владельца.",
+        red=True,
+    )
+    terminalreporter.write_line(f"  {names}", red=True)

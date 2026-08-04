@@ -249,9 +249,17 @@ def _sudo_available() -> bool:
     return subprocess.run(["sudo", "-n", "true"], capture_output=True).returncode == 0
 
 
-requires_two_users = pytest.mark.skipif(
-    not _sudo_available(), reason="нужен беспарольный sudo: стенду нужны два владельца",
-)
+def requires_two_users(test):
+    """Пометить тест как требующий двух реальных владельцев и пропустить, если их нет.
+
+    Маркер нужен ОТДЕЛЬНО от `skipif`: по нему `tests/conftest.py` печатает в конце прогона
+    громкую строку. Молчаливый `skipped` даёт ту же зелёную сводку, что и пройденный тест, —
+    то есть перестаёт быть проверкой ровно там, где проверки нет.
+    """
+    test = pytest.mark.needs_two_users(test)
+    return pytest.mark.skipif(
+        not _sudo_available(), reason="нужен беспарольный sudo: стенду нужны два владельца",
+    )(test)
 
 
 def _strip_host(path: str) -> str:
