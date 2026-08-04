@@ -1,0 +1,21 @@
+# Снимок «до» перед рестартом — 2026-08-04 11:05:42 CEST, сборка x-orchestra-build: 4acfa080cf1bfa9c
+# процесс: Tue 2026-08-04 08:09:37 CEST, PID 326584
+# нормировка: сессий 26, логов 16788
+gzip=37884/200      raw=155163    /api/sessions
+gzip=2054/200       raw=11660     /api/sessions?scope=%2Fhome%2Fkesha%2Forchestra
+gzip=1717/200       raw=7860      /api/orchestrators
+gzip=151827/200     raw=593036    /api/logs/sync?after_id=0&tail=20&cap=16384
+gzip=32425/200      raw=119208    /api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100
+
+## СВЕЖИЙ снимок «до», прямо перед рестартом — 2026-08-04 11:51:42 CEST
+# сборка , процесс Tue 2026-08-04 11:44:29 CEST, PID 478486
+# нормировка: сессий 28, логов 19359
+путь     gzip        raw         url
+прямой 24/401      24          /api/sessions
+зеркало 4284/200    22930       /api/sessions
+прямой 24/401      24          /api/orchestrators
+зеркало 1391/200    5208        /api/orchestrators
+прямой 24/401      24          /api/logs/sync?after_id=0&tail=20&cap=16384
+зеркало 165846/200  625693      /api/logs/sync?after_id=0&tail=20&cap=16384
+прямой 24/401      24          /api/sessions/Orchestra-orchestrator/logs?sc
+зеркало 33709/200   123553      /api/sessions/Orchestra-orchestrator/logs?sc
