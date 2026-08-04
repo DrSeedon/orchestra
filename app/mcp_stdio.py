@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import os
+import shutil
 import re
 import shlex
 import sys
@@ -28,6 +29,11 @@ logger = logging.getLogger("orchestra-mcp")
 
 ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
+# Дедлайн ТОЛЬКО для search_memory (общий дефолт _api = 30 с не трогаем).
+# 5 с = 1.9× от худшего здорового наблюдения 2659 мс при 8 одновременных клиентах,
+# замер 03.08.2026 docs/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
+# и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
+SEARCH_DEADLINE_S = 5.0
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
@@ -968,6 +974,57 @@ async def send_file(path: str, caption: str = "", as_document: bool = False) -> 
 
 
 @mcp.tool()
+async def send_chart(kind: str, title: str, data: dict, caption: str = "") -> str:
+    """Draw a chart from data and send it to the user's Telegram as a picture. One call.
+
+    Use it when the point is a SHAPE the reader should see: before/after across several
+    categories, values spanning orders of magnitude, a series over time, or a final state
+    in 2-4 numbers. Do not use it for a single number, a yes/no verdict, a list of files
+    or a status line — those read better as one line of text.
+
+    title — the punchline in words. Do NOT put numbers about the data in it: the tool
+    computes a factual line from what it actually drew and prints it under the title.
+
+    kind and the shape of `data`:
+      "bars"     — compare categories. Linear scale.
+      "bars_log" — same, when values differ by 100× or more (log scale; zero renders as
+                   an explicit "0", negatives are rejected).
+        {"unit": "МБ", "categories": ["1 сут", "год"],
+         "series": [{"name": "до", "values": [0.18, 4.25], "tone": "bad"},
+                    {"name": "после", "values": [0.17, 0.86], "tone": "good"}]}
+      "series"   — values over time; data gaps are detected and shaded, never bridged.
+        {"unit": "%", "series": [{"name": "5h", "points": [["2026-08-01T10:00:00", 12.3]]}]}
+      "cards"    — 2 to 4 big numbers as a final state. Values are strings.
+        {"metrics": [{"label": "на диске", "value": "401", "note": "5.54 МБ"},
+                     {"label": "в индексе", "value": "315", "tone": "bad"}]}
+
+    tone is optional: "good" | "bad" | "neutral" (default: palette colour by index).
+    Limits, enforced loudly: 2-8 categories, <=3 bar series, <=3 lines, <=4 cards.
+    """
+    from app.charts import ChartError, render_chart
+
+    try:
+        path = render_chart(kind, title, data)
+    except ChartError as exc:
+        raise ApiToolError(code="domain_error", message=f"Chart not drawn: {exc}")
+    except Exception as exc:
+        raise ApiToolError(
+            code="render_failed",
+            message=f"Chart render failed: {type(exc).__name__}: {exc}",
+            details={"kind": kind},
+        )
+    try:
+        sent = await send_file(path, caption or title)
+    except ApiToolError as exc:
+        # картинка нарисована и лежит на диске — путь обязан дойти до агента,
+        # иначе работа потеряна из-за сбоя доставки
+        exc.message = f"{exc.message} | chart kept at {path}"
+        exc.details = {**exc.details, "chart_path": path}
+        raise
+    return f"{sent} | chart: {path}"
+
+
+@mcp.tool()
 async def update_progress(percent: int, status: str) -> str:
     """Update task progress. percent: 0-100, status: short description of current step."""
     result = await _api("POST", f"/api/sessions/{WORKER_NAME}/progress", json={
@@ -1061,19 +1118,37 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
             reason = str(error.get("message") or error.get("code") or "")
         elif error:
             reason = str(error)
+        # Формулировка — это и есть фикс. Раньше здесь было сухое «RUNNING, retry with
+        # the same operation_id», и агенты рапортовали «merge worker failed» на живом
+        # мерже, который через секунды успешно завершался. Нетерминальное состояние
+        # обязано читаться как «ещё идёт», а не как отказ, — причём с первой строки,
+        # потому что дальше неё модель может и не дочитать.
         text = (
-            f"Merge operation {operation_id}: {state}. "
-            f"{action_message or 'Do not merge manually; retry with the same operation_id.'}"
-            + (f" Reported reason: {_safe_response_text(reason)}" if reason else "")
+            f"STILL {state} — NOT a failure, nothing was lost, do NOT report an error. "
+            f"Merge operation {operation_id} is still running on the server after "
+            f"{int(_MERGE_WAIT_SECONDS)}s of waiting. "
+            f"Call merge_worker again with operation_id='{operation_id}' to pick up this "
+            f"same operation. Do NOT start a new merge and do NOT merge manually."
+            + (f" Server note: {_safe_response_text(reason)}" if reason else "")
         )
         return mcp_tool_result(result, text=text)
     if state == "SUCCEEDED":
         git = result.get("git") if isinstance(result.get("git"), dict) else {}
         count = int(git.get("commits_merged") or 0)
         branch = git.get("worker_branch") or "?"
+        # Про добавку оркестратор обязан узнать из ПЕРВЫХ строк, а не найти в полях потом.
+        # Поля может не быть вовсе (старый сервер до рестарта) — тогда текст прежний.
+        drift = ""
+        if git.get("head_drift") == "BENIGN_ADVANCE":
+            pinned = str(git.get("worker_head_pinned") or "?")[:12]
+            merged_head = str(git.get("worker_head") or "?")[:12]
+            drift = (
+                f" NOTE: the worker committed after this operation was accepted — "
+                f"merged its branch as of {merged_head}, not the pinned {pinned}."
+            )
         text = (
             f"Merged {count} commit{'s' if count != 1 else ''} from branch {branch}. "
-            f"Operation {operation_id}: SUCCEEDED."
+            f"Operation {operation_id}: SUCCEEDED.{drift}"
         )
         return mcp_tool_result(result, text=text)
     if state == "PARTIAL":
@@ -1108,6 +1183,38 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
     return mcp_tool_result(result, error=error, is_error=True, text=text)
 
 
+# Сколько ждать терминального состояния внутри ОДНОГО вызова merge_worker.
+# Это ручка ЧАСТОТЫ, а не корректности: у времени операции длинный хвост, поэтому
+# любой потолок рано или поздно будет превышен. Корректность держится на том, что
+# нетерминальный ответ невозможно прочитать как отказ (см. _merge_tool_result), а
+# не на угаданном числе. Замер 03.08 по 31 живой операции: все дошли до терминала,
+# максимум 58.3 с. 90 с покрывает их все и вдвое ниже уже работающих в этом файле
+# длинных вызовов (compact_worker=120 с, spawn=180 с).
+_MERGE_WAIT_SECONDS = 90.0
+
+
+async def _await_merge_terminal(operation_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    """Дождаться терминального состояния, чтобы один вызов давал один ответ.
+
+    Прежний бюджет был 2 с (0.0+0.5+1.5), а 9 операций из 31 (29%) шли дольше —
+    вызывающий получал RUNNING на РАБОТАЮЩЕМ мерже и рапортовал провал.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + _MERGE_WAIT_SECONDS
+    delay = 0.2
+    while True:
+        recovered = await _recover_merge_status(operation_id)
+        if recovered is not None:
+            result = recovered
+            if result.get("operation_state") not in {"PENDING", "RUNNING"}:
+                return result
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            return result
+        await asyncio.sleep(min(delay, remaining))
+        delay = min(delay * 1.5, 2.0)
+
+
 async def _recover_merge_status(operation_id: str) -> dict[str, Any] | None:
     try:
         payload = await _api("GET", f"/api/merge-operations/{operation_id}")
@@ -1125,7 +1232,12 @@ async def merge_worker(
     next_task_id: str = "",
     operation_id: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch. Retry failures with the returned operation_id."""
+    """Durably squash a worker branch. Waits for the merge to finish and returns the outcome.
+
+    A reply starting with "STILL RUNNING" is NOT a failure: the merge is still going on the
+    server and nothing was lost. Call this tool again with the SAME operation_id to pick it
+    up. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
+    """
     operation_id = operation_id or str(uuid.uuid4())
     body = {
         "operation_id": operation_id,
@@ -1175,16 +1287,9 @@ async def merge_worker(
                         details={"exception_type": type(api_error).__name__, **api_error.details},
                     )
         if result.get("operation_state") in {"PENDING", "RUNNING"}:
-            # polled immediately the op has not yet reached its preflight checks, so a
-            # dirty target reads as RUNNING and the caller burns blind retries on it
-            for delay in (0.0, 0.5, 1.5):
-                if delay:
-                    await asyncio.sleep(delay)
-                recovered = await _recover_merge_status(str(result.get("operation_id") or operation_id))
-                if recovered is not None:
-                    result = recovered
-                    if result.get("operation_state") not in {"PENDING", "RUNNING"}:
-                        break
+            result = await _await_merge_terminal(
+                str(result.get("operation_id") or operation_id), result,
+            )
         return _merge_tool_result(result)
     except Exception as exc:
         result = _merge_local_result(
@@ -1542,12 +1647,35 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
     if not SCOPE:
         return "search_memory: no project scope (orchestrator context) — nothing to search."
     body = {"scope": SCOPE, "query": query, "limit": limit, "cross_project": cross_project}
-    result = await _api("POST", "/api/memory/search", json=body)
-    if isinstance(result, dict) and result.get("error"):
-        return f"search_memory failed: {result['error']}"
+    # Подсказка одна на все отказы: агент обязан уйти в grep, а не ждать и не повторять вызов.
+    grep = f'ищи grep\'ом: rg "{query}" docs/ CLAUDE.md BUGS.md'
+    try:
+        result = await _api("POST", "/api/memory/search", json=body,
+                            timeout=SEARCH_DEADLINE_S)
+    except ApiToolError as e:
+        # _api поднимает ApiToolError и на 5xx, и на payload["error"] — ловить надо ЗДЕСЬ.
+        # Раньше исключение улетало наружу, и агент получал голое имя класса после 30 с.
+        if e.code in ("transport_timeout", "search_busy", "search_stale"):
+            reason = {"transport_timeout": f"поиск не уложился в {SEARCH_DEADLINE_S:.0f} с",
+                      "search_busy": "очередь поиска переполнена",
+                      "search_stale": "запрос протух в очереди"}[e.code]
+            return f"search_memory: {reason}. Не жди и не повторяй — {grep}"
+        if "RAG disabled" in e.message:
+            return f"search_memory: семантический поиск выключен (RAG_ENABLED=false) — {grep}"
+        return f"search_memory: {e.code} — {e.message}. {grep}"
     hits = result.get("results", []) if isinstance(result, dict) else []
+    # `index` появился позже самого эндпоинта: старый роут его не отдаёт → .get, а не [].
+    index = (result.get("index") or {}) if isinstance(result, dict) else {}
+    pending = index.get("pending_files") or 0
+    debt = (f"\n\n[индекс не догнан: {pending} файлов ещё не проиндексированы — "
+            f"пустой ответ не доказывает отсутствие факта]") if pending else ""
     if not hits:
-        return f"No memory matches for: {query!r}"
+        # «долг 0» и «долга не знаем» — РАЗНОЕ: index_status отдаёт пустой словарь, пока в
+        # процессе не было ни одного прохода, и молчание честнее нуля
+        if "pending_files" not in index:
+            debt = ("\n\n[состояние индекса неизвестно: в этом процессе ещё не было прохода — "
+                    "пустой ответ ничего не доказывает]")
+        return f"No memory matches for: {query!r}. Проверь — {grep}{debt}"
     lines = []
     for h in hits:
         if h.get("source") == "file":
@@ -1559,12 +1687,33 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
         if cross_project:
             head = f"({h.get('project')}) {head}"
         lines.append(f"{head}\n{h.get('content', '').strip()}")
-    return "\n\n---\n\n".join(lines)
+    return "\n\n---\n\n".join(lines) + debt
 
 
 # Wrapper reloads Orchestra .env on every invocation, so Codex review follows the same
 # currently selected proxy as workers, Cursor, and the dashboard service.
-_CODEX_BIN = "/home/maxim/.local/bin/codex"
+def _codex_bin() -> str:
+    """Путь к codex, разрешаемый В МОМЕНТ ВЫЗОВА, а не константой при импорте.
+
+    Была константа `/home/maxim/.local/bin/codex` — путь с ноутбука. После переезда на VPS
+    (пользователь kesha) такого каталога нет вовсе, и каждый вызов падал в
+    `/bin/sh: ...: not found`, exit 127 — до самого codex дело не доходило. Снаружи это
+    выглядело как «Codex сломался», хотя бинарник стоит и работает.
+
+    Порядок: `CODEX_BIN` из окружения (явное переопределение) -> `which codex` -> пусто.
+    Пусто здесь НЕ исключение: решает вызывающий, ему нужен внятный текст, а не падение из
+    середины сборки shell-команды."""
+    override = os.environ.get("CODEX_BIN", "").strip()
+    if override:
+        return override
+    return shutil.which("codex") or ""
+
+
+_CODEX_MISSING_HINT = (
+    "codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. "
+    "Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. "
+    "Проверить: `which codex`"
+)
 _REVIEW_CONTEXT = (
     "PROJECT CONTEXT (calibrate review severity):\n"
     "- Scale: small team, MVP stage\n"
@@ -1637,11 +1786,17 @@ async def codex_review(
     codex_out = round_tmp
     q = shlex.quote
 
+    # Разрешаем бинарник ДО сборки команды: иначе несуществующий путь уезжает в shell и
+    # возвращается голым exit 127 из фоновой джобы, где его никто не связывает с причиной.
+    codex_bin = _codex_bin()
+    if not codex_bin:
+        return _CODEX_MISSING_HINT
+
     if mode == "review":
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
         fresh_review = (
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec review"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --json"
             f" -o {q(codex_out)}"
         )
@@ -1657,7 +1812,7 @@ async def codex_review(
             # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
             codex = (
                 f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec resume {q(prev_uuid)}"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec resume {q(prev_uuid)}"
                 f" --skip-git-repo-check --full-auto --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
                 f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
@@ -1691,7 +1846,7 @@ async def codex_review(
         subcmd = f"exec resume {prev_uuid}" if is_resume else "exec"
         codex = (
             f"printf '%s' {q(exec_prompt)} > {q(prompt_file)}; "
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} {subcmd}"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} {subcmd}"
             f"{sandbox} --skip-git-repo-check --full-auto --json"
             f" -o {q(codex_out)} - < {q(prompt_file)}"
         )
@@ -1700,7 +1855,7 @@ async def codex_review(
             # without one the prompt has nothing concrete to review, so let resume fail loud.
             # Writes to codex_out (=round_tmp) so the recovery is appended, not overwriting history.
             fresh_exec = (
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(_CODEX_BIN)} exec"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec"
                 f" -s workspace-write --skip-git-repo-check --full-auto --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
             )

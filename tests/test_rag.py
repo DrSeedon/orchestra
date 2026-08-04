@@ -468,3 +468,113 @@ def test_run_routes_search_to_read_executor(monkeypatch):
     asyncio.run(rag.run(FakeLoop(), "search", "/proj/a", "q"))
     asyncio.run(rag.run(FakeLoop(), "index_file", "/proj/a", "x.md", "content"))
     assert calls == ["READ", "WRITE"]
+
+
+# ------------------------------------------- #16: порядок шагов, срезы, фантомы в выдаче
+
+def _md(root: Path, name: str, body: str, mtime: float | None = None) -> Path:
+    p = root / name
+    p.write_text(f"# {name}\n\n{body} " * 4, encoding="utf-8")
+    if mtime is not None:
+        import os
+        os.utime(p, (mtime, mtime))
+    return p
+
+
+@needs_model
+def test_prune_runs_before_embedding_so_a_cut_short_pass_still_drops_phantoms(mem, tmp_path):
+    """Фантом должен исчезать в прогоне, который НЕ дошёл до конца корпуса.
+    Пока prune стоял последней строкой, при обрыве он не отрабатывал никогда."""
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    gone = _md(kb, "gone.md", "будет удалён с диска")
+    mem.backfill_files("/proj/a", kb)
+    assert mem.conn.execute("SELECT COUNT(*) FROM files").fetchone()[0] == 1
+    gone.unlink()
+    for i in range(4):
+        _md(kb, f"new{i}.md", f"новый файл номер {i} с содержимым")
+
+    indexed = mem.backfill_files("/proj/a", kb, limit=1)
+
+    assert indexed == 1, "срез обязан остановиться после лимита"
+    paths = {r[0] for r in mem.conn.execute("SELECT path FROM files")}
+    assert "gone.md" not in paths, "prune не отработал в оборванном прогоне"
+
+
+@needs_model
+def test_interrupted_pass_resumes_instead_of_restarting(mem, tmp_path):
+    """Критерий приёмки E: прогон, прерванный на середине, продолжается с места обрыва."""
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    for i in range(5):
+        _md(kb, f"f{i}.md", f"содержимое файла номер {i} для проверки продолжения")
+
+    first = mem.backfill_files("/proj/a", kb, limit=2)
+    after_first = {r[0] for r in mem.conn.execute("SELECT path FROM files")}
+    second = mem.backfill_files("/proj/a", kb, limit=2)
+    after_second = {r[0] for r in mem.conn.execute("SELECT path FROM files")}
+
+    assert first == 2 and second == 2
+    assert after_first < after_second, "второй срез начал с нуля вместо продолжения"
+    assert len(after_second) == 4
+    assert mem.backfill_files("/proj/a", kb, limit=2) == 1  # остался ровно один
+    assert mem.backfill_files("/proj/a", kb, limit=2) == 0  # и больше работы нет
+
+
+@needs_model
+def test_freshest_file_is_indexed_first(mem, tmp_path):
+    """C: ради только что смерженной правки поиск и зовут — она идёт вперёд хвоста."""
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    _md(kb, "ancient.md", "древний файл из хвоста корпуса", mtime=1_600_000_000)
+    _md(kb, "old.md", "просто старый файл корпуса", mtime=1_700_000_000)
+    fresh = _md(kb, "fresh.md", "только что смерженная правка", mtime=1_800_000_000)
+
+    mem.backfill_files("/proj/a", kb, limit=1)
+
+    assert {r[0] for r in mem.conn.execute("SELECT path FROM files")} == {fresh.name}
+
+
+@needs_model
+def test_search_never_returns_a_file_deleted_from_disk(mem, tmp_path):
+    """B: удалённый файл не выдаётся как текущий, даже пока prune до него не дошёл."""
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    doomed = _md(kb, "doomed.md", "уникальный маркер квазар для поиска")
+    mem.backfill_files(str(kb), kb)
+    assert mem.search(str(kb), "квазар", limit=5), "маркер должен находиться, пока файл на диске"
+
+    doomed.unlink()  # индекс ещё НЕ перестроен — строка в files осталась
+
+    assert mem.search(str(kb), "квазар", limit=5) == []
+
+
+@needs_model
+def test_backfill_logs_limit_bounds_one_pass(mem, tmp_path):
+    """E для логового слоя: без LIMIT это fetchall по всей истории scope."""
+    odb = tmp_path / "orchestra.db"
+    long_a = "агент разобрал причину и починил через перестановку шагов бэкфилла подробно. " * 5
+    _make_orchestra_db(odb, sessions=[("s1", "w1", "/proj/a")],
+                       logs=[("s1", "t", "text", long_a + str(i)) for i in range(4)])
+
+    assert mem.backfill_logs("/proj/a", odb, batch_size=2) == 2
+    assert mem.backfill_logs("/proj/a", odb, batch_size=2) == 2
+    assert mem.backfill_logs("/proj/a", odb, batch_size=2) == 0
+
+
+@needs_model
+def test_pending_files_counts_missing_and_stale(mem, tmp_path):
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    a = _md(kb, "a.md", "первый файл корпуса")
+    _md(kb, "b.md", "второй файл корпуса")
+    assert mem.pending_files("/proj/a", kb) == 2
+
+    mem.backfill_files("/proj/a", kb)
+    assert mem.pending_files("/proj/a", kb) == 0
+
+    a.write_text("# a.md\n\nсодержимое поменялось целиком", encoding="utf-8")
+    assert mem.pending_files("/proj/a", kb) == 1
+
+    (kb / "empty.md").write_text("", encoding="utf-8")
+    assert mem.pending_files("/proj/a", kb) == 1, "пустой файл не может висеть в долге вечно"

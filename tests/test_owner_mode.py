@@ -56,7 +56,11 @@ async def test_usage_hidden_from_client(monkeypatch):
     """null, а не {"usage": null} — фронт прячет бар только по falsy-значению."""
     _set_auth(monkeypatch)
     assert await system_routes.get_usage() is None
-    assert await system_routes.usage_history() == []
+    # #13 сменил форму ответа на {step_minutes, rows, oldest_ts}; проверяем не форму,
+    # а то, ради чего тест написан: клиенту не уезжает ни одной точки и ни одной даты
+    history = await system_routes.usage_history()
+    assert history["rows"] == []
+    assert history["oldest_ts"] == ""
 
 
 @pytest.mark.asyncio

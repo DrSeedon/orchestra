@@ -179,6 +179,9 @@ function _scheduleChatInitialSettle() {
 // повторного и после F5. Один источник, одна инвалидация.
 const _sessionIds = {};  // _chatPositionKey() -> session.id, заполняется в renderAgentList и _storeSync
 const _CHAT_PAGE = 100;  // столько строк показываем при заходе — как и раньше при limit=100
+// Столько строк рисуем в ПЕРВОМ кадре; остальное — после него. Двадцать — это ровно то,
+// что раньше лежало в зеркале и давало чат за 871 мс против 1186 мс на сотне строк.
+const _CHAT_FIRST_PAINT = 20;
 
 // === Зеркало журнала в IndexedDB (#8) ===
 // Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту,
@@ -353,8 +356,14 @@ function initStoreSync() {
     if (window.requestIdleCallback) requestIdleCallback(kick, {timeout: 3000});
     else setTimeout(kick, 500);
     setInterval(kick, _STORE_SYNC_MS);
-    // Вкладку разворачивают после простоя — подтянуть хвост сразу, не ждать интервала
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
+    // Единственное место, где обрабатывается «вкладку развернули». Дел здесь два и оба
+    // срочные: подтянуть хвост журнала и проверить, жив ли сервер, — при свёрнутой вкладке
+    // таймеры идут не по расписанию, и его возврат замечался через десятки секунд (#15).
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        kick();
+        _heartbeatProbe();
+    });
 }
 
 function initChatPositionMemory() {
@@ -384,112 +393,6 @@ function restoreDraft() {
     }
 }
 
-const _BUG_INBOX_SEEN_KEY = 'orchestraBugInboxSeenVersion';
-
-function _bugSafeText(value) {
-    return DOMPurify.sanitize(String(value ?? ''), {ALLOWED_TAGS: [], ALLOWED_ATTR: []});
-}
-
-function _hideBugReportBanner() {
-    const banner = document.getElementById('bug-report-banner');
-    if (!banner) return;
-    banner.classList.add('hidden');
-    banner.classList.remove('flex');
-    banner.replaceChildren();
-}
-
-function _showBugReportError(error) {
-    const name = error?.name || 'Error';
-    const detail = error?.message || String(error || 'unknown error');
-    const banner = document.getElementById('bug-report-banner');
-    if (!banner) return;
-    const text = document.createElement('span');
-    text.textContent = _bugSafeText(`🐛 Inbox error — ${name}: ${detail}`);
-    banner.replaceChildren(text);
-    banner.classList.remove('hidden');
-    banner.classList.add('flex');
-}
-
-async function _fetchBugInbox(url) {
-    const response = await fetch(url, {headers: {'Accept': 'text/markdown'}});
-    const body = await response.text();
-    if (!response.ok) {
-        const error = new Error(body || `HTTP ${response.status}`);
-        error.name = `HTTP${response.status}`;
-        throw error;
-    }
-    return body;
-}
-
-async function _readBugInbox(version, viewUrl) {
-    const readerWindow = window.open('', '_blank');
-    if (!readerWindow) {
-        _showBugReportError({name: 'PopupBlockedError', message: 'reader window was blocked'});
-        return;
-    }
-    readerWindow.opener = null;
-    readerWindow.document.title = 'Orchestra bug reports';
-    readerWindow.document.body.textContent = 'Loading bug reports…';
-    try {
-        const markdown = await _fetchBugInbox(viewUrl);
-        const rendered = DOMPurify.sanitize(marked.parse(markdown));
-        readerWindow.document.body.style.cssText = 'margin:0;padding:24px;background:#0f172a;color:#cbd5e1;font:14px/1.55 system-ui,sans-serif;overflow-wrap:anywhere';
-        readerWindow.document.body.innerHTML = rendered;
-        localStorage.setItem(_BUG_INBOX_SEEN_KEY, version);
-        _hideBugReportBanner();
-    } catch (error) {
-        readerWindow.close();
-        _showBugReportError(error);
-    }
-}
-
-function _showBugReportBanner(version, viewUrl) {
-    const banner = document.getElementById('bug-report-banner');
-    if (!banner) return;
-    const text = document.createElement('span');
-    text.textContent = _bugSafeText('🐛 Новые bug reports');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = 'Прочитать';
-    button.className = 'shrink-0 rounded bg-amber-500/20 px-2 py-1 font-medium text-amber-100 hover:bg-amber-500/30';
-    button.addEventListener('click', () => _readBugInbox(version, viewUrl));
-    banner.replaceChildren(text, button);
-    banner.classList.remove('hidden');
-    banner.classList.add('flex');
-}
-
-async function _refreshBugReportStatus() {
-    try {
-        const response = await fetch('/api/report_bug/status');
-        const body = await response.text();
-        if (!response.ok) {
-            const error = new Error(body || `HTTP ${response.status}`);
-            error.name = `HTTP${response.status}`;
-            throw error;
-        }
-        const status = JSON.parse(body);
-        if (!status.has_reports || !status.version) {
-            _hideBugReportBanner();
-            return;
-        }
-        const viewUrl = new URL(status.view_url || '/api/report_bug', window.location.origin);
-        if (viewUrl.origin !== window.location.origin || viewUrl.pathname !== '/api/report_bug') {
-            throw new TypeError(`unsafe bug inbox URL: ${viewUrl.href}`);
-        }
-        if (localStorage.getItem(_BUG_INBOX_SEEN_KEY) === status.version) {
-            _hideBugReportBanner();
-            return;
-        }
-        _showBugReportBanner(status.version, viewUrl.href);
-    } catch (error) {
-        _showBugReportError(error);
-    }
-}
-
-function initBugReportBanner() {
-    _refreshBugReportStatus();
-    setInterval(_refreshBugReportStatus, 30000);
-}
 
 document.addEventListener('DOMContentLoaded', () => {
     $('#send-btn').addEventListener('click', sendChat);
@@ -597,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleRefresh();
     initFilePreviewModal();
     initUsageBar();
-    initBugReportBanner();
     initHeartbeat();
     _startCacheCountdown();
     // Только после load: холодная синхронизация ~100 КБ не должна делить узкий канал
@@ -748,6 +650,8 @@ async function loadMoreLogs() {
         // prepend в правильном порядке (logs уже ASC из db)
         // фиксируем anchor = текущий firstChild, вставляем все перед ним по порядку
         const anchor = chat.firstChild;
+        _replayingHistory = true;
+        try {
         for (const l of logs) {
             addChatEntry(l.type, l.content, l.ts, anchor);
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
@@ -755,6 +659,7 @@ async function loadMoreLogs() {
                 chatLogs[selectedAgent].firstId = l.id;
             }
         }
+        } finally { _replayingHistory = false; }
         chat.scrollTop = chat.scrollHeight - oldHeight;
         // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
         if (logs.length >= 500) _addLoadMoreBtn();
@@ -1166,7 +1071,10 @@ async function restartServer() {
     try {
         await api('/api/restart', { method: 'POST' });
     } catch {}
-    setTimeout(() => location.reload(), 3000);
+    // Перезагрузки здесь больше нет: она стояла на 3 с, а старт сервиса занимает 4.3-13.9 с
+    // (замер по journalctl, docs/tasks/15/research.md) — то есть страница почти всегда
+    // перезагружалась в мёртвый сервер и юзер получал 502 от nginx вместо дашборда.
+    // Возврат ловит heartbeat и восстанавливает состояние на месте.
 }
 
 async function deleteOrchestrator() {
@@ -1698,8 +1606,15 @@ function selectOrchestrator(name, scope) {
 }
 
 // Отрисовать готовые строки журнала и выставить отметки, от которых пляшет connectSSE.
+// Отличает проигрывание истории от живой строки: часть отрисовки имеет побочные эффекты
+// (обновить панель задач), и в прошлом они не нужны. Флаг, а не параметр, потому что
+// addChatEntry зовут из десятка мест и протаскивать признак через все — шум.
+let _replayingHistory = false;
+
 function _renderHistory(agent, rows) {
     const meta = chatLogs[agent] = {lastId: 0, firstId: null, initialCount: 0};
+    _replayingHistory = true;
+    try {
     for (const l of rows) {
         addChatEntry(l.type, l.content, l.ts, null, l);
         if (!Number.isFinite(l.id)) continue;
@@ -1707,10 +1622,79 @@ function _renderHistory(agent, rows) {
         if (meta.firstId === null || l.id < meta.firstId) meta.firstId = l.id;
         meta.initialCount++;
     }
+    } finally { _replayingHistory = false; }
     updateLoadMoreBtn();
     $('#chat').scrollTop = $('#chat').scrollHeight;
     _scheduleChatInitialSettle();
     _syncChatJumpButton();
+}
+
+// Добор страницы до _CHAT_PAGE и запись добранного в зеркало: следующий заход к этому
+// же агенту снова бесплатный. Поднять _STORE_TAIL вместо этого нельзя — инкрементальная
+// синхронизация (after_id > 0) tail ИГНОРИРУЕТ, поэтому уже заведённое зеркало никогда
+// не дозаполнится, а холодная синхронизация подорожала бы с 123 до 569 КБ gzip ради 23
+// сессий, из которых юзер открывает шесть. Цифры — docs/tasks/32/report.md.
+async function _completeChatPage(name, scope) {
+    const meta = chatLogs[name];
+    if (!meta || !meta.firstId) return 0;
+    const need = _CHAT_PAGE - (meta.initialCount || 0);
+    if (need <= 0) return 0;
+    let older;
+    try {
+        const q = new URLSearchParams({scope, before_id: String(meta.firstId), limit: String(need)});
+        older = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
+    } catch (e) {
+        // Молчать нельзя: юзер увидит короткий чат и не поймёт, почему он короткий.
+        console.warn(`[chat] добор истории для ${name} не удался: ${e?.name}: ${e?.message}`);
+        return 0;
+    }
+    if (!Array.isArray(older) || !older.length) return 0;
+    if (!_prependHistory(name, scope, older)) return 0;
+    _storePut(older);
+    return older.length;
+}
+
+// Дорисовать старые строки НАД уже показанными. Один владелец на два случая: остаток
+// страницы из зеркала (первый кадр рисует только хвост) и добор с сервера.
+function _prependHistory(name, scope, rows) {
+    if (name !== selectedAgent || scope !== currentScope) return 0;  // успели уйти к другому
+    const meta = chatLogs[name];
+    if (!meta || !rows.length) return 0;
+    const chat = $('#chat');
+    const anchor = chat.firstChild;
+    _replayingHistory = true;
+    try {
+        for (const row of rows) {
+            addChatEntry(row.type, row.content, row.ts, anchor, row);
+            if (!Number.isFinite(row.id)) continue;
+            if (meta.firstId === null || row.id < meta.firstId) meta.firstId = row.id;
+            meta.initialCount++;
+        }
+    } finally { _replayingHistory = false; }
+    // Дорисовка уходит ВВЕРХ, юзер остаётся у свежего сообщения.
+    chat.scrollTop = chat.scrollHeight;
+    updateLoadMoreBtn();
+    return rows.length;
+}
+
+// Выполнить после того, как первый кадр УЖЕ нарисован: один rAF срабатывает ДО отрисовки,
+// поэтому нужен второй.
+function _afterPaint(fn) {
+    if (typeof requestAnimationFrame !== 'function') return setTimeout(fn, 0);
+    requestAnimationFrame(() => requestAnimationFrame(fn));
+}
+
+// Кладём в зеркало то, что уже скачали и показали. Отдельно от _storeSync: тот ходит
+// за инкрементом по watermark, а здесь строки СТАРШЕ watermark, и трогать отметку нельзя.
+async function _storePut(rows) {
+    const db = await _storeOpen();
+    if (!db || !rows || !rows.length) return;
+    try {
+        await _storeTx('readwrite', ['logs'], (tx) => {
+            const logs = tx.objectStore('logs');
+            for (const row of rows) if (Number.isFinite(row.id)) logs.put(row);
+        });
+    } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
 }
 
 // Промах зеркала: тянем историю обычным маршрутом. Он отдаёт application/json, который
@@ -1749,8 +1733,19 @@ async function _showChatFor(name, scope) {
         if (name !== selectedAgent || scope !== currentScope) return;  // успели уйти к другому агенту
         // Чей журнал мы показали. Поток назовёт свою сессию, и несовпадение вычистит чат.
         _chatSessionId = sid || (rows.length ? rows[0].session_id : null);
-        _renderHistory(name, rows);
+        // Первый кадр — только хвост. Отрисовка сотни строк разом стоит 0.8–0.9 с длинных
+        // задач главного потока, и чат появляется на ~300 мс позже, чем когда рисуются два
+        // десятка (замер perf, docs/tasks/32/measurements). Сеть тут ни при чём: цифра
+        // снята на попадании в зеркало, где сетевых запросов ноль.
+        const head = rows.length > _CHAT_FIRST_PAINT ? rows.slice(0, -_CHAT_FIRST_PAINT) : [];
+        _renderHistory(name, head.length ? rows.slice(-_CHAT_FIRST_PAINT) : rows);
         connectSSE(true);
+        // Остаток страницы и добор с сервера идут строго по очереди: и то и другое
+        // вставляет НАД первой строкой, а серверные строки старше остатка зеркала.
+        _afterPaint(() => {
+            _prependHistory(name, scope, head);
+            if (fromStore) _completeChatPage(name, scope);
+        });
         return fromStore;
     } finally {
         // Обязательно снимаем даже на раннем выходе: иначе восстановительный connectSSE
@@ -4877,7 +4872,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     }
                 }
                 addTimestamp(lastTool, ts);
-                if (['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__payment_receive'].includes(tn)) loadTasks();
+                // Панель задач обновляется на ЖИВОМ вызове инструмента. При отрисовке
+                // истории те же строки — это прошлое, и каждая из них дёргала бы полную
+                // перезагрузку панели: замер по живому дашборду — 8 пар запросов
+                // /api/tm/tasks + /api/tm/payments/status за 250 мс на одном заходе.
+                if (!_replayingHistory
+                    && ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__payment_receive'].includes(tn)) loadTasks();
                 return;
             }
             const _orchSimpleResults = {
@@ -5748,6 +5748,7 @@ async function api(url, opts = {}) {
 // === Reboot Overlay ===
 let _rebootOverlay = null;
 let _rebootFails = 0;
+let _wasDown = false;   // был ли хоть один отказ с прошлого успешного ответа
 
 function _showRebootOverlay() {
     if (_rebootOverlay) return;
@@ -5784,17 +5785,50 @@ function _dismissRebootOverlay() {
 async function _pollReconnect() {
     while (_rebootOverlay) {
         await new Promise(r => setTimeout(r, 2000));
-        if (!_rebootOverlay) return;  // dismissed mid-sleep — must not reload the page anyway
+        if (!_rebootOverlay) return;  // dismissed mid-sleep — must not recover behind the user's back
         try {
             const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
-            if (r.status < 502) { location.reload(); return; }
+            if (r.status < 502) { _onServerOk(); return; }
         } catch {}
+    }
+}
+
+// Сервер снова отвечает. Раньше здесь была location.reload(), и это оказалось дорогим
+// способом сделать то, что уже умеет зеркало журнала из #8: историю догоняет одна дельта,
+// чат перерисовывается локально. Замер (docs/tasks/15/research.md): сама перезагрузка стоит
+// полсекунды, но клиент замечает возврат сервера через 1.7-159 с, медиана 23 с — платить
+// ещё и за перезагрузку незачем. Свежесть версии фронта перезагрузка всё равно не давала:
+// JS брался из кеша без обращения к серверу.
+let _recovering = false;
+async function _recoverAfterOutage() {
+    if (_recovering) return;   // _onServerOk зовут и heartbeat, и refreshSessions, и опрос
+    _recovering = true;
+    try {
+        _dismissRebootOverlay();
+        // Неподтверждённое серверу выбрасываем: рестарт мог потерять ход, и какой пузырь
+        // чей — надёжно не определить. Перезагрузка делала это молча, теперь делаем явно.
+        localMessages.clear();
+        pendingUserMsgs = [];
+        pendingBubble = null;
+        _finalizedBubble = null;
+        if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
+        streamBubble = null;
+        streamContent = '';
+        streamPending = '';
+        _streamDeferredFinal = null;
+        await _storeSync();
+        if (selectedAgent && currentScope) await _showChatFor(selectedAgent, currentScope);
+        refreshSessions();
+        loadOrchestrators();
+    } finally {
+        _recovering = false;
     }
 }
 
 // Two consecutive failures before showing overlay — one transient error shouldn't panic the UI
 function _onServerError() {
     _rebootFails++;
+    _wasDown = true;
     if (_rebootFails >= 2) _showRebootOverlay();
 }
 
@@ -5843,18 +5877,59 @@ function _parseRateLimitStatus(content) {
     return { retry: +m[1], max: +m[2], delay: +m[3] };
 }
 
+// Единственное место, где ловится переход «был недоступен → отвечает». Зовётся из
+// heartbeat, из refreshSessions и из опроса под оверлеем — потому восстановление и
+// защищено флагом, иначе чат перерисуется столько раз, сколько источников успело.
 function _onServerOk() {
     _rebootFails = 0;
+    if (!_wasDown) return;
+    _wasDown = false;
+    _recoverAfterOutage();
+}
+
+// Версия фронта, с которой загружена эта страница. HTML отдаётся с no-cache (#9),
+// значит значение всегда свежее — в отличие от самого JS, который браузер берёт из кеша.
+const _pageBuild = document.body.dataset.build || '';
+let _buildBannerShown = false;
+
+// Сервер уехал вперёд. Перезагружать страницу за юзера НЕ будем: измерено, что reload
+// берёт JS из кеша и новую версию всё равно может не привезти, а решение перезагрузить
+// чужую вкладку — не наше. Говорим и уходим.
+function _showBuildBanner(serverBuild) {
+    if (_buildBannerShown) return;
+    _buildBannerShown = true;
+    console.warn(`[build] страница собрана на ${_pageBuild}, сервер отдаёт ${serverBuild}`);
+    const el = document.createElement('div');
+    el.id = 'build-banner';
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:99998;' +
+        'display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;' +
+        'background:#1e293b;border:1px solid #f59e0b66;color:#fde68a;font-size:12px;' +
+        'font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.4)';
+    el.innerHTML = '<span>Сервер обновился — обнови страницу, чтобы взять новую версию</span>';
+    const btn = document.createElement('button');
+    btn.style.cssText = 'padding:3px 10px;border:1px solid #475569;border-radius:6px;' +
+        'background:transparent;color:#cbd5e1;cursor:pointer;font-size:12px';
+    btn.textContent = 'Скрыть';
+    btn.onclick = () => el.remove();
+    el.appendChild(btn);
+    document.body.appendChild(el);
+}
+
+async function _heartbeatProbe() {
+    try {
+        const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+        if (r.status < 502) {
+            _onServerOk();
+            // Сверяем ПОСЛЕ _onServerOk: он снимает оверлей ребута, а баннер под
+            // полноэкранным оверлеем был бы невидим.
+            const serverBuild = r.headers.get('X-Orchestra-Build');
+            if (serverBuild && _pageBuild && serverBuild !== _pageBuild) _showBuildBanner(serverBuild);
+        } else _onServerError();
+    } catch (e) { _onFetchFail(e); }
 }
 
 function initHeartbeat() {
-    setInterval(async () => {
-        try {
-            const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
-            if (r.status < 502) _onServerOk();
-            else _onServerError();
-        } catch (e) { _onFetchFail(e); }
-    }, 3000);
+    setInterval(_heartbeatProbe, 3000);   // разворот вкладки обрабатывает initStoreSync
 }
 
 // === Tasks Panel ===
@@ -5968,17 +6043,24 @@ const STATUS_LABELS = {
 const COLLAPSED_DEFAULT = new Set(['backlog', 'paid', 'cancelled']);
 let _taskCollapsed = {};
 
+const _scopesWithoutClient = new Set();   // scope → клиент не привязан, спрашивать бесполезно
+
 async function loadTasks() {
     const panel = document.getElementById('tasks-panel');
     if (!panel) return;
     try {
         const scope = currentScope || '';
+        // К проекту может быть не привязан клиент — тогда роут отвечает 404 «No client
+        // specified…». Это не сбой, а конфигурация, и она не меняется на ходу. Панель
+        // опрашивается каждые 5 с, поэтому без отметки мы стучались бы в этот 404
+        // двенадцать раз в минуту и столько же раз красили консоль.
         const [tasksResp, payResp] = await Promise.all([
             fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
-            fetch('/api/tm/payments/status').catch(() => null),
+            _scopesWithoutClient.has(scope) ? null : fetch('/api/tm/payments/status').catch(() => null),
         ]);
+        if (payResp && payResp.status === 404) _scopesWithoutClient.add(scope);
         const data = await tasksResp.json();
-        const payData = payResp ? await payResp.json().catch(() => null) : null;
+        const payData = payResp && payResp.ok ? await payResp.json().catch(() => null) : null;
         renderTasksPanel(panel, data, payData);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
@@ -6726,7 +6808,7 @@ function _showProxyRestartBanner(name, wroteUrl) {
             e.stopPropagation();
             btn.textContent = '⏳ Рестарт...'; btn.disabled = true;
             try { await api('/api/restart', { method: 'POST' }); } catch {}
-            setTimeout(() => location.reload(), 3000);
+            // см. соседний обработчик рестарта: перезагрузка на 3 с била в мёртвый сервер
         });
     }
 }

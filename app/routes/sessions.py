@@ -730,6 +730,7 @@ async def execute_merge_session(
     from app import tm as _tm
     from app.db import get_session
     from app.workspace import (
+        classify_head_drift,
         inspect_worktree_identity,
         merge_worktree_to_main,
         switch_worktree_branch,
@@ -871,6 +872,21 @@ async def execute_merge_session(
                         target_branch=target, worker_branch=pinned_branch,
                         worker_head=pinned_head, http_status=400,
                     )
+            # Личность перечитывается ЗДЕСЬ — после ожидания хода и под lifecycle-локом,
+            # то есть в последний момент, когда воркер уже не может ничего дописать.
+            # Пин не забывается: он уезжает в результат вместе с фактическим HEAD и классом.
+            drift = await asyncio.to_thread(
+                classify_head_drift, worktree_path, pinned_branch, pinned_head,
+            )
+            if drift["class"] == "FATAL":
+                return _merge_not_reached(
+                    f"worker identity drifted before merge: {drift['reason']}",
+                    target_branch=target,
+                    worker_branch=drift["actual_branch"] or pinned_branch,
+                    worker_head=drift["actual_head"] or pinned_head,
+                    http_status=409,
+                )
+            merge_head = drift["actual_head"] or pinned_head
             try:
                 result = await asyncio.to_thread(
                     merge_worktree_to_main,
@@ -878,7 +894,7 @@ async def execute_merge_session(
                     row_scope,
                     target_branch=target,
                     expected_worker_branch=pinned_branch,
-                    expected_worker_head=pinned_head,
+                    expected_worker_head=merge_head,
                 )
             except Exception as e:
                 return {
@@ -893,6 +909,9 @@ async def execute_merge_session(
                     "commit_point": "unknown",
                 }
 
+            if isinstance(result, dict):
+                result["head_drift"] = drift["class"]
+                result["worker_head_pinned"] = pinned_head
             if not result.get("ok"):
                 return result
 
@@ -1100,127 +1119,143 @@ async def switch_branch(name: str, req: dict):
         from_ref = _session_base_branch(found, req.get("from_ref", ""))
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
-    async with manager.get_session_lock(session_id):
-        if not await _wait_for_merge_idle(found):
-            return JSONResponse(
-                {"error": f"worker is {found.status.value} — wait for idle before switch"},
-                status_code=400,
-            )
-        async with AsyncExitStack() as stack:
-            if found.loaded:
-                await stack.enter_async_context(found._lifecycle_lock)
-                if found.status.value != "idle":
-                    return JSONResponse(
-                        {
-                            "error": (
-                                f"worker is {found.status.value} — "
-                                "wait for idle before switch"
-                            )
-                        },
-                        status_code=400,
-                    )
-            try:
-                old_lifecycle = {
-                    "branch": getattr(found, "branch", "") or "",
-                    "base_branch": getattr(found, "base_branch", "") or "",
-                    "task_id": getattr(found, "task_id", "") or "",
-                    "needs_switch": bool(getattr(found, "needs_switch", False)),
-                }
-                await manager.persist_lifecycle(
-                    found,
-                    branch=old_lifecycle["branch"],
-                    base_branch=old_lifecycle["base_branch"],
-                    task_id="",
-                    needs_switch=True,
+    from app.manager import LockBusy, wait_for_session_lock
+
+    try:
+        # Уступает явный switch, а не доставка: доставка уже в полёте и откату не подлежит,
+        # switch повторяется дёшево. Уступка при этом ГРОМКАЯ — в этом весь смысл (#27).
+        async with wait_for_session_lock(
+            manager.get_session_lock(session_id),
+            what="switch_worker_branch", worker=name,
+        ) as waited_seconds:
+            if not await _wait_for_merge_idle(found):
+                return JSONResponse(
+                    {"error": f"worker is {found.status.value} — wait for idle before switch"},
+                    status_code=400,
                 )
-                result = await asyncio.to_thread(
-                    switch_worktree_branch,
-                    worktree_path,
-                    new_branch,
-                    from_ref=from_ref,
-                    force=force,
-                )
-                if result.get("ok"):
-                    switched_branch = result.get("branch", new_branch)
-                    try:
-                        await manager.persist_lifecycle(
-                            found,
-                            branch=switched_branch,
-                            base_branch=from_ref,
-                            task_id=par,
-                            needs_switch=False,
+            async with AsyncExitStack() as stack:
+                if found.loaded:
+                    await stack.enter_async_context(found._lifecycle_lock)
+                    if found.status.value != "idle":
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    f"worker is {found.status.value} — "
+                                    "wait for idle before switch"
+                                )
+                            },
+                            status_code=400,
                         )
-                    except Exception as persist_error:
-                        detail = str(persist_error) or type(persist_error).__name__
-                        result = {
-                            **result,
-                            "ok": False,
-                            "state": "persistence_failed",
-                            "error": (
-                                f"branch switched to {switched_branch}, but lifecycle "
-                                f"persistence failed: {detail}"
-                            ),
-                        }
+                try:
+                    old_lifecycle = {
+                        "branch": getattr(found, "branch", "") or "",
+                        "base_branch": getattr(found, "base_branch", "") or "",
+                        "task_id": getattr(found, "task_id", "") or "",
+                        "needs_switch": bool(getattr(found, "needs_switch", False)),
+                    }
+                    await manager.persist_lifecycle(
+                        found,
+                        branch=old_lifecycle["branch"],
+                        base_branch=old_lifecycle["base_branch"],
+                        task_id="",
+                        needs_switch=True,
+                    )
+                    result = await asyncio.to_thread(
+                        switch_worktree_branch,
+                        worktree_path,
+                        new_branch,
+                        from_ref=from_ref,
+                        force=force,
+                    )
+                    # Ставится СРАЗУ, до ветвлений: ожидание должно быть видно и в успехе,
+                    # и в любом отказе — иначе поле окажется ровно там, где не нужно.
+                    result["waited_seconds"] = round(waited_seconds, 2)
+                    if result.get("ok"):
+                        switched_branch = result.get("branch", new_branch)
+                        try:
+                            await manager.persist_lifecycle(
+                                found,
+                                branch=switched_branch,
+                                base_branch=from_ref,
+                                task_id=par,
+                                needs_switch=False,
+                            )
+                        except Exception as persist_error:
+                            detail = str(persist_error) or type(persist_error).__name__
+                            result = {
+                                **result,
+                                "ok": False,
+                                "state": "persistence_failed",
+                                "error": (
+                                    f"branch switched to {switched_branch}, but lifecycle "
+                                    f"persistence failed: {detail}"
+                                ),
+                            }
+                            quarantine_status = await _persist_lifecycle_quarantine(
+                                found,
+                                branch=switched_branch,
+                                base_branch=from_ref,
+                            )
+                            if not quarantine_status["ok"]:
+                                result["persistence_error"] = quarantine_status["error"]
+                            result["task_status"] = {
+                                "ok": False,
+                                "error": "task not updated because switched lifecycle was not persisted",
+                            }
+                            return result
+                        try:
+                            result["task_status"] = await asyncio.to_thread(
+                                _tm.api_update_task_if_current,
+                                task_identity,
+                                status="in_progress",
+                            )
+                        except Exception as task_error:
+                            detail = str(task_error) or type(task_error).__name__
+                            result["task_status"] = {"ok": False, "error": detail}
+                        if not result["task_status"].get("ok"):
+                            quarantine_status = await _persist_lifecycle_quarantine(
+                                found,
+                                branch=switched_branch,
+                                base_branch=from_ref,
+                            )
+                            result["task_status"]["quarantined"] = (
+                                quarantine_status["ok"]
+                            )
+                            if not quarantine_status["ok"]:
+                                result["task_status"]["quarantine_error"] = (
+                                    quarantine_status["error"]
+                                )
+                            result.update(
+                                ok=False,
+                                state="task_assignment_failed",
+                                error=(
+                                    "branch switched, but task assignment failed: "
+                                    f"{result['task_status']['error']}"
+                                ),
+                            )
+                    elif result.get("state") == "rollback_failed":
                         quarantine_status = await _persist_lifecycle_quarantine(
                             found,
-                            branch=switched_branch,
+                            branch=result.get("actual_branch") or old_lifecycle["branch"],
                             base_branch=from_ref,
                         )
                         if not quarantine_status["ok"]:
                             result["persistence_error"] = quarantine_status["error"]
-                        result["task_status"] = {
-                            "ok": False,
-                            "error": "task not updated because switched lifecycle was not persisted",
-                        }
-                        return result
-                    try:
-                        result["task_status"] = await asyncio.to_thread(
-                            _tm.api_update_task_if_current,
-                            task_identity,
-                            status="in_progress",
-                        )
-                    except Exception as task_error:
-                        detail = str(task_error) or type(task_error).__name__
-                        result["task_status"] = {"ok": False, "error": detail}
-                    if not result["task_status"].get("ok"):
-                        quarantine_status = await _persist_lifecycle_quarantine(
-                            found,
-                            branch=switched_branch,
-                            base_branch=from_ref,
-                        )
-                        result["task_status"]["quarantined"] = (
-                            quarantine_status["ok"]
-                        )
-                        if not quarantine_status["ok"]:
-                            result["task_status"]["quarantine_error"] = (
-                                quarantine_status["error"]
-                            )
-                        result.update(
-                            ok=False,
-                            state="task_assignment_failed",
-                            error=(
-                                "branch switched, but task assignment failed: "
-                                f"{result['task_status']['error']}"
-                            ),
-                        )
-                elif result.get("state") == "rollback_failed":
-                    quarantine_status = await _persist_lifecycle_quarantine(
-                        found,
-                        branch=result.get("actual_branch") or old_lifecycle["branch"],
-                        base_branch=from_ref,
-                    )
-                    if not quarantine_status["ok"]:
-                        result["persistence_error"] = quarantine_status["error"]
-                else:
-                    try:
-                        await manager.persist_lifecycle(found, **old_lifecycle)
-                    except Exception as persist_error:
-                        found.task_id = ""
-                        found.needs_switch = True
-                        result["persistence_error"] = str(persist_error)
-                return result
-            except Exception as e:
-                return JSONResponse({"error": str(e)}, status_code=500)
+                    else:
+                        try:
+                            await manager.persist_lifecycle(found, **old_lifecycle)
+                        except Exception as persist_error:
+                            found.task_id = ""
+                            found.needs_switch = True
+                            result["persistence_error"] = str(persist_error)
+                    return result
+                except Exception as e:
+                    return JSONResponse({"error": str(e)}, status_code=500)
+    except LockBusy as busy:
+        return JSONResponse(
+            {"error": str(busy), "waited_seconds": round(busy.waited, 1)},
+            status_code=409,
+        )
 
 
 @router.get("/api/sessions/{name}/wip")

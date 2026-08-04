@@ -1018,6 +1018,61 @@ def _reset_worktree_to_ref(worktree_path: str, ref: str, repo_path: str) -> None
         logger.info(f"_reset_worktree_to_ref: {wt} reset to {ref} ({target_sha[:8]})")
 
 
+def classify_head_drift(
+    worktree_path: str, expected_branch: str, expected_head: str,
+) -> dict:
+    """Классифицировать расхождение запомненной личности воркера с живым git.
+
+    Между тем, как merge_worker снял снимок, и тем, как он дошёл до git, стоит ожидание
+    чужого хода (десятки секунд). Воркер за это время ОБЯЗАН закоммитить — этого требует
+    его собственный промпт. Такое продвижение той же ветки безобидно: отказ от него ничего
+    не защищает, потому что повторный merge_worker секундой позже сольёт тот же коммит.
+
+    Возвращает class: SAME | BENIGN_ADVANCE | FATAL. FATAL всегда с причиной, названной
+    словами, — «HEAD changed» не отличает коммит воркера от переписанной истории.
+    """
+    try:
+        actual_branch, actual_head = inspect_worktree_identity(worktree_path)
+    except RuntimeError as e:
+        return {
+            "class": "FATAL", "actual_branch": "", "actual_head": "",
+            "reason": f"cannot inspect worker identity: {e}",
+        }
+    out = {"class": "SAME", "actual_branch": actual_branch, "actual_head": actual_head,
+           "reason": ""}
+    if expected_branch and actual_branch != expected_branch:
+        out["class"] = "FATAL"
+        out["reason"] = f"branch changed: {expected_branch} → {actual_branch}"
+        return out
+    if not expected_head or actual_head == expected_head:
+        return out
+    known = _git_cmd(
+        ["git", "rev-parse", "--quiet", "--verify", f"{expected_head}^{{commit}}"],
+        cwd=str(Path(worktree_path).resolve()), capture_output=True, text=True,
+    )
+    if known.returncode != 0:
+        out["class"] = "FATAL"
+        out["reason"] = f"pinned commit {expected_head} unknown to repository"
+        return out
+    ancestor = _git_cmd(
+        ["git", "merge-base", "--is-ancestor", expected_head, actual_head],
+        cwd=str(Path(worktree_path).resolve()), capture_output=True, text=True,
+    )
+    if ancestor.returncode == 0:
+        out["class"] = "BENIGN_ADVANCE"
+        out["reason"] = (
+            f"worker advanced {expected_branch or actual_branch} from {expected_head} "
+            f"to {actual_head} after the operation was accepted"
+        )
+        return out
+    out["class"] = "FATAL"
+    out["reason"] = (
+        f"history rewritten: {expected_head} is not an ancestor of {actual_head} "
+        f"(rebase/amend/reset)"
+    )
+    return out
+
+
 def inspect_worktree_identity(worktree_path: str) -> tuple[str, str]:
     """Return the current local branch and HEAD for later in-lock comparison."""
     wt = Path(worktree_path).resolve()
@@ -1618,7 +1673,11 @@ def branch_content_status(worktree_path: str, base_ref: str) -> dict:
 
 def switch_worktree_branch(worktree_path: str, new_branch: str,
                            from_ref: str = "",
-                           force: bool = False) -> dict:
+                           force: bool = False,
+                           expect_absent: bool = False) -> dict:
+    """expect_absent=True — вызывающий создаёт ЗАВЕДОМО новую ветку (авто-switch перед
+    доставкой). Тогда существующая ветка того же имени — отказ, а не переиспользование:
+    усыновление чужой истории должно быть невозможно, а не маловероятно (#27, E2)."""
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), str(wt))
     with repo_mutation_lock(repo):
@@ -1690,7 +1749,49 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
         if target_existed and _is_branch_checked_out_elsewhere(str(repo), new_branch, wt):
             return {"ok": False, "error": f"branch '{new_branch}' is checked out in another worktree"}
         if original_branch == new_branch:
-            return {"ok": False, "error": f"worker is already on branch '{new_branch}'"}
+            # Идемпотентный ремонт — успех, а не ошибка. Раньше система здесь запиралась:
+            # git уже прав, ремонт отказывает именно поэтому, а из-за ok=False никто не
+            # записывал наблюдаемую ветку в БД, и мерж падал на «session branch changed».
+            # Но «уже там» не значит «с той же базы»: просьбу сменить базу молча не глотаем.
+            try:
+                requested_base = _resolve_commit_oid(repo, from_ref)
+            except RuntimeError as e:
+                return {"ok": False, "error": str(e)}
+            contained = _git_cmd(
+                ["git", "merge-base", "--is-ancestor", requested_base, original_head],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if contained.returncode == 0:
+                return {
+                    "ok": True, "state": "already_on_branch",
+                    "branch": new_branch, "head": original_head,
+                }
+            return {
+                "ok": False,
+                "error": (
+                    f"worker is already on branch '{new_branch}', but requested base "
+                    f"'{from_ref}' is not merged into it"
+                ),
+            }
+
+        # Второй слой (#27): вызывающий ждал свежую ветку, а имя занято — значит на нём
+        # лежит ЧУЖАЯ история. Переселять на неё нельзя даже молча-успешно: новая работа
+        # легла бы поверх старой, а мерж принёс бы в main обе. Показываем, чью работу
+        # система отказалась усыновить, — имя, HEAD и дату последнего коммита.
+        if expect_absent and target_existed:
+            when = _git_cmd(
+                ["git", "log", "-1", "--format=%cI", new_branch],
+                cwd=str(repo), capture_output=True, text=True,
+            )
+            last = when.stdout.strip() if when.returncode == 0 else "дата недоступна"
+            return {
+                "ok": False,
+                "state": "target_branch_exists",
+                "error": (
+                    f"branch '{new_branch}' already exists (HEAD {target_head}, last commit "
+                    f"{last}) — refusing to adopt someone else's history; a fresh branch was expected"
+                ),
+            }
 
         try:
             from_head = _resolve_commit_oid(repo, from_ref)

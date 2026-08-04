@@ -6,7 +6,7 @@
 
 Запуск: uv run python docs/tasks/8/verify-store.py
 """
-import asyncio, json, pathlib, subprocess, sys
+import asyncio, json, pathlib, sqlite3, subprocess, sys
 
 from playwright.async_api import async_playwright
 
@@ -21,8 +21,9 @@ for line in open("/home/kesha/orchestra/.env"):
         k, v = line.split("=", 1)
         ENV[k.strip()] = v.strip()
 
-if not DB_COPY.exists():
-    subprocess.run(["sqlite3", str(ROOT.parents[2] / "orchestra/data/orchestra.db"),
+if not DB_COPY.exists() or not sqlite3.connect(DB_COPY).execute(
+        "SELECT 1 FROM sqlite_master WHERE name='logs'").fetchone():
+    subprocess.run(["sqlite3", "/home/kesha/orchestra/data/orchestra.db",
                     f".backup {DB_COPY}"], check=True)
 
 sys.path.insert(0, str(ROOT))
@@ -69,7 +70,7 @@ async def main():
         page = await ctx.new_page()
         logs = []
         page.on("console", lambda m: logs.append(m.text))
-        await page.route("**/static/js/app.js",
+        await page.route("**/static/js/app.js*",
                          lambda r: r.fulfill(status=200, content_type="text/javascript",
                                              body=APP_JS.read_text()))
         await page.route("**/api/logs/sync*", handle_sync)
@@ -181,7 +182,7 @@ async def main():
         logs.clear()
         page2 = await ctx.new_page()
         page2.on("console", lambda m: logs.append(m.text))
-        await page2.route("**/static/js/app.js",
+        await page2.route("**/static/js/app.js*",
                           lambda r: r.fulfill(status=200, content_type="text/javascript",
                                               body=APP_JS.read_text()))
         payload_mode["mode"] = "404"
@@ -201,7 +202,7 @@ async def main():
         await page3.add_init_script(
             "Object.defineProperty(window, 'indexedDB', {get(){ throw new DOMException("
             "'нет доступа в приватном окне', 'SecurityError'); }});")
-        await page3.route("**/static/js/app.js",
+        await page3.route("**/static/js/app.js*",
                           lambda r: r.fulfill(status=200, content_type="text/javascript",
                                               body=APP_JS.read_text()))
         await page3.goto(BASE, wait_until="load")

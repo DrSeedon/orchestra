@@ -1,6 +1,7 @@
 """SessionManager — registry, lifecycle, persistence for all agent sessions."""
 
 import asyncio
+import itertools
 import json
 import logging
 import os
@@ -8,7 +9,9 @@ import re
 import sqlite3
 import subprocess
 import sys
+import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
@@ -50,8 +53,73 @@ from app.db import (
     get_session, get_session_by_name, get_all_sessions, publish_ready_session,
     archive_session, get_stats, update_session_lifecycle,
 )
+from app.tasks import spawn_supervised
 
 logger = logging.getLogger(__name__)
+
+_adhoc_serial = itertools.count(1)
+
+# Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
+# чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
+LOCK_WAIT_LIMIT_SECONDS = 25.0
+
+
+class LockBusy(RuntimeError):
+    """Лок сессии занят дольше отведённого: у вызова есть кто уступить и кому повторить."""
+
+    def __init__(self, what: str, worker: str, waited: float):
+        self.what, self.worker, self.waited = what, worker, waited
+        super().__init__(
+            f"worker '{worker}' is busy: another operation has held the session lock for "
+            f"{waited:.0f}s (message delivery or merge in flight). Nothing was changed — "
+            f"retry {what} in ~30s."
+        )
+
+
+@asynccontextmanager
+async def wait_for_session_lock(lock, *, what: str, worker: str, limit: float | None = None):
+    """Взять лок сессии так, чтобы ожидание было ВИДНО снаружи.
+
+    Замер #27: доставка держит лок секундами (коннект CLI-бэкенда 1.6–2.0 с, а `connect()`
+    внутри разрешает себе до 60 с), git при этом занимает 0.01 с. Раньше ожидание не
+    оставляло ни строки в журнале и ни поля в ответе — снаружи оно было неотличимо от
+    зависшего сервера.
+    """
+    # Предел читается в момент вызова, а не как значение по умолчанию: значение по умолчанию
+    # вычисляется при определении функции, и подмена константы в тесте молча не сработала бы.
+    limit = LOCK_WAIT_LIMIT_SECONDS if limit is None else limit
+    started = time.monotonic()
+    try:
+        await asyncio.wait_for(lock.acquire(), timeout=limit)
+    except asyncio.TimeoutError:
+        waited = time.monotonic() - started
+        logger.warning("%s for %s gave up after %.1fs waiting for the session lock",
+                       what, worker, waited)
+        raise LockBusy(what, worker, waited) from None
+    waited = time.monotonic() - started
+    if waited > 0.5:
+        logger.warning("%s for %s waited %.1fs for the session lock", what, worker, waited)
+    try:
+        yield waited
+    finally:
+        lock.release()
+
+
+def next_adhoc_branch(worker_name: str) -> str:
+    """Имя ветки для авто-переключения перед доставкой сообщения.
+
+    Секунды эпохи БЕЗ усечения. Прежняя форма `str(int(time.time()))[-6:]` замыкала
+    пространство имён каждые 10**6 с = 11.57 суток, а ветки `adhoc-*` не удаляются —
+    столкновение было гарантировано временем, а не вероятностью, и приводило к тихому
+    переселению воркера на чужую ветку 11-суточной давности (#27, E2).
+
+    ВНИМАНИЕ, зависимость между слоями: порядковый номер живёт в ПРОЦЕССЕ и обнуляется
+    рестартом, поэтому теоретически возможен повтор имени при рестарте внутри одной
+    секунды. Это допустимо ТОЛЬКО потому, что второй слой — `expect_absent=True` в
+    `switch_worktree_branch` — делает такой повтор громким отказом. Снимете второй слой
+    как «лишнюю паранойю» — вернёте тихую порчу данных, а не просто упростите код.
+    """
+    return f"adhoc-{int(time.time())}-{next(_adhoc_serial)}/{worker_name}"
 
 from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD  # noqa: F401 — re-exported for callers
 
@@ -506,9 +574,9 @@ class SessionManager:
             if p_session:
                 parent_id = p_session.id
 
-        # R2: валидация спавна ДО любых side-effects (worktree/start). Только
-        # манифест-путь (validate_spawn) — legacy frontmatter-fallback (role_can_spawn
-        # из app/prompts) удалён. Нет манифеста → FileNotFoundError пробрасывается
+        # R2: валидация спавна ДО любых side-effects (worktree/start). Единственный
+        # источник прав — манифест пайплайна: другого пути принятия решения о спавне
+        # в коде нет. Нет манифеста → FileNotFoundError пробрасывается
         # (fail loud, единый источник = pipelines/).
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
@@ -692,7 +760,6 @@ class SessionManager:
                 )
 
             from app.workspace import inspect_worktree_identity, switch_worktree_branch
-            import time
 
             try:
                 base_branch = await asyncio.to_thread(
@@ -706,8 +773,7 @@ class SessionManager:
                     f"auto-switch failed: base resolution raised "
                     f"{type(error).__name__}: {detail}"
                 ) from error
-            adhoc_id = str(int(time.time()))[-6:]
-            new_branch = f"adhoc-{adhoc_id}/{session.name}"
+            new_branch = next_adhoc_branch(session.name)
             try:
                 result = await asyncio.to_thread(
                     switch_worktree_branch,
@@ -715,6 +781,7 @@ class SessionManager:
                     new_branch,
                     base_branch,
                     force=True,
+                    expect_absent=True,
                 )
             except Exception as error:
                 detail = str(error) or type(error).__name__
@@ -1097,7 +1164,16 @@ class SessionManager:
             sets = ", ".join(f"{k}=?" for k in fields)
             vals = [int(v) if isinstance(v, bool) else v for v in fields.values()]
             with _conn() as c:
-                c.execute(f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id))
+                cur = c.execute(
+                    f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id),
+                )
+                if cur.rowcount == 0:
+                    # Молчаливый ноль здесь означал бы, что поля «сохранены» только
+                    # в памяти вызывающего, а в БД их нет (#54).
+                    logger.warning(
+                        "UPDATE sessions changed 0 rows: fields %s for id=%r not persisted",
+                        list(fields), found.id,
+                    )
         return found
 
     async def persist_lifecycle(
@@ -1375,8 +1451,61 @@ class SessionManager:
                 f"Last output:\n{summary}{ctx}"
             )
             logger.info(f"Auto-report: {worker_name} → {orch}")
-            await self.send(orch_session.id, msg)
+            try:
+                await self.send(orch_session.id, msg)
+            except Exception as error:
+                await self._record_undelivered_auto_report(
+                    worker_name, worker_scope or scope, worker_session,
+                    orch_session, error,
+                )
         return _on_worker_idle
+
+    async def _record_undelivered_auto_report(
+        self, worker_name: str, worker_scope: str, worker_session,
+        orch_session, error: Exception,
+    ) -> None:
+        """Автоотчёт не дошёл — оставить след, не зависящий от сломанного канала (#47).
+
+        Автоотчёт существует ровно для того, чтобы ждущий оркестратор не остался без
+        сигнала. Поэтому запись идёт в историю ОБЕИХ сессий: в дашборде видно и со стороны
+        воркера («я отчитался, но не дошло»), и со стороны того, кто ждёт.
+
+        Попытка уведомить оркестратора отдельным сообщением делается, но её исход попадает
+        в ту же запись: тихая попытка была бы тем же дефектом, который мы чиним.
+        Повтора нет — по решению #30 ретраи не вводим.
+        """
+        from app.db import add_log
+        from app.notify import report_undelivered
+
+        detail = f"{type(error).__name__}: {error}"
+        attempt = await report_undelivered(
+            self,
+            scope=worker_scope,
+            worker=worker_name,
+            what="автоотчёт",
+            reason=detail,
+        )
+        # Причина не дублируется: в исходе попытки она чаще всего та же самая, и запись
+        # раздувается вдвое ровно там, где её будет читать человек.
+        if detail in attempt:
+            attempt = attempt.replace(detail, "та же причина")
+        text = (
+            f"[доставка] автоотчёт воркера «{worker_name}» не доставлен "
+            f"оркестратору «{orch_session.name}»: {detail}. "
+            f"Попытка уведомить отдельным сообщением: {attempt}. "
+            f"Автоматического повтора нет — воркер ждёт продолжения."
+        )
+        logger.warning(text)
+        now = datetime.now(timezone.utc)
+        # Сессия воркера может быть уже выгружена — тогда пишем только тому, кто ждёт.
+        for session in (s for s in (worker_session, orch_session) if s is not None):
+            try:
+                await asyncio.to_thread(add_log, session.id, now, "system", text)
+            except Exception as log_error:
+                logger.warning(
+                    "could not record undelivered auto-report for %s: %s: %s",
+                    session.name, type(log_error).__name__, log_error,
+                )
 
     # ── Listings ──
 
@@ -1481,7 +1610,8 @@ class SessionManager:
                         session.status = AgentStatus.WAITING
                         session._persist()
                 elif row["id"] in was_running:
-                    asyncio.create_task(self._inject_restart_notice(session))
+                    spawn_supervised(self._inject_restart_notice(session),
+                                     f"уведомление о рестарте для {session.name}")
             except Exception as e:
                 logger.error(f"Failed to resume {row['name']}: {e}")
 
@@ -1499,7 +1629,8 @@ class SessionManager:
                         session.status = AgentStatus.WAITING
                         session._persist()
                 elif row["id"] in was_running:
-                    asyncio.create_task(self._inject_restart_notice(session))
+                    spawn_supervised(self._inject_restart_notice(session),
+                                     f"уведомление о рестарте для {session.name}")
             except Exception as e:
                 logger.error(f"Failed to resume worker {row['name']}: {e}")
 

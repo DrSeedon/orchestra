@@ -87,33 +87,18 @@ def role_prompt_file(role: str) -> str:
     return ""
 
 
-def role_can_spawn(role: str):
-    """Return the can_spawn whitelist for a role, or None if unrestricted."""
-    role_path = _PROMPTS_DIR / "roles" / f"{role}.md"
-    if not role_path.exists():
-        return None
-    meta, _ = parse_role_frontmatter(role_path.read_text())
-    if "can_spawn" not in meta:
-        return None
-    val = meta["can_spawn"]
-    if not isinstance(val, list):
-        logger.warning(f"role '{role}' has non-list can_spawn ({val!r}); treating as unrestricted")
-        return None
-    return [str(x) for x in val]
-
-
 def get_role_icons() -> dict[str, str]:
-    roles_dir = _PROMPTS_DIR / "roles"
-    icons = {}
-    if roles_dir.is_dir():
-        for f in sorted(roles_dir.glob("*.md")):
-            meta, _ = parse_role_frontmatter(f.read_text())
-            if meta:
-                name = meta.get("name", f.stem)
-                icon = meta.get("icon", "")
-                if icon:
-                    icons[name] = icon
-    return icons
+    """Role icons from the manifest (`roles.<name>.tg.emoji`) of the default pipeline.
+
+    Role .md bodies are frontmatter-free, so the old `icon:` read returned {} on every
+    call. `scripts/extract-manifest.py` maps frontmatter `icon` → `tg.emoji`, so the
+    manifest is where that field lives now — and `load_pipeline` is cached, unlike the
+    per-request directory scan this replaced.
+    """
+    from app.pipeline import DEFAULT_PIPELINE, load_pipeline
+
+    cfg = load_pipeline(DEFAULT_PIPELINE)
+    return {name: spec.tg.emoji for name, spec in cfg.roles.items() if spec.tg and spec.tg.emoji}
 
 
 def prompt_template_hash(role_or_orch) -> str:

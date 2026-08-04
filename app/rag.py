@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import struct
+import time
 from pathlib import Path
 
 # NB: sqlite_vec / fastembed / onnxruntime are OPTIONAL deps (`orchestra[rag]`). They are
@@ -497,12 +498,17 @@ class RagMemory:
             params: list = [project, *LOG_TYPES]
             if session_name:
                 params.append(session_name)
+            # LIMIT обязателен: без него это `fetchall` по ВСЕМ неиндексированным логам scope,
+            # то есть проход, который растёт с историей и не влезает в жизнь процесса.
+            # batch_size <= 0 → -1, в SQLite это «без ограничения» (нужно для точечного reindex).
+            params.append(batch_size if batch_size > 0 else -1)
             rows = self.conn.execute(f"""
                 SELECT l.id, l.type, l.content
                 FROM orch.logs l JOIN orch.sessions s ON l.session_id = s.id
                 WHERE s.scope = ? AND l.type IN ({type_ph}) {name_sql}
                   AND l.id NOT IN (SELECT log_id FROM logs_indexed)
                 ORDER BY l.id
+                LIMIT ?
             """, params).fetchall()
         finally:
             self.conn.execute("DETACH DATABASE orch")
@@ -653,12 +659,24 @@ class RagMemory:
                                         "log_id": r["log_id"], "content": r["content"]}
                         for r in self.conn.execute(sql, list(log_cids)).fetchall()}
         out = []
+        roots: dict[str, bool] = {}
         for kind, key in ranked:
             row = file_rows.get(key) if kind == "file" else log_rows.get(key)
-            if row:
-                out.append(row)
-                if len(out) >= limit:
-                    break
+            if not row:
+                continue
+            # Файл, удалённый с диска, не выдаём НИКОГДА — даже если prune до него не дошёл:
+            # агент не отличит содержимое несуществующего файла от текущего. Один stat на кандидата.
+            # Но только когда корень проекта на месте: если каталог scope недоступен целиком,
+            # «нет файла» неотличимо от «нет монтирования», и молча опустошать выдачу нельзя.
+            if kind == "file":
+                proj = row["project"]
+                if proj not in roots:
+                    roots[proj] = Path(proj).is_dir()
+                if roots[proj] and not (Path(proj) / row["path"]).exists():
+                    continue
+            out.append(row)
+            if len(out) >= limit:
+                break
         return out
 
     def _walk_files(self, root: Path) -> list[Path]:
@@ -672,19 +690,43 @@ class RagMemory:
                     found.append(Path(dirpath) / fn)
         return found
 
-    def backfill_files(self, project: str, root: Path) -> int:
-        """Индексирует все .md проекта. Дедуп по sha256 → повторный запуск дёшев. Не-UTF8 → skip.
-        Prune: файлы из `files` которых нет на диске → удаляем. Возвращает число (ре)индексаций."""
+    def backfill_files(self, project: str, root: Path, limit: int = 0) -> int:
+        """Индексирует .md проекта. Дедуп по sha256 → повторный запуск дёшев. Не-UTF8 → skip.
+        `limit` > 0 → остановиться после стольких (ре)индексаций; остальное догонит следующий
+        проход (дедуп делает продолжение с места обрыва бесплатным). Возвращает число (ре)индексаций.
+
+        Порядок шагов — часть контракта, а не деталь. Prune идёт ПЕРВЫМ, а файлы обходятся от
+        свежих к старым:
+        - prune стоит 0.26 с на весь корпус и чинит КОРРЕКТНОСТЬ (удалённый файл перестаёт
+          выдаваться как текущий), эмбеддинг стоит десятки минут и чинит полноту. Пока prune
+          стоял последним, он не отрабатывал ни разу: процесс живёт в медиане 25 минут;
+        - свежий mtime = только что смерженная правка, ради неё поиск и зовут."""
         root = root.resolve()
         if not root.is_dir():
             logger.warning(f"RAG backfill_files: dir not found: {root}")
             return 0
         disk_paths = self._walk_files(root)
-        seen_rel: set[str] = set()
+        seen_rel = {str(p.relative_to(root)) for p in disk_paths}
+
+        indexed = [r["path"] for r in self.conn.execute(
+            "SELECT path FROM files WHERE project=?", (project,)).fetchall()]
+        pruned = 0
+        for rel in indexed:
+            if rel not in seen_rel:
+                self.delete_file(project, rel)
+                pruned += 1
+        if pruned:
+            logger.info(f"RAG backfill_files[{project}] pruned {pruned} deleted files")
+
+        def _mtime(p: Path) -> float:
+            try:
+                return p.stat().st_mtime
+            except OSError:
+                return 0.0
+
         count = 0
-        for abs_path in disk_paths:
+        for abs_path in sorted(disk_paths, key=_mtime, reverse=True):
             rel = str(abs_path.relative_to(root))
-            seen_rel.add(rel)
             try:
                 content = abs_path.read_text(encoding="utf-8")
             except UnicodeDecodeError:
@@ -693,22 +735,35 @@ class RagMemory:
             except OSError as e:
                 logger.warning(f"RAG backfill_files: skip {rel}: {e}")
                 continue
-            try:
-                mtime = abs_path.stat().st_mtime
-            except OSError:
-                mtime = 0.0
-            if self.index_file(project, rel, content, mtime):
+            if self.index_file(project, rel, content, _mtime(abs_path)):
                 count += 1
-        # prune: индексированные пути проекта, которых больше нет на диске
-        indexed = [r["path"] for r in self.conn.execute(
-            "SELECT path FROM files WHERE project=?", (project,)).fetchall()]
-        for rel in indexed:
-            if rel not in seen_rel:
-                self.delete_file(project, rel)
-                logger.info(f"RAG backfill_files: pruned stale {rel}")
+                if limit and count >= limit:
+                    break
         if count:
             logger.info(f"RAG backfill_files[{project}] indexed/updated {count} files")
         return count
+
+    def pending_files(self, project: str, root: Path) -> int:
+        """Сколько .md проекта ещё не в индексе или лежат там устаревшей версией.
+        Только обход + sha256 (0.4 с на корпус в 400 файлов), без эмбеддинга."""
+        root = root.resolve()
+        if not root.is_dir():
+            return 0
+        known = {r["path"]: r["sha256"] for r in self.conn.execute(
+            "SELECT path, sha256 FROM files WHERE project=?", (project,)).fetchall()}
+        pending = 0
+        for abs_path in self._walk_files(root):
+            rel = str(abs_path.relative_to(root))
+            try:
+                content = abs_path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if known.get(rel) == self._sha256(content):
+                continue
+            if not _chunk_file(rel, content):
+                continue  # пустой/нечанкуемый файл индексу не достаётся — не висеть ему в долге вечно
+            pending += 1
+        return pending
 
 
 # Два инстанса + два executor'а: write (index/backfill, RW conn) и read (search, RO conn).
@@ -745,12 +800,23 @@ def get_rag_ro() -> RagMemory:
     return _db_ro
 
 
-async def run(loop, method: str, *args):
+class StaleRequest(RuntimeError):
+    """Заявка простояла в очереди дольше дедлайна — ждать её результат уже некому."""
+
+
+async def run(loop, method: str, *args, deadline: float | None = None):
     """Выполнить RagMemory.<method>(*args) в нужном executor-потоке. search → read-executor
     (RO conn, конкурентно с backfill), остальное → write-executor. get_rag* вызывается ВНУТРИ
-    executor — иначе коннект привяжется к loop-потоку (SQLite check_same_thread)."""
+    executor — иначе коннект привяжется к loop-потоку (SQLite check_same_thread).
+
+    deadline (шкала time.monotonic) проверяется в момент, когда поток ВЗЯЛ работу. Просрочен →
+    StaleRequest, embedder не зовём: считать эмбеддинг для запроса, которого никто не ждёт, —
+    трата единственного потока. Именно ошибка, а НЕ пустой результат: пустой неотличим от
+    честного «совпадений нет», и агент прочитал бы протухшую заявку как «в памяти этого нет»."""
     if method in _READ_METHODS:
         def _call_ro():
+            if deadline is not None and time.monotonic() > deadline:
+                raise StaleRequest(f"{method} протух в очереди")
             return getattr(get_rag_ro(), method)(*args)
         return await loop.run_in_executor(_read_executor, _call_ro)
     def _call():

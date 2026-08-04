@@ -30,6 +30,14 @@ async def bg_job_create(req: BgJobCreateRequest):
     if not session:
         return JSONResponse({"error": f"session '{name}' not found in scope"}, status_code=404)
     session_id = session.id
+    if not str(session_id or "").strip():
+        # Раньше пустой id уезжал в джоб и всплывал как 500 где-то ниже (#54).
+        # Отказ на границе: 400 с причиной, которую видно вызывающему агенту.
+        return JSONResponse(
+            {"error": f"session '{name}' has no id — it cannot be a background job target; "
+                      f"respawn the worker"},
+            status_code=400,
+        )
     result = await bg_manager.create(
         job_type=req.type, config=req.config, message=req.message,
         target_session_id=session_id, target_name=name, target_scope=scope,

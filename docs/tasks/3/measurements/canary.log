@@ -1,0 +1,30 @@
+  t=  8.2s stall    8170ms
+  t=  9.2s stall     598ms
+  t= 10.5s stall     395ms
+  t= 11.8s stall     655ms
+  t= 22.5s stall     475ms
+  t= 35.8s stall     817ms
+  t= 37.1s stall     591ms
+  t= 38.7s stall     914ms
+  t= 44.6s stall     359ms
+  t= 46.4s stall     490ms
+  t= 48.2s stall    1610ms
+  t= 51.4s stall     615ms
+  t= 54.3s stall    1741ms
+  t= 56.1s stall     501ms
+  t= 65.3s stall    8241ms
+  t= 67.2s stall    1616ms
+  t= 69.8s stall     306ms
+  t= 71.9s stall    1237ms
+  t= 75.8s stall     626ms
+  t= 78.0s stall     270ms
+  t= 81.7s stall    1757ms
+  t= 83.1s stall     717ms
+  t= 84.3s stall     500ms
+URL=/api/role-icons n=240 p50=17.6 p90=234.2 p99=1757.2 max=8240.9 ms
+  >   50ms:   64 ( 26.7%)
+  >  100ms:   43 ( 17.9%)
+  >  250ms:   23 (  9.6%)
+  >  500ms:   17 (  7.1%)
+  > 1000ms:    7 (  2.9%)
+  > 3000ms:    2 (  0.8%)

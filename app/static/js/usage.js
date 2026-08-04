@@ -317,7 +317,44 @@ function renderUsageBar() {
     }
 }
 
-let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {}, _sparkError = '';
+let _sparkData = null, _sparkDataTs = 0, _sparkPeriodIdx = {}, _sparkError = '', _sparkStepMin = 5;
+let _sparkOldestTs = '';
+// Грузим ровно то, что рисуем: график показывает один период якорного окна, а самое
+// длинное окно у провайдеров — 7 суток. История растёт вечно, и тянуть её целиком
+// значит вернуться к тому же таймауту через пару лет. Остальное приезжает по клику ◀.
+const _SPARK_VIEW_HOURS = 168;
+
+function _sparkMessage(slot, text, isError) {
+    slot.innerHTML = `<div style="font-size:10px;color:${isError ? '#eab308' : '#475569'};font-style:italic"></div>`;
+    slot.firstChild.textContent = text;
+}
+
+// Имя с префиксом _spark: app.js уже держит глобальный _fetchHistory(name, scope)
+// и грузится ПОСЛЕ usage.js, поэтому его объявление перекрывало это.
+async function _sparkFetch(until) {
+    // Общий таймаут api() = 5 с выбран для мелких ответов и обрывался раньше этого
+    // запроса (год в 5-минутной сетке — 4.36 МБ), а падение пряталось за пустым catch.
+    const query = until
+        ? `hours=${_SPARK_VIEW_HOURS}&until=${encodeURIComponent(until)}`
+        : `hours=${_SPARK_VIEW_HOURS}`;
+    const history = await api(`/api/usage/history?${query}`,
+                              { signal: AbortSignal.timeout(30000) });
+    if (!Array.isArray(history?.rows)) {
+        throw new Error(`ответ без rows: ${JSON.stringify(history).slice(0, 80)}`);
+    }
+    _sparkStepMin = Number(history.step_minutes) || 5;
+    _sparkOldestTs = history.oldest_ts || '';
+    return history.rows;
+}
+
+// Есть ли на сервере снимки старше самого старого загруженного.
+function _sparkHasOlder() {
+    if (!_sparkOldestTs || !_sparkData?.length) return false;
+    // Через Date, а не сравнением строк: смешать «+00:00» и «Z» достаточно, чтобы
+    // лексикографический порядок соврал, а стрелка исчезла или зациклилась.
+    return new Date(_sparkData[0].ts) > new Date(_sparkOldestTs);
+}
+
 // Cache sparkline data for 5 minutes — tooltip opens frequently, avoid hammering /api/usage/history
 async function _loadSparkline(tipEl) {
     const slots = [...tipEl.querySelectorAll('[data-usage-history]')];
@@ -325,11 +362,7 @@ async function _loadSparkline(tipEl) {
     const now = Date.now();
     if (!_sparkData || now - _sparkDataTs >= 300000) {
         try {
-            // Год снимков — это мегабайты (замер 03.08: 8403 строки, 4.29 МБ), а общий
-            // таймаут api() = 5 с выбран для обычных мелких ответов. На этом запросе
-            // он срабатывал раньше ответа, и падение пряталось за пустым catch.
-            _sparkData = await api('/api/usage/history?hours=8760',
-                                   { signal: AbortSignal.timeout(30000) });
+            _sparkData = await _sparkFetch('');
             _sparkDataTs = now;
             _sparkError = '';
         } catch (e) {
@@ -344,10 +377,7 @@ async function _loadSparkline(tipEl) {
         const why = _sparkError
             ? `История не загрузилась — ${_sparkError}`
             : 'Снимков ещё нет: график появится после двух замеров в одном окне';
-        slots.forEach(slot => {
-            slot.innerHTML = `<div style="font-size:10px;color:${_sparkError ? '#eab308' : '#475569'};font-style:italic"></div>`;
-            slot.firstChild.textContent = why;
-        });
+        slots.forEach(slot => _sparkMessage(slot, why, Boolean(_sparkError)));
         return;
     }
     _sparkPeriodIdx = {};
@@ -447,11 +477,18 @@ function _renderSparklines(slot, providerFilter = null) {
         let yMin = Math.floor(Math.min(...allV)), yMax = Math.ceil(Math.max(...allV));
         if (yMax - yMin < 5) { yMin = Math.max(0, yMin - 3); yMax = yMin + 6; }
         const yRange = yMax - yMin || 1;
-        const toStr = (arr) => arr.map(p => {
-            const x = PL + p.t * gw;
-            const y = gh - ((Math.min(p.v, 100) - yMin) / yRange) * gh;
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-        }).join(' ');
+        const yOf = (p) => gh - ((Math.min(p.v, 100) - yMin) / yRange) * gh;
+        const toStr = (arr) => arr.map(p => `${(PL + p.t * gw).toFixed(1)},${yOf(p).toFixed(1)}`).join(' ');
+        // Точка с gap открывает новый отрезок: между ней и предыдущей снимков не
+        // было, и одна полилиния через дырку нарисовала бы выдуманные данные.
+        const segments = (arr) => {
+            const out = [];
+            for (const p of arr) {
+                if (p.gap || !out.length) out.push([]);
+                out[out.length - 1].push(p);
+            }
+            return out;
+        };
         const totalH = H + 12;
         let s = `<svg width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}" style="display:block">`;
         s += `<text x="${PL - 3}" y="8" text-anchor="end" fill="#64748b" font-size="9">${yMax}%</text>`;
@@ -461,9 +498,13 @@ function _renderSparklines(slot, providerFilter = null) {
             s += `<line x1="${mx}" y1="0" x2="${mx}" y2="${gh}" stroke="rgba(100,116,139,0.3)" stroke-width="0.5"/>`;
             s += `<text x="${mx}" y="${H + 11}" text-anchor="middle" fill="#64748b" font-size="8">${guide.label}</text>`;
         }
-        if (idealPts.length >= 2) s += `<polyline points="${toStr(idealPts)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
-        if (pts.length >= 2) s += `<polyline points="${toStr(pts)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
-        else if (pts.length === 1) { const px = PL + pts[0].t * gw, py = gh - ((Math.min(pts[0].v, 100) - yMin) / yRange) * gh; s += `<circle cx="${px}" cy="${py}" r="3" fill="${color}"/>`; }
+        for (const seg of segments(idealPts)) {
+            if (seg.length >= 2) s += `<polyline points="${toStr(seg)}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="4 3" stroke-linejoin="round" opacity="0.6"/>`;
+        }
+        for (const seg of segments(pts)) {
+            if (seg.length >= 2) s += `<polyline points="${toStr(seg)}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
+            else s += `<circle cx="${(PL + seg[0].t * gw).toFixed(1)}" cy="${yOf(seg[0]).toFixed(1)}" r="${pts.length === 1 ? 3 : 1.5}" fill="${color}"/>`;
+        }
         s += '</svg>';
         return s;
     };
@@ -484,18 +525,26 @@ function _renderSparklines(slot, providerFilter = null) {
         return guides;
     };
 
+    // Сервер отдаёт сетку с известным шагом и не выдаёт точку там, где снимков
+    // не было. Значит соседи дальше шага = провал в данных, а не редкая выборка.
+    const gapMs = _sparkStepMin * 1.5 * 60000;
+
     const mkPts = (slice) => {
         if (!slice.length) return { pts: [], ideal: [] };
         const t0 = new Date(slice[0].ts).getTime(), tN = new Date(slice[slice.length-1].ts).getTime();
         const range = tN - t0 || 1;
         const pts = [], ideal = [];
+        let prevMs = null;
         for (const point of slice) {
-            const t = (new Date(point.ts).getTime() - t0) / range;
-            pts.push({t, v:point.utilization});
-            if (!point.resets_at) { ideal.push({t, v:0}); continue; }
+            const ms = new Date(point.ts).getTime();
+            const t = (ms - t0) / range;
+            const gap = prevMs !== null && ms - prevMs > gapMs;
+            prevMs = ms;
+            pts.push({t, v:point.utilization, gap});
+            if (!point.resets_at) { ideal.push({t, v:0, gap}); continue; }
             const windowMs = point.window_minutes * 60000;
             const remain = new Date(point.resets_at) - new Date(point.ts);
-            ideal.push({t, v:Math.max(0, Math.min(100, (windowMs - remain) / windowMs * 100))});
+            ideal.push({t, v:Math.max(0, Math.min(100, (windowMs - remain) / windowMs * 100)), gap});
         }
         return { pts, ideal };
     };
@@ -504,6 +553,13 @@ function _renderSparklines(slot, providerFilter = null) {
     for (const series of _usageHistorySeries(data)) {
         if (!grouped.has(series.providerId)) grouped.set(series.providerId, []);
         grouped.get(series.providerId).push(series);
+    }
+    // Порядок серий задаёт цвет из палитры. Без сортировки он зависел от того, какое
+    // окно попалось в первой строке данных: подгрузили старый кусок, где 5h ещё не
+    // было, — и 5h с 7d менялись местами и цветами прямо под курсором.
+    for (const providerSeries of grouped.values()) {
+        providerSeries.sort((a, b) =>
+            (a.points[0]?.window_minutes || 0) - (b.points[0]?.window_minutes || 0));
     }
     let html = '';
     for (const [providerId, providerSeries] of grouped) {
@@ -519,7 +575,9 @@ function _renderSparklines(slot, providerFilter = null) {
         const periodIdx = Math.max(0, Math.min(_sparkPeriodIdx[anchorSeries.key] || 0, periods.length - 1));
         _sparkPeriodIdx[anchorSeries.key] = periodIdx;
         const anchorPeriod = periods[periods.length - 1 - periodIdx];
-        const hasOlder = periodIdx < periods.length - 1;
+        // Стрелка живёт, даже когда загруженные периоды кончились: следующий приедет
+        // по клику. Иначе ленивая загрузка выглядела бы как потеря истории.
+        const hasOlder = periodIdx < periods.length - 1 || _sparkHasOlder();
         const hasNewer = periodIdx > 0;
         const anchorMinutes = anchorSeries.points[0]?.window_minutes || 0;
         const periodLabel = periodIdx === 0
@@ -537,7 +595,7 @@ function _renderSparklines(slot, providerFilter = null) {
             const current = period[period.length - 1].utilization;
             const points = mkPts(period);
             const older = isAnchor && hasOlder
-                ? `<span data-spark-nav="older" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">◀</span>`
+                ? `<span data-spark-nav="older" data-spark-key="${series.key}" data-spark-periods="${periods.length}" style="cursor:pointer;color:#64748b">◀</span>`
                 : isAnchor ? '<span style="color:#1e293b">◀</span>' : '';
             const newer = isAnchor && hasNewer
                 ? `<span data-spark-nav="newer" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">▶</span>`
@@ -552,7 +610,10 @@ function _renderSparklines(slot, providerFilter = null) {
         // то же «Collecting data...», что и при полном отсутствии данных, — из-за чего
         // «данных нет вообще» и «нет данных по Codex» выглядели одинаково.
         const hasPoints = [...grouped.keys()].some(id => !providerFilter || providerFilter.has(id));
-        const firstTs = data[0]?.ts ? new Date(data[0].ts) : null;
+        // Именно первый снимок ВООБЩЕ, а не первый загруженный: с ленивой подгрузкой
+        // data[0] — это граница текущего куска, и «снимки ведутся с» врало бы.
+        const since0 = _sparkOldestTs || data[0]?.ts;
+        const firstTs = since0 ? new Date(since0) : null;
         const since = firstTs && !isNaN(firstTs)
             ? ` Снимки ведутся с ${firstTs.toLocaleDateString()}.`
             : '';
@@ -564,11 +625,24 @@ function _renderSparklines(slot, providerFilter = null) {
     }
     slot.innerHTML = html;
     slot.querySelectorAll('[data-spark-nav]').forEach(button => {
-        button.addEventListener('click', event => {
+        button.addEventListener('click', async event => {
             event.stopPropagation();
             const key = button.dataset.sparkKey;
             const delta = button.dataset.sparkNav === 'older' ? 1 : -1;
-            _sparkPeriodIdx[key] = Math.max(0, (_sparkPeriodIdx[key] || 0) + delta);
+            const idx = Math.max(0, (_sparkPeriodIdx[key] || 0) + delta);
+            _sparkPeriodIdx[key] = idx;
+            const loaded = Number(button.dataset.sparkPeriods) || 1;
+            if (delta > 0 && idx >= loaded - 1 && _sparkHasOlder()) {
+                _sparkMessage(slot, 'Загружаю предыдущий период…', false);
+                try {
+                    _sparkData = (await _sparkFetch(_sparkData[0].ts)).concat(_sparkData);
+                } catch (e) {
+                    _sparkError = `${e?.name || 'Error'}: ${e?.message || 'без текста'}`;
+                    console.error(`usage history chunk failed: ${_sparkError}`);
+                    _sparkMessage(slot, `Предыдущий период не загрузился — ${_sparkError}`, true);
+                    return;
+                }
+            }
             _renderSparklines(slot, providerFilter);
         });
     });

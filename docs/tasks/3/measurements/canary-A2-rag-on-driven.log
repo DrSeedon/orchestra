@@ -1,0 +1,62 @@
+=== CANARY v2 label=A2-rag-on-driven seconds=120 cadence=0.2s drive=RAG search 1/2s 2026-08-03 17:37:23 ===
+инструмент: /api/models (in-memory) | контроль: 127.0.0.1:8899/ping (отдельный процесс) | legacy: /api/role-icons (читает диск)
+--- условия ДО: {"pid": 79151, "rag_enabled": "true", "rag_onnx_threads": "<unset>", "rss_mb": 977, "onnxruntime_so_maps": 9, "onnx_model_maps": 0, "threads": 39, "nproc": 8, "mem_total_gb": 23.5, "uptime_min": 372.3, "loadavg": ["3.61", "3.61", "2.88"], "agent_procs": 7, "pressure_io": ["some avg10=3.18 avg60=5.30 avg300=3.69 total=838751164", "full avg10=2.86 avg60=4.64 avg300=2.96 total=809692857"], "pressure_cpu": ["some avg10=0.25 avg60=1.44 avg300=2.89 total=215809239", "full avg10=0.00 avg60=0.00 avg300=0.00 total=0"]}
+--- условия ПОСЛЕ: {"pid": 79151, "rag_enabled": "true", "rag_onnx_threads": "<unset>", "rss_mb": 1023, "onnxruntime_so_maps": 9, "onnx_model_maps": 0, "threads": 39, "nproc": 8, "mem_total_gb": 23.5, "uptime_min": 374.3, "loadavg": ["6.29", "4.49", "3.28"], "agent_procs": 10, "pressure_io": ["some avg10=13.38 avg60=15.82 avg300=7.81 total=858070718", "full avg10=12.19 avg60=14.02 avg300=6.72 total=826918395"], "pressure_cpu": ["some avg10=2.09 avg60=3.07 avg300=2.99 total=220211071", "full avg10=0.00 avg60=0.00 avg300=0.00 total=0"]}
+--- результаты ---
+  orchestra        n= 491  p50=     6.6  p90=    41.1  p99=    802.6  max=   1889.7 ms
+      >   50ms:   46 (  9.4%)
+      >  100ms:   30 (  6.1%)
+      >  250ms:   19 (  3.9%)
+      >  500ms:   10 (  2.0%)
+      > 1000ms:    4 (  0.8%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  control          n= 491  p50=     2.2  p90=     7.1  p99=     53.3  max=    123.0 ms
+      >   50ms:    5 (  1.0%)
+      >  100ms:    1 (  0.2%)
+      >  250ms:    0 (  0.0%)
+      >  500ms:    0 (  0.0%)
+      > 1000ms:    0 (  0.0%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  legacy           n=  98  p50=     6.0  p90=    22.9  p99=    798.8  max=    798.8 ms
+      >   50ms:    4 (  4.1%)
+      >  100ms:    2 (  2.0%)
+      >  250ms:    2 (  2.0%)
+      >  500ms:    1 (  1.0%)
+      > 1000ms:    0 (  0.0%)
+      > 2000ms:    0 (  0.0%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+  медиана orchestra/control = 2.9×
+--- нагрузка RAG: 42 запросов /api/memory/search, ответы {200: 42} ---
+  rag-search(200)  n=  42  p50=   439.6  p90=  2328.3  p99=   4168.6  max=   4168.6 ms
+      >   50ms:   42 (100.0%)
+      >  100ms:   42 (100.0%)
+      >  250ms:   30 ( 71.4%)
+      >  500ms:   19 ( 45.2%)
+      > 1000ms:   12 ( 28.6%)
+      > 2000ms:    6 ( 14.3%)   <<< порог фронта
+      > 5000ms:    0 (  0.0%)
+--- стойки >250 мс: 21 ---
+  t=   14.9s orchestra      785.9ms
+  t=   16.3s orchestra      367.8ms
+  t=   21.1s orchestra      802.6ms
+  t=   25.0s orchestra      415.4ms
+  t=   28.6s orchestra     1087.8ms
+  t=   30.1s orchestra      393.4ms
+  t=   35.4s orchestra      306.6ms
+  t=   40.6s orchestra      472.4ms
+  t=   42.2s orchestra      620.3ms
+  t=   56.0s orchestra      738.5ms
+  t=   59.5s orchestra      282.9ms
+  t=   70.9s orchestra      709.6ms
+  t=   73.0s orchestra      514.0ms
+  t=   74.3s orchestra      274.9ms
+  t=   76.1s orchestra      499.0ms
+  t=   82.4s orchestra     1375.8ms
+  t=   88.5s orchestra     1306.9ms
+  t=   91.5s legacy         798.8ms
+  t=   94.3s orchestra     1889.7ms
+  t=   94.6s legacy         262.4ms
+  t=   99.5s orchestra      362.7ms
+--- ошибки: 0 ---

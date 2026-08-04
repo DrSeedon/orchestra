@@ -81,45 +81,141 @@ def _fake_ssh(monkeypatch, replies: dict, calls: list | None = None):
     monkeypatch.setattr(migrate_agent, "ssh", _ssh)
 
 
-def test_service_user_comes_from_installation_not_ssh_login(monkeypatch):
-    """root@host — это логин, а не юзер службы. Берём владельца каталога установки."""
-    _fake_ssh(monkeypatch, {"stat -c %U": "kesha\n", "getent passwd": "/home/kesha\n"})
+def test_service_user_comes_from_the_unit_not_the_directory_owner(monkeypatch):
+    """Каталог может принадлежать root при `User=kesha` — так и было здесь 03.08.
 
-    user, home = migrate_agent.target_service_user("root@vps", "/home/kesha/orchestra")
+    Владелец каталога — догадка: в тот момент скрипт сделал бы `chown -R root`
+    и отчитался об успехе, то есть закрепил бы чинимый баг.
+    """
+    _fake_ssh(monkeypatch, {
+        "systemctl show": "LoadState=loaded\nUser=kesha\n",
+        "stat -c %U": "root\n",           # каталог root'овый — и это НЕ ответ
+        "getent passwd": "/home/kesha\n",
+    })
+
+    user, home = migrate_agent.target_service_user("root@vps", "/home/kesha/orchestra", "orchestra")
 
     assert (user, home) == ("kesha", "/home/kesha")
 
 
+def test_missing_unit_is_not_read_as_root(monkeypatch):
+    """`systemctl show <нет-юнита> -p User` печатает пустое и exit 0 — как живой root-юнит.
+
+    Различает только LoadState. Без него мигрированные файлы уехали бы к root.
+    """
+    _fake_ssh(monkeypatch, {"systemctl show": "LoadState=not-found\nUser=\n"})
+
+    assert migrate_agent.unit_service_user("root@vps", "ghost") == ""
+
+
+def test_loaded_unit_without_user_field_means_root(monkeypatch):
+    """Пустой User= у ЗАГРУЖЕННОГО юнита — дефолт systemd, то есть root."""
+    _fake_ssh(monkeypatch, {"systemctl show": "LoadState=loaded\nUser=\n"})
+
+    assert migrate_agent.unit_service_user("root@vps", "orchestra") == "root"
+
+
+def test_unit_absent_falls_back_to_directory_owner(monkeypatch):
+    """Юнита нет (другой хост, другое имя) → владелец каталога как ЯВНО помеченная догадка."""
+    _fake_ssh(monkeypatch, {
+        "systemctl show": "LoadState=not-found\nUser=\n",
+        "stat -c %U": "kesha\n",
+        "getent passwd": "/home/kesha\n",
+    })
+
+    assert migrate_agent.target_service_user("root@vps", "/home/kesha/orchestra", "orchestra") == (
+        "kesha", "/home/kesha",
+    )
+
+
 def test_unknown_owner_stops_the_migration(monkeypatch):
     """Не смогли определить юзера → падаем, а не продолжаем от root."""
-    _fake_ssh(monkeypatch, {"stat -c %U": "\n"})
+    _fake_ssh(monkeypatch, {"systemctl show": "LoadState=not-found\n", "stat -c %U": "\n"})
 
     with pytest.raises(SystemExit):
-        migrate_agent.target_service_user("root@vps", "/home/kesha/orchestra")
+        migrate_agent.target_service_user("root@vps", "/home/kesha/orchestra", "orchestra")
 
 
 def test_unknown_home_stops_the_migration(monkeypatch):
-    _fake_ssh(monkeypatch, {"stat -c %U": "kesha\n", "getent passwd": "\n"})
+    _fake_ssh(monkeypatch, {
+        "systemctl show": "LoadState=loaded\nUser=kesha\n", "getent passwd": "\n",
+    })
 
     with pytest.raises(SystemExit):
-        migrate_agent.target_service_user("root@vps", "/home/kesha/orchestra")
+        migrate_agent.target_service_user("root@vps", "/home/kesha/orchestra", "orchestra")
+
+
+class _FakeHost:
+    """ssh-заглушка с состоянием: chown реально «убирает» чужих владельцев."""
+
+    def __init__(self, foreign: list[str], modes: list[str] | None = None,
+                 probe_rc: int = 0, chown_works: bool = True):
+        self.foreign = list(foreign)
+        self.modes = modes if modes is not None else ["755 /path"]
+        self.probe_rc = probe_rc
+        self.chown_works = chown_works
+        self.calls: list[str] = []
+
+    def ssh(self, host, cmd, *, check=True, capture=True):
+        self.calls.append(cmd)
+        if "chown -R" in cmd:
+            if self.chown_works:
+                self.foreign = []
+            return subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        if "! -user" in cmd:
+            return subprocess.CompletedProcess(
+                [], self.probe_rc, stdout="\n".join(self.foreign), stderr="",
+            )
+        if "-printf '%m" in cmd:
+            return subprocess.CompletedProcess([], 0, stdout="\n".join(self.modes), stderr="")
+        return subprocess.CompletedProcess([], 0, stdout="", stderr="")
 
 
 def test_chown_is_verified_not_assumed(monkeypatch):
     """chown мог не сработать. Молча продолжать нельзя — это и есть тот баг."""
-    _fake_ssh(monkeypatch, {"find": "7"})  # 7 чужих файлов и до, и после
+    host = _FakeHost(["/path/a", "/path/b"], chown_works=False)
+    monkeypatch.setattr(migrate_agent, "ssh", host.ssh)
 
     with pytest.raises(SystemExit):
         migrate_agent.give_to_service_user("root@vps", "/path", "kesha")
 
 
+def test_missing_path_is_not_reported_as_clean(monkeypatch):
+    """Пути нет → раньше `find … 2>/dev/null | wc -c` печатал 0, как и при успехе.
+
+    Проверка, дающая одинаковый вывод при успехе и провале, — не проверка.
+    """
+    host = _FakeHost([], probe_rc=66)
+    monkeypatch.setattr(migrate_agent, "ssh", host.ssh)
+
+    with pytest.raises(SystemExit):
+        migrate_agent.give_to_service_user("root@vps", "/gone", "kesha")
+
+
 def test_chown_runs_recursively_for_the_service_user(monkeypatch):
-    calls: list[str] = []
-    _fake_ssh(monkeypatch, {"find": "0"}, calls)
+    host = _FakeHost(["/path/a"])
+    monkeypatch.setattr(migrate_agent, "ssh", host.ssh)
 
     migrate_agent.give_to_service_user("root@vps", "/path", "kesha")
 
-    assert any("chown -R kesha:kesha" in c for c in calls)
+    assert any("chown -R kesha:kesha" in c for c in host.calls)
+
+
+def test_changed_permissions_stop_the_migration(monkeypatch):
+    """Правило проекта: меняем ВЛАДЕЛЬЦА, а не режим. Съехал режим — падаем."""
+    host = _FakeHost(["/path/a"], modes=["755 /path"])
+    original = host.ssh
+
+    def ssh_with_mode_drift(hostname, cmd, **kw):
+        result = original(hostname, cmd, **kw)
+        if "-printf '%m" in cmd and not host.foreign:  # снимок ПОСЛЕ chown
+            return subprocess.CompletedProcess([], 0, stdout="700 /path", stderr="")
+        return result
+
+    monkeypatch.setattr(migrate_agent, "ssh", ssh_with_mode_drift)
+
+    with pytest.raises(SystemExit):
+        migrate_agent.give_to_service_user("root@vps", "/path", "kesha")
 
 
 # ── назначение транскрипта ──
@@ -138,3 +234,128 @@ def test_transcript_lands_in_service_user_home_not_root(monkeypatch):
     mkdir = next(c for c in calls if c.startswith("mkdir -p"))
     assert "/home/kesha/.claude/projects/-home-kesha-projects-x" in mkdir
     assert "~" not in mkdir
+
+
+# ── сквозная проверка на РЕАЛЬНЫХ владельцах ──
+#
+# Владение нельзя смоделировать заглушками: нужны два разных юзера и настоящий git.
+# Стенд подменяет только транспорт (ssh/scp исполняются локально), логика migrate_git
+# работает как в бою. Нет беспарольного sudo → тест пропускается, а не притворяется.
+
+def _sudo_available() -> bool:
+    import shutil
+    if not shutil.which("sudo"):
+        return False
+    return subprocess.run(["sudo", "-n", "true"], capture_output=True).returncode == 0
+
+
+requires_two_users = pytest.mark.skipif(
+    not _sudo_available(), reason="нужен беспарольный sudo: стенду нужны два владельца",
+)
+
+
+def _strip_host(path: str) -> str:
+    import re
+    return re.sub(r"^[^/][^:]*:", "", path)
+
+
+@pytest.fixture
+def migration_stand(tmp_path, monkeypatch):
+    """Исходный репозиторий с веткой воркера + целевой клон, оба у сервисного юзера."""
+    import getpass
+    me = getpass.getuser()
+    src = tmp_path / "src"
+    dst = tmp_path / "dst"
+    orch = tmp_path / "orch"
+    branch = "adhoc-913188/vanilla-frontend"
+
+    def run(*args, cwd=None):
+        subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
+
+    run("git", "init", "-q", "-b", "main", str(src))
+    run("git", "-C", str(src), "config", "user.email", "w@t")
+    run("git", "-C", str(src), "config", "user.name", "W")
+    (src / "a.txt").write_text("base\n")
+    run("git", "-C", str(src), "add", "-A")
+    run("git", "-C", str(src), "commit", "-qm", "base")
+    run("git", "-C", str(src), "branch", branch)
+    run("git", "clone", "-q", str(src), str(dst))
+    run("git", "-C", str(dst), "config", "user.email", "w@t")
+    run("git", "-C", str(dst), "config", "user.name", "W")
+    orch.mkdir()
+
+    calls: list[str] = []
+
+    def local_ssh(host, cmd, *, check=True, capture=True):
+        calls.append(cmd)
+        argv = ["sudo", "bash", "-c", cmd] if host.startswith("root@") else ["bash", "-c", cmd]
+        return subprocess.run(argv, check=check, text=True, capture_output=capture)
+
+    def local_scp(source, dest, *, recursive=False):
+        argv = ["sudo", "cp"] + (["-r"] if recursive else []) + [_strip_host(source), _strip_host(dest)]
+        subprocess.run(argv, check=True, capture_output=True)
+
+    monkeypatch.setattr(migrate_agent, "ssh", local_ssh)
+    monkeypatch.setattr(migrate_agent, "scp", local_scp)
+    yield SimpleNamespace(me=me, src=src, dst=dst, orch=orch, branch=branch, calls=calls)
+    subprocess.run(["sudo", "chown", "-R", f"{me}:{me}", str(tmp_path)], capture_output=True)
+
+
+@requires_two_users
+def test_migrated_worker_can_actually_commit(migration_stand):
+    """Главная проверка: не «права выставлены», а СДЕЛАН коммит в перенесённом worktree.
+
+    Читать мигрированный воркер мог и раньше — падал только коммит, на блокировке
+    .git/refs/heads/<branch>. Такой воркер выглядит исправным и тихо теряет работу.
+    """
+    s = migration_stand
+    row = {"name": "vanilla-frontend", "branch": s.branch,
+           "scope": str(s.src), "worktree_path": "/old/worktrees/vanilla-frontend"}
+
+    new_wt = migrate_agent.migrate_git(
+        "root@src", "root@dst", row,
+        str(s.src), str(s.dst), str(s.orch), s.me,
+    )
+
+    wt = pathlib.Path(new_wt)
+    assert wt.is_dir()
+    (wt / "a.txt").write_text("worker edit\n")
+    add = subprocess.run(["git", "-C", str(wt), "add", "-A"], capture_output=True, text=True)
+    commit = subprocess.run(
+        ["git", "-C", str(wt), "commit", "-m", "worker work"], capture_output=True, text=True,
+    )
+    assert add.returncode == 0, add.stderr
+    assert commit.returncode == 0, commit.stderr
+
+
+@requires_two_users
+def test_nothing_is_left_behind_for_the_login_user(migration_stand):
+    """Ни worktree, ни .git целевого репозитория не остаются за чужим владельцем."""
+    s = migration_stand
+    row = {"name": "vanilla-frontend", "branch": s.branch,
+           "scope": str(s.src), "worktree_path": "/old/worktrees/vanilla-frontend"}
+
+    new_wt = migrate_agent.migrate_git(
+        "root@src", "root@dst", row,
+        str(s.src), str(s.dst), str(s.orch), s.me,
+    )
+
+    for path in (new_wt, str(s.dst / ".git")):
+        foreign = subprocess.run(
+            ["find", path, "!", "-user", s.me], capture_output=True, text=True,
+        )
+        assert foreign.stdout.strip() == "", f"чужие владельцы под {path}: {foreign.stdout}"
+
+
+@requires_two_users
+def test_no_permanent_safe_directory_is_written_on_the_host(migration_stand):
+    """safe.directory передаётся на один вызов, а не прописывается в чужой gitconfig."""
+    s = migration_stand
+    row = {"name": "vanilla-frontend", "branch": s.branch,
+           "scope": str(s.src), "worktree_path": "/old/worktrees/vanilla-frontend"}
+
+    migrate_agent.migrate_git("root@src", "root@dst", row,
+                              str(s.src), str(s.dst), str(s.orch), s.me)
+
+    assert not [c for c in s.calls if "config --global" in c]
+    assert [c for c in s.calls if "-c safe.directory=" in c]

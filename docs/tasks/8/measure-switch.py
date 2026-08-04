@@ -25,7 +25,7 @@ async def main():
         pg = await ctx.new_page()
         override = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else None
         if override:
-            await pg.route("**/static/js/app.js",
+            await pg.route("**/static/js/app.js*",
                            lambda r: r.fulfill(status=200, content_type="text/javascript",
                                                body=override.read_text()))
             await pg.route("**/api/logs/sync*", lambda r: r.fulfill(

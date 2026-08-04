@@ -1,0 +1,1198 @@
+{
+ "cold": {
+  "nav": {
+   "ttfb": 4.2,
+   "htmlWire": 5634,
+   "htmlDecoded": 23786,
+   "domInteractive": 496.2,
+   "domContentLoaded": 502.2,
+   "load": 502.8
+  },
+  "paint": {
+   "first-paint": 368,
+   "first-contentful-paint": 504
+  },
+  "res": [
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "type": "script",
+    "start": 16.2,
+    "end": 49.5,
+    "dur": 33.3,
+    "wire": 0,
+    "decoded": 407279
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "type": "script",
+    "start": 16.5,
+    "end": 34.4,
+    "dur": 17.9,
+    "wire": 0,
+    "decoded": 39903
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "type": "script",
+    "start": 16.6,
+    "end": 35.1,
+    "dur": 18.5,
+    "wire": 0,
+    "decoded": 24825
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/diff_match_patch.js?v=18bf4b0206791569",
+    "type": "script",
+    "start": 16.7,
+    "end": 36.9,
+    "dur": 20.2,
+    "wire": 0,
+    "decoded": 19192
+   },
+   {
+    "name": "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js",
+    "type": "script",
+    "start": 16.8,
+    "end": 48,
+    "dur": 31.2,
+    "wire": 0,
+    "decoded": 208522
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/highlight.min.js?v=18bf4b0206885799",
+    "type": "script",
+    "start": 16.9,
+    "end": 45.3,
+    "dur": 28.4,
+    "wire": 0,
+    "decoded": 127496
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/highlight-github-dark.min.css?v=18bf4b0206791569",
+    "type": "link",
+    "start": 17,
+    "end": 32,
+    "dur": 15,
+    "wire": 0,
+    "decoded": 1315
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/style.css?v=18c837b1c45fbfd6",
+    "type": "link",
+    "start": 17.2,
+    "end": 33.1,
+    "dur": 15.9,
+    "wire": 0,
+    "decoded": 44232
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/utils.js?v=18c837b1c4bb4d05",
+    "type": "script",
+    "start": 17.3,
+    "end": 39.3,
+    "dur": 22,
+    "wire": 0,
+    "decoded": 6362
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/tool-renderers.js?v=18c837b1c49cc8a0",
+    "type": "script",
+    "start": 17.4,
+    "end": 39.9,
+    "dur": 22.5,
+    "wire": 0,
+    "decoded": 29030
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/usage.js?v=18c859e2ea5c2b6b",
+    "type": "script",
+    "start": 17.5,
+    "end": 40.6,
+    "dur": 23.1,
+    "wire": 0,
+    "decoded": 39232
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/analytics.js?v=18c837b1c46f0208",
+    "type": "script",
+    "start": 17.6,
+    "end": 41.1,
+    "dur": 23.5,
+    "wire": 0,
+    "decoded": 33457
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/app.js?v=18c87ecc24ba5d85",
+    "type": "script",
+    "start": 17.7,
+    "end": 50.4,
+    "dur": 32.7,
+    "wire": 0,
+    "decoded": 364414
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/role-icons",
+    "type": "fetch",
+    "start": 492.9,
+    "end": 502,
+    "dur": 9.1,
+    "wire": 302,
+    "decoded": 2
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/proxy/list",
+    "type": "fetch",
+    "start": 499,
+    "end": 557.7,
+    "dur": 58.7,
+    "wire": 357,
+    "decoded": 26
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/models",
+    "type": "fetch",
+    "start": 499.9,
+    "end": 558.7,
+    "dur": 58.8,
+    "wire": 1047,
+    "decoded": 4732
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 500.1,
+    "end": 713.4,
+    "dur": 213.3,
+    "wire": 1997,
+    "decoded": 7837
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/usage",
+    "type": "fetch",
+    "start": 500.6,
+    "end": 714.6,
+    "dur": 214,
+    "wire": 1752,
+    "decoded": 4505
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/report_bug/status",
+    "type": "fetch",
+    "start": 501.1,
+    "end": 734,
+    "dur": 232.9,
+    "wire": 412,
+    "decoded": 99
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/logs/sync?after_id=0&tail=20&cap=16384",
+    "type": "fetch",
+    "start": 536.6,
+    "end": 749.8,
+    "dur": 213.2,
+    "wire": 132713,
+    "decoded": 499978
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 743.8,
+    "end": 786.3,
+    "dur": 42.5,
+    "wire": 2131,
+    "decoded": 9870
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 744.1,
+    "end": 791.3,
+    "dur": 47.2,
+    "wire": 446,
+    "decoded": 189
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 744.5,
+    "end": 794.4,
+    "dur": 49.9,
+    "wire": 796,
+    "decoded": 2546
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100",
+    "type": "fetch",
+    "start": 876.7,
+    "end": 913.5,
+    "dur": 36.8,
+    "wire": 33944,
+    "decoded": 122685
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 926.7,
+    "end": 937.2,
+    "dur": 10.5,
+    "wire": 423,
+    "decoded": 129
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 928,
+    "end": 977.6,
+    "dur": 49.6,
+    "wire": 1997,
+    "decoded": 7837
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1157.7,
+    "end": 1172.8,
+    "dur": 15.1,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1158.4,
+    "end": 1166.1,
+    "dur": 7.7,
+    "wire": 391,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1174.6,
+    "end": 1194.4,
+    "dur": 19.8,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1175.2,
+    "end": 1185.6,
+    "dur": 10.4,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1180.5,
+    "end": 1207,
+    "dur": 26.5,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1181.1,
+    "end": 1195.6,
+    "dur": 14.5,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1276.1,
+    "end": 1292,
+    "dur": 15.9,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1278.2,
+    "end": 1284.6,
+    "dur": 6.4,
+    "wire": 391,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1284.1,
+    "end": 1307.4,
+    "dur": 23.3,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1284.8,
+    "end": 1293.4,
+    "dur": 8.6,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1293.5,
+    "end": 1320,
+    "dur": 26.5,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1294.3,
+    "end": 1304.6,
+    "dur": 10.3,
+    "wire": 391,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1311.7,
+    "end": 1340.1,
+    "dur": 28.4,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1312.3,
+    "end": 1321.7,
+    "dur": 9.4,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1316.2,
+    "end": 1356.2,
+    "dur": 40,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1316.7,
+    "end": 1335.8,
+    "dur": 19.1,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1342,
+    "end": 1369.3,
+    "dur": 27.3,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1342.5,
+    "end": 1348.8,
+    "dur": 6.3,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 3501.3,
+    "end": 3539.2,
+    "dur": 37.9,
+    "wire": 2132,
+    "decoded": 9870
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 3501.5,
+    "end": 3540,
+    "dur": 38.5,
+    "wire": 446,
+    "decoded": 189
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/models",
+    "type": "fetch",
+    "start": 3502.1,
+    "end": 3540.8,
+    "dur": 38.7,
+    "wire": 1049,
+    "decoded": 4732
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 3548.2,
+    "end": 3557.2,
+    "dur": 9,
+    "wire": 423,
+    "decoded": 129
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 3549.6,
+    "end": 3593.1,
+    "dur": 43.5,
+    "wire": 1991,
+    "decoded": 7837
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/models",
+    "type": "fetch",
+    "start": 6503,
+    "end": 6514.5,
+    "dur": 11.5,
+    "wire": 1047,
+    "decoded": 4732
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 6598.7,
+    "end": 6652.2,
+    "dur": 53.5,
+    "wire": 2132,
+    "decoded": 9870
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 6598.9,
+    "end": 6653.3,
+    "dur": 54.4,
+    "wire": 447,
+    "decoded": 189
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 6658,
+    "end": 6689.8,
+    "dur": 31.8,
+    "wire": 428,
+    "decoded": 129
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 6658.8,
+    "end": 6690.7,
+    "dur": 31.9,
+    "wire": 1991,
+    "decoded": 7837
+   }
+  ],
+  "longtasks": [
+   {
+    "start": 124.6,
+    "dur": 89
+   },
+   {
+    "start": 214.3,
+    "dur": 147
+   },
+   {
+    "start": 363.8,
+    "dur": 71
+   },
+   {
+    "start": 779.7,
+    "dur": 57
+   },
+   {
+    "start": 1021.6,
+    "dur": 358
+   }
+  ],
+  "lcp": 1468,
+  "marks": {
+   "agentsListed": 929.3,
+   "chatFirst": 1357.7,
+   "chat20": 1357.8
+  },
+  "cores": 8,
+  "label": "cold",
+  "wallclock_s": 8.55,
+  "loadavg": [
+   "4.62",
+   "3.58",
+   "2.46"
+  ],
+  "sse": [
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=10332"
+  ],
+  "urls": [
+   "https://orchestra.seedon.ru/",
+   "https://orchestra.seedon.ru/static/css/vendor/highlight-github-dark.min.css?v=18bf4b0206791569",
+   "https://orchestra.seedon.ru/static/css/style.css?v=18c837b1c45fbfd6",
+   "https://orchestra.seedon.ru/static/js/utils.js?v=18c837b1c4bb4d05",
+   "https://orchestra.seedon.ru/static/css/vendor/diff_match_patch.js?v=18bf4b0206791569",
+   "https://orchestra.seedon.ru/static/js/tool-renderers.js?v=18c837b1c49cc8a0",
+   "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+   "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+   "https://orchestra.seedon.ru/static/js/analytics.js?v=18c837b1c46f0208",
+   "https://orchestra.seedon.ru/static/js/usage.js?v=18c859e2ea5c2b6b",
+   "https://orchestra.seedon.ru/static/js/app.js?v=18c87ecc24ba5d85",
+   "https://orchestra.seedon.ru/static/css/vendor/highlight.min.js?v=18bf4b0206885799",
+   "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js",
+   "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+   "https://orchestra.seedon.ru/api/role-icons",
+   "https://orchestra.seedon.ru/api/proxy/list",
+   "https://orchestra.seedon.ru/api/models",
+   "https://orchestra.seedon.ru/api/orchestrators",
+   "https://orchestra.seedon.ru/api/usage",
+   "https://orchestra.seedon.ru/api/logs/sync?after_id=0&tail=20&cap=16384",
+   "https://orchestra.seedon.ru/api/report_bug/status",
+   "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/orchestrators",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=10332",
+   "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/models",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/orchestrators",
+   "https://orchestra.seedon.ru/api/models",
+   "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/orchestrators"
+  ],
+  "responses": 56
+ },
+ "warm": {
+  "nav": {
+   "ttfb": 8.9,
+   "htmlWire": 5634,
+   "htmlDecoded": 23786,
+   "domInteractive": 387.1,
+   "domContentLoaded": 404.8,
+   "load": 410.2
+  },
+  "paint": {
+   "first-paint": 256,
+   "first-contentful-paint": 436
+  },
+  "res": [
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+    "type": "script",
+    "start": 22.5,
+    "end": 63.8,
+    "dur": 41.3,
+    "wire": 0,
+    "decoded": 407279
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+    "type": "script",
+    "start": 24,
+    "end": 44.6,
+    "dur": 20.6,
+    "wire": 0,
+    "decoded": 39903
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+    "type": "script",
+    "start": 24.3,
+    "end": 45.3,
+    "dur": 21,
+    "wire": 0,
+    "decoded": 24825
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/diff_match_patch.js?v=18bf4b0206791569",
+    "type": "script",
+    "start": 24.4,
+    "end": 45.7,
+    "dur": 21.3,
+    "wire": 0,
+    "decoded": 19192
+   },
+   {
+    "name": "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js",
+    "type": "script",
+    "start": 24.6,
+    "end": 60.1,
+    "dur": 35.5,
+    "wire": 0,
+    "decoded": 208522
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/highlight.min.js?v=18bf4b0206885799",
+    "type": "script",
+    "start": 24.7,
+    "end": 56.5,
+    "dur": 31.8,
+    "wire": 0,
+    "decoded": 127496
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/vendor/highlight-github-dark.min.css?v=18bf4b0206791569",
+    "type": "link",
+    "start": 24.8,
+    "end": 40.6,
+    "dur": 15.8,
+    "wire": 0,
+    "decoded": 1315
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/css/style.css?v=18c837b1c45fbfd6",
+    "type": "link",
+    "start": 24.9,
+    "end": 43.6,
+    "dur": 18.7,
+    "wire": 0,
+    "decoded": 44232
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/utils.js?v=18c837b1c4bb4d05",
+    "type": "script",
+    "start": 25,
+    "end": 51.6,
+    "dur": 26.6,
+    "wire": 0,
+    "decoded": 6362
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/tool-renderers.js?v=18c837b1c49cc8a0",
+    "type": "script",
+    "start": 25.1,
+    "end": 52.2,
+    "dur": 27.1,
+    "wire": 0,
+    "decoded": 29030
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/usage.js?v=18c859e2ea5c2b6b",
+    "type": "script",
+    "start": 25.1,
+    "end": 52.8,
+    "dur": 27.7,
+    "wire": 0,
+    "decoded": 39232
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/analytics.js?v=18c837b1c46f0208",
+    "type": "script",
+    "start": 25.3,
+    "end": 53.2,
+    "dur": 27.9,
+    "wire": 0,
+    "decoded": 33457
+   },
+   {
+    "name": "https://orchestra.seedon.ru/static/js/app.js?v=18c87ecc24ba5d85",
+    "type": "script",
+    "start": 25.5,
+    "end": 65.7,
+    "dur": 40.2,
+    "wire": 0,
+    "decoded": 364414
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/role-icons",
+    "type": "fetch",
+    "start": 385.8,
+    "end": 408.3,
+    "dur": 22.5,
+    "wire": 302,
+    "decoded": 2
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/proxy/list",
+    "type": "fetch",
+    "start": 388.6,
+    "end": 474.9,
+    "dur": 86.3,
+    "wire": 357,
+    "decoded": 26
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/models",
+    "type": "fetch",
+    "start": 401.1,
+    "end": 478.7,
+    "dur": 77.6,
+    "wire": 1047,
+    "decoded": 4732
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 401.7,
+    "end": 485.2,
+    "dur": 83.5,
+    "wire": 1997,
+    "decoded": 7837
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/usage",
+    "type": "fetch",
+    "start": 402.1,
+    "end": 485.7,
+    "dur": 83.6,
+    "wire": 1752,
+    "decoded": 4505
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/report_bug/status",
+    "type": "fetch",
+    "start": 402.7,
+    "end": 490,
+    "dur": 87.3,
+    "wire": 412,
+    "decoded": 99
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/logs/sync?after_id=10356&tail=20&cap=16384",
+    "type": "fetch",
+    "start": 441.2,
+    "end": 488.6,
+    "dur": 47.4,
+    "wire": 3846,
+    "decoded": 8838
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 515.1,
+    "end": 567.2,
+    "dur": 52.1,
+    "wire": 2132,
+    "decoded": 9870
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 515.4,
+    "end": 568.2,
+    "dur": 52.8,
+    "wire": 447,
+    "decoded": 189
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 515.9,
+    "end": 569.2,
+    "dur": 53.3,
+    "wire": 796,
+    "decoded": 2546
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 636.4,
+    "end": 696.2,
+    "dur": 59.8,
+    "wire": 423,
+    "decoded": 129
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 637.7,
+    "end": 698.8,
+    "dur": 61.1,
+    "wire": 1991,
+    "decoded": 7837
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 863.9,
+    "end": 902.4,
+    "dur": 38.5,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 864.1,
+    "end": 884.2,
+    "dur": 20.1,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 879.1,
+    "end": 915.6,
+    "dur": 36.5,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 879.5,
+    "end": 903.9,
+    "dur": 24.4,
+    "wire": 391,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 942.3,
+    "end": 967.4,
+    "dur": 25.1,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 943.3,
+    "end": 951.8,
+    "dur": 8.5,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=10272&limit=80",
+    "type": "fetch",
+    "start": 948.5,
+    "end": 979.8,
+    "dur": 31.3,
+    "wire": 29155,
+    "decoded": 99635
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1106.3,
+    "end": 1147,
+    "dur": 40.7,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1106.9,
+    "end": 1127.2,
+    "dur": 20.3,
+    "wire": 391,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1117.5,
+    "end": 1174.2,
+    "dur": 56.7,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1118.3,
+    "end": 1136,
+    "dur": 17.7,
+    "wire": 391,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1130,
+    "end": 1187.1,
+    "dur": 57.1,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1130.6,
+    "end": 1150.9,
+    "dur": 20.3,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1335.4,
+    "end": 1351.7,
+    "dur": 16.3,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1336.1,
+    "end": 1346.3,
+    "dur": 10.2,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1347.3,
+    "end": 1393.1,
+    "dur": 45.8,
+    "wire": 2850,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1347.9,
+    "end": 1356.4,
+    "dur": 8.5,
+    "wire": 391,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 1367.8,
+    "end": 1411.5,
+    "dur": 43.7,
+    "wire": 2860,
+    "decoded": 8859
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/tm/payments/status",
+    "type": "fetch",
+    "start": 1368.5,
+    "end": 1406.3,
+    "dur": 37.8,
+    "wire": 386,
+    "decoded": 69
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 3404.6,
+    "end": 3456.3,
+    "dur": 51.7,
+    "wire": 2132,
+    "decoded": 9870
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 3404.9,
+    "end": 3458.2,
+    "dur": 53.3,
+    "wire": 447,
+    "decoded": 189
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/models",
+    "type": "fetch",
+    "start": 3405.7,
+    "end": 3459.8,
+    "dur": 54.1,
+    "wire": 1049,
+    "decoded": 4732
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 3462,
+    "end": 3503,
+    "dur": 41,
+    "wire": 428,
+    "decoded": 129
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 3463.2,
+    "end": 3504.2,
+    "dur": 41,
+    "wire": 1991,
+    "decoded": 7837
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/models",
+    "type": "fetch",
+    "start": 6405.8,
+    "end": 6418.2,
+    "dur": 12.4,
+    "wire": 1049,
+    "decoded": 4732
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 6515.9,
+    "end": 6560.2,
+    "dur": 44.3,
+    "wire": 2132,
+    "decoded": 9870
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 6518,
+    "end": 6561.5,
+    "dur": 43.5,
+    "wire": 452,
+    "decoded": 189
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+    "type": "fetch",
+    "start": 6571.3,
+    "end": 6611.8,
+    "dur": 40.5,
+    "wire": 428,
+    "decoded": 129
+   },
+   {
+    "name": "https://orchestra.seedon.ru/api/orchestrators",
+    "type": "fetch",
+    "start": 6572.2,
+    "end": 6612.8,
+    "dur": 40.6,
+    "wire": 1991,
+    "decoded": 7837
+   }
+  ],
+  "longtasks": [
+   {
+    "start": 77.7,
+    "dur": 167
+   },
+   {
+    "start": 250.3,
+    "dur": 87
+   },
+   {
+    "start": 758.2,
+    "dur": 219
+   },
+   {
+    "start": 1025.9,
+    "dur": 441
+   }
+  ],
+  "lcp": 1060,
+  "marks": {
+   "agentsListed": 640.9,
+   "chatFirst": 950,
+   "chat20": 1438.7
+  },
+  "cores": 8,
+  "label": "warm",
+  "wallclock_s": 8.47,
+  "loadavg": [
+   "4.59",
+   "3.61",
+   "2.48"
+  ],
+  "sse": [
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=10332"
+  ],
+  "urls": [
+   "https://orchestra.seedon.ru/",
+   "https://orchestra.seedon.ru/static/css/vendor/highlight-github-dark.min.css?v=18bf4b0206791569",
+   "https://orchestra.seedon.ru/static/css/style.css?v=18c837b1c45fbfd6",
+   "https://orchestra.seedon.ru/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+   "https://orchestra.seedon.ru/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+   "https://orchestra.seedon.ru/static/css/vendor/diff_match_patch.js?v=18bf4b0206791569",
+   "https://orchestra.seedon.ru/static/js/utils.js?v=18c837b1c4bb4d05",
+   "https://orchestra.seedon.ru/static/js/tool-renderers.js?v=18c837b1c49cc8a0",
+   "https://orchestra.seedon.ru/static/js/usage.js?v=18c859e2ea5c2b6b",
+   "https://orchestra.seedon.ru/static/js/analytics.js?v=18c837b1c46f0208",
+   "https://orchestra.seedon.ru/static/css/vendor/highlight.min.js?v=18bf4b0206885799",
+   "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js",
+   "https://orchestra.seedon.ru/static/css/vendor/tailwind.js?v=18bf4b0206b61e27",
+   "https://orchestra.seedon.ru/static/js/app.js?v=18c87ecc24ba5d85",
+   "https://orchestra.seedon.ru/api/role-icons",
+   "https://orchestra.seedon.ru/api/proxy/list",
+   "https://orchestra.seedon.ru/api/models",
+   "https://orchestra.seedon.ru/api/orchestrators",
+   "https://orchestra.seedon.ru/api/usage",
+   "https://orchestra.seedon.ru/api/logs/sync?after_id=10356&tail=20&cap=16384",
+   "https://orchestra.seedon.ru/api/report_bug/status",
+   "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/orchestrators",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=10272&limit=80",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=10332",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/tm/payments/status",
+   "https://orchestra.seedon.ru/api/tm/tasks?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/models",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/orchestrators",
+   "https://orchestra.seedon.ru/api/models",
+   "https://orchestra.seedon.ru/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "https://orchestra.seedon.ru/api/orchestrators"
+  ],
+  "responses": 56
+ }
+}

@@ -15,17 +15,17 @@ import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Form
+from fastapi import APIRouter, HTTPException, Request, Response, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app.auth import is_auth_enabled, is_owner_mode
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
-from app.deps import manager, templates
+from app.deps import build_id, manager, templates
 from app.models import (
     MODELS,
     cache_policy_for_runtime,
@@ -70,14 +70,17 @@ async def dashboard(request: Request):
         "is_auth_enabled": is_auth_enabled(),
         "is_owner_mode": is_owner_mode(),
         "client_name": os.getenv("CLIENT_NAME", "Client"),
-    })
+    # Кешировать HTML нельзя: в нём лежат версии статики, устареет он — версии
+    # не обновятся, и весь механизм из #9 перестанет работать
+    }, headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     if not is_auth_enabled():
         return RedirectResponse("/", status_code=302)
-    return templates.TemplateResponse(request, "login.html", {"error": ""})
+    return templates.TemplateResponse(request, "login.html", {"error": ""},
+                                      headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/login")
@@ -339,7 +342,11 @@ async def remove_profile(name: str):
 
 
 @router.get("/api/models")
-async def list_models():
+async def list_models(response: Response):
+    # Версию фронта отдаём ЗАГОЛОВКОМ, а не полем в теле: heartbeat дёргает этот маршрут
+    # раз в 3 с и читает только статус — разбирать ради одного значения несколько
+    # килобайт JSON незачем. Тело маршрута при этом не меняется, старый клиент цел.
+    response.headers["X-Orchestra-Build"] = build_id()
     models = []
     for mid, name in MODELS.items():
         spec = get_model_spec(mid)
@@ -362,6 +369,13 @@ async def list_models():
         "provider_metadata": provider_metadata_payload(),
         "proxy_connected": is_proxy_connected(),
     }
+
+
+@router.head("/api/models")
+async def head_models():
+    """Heartbeat'у нужны только статус и версия сборки — тело GET'а он выбрасывает.
+    Тот же заголовок, что у GET: без него баннер обновления замолчит, не сломавшись."""
+    return Response(status_code=200, headers={"X-Orchestra-Build": build_id()})
 
 
 @router.post("/api/models/refresh")
@@ -971,12 +985,51 @@ async def _usage_snapshot_loop():
         await asyncio.sleep(SNAPSHOT_INTERVAL)
 
 
+# График рисует не весь запрошенный диапазон, а одно окно лимита (≤7 сут)
+# в 252 px — это 40 минут на пиксель. Шаг 30 мин даёт 1.3 точки на пиксель,
+# больше отдавать нечего рисовать: год в 5-минутной сетке — 4.32 МБ (замер 03.08).
+HISTORY_FINE_STEP = 5
+HISTORY_COARSE_STEP = 30
+# Сразу после недельного сброса текущий период — это часы, и на прореженной
+# сетке в нём остаётся 2-3 точки. Плюс решение «пора остановиться» принимают
+# по текущему 5h-окну, где нужна минутная детализация. Поэтому свежий хвост
+# всегда отдаём в полном разрешении.
+HISTORY_FINE_HOURS = 48
+
+
 @router.get("/api/usage/history")
-async def usage_history(hours: int = 24):
+async def usage_history(hours: int = 24, step_minutes: int = 0, until: str = ""):
+    """История снимков: {step_minutes, rows, oldest_ts}.
+
+    step_minutes — шаг сетки в прореженной части ответа. Фронт по нему решает,
+    где разрыв данных: расстояние между соседними точками больше шага = дырка,
+    её нельзя соединять линией.
+    until — правая граница окна (исключительно). Фронт грузит период по клику ◀,
+    передавая время самой старой уже загруженной точки. oldest_ts — время первого
+    снимка вообще, по нему видно, осталось ли что грузить.
+    """
+    if step_minutes < 0:
+        # шаг сетки идёт в `t += step`: отрицательный зациклит выборку намертво
+        raise HTTPException(400, "step_minutes must be >= 0")
+    from app.db import usage_get_history, usage_history_oldest_ts, usage_history_ts_before
+    step = step_minutes or (HISTORY_FINE_STEP if hours <= HISTORY_FINE_HOURS
+                            else HISTORY_COARSE_STEP)
     if not is_owner_mode():
-        return []
-    from app.db import usage_get_history
-    return usage_get_history(hours)
+        return {"step_minutes": step, "rows": [], "oldest_ts": ""}
+    if until:
+        # Окно навигации привязываем к данным: после простоя длиннее запрошенного
+        # куска календарное окно пришло бы пустым, и ◀ упёрлась бы в него навсегда.
+        previous = usage_history_ts_before(until)
+        if previous:
+            until = (datetime.fromisoformat(previous) + timedelta(microseconds=1)).isoformat()
+    rows = usage_get_history(hours, step, until)
+    # Хвост в полном разрешении нужен только живому виду: в куске из прошлого
+    # «последние 48 часов» — это такое же прошлое, детализация там не нужна.
+    if not until and not step_minutes and hours > HISTORY_FINE_HOURS:
+        fine = usage_get_history(HISTORY_FINE_HOURS, HISTORY_FINE_STEP)
+        cut = fine[0]["ts"] if fine else None
+        rows = [row for row in rows if cut is None or row["ts"] < cut] + fine
+    return {"step_minutes": step, "rows": rows, "oldest_ts": usage_history_oldest_ts()}
 
 
 @router.get("/api/usage/analytics")
@@ -1279,21 +1332,10 @@ def _bug_snapshot() -> dict:
             ),
             key=lambda item: item["name"],
         )
-        fingerprint = json.dumps(
-            {
-                "legacy": legacy,
-                "count": len(records),
-                "latest": records[-1] if records else None,
-            },
-            sort_keys=True,
-        ).encode()
-        has_reports = bool(records or (legacy and legacy["size"]))
         return {
             "inbox": str(inbox),
             "legacy": legacy,
             "records": records,
-            "has_reports": has_reports,
-            "version": hashlib.sha256(fingerprint).hexdigest()[:20] if has_reports else "",
         }
 
 
@@ -1339,11 +1381,23 @@ async def report_bug_endpoint(req: Request):
         error = _bug_error(exc)
         logger.exception(f"report_bug failed: {error}")
         return JSONResponse({"error": error}, status_code=500)
+    # Запись в стор уже состоялась и не должна зависеть от судьбы уведомления (#56):
+    # репорт зарегистрирован, даже если сообщать о нём некому или не вышло.
+    try:
+        from app.notify import notify_bug_report
+
+        notified = await notify_bug_report(
+            manager, scope=scope, reporter=reporter, title=title, record_id=record_id,
+        )
+    except Exception as notify_error:
+        notified = f"уведомление упало: {type(notify_error).__name__}: {notify_error}"
+        logger.warning("bug report %s notification failed: %s", record_id, notified)
     return {
         "result": f"Bug reported: {title}. Read: /api/report_bug",
         "record_id": record_id,
         "path": record_path,
         "view_url": "/api/report_bug",
+        "notified": notified,
     }
 
 
@@ -1360,22 +1414,6 @@ async def read_bug_reports():
         media_type="text/markdown",
         headers={"Content-Disposition": 'inline; filename="BUGS.md"'},
     )
-
-
-@router.get("/api/report_bug/status")
-async def bug_report_status():
-    try:
-        snapshot = await asyncio.to_thread(_bug_snapshot)
-    except Exception as exc:
-        error = _bug_error(exc)
-        logger.exception(f"report_bug status failed: {error}")
-        return JSONResponse({"error": error}, status_code=500)
-    return {
-        "has_reports": snapshot["has_reports"],
-        "version": snapshot["version"],
-        "record_count": len(snapshot["records"]),
-        "view_url": "/api/report_bug",
-    }
 
 
 @router.get("/api/orchestrators")

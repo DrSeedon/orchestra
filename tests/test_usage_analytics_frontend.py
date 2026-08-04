@@ -278,7 +278,9 @@ def test_template_uses_wide_analytics_shell_and_leaf_script():
     assert "max-w-3xl" not in source.split('id="analytics-modal"', 1)[1].split(
         "<!-- Agent activity modal -->", 1
     )[0]
-    assert '<script src="/static/js/analytics.js"></script>' in source
+    # Путь оборачивали уже дважды (#9 — static_url, #29 — g.asset), поэтому проверяем
+    # факт подключения скриптом, а не форму вызова внутри {{ }}
+    assert re.search(r'<script\s+src="\{\{[^}]*?\'js/analytics\.js\'', source)
 
 
 def test_model_cost_and_task_money_have_separate_currency_sources(browser):
@@ -323,10 +325,10 @@ def test_model_cost_and_task_money_have_separate_currency_sources(browser):
     page.close()
 
     template = TEMPLATE.read_text()
-    assert template.index("/static/js/utils.js") < template.index(
-        "/static/js/usage.js"
-    ) < template.index("/static/js/analytics.js") < template.index(
-        "/static/js/app.js"
+    assert template.index("js/utils.js") < template.index(
+        "js/usage.js"
+    ) < template.index("js/analytics.js") < template.index(
+        "js/app.js"
     )
 
 

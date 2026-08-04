@@ -83,6 +83,18 @@ def _prepare_detached_merge(monkeypatch, session, *, head: str = "a" * 40):
         "app.workspace.inspect_worktree_identity",
         lambda _path: (session.branch, head),
     )
+    # Дрейф личности (#17) считается по НАСТОЯЩЕМУ git, а worktree здесь выдуманный.
+    # Эти тесты про другое — про пин и про статусы RAG, — поэтому дрейфа тут нет по условию.
+    # Поведение классификатора проверяется на живом репозитории в tests/test_identity_drift.py.
+    monkeypatch.setattr(
+        "app.workspace.classify_head_drift",
+        lambda _path, branch, expected: {
+            "class": "SAME",
+            "actual_branch": branch or session.branch,
+            "actual_head": expected or head,
+            "reason": "",
+        },
+    )
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
     monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
     return local_manager
@@ -272,10 +284,9 @@ def bug_state(tmp_path, monkeypatch):
 
 
 class TestBugReports:
-    def test_publish_read_status_and_private_modes(self, client, bug_state):
+    def test_publish_read_and_private_modes(self, client, bug_state):
         description = "Location: app/x.py:7\n" + ("trace <unsafe>\n" * 8192)
 
-        before = client.get("/api/report_bug/status")
         response = client.post("/api/report_bug", json={
             "title": "full trace",
             "description": description,
@@ -283,24 +294,13 @@ class TestBugReports:
             "scope": "/project",
         })
         reader = client.get("/api/report_bug")
-        after = client.get("/api/report_bug/status")
 
-        assert before.json() == {
-            "has_reports": False,
-            "version": "",
-            "record_count": 0,
-            "view_url": "/api/report_bug",
-        }
         assert response.status_code == 200
         assert response.json()["view_url"] == "/api/report_bug"
         assert response.json()["record_id"].endswith(".md")
         assert reader.status_code == 200
         assert description in reader.text
         assert "## [" in reader.text
-        assert after.json()["has_reports"] is True
-        assert after.json()["record_count"] == 1
-        assert after.json()["version"]
-        assert len(after.content) < 256
 
         inbox = bug_state / "bug-inbox"
         for directory in (bug_state, inbox, inbox / "tmp", inbox / "records"):
@@ -1050,7 +1050,7 @@ async def test_merge_exposes_raw_rag_backfill_status(db, monkeypatch, status):
     )
     scheduled = []
 
-    def fake_schedule(scope):
+    def fake_schedule(scope, session_name=""):
         scheduled.append(scope)
         return status
 
@@ -1100,7 +1100,7 @@ async def test_merge_returns_before_blocked_rag_backfill(db, monkeypatch):
     started = asyncio.Event()
     release = asyncio.Event()
 
-    async def blocked_backfill(_scope):
+    async def blocked_backfill(_scope, session_name=None):
         started.set()
         await release.wait()
         return {"files": 1, "logs": 0}
@@ -2004,7 +2004,9 @@ async def test_switch_failure_restores_previous_lifecycle_and_does_not_update_ta
         "w", {"scope": "/s", "task_id": "91", "force": True},
     )
 
-    assert result == {"ok": False, "error": "target busy"}
+    # waited_seconds добавлено в #27 намеренно: ожидание лока обязано быть видно и в отказе.
+    assert result["ok"] is False and result["error"] == "target busy"
+    assert "waited_seconds" in result
     row = get_session("switch-normal-failure")
     assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
         "task-90/w", stored_base_branch, "90", 0,

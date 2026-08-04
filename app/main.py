@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -15,6 +16,29 @@ from app.db import init_db
 from app.deps import manager
 
 logger = logging.getLogger("orchestra")
+# Uvicorn настраивает только свои логгеры, рутовый остаётся без хендлера → всё, что Orchestra
+# пишет на INFO, съедает lastResort (WARNING). Так пропадал весь жизненный цикл RAG-бэкфилла,
+# из-за чего баг «память отдаёт устаревший файл» с 26.07 висел недоказуемым (#16).
+if not logger.handlers:
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.INFO)
+
+
+async def _start_bridge_background(manager) -> None:
+    """Поднять TG-мост вне критического пути старта.
+
+    Отказ обязан быть громким: мост, умерший молча, заметят через часы по отсутствию
+    сообщений, а не по логу.
+    """
+    logger.info("TG bridge: starting in background (HTTP is already serving)")
+    try:
+        from app.tg_bridge import start_bridge
+        await start_bridge(manager)
+        logger.info("TG bridge: ready")
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        logger.error(f"TG bridge FAILED to start: {type(e).__name__}: {e}", exc_info=True)
 
 
 @asynccontextmanager
@@ -61,8 +85,12 @@ async def lifespan(app: FastAPI):
     from app.bg_jobs import bg_manager
     bg_manager.set_session_manager(manager)
     await bg_manager.restore_from_db()
-    from app.tg_bridge import start_bridge, stop_bridge
-    await start_bridge(manager)
+    # TG-мост поднимаем фоном. Замер (docs/tasks/15/research.md): один только импорт
+    # app.tg_bridge стоит 4.05 с, из них 3.72 с — aiogram, и всё это время uvicorn не
+    # принимает запросы, а nginx отдаёт 502. Старт сервиса был 4.3-13.9 с; для приёма
+    # HTTP мост не нужен. Плата: polling TG стартует на несколько секунд позже, и команда
+    # из TG в это окно выполнится с задержкой (Telegram её не теряет).
+    bridge_task = asyncio.create_task(_start_bridge_background(manager))
     from app.routes.system import _usage_snapshot_loop
     snapshot_task = asyncio.create_task(_usage_snapshot_loop())
     from app import rag_service
@@ -78,13 +106,41 @@ async def lifespan(app: FastAPI):
     _rs.shutdown()
     if _tunnel_started:
         await stop_tunnel()
+    # Мост мог ещё не подняться — гасим задачу и только потом просим его остановиться
+    bridge_task.cancel()
+    try:
+        await bridge_task
+    except (asyncio.CancelledError, Exception):
+        pass
+    from app.tg_bridge import stop_bridge
     await stop_bridge()
     await bg_manager.shutdown()
     await manager.shutdown_all()
 
 
+class VersionedStatic(StaticFiles):
+    """Есть ?v= в URL → кешируем навсегда, нет → обязательная ревалидация.
+
+    Версию проставляет static_url() из app/deps.py. Ошибиться здесь можно только
+    в безопасную сторону: забыли версию — юзер платит лишним 304, а не сидит
+    неделю со старым кодом, как было без Cache-Control вовсе (задача #9).
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        # Только 200: закешировать навечно 404 по версионному URL — значит спрятать
+        # файл от юзера до конца жизни профиля браузера
+        versioned = b"v" in parse_qs(scope.get("query_string", b""))
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable"
+            if versioned and response.status_code == 200
+            else "no-cache"
+        )
+        return response
+
+
 app = FastAPI(title="Orchestra", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", VersionedStatic(directory="app/static"), name="static")
 
 from app.routes.tm import router as tm_router
 from app.routes.bg import router as bg_router

@@ -160,9 +160,12 @@ def test_cache_policy_is_explicit_and_unknown_is_conservative():
 
 @pytest.mark.asyncio
 async def test_models_api_exposes_runtime_provider_and_capabilities():
+    from fastapi import Response
+
     from app.routes.system import list_models
 
-    response = await list_models()
+    # #15 добавил маршруту параметр response — версия фронта уезжает заголовком
+    response = await list_models(Response())
     sol = next(model for model in response["models"] if model["id"] == "gpt-5.6-sol")
     assert sol["runtime"] == "codex"
     assert sol["provider"] == "openai"

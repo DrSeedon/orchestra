@@ -84,6 +84,12 @@
   ]
  ],
  [
+  "/api/models",
+  [
+   "HEAD"
+  ]
+ ],
+ [
   "/api/models/refresh",
   [
    "POST"
@@ -171,12 +177,6 @@
   "/api/report_bug",
   [
    "POST"
-  ]
- ],
- [
-  "/api/report_bug/status",
-  [
-   "GET"
   ]
  ],
  [
