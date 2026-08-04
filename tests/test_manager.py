@@ -1409,6 +1409,81 @@ class TestSendAndControl:
 
 
 class TestListSessions:
+    # ── Вес ответа = вероятность доставки (#65) ──
+    # У юзера между нами и его машиной прозрачный посредник: ответы до ~15 КБ доходят
+    # 10 из 10, крупные — 17 из 33, соединение виснет навсегда (замер perf). Список
+    # опрашивается раз в 3 секунды, поэтому одно жирное поле, случайно попавшее в
+    # to_dict(), превращает дашборд в рулетку. Так и было: system_prompt занимал 86.4%
+    # веса ответа по проводу.
+    # Порог проверяем ПОСЛЕ СЖАТИЯ: nginx отдаёт JSON с gzip_comp_level 6, и несжатый
+    # размер врёт примерно вшестеро.
+    RELIABLE_WIRE_BYTES = 15 * 1024   # выше этого доставка становится лотереей
+    AGENTS_THAT_MUST_FIT = 10
+
+    @staticmethod
+    def _wire_bytes(payload) -> int:
+        import gzip
+        import json
+        return len(gzip.compress(json.dumps(payload, ensure_ascii=False).encode(), 6))
+
+    @staticmethod
+    def _realistic_prompt(seed: int) -> str:
+        """Промпт, который сжимается КАК ТЕКСТ, а не как повтор одной строки.
+
+        Первая редакция теста брала `"ДЛИННЫЙ ПРОМПТ. " * 3000` и была зелёной даже с
+        вернувшимся в ответ `system_prompt`: такая строка жмётся в 293 раза и веса не
+        добавляет. Настоящие промпты жмутся в 5.1 раза (замер на живом ответе), эта
+        болтанка из словаря — в 6.5, то есть тест меряет то же, что и провод.
+        """
+        import random
+        rnd = random.Random(seed)
+        vocab = [f"{w}{i}" for i, w in enumerate(
+            ["агент", "задача", "ветка", "правило", "замер", "отчёт", "файл",
+             "проверка", "сессия", "роль"] * 20)]
+        return " ".join(rnd.choice(vocab) for _ in range(2000))
+
+    @pytest.mark.asyncio
+    async def test_heavy_fields_are_not_in_the_list(self, mgr):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                system_prompt=self._realistic_prompt(1),
+            )
+        session.last_summary = self._realistic_prompt(2)
+
+        rows = mgr.list_sessions(scope="/s")
+        assert rows, "список пуст — тест ничего не проверяет"
+        for row in rows:
+            assert "system_prompt" not in row, "промпт берётся роутом /api/sessions/{name}/prompt"
+            assert "last_summary" not in row, "last_summary нужен только серверу"
+
+    @pytest.mark.asyncio
+    async def test_ten_agents_with_long_prompts_still_fit_in_a_deliverable_response(self, mgr):
+        """Вес несут ПЕРСИСТЕНТНЫЕ строки, поэтому сессии убираются из памяти.
+
+        У живой сессии `to_dict()` и так режет промпт до 500 символов (session.py),
+        а строки из БД отдавались целиком — 18–44 КБ каждая. Тест, который держит
+        сессии активными, проверяет единственный путь, где веса никогда и не было.
+        """
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            for i in range(self.AGENTS_THAT_MUST_FIT):
+                await mgr.create_session(
+                    name=f"w{i}", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    system_prompt=self._realistic_prompt(i),
+                )
+        mgr.sessions.clear()          # теперь список соберётся из строк БД
+
+        rows = mgr.list_sessions(scope="/s")
+        assert len(rows) == self.AGENTS_THAT_MUST_FIT
+        wire = self._wire_bytes(rows)
+        assert wire < self.RELIABLE_WIRE_BYTES, (
+            f"{wire} байт по проводу на {len(rows)} агентов против потолка "
+            f"{self.RELIABLE_WIRE_BYTES}. В список приехало тяжёлое поле: ответ такого "
+            "размера у юзера доходит примерно в половине попыток."
+        )
+
     def test_runtime_for_persisted_row_is_explicit_or_unknown(self):
         from app.models import runtime_for_record
 

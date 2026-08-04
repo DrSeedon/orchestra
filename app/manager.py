@@ -1565,6 +1565,17 @@ class SessionManager:
 
     # ── Listings ──
 
+    # Поля, которые НЕ едут в списке сессий. Список опрашивается раз в 3 секунды, и его вес —
+    # это не скорость, а ВЕРОЯТНОСТЬ ДОСТАВКИ: у юзера между нами и его машиной прозрачный
+    # посредник, на котором ответы до ~15 КБ доходят 10 из 10, а крупные — 17 из 33 (#65,
+    # замер perf). `system_prompt` — 86.4% веса ответа по проводу (46.9 КБ из 54.3),
+    # `last_summary` — ещё 5.9%. Ни одно из двух в списке не читается:
+    # промпт берётся отдельным роутом `GET /api/sessions/{name}/prompt` по кнопке 📜,
+    # а `last_summary` нужен только серверу (`runtime_handoff`).
+    # Понадобилось поле в списке — добавляй осознанно и перемеряй вес: tests/test_manager.py::TestListSessions
+    # держит потолок.
+    _LIST_OMIT = ("system_prompt", "last_summary")
+
     def list_sessions(self, scope: str | None = None) -> list[dict]:
         from app.db import get_last_turn_map
         result = []
@@ -1581,6 +1592,8 @@ class SessionManager:
         for r in result:
             r["last_turn_ts"] = turn_map.get(r["id"])
             r.update(cache_policy_for_runtime(runtime_for_record(r)))
+            for omit in self._LIST_OMIT:
+                r.pop(omit, None)
         return result
 
     def get_session_id(self, name: str, scope: str) -> str | None:
