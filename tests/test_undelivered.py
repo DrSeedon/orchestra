@@ -209,7 +209,8 @@ async def test_bg_job_failure_reaches_the_orchestrator(env, monkeypatch):
     told = []
 
     class Mgr:
-        async def ensure_loaded(self, name, scope):
+        # #82: цель ищется по неизменяемому id, а не по имени.
+        async def ensure_loaded_by_id(self, session_id):
             raise RuntimeError("auto-switch failed: branch already exists")
 
         async def send(self, sid, text):
@@ -219,6 +220,7 @@ async def test_bg_job_failure_reaches_the_orchestrator(env, monkeypatch):
     manager.set_session_manager(Mgr())
     monkeypatch.setattr(bg, "bg_claim_trigger", lambda _job: True)
     monkeypatch.setattr(bg, "bg_fail_job", lambda *_a: None)
+    monkeypatch.setattr(bg, "bg_get_job", lambda _job: {"target_session_id": "w-1"})
     await manager._trigger("job-1", "готово", "worker", env["repo"])
     print("\nBG-JOB → оркестратору:", told[0][1][:80] if told else "НИКОМУ")
     assert told and told[0][0] == "orch-2"

@@ -3952,10 +3952,15 @@ class TestCronCommandTopicBoundary99:
 
         session_manager = type("Manager", (), {
             "ensure_loaded": AsyncMock(return_value=session),
+            # #82: цель ищется по неизменяемому id, а не по имени.
+            "ensure_loaded_by_id": AsyncMock(return_value=session),
             "send": AsyncMock(side_effect=manager_send),
         })()
         manager = module.BgJobManager()
         manager.set_session_manager(session_manager)
+        monkeypatch.setattr(
+            module, "bg_get_job", lambda _job_id: {"target_session_id": "intent-hunter"},
+        )
         monkeypatch.setattr(module, "bg_cron_should_fire", lambda _job_id: True)
         monkeypatch.setattr(module, "bg_update_output", lambda *_args: None)
         monkeypatch.setattr(module, "bg_cron_record_fire", lambda _job_id: None)

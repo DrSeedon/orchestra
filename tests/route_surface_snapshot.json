@@ -24,6 +24,12 @@
   ]
  ],
  [
+  "/api/blobs/{session_id}/{sha}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/files",
   [
    "GET"
@@ -43,6 +49,12 @@
  ],
  [
   "/api/logs/sync",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/logs/{log_id}",
   [
    "GET"
   ]
@@ -72,15 +84,15 @@
   ]
  ],
  [
-  "/api/merge-operations/{operation_id}/resolve",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/merge-operations/{operation_id}",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/merge-operations/{operation_id}/resolve",
+  [
+   "POST"
   ]
  ],
  [
