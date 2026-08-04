@@ -2122,15 +2122,39 @@ def remove_worktree(repo_path: str, worktree_path: str) -> None:
 
 
 def cleanup_stale_worktrees() -> list[str]:
+    """Remove working copies that no live session claims.
+
+    Two safety catches, both required. This function deletes other agents' work, and it
+    reads the roster from whatever database the process happens to point at — on 2026-08-03
+    a pytest run in the main checkout combined an empty temporary DB with the real
+    WORKTREE_ROOT and wiped every clean worktree of every project (docs/tasks/62).
+
+    1. An EMPTY roster means the roster is wrong, not that every working copy is dead.
+    2. A directory named after a live session is never deleted, even when the recorded path
+       disagrees — a path mismatch is a reason to look, not to erase.
+    """
     from app.db import get_all_sessions
     if not WORKTREE_ROOT.is_dir():
         return []
 
+    sessions = get_all_sessions()  # non-archived only
     alive_paths: set[str] = set()
-    for s in get_all_sessions():
+    live_names: set[str] = set()
+    for s in sessions:
         wt = s.get("worktree_path")
         if wt:
             alive_paths.add(str(Path(wt).resolve()))
+            live_names.add(Path(wt).name)
+        if s.get("name"):
+            live_names.add(s["name"])
+
+    if not alive_paths:
+        logger.warning(
+            "worktree cleanup refused: not a single live session has a worktree path. "
+            "Deleting everything on that basis is how live work gets erased — "
+            f"leaving {WORKTREE_ROOT} untouched"
+        )
+        return []
 
     removed: list[str] = []
     for repo_dir in WORKTREE_ROOT.iterdir():
@@ -2140,6 +2164,13 @@ def cleanup_stale_worktrees() -> list[str]:
             if not wt_dir.is_dir():
                 continue
             if str(wt_dir.resolve()) in alive_paths:
+                continue
+            if wt_dir.name in live_names:
+                logger.warning(
+                    f"stale worktree kept: {wt_dir} carries the name of a live session, but "
+                    "no session records this path. Paths disagree — that is a reason to look, "
+                    "not to delete someone's work"
+                )
                 continue
             git_file = wt_dir / ".git"
             if not (git_file.exists() and git_file.is_file()):
@@ -2170,7 +2201,9 @@ def cleanup_stale_worktrees() -> list[str]:
                     )
                     continue
                 removed.append(str(wt_dir))
-                logger.info(f"stale worktree removed: {wt_dir}")
+                # WARNING, not INFO: erasing a working copy is never routine, and INFO from
+                # app.* modules was invisible in journald until this task fixed the handler.
+                logger.warning(f"stale worktree removed: {wt_dir}")
             except Exception as e:
                 logger.warning(f"stale worktree cleanup failed for {wt_dir}: {e}")
 

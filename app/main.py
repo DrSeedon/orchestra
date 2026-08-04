@@ -22,6 +22,15 @@ logger = logging.getLogger("orchestra")
 if not logger.handlers:
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.INFO)
+# И для пакета целиком. Модули пишут в ``logging.getLogger(__name__)`` — это "app.workspace",
+# "app.session" и т.д., а они НЕ потомки "orchestra": настройка одного этого имени оставила
+# весь пакет немым ниже WARNING. Именно поэтому удаление рабочих копий 03.08 не оставило в
+# журнале ни строчки (#62). Настраиваем корень пакета, чтобы СЛЕДУЮЩИЙ модуль был слышен
+# по умолчанию, а не попал в ту же ловушку.
+_app_logger = logging.getLogger("app")
+if not _app_logger.handlers:
+    _app_logger.addHandler(logging.StreamHandler())
+    _app_logger.setLevel(logging.INFO)
 
 
 async def _start_bridge_background(manager) -> None:

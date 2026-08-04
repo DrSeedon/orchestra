@@ -1,0 +1,100 @@
+1785824664.589 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_root_returns_html0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_root_returns_html0/test.db
+1785824664.606 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_root_returns_html0/worktrees alive=0 test=tests/test_api.py::TestDashboard::test_root_returns_html (call)
+1785824664.862 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_2010/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_2010/test.db
+1785824664.865 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_2010/worktrees alive=0 test=tests/test_api.py::TestCreateSession::test_201 (setup)
+1785824665.293 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_422_bad_name0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_422_bad_name0/test.db
+1785824665.295 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_422_bad_name0/worktrees alive=0 test=tests/test_api.py::TestCreateSession::test_422_bad_name (setup)
+1785824665.733 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_422_empty_name0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_422_empty_name0/test.db
+1785824665.735 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_422_empty_name0/worktrees alive=0 test=tests/test_api.py::TestCreateSession::test_422_empty_name (setup)
+1785824666.233 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_409_duplicate0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_409_duplicate0/test.db
+1785824666.235 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_409_duplicate0/worktrees alive=0 test=tests/test_api.py::TestCreateSession::test_409_duplicate (call)
+1785824666.734 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_422_bad_cwd0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_422_bad_cwd0/test.db
+1785824666.741 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_422_bad_cwd0/worktrees alive=0 test=tests/test_api.py::TestCreateSession::test_422_bad_cwd (call)
+1785824667.226 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_list_empty0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_list_empty0/test.db
+1785824667.228 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_list_empty0/worktrees alive=0 test=tests/test_api.py::TestGetSessions::test_list_empty (setup)
+1785824667.606 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_list_with_scope0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_list_with_scope0/test.db
+1785824667.612 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_list_with_scope0/worktrees alive=0 test=tests/test_api.py::TestGetSessions::test_list_with_scope (setup)
+1785824668.118 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_get_by_name0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_get_by_name0/test.db
+1785824668.119 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_get_by_name0/worktrees alive=0 test=tests/test_api.py::TestGetSessions::test_get_by_name (setup)
+1785824668.816 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_get_4040/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_get_4040/test.db
+1785824668.819 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_get_4040/worktrees alive=0 test=tests/test_api.py::TestGetSessions::test_get_404 (setup)
+1785824669.237 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_loaded_session_hibernates0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_loaded_session_hibernates0/test.db
+1785824669.241 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_loaded_session_hibernates0/worktrees alive=0 test=tests/test_api.py::TestHibernateSession::test_loaded_session_hibernates (setup)
+1785824669.537 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_detached_session_is_alrea0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_detached_session_is_alrea0/test.db
+1785824669.537 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_detached_session_is_alrea0/worktrees alive=0 test=tests/test_api.py::TestHibernateSession::test_detached_session_is_already_process_free (setup)
+1785824669.979 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_ineligible_session_return0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_ineligible_session_return0/test.db
+1785824669.980 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_ineligible_session_return0/worktrees alive=0 test=tests/test_api.py::TestHibernateSession::test_ineligible_session_returns_conflict (setup)
+1785824670.404 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_teardown_error_includes_e0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_teardown_error_includes_e0/test.db
+1785824670.410 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_teardown_error_includes_e0/worktrees alive=0 test=tests/test_api.py::TestHibernateSession::test_teardown_error_includes_exception_class (call)
+1785824670.850 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_missing_session_returns_n0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_missing_session_returns_n0/test.db
+1785824670.861 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_missing_session_returns_n0/worktrees alive=0 test=tests/test_api.py::TestHibernateSession::test_missing_session_returns_not_found (call)
+1785824671.254 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_publish_read_and_private_0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_publish_read_and_private_0/test.db
+1785824671.256 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_publish_read_and_private_0/worktrees alive=0 test=tests/test_api.py::TestBugReports::test_publish_read_and_private_modes (setup)
+1785824673.192 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_empty_exception_text_stil0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_empty_exception_text_stil0/test.db
+1785824673.207 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_empty_exception_text_stil0/worktrees alive=0 test=tests/test_api.py::TestBugReports::test_empty_exception_text_still_returns_class (teardown)
+1785824674.195 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_send0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_send0/test.db
+1785824674.217 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_send0/worktrees alive=0 test=tests/test_api.py::TestSendMessage::test_send (setup)
+1785824674.570 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_send_4040/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_send_4040/test.db
+1785824674.572 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_send_4040/worktrees alive=0 test=tests/test_api.py::TestSendMessage::test_send_404 (setup)
+1785824674.948 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_interrupt0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_interrupt0/test.db
+1785824674.949 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_interrupt0/worktrees alive=0 test=tests/test_api.py::TestInterrupt::test_interrupt (call)
+1785824675.348 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_delete0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_delete0/test.db
+1785824675.353 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_delete0/worktrees alive=0 test=tests/test_api.py::TestDeleteSession::test_delete (call)
+1785824675.653 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_delete_4040/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_delete_4040/test.db
+1785824675.659 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_delete_4040/worktrees alive=0 test=tests/test_api.py::TestDeleteSession::test_delete_404 (call)
+1785824675.958 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_logs_empty0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_logs_empty0/test.db
+1785824675.964 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_logs_empty0/worktrees alive=0 test=tests/test_api.py::TestLogs::test_logs_empty (call)
+1785824676.498 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_logs_4040/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_logs_4040/test.db
+1785824676.500 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_logs_4040/worktrees alive=0 test=tests/test_api.py::TestLogs::test_logs_404 (setup)
+1785824676.871 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_stats0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_stats0/test.db
+1785824676.872 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_stats0/worktrees alive=0 test=tests/test_api.py::TestStats::test_stats (setup)
+1785824677.402 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_stats_with_scope0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_stats_with_scope0/test.db
+1785824677.404 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_stats_with_scope0/worktrees alive=0 test=tests/test_api.py::TestStats::test_stats_with_scope (setup)
+1785824678.046 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_acquire_and_status_and_re0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_acquire_and_status_and_re0/test.db
+1785824678.047 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_acquire_and_status_and_re0/worktrees alive=0 test=tests/test_api.py::TestTestLockApi::test_acquire_and_status_and_release (call)
+1785824678.692 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_list_orchestrators0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_list_orchestrators0/test.db
+1785824678.695 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_list_orchestrators0/worktrees alive=0 test=tests/test_api.py::TestOrchestrators::test_list_orchestrators (setup)
+1785824679.117 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_list_orchestrators_expose0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_list_orchestrators_expose0/test.db
+1785824679.118 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_list_orchestrators_expose0/worktrees alive=0 test=tests/test_api.py::TestOrchestrators::test_list_orchestrators_exposes_runtime_cache_policy (call)
+1785824693.812 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_list_valid_only0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_list_valid_only0/test.db
+1785824693.816 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_list_valid_only0/worktrees alive=0 test=tests/test_api.py::TestPipelines::test_list_valid_only (call)
+1785824694.272 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_excludes_invalid0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_excludes_invalid0/test.db
+1785824694.280 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_excludes_invalid0/worktrees alive=0 test=tests/test_api.py::TestPipelines::test_excludes_invalid (call)
+1785824694.660 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_list_contains_personal0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_list_contains_personal0/test.db
+1785824694.664 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_list_contains_personal0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_list_contains_personal (setup)
+1785824695.153 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_create_and_update0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_create_and_update0/test.db
+1785824695.158 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_create_and_update0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_create_and_update (call)
+1785824695.708 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_create_invalid_name_4000/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_create_invalid_name_4000/test.db
+1785824695.715 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_create_invalid_name_4000/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_create_invalid_name_400 (setup)
+1785824696.197 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_delete_profile0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_delete_profile0/test.db
+1785824696.199 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_delete_profile0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_delete_profile (setup)
+1785824696.609 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_delete_personal_protected0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_delete_personal_protected0/test.db
+1785824696.619 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_delete_personal_protected0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_delete_personal_protected (teardown)
+1785824697.140 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_create_existing_dir_no_wa0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_create_existing_dir_no_wa0/test.db
+1785824697.141 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_create_existing_dir_no_wa0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_create_existing_dir_no_warning (setup)
+1785824697.727 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_create_missing_dir_warns_0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_create_missing_dir_warns_0/test.db
+1785824697.728 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_create_missing_dir_warns_0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_create_missing_dir_warns_but_saves (setup)
+1785824698.249 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_create_empty_config_dir_n0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_create_empty_config_dir_n0/test.db
+1785824698.252 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_create_empty_config_dir_n0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_create_empty_config_dir_no_warning (setup)
+1785824698.826 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_create_tilde_expands_exis0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_create_tilde_expands_exis0/test.db
+1785824698.827 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_create_tilde_expands_exis0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_create_tilde_expands_existing (call)
+1785824699.316 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_create_tilde_missing_warn0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_create_tilde_missing_warn0/test.db
+1785824699.319 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_create_tilde_missing_warn0/worktrees alive=0 test=tests/test_api.py::TestProfiles::test_create_tilde_missing_warns (call)
+1785824700.223 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_success0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_success0/test.db
+1785824700.225 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_success0/worktrees alive=0 test=tests/test_api.py::TestChangeScopeEndpoint::test_success (setup)
+1785824700.970 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_explicit_cwd0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_explicit_cwd0/test.db
+1785824700.971 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_explicit_cwd0/worktrees alive=0 test=tests/test_api.py::TestChangeScopeEndpoint::test_explicit_cwd (setup)
+1785824702.560 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_403_unsafe_path0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_403_unsafe_path0/test.db
+1785824702.561 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_403_unsafe_path0/worktrees alive=0 test=tests/test_api.py::TestChangeScopeEndpoint::test_403_unsafe_path (setup)
+1785824704.558 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_409_on_manager_error0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_409_on_manager_error0/test.db
+1785824704.561 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_409_on_manager_error0/worktrees alive=0 test=tests/test_api.py::TestChangeScopeEndpoint::test_409_on_manager_error (teardown)
+1785824705.138 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_422_missing_fields0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_422_missing_fields0/test.db
+1785824705.140 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_422_missing_fields0/worktrees alive=0 test=tests/test_api.py::TestChangeScopeEndpoint::test_422_missing_fields (setup)
+1785824705.626 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_403_sibling_prefix_escape0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_403_sibling_prefix_escape0/test.db
+1785824705.633 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_403_sibling_prefix_escape0/worktrees alive=0 test=tests/test_api.py::TestChangeScopeEndpoint::test_403_sibling_prefix_escape (call)
+1785824706.116 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_blocks_kill_with_live_chi0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_blocks_kill_with_live_chi0/test.db
+1785824706.117 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_blocks_kill_with_live_chi0/worktrees alive=0 test=tests/test_api.py::TestDeleteOrphanGuard::test_blocks_kill_with_live_child (setup)
+1785824706.762 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_force_overrides0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_force_overrides0/test.db
+1785824706.767 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_force_overrides0/worktrees alive=0 test=tests/test_api.py::TestDeleteOrphanGuard::test_force_overrides (call)
+1785824707.323 ENTER root=/tmp/pytest-of-kesha/pytest-252/test_no_children_not_blocked0/worktrees db=/tmp/pytest-of-kesha/pytest-252/test_no_children_not_blocked0/test.db
+1785824707.324 SCAN root=/tmp/pytest-of-kesha/pytest-252/test_no_children_not_blocked0/worktrees alive=0 test=tests/test_api.py::TestDeleteOrphanGuard::test_no_children_not_blocked (call)

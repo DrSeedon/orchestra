@@ -1773,11 +1773,22 @@ class AgentSession:
     async def get_context(self) -> dict:
         return self._last_context
 
+    def _display_status(self) -> str:
+        """`broken` when the recorded worktree is gone — a missing working copy is not idleness.
+
+        Until #62 such a worker looked perfectly `idle` and failed only at the moment a task
+        was sent into a directory that no longer existed; seven of them stayed invisible that
+        way for two days.
+        """
+        if self.worktree_path and not os.path.isdir(self.worktree_path):
+            return "broken"
+        return self.status.value
+
     def to_dict(self) -> dict:
         return {
             "id": self.id, "name": self.name, "scope": self.scope,
             "cwd": self.cwd, "worktree_path": self.worktree_path,
-            "status": self.status.value, "model": self.model,
+            "status": self._display_status(), "model": self.model,
             "cost_usd": round(self.cost_usd, 4),
             "cost_usd_cached": round(self.cost_usd_cached, 4),
             "branch": self.branch,

@@ -1933,7 +1933,9 @@ class TestCleanupStaleWorktrees:
         wt = create_worktree(str(git_repo), "dirty-worker")
         (Path(wt.path) / "uncommitted.txt").write_text("dirty")
 
-        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [
+            {"name": "other", "worktree_path": str(Path(wt.path).parent / "other")},
+        ])
 
         removed = cleanup_stale_worktrees()
         assert len(removed) == 0
@@ -1947,7 +1949,9 @@ class TestCleanupStaleWorktrees:
             ["git", "worktree", "lock", wt.path],
             cwd=git_repo, check=True,
         )
-        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [
+            {"name": "other", "worktree_path": str(Path(wt.path).parent / "other")},
+        ])
 
         removed = cleanup_stale_worktrees()
 
@@ -1961,11 +1965,46 @@ class TestCleanupStaleWorktrees:
         random_dir = scope_dir / "not-a-worktree"
         random_dir.mkdir()
 
-        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [
+            {"name": "other", "worktree_path": str(scope_dir / "other")},
+        ])
 
         removed = cleanup_stale_worktrees()
         assert len(removed) == 0
         assert random_dir.exists()
+
+    def test_empty_roster_deletes_nothing(self, git_repo, wt_root, monkeypatch):
+        """#62: пустой список живых сессий — признак НЕВЕРНОГО реестра, а не мёртвых копий.
+
+        Так и стёрли чужую работу: pytest в главном чекауте дал временную пустую БД при
+        настоящем WORKTREE_ROOT, и «живых нет» превратилось в «удали всё».
+        """
+        from app.workspace import create_worktree, cleanup_stale_worktrees
+        wt = create_worktree(str(git_repo), "someones-work")
+
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [])
+
+        removed = cleanup_stale_worktrees()
+
+        assert removed == []
+        assert Path(wt.path).exists()
+
+    def test_live_session_name_is_never_deleted(self, git_repo, wt_root, monkeypatch):
+        """#62: путь в БД разошёлся с путём на диске → предупредить и пропустить."""
+        from app.workspace import create_worktree, cleanup_stale_worktrees
+        alive = create_worktree(str(git_repo), "alive-worker")
+        drifted = create_worktree(str(git_repo), "drifted-worker")
+
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [
+            {"name": "alive-worker", "worktree_path": alive.path},
+            # у этой сессии в БД записан СТАРЫЙ путь — каталог на диске тот же по имени
+            {"name": "drifted-worker", "worktree_path": "/gone/drifted-worker"},
+        ])
+
+        removed = cleanup_stale_worktrees()
+
+        assert removed == []
+        assert Path(drifted.path).exists()
 
     def test_empty_worktree_root(self, wt_root, monkeypatch):
         from app.workspace import cleanup_stale_worktrees
@@ -2097,3 +2136,42 @@ class TestSyncAgentsMd:
             sync_agents_md(wt.path)
         assert not list(Path(wt.path).glob(".AGENTS.md.*.tmp"))
         assert (Path(wt.path) / "AGENTS.md").read_text() == "# instructions"
+
+
+class TestCleanupNotStartedUnderPytest:
+    """#62: lifespan запускал уборку рабочих копий на КАЖДОМ TestClient(app)."""
+
+    def test_background_tasks_do_not_start_cleanup(self, monkeypatch, tmp_path):
+        import app.db
+        from app.manager import SessionManager
+
+        monkeypatch.setattr(app.db, "DB_PATH", tmp_path / "t.db")
+        app.db.init_db()
+        mgr = SessionManager()
+
+        mgr.start_background_tasks()
+
+        assert getattr(mgr, "_wt_cleanup_task", None) is None, (
+            "под pytest уборка worktree'ов не должна стартовать вовсе: "
+            "временная БД + настоящий WORKTREE_ROOT = стёртые чужие рабочие копии"
+        )
+
+
+class TestBrokenWorktreeIsVisible:
+    """#62: воркер с исчезнувшим worktree обязан выглядеть сломанным, а не idle."""
+
+    def _session(self, worktree_path: str):
+        from app.session import AgentSession
+        return AgentSession(
+            id="s1", name="w", scope="/tmp", cwd=worktree_path, model="claude-sonnet-5[1m]",
+            system_prompt="", worktree_path=worktree_path,
+        )
+
+    def test_missing_worktree_reads_as_broken(self):
+        assert self._session("/definitely/not/here")._display_status() == "broken"
+
+    def test_existing_worktree_keeps_real_status(self, tmp_path):
+        assert self._session(str(tmp_path))._display_status() == "idle"
+
+    def test_session_without_worktree_is_untouched(self):
+        assert self._session("")._display_status() == "idle"

@@ -410,6 +410,13 @@ class SessionManager:
         # log retention REMOVED by owner decision: agent history is research data. The old
         # `_periodic_db_cleanup` dropped logs older than 7 days every 6h, silently destroying
         # every transcript past a week while `sessions` rows survived since May. Never restore
+        # Never under pytest: every TestClient(app) enters lifespan, and a test that points
+        # app.db at a temporary database while WORKTREE_ROOT still points at the real
+        # checkout deletes every clean working copy of every project (docs/tasks/62 —
+        # reproduced: one green `pytest tests/test_build_signal.py` erased both decoys).
+        if "pytest" in sys.modules:
+            logger.warning("worktree cleanup task not started: running under pytest")
+            return
         if not getattr(self, '_wt_cleanup_task', None) or self._wt_cleanup_task.done():
             self._wt_cleanup_task = asyncio.create_task(self._periodic_worktree_cleanup())
 

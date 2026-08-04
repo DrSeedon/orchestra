@@ -100,3 +100,21 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         red=True,
     )
     terminalreporter.write_line(f"  {names}", red=True)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_worktree_root(tmp_path, monkeypatch):
+    """Никакой тест не должен видеть НАСТОЯЩИЙ каталог worktrees.
+
+    Страховка после #62: `TestClient(app)` поднимает lifespan, а тот запускал уборку
+    рабочих копий. Тест с временной БД и настоящим WORKTREE_ROOT удалял чистые worktree'ы
+    всех проектов — воспроизведено, зелёный `pytest tests/test_build_signal.py` стирал
+    приманки. Первичная защита — уборка не стартует под pytest (`app/manager.py`), эта
+    фикстура прикрывает следующий тест, который забудет про изоляцию.
+
+    Тестам, которым нужен свой корень, ничего не мешает переопределить его своим
+    monkeypatch — он ляжет поверх.
+    """
+    root = tmp_path / "_isolated_worktrees"
+    root.mkdir(exist_ok=True)
+    monkeypatch.setattr("app.workspace.WORKTREE_ROOT", root)
