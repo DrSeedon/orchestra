@@ -9,36 +9,60 @@ propose at most one rule in this exact format:
 ```
 Name a concrete trigger and action, not "be more careful".
 
-### RULES ARE ABOUT WORKFLOW ONLY — this is the hard filter
+### THE TRIGGER TEST — run it on your own proposal before sending
 A rule qualifies ONLY if it changes how agents WORK: delegation, verification, tooling, reporting,
 merge/lifecycle, or what to check before acting. Domain findings from the task are NOT rules.
 
-Test before proposing: *"would this help an agent on a COMPLETELY DIFFERENT task next month?"*
-No → it is not a rule.
+Judge the **trigger** (the "When ..." half), not the action. The action always sounds reusable —
+you just benefited from it. The trigger is where local work hides.
 
-- ✅ "Verify the artifact, not the worker's narration"
-- ✅ "Test new validation against real values from the live DB, not fixtures"
-- ❌ "Paint water from final hydrology, not from pre-carve thresholds"
-- ❌ "Plant vegetation on the final heightmap so trees don't float"
+> **Name a project where your trigger CANNOT occur.**
+> Named one → the rule is local. Cannot name one → it is a candidate for the shared set.
 
-Those ❌ conclusions belong in code, tests, or `docs/tasks/<id>/`, never in a rules file.
+Answer it out loud, with a project name. "It feels general" is not an answer.
+
+- ✅ "task describes a symptom" — occurs in every project → shared
+- ✅ "the assignment names a file path" — occurs in every project → shared
+- ✅ "you measured a gain on a fixed sample" — any measurement anywhere → shared
+- ❌ "when the tax break depends on a clause in the tax code" — accounting only → project file
+- ❌ "when the prototype targets a 60 Hz monitor" — that game only → project file
+- ❌ "when the preview image goes into a marketplace feed" — that shop only → project file
+
+Note what the ❌ ones have in common: the ACTION is fine and general; the TRIGGER only ever fires
+in one codebase. That is the whole failure mode — measured on 112 real proposals, 55% of the
+rejects looked like workflow and failed on the trigger.
+
 Default is NO rule: most corrections are task-specific. Bugs you fixed are not lessons for everyone.
+One vivid case with a measurement is enough — do NOT wait for a second occurrence.
 
-### Where shared proposals go
+### Where shared proposals go — pick the address by test, not by feel
+- **`docs/workers/<name>.md`** (personal) — "is this about how *I* work?" No approval needed.
+  The trigger test does NOT apply here; the bar is deliberately LOW (see below).
+- **project `CLAUDE.md`** — trigger passes the test but fires only in THIS repo → propose it here.
+- **global `~/.claude/CLAUDE.md`** — only after the rule has actually paid off in **two different
+  projects**. Highest bar: every agent in every project reads it, so a stale rule there costs most.
 - **Workers** — include the proposed `📝 RULE` in DONE; the orchestrator decides whether to persist it.
 - **Orchestrators/sub-orchestrators** — propose it to the user (or parent) and wait.
-- **Project-wide rule** → propose `CLAUDE.md`; NEVER write it before approval.
-- **Personal/role habit** → write your personal memory below; no approval needed.
+- NEVER write a shared file before approval.
 
 ### Orchestrator triage — close every proposal
 When a worker's DONE contains `📝 RULE`, reply before accepting its next task:
 `RULE TRIAGE: TAKE | REJECT | REPHRASE — <reason>; target: <path>`.
-- **TAKE** only cross-task workflow rules; shared `CLAUDE.md` still waits for required approval.
+Run the SAME trigger test the author was supposed to run — name a project where the trigger
+cannot occur. Do not accept a rule because its action sounds sensible; that is how local work
+gets into shared files. Measured on real triage: 42 TAKE against 1 REJECT — a rubber stamp,
+not a filter. REJECT is the expected outcome for most proposals.
+- **TAKE** only when you cannot name such a project; shared `CLAUDE.md` still waits for approval.
 - **REJECT** task-specific findings → `docs/tasks/<id>/`; **REPHRASE** reusable but vague rules
   into a concrete trigger/action; personal habits → that worker's `docs/workers/<name>.md`.
 No proposal may remain unanswered.
 
 ## Personal memory — `docs/workers/<your-name>.md`
+**Different bar from the shared set — deliberately LOW.** The trigger test above guards the shared
+files, where a stale rule misleads every agent. Here the only reader is you, an extra line costs
+nothing, and local specifics are exactly what you want. Never skip a personal note because it
+"wouldn't help other agents" — that is the wrong question for this file.
+
 This file auto-injects into your prompt on spawn/restart and survives worktree merge.
 **Its content is re-read only at spawn/restart, NOT at compact:** a lesson you write now stays
 in the file, but your post-compact session keeps running on the version loaded at spawn until

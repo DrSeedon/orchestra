@@ -1,0 +1,482 @@
+{
+ "_meta": {
+  "task": "#138 chunker-independent gold anchors v3 (normalised-space, disk)",
+  "db": "/mnt/data/Projects/Python/orchestra/data/bench134/vec134.db",
+  "root": "/mnt/data/Projects/Python/orchestra",
+  "rule": "hit = the retrieved chunk's raw char span in its file overlaps the gold raw span",
+  "prior_attempts": [
+   "v1 reconstruct-from-chunks: no round-trip, discarded",
+   "v2 raw substring: lost 9/22 anchors to whitespace, discarded"
+  ]
+ },
+ "gold": [
+  {
+   "i": 0,
+   "q": "почему воркер после компактизации теряет свою роль",
+   "anchors": [],
+   "scorable": false
+  },
+  {
+   "i": 1,
+   "q": "cost_usd завышен в несколько раз, откуда переучёт",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 6188,
+     "path": "CHANGELOG.md",
+     "span": [
+      125467,
+      126267
+     ],
+     "core": "### Fixed - 🔴 **cost_usd overcounting x85** — CLI отдаёт cumulative cost, мы складывали как delta. $24,609 → $302 реальных. Delta tracking + реконструкция из логов. `session.py`, `db.py` - 🧟 **Codex z"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 2,
+   "q": "скиллы в worktree воркера устарели и не синхронизируются",
+   "anchors": [],
+   "scorable": false
+  },
+  {
+   "i": 3,
+   "q": "untracked .claude/skills блокирует merge воркера",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 247001,
+     "path": "docs/tasks/fix-worktree-gitignore/research.md",
+     "span": [
+      311,
+      1503
+     ],
+     "core": "## Findings\n\n### Bug 1 — untracked `.claude/skills/` blocks merge — **CONFIRMED (for external repos only)**\n\nAtomic claims:\n- `inject_skills_to_worktree` copies skills to `worktree/.claude/skills/<nam"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 4,
+   "q": "сколько памяти держат Serena language server деревья",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3291038,
+     "path": "docs/tasks/113/research.md",
+     "span": [
+      22076,
+      22876
+     ],
+     "core": "## Итог и confidence - **CONFIRMED:** крупнейший измеренный управляемый класс — per-agent Serena/language-server trees (4.09 GiB в #112); локальные live CLI/MCP тоже удерживают гигабайты. Serena и лок"
+    },
+    {
+     "kind": "file",
+     "orig_chunk_id": 3291039,
+     "path": "docs/tasks/113/research.md",
+     "span": [
+      22681,
+      23430
+     ],
+     "core": "не исключён. - **CONFIRMED:** текущим 8–9 idle trees атрибутировано 3.3–3.5 GiB retained. Фактическое освобождение после hibernation не измерено. - **CONFIRMED:** swap набрался после свежего boot и да"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 5,
+   "q": "чем codex exec отличается от codex exec resume по кешу",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 2717010,
+     "path": "docs/tasks/codex-cache-research/research.md",
+     "span": [
+      7702,
+      8762
+     ],
+     "core": "### 3. `codex exec` против `codex exec resume`\n\n**CONFIRMED — CLI help/manual + source.**\n\n| Команда | Thread/transcript | `prompt_cache_key` | Cache consequence |\n|---|---|---|---|\n| `codex exec ...`"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 6,
+   "q": "как роутится backend по имени модели",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 2124006,
+     "path": "docs/tasks/codex-integration/research.md",
+     "span": [
+      3166,
+      3981
+     ],
+     "core": "события (`:100-102`). - Turn usage: input/cached/output токены из `turn.completed` (`backend_codex.py:152-180`). - **Роутинг backend по модели** (CONFIRMED): `models.py:backend_for_model()` → `gpt-*` "
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 7,
+   "q": "наш системный промпт заменяет пресет Claude Code или дописывается",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 398869001,
+     "log_id": 398869,
+     "log_kind": "agent_msg"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 8,
+   "q": "grok отменяет ход после запроса разрешения",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 316738002,
+     "log_id": 316738,
+     "log_kind": "agent_msg"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 9,
+   "q": "какие переменные окружения нужны для headless режима",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3164036,
+     "path": "data/grok-home/docs/user-guide/14-headless-mode.md",
+     "span": [
+      18418,
+      19332
+     ],
+     "core": "## Environment Variables for Headless\n\nKey environment variables that affect headless mode:\n\n| Variable                        | Description                                                   |\n| -----"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 10,
+   "q": "как grok читает defaultMode и permissions allow deny ask",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3163026,
+     "path": "data/grok-home/docs/user-guide/22-permissions-and-safety.md",
+     "span": [
+      14854,
+      15659
+     ],
+     "core": "`plan`. Grok reads `defaultMode` from its canonical location under `permissions`; a top-level `defaultMode` is also accepted when the nested key is absent. `permissions.allow`, `permissions.deny`, and"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 11,
+   "q": "сколько стоит Grok и когда он вышел",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 174012,
+     "path": "docs/tasks/grok-research/research.md",
+     "span": [
+      8503,
+      9208
+     ],
+     "core": "## Confidence per finding (сводка)\n\n| Finding | Confidence | Reason (tier) |\n|---|---|---|\n| Grok 4.5 вышел 08.07.2026, Cursor-trained | CONFIRMED | multi-secondary согласованно |\n| Grok CLI headless "
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 12,
+   "q": "отслеживаем ли мы стоимость голосовой транскрипции",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 2718020,
+     "path": "docs/tasks/deepgram-research/research.md",
+     "span": [
+      14172,
+      14975
+     ],
+     "core": "invoice truth периодически читать billing breakdown по tag; dashboard estimate не должен смешиваться с виртуальным LLM `cost_usd`. 4. **При необходимости строгой изоляции создать отдельный Deepgram AP"
+    },
+    {
+     "kind": "log",
+     "orig_chunk_id": 266000000,
+     "log_id": 266000,
+     "log_kind": "user_msg"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 13,
+   "q": "почему нельзя глобально блокировать sleep у агентов",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 290246001,
+     "log_id": 290246,
+     "log_kind": "agent_msg"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 14,
+   "q": "что должно быть в структурированной ошибке MCP тула",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3301037,
+     "path": "docs/tasks/116/research.md",
+     "span": [
+      23292,
+      24129
+     ],
+     "core": "### 4.2 Минимальная граница Один `ApiToolError` в `_api` должен нести: ```json { \"code\": \"transport_timeout|http_429|http_5xx|invalid_response|domain_error\", \"message\": \"human readable\", \"status\": 429"
+    },
+    {
+     "kind": "file",
+     "orig_chunk_id": 3313034,
+     "path": "docs/tasks/116/plan.md",
+     "span": [
+      18945,
+      19765
+     ],
+     "core": "- **Outcome:** every decision-relevant MCP failure has non-empty human text and machine-readable `{result,error}`; #115 reuses the same contract. - **Files:** `app/mcp_stdio.py`, `tests/test_mcp_stdio"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 15,
+   "q": "пустая строка error недопустима, какой контракт по кодам ошибок",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3310014,
+     "path": "docs/tasks/115/plan.md",
+     "span": [
+      9064,
+      10215
+     ],
+     "core": "`error=null` допустим только когда ни один stage не требует error detail. Для\nлюбого отказа `code` и `message` непустые; exception class хранится в `details`.\nFallback — конкретный код вроде `UPSTREAM"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 16,
+   "q": "как считается turn usage и откуда берутся кешированные токены",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 2124006,
+     "path": "docs/tasks/codex-integration/research.md",
+     "span": [
+      3166,
+      3981
+     ],
+     "core": "события (`:100-102`). - Turn usage: input/cached/output токены из `turn.completed` (`backend_codex.py:152-180`). - **Роутинг backend по модели** (CONFIRMED): `models.py:backend_for_model()` → `gpt-*` "
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 17,
+   "q": "коллизия ключа orchestra в кастомном словаре mcp серверов",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 198005,
+     "path": "docs/tasks/24/research.md",
+     "span": [
+      3660,
+      4316
+     ],
+     "core": "## Risks / edge cases\n- **`orchestra` key collision**: custom dict must never override the default orchestra server. Merge order: start with orchestra, then add custom keys, explicitly drop/skip a cus"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 18,
+   "q": "гонка turn/start и отложенного compact перезаписывает active turn id",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 223008,
+     "path": "docs/tasks/97/research.md",
+     "span": [
+      3942,
+      4779
+     ],
+     "core": "stores it in `_active_turn_id`. Orchestra then creates the per-turn `_turn_event_loop` (`app/backend_codex.py:328-337`; `app/session.py:538-546,602-625`). 4. That listener does not snapshot the id ret"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 19,
+   "q": "правда ли escaping в bash у Sol виноват в ретраях",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3100013,
+     "path": "docs/tasks/sol-efficiency/research.md",
+     "span": [
+      8720,
+      9725
+     ],
+     "core": "### 3.5 Bash style / escaping — not the problem\n`zsh -lc` + escaping is **91 %** of Sol Bash calls, but total Bash *input* is 1 483 kB of 4 192 kB, and median command is 201 chars. No measurable retry"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 20,
+   "q": "как понять что merge делали руками, а не через merge_worker",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 372000000,
+     "log_id": 372000,
+     "log_kind": "agent_msg"
+    },
+    {
+     "kind": "log",
+     "orig_chunk_id": 376869001,
+     "log_id": 376869,
+     "log_kind": "user_msg"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 21,
+   "q": "красная точка непрочитанного загорается от воркеров",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 304000000,
+     "log_id": 304000,
+     "log_kind": "text"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 22,
+   "q": "persistent Codex сессии и что происходит при протухшем UUID",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 234377000,
+     "log_id": 234377,
+     "log_kind": "text"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 23,
+   "q": "команда limits в личке с ботом, почему не в топиках группы",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 363754000,
+     "log_id": 363754,
+     "log_kind": "agent_msg"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 24,
+   "q": "оценка только по стенограмме без побочных эффектов ломает судейство",
+   "anchors": [
+    {
+     "kind": "log",
+     "orig_chunk_id": 376623001,
+     "log_id": 376623,
+     "log_kind": "agent_msg"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 25,
+   "q": "почему periodic опрос PM-фич конфликтует с запретом Monitor",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3297037,
+     "path": "docs/tasks/118/audit.md",
+     "span": [
+      32242,
+      33186
+     ],
+     "core": "### P3-32 — tasks-pm «периодически опрашивай» не задаёт ни события, ни безопасного способа\n\n- **Места:** `pipelines/tasks-pm/prompts/roles/pm-glava.md:23-28` требует периодически\n  опрашивать PM-фичи;"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 26,
+   "q": "platform contract продублирован в двух base и разъехался",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 3297038,
+     "path": "docs/tasks/118/audit.md",
+     "span": [
+      33188,
+      34077
+     ],
+     "core": "### P3-33 — platform contract скопирован в два base и уже разъехался\n\n- **Места:** дубли `pipelines/default/prompts/base.md:2-25,28-42` и\n  `pipelines/tasks-pm/prompts/base.md:1-36`; background jobs д"
+    }
+   ],
+   "scorable": true
+  },
+  {
+   "i": 27,
+   "q": "есть ли у нас замкнутый цикл самоулучшения с evaluator gate",
+   "anchors": [
+    {
+     "kind": "file",
+     "orig_chunk_id": 2726050,
+     "path": "docs/tasks/self-improve-survey/research.md",
+     "span": [
+      31756,
+      32808
+     ],
+     "core": "## 10. Confidence summary\n\n- **CONFIRMED:** Orchestra имеет scaffold primitives, но не durable evaluator-gated closed loop.\n- **CONFIRMED:** RAG реализует explicit objects + hybrid Read, но не outcome"
+    }
+   ],
+   "scorable": true
+  }
+ ],
+ "dropped": [
+  {
+   "i": 0,
+   "cid": 6000,
+   "path": "CHANGELOG.md",
+   "reason": "text absent from disk (file rewritten since snapshot)"
+  },
+  {
+   "i": 2,
+   "cid": 4041,
+   "path": "BUGS.md",
+   "reason": "text absent from disk (file rewritten since snapshot)"
+  }
+ ]
+}

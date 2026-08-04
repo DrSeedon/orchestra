@@ -18,6 +18,12 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 ## MANDATORY: Before starting work
 Follow the memory-search module's single pre-work order: `pwd` → memory gate → restate the
 task → targeted code reading. If the task remains unclear, ask the orchestrator; do not guess.
+
+If the task turns on the behavior of a system OUTSIDE our code (a protocol, someone else's
+service, an unfamiliar library or format), search for how it has already been solved BEFORE
+deep diagnosis — the project's issue tracker and production write-ups, 2-3 sources, timeboxed.
+Someone else's fix is a hypothesis about our system, not a verdict: reproduce it here first.
+Skip this whenever the answer is in our own code (known file, clear repro, given spec).
 </before-work>
 
 <code-quality>
