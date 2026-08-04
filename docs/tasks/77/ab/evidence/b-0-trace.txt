@@ -1,0 +1,9 @@
+# пилот b-0 — дословная трасса (tool_use + текст ассистента)
+
+… Прочитаю файлы и запущу тест.
+$ [Read] /tmp/ab77/b-0/app/guard.py
+$ [Read] /tmp/ab77/b-0/tests/test_guard.py
+$ ./run_tests.sh 2>&1 | head -50
+… Запущу мутационную проверку одной командой.
+$ cp app/guard.py app/guard.py.bak && sed -i '/if not text:/,+1d' app/guard.py && ./run_tests.sh 2>&1 | tail -10 && mv app/guard.py.bak app/guard.py && ./run_tests.sh 2>&1 | tail -5 && grep -c "MYFIX-ANCHOR" app/guard.py
+… Тест стережёт правку: мутация сломала проверку на пустую строку, и `test_empty_rejected` упал (не поднял ValueError), остальные прошли; после отката все 3 теста зелёные.
