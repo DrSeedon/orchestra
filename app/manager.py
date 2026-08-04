@@ -1442,8 +1442,61 @@ class SessionManager:
                 f"Last output:\n{summary}{ctx}"
             )
             logger.info(f"Auto-report: {worker_name} → {orch}")
-            await self.send(orch_session.id, msg)
+            try:
+                await self.send(orch_session.id, msg)
+            except Exception as error:
+                await self._record_undelivered_auto_report(
+                    worker_name, worker_scope or scope, worker_session,
+                    orch_session, error,
+                )
         return _on_worker_idle
+
+    async def _record_undelivered_auto_report(
+        self, worker_name: str, worker_scope: str, worker_session,
+        orch_session, error: Exception,
+    ) -> None:
+        """Автоотчёт не дошёл — оставить след, не зависящий от сломанного канала (#47).
+
+        Автоотчёт существует ровно для того, чтобы ждущий оркестратор не остался без
+        сигнала. Поэтому запись идёт в историю ОБЕИХ сессий: в дашборде видно и со стороны
+        воркера («я отчитался, но не дошло»), и со стороны того, кто ждёт.
+
+        Попытка уведомить оркестратора отдельным сообщением делается, но её исход попадает
+        в ту же запись: тихая попытка была бы тем же дефектом, который мы чиним.
+        Повтора нет — по решению #30 ретраи не вводим.
+        """
+        from app.db import add_log
+        from app.notify import report_undelivered
+
+        detail = f"{type(error).__name__}: {error}"
+        attempt = await report_undelivered(
+            self,
+            scope=worker_scope,
+            worker=worker_name,
+            what="автоотчёт",
+            reason=detail,
+        )
+        # Причина не дублируется: в исходе попытки она чаще всего та же самая, и запись
+        # раздувается вдвое ровно там, где её будет читать человек.
+        if detail in attempt:
+            attempt = attempt.replace(detail, "та же причина")
+        text = (
+            f"[доставка] автоотчёт воркера «{worker_name}» не доставлен "
+            f"оркестратору «{orch_session.name}»: {detail}. "
+            f"Попытка уведомить отдельным сообщением: {attempt}. "
+            f"Автоматического повтора нет — воркер ждёт продолжения."
+        )
+        logger.warning(text)
+        now = datetime.now(timezone.utc)
+        # Сессия воркера может быть уже выгружена — тогда пишем только тому, кто ждёт.
+        for session in (s for s in (worker_session, orch_session) if s is not None):
+            try:
+                await asyncio.to_thread(add_log, session.id, now, "system", text)
+            except Exception as log_error:
+                logger.warning(
+                    "could not record undelivered auto-report for %s: %s: %s",
+                    session.name, type(log_error).__name__, log_error,
+                )
 
     # ── Listings ──
 
