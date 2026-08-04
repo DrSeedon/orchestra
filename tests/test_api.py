@@ -1756,7 +1756,9 @@ async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch, 
     })()
     captured = {}
 
-    def fake_switch(_wt, new_branch, from_ref="", force=False):
+    # **kwargs: маршрут передаёт ещё recreate_from_base (#61); дубль сигнатуры в моке
+    # ломался бы на каждом новом параметре, не проверяя ничего по существу.
+    def fake_switch(_wt, new_branch, from_ref="", force=False, **kwargs):
         captured.update(new_branch=new_branch, from_ref=from_ref, force=force)
         return {"ok": True, "branch": new_branch}
 

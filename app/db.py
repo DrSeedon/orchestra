@@ -1790,3 +1790,36 @@ def get_test_lock(scope: str) -> dict | None:
     with _conn() as c:
         row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
         return dict(row) if row else None
+
+
+def find_merge_proof(scope: str, branch: str) -> dict | None:
+    """Доказательство, что ветка УЖЕ слита в базу (#61).
+
+    После сквош-мержа git этого доказать не может: предок не сохраняется, а сравнение
+    деревьев (`branch_content_status`) даёт «конфликт», как только база правит те же
+    строки. Единственный надёжный источник — наша собственная запись об операции.
+
+    Возвращает {"heads": [...], "operation_id": ...} с головами, на которых мерж
+    состоялся: принятой при приёме операции и фактически слитой (они расходятся, когда
+    воркер дописал коммит во время ожидания хода — BENIGN_ADVANCE из #17).
+    """
+    scope = (scope or "").rstrip("/")
+    with _conn() as c:
+        row = c.execute(
+            """SELECT operation_id, accepted_worker_head, result_json
+                 FROM merge_operations
+                WHERE scope = ? AND accepted_worker_branch = ?
+                  AND state = 'SUCCEEDED' AND commit_point = 'REACHED'
+                ORDER BY rowid DESC LIMIT 1""",
+            (scope, branch),
+        ).fetchone()
+    if not row:
+        return None
+    heads = {row["accepted_worker_head"]}
+    try:
+        merged = (json.loads(row["result_json"]).get("git") or {}).get("worker_head")
+    except (ValueError, TypeError, AttributeError):
+        merged = None
+    if merged:
+        heads.add(merged)
+    return {"operation_id": row["operation_id"], "heads": sorted(h for h in heads if h)}

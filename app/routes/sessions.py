@@ -31,6 +31,70 @@ async def _wait_for_merge_idle(session) -> bool:
     return await session.wait_for_turn_completion()
 
 
+def _existing_branch_verdict(worktree_path: str, branch: str, scope: str,
+                             force: bool) -> dict:
+    """Что делать с УЖЕ существующей целевой веткой при возврате воркера на задачу (#61).
+
+    Три исхода в словаре #17:
+    - ветки нет → обычный путь;
+    - есть, и наша запись о мерже доказывает, что её содержимое в базе → пересоздать
+      от базы (BENIGN): после сквоша слияние базы в такую ветку конфликтует ровно там,
+      где база доработала те же строки;
+    - есть, запись о мерже указывает ДРУГУЮ голову → после мержа на ветке появилась
+      работа, и пересоздание её уничтожит (FATAL), пока человек не скажет force.
+
+    Записи о мерже нет вовсе (ветка старше таблицы или мержилась руками) → прежний путь:
+    решать за человека, что его работа не нужна, платформа не вправе.
+    """
+    from app.db import find_merge_proof
+    from app.workspace import _inspect_branch_ref, _resolve_repo, inspect_worktree_identity
+
+    # Политика ДОБАВЛЯЕТ путь, а не отменяет старый: если репозиторий не читается,
+    # решение просто не принимается, и всё идёт как раньше — иначе непрочитанный worktree
+    # ломал бы любой switch, включая те, что работали годами.
+    try:
+        repo = _resolve_repo(worktree_path, worktree_path)
+    except Exception as e:
+        logger.warning("switch verdict skipped for %s: %s: %s",
+                       worktree_path, type(e).__name__, e)
+        return {"recreate_from_base": False, "discard_current": force}
+    # Уйти с ТЕКУЩЕЙ ветки мешает та же слепота: её содержимое тоже слито сквошем, и
+    # проверка деревьев считает его неподтверждённым. Та же запись об операции — то же
+    # доказательство, и тогда покидать ветку можно без ручного force.
+    discard_current = force
+    if not discard_current:
+        try:
+            current_branch, current_head = inspect_worktree_identity(worktree_path)
+        except RuntimeError:
+            current_branch, current_head = "", ""
+        current_proof = find_merge_proof(scope, current_branch) if current_branch else None
+        discard_current = bool(current_proof and current_head in current_proof["heads"])
+
+    try:
+        head = _inspect_branch_ref(repo, branch)
+    except RuntimeError as e:
+        logger.warning("switch verdict skipped for %s: %s", branch, e)
+        return {"recreate_from_base": False, "discard_current": discard_current}
+    if head is None:
+        return {"recreate_from_base": False, "discard_current": discard_current}
+    if force:
+        return {"recreate_from_base": True, "discard_current": True}
+    proof = find_merge_proof(scope, branch)
+    if not proof:
+        return {"recreate_from_base": False, "discard_current": discard_current}
+    if head in proof["heads"]:
+        return {"recreate_from_base": True, "discard_current": discard_current}
+    return {
+        "ok": False,
+        "state": "branch_has_work_after_merge",
+        "error": (
+            f"branch '{branch}' has commits made after it was merged (head {head}, "
+            f"merged {', '.join(proof['heads'])}, operation {proof['operation_id']}) — "
+            f"recreating it from base would destroy them; pass force=true to discard"
+        ),
+    }
+
+
 def _session_base_branch(session, requested: str = "") -> str:
     """Resolve an explicit or persisted lifecycle base against the actual repository."""
     from app.workspace import resolve_base_branch
@@ -1160,12 +1224,22 @@ async def switch_branch(name: str, req: dict):
                         task_id="",
                         needs_switch=True,
                     )
+                    verdict = await asyncio.to_thread(
+                        _existing_branch_verdict, worktree_path, new_branch,
+                        found.scope or scope, force,
+                    )
+                    if verdict.get("error"):
+                        return JSONResponse(
+                            {**verdict, "waited_seconds": round(waited_seconds, 2)},
+                            status_code=409,
+                        )
                     result = await asyncio.to_thread(
                         switch_worktree_branch,
                         worktree_path,
                         new_branch,
                         from_ref=from_ref,
-                        force=force,
+                        force=force or verdict["discard_current"],
+                        recreate_from_base=verdict["recreate_from_base"],
                     )
                     # Ставится СРАЗУ, до ветвлений: ожидание должно быть видно и в успехе,
                     # и в любом отказе — иначе поле окажется ровно там, где не нужно.

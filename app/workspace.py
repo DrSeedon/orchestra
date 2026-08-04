@@ -1674,10 +1674,17 @@ def branch_content_status(worktree_path: str, base_ref: str) -> dict:
 def switch_worktree_branch(worktree_path: str, new_branch: str,
                            from_ref: str = "",
                            force: bool = False,
-                           expect_absent: bool = False) -> dict:
+                           expect_absent: bool = False,
+                           recreate_from_base: bool = False) -> dict:
     """expect_absent=True — вызывающий создаёт ЗАВЕДОМО новую ветку (авто-switch перед
     доставкой). Тогда существующая ветка того же имени — отказ, а не переиспользование:
-    усыновление чужой истории должно быть невозможно, а не маловероятно (#27, E2)."""
+    усыновление чужой истории должно быть невозможно, а не маловероятно (#27, E2).
+
+    recreate_from_base=True — вызывающий ДОКАЗАЛ, что содержимое ветки уже в базе, и просит
+    начать её заново от базы вместо слияния базы в неё (#61). Доказательство git выдать не
+    может: сквош-мерж не сохраняет предка, а сравнение деревьев после доработки базы даёт
+    конфликт. Поэтому решение принимает вызывающий (роут, у которого есть запись об операции
+    мержа), а здесь только механизм."""
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), str(wt))
     with repo_mutation_lock(repo):
@@ -1791,6 +1798,26 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                     f"branch '{new_branch}' already exists (HEAD {target_head}, last commit "
                     f"{last}) — refusing to adopt someone else's history; a fresh branch was expected"
                 ),
+            }
+
+        if target_existed and recreate_from_base:
+            # Начать ветку заново от базы: ровно то, что человек делает руками одной
+            # командой, когда возврат на смерженную сквошем ветку упирается в конфликт.
+            # Коммиты старой ветки при этом теряются — поэтому сюда пускает только
+            # доказательство вызывающего, а не догадка.
+            recreated = _git_cmd(
+                ["git", "checkout", "-B", new_branch, from_ref],
+                cwd=str(wt), capture_output=True, text=True,
+            )
+            if recreated.returncode != 0:
+                detail = recreated.stderr.strip() or recreated.stdout.strip()
+                return {"ok": False, "error": f"recreate from {from_ref} failed: {detail}"}
+            head_now = _git_cmd(
+                ["git", "rev-parse", "HEAD"], cwd=str(wt), capture_output=True, text=True,
+            ).stdout.strip()
+            return {
+                "ok": True, "state": "recreated_from_base",
+                "branch": new_branch, "head": head_now, "previous_head": target_head,
             }
 
         try:
