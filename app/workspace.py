@@ -374,7 +374,7 @@ def _copy_file(src: Path, dst: Path) -> None:
 # AGENTS.md is mirrored from CLAUDE.md for codex workers (see create_worktree). Exclude so
 # it doesn't dirty the tree / block merge. info/exclude only affects UNTRACKED files, so a
 # repo that tracks its own AGENTS.md is unaffected (and we never overwrite an existing one).
-_WORKTREE_EXCLUDES = (".claude/", "codex_sessions.json", "*.round", "AGENTS.md")
+_WORKTREE_EXCLUDES = (".claude/", ".codex/", "codex_sessions.json", "*.round", "AGENTS.md")
 
 
 def tracked_paths(worktree_path: str | Path, rels: list[str]) -> set[str]:

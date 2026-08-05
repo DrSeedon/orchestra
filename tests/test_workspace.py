@@ -223,6 +223,20 @@ class TestCreateWorktree:
         )
         assert status.stdout.strip() == ""
 
+    def test_injected_codex_dir_not_dirty(self, git_repo, wt_root):
+        """Task #151: Codex discovers skills in `.codex/skills/`, so that directory is now
+        planted too. Measured at the time: neither `games` nor `seedon` ignores `.codex`
+        anywhere, so without it in the exclude set both would carry untracked junk forever."""
+        from app.workspace import create_worktree
+        wt = create_worktree(str(git_repo), "worker-1")
+        wt_path = Path(wt.path)
+        (wt_path / ".codex" / "skills" / "foo").mkdir(parents=True)
+        (wt_path / ".codex" / "skills" / "foo" / "SKILL.md").write_text("x")
+        status = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=wt_path, capture_output=True, text=True,
+        )
+        assert status.stdout.strip() == ""
+
     def test_exclude_claude_dir_idempotent(self, git_repo, wt_root):
         from app.workspace import create_worktree, _exclude_worktree_artifacts
         wt = create_worktree(str(git_repo), "worker-1")

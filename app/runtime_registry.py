@@ -17,6 +17,11 @@ from app.backend_protocol import BackendLike
 
 logger = logging.getLogger(__name__)
 
+# Manual fallback for a Codex CLI without project-local skill discovery — see `_codex_factory`.
+_CODEX_SKILL_INDEX_ENABLED = (
+    os.environ.get("ORCHESTRA_CODEX_SKILL_INDEX", "false").lower() == "true"
+)
+
 EventStreamMode = Literal["persistent", "per_turn"]
 
 
@@ -192,14 +197,21 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
     except FileNotFoundError:
         role = None
     skills = role.skills if role else []
-    skills_block = build_codex_skills_index(
-        context.pipeline,
-        skills,
-        context.cwd,
-    )
     system_prompt = context.system_prompt
-    if skills_block:
-        system_prompt += "\n\n" + skills_block
+    # Codex discovers `<cwd>/.codex/skills/` natively (verified on 0.145.0), and
+    # `_refresh_skills` plants them there on every connect — so this generated index is off by
+    # default. It stays as a manual fallback for a CLI without project-local discovery: that
+    # capability is not detectable cheaply (no version string we trust, and probing costs a
+    # process per connect), so it is an explicit switch rather than a guess. Never both at
+    # once — two sources would list the same skill name twice, which Codex does NOT dedupe.
+    if _CODEX_SKILL_INDEX_ENABLED:
+        skills_block = build_codex_skills_index(
+            context.pipeline,
+            skills,
+            context.cwd,
+        )
+        if skills_block:
+            system_prompt += "\n\n" + skills_block
     mcp_env = {
         key: str(value)
         for config in context.mcp_servers.values()

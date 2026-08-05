@@ -876,6 +876,100 @@ class TestRefreshSkills:
         assert not (plain / ".claude").exists()
 
 
+class TestCodexSkillHome:
+    """Task #151: Codex discovers skills in `.codex/skills/`, Claude in `.claude/skills/`.
+
+    Same mechanism, two addresses — the guards (tracked/unchanged/exclude) must hold for both,
+    which is why `home_dir` is a parameter rather than a second copy of the function.
+    """
+
+    def _source(self, name="codex-debate"):
+        from app.prompting import _SKILLS_DIR
+        return _SKILLS_DIR / f"{name}.md"
+
+    def test_codex_home_dir_is_used(self, tmp_path):
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+
+        assert inject_skills_to_worktree(["codex-debate"], str(wt), ".codex") == 1
+
+        assert (wt / ".codex" / "skills" / "codex-debate" / "SKILL.md").read_bytes() \
+            == self._source().read_bytes()
+        assert not (wt / ".claude").exists(), "codex injection must not touch the Claude dir"
+
+    def test_claude_remains_default(self, tmp_path):
+        """#149 must not regress: the default address is still `.claude`."""
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+
+        inject_skills_to_worktree(["codex-debate"], str(wt))
+
+        assert (wt / ".claude" / "skills" / "codex-debate" / "SKILL.md").is_file()
+        assert not (wt / ".codex").exists()
+
+    def test_tracked_codex_skill_not_overwritten(self, tmp_path):
+        """The #149 ownership guard must apply to `.codex/` too — a repo shipping its own
+        `.codex/skills/<name>/SKILL.md` would otherwise be dirtied forever."""
+        import subprocess
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        own = wt / ".codex" / "skills" / "codex-debate" / "SKILL.md"
+        own.parent.mkdir(parents=True)
+        own.write_text("# repo's own codex skill\n")
+        subprocess.run(["git", "add", "-Af"], cwd=wt, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "own"], cwd=wt, capture_output=True, check=True)
+
+        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt), ".codex")
+
+        assert own.read_text() == "# repo's own codex skill\n"
+        assert (wt / ".codex" / "skills" / "html-artifacts" / "SKILL.md").is_file()
+
+    def test_codex_injection_leaves_repo_clean(self, tmp_path):
+        """Blocker from #151 research: neither `games` nor `seedon` ignores `.codex/`, so
+        without the exclude step both would get permanent untracked junk."""
+        import subprocess
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+
+        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+
+        status = subprocess.run(
+            ["git", "status", "--short"], cwd=wt, capture_output=True, text=True,
+        ).stdout
+        assert ".codex" not in status, f"codex injection dirtied the repo: {status!r}"
+
+    def test_home_dir_occupied_by_file_is_skipped(self, tmp_path, caplog):
+        """Found during live acceptance: `Aperant` tracks a read-only zero-byte FILE named
+        `.codex`. Without this guard `mkdir -p` fails once per skill on every connect — the
+        count is 0 either way, so the assertion is on the noise, not just the result."""
+        import logging
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        (wt / ".codex").write_text("")
+
+        with caplog.at_level(logging.WARNING, logger="app.prompting"):
+            written = inject_skills_to_worktree(
+                ["codex-debate", "html-artifacts"], str(wt), ".codex",
+            )
+
+        assert written == 0
+        assert (wt / ".codex").read_text() == "", "the repo's own file must be untouched"
+        failures = [r for r in caplog.records if "install failed" in r.message]
+        assert not failures, f"bailed out noisily: {[r.message for r in failures]}"
+
+    def test_codex_injection_does_not_add_unrelated_excludes(self, tmp_path):
+        """`only=` from #149 must stay narrow: this may be the user's working repo."""
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+
+        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+
+        exclude = (wt / ".git" / "info" / "exclude").read_text()
+        assert ".codex/" in exclude
+        for unrelated in ("AGENTS.md", "codex_sessions.json", "*.round", ".claude/"):
+            assert unrelated not in exclude, f"unmandated pattern written: {unrelated}"
+
+
 class TestResolveBaseBranch:
     """DESIGN §10: резолв base_branch по стратегии манифеста (B3).
 

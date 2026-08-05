@@ -123,21 +123,29 @@ def _run_as_agent(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
-def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> int:
-    """Copy resolved pipeline skills into <path>/.claude/skills/ as native Claude CLI skills.
+def inject_skills_to_worktree(
+    skill_names: list[str], worktree_path: str, home_dir: str = ".claude",
+) -> int:
+    """Copy resolved pipeline skills into <path>/<home_dir>/skills/ as native CLI skills.
 
     Runs on every backend (re)connect, not just at worktree creation — a long-lived agent
     would otherwise keep the skill files from the day it was spawned, and a skill added to a
     role after spawn would never reach anyone. Same reasoning, same seam as `sync_agents_md`.
 
+    ``home_dir`` is the only thing that differs between runtimes: Claude discovers skills in
+    `.claude/skills/`, Codex in `.codex/skills/` (verified on codex-cli 0.145.0 — a project
+    directory is searched upward from cwd alongside `$CODEX_HOME/skills` and `~/.agents/skills`,
+    and the three sources are merged, not replaced). One mechanism, two addresses: a second
+    copy of this function would be two places for the guards below to drift apart.
+
     ``worktree_path`` is the agent's worktree when it has one, otherwise its plain cwd —
     orchestrators run without a worktree, so a worktree-only path never delivered to them.
     That cwd is a REAL repository the user works in by hand, hence the two guards below.
 
-    A repo that TRACKS `.claude/skills/<name>/SKILL.md` owns that file: `info/exclude` cannot
+    A repo that TRACKS `<home_dir>/skills/<name>/SKILL.md` owns that file: `info/exclude` cannot
     ignore a tracked path, so overwriting it leaves the tree dirty forever and blocks
     every merge. Such skills are left alone — the agent reads the repo's own version, which
-    Claude CLI already loads from the same path.
+    the CLI already loads from the same path.
 
     Returns the number of files actually written (unchanged copies are not rewritten, so a
     steady state costs zero writes and never swaps a file under a running CLI).
@@ -145,13 +153,20 @@ def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> int
     if not skill_names or not _SKILLS_DIR.is_dir():
         return 0
     wt = Path(worktree_path)
-    rels = {sname: f".claude/skills/{sname}/SKILL.md" for sname in skill_names}
+    rels = {sname: f"{home_dir}/skills/{sname}/SKILL.md" for sname in skill_names}
     try:
         tracked = tracked_paths(wt, list(rels.values()))
     except RuntimeError as exc:
         # Git failing (not a repo, ownership, broken worktree) proves nothing about who owns
         # these files. Writing on a guess is what dirties someone else's repository.
         logger.warning(f"{exc} — skill injection skipped for {wt}")
+        return 0
+    home = wt / home_dir
+    if home.exists() and not home.is_dir():
+        # Measured on a live repo: `Aperant` tracks a read-only zero-byte FILE named `.codex`.
+        # `mkdir -p` then fails once per skill per connect. The repo owns that name — bail out
+        # quietly rather than log the same failure five times forever or clobber their file.
+        logger.info(f"'{home}' exists and is not a directory — skill injection skipped")
         return 0
     injected = 0
     for sname in skill_names:
@@ -162,7 +177,7 @@ def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> int
         if rels[sname] in tracked:
             logger.info(f"Skill '{sname}' is tracked by the repo at {wt} — injection skipped")
             continue
-        dest = wt / ".claude" / "skills" / sname / "SKILL.md"
+        dest = wt / home_dir / "skills" / sname / "SKILL.md"
         if dest.is_symlink():
             logger.warning(f"Skill '{sname}' at {dest} is a symlink — skipped (copy would clobber its target)")
             continue
@@ -186,15 +201,19 @@ def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> int
                 _run_as_agent(["rm", "-f", str(tmp)], capture_output=True)
         injected += 1
     if injected:
-        # Only after actually planting something, and only `.claude/` — this path may be the
-        # user's working repository, where adding unrelated ignore rules is a side effect we
-        # have no mandate for. Without this, a repo that doesn't already ignore `.claude/`
-        # (e.g. games) gets permanent untracked junk in the user's `git status`.
+        # Only after actually planting something, and only the directory we wrote — this path
+        # may be the user's working repository, where adding unrelated ignore rules is a side
+        # effect we have no mandate for. Without this, a repo that ignores neither `.claude/`
+        # nor `.codex/` (games and seedon ignore neither) gets permanent untracked junk in the
+        # user's `git status`.
         try:
-            _exclude_worktree_artifacts(wt, only=(".claude/",))
+            _exclude_worktree_artifacts(wt, only=(f"{home_dir}/",))
         except Exception as exc:
-            logger.warning(f"could not exclude .claude/ in {wt}: {exc}")
-        logger.info(f"Injected {injected} skills into {worktree_path}/.claude/skills/")
+            logger.warning(f"could not exclude {home_dir}/ in {wt}: {exc}")
+        # Path is logged, not just the count: whether a CLI actually discovers this directory
+        # is not something we detect (see ORCHESTRA_CODEX_SKILL_INDEX). If an agent turns out
+        # to have no skills, this line is the evidence of where they were put.
+        logger.info(f"Injected {injected} skills into {worktree_path}/{home_dir}/skills/")
     return injected
 
 

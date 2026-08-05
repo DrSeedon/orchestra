@@ -100,6 +100,9 @@ def _db_executor() -> concurrent.futures.ThreadPoolExecutor:
 
 
 _LAST_SUMMARY_MAX_CHARS = 4_000
+# Where each runtime's CLI discovers project skills. A runtime absent here gets no injection —
+# an `else: ".claude"` default would silently plant Claude files for the next new backend.
+_SKILL_HOME_DIRS = {"claude": ".claude", "codex": ".codex"}
 
 # Compact summary is a multi-KB wall of text; logging it as "text" mirrors it to TG
 # as agent speech. Off by default — the summary already lives in the agent's context
@@ -826,15 +829,15 @@ class AgentSession:
     async def _refresh_skills(self) -> None:
         """Re-install this role's pipeline skills before the CLI starts.
 
-        Claude reads skills as FILES from `<cwd>/.claude/skills/`, so its copy goes stale the
+        Both runtimes read skills as FILES, each from its own directory: Claude from
+        `<cwd>/.claude/skills/`, Codex from `<cwd>/.codex/skills/`. Either copy goes stale the
         moment a skill is edited, and a skill added to a role after spawn never arrives at all.
-        Codex needs nothing here: it gets a freshly built index of canonical source paths on
-        every connect (`build_codex_skills_index`), i.e. it reads the original, not a copy.
 
         Falls back to `self.cwd` when there is no worktree — orchestrators run without one,
         which is why a worktree-only injection reached none of them.
         """
-        if self.backend_type != "claude":
+        home_dir = _SKILL_HOME_DIRS.get(self.backend_type)
+        if not home_dir:
             return
         path = self.worktree_path or self.cwd
         if not path:
@@ -846,7 +849,7 @@ class AgentSession:
             # "all" means the CLI discovers skills itself — nothing to copy.
             if not skills or skills == "all":
                 return
-            await asyncio.to_thread(inject_skills_to_worktree, skills, path)
+            await asyncio.to_thread(inject_skills_to_worktree, skills, path, home_dir)
         except Exception as e:
             logger.warning(f"[{self.name}] skill refresh failed: {e}")
 

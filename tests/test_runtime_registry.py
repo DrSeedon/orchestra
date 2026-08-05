@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 
+from app import runtime_registry
 from app.backend_protocol import BackendLike
 from app.runtime_registry import (
     BUILTIN_RUNTIMES,
@@ -226,6 +227,10 @@ roles:
         context_limit=258_400,
     )
 
+    # Task #151: the generated index is now the OFF-by-default fallback — Codex discovers
+    # `<cwd>/.codex/skills/` natively. This test covers the fallback, so it enables it.
+    monkeypatch.setattr(runtime_registry, "_CODEX_SKILL_INDEX_ENABLED", True)
+
     backend = build_backend("codex", ctx)
 
     assert backend.system_prompt.startswith(
@@ -237,3 +242,46 @@ roles:
     assert str((skills / "beta.md").resolve()) in backend.system_prompt
     assert "ALPHA_BODY_MUST_NOT_BE_IN_PROMPT" not in backend.system_prompt
     assert "BETA_BODY_MUST_NOT_BE_IN_PROMPT" not in backend.system_prompt
+
+
+def test_codex_factory_omits_skill_index_by_default(tmp_path, monkeypatch, request):
+    """Task #151: Codex loads `<cwd>/.codex/skills/` natively, so the generated index is OFF
+    by default. Both sources at once would list every skill name twice — Codex does not dedupe
+    (verified: a local `pdf` alongside the global one produced two entries)."""
+    import app.pipeline as pipeline
+
+    root = tmp_path / "pipelines"
+    skills = root / "custom" / "prompts" / "skills"
+    skills.mkdir(parents=True)
+    (skills / "alpha.md").write_text(
+        "---\nname: alpha\ndescription: Alpha workflow\n---\nBODY\n", encoding="utf-8",
+    )
+    (root / "custom" / "pipeline.yaml").write_text(
+        """\
+name: custom
+defaults:
+  model: gpt5.6sol
+  skills: []
+roles:
+  worker:
+    kind: worker
+    label: Worker
+    skills: all
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(pipeline, "PIPELINES_DIR", root)
+    pipeline.load_pipeline.cache_clear()
+    request.addfinalizer(pipeline.load_pipeline.cache_clear)
+    monkeypatch.setattr(runtime_registry, "_CODEX_SKILL_INDEX_ENABLED", False)
+
+    ctx = BackendBuildContext(
+        model="gpt-5.6-sol", provider="openai", cwd=str(tmp_path), system_prompt="BASE",
+        resume_session_id=None, mcp_servers={}, is_orchestrator=False, scope=str(tmp_path),
+        pipeline="custom", role="worker", profile="", effort="high", context_limit=258_400,
+    )
+
+    backend = build_backend("codex", ctx)
+
+    assert backend.system_prompt == "BASE"
+    assert "Available skills" not in backend.system_prompt
