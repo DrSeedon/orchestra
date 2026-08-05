@@ -1,67 +1,86 @@
 ---
 name: html-artifacts
-description: Generate interactive HTML artifacts instead of markdown
+description: Оформить ответ самодостаточным .html вместо markdown, когда нужны вёрстка, цвет, схемы или интерактив. Триггеры — артефакт, отчёт, дашборд, сравнение, схема, слайды, план, пост-мортем, визуализация, «покажи наглядно», ответ длиннее ~100 строк.
 ---
 
 # HTML Artifacts
 
-Generate `.html` files when content benefits from layout, color, diagrams, interactivity.
+Генерируй `.html`, когда содержимое выигрывает от вёрстки, цвета, схем или интерактива.
+Markdown — для коротких ответов, кода, команд и одноразовых сводок.
 
-## When to use HTML
-- Comparing 2+ options — side-by-side
-- Diagrams, flowcharts, architecture schemas
-- Dashboards, metrics, status reports
-- Reports >100 lines
-- Anything the user will share or re-read
+## Обязательное
 
-## When NOT to use
-- Short replies, code, terminal commands
-- Disposable summaries
+1. **Один файл** — CSS в `<style>`, JS в `<script>`, графика инлайновым SVG или data-URI
+2. **Работает офлайн** — внешний CDN только для Chart.js/uPlot и только если нужны графики
+3. **Системные шрифты**, без веб-шрифтов
+4. **Тёмная и светлая** — `color-scheme: light dark` на `:root`, значения через
+   `light-dark(тёмное, светлое)`; дублирующий `@media (prefers-color-scheme)` не нужен
+5. **`@media print`** — белый фон, чёрный текст, элементы управления скрыты, `print-color-adjust: exact`
+6. **Адаптивность** — `<meta name="viewport">`, сетки `auto-fit` + `minmax`
+7. **Язык пользователя** во всём тексте
+8. **Читается за 5 секунд** — заголовок, абзац сути, дальше содержание
+9. **Durable source** — факты в Markdown/JSON, HTML это представление; редактор выгружает состояние обратно
+10. **Проверь рендером, а не глазами по коду** — если есть JS, открой headless: страница не
+    пустая, консоль чистая. `const top/left/name` на верхнем уровне роняют скрипт целиком
 
-**Durable source:** Keep durable facts and editable content in Git-diffable Markdown or JSON. HTML is the presentation layer only, never the sole source of truth.
-**Export-back:** Editor-like artifacts must export changes back to Markdown or JSON so edits remain durable and reviewable.
+## Палитра выводится из предмета
 
-## Rules
-1. **Language** — write ALL text content (titles, labels, TL;DR, descriptions) in the SAME language the user is communicating in. User speaks Russian → artifact in Russian. English → English
-2. **Single .html file** — CSS in `<style>`, JS in `<script>`, SVG inline
-2. **Works offline** — CDN only for Chart.js if charts needed
-3. **System fonts** — `system-ui, sans-serif`
-4. **Dark-first** — `prefers-color-scheme` for light mode
-5. **Responsive** — `<meta name="viewport">`
-6. **Readable in 5 sec** — title, TL;DR, then substance
+Фиксированного акцента нет. Подбери тон под тему конкретного артефакта и поясни выбор
+комментарием: `/* акцент: <цвет> — <почему он про этот предмет> */`.
 
-## CSS base
-```css
-:root {
-  --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
-  --border: #2a2a32; --ink: #f1f1f4; --ink-soft: #a8a8b3;
-  --accent: #7c3aed; --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
-  --sans: system-ui, -apple-system, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, monospace;
-}
-@media (prefers-color-scheme: light) {
-  :root { --bg: #fafaf7; --surface: #fff; --border: #e7e5df; --ink: #1a1a1f; --ink-soft: #555; }
-}
-```
+Ориентиры, не список для копирования: разбор сбоя — тревожный тёплый; деньги и рост — зелёный;
+инфраструктура — холодный синий; юридическое — нейтраль с одним акцентом. Соседние артефакты
+одной сессии обязаны отличаться по тону.
 
-## Where to save
-1. `artifacts/` in project root
-2. `docs/artifacts/` if `docs/` exists
+- **Не одноцветная палитра.** Не строй интерфейс на вариациях одного семейства. Особенно
+  избегай доминирующего фиолетового и фиолетово-синего, а также беж, тёмно-синий и
+  коричнево-оранжевый как тему целиком; перед сдачей просмотри цвета и переделай, если
+  страница читается как одна из них
+- **Два базовых токена + акцент**, остальное выводится:
+  `--card: color-mix(in oklab, var(--ink) 5%, transparent)`
+- **Серии графиков** — 6 различимых тонов, разнесённых по кругу, каждый для обеих тем;
+  не оттенки одного цвета
 
-## After saving
-1. Tell the path
-2. `xdg-open <file>` (Linux)
-3. In Orchestra: `send_file(path, caption)` to Telegram
+## Размеры — шкалой, не на глаз
 
-## Anti-patterns (NEVER)
-- Cards with shadows on gray background
-- Gradient hero section
-- Emoji as section headers
-- Glass morphism, frosted blur
-- Generic Tailwind aesthetic
+- Кегли из одной базы: `--fs: 15px`, дальше `calc(var(--fs) * 1.72 / 1.43 / 1.29)` для h1–h3
+- Радиусы из одного `--radius`: `calc(var(--radius) * .6 / .8 / 1)`
+- `letter-spacing: 0`; кегль не масштабируется от ширины вьюпорта
+- Крупный шрифт только настоящим заголовкам; в карточках, панелях и таблицах мельче и плотнее
+- Текст помещается в свой элемент на узком и широком экране и не наезжает на соседей
 
-## SVG rules
-- `viewBox`, not fixed width/height
-- `currentColor` for theme adaptation
-- `<text>` not paths — copyable text
-- Arrow markers via `<defs><marker>`
+## Состояния
+
+- `:focus-visible` **на каждом** интерактивном элементе:
+  `outline: none; box-shadow: inset 0 0 0 1px var(--ring)`
+- **Тень — состояние, не украшение.** `box-shadow` для фокуса и выделения; для высоты
+  максимум одна слабая тень на всё
+
+## Плотность и композиция
+
+- Отчёт, дашборд, разбор — спокойно и утилитарно, плотно, для сканирования. Без hero и обложек
+- Карточка не внутри карточки; секции — полосы, а не плавающие карточки
+- Без градиентных пятен, шаров и размытых клякс
+- Артефакты отличаются не только цветом: меняй композицию, плотность, шрифтовую пару
+
+## Схемы (inline SVG)
+
+`viewBox` вместо размеров · `currentColor` для чернил · текст тегом `<text>` · стрелки через
+`<defs><marker>` · основной путь акцентом, ошибочные ветки приглушённо.
+
+Два дефекта, которые видно только на зуме фигуры, а не на полностраничном скриншоте:
+стрелка, стартующая ВНУТРИ блока, перечёркивает его же подпись — начинай от края;
+`<text>` не переносится — длинная подпись молча вылезает на соседний блок, режь её на
+`<tspan>` по строкам или укорачивай.
+
+## Антипаттерны
+
+Эмодзи вместо заголовков · стеклянный блюр · дженерик-админка на Tailwind · всё по центру.
+Хорошо — спокойная типографика, сдержанные чернила, максимум два акцента, настоящие схемы.
+
+## Куда сохранять
+
+`artifacts/` или `docs/artifacts/`, имя kebab-case. Сообщи путь; в Orchestra добавь
+`send_file(path, caption)`, если артефакт для пользователя.
+
+Версия с примерами по жанрам — `~/.claude/skills/html-artifacts/`, отдельный артефакт, не копия.

@@ -441,3 +441,44 @@ class TestRoleIcons:
         assert icons["orchestrator"] == "👑"
         assert set(icons) == set(load_pipeline(DEFAULT_PIPELINE).roles)
         assert len(set(icons.values())) == len(icons)  # no two roles share an icon
+
+
+class TestHtmlArtifactsSkillInvariants:
+    """Скилл обязан ВЫВОДИТЬ палитру, а не носить свою.
+
+    Не сравнение с глобальным `~/.claude/skills/html-artifacts/` — его нет ни в репозитории,
+    ни в CI. Поэтому фиксируем то, ради чего правился этот файл (#119): захардкоженный акцент
+    сделал пять независимых артефактов одинаково фиолетовыми (`--accent: #7c3aed`, M1 = 1
+    уникальный из 5, M2 = 5 фиолетовых из 5).
+    """
+
+    SKILL = (
+        Path(__file__).parent.parent
+        / "pipelines" / "default" / "prompts" / "skills" / "html-artifacts.md"
+    )
+
+    def test_no_hardcoded_color_literals(self):
+        """Любой цветовой литерал как КЛАСС, а не только вернувшийся #7c3aed."""
+        import re
+
+        text = self.SKILL.read_text(encoding="utf-8")
+        literals = re.findall(r"#[0-9a-fA-F]{3,8}\b", text)
+        literals += re.findall(r"\b(?:rgb|hsl)a?\(\s*\d", text)
+        assert literals == [], (
+            f"в скилле снова зашит цвет: {literals}. Палитра обязана выводиться из предмета "
+            f"артефакта, иначе все артефакты снова станут одного тона"
+        )
+
+    def test_palette_is_derived_from_subject(self):
+        text = self.SKILL.read_text(encoding="utf-8").lower()
+        assert "выводится из предмета" in text
+        assert "color-mix" in text, "должен остаться приём вывода цвета из базовых токенов"
+
+    def test_budget(self):
+        """description платится в КАЖДОЙ сессии (индекс скиллов), тело — только при срабатывании."""
+        import re
+
+        text = self.SKILL.read_text(encoding="utf-8")
+        description = re.search(r"^description:\s*(.*)$", text, re.M).group(1)
+        assert len(description) <= 250, f"description {len(description)} симв."
+        assert len(text.split("---", 2)[2].encode()) <= 7000, "тело скилла раздулось"

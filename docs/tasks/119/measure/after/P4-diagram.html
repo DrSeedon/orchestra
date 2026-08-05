@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Путь задачи через оркестратор</title>
+<style>
+:root{
+  color-scheme: light dark;
+  /* акцент: тёмная бирюза — цвет конвейера и передачи по каналу, задача едет по трубе от юзера в main */
+  --accent: light-dark(#0d7a70, #4ac9b8);
+  /* второй акцент: терракота — только сбои и возвраты, тёплый против холодного основного пути */
+  --warn: light-dark(#a8481f, #e0895c);
+  --fs: 15px;
+  --radius: 12px;
+  --bg: light-dark(#f6f8f7, #0f1413);
+  --ink: light-dark(#151f1d, #e5ebe9);
+  --muted: color-mix(in oklab, var(--ink) 58%, transparent);
+  --line: color-mix(in oklab, var(--ink) 16%, transparent);
+  --card: color-mix(in oklab, var(--ink) 5%, transparent);
+  --ring: var(--accent);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font: var(--fs)/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing:0;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:34px 22px 60px}
+h1{font-size:calc(var(--fs) * 1.72); line-height:1.2; margin:0 0 10px; font-weight:650}
+h2{font-size:calc(var(--fs) * 1.29); margin:0 0 14px; font-weight:600}
+.lead{margin:0; max-width:70ch; color:var(--muted)}
+.lead b{color:var(--ink); font-weight:600}
+.band{border-top:1px solid var(--line); margin-top:30px; padding-top:24px}
+
+.diagram{overflow-x:auto; margin:22px 0 0; padding-bottom:6px}
+.diagram svg{display:block; width:100%; min-width:820px; height:auto}
+.n-box{fill:var(--card); stroke:var(--line); stroke-width:1}
+.n-box.is-alt{stroke:color-mix(in oklab, var(--warn) 45%, transparent)}
+.n-title{fill:var(--ink); font-size:15px; font-weight:600}
+.n-sub{fill:var(--muted); font-size:12px}
+.n-sub.code{font-family:var(--mono); font-size:11.5px}
+.p-main{fill:none; stroke:var(--accent); stroke-width:2; marker-end:url(#tip-main)}
+.p-alt{fill:none; stroke:var(--warn); stroke-width:1.75; stroke-dasharray:5 4; marker-end:url(#tip-alt)}
+.l-main{fill:var(--muted); font-size:11.5px}
+.l-alt{fill:var(--warn); font-size:11.5px}
+
+.legend{display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:14px; font-size:12.5px; color:var(--muted)}
+.legend span{display:inline-flex; align-items:center; gap:8px}
+.swatch{width:26px; height:0; border-top:2px solid var(--accent)}
+.swatch.alt{border-top:2px dashed var(--warn)}
+
+.rows{display:grid; gap:0}
+.row{display:grid; grid-template-columns:minmax(150px,190px) 1fr; gap:6px 22px; padding:11px 0; border-top:1px dotted var(--line); font-size:13.5px}
+.row:first-child{border-top:0}
+.row dt{font-weight:600}
+.row dd{margin:0; color:var(--muted)}
+.row.is-alt dt{color:var(--warn)}
+code{font-family:var(--mono); font-size:.9em; color:var(--ink)}
+
+.rules{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:18px 28px; margin:0; padding:0; list-style:none; font-size:13.5px}
+.rules li{padding-left:14px; border-left:2px solid var(--accent); color:var(--muted)}
+.rules b{display:block; color:var(--ink); font-weight:600; margin-bottom:2px}
+
+a:focus-visible, .diagram:focus-visible{outline:none; box-shadow:inset 0 0 0 1px var(--ring)}
+
+@media print{
+  :root{--bg:#fff; --ink:#000; --muted:#333; --line:#bbb; --card:#fff; --accent:#0a6f66; --warn:#9a4420}
+  body{background:#fff; color:#000}
+  .wrap{max-width:none; padding:0}
+  .diagram{overflow:visible}
+  .diagram svg{min-width:0}
+  *{print-color-adjust:exact; -webkit-print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Путь задачи через оркестратор</h1>
+<p class="lead">Задача идёт по одному маршруту: <b>пользователь → оркестратор → воркер в своём worktree → ревью → squash-мерж в main</b>. Отклонений ровно два, и оба — циклы, а не тупики: <b>ревью не прошло</b> возвращает работу тому же воркеру, <b>воркер упал</b> возвращает управление оркестратору, который подбирает незакоммиченный WIP.</p>
+
+<div class="diagram" tabindex="0">
+<svg viewBox="0 0 1260 510" role="img" aria-labelledby="d-t d-d">
+  <title id="d-t">Схема прохождения задачи через оркестратор</title>
+  <desc id="d-d">Основной путь: пользователь, оркестратор, воркер в отдельном git worktree, ревью, мерж в main и отчёт пользователю. Пунктиром — две ветки отказа: непройденное ревью возвращает задачу воркеру, падение воркера возвращает её оркестратору через worker_wip и респавн.</desc>
+
+  <defs>
+    <marker id="tip-main" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+    </marker>
+    <marker id="tip-alt" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="var(--warn)"/>
+    </marker>
+  </defs>
+
+  <!-- основной путь -->
+  <path class="p-main" d="M200,105 H250"/>
+  <path class="p-main" d="M470,105 H520"/>
+  <path class="p-main" d="M740,105 H790"/>
+  <path class="p-main" d="M1010,105 H1060"/>
+  <path class="p-main" d="M1150,150 V490 H110 V150"/>
+
+  <text class="l-main" x="225" y="48" text-anchor="middle">задача</text>
+  <text class="l-main" x="495" y="48" text-anchor="middle">spawn_worker</text>
+  <text class="l-main" x="765" y="48" text-anchor="middle">коммит в ветку</text>
+  <text class="l-main" x="1035" y="48" text-anchor="middle">ревью пройдено</text>
+  <text class="l-main" x="630" y="482" text-anchor="middle">задача закрыта — отчёт пользователю</text>
+
+  <!-- ветка: ревью не прошло -->
+  <path class="p-alt" d="M900,150 V230 H630 V150"/>
+  <text class="l-alt" x="765" y="252" text-anchor="middle">не прошло — замечания и правки</text>
+
+  <!-- ветка: воркер упал -->
+  <path class="p-alt" d="M580,150 V360"/>
+  <text class="l-alt" x="566" y="200" text-anchor="end">ход оборван</text>
+  <text class="l-alt" x="566" y="216" text-anchor="end">stop_reason=error</text>
+  <path class="p-alt" d="M520,405 H470"/>
+  <path class="p-alt" d="M360,360 V150"/>
+  <text class="l-alt" x="346" y="250" text-anchor="end">оркестратор</text>
+  <text class="l-alt" x="346" y="266" text-anchor="end">возвращает в строй</text>
+
+  <!-- узлы основного пути -->
+  <rect class="n-box" x="20" y="60" width="180" height="90" rx="12"/>
+  <text class="n-title" x="110" y="99" text-anchor="middle">Пользователь</text>
+  <text class="n-sub" x="110" y="120" text-anchor="middle">ставит задачу</text>
+
+  <rect class="n-box" x="250" y="60" width="220" height="90" rx="12"/>
+  <text class="n-title" x="360" y="91" text-anchor="middle">Оркестратор</text>
+  <text class="n-sub" x="360" y="112" text-anchor="middle">разбор, модель, ветка</text>
+  <text class="n-sub code" x="360" y="131" text-anchor="middle">task-N/worker</text>
+
+  <rect class="n-box" x="520" y="60" width="220" height="90" rx="12"/>
+  <text class="n-title" x="630" y="91" text-anchor="middle">Воркер</text>
+  <text class="n-sub" x="630" y="112" text-anchor="middle">свой git worktree</text>
+  <text class="n-sub" x="630" y="131" text-anchor="middle">правки и коммиты</text>
+
+  <rect class="n-box" x="790" y="60" width="220" height="90" rx="12"/>
+  <text class="n-title" x="900" y="99" text-anchor="middle">Ревью</text>
+  <text class="n-sub code" x="900" y="121" text-anchor="middle">codex_review · тесты</text>
+
+  <rect class="n-box" x="1060" y="60" width="180" height="90" rx="12"/>
+  <text class="n-title" x="1150" y="99" text-anchor="middle">Мерж в main</text>
+  <text class="n-sub code" x="1150" y="121" text-anchor="middle">squash, 1 коммит</text>
+
+  <!-- узлы ветки отказа -->
+  <rect class="n-box is-alt" x="520" y="360" width="220" height="90" rx="12"/>
+  <text class="n-title" x="630" y="399" text-anchor="middle">Воркер упал</text>
+  <text class="n-sub" x="630" y="420" text-anchor="middle">работа не потеряна</text>
+
+  <rect class="n-box is-alt" x="250" y="360" width="220" height="90" rx="12"/>
+  <text class="n-title" x="360" y="391" text-anchor="middle">Подъём WIP</text>
+  <text class="n-sub code" x="360" y="412" text-anchor="middle">worker_wip → commit</text>
+  <text class="n-sub" x="360" y="431" text-anchor="middle">респавн или резюм</text>
+</svg>
+</div>
+
+<div class="legend">
+  <span><i class="swatch"></i> основной путь</span>
+  <span><i class="swatch alt"></i> ветка отказа — возврат в цикл, задача не теряется</span>
+</div>
+
+<section class="band">
+<h2>Что происходит в каждом узле</h2>
+<dl class="rows">
+  <div class="row"><dt>Пользователь</dt><dd>Формулирует задачу текстом. Дальше он в маршруте не участвует до отчёта.</dd></div>
+  <div class="row"><dt>Оркестратор</dt><dd>Разбирает задачу, выбирает модель, зовёт <code>spawn_worker</code>. Orchestra заводит воркеру git worktree и ветку <code>task-&lt;id&gt;/&lt;worker&gt;</code>.</dd></div>
+  <div class="row"><dt>Воркер</dt><dd>Правит файлы только внутри своего worktree, коммитит в свою ветку. Не трогает main и не мержит сам.</dd></div>
+  <div class="row"><dt>Ревью</dt><dd>Cross-LLM <code>codex_review</code> или самопроверка плюс прогон тестов. Здесь маршрут ветвится.</dd></div>
+  <div class="row"><dt>Мерж в main</dt><dd><code>merge_worker</code> — squash-мерж, один коммит на задачу. Единственный, кто пишет в main, — оркестратор.</dd></div>
+  <div class="row is-alt"><dt>Ревью не прошло</dt><dd>Замечания уходят воркеру через <code>send_message</code>. Сессия и worktree живы, воркер продолжает с того же контекста — цикл повторяется до зелёного ревью.</dd></div>
+  <div class="row is-alt"><dt>Воркер упал</dt><dd>Ход оборван (<code>stop_reason=error</code>, пустой выхлоп). Оркестратор смотрит <code>worker_wip</code> — незакоммиченные файлы и неслитые коммиты, — коммитит WIP и резюмит либо респавнит воркера.</dd></div>
+</dl>
+</section>
+
+<section class="band">
+<h2>Что схема гарантирует</h2>
+<ul class="rules">
+  <li><b>Изоляция</b>Один воркер — один worktree — одна ветка. Параллельные задачи не видят чужих правок до мержа.</li>
+  <li><b>Один писатель в main</b>Воркер физически не мержит. Любая работа попадает в main только через оркестратора.</li>
+  <li><b>Отказ не терминален</b>Обе красные ветки возвращаются в основной цикл. Потерять можно только незакоммиченное — поэтому воркер коммитит до отчёта.</li>
+  <li><b>Готово = чистое дерево</b>Признак завершения — пустой <code>git status</code> и коммит в ветке, а не сообщение «сделал».</li>
+</ul>
+</section>
+
+</div>
+</body>
+</html>

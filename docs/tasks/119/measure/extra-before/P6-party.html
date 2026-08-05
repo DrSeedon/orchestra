@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>День рождения — 12 гостей 6–7 лет: меню, тайминг, закупки</title>
+<style>
+:root {
+  --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
+  --border: #2a2a32; --ink: #f1f1f4; --ink-soft: #a8a8b3;
+  --accent: #e0653f; --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+  --sans: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #fafaf7; --surface: #fff; --surface-2: #f4f2ec; --border: #e7e5df; --ink: #1a1a1f; --ink-soft: #555; --accent: #c1421c; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.55 var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
+
+/* --- шапка --- */
+header { border-bottom: 2px solid var(--ink); padding-bottom: 18px; }
+.kicker {
+  font: 600 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent);
+}
+h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.08; margin: 12px 0 10px; letter-spacing: -.02em; }
+.lede { color: var(--ink-soft); max-width: 62ch; margin: 0; }
+
+.facts { display: flex; flex-wrap: wrap; gap: 0; margin: 22px 0 0; border: 1px solid var(--border); }
+.fact { flex: 1 1 150px; padding: 12px 14px; border-right: 1px solid var(--border); }
+.fact:last-child { border-right: 0; }
+.fact b { display: block; font: 700 22px/1.2 var(--mono); }
+.fact span { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; }
+
+h2 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .14em;
+  margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  color: var(--ink-soft); font-weight: 700;
+}
+h2 .num { color: var(--accent); font-family: var(--mono); margin-right: 10px; }
+h3 { font-size: 17px; margin: 0 0 6px; }
+
+/* --- роли --- */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.role { border: 1px solid var(--border); border-top: 3px solid var(--accent); padding: 14px 16px; background: var(--surface); }
+.role p { margin: 6px 0 0; font-size: 14px; color: var(--ink-soft); }
+.role .who { font: 600 12px/1 var(--mono); color: var(--ink-soft); text-transform: uppercase; letter-spacing: .08em; }
+.role .who i { font-style: normal; border-bottom: 1px dashed var(--ink-soft); padding: 0 26px 1px 4px; }
+
+/* --- таймлайн --- */
+.tl { border-left: 2px solid var(--border); margin-left: 62px; }
+.row { position: relative; padding: 0 0 22px 22px; }
+.row:last-child { padding-bottom: 0; }
+.time {
+  position: absolute; left: -84px; top: -2px; width: 62px; text-align: right;
+  font: 700 15px/1.4 var(--mono);
+}
+.row::before {
+  content: ""; position: absolute; left: -7px; top: 6px;
+  width: 12px; height: 12px; background: var(--bg); border: 2px solid var(--ink-soft);
+}
+.row.eat::before { background: var(--accent); border-color: var(--accent); }
+.row.key::before { background: var(--ok); border-color: var(--ok); }
+.tag {
+  display: inline-block; font: 600 10px/1 var(--mono); letter-spacing: .1em;
+  text-transform: uppercase; padding: 4px 6px; border: 1px solid var(--border);
+  color: var(--ink-soft); margin-left: 8px; vertical-align: 2px;
+}
+.row.eat .tag { color: var(--accent); border-color: var(--accent); }
+.row.key .tag { color: var(--ok); border-color: var(--ok); }
+.row p { margin: 4px 0 0; font-size: 14.5px; color: var(--ink-soft); }
+.row p b { color: var(--ink); font-weight: 600; }
+.dur { font: 12px/1 var(--mono); color: var(--ink-soft); }
+
+/* --- таблицы --- */
+.scroll { overflow-x: auto; border: 1px solid var(--border); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 620px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+thead th {
+  background: var(--surface-2); font: 700 11px/1.3 var(--mono);
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft);
+  position: sticky; top: 0;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.c, th.c { text-align: center; }
+.al { font: 700 13px/1 var(--mono); }
+.al.y { color: var(--danger); }
+.al.m { color: var(--warn); }
+.al.n { color: var(--ink-soft); opacity: .35; }
+.qty { font-family: var(--mono); white-space: nowrap; }
+
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); margin: 10px 0 0; }
+.legend span b { font-family: var(--mono); }
+
+/* --- стоп-лист --- */
+.stop { border: 1px solid var(--danger); padding: 16px 18px; background: var(--surface); }
+.stop ul { margin: 10px 0 0; padding-left: 20px; }
+.stop li { margin-bottom: 7px; font-size: 14.5px; }
+.stop li b { color: var(--danger); }
+
+/* --- закупки --- */
+.buybar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.bar { flex: 1 1 200px; height: 8px; background: var(--surface-2); border: 1px solid var(--border); }
+.bar i { display: block; height: 100%; background: var(--ok); width: 0; transition: width .2s; }
+.cnt { font: 700 13px/1 var(--mono); color: var(--ink-soft); }
+button {
+  font: 600 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase;
+  background: transparent; color: var(--ink); border: 1px solid var(--border);
+  padding: 9px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+.buy { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.col { border: 1px solid var(--border); background: var(--surface); }
+.col > h3 {
+  margin: 0; padding: 11px 14px; border-bottom: 1px solid var(--border);
+  background: var(--surface-2); font: 700 12px/1.3 var(--mono);
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.col > h3 em { display: block; font: 400 12px/1.4 var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink-soft); margin-top: 3px; }
+.col ul { list-style: none; margin: 0; padding: 6px 0; }
+.col li { display: flex; gap: 10px; padding: 6px 14px; align-items: baseline; font-size: 14px; }
+.col li input { margin: 0; accent-color: var(--ok); width: 16px; height: 16px; flex: none; position: relative; top: 2px; }
+.col li label { flex: 1; cursor: pointer; }
+.col li input:checked + label { color: var(--ink-soft); text-decoration: line-through; }
+.col li label small { display: block; font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+
+/* --- шаблон сообщения --- */
+.msg { border: 1px solid var(--border); background: var(--surface); padding: 16px 18px; }
+.msg pre {
+  margin: 0; font: 13.5px/1.6 var(--mono); white-space: pre-wrap;
+  color: var(--ink); max-width: 66ch;
+}
+.msg .act { margin-top: 12px; }
+
+/* --- план зон --- */
+.plan { border: 1px solid var(--border); background: var(--surface); padding: 16px; }
+.plan svg { width: 100%; height: auto; display: block; color: var(--ink-soft); }
+.plan text { font: 12px var(--sans); fill: currentColor; }
+.plan text.t { font: 700 13px var(--sans); fill: var(--ink); }
+
+.note { font-size: 13px; color: var(--ink-soft); margin: 10px 0 0; }
+footer { margin-top: 56px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--ink-soft); }
+
+@media print {
+  :root { --bg: #fff; --surface: #fff; --surface-2: #f2f2f2; --border: #bbb; --ink: #000; --ink-soft: #444; --accent: #a03418; }
+  body { font-size: 11.5pt; }
+  .wrap { max-width: none; padding: 0; }
+  button, .buybar .bar, .buybar .cnt { display: none; }
+  h2 { margin-top: 26px; page-break-after: avoid; }
+  .row, .role, .col, .stop, tr { page-break-inside: avoid; }
+  .scroll { overflow: visible; }
+  table { min-width: 0; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Памятка родителям-помощникам</div>
+  <h1>День рождения: 12 гостей, 6–7 лет</h1>
+  <p class="lede">Четыре часа, три взрослых помощника, один именинник. Ниже — во сколько что подаём, чем занимаем детей между едой, что купить и в какой день, и какие аллергены есть в каждом блюде. Страницу можно распечатать: раскладка под печать уже настроена.</p>
+  <div class="facts">
+    <div class="fact"><b>12</b><span>детей + 4 взрослых</span></div>
+    <div class="fact"><b>12:00–16:00</b><span>4 часа</span></div>
+    <div class="fact"><b>3</b><span>помощника</span></div>
+    <div class="fact"><b>2</b><span>приёма еды + торт</span></div>
+    <div class="fact"><b>≈9 л</b><span>напитков всего</span></div>
+  </div>
+</header>
+
+<h2><span class="num">01</span>Кто за что отвечает</h2>
+<div class="roles">
+  <div class="role">
+    <h3>Кухня и стол</h3>
+    <div class="who">Помощник <i>&nbsp;</i></div>
+    <p>Разогрев и вынос блюд по таймингу, доливает воду и морс, следит за списком аллергий, убирает со стола между подачами. Не уходит на активные игры — на кухне всегда кто-то есть.</p>
+  </div>
+  <div class="role">
+    <h3>Игры и ведущий</h3>
+    <div class="who">Помощник <i>&nbsp;</i></div>
+    <p>Объявляет и ведёт каждую активность, держит темп, следит чтобы никто не выпал из игры. Реквизит собран в коробке заранее — по одному пакету на игру.</p>
+  </div>
+  <div class="role">
+    <h3>Дети, фото, безопасность</h3>
+    <div class="who">Помощник <i>&nbsp;</i></div>
+    <p>Считает детей по головам после каждого перехода, водит в туалет и мыть руки, снимает торт и подарки, встречает и провожает родителей. Держит аптечку и телефоны родителей.</p>
+  </div>
+</div>
+<p class="note">Правило дня: за каждую подачу еды и за каждую игру отвечает один человек по имени, а не «кто-нибудь». Впишите имена в пустые поля до начала праздника.</p>
+
+<h2><span class="num">02</span>Тайминг: что и во сколько</h2>
+<div class="tl">
+
+  <div class="row">
+    <div class="time">11:00</div>
+    <h3>Подготовка без детей <span class="dur">60 мин</span></h3>
+    <p>Накрываем стол, ставим напитки, включаем духовку, вешаем шары. Именинника занимаем чем-то спокойным — не даём «помогать» на кухне.</p>
+  </div>
+
+  <div class="row">
+    <div class="time">12:00</div>
+    <h3>Сбор гостей <span class="tag">буфер</span></h3>
+    <p>Опоздания на 15–20 минут — норма, поэтому в это окно ничего важного не ставим. <b>На входе:</b> наклейка с именем каждому, свободная игра, на столе только вода и овощные палочки. <b>Здесь же спрашиваем родителей про аллергии</b> и сверяем со списком.</p>
+  </div>
+
+  <div class="row">
+    <div class="time">12:20</div>
+    <h3>Разминочные игры <span class="dur">20 мин</span></h3>
+    <p>Пока досбираются: «Найди пару» по наклейкам, лопаем шары с заданиями, лёгкие догонялки. Игры без выбывания — иначе тот, кто вылетел первым, скучает весь праздник.</p>
+  </div>
+
+  <div class="row eat">
+    <div class="time">12:40</div>
+    <h3>Основной стол <span class="tag">еда</span> <span class="dur">40 мин</span></h3>
+    <p>Горячее выносим когда все за столом. Дети едят 15–20 минут, дальше начинают ёрзать — не тянем. Порции маленькие, добавка по запросу.</p>
+  </div>
+
+  <div class="row">
+    <div class="time">13:20</div>
+    <h3>Активные игры <span class="dur">40 мин</span></h3>
+    <p>Самый шумный блок, пока есть силы: полоса препятствий, «море волнуется», эстафеты командами по 6. На улице — если погода позволяет.</p>
+  </div>
+
+  <div class="row">
+    <div class="time">14:00</div>
+    <h3>Мастер-класс <span class="dur">30 мин</span></h3>
+    <p>Спокойное занятие руками, чтобы сбросить накал: роспись пряников, значки, браслеты. Готовая поделка = подарок гостю домой, отдельные сувениры покупать не нужно.</p>
+  </div>
+
+  <div class="row eat key">
+    <div class="time">14:30</div>
+    <h3>Торт и свечи <span class="tag">кульминация</span> <span class="dur">30 мин</span></h3>
+    <p>Гасим свет, выносим торт, поём. <b>Фото — заранее назначенный человек</b>, иначе снимают все и никто. Рядом с тортом ставим фруктовую тарелку для тех, кому нельзя сладкое.</p>
+  </div>
+
+  <div class="row">
+    <div class="time">15:00</div>
+    <h3>Дискотека или поиск клада <span class="dur">30 мин</span></h3>
+    <p>Финальный выброс энергии. Клад прячем до прихода гостей: 5–6 записок по квартире, в сундуке — мыльные пузыри и наклейки на всех.</p>
+  </div>
+
+  <div class="row">
+    <div class="time">15:30</div>
+    <h3>Спокойный финал <span class="dur">30 мин</span></h3>
+    <p>Мультик или настолка, вода и фрукты на столе. Дети собирают поделки и куртки. Родители забирают спокойного ребёнка, а не разогнанного.</p>
+  </div>
+
+  <div class="row">
+    <div class="time">16:00</div>
+    <h3>Разъезд</h3>
+    <p>Проверяем по списку: у каждого своя куртка, поделка и пакет с гостинцем. Забытые вещи складываем в один пакет у двери.</p>
+  </div>
+
+</div>
+
+<h2><span class="num">03</span>План зон в квартире</h2>
+<div class="plan">
+<svg viewBox="0 0 640 300" role="img" aria-label="Схема расположения зон: стол, игровая, мастер-класс, зона подарков и вещей">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <rect x="16" y="16" width="290" height="130" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text class="t" x="30" y="40">Стол · 16 мест</text>
+  <text x="30" y="62">Еда, торт, напитки.</text>
+  <text x="30" y="80">Салфетки и мусорный пакет</text>
+  <text x="30" y="98">под рукой у взрослого.</text>
+  <text x="30" y="126">12:40 · 14:30</text>
+
+  <rect x="334" y="16" width="290" height="130" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text class="t" x="348" y="40">Игровая · свободный пол</text>
+  <text x="348" y="62">Ковёр, ничего бьющегося,</text>
+  <text x="348" y="80">стулья вынесены заранее.</text>
+  <text x="348" y="126">12:20 · 13:20 · 15:00</text>
+
+  <rect x="16" y="166" width="290" height="118" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text class="t" x="30" y="190">Мастер-класс</text>
+  <text x="30" y="212">Клеёнка на стол, фартуки,</text>
+  <text x="30" y="230">влажные салфетки рядом.</text>
+  <text x="30" y="266">14:00</text>
+
+  <rect x="334" y="166" width="290" height="118" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text class="t" x="348" y="190">Прихожая · вещи и подарки</text>
+  <text x="348" y="212">Куртки, пакеты с поделками,</text>
+  <text x="348" y="230">подарки складываем сюда —</text>
+  <text x="348" y="248">не открываем при гостях.</text>
+
+  <path d="M306 81 L330 81" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+  <path d="M161 148 L161 163" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+  <path d="M479 148 L479 163" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)" fill="none"/>
+</svg>
+</div>
+<p class="note">Стол и игровая — разные зоны: пока дети играют, стол перенакрывают к торту, и это не видно из игровой. Подарки уносим сразу в прихожую — вскрытые коробки посреди игры заканчиваются слезами.</p>
+
+<h2><span class="num">04</span>Меню и аллергены</h2>
+<div class="scroll">
+<table>
+  <thead>
+    <tr>
+      <th>Блюдо</th>
+      <th>Количество</th>
+      <th>Когда</th>
+      <th class="c">Молоко</th>
+      <th class="c">Глютен</th>
+      <th class="c">Яйцо</th>
+      <th class="c">Орехи</th>
+      <th class="c">Мёд</th>
+      <th>Замена</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Мини-бургеры с котлетой</td>
+      <td class="qty">24 шт · фарш 1,2 кг</td>
+      <td>12:40</td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al m">возм.</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Котлета отдельно на тарелке, без булки и сыра</td>
+    </tr>
+    <tr>
+      <td>Куриные наггетсы домашние</td>
+      <td class="qty">36 шт · филе 1,5 кг</td>
+      <td>12:40</td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Куриное филе на гриле кусочками</td>
+    </tr>
+    <tr>
+      <td>Картофель дольками в духовке</td>
+      <td class="qty">2 кг</td>
+      <td>12:40</td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Подходит почти всем — держим как базовое горячее</td>
+    </tr>
+    <tr>
+      <td>Мини-пиццы на тортильях</td>
+      <td class="qty">24 шт</td>
+      <td>12:40</td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>2 шт без сыра — печём на отдельном противне</td>
+    </tr>
+    <tr>
+      <td>Овощные палочки: морковь, огурец, перец</td>
+      <td class="qty">1,5 кг овощей</td>
+      <td>12:00 · 15:30</td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>Йогуртовый соус к палочкам</td>
+      <td class="qty">500 г</td>
+      <td>12:00</td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Соус в отдельных стаканчиках, не общая миска</td>
+    </tr>
+    <tr>
+      <td>Фруктовые шпажки</td>
+      <td class="qty">16 шт</td>
+      <td>14:30</td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Замена торта тем, кому нельзя сладкое</td>
+    </tr>
+    <tr>
+      <td>Попкорн солёный</td>
+      <td class="qty">200 г зерна</td>
+      <td>15:30</td>
+      <td class="c"><span class="al m">возм.</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Делаем на масле, не на сливочном</td>
+    </tr>
+    <tr>
+      <td>Торт бисквитный</td>
+      <td class="qty">2,5–3 кг</td>
+      <td>14:30</td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al m">возм.</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Состав спросить у кондитера письменно и сохранить</td>
+    </tr>
+    <tr>
+      <td>Пряники для росписи</td>
+      <td class="qty">16 шт + глазурь</td>
+      <td>14:00</td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al y">есть</span></td>
+      <td>Мёд в тесте — детям до года нельзя, но 6–7 лет норма; аллергикам дать значки вместо пряника</td>
+    </tr>
+    <tr>
+      <td>Морс, вода, сок</td>
+      <td class="qty">3 л + 4 л + 2 л</td>
+      <td>весь день</td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td class="c"><span class="al n">нет</span></td>
+      <td>Вода в кувшине всегда на столе, газировку не берём</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="legend">
+  <span><b class="al y">есть</b> — аллерген в блюде</span>
+  <span><b class="al m">возм.</b> — зависит от рецепта, проверить упаковку</span>
+  <span><b class="al n">нет</b> — аллергена нет</span>
+</p>
+<p class="note">Подписываем тарелки с «особыми» порциями бумажкой с именем ребёнка и ставим отдельно от общих блюд. Общая ложка в тарелке аллергика — самая частая причина, по которой всё идёт не так.</p>
+
+<h2><span class="num">05</span>Стоп-лист: не подаём и не даём</h2>
+<div class="stop">
+  <ul>
+    <li><b>Круглые твёрдые леденцы, орехи горстью, целый виноград, крупные куски сосисок</b> — риск подавиться. Виноград и черри режем пополам вдоль, сосиски — не кружочками, а полосками.</li>
+    <li><b>Ничего с орехами, если хотя бы у одного гостя аллергия.</b> Не «положим ему без орехов», а убираем из меню целиком: следы остаются на общих досках и ножах.</li>
+    <li><b>Газировка и энергетики.</b> Через полчаса это возвращается визгом и разлитым стаканом на ковре.</li>
+    <li><b>Еда во время активных игр.</b> Бегать с полным ртом — как раз тот случай, когда взрослые не успевают.</li>
+    <li><b>Свечи и бенгальские огни без взрослого вплотную.</b> Один человек держит торт, второй — гасит и убирает свечи сразу после задувания.</li>
+    <li><b>Не заставляем есть.</b> Ребёнок отказался — предлагаем один раз и отпускаем играть.</li>
+  </ul>
+</div>
+
+<h2><span class="num">06</span>Проверить аллергии заранее</h2>
+<div class="msg">
+<pre id="tpl">Привет! Ждём вас на дне рождения в субботу с 12:00 до 16:00.
+
+Чтобы всем было безопасно, ответьте, пожалуйста, до четверга:
+1. Есть ли у ребёнка аллергия или непереносимость? На что именно и как проявляется?
+2. Есть ли что-то, что ему нельзя по другой причине (диета, лекарства, религия)?
+3. Носит ли он с собой лекарство от аллергии? Где оно лежит и как давать?
+4. Ваш телефон на время праздника + запасной контакт.
+
+В меню будет: мини-бургеры, куриные наггетсы, картофель дольками,
+мини-пиццы, овощи с йогуртовым соусом, фрукты, попкорн,
+бисквитный торт и пряники с глазурью (в пряниках есть мёд).
+
+Если ответа нет — считаем, что ограничений нет, но всё же
+напишите хотя бы «всё ок», чтобы мы были уверены.</pre>
+  <div class="act">
+    <button id="copyTpl" type="button">Скопировать текст</button>
+  </div>
+</div>
+<p class="note">Ответы сводим в один список на холодильнике: имя ребёнка → что нельзя → где лекарство. Список видят все три помощника, а не только тот, кто переписывался с родителями.</p>
+
+<h2><span class="num">07</span>Что купить и когда</h2>
+<div class="buybar">
+  <div class="bar"><i id="barFill"></i></div>
+  <span class="cnt" id="cnt">0 / 0</span>
+  <button id="exportMd" type="button">Выгрузить в Markdown</button>
+  <button id="reset" type="button">Сбросить отметки</button>
+</div>
+<div class="buy" id="buy">
+
+  <div class="col" data-group="За 3–4 дня">
+    <h3>За 3–4 дня<em>Всё, что не портится и что обидно искать в последний вечер</em></h3>
+    <ul>
+      <li><input type="checkbox" id="b1"><label for="b1">Одноразовая посуда<small>тарелки 40, стаканы 40, вилки, салфетки 2 пачки</small></label></li>
+      <li><input type="checkbox" id="b2"><label for="b2">Скатерть-клеёнка и мусорные пакеты</label></li>
+      <li><input type="checkbox" id="b3"><label for="b3">Шары и насос<small>30 шт + записки внутрь для игры</small></label></li>
+      <li><input type="checkbox" id="b4"><label for="b4">Реквизит мастер-класса<small>16 пряников, глазурь, кисточки, фартуки</small></label></li>
+      <li><input type="checkbox" id="b5"><label for="b5">Гостинцы в дорогу<small>мыльные пузыри, наклейки — по числу гостей + 2 запасных</small></label></li>
+      <li><input type="checkbox" id="b6"><label for="b6">Наклейки для имён и маркер</label></li>
+      <li><input type="checkbox" id="b7"><label for="b7">Заказать торт<small>2,5–3 кг, письменно взять состав</small></label></li>
+      <li><input type="checkbox" id="b8"><label for="b8">Попкорн, сок, вода<small>сок 2 л, вода 4 л</small></label></li>
+      <li><input type="checkbox" id="b9"><label for="b9">Проверить аптечку<small>антигистаминное, пластыри, антисептик</small></label></li>
+    </ul>
+  </div>
+
+  <div class="col" data-group="Накануне">
+    <h3>Накануне<em>Свежее и то, что готовим с вечера</em></h3>
+    <ul>
+      <li><input type="checkbox" id="c1"><label for="c1">Фарш 1,2 кг и куриное филе 1,5 кг</label></li>
+      <li><input type="checkbox" id="c2"><label for="c2">Булочки для мини-бургеров<small>24 шт</small></label></li>
+      <li><input type="checkbox" id="c3"><label for="c3">Тортильи, сыр, томатная паста<small>на 24 мини-пиццы</small></label></li>
+      <li><input type="checkbox" id="c4"><label for="c4">Картофель 2 кг, масло, специи</label></li>
+      <li><input type="checkbox" id="c5"><label for="c5">Овощи на палочки<small>морковь 1 кг, огурцы 4, перец 2</small></label></li>
+      <li><input type="checkbox" id="c6"><label for="c6">Йогурт 500 г для соуса</label></li>
+      <li><input type="checkbox" id="c7"><label for="c7">Фрукты и ягоды<small>клубника 500 г, виноград, бананы 4, мандарины</small></label></li>
+      <li><input type="checkbox" id="c8"><label for="c8">Сварить морс 3 л и охладить</label></li>
+      <li><input type="checkbox" id="c9"><label for="c9">Слепить котлеты и панировать наггетсы<small>убрать в холодильник</small></label></li>
+      <li><input type="checkbox" id="c10"><label for="c10">Спрятать записки для поиска клада</label></li>
+      <li><input type="checkbox" id="c11"><label for="c11">Свести список аллергий на холодильник</label></li>
+    </ul>
+  </div>
+
+  <div class="col" data-group="Утром">
+    <h3>Утром в день праздника<em>Только то, что нельзя сделать заранее</em></h3>
+    <ul>
+      <li><input type="checkbox" id="d1"><label for="d1">Забрать торт<small>в холодильник, достать за 40 мин до подачи</small></label></li>
+      <li><input type="checkbox" id="d2"><label for="d2">Нарезать овощи и фрукты<small>виноград и черри — пополам</small></label></li>
+      <li><input type="checkbox" id="d3"><label for="d3">Собрать фруктовые шпажки</label></li>
+      <li><input type="checkbox" id="d4"><label for="d4">Убрать бьющееся и опасное из игровой</label></li>
+      <li><input type="checkbox" id="d5"><label for="d5">Разложить реквизит по пакетам<small>один пакет = одна игра</small></label></li>
+      <li><input type="checkbox" id="d6"><label for="d6">Зарядить телефон для фото и колонку</label></li>
+      <li><input type="checkbox" id="d7"><label for="d7">Лёд и запасная вода</label></li>
+      <li><input type="checkbox" id="d8"><label for="d8">Раздать помощникам эту памятку<small>и вписать имена в роли</small></label></li>
+    </ul>
+  </div>
+
+</div>
+<p class="note">Отметки сохраняются в браузере на этом устройстве. Кнопка «Выгрузить в Markdown» отдаёт текущее состояние списка файлом — его можно переслать помощникам или положить в заметки.</p>
+
+<h2><span class="num">08</span>Реквизит для игр</h2>
+<div class="scroll">
+<table>
+  <thead>
+    <tr><th>Игра</th><th>Когда</th><th>Что нужно</th><th>Если пошло не так</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Найди пару по наклейкам</td><td>12:20</td><td>Наклейки в двух экземплярах</td><td>Нечётное число детей — ведущий встаёт в пару</td></tr>
+    <tr><td>Шары с заданиями</td><td>12:20</td><td>30 шаров, записки внутри</td><td>Кто боится хлопков — даём лопать чужие руками, не садясь</td></tr>
+    <tr><td>Полоса препятствий</td><td>13:20</td><td>Подушки, стулья, скакалка, обруч</td><td>Слишком шумно — переводим в «на время», по одному</td></tr>
+    <tr><td>Море волнуется</td><td>13:20</td><td>Ничего</td><td>Без выбывания: замерший не выходит из игры, а получает роль ведущего</td></tr>
+    <tr><td>Эстафеты командами</td><td>13:20</td><td>2 обруча, 2 мяча, лента для линии</td><td>Команды делит взрослый, а не капитаны — иначе выбирают последним одного и того же</td></tr>
+    <tr><td>Роспись пряников</td><td>14:00</td><td>Пряники, глазурь, клеёнка, фартуки, салфетки</td><td>Закончил быстро — даём второй пряник «для мамы»</td></tr>
+    <tr><td>Поиск клада</td><td>15:00</td><td>5–6 записок, сундук с гостинцами</td><td>Застряли на записке — ведущий «случайно» роняет подсказку</td></tr>
+    <tr><td>Дискотека</td><td>15:00</td><td>Колонка, плейлист на 30 мин</td><td>Плейлист составить заранее, не выбирать песни при детях</td></tr>
+  </tbody>
+</table>
+</div>
+
+<footer>Памятка на один праздник: 12 гостей 6–7 лет, 12:00–16:00. Перед печатью впишите имена помощников в разделе 01 и сверьте меню с ответами родителей про аллергии.</footer>
+
+</div>
+
+<script>
+(function () {
+  var KEY = 'bday-12-checklist';
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('#buy input[type=checkbox]'));
+  var fill = document.getElementById('barFill');
+  var cnt = document.getElementById('cnt');
+
+  function saved() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+  }
+  function store() {
+    var s = {};
+    boxes.forEach(function (b) { s[b.id] = b.checked; });
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+  }
+  function paint() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    fill.style.width = boxes.length ? (done / boxes.length * 100) + '%' : '0';
+    cnt.textContent = done + ' / ' + boxes.length;
+  }
+
+  var s = saved();
+  boxes.forEach(function (b) {
+    if (s[b.id]) b.checked = true;
+    b.addEventListener('change', function () { store(); paint(); });
+  });
+  paint();
+
+  document.getElementById('reset').addEventListener('click', function () {
+    boxes.forEach(function (b) { b.checked = false; });
+    store(); paint();
+  });
+
+  document.getElementById('exportMd').addEventListener('click', function () {
+    var out = ['# Закупки к дню рождения (12 гостей, 6–7 лет)', ''];
+    document.querySelectorAll('#buy .col').forEach(function (col) {
+      out.push('## ' + col.dataset.group, '');
+      col.querySelectorAll('li').forEach(function (li) {
+        var box = li.querySelector('input');
+        var label = li.querySelector('label');
+        var note = label.querySelector('small');
+        var text = label.childNodes[0].textContent.trim();
+        out.push('- [' + (box.checked ? 'x' : ' ') + '] ' + text + (note ? ' — ' + note.textContent.trim() : ''));
+      });
+      out.push('');
+    });
+    var blob = new Blob([out.join('\n')], { type: 'text/markdown;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'zakupki-den-rozhdeniya.md';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  var copyBtn = document.getElementById('copyTpl');
+  copyBtn.addEventListener('click', function () {
+    var text = document.getElementById('tpl').textContent;
+    var done = function (ok) {
+      copyBtn.textContent = ok ? 'Скопировано' : 'Не вышло — выделите вручную';
+      setTimeout(function () { copyBtn.textContent = 'Скопировать текст'; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    } else {
+      done(false);
+    }
+  });
+})();
+</script>
+</body>
+</html>

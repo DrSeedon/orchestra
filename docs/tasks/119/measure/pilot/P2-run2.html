@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Где хранить историю диалогов агента — SQLite / JSONL / вектор-стор</title>
+<style>
+:root {
+  --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
+  --border: #2a2a32; --ink: #f1f1f4; --ink-soft: #a8a8b3;
+  --accent: #7c3aed; --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+  --sans: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #fafaf7; --surface: #fff; --surface-2: #f3f2ee; --border: #e7e5df; --ink: #1a1a1f; --ink-soft: #555; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.6 var(--sans); font-variant-numeric: tabular-nums;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; }
+
+/* --- masthead --- */
+header { padding: 56px 0 28px; border-bottom: 2px solid var(--ink); margin-bottom: 40px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 18px; }
+h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.12; margin: 0 0 20px; letter-spacing: -.02em; font-weight: 640; }
+.tldr { font-size: clamp(17px, 2.4vw, 20px); line-height: 1.5; max-width: 62ch; margin: 0; color: var(--ink); }
+.tldr b { color: var(--accent); font-weight: 640; }
+.meta { margin-top: 22px; font: 12px/1.7 var(--mono); color: var(--ink-soft); }
+
+/* --- sections --- */
+section { margin-top: 56px; }
+h2 { font-size: 13px; font-family: var(--mono); font-weight: 600; letter-spacing: .1em;
+     text-transform: uppercase; color: var(--ink-soft); margin: 0 0 20px;
+     padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 18px; margin: 0 0 10px; font-weight: 640; letter-spacing: -.01em; }
+p { max-width: 74ch; }
+
+/* --- verdict trio --- */
+.trio { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+@media (min-width: 780px) { .trio { grid-template-columns: repeat(3, 1fr); } }
+.trio > div { background: var(--surface); padding: 22px; }
+.trio .n { font: 600 12px/1 var(--mono); color: var(--accent); }
+.trio h3 { margin: 12px 0 8px; font-size: 17px; }
+.trio p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+
+/* --- charts --- */
+.chart { border: 1px solid var(--border); background: var(--surface); padding: 20px 22px; margin-bottom: 18px; }
+.chart-h { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.chart-h strong { font-size: 15px; font-weight: 640; }
+.chart-h span { font: 11px/1.4 var(--mono); color: var(--ink-soft); letter-spacing: .04em; }
+.bar { display: grid; grid-template-columns: minmax(150px, 200px) 1fr; gap: 14px; align-items: center; margin-bottom: 11px; }
+.bar-l { font-size: 13.5px; color: var(--ink-soft); line-height: 1.3; }
+.bar-l b { color: var(--ink); font-weight: 600; display: block; }
+.bar-t { position: relative; height: 26px; background: var(--surface-2); }
+.bar-f { position: absolute; inset: 0 auto 0 0; background: var(--accent); opacity: .32; }
+.bar-f.win { background: var(--ok); opacity: .3; }
+.bar-f.lose { background: var(--danger); opacity: .3; }
+.bar-v { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 10px;
+         font: 600 13px/1 var(--mono); color: var(--ink); }
+.foot { margin: 16px 0 0; font-size: 13px; color: var(--ink-soft); max-width: 78ch; }
+
+/* --- matrix --- */
+.scroll { overflow-x: auto; border: 1px solid var(--border); }
+table { border-collapse: collapse; width: 100%; min-width: 720px; background: var(--surface); }
+th, td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 14px; }
+thead th { background: var(--surface-2); font: 600 12px/1.4 var(--mono); letter-spacing: .05em;
+           text-transform: uppercase; color: var(--ink-soft); position: sticky; top: 0; }
+tbody th { font-weight: 600; font-size: 13.5px; width: 190px; color: var(--ink); }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+td.on { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.chip { display: inline-block; font: 600 11px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase;
+        padding: 4px 7px; border: 1px solid; margin-bottom: 7px; }
+.c-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.c-mid { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.c-bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+td small { display: block; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
+code, .num { font-family: var(--mono); font-size: .93em; }
+
+/* --- chooser --- */
+.chooser { border: 1px solid var(--border); background: var(--surface); }
+.q { padding: 18px 22px; border-bottom: 1px solid var(--border); }
+.q > p { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.opts label { cursor: pointer; }
+.opts input { position: absolute; opacity: 0; pointer-events: none; }
+.opts span { display: block; padding: 8px 13px; border: 1px solid var(--border);
+             background: var(--surface-2); font-size: 13.5px; transition: border-color .12s, color .12s; }
+.opts label:hover span { border-color: var(--ink-soft); }
+.opts input:checked + span { border-color: var(--accent); color: var(--accent); font-weight: 600;
+             background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.opts input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.verdict { padding: 24px 22px; background: var(--surface-2); }
+.verdict .lbl { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.verdict .ans { font-size: clamp(19px, 3vw, 25px); font-weight: 640; letter-spacing: -.01em; margin: 10px 0 4px; }
+.verdict .ans em { font-style: normal; color: var(--accent); }
+.verdict ul { margin: 14px 0 0; padding: 0; list-style: none; }
+.verdict li { position: relative; padding-left: 22px; margin-bottom: 8px; font-size: 14px; color: var(--ink-soft); max-width: 72ch; }
+.verdict li::before { content: "→"; position: absolute; left: 0; color: var(--accent); font-family: var(--mono); }
+.verdict li b { color: var(--ink); font-weight: 600; }
+
+/* --- detail cards --- */
+.cards { display: grid; gap: 20px; }
+@media (min-width: 860px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+.card { border: 1px solid var(--border); background: var(--surface); padding: 20px; }
+.card h3 { display: flex; align-items: baseline; gap: 9px; }
+.card h3 .tag { font: 500 11px/1 var(--mono); color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; }
+.card dl { margin: 14px 0 0; font-size: 14px; }
+.card dt { font: 600 11px/1 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-soft); margin-top: 14px; }
+.card dd { margin: 5px 0 0; color: var(--ink); line-height: 1.5; }
+.card .kill { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13.5px; }
+.card .kill b { color: var(--warn); }
+
+/* --- diagram --- */
+figure { margin: 0; border: 1px solid var(--border); background: var(--surface); padding: 24px; }
+figure svg { width: 100%; height: auto; display: block; color: var(--ink); }
+figcaption { margin-top: 16px; font-size: 13.5px; color: var(--ink-soft); max-width: 78ch; }
+
+/* --- limits --- */
+.limits { border-left: 2px solid var(--warn); padding: 4px 0 4px 20px; }
+.limits li { margin-bottom: 10px; font-size: 14.5px; max-width: 76ch; }
+footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border);
+         font: 12px/1.7 var(--mono); color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Выбор хранилища · замер 05.08.2026</div>
+  <h1>Где хранить историю диалогов агента</h1>
+  <p class="tldr">Вектор-стор — <b>не третий вариант</b>, а слой поверх лога: он производный и восстанавливается пересчётом. Реальный выбор — между SQLite и JSONL, и он решается одним вопросом: <b>сколько сообщений вы переживёте</b>. До ~50 тыс. — JSONL, дальше SQLite: на 200 тыс. сообщений запись у них вровень, а «дай последние 50 сообщений сессии» у SQLite быстрее в 1414 раз.</p>
+  <p class="meta">Цифры ниже — собственный прогон на 200 000 сообщений, не оценки. Метод и границы — в конце.</p>
+</header>
+
+<section>
+  <h2>Три вывода, если дальше не читать</h2>
+  <div class="trio">
+    <div>
+      <div class="n">01</div>
+      <h3>Запись не различает варианты</h3>
+      <p>Буферизованная запись: JSONL 13,7 мкс на сообщение, SQLite 14,1 мкс. Разницы нет. Различает их <em>долговечность</em>: fsync на каждое сообщение в JSONL стоит 3,97 мс — в 54 раза дороже, чем коммит на каждое сообщение в SQLite WAL.</p>
+    </div>
+    <div>
+      <div class="n">02</div>
+      <h3>Чтение различает радикально</h3>
+      <p>Главный запрос агента — «последние N сообщений этой сессии». SQLite по индексу: 0,14 мс, константа. JSONL: 197 мс и растёт линейно с логом. Это 1414× на 100 МБ и 14 000× на гигабайте.</p>
+    </div>
+    <div>
+      <div class="n">03</div>
+      <h3>Вектор-стор платит собой</h3>
+      <p>Он единственный отвечает на «что мы решили про Х» без совпадения слов. Цена: 200 тыс. векторов по 1536 измерений — 1,23 ГБ RAM против файла SQLite на 89 МБ, плюс сетевой вызов эмбеддинга на каждую запись.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Замер: запись</h2>
+
+  <div class="chart">
+    <div class="chart-h">
+      <strong>Стоимость одного сообщения при записи</strong>
+      <span>логарифмическая шкала · меньше — лучше</span>
+    </div>
+    <div id="bars-write"></div>
+    <p class="foot">Две верхние строки — одинаковая гарантия (потеря хвоста буфера при падении процесса), и там паритет. Две нижние — «коммит на каждое сообщение», и вот здесь SQLite выигрывает 54×: WAL пишет последовательно и при <code>synchronous=NORMAL</code> не зовёт fsync на каждый коммит, а JSONL зовёт. Честная оговорка: это разные уровни гарантии. JSONL+fsync переживёт отключение питания, WAL/NORMAL — падение процесса без потерь, а при потере питания может потерять последние транзакции (но не повредить базу).</p>
+  </div>
+
+  <div class="chart">
+    <div class="chart-h">
+      <strong>Сколько занимает на диске</strong>
+      <span>200 000 сообщений, ~80 токенов каждое</span>
+    </div>
+    <div id="bars-size"></div>
+    <p class="foot">Вопреки ожиданию, SQLite <em>компактнее</em> сырого JSONL: имена ключей не повторяются в каждой строке. Полнотекстовый индекс FTS5 добавляет 34%. gzip сжимает JSONL в 7,1 раза — но сжатый лог перестаёт быть тем, ради чего JSONL выбирали: <code>tail -f</code> и <code>grep</code> по нему уже не работают.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Замер: поиск</h2>
+  <div class="chart">
+    <div class="chart-h">
+      <strong>Время одного запроса</strong>
+      <span>логарифмическая шкала · меньше — лучше</span>
+    </div>
+    <div id="bars-read"></div>
+    <p class="foot">Верхняя пара — тот самый частый запрос, ради которого история и хранится. Дальше — поиск по точной фразе: <code>grep</code> держит 1,4 ГБ/с и на 100 МБ почти догоняет FTS5, но линейно проседает на росте, тогда как FTS5 не проседает. Оговорка против себя: в моём синтетическом корпусе словарь всего из 20 слов, обе части фразы встречаются сотни тысяч раз — это худший возможный случай для FTS5. На живом тексте с нормальным словарём разрыв в его пользу больше, чем показано.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Матрица по пяти критериям</h2>
+  <div class="scroll">
+  <table>
+    <thead>
+      <tr><th scope="col">Критерий</th><th scope="col">SQLite</th><th scope="col">JSONL на диск</th><th scope="col">Вектор-стор</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Скорость записи</th>
+        <td class="on"><span class="chip c-ok">14,1 мкс</span><small>Пакетом — вровень с JSONL. Коммит на сообщение — 73,5 мкс. Одна строка кода, транзакция бесплатна.</small></td>
+        <td><span class="chip c-ok">13,7 мкс</span><small>Формально быстрейшая запись, но выигрыш 3% — в пределах шума. С fsync на сообщение — 3,97 мс.</small></td>
+        <td><span class="chip c-bad">10–100 мс</span><small>Доминирует не вставка вектора, а вызов эмбеддинга перед ней. На 3–4 порядка дороже локальной записи; требует очереди и батчинга.</small></td>
+      </tr>
+      <tr>
+        <th scope="row">Скорость поиска</th>
+        <td class="on"><span class="chip c-ok">0,14 мс</span><small>По индексу — константа при росте лога. FTS5 добавляет поиск по словам и морфологии, не ломая первое.</small></td>
+        <td><span class="chip c-mid">197 мс</span><small>Индекса нет, значит скан. Приемлемо на мегабайтах, безнадёжно на гигабайтах: время растёт линейно с историей.</small></td>
+        <td><span class="chip c-ok">единственный по смыслу</span><small>~1–20 мс на миллионах векторов. Но отвечает на другой вопрос: похожесть, а не «последние N» и не точное совпадение.</small></td>
+      </tr>
+      <tr>
+        <th scope="row">Цена</th>
+        <td class="on"><span class="chip c-ok">ноль</span><small>Библиотека в стандартной поставке Python. Один файл, ни процесса, ни порта, ни бэкапного демона. 89 МБ на 200 тыс. сообщений.</small></td>
+        <td><span class="chip c-ok">ноль</span><small>100 МБ на тот же объём. Ни зависимостей вообще. Но код индексации и ротации вы напишете сами — и он и есть цена.</small></td>
+        <td><span class="chip c-bad">повторяющаяся</span><small>1,23 ГБ RAM на 200 тыс. векторов float32 (307 МБ при int8-квантовании), плюс оплата токенов эмбеддинга — заново при каждой смене модели или чанкинга.</small></td>
+      </tr>
+      <tr>
+        <th scope="row">Восстановление<br>после сбоя</th>
+        <td class="on"><span class="chip c-ok">автоматическое</span><small>WAL доигрывается при следующем открытии, писать нечего. Проверяется одной командой: <code>PRAGMA integrity_check</code>. Риск — только повреждение файла на плохом диске или NFS.</small></td>
+        <td><span class="chip c-mid">простое, но ваше</span><small>Обрыв даёт недописанную последнюю строку — отбросить и продолжить. Тривиально, но код напишете вы, и транзакции между логом и метаданными нет вовсе.</small></td>
+        <td><span class="chip c-mid">пересчёт, не ремонт</span><small>Это производный индекс: чинится перестроением из лога. Значит — часы работы и повторная оплата эмбеддингов. Своего источника правды у него нет.</small></td>
+      </tr>
+      <tr>
+        <th scope="row">Удобство<br>отладки</th>
+        <td><span class="chip c-mid">SQL есть, глаз нет</span><small>Ad-hoc запросы отличные. Но файл бинарный: ни <code>tail -f</code>, ни <code>grep</code>, ни осмысленного git diff, ни вставки куска в баг-репорт.</small></td>
+        <td class="on"><span class="chip c-ok">лучшее, без конкурентов</span><small>Строка = событие. <code>tail -f</code>, <code>jq</code>, git diff, копипаст в тикет. Читается человеком без единого инструмента. Ровно это и есть аргумент за JSONL.</small></td>
+        <td><span class="chip c-bad">непрозрачное</span><small>«Почему вернулся этот кусок» не имеет короткого ответа: скоры, границы чанков, версия модели эмбеддинга. Смена версии молча меняет выдачу.</small></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>Подберите под свой случай</h2>
+  <div class="chooser">
+    <div class="q">
+      <p>Сколько сообщений накопится за жизнь системы?</p>
+      <div class="opts" id="q-vol">
+        <label><input type="radio" name="vol" value="s" checked><span>до 50 тыс.</span></label>
+        <label><input type="radio" name="vol" value="m"><span>50 тыс. – 2 млн</span></label>
+        <label><input type="radio" name="vol" value="l"><span>больше 2 млн</span></label>
+      </div>
+    </div>
+    <div class="q">
+      <p>Кто пишет в историю?</p>
+      <div class="opts" id="q-w">
+        <label><input type="radio" name="w" value="one" checked><span>один процесс</span></label>
+        <label><input type="radio" name="w" value="many"><span>несколько параллельно</span></label>
+      </div>
+    </div>
+    <div class="q">
+      <p>Какой запрос к истории у вас главный?</p>
+      <div class="opts" id="q-q">
+        <label><input type="radio" name="q" value="tail" checked><span>последние N сообщений сессии</span></label>
+        <label><input type="radio" name="q" value="exact"><span>найти по точному слову</span></label>
+        <label><input type="radio" name="q" value="sem"><span>найти по смыслу</span></label>
+      </div>
+    </div>
+    <div class="q">
+      <p>Читаете ли вы логи глазами — при разборе инцидентов, в баг-репортах?</p>
+      <div class="opts" id="q-e">
+        <label><input type="radio" name="e" value="yes" checked><span>да, постоянно</span></label>
+        <label><input type="radio" name="e" value="no"><span>нет, только код</span></label>
+      </div>
+    </div>
+    <div class="verdict">
+      <div class="lbl">Рекомендация</div>
+      <div class="ans" id="ans"></div>
+      <ul id="why"></ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Почему вектор-стор стоит в другой колонке</h2>
+  <figure>
+    <svg viewBox="0 0 760 250" role="img" aria-label="Схема: агент пишет в сырой лог — источник правды; из лога строится вектор-индекс, который является производным и перестраивается пересчётом">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="12" y="86" width="140" height="62"/>
+        <rect x="252" y="70" width="216" height="94" stroke-width="2.5"/>
+        <rect x="568" y="86" width="180" height="62" stroke-dasharray="6 4"/>
+      </g>
+      <g font-family="system-ui, sans-serif" fill="currentColor">
+        <text x="82" y="113" text-anchor="middle" font-size="15" font-weight="600">Агент</text>
+        <text x="82" y="133" text-anchor="middle" font-size="12" opacity=".65">пишет каждый ход</text>
+
+        <text x="360" y="102" text-anchor="middle" font-size="16" font-weight="600">Сырой лог</text>
+        <text x="360" y="123" text-anchor="middle" font-size="13" opacity=".8">SQLite или JSONL</text>
+        <text x="360" y="145" text-anchor="middle" font-size="12" font-weight="600" opacity=".65">ИСТОЧНИК ПРАВДЫ</text>
+
+        <text x="658" y="110" text-anchor="middle" font-size="15" font-weight="600">Вектор-индекс</text>
+        <text x="658" y="130" text-anchor="middle" font-size="12" opacity=".65">производное</text>
+
+        <text x="202" y="103" text-anchor="middle" font-size="11" opacity=".7">append</text>
+        <text x="518" y="103" text-anchor="middle" font-size="11" opacity=".7">эмбеддинг</text>
+        <text x="360" y="212" text-anchor="middle" font-size="12" opacity=".8">потеряли индекс — перестроили из лога; потеряли лог — не восстановит ничто</text>
+      </g>
+      <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#ar)">
+        <path d="M156 117 H246"/>
+        <path d="M472 117 H562"/>
+      </g>
+      <g stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ar)" opacity=".6">
+        <path d="M658 152 V184 H366"/>
+      </g>
+    </svg>
+    <figcaption>Отсюда практическое следствие, которое отменяет половину спора: класть историю <em>только</em> в вектор-стор нельзя ни при каких вводных. Не потому что он плох, а потому что у него нет свойства «хранилище»: он не отдаёт точный порядок сообщений, не гарантирует полноту выдачи и меняет ответы при смене версии модели эмбеддинга. Он всегда рядом с логом, а не вместо него.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Детали, которые решают на практике</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>SQLite <span class="tag">умолчание</span></h3>
+      <dl>
+        <dt>Включить сразу</dt>
+        <dd><code>PRAGMA journal_mode=WAL</code> и <code>synchronous=NORMAL</code>. Без WAL один пишущий блокирует всех читающих, и все замеры выше не воспроизведутся.</dd>
+        <dt>Поиск по словам</dt>
+        <dd>FTS5 уже внутри, отдельной зависимости нет. Индекс на 200 тыс. сообщений строится 2,2 с и стоит +34% к файлу.</dd>
+        <dt>Где больно</dt>
+        <dd>Сетевые ФС (NFS, некоторые контейнерные тома) ломают блокировки — единственный реальный способ повредить базу.</dd>
+      </dl>
+      <div class="kill"><b>Компенсация слабости:</b> держите рядом команду выгрузки в JSONL. Она возвращает всё преимущество отладки, а стоит десяти строк.</div>
+    </div>
+    <div class="card">
+      <h3>JSONL <span class="tag">до первого гигабайта</span></h3>
+      <dl>
+        <dt>Где выигрывает</dt>
+        <dd>Отладка глазами и ноль кода на старте. Пока лог влезает в <code>grep</code>, ничего лучше нет.</dd>
+        <dt>Порог разворота</dt>
+        <dd>Когда «последние N сообщений» начинает требовать скана всего файла. По замеру это ~200 мс на 100 МБ и линейный рост дальше.</dd>
+        <dt>Что придётся дописать</dt>
+        <dd>Отбрасывание недописанной последней строки, ротацию, и рано или поздно — сайдкар-индекс смещений. В этот момент вы пишете SQLite вручную.</dd>
+      </dl>
+      <div class="kill"><b>Ловушка:</b> ротация с gzip чинит место и убивает единственное преимущество — по сжатым частям ни <code>tail -f</code>, ни <code>grep</code> уже не работают.</div>
+    </div>
+    <div class="card">
+      <h3>Вектор-стор <span class="tag">только слоем</span></h3>
+      <dl>
+        <dt>Когда правда нужен</dt>
+        <dd>Единственный критерий: запрос формулируется как «о чём мы говорили», а не как «где встречается слово». Иначе FTS5 дешевле и объяснимее.</dd>
+        <dt>Считайте RAM, не цену токенов</dt>
+        <dd>200 тыс. × 1536 измерений × 4 байта = 1,23 ГБ в памяти. Квантование до int8 даёт 307 МБ ценой точности. Это дороже всего остального в задаче.</dd>
+        <dt>Скрытая статья расходов</dt>
+        <dd>Смена модели эмбеддинга = полный пересчёт корпуса. Планируйте её как миграцию, а не как смену параметра.</dd>
+      </dl>
+      <div class="kill"><b>Дешёвая замена:</b> сначала FTS5 плюс фильтр по сессии и дате. На истории одного агента этого хватает чаще, чем ожидается.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Как мерил и где это неверно</h2>
+  <ul class="limits">
+    <li><b>Стенд.</b> AMD EPYC, 8 ядер, ext4 на <code>/dev/sda1</code>, Linux 6.8, Python 3.12.3, SQLite 3.45.1. Корпус: 200 000 сообщений, 500 сессий, ~60 слов на сообщение, 100,1 МБ в JSONL. Запись — полный прогон; варианты с fsync и с коммитом на сообщение мерились на 5 000 сообщениях и экстраполировались линейно. Поиск — среднее по 20 повторам для SQLite и по 3 для сканов.</li>
+    <li><b>Словарь корпуса вырожден.</b> 20 уникальных слов вместо живого языка. Это бьёт по FTS5 (обе части искомой фразы встречаются сотни тысяч раз) и одновременно льстит сжатию: 7,1× для gzip на реальных диалогах не повторится. Оба искажения — против SQLite, то есть вывод в его пользу занижен, а не завышен.</li>
+    <li><b>Вектор-стор не измерялся здесь.</b> Латентность эмбеддинга и время поиска приведены порядком величины по типовым характеристикам, а не замером. Арифметика памяти (1536 × 4 байта × число векторов) верна точно и от вендора не зависит — на ней и стоит строить решение.</li>
+    <li><b>Экстраполяция fsync линейна и потому оптимистична для JSONL.</b> На SSD с батарейным кэшем контроллера цифра будет ниже 3,97 мс; на сетевом диске — заметно выше. Проверяйте на своём железе, если пишете с fsync на каждый ход.</li>
+    <li><b>Один прогон на конфигурацию.</b> Разница в 3% между JSONL и SQLite на буферизованной записи меньше собственного шума метрики — читать её как «паритет», а не как победу JSONL. Разрывы в 54× и 1414× шумом не объясняются.</li>
+  </ul>
+</section>
+
+<footer>
+  Замер выполнен 05.08.2026 · скрипт прогона <code>/tmp/histbench.py</code> · числа в тексте — из вывода прогона, не из оценок
+</footer>
+
+</div>
+
+<script>
+const WRITE = [
+  { l: "JSONL", s: "буферизованный append", v: 13.66, u: "мкс", k: "win" },
+  { l: "SQLite", s: "пакетом, одна транзакция", v: 14.08, u: "мкс", k: "win" },
+  { l: "SQLite", s: "коммит на сообщение, WAL", v: 73.5, u: "мкс", k: "" },
+  { l: "JSONL", s: "fsync на сообщение", v: 3967, u: "мкс", k: "lose" }
+];
+const READ = [
+  { l: "SQLite", s: "последние 50 сообщений сессии", v: 0.139, u: "мс", k: "win" },
+  { l: "JSONL", s: "последние 50 — скан всего файла", v: 196.8, u: "мс", k: "lose" },
+  { l: "SQLite FTS5", s: "точная фраза по индексу", v: 68.5, u: "мс", k: "" },
+  { l: "JSONL + grep", s: "точная фраза, линейный скан", v: 71.6, u: "мс", k: "" },
+  { l: "JSONL + json.loads", s: "то же, но с разбором строк", v: 306.1, u: "мс", k: "" }
+];
+const SIZE = [
+  { l: "SQLite", s: "без полнотекстового индекса", v: 89.1, u: "МБ", k: "win" },
+  { l: "JSONL", s: "как пишется", v: 100.1, u: "МБ", k: "" },
+  { l: "SQLite + FTS5", s: "с индексом по словам", v: 119.8, u: "МБ", k: "" },
+  { l: "JSONL, gzip -6", s: "сжатый — но уже не grep-абельный", v: 14.0, u: "МБ", k: "" }
+];
+
+const fmt = n => n >= 1000 ? n.toLocaleString("ru-RU")
+  : n.toLocaleString("ru-RU", { maximumSignificantDigits: 3 });
+
+function draw(id, data, log) {
+  const max = Math.max(...data.map(d => d.v));
+  const min = Math.min(...data.map(d => d.v));
+  const host = document.getElementById(id);
+  host.innerHTML = data.map(d => {
+    // log scale keeps a 290x spread readable; linear would flatten everything but the worst bar
+    const w = log
+      ? 6 + 94 * (Math.log10(d.v) - Math.log10(min) + 0.35) / (Math.log10(max) - Math.log10(min) + 0.35)
+      : 6 + 94 * d.v / max;
+    return `<div class="bar">
+      <div class="bar-l"><b>${d.l}</b>${d.s}</div>
+      <div class="bar-t">
+        <div class="bar-f ${d.k}" style="width:${w.toFixed(1)}%"></div>
+        <div class="bar-v">${fmt(d.v)} ${d.u}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+draw("bars-write", WRITE, true);
+draw("bars-read", READ, true);
+draw("bars-size", SIZE, false);
+
+const val = n => document.querySelector(`input[name="${n}"]:checked`).value;
+
+function decide() {
+  const vol = val("vol"), w = val("w"), q = val("q"), e = val("e");
+  const why = [];
+  let primary;
+
+  if (w === "many") {
+    primary = "sqlite";
+    why.push("<b>Пишут несколько процессов.</b> Это решает всё остальное: одновременный append в один файл рвёт строки, а разводить по файлу на писателя — значит вручную склеивать порядок при чтении. SQLite в режиме WAL держит писателя и читателей одновременно.");
+  } else if (vol === "l") {
+    primary = "sqlite";
+    why.push("<b>Больше 2 млн сообщений — это гигабайты.</b> Скан на «последние N» уходит в секунды и растёт дальше, тогда как поиск по индексу остаётся 0,14 мс независимо от размера.");
+  } else if (vol === "m") {
+    primary = "sqlite";
+    why.push("<b>На вашем объёме порог уже пройден.</b> Замер на 200 тыс. сообщений: 0,14 мс против 197 мс на самом частом запросе. Запись при этом не проигрывает — 14,1 мкс против 13,7 мкс.");
+  } else if (q === "exact") {
+    primary = "jsonl";
+    why.push("<b>До 50 тыс. сообщений точный поиск закрывается grep-ом.</b> 1,4 ГБ/с — ваш лог он пройдёт за миллисекунды. Схема и индекс на этом объёме не окупаются.");
+  } else {
+    primary = "jsonl";
+    why.push("<b>До 50 тыс. сообщений и один писатель.</b> Весь лог — десятки мегабайт, скан дешевле любой инфраструктуры. Начинайте с самого простого, что работает.");
+  }
+
+  if (primary === "sqlite") {
+    why.push("Включите <b>WAL и synchronous=NORMAL</b> сразу — без них не воспроизведутся ни скорость записи, ни параллельное чтение.");
+  } else {
+    why.push("Напишите две вещи в первый же день: <b>отбрасывание недописанной последней строки</b> при старте и ротацию. Первое — весь ваш план восстановления после сбоя.");
+  }
+
+  if (q === "exact" && primary === "sqlite") {
+    why.push("Под точный поиск возьмите <b>FTS5</b> — он в SQLite уже есть, строится за 2,2 с на 200 тыс. сообщений и стоит +34% к файлу.");
+  }
+
+  if (q === "sem") {
+    why.push("<b>Вектор-стор — вторым слоем, поверх лога, а не вместо него.</b> Он производный: потеряли — перестроили из лога. Сначала честно проверьте, не закрывается ли ваш вопрос полнотекстовым поиском с фильтром по сессии: он дешевле, объяснимее и не требует 1,23 ГБ памяти на 200 тыс. векторов.");
+  }
+
+  if (e === "yes" && primary === "sqlite") {
+    why.push("Раз логи читаются глазами — добавьте <b>команду выгрузки в JSONL</b>. Десять строк возвращают <code>tail -f</code>, <code>jq</code> и копипаст в тикет, то есть единственное, в чём SQLite реально проигрывает.");
+  }
+  if (e === "no" && primary === "jsonl") {
+    why.push("Логи глазами не читаются — значит главный аргумент за JSONL для вас не работает. Переезд на SQLite окупится раньше обычного: закладывайте его к первому же гигабайту.");
+  }
+
+  const layer = q === "sem" ? " <em>+ вектор-слой</em>" : "";
+  document.getElementById("ans").innerHTML =
+    (primary === "sqlite" ? "<em>SQLite</em> как хранилище" : "<em>JSONL</em> как хранилище") + layer;
+  document.getElementById("why").innerHTML = why.map(t => `<li>${t}</li>`).join("");
+}
+
+document.querySelectorAll('.opts input').forEach(i => i.addEventListener("change", decide));
+decide();
+</script>
+</body>
+</html>

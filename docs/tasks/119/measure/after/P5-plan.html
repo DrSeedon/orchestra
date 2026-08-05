@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Миграция почтового провайдера · план для исполнителя</title>
+<style>
+/* акцент: приглушённый бирюзовый — цвет «доставлено/принято» в почтовых панелях,
+   и он не спорит с янтарным (риск) и терракотовым (порог отката), которые здесь несут смысл */
+:root{
+  color-scheme: light dark;
+  --fs: 15px;
+  --radius: 10px;
+  --bg:     light-dark(#f6f7f4, #14181b);
+  --ink:    light-dark(#1a2124, #dfe5e4);
+  --accent: light-dark(#0c6b5f, #52cdb8);
+  --warn:   light-dark(#8f5406, #e6a75c);
+  --stop:   light-dark(#a13228, #ef8b7d);
+  --line:  color-mix(in oklab, var(--ink) 16%, transparent);
+  --card:  color-mix(in oklab, var(--ink) 5%, transparent);
+  --muted: color-mix(in oklab, var(--ink) 60%, var(--bg));
+  --ring:  var(--accent);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font: var(--fs)/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing:0;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 22px}
+section{border-top:1px solid var(--line)}
+section:first-of-type{border-top:0}
+.band{padding:26px 0}
+.band.alt{background:var(--card)}
+h1,h2,h3{margin:0; font-weight:640; line-height:1.2}
+h1{font-size:calc(var(--fs) * 1.72)}
+h2{font-size:calc(var(--fs) * 1.43); margin-bottom:10px}
+h3{font-size:calc(var(--fs) * 1.29)}
+p{margin:8px 0}
+.lead{max-width:66ch; color:var(--ink)}
+.muted{color:var(--muted)}
+.small{font-size:calc(var(--fs) * .87)}
+code,.mono{font-family:var(--mono); font-size:calc(var(--fs) * .86)}
+code{background:var(--card); padding:1px 5px; border-radius:calc(var(--radius) * .6)}
+
+/* шапка */
+header .wrap{padding-top:30px; padding-bottom:24px}
+.eyebrow{font-size:calc(var(--fs) * .82); text-transform:uppercase; letter-spacing:.06em;
+  color:var(--accent); font-weight:660; margin-bottom:8px}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px}
+.chip{border:1px solid var(--line); border-radius:calc(var(--radius) * .8);
+  padding:5px 10px; font-size:calc(var(--fs) * .84)}
+.chip b{font-family:var(--mono); font-weight:660}
+
+/* правила */
+.rules{display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); margin-top:12px}
+.rule{border-left:3px solid var(--stop); padding:2px 0 2px 12px}
+.rule h3{font-size:calc(var(--fs) * 1.02); margin-bottom:2px}
+.rule p{margin:0; font-size:calc(var(--fs) * .92); color:var(--muted)}
+
+/* этапы */
+.phase{border-top:1px solid var(--line); padding:20px 0}
+.phase:first-of-type{border-top:0}
+.phase-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 14px}
+.phase-no{font-family:var(--mono); font-size:calc(var(--fs) * .84); color:var(--accent); font-weight:660}
+.phase-meta{margin-left:auto; display:flex; gap:14px; font-size:calc(var(--fs) * .84); color:var(--muted)}
+.phase-meta span b{font-family:var(--mono); color:var(--ink); font-weight:600}
+.goal{margin:6px 0 14px; max-width:78ch; color:var(--muted)}
+.cols{display:grid; gap:16px 22px; grid-template-columns:repeat(auto-fit, minmax(280px,1fr))}
+.col > h4{margin:0 0 6px; font-size:calc(var(--fs) * .82); text-transform:uppercase;
+  letter-spacing:.05em; color:var(--muted); font-weight:660}
+.col.do{grid-column:1 / -1}
+.col.risk > h4{color:var(--warn)}
+.col.back > h4{color:var(--stop)}
+.col p{margin:0; font-size:calc(var(--fs) * .93)}
+ul.acts{margin:0; padding:0; list-style:none; display:grid; gap:7px}
+ul.acts li{display:flex; gap:9px; align-items:flex-start; font-size:calc(var(--fs) * .95)}
+ul.acts input{margin:3px 0 0; accent-color:var(--accent); flex:none; width:15px; height:15px}
+ul.acts input:focus-visible{outline:none; box-shadow:0 0 0 2px var(--ring)}
+ul.acts label{cursor:pointer}
+ul.acts input:checked + label{color:var(--muted); text-decoration:line-through;
+  text-decoration-color:var(--line)}
+.exit{margin-top:14px; padding:9px 12px; border:1px dashed var(--line);
+  border-radius:calc(var(--radius) * .8); font-size:calc(var(--fs) * .9)}
+.exit b{color:var(--accent)}
+
+/* таблицы */
+table{border-collapse:collapse; width:100%; margin-top:10px; font-size:calc(var(--fs) * .89)}
+th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+th{font-size:calc(var(--fs) * .8); text-transform:uppercase; letter-spacing:.04em;
+  color:var(--muted); font-weight:660; white-space:nowrap}
+td.m{font-family:var(--mono); font-size:calc(var(--fs) * .84); white-space:nowrap}
+td.w{color:var(--warn)} td.s{color:var(--stop)}
+.scroll{overflow-x:auto}
+
+/* схемы */
+figure{margin:14px 0 0}
+figure svg{display:block; width:100%; height:auto; color:var(--ink)}
+figcaption{margin-top:6px; font-size:calc(var(--fs) * .84); color:var(--muted)}
+
+/* панель */
+.bar{position:sticky; top:0; z-index:5; background:var(--bg);
+  border-bottom:1px solid var(--line); padding:9px 0}
+.bar .wrap{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+.progress{flex:1; min-width:180px; height:6px; background:var(--card);
+  border-radius:99px; overflow:hidden}
+.progress i{display:block; height:100%; width:0; background:var(--accent); transition:width .2s}
+button{font:inherit; font-size:calc(var(--fs) * .87); color:var(--ink); background:transparent;
+  border:1px solid var(--line); border-radius:calc(var(--radius) * .8); padding:5px 11px; cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible{outline:none; box-shadow:inset 0 0 0 1px var(--ring), 0 0 0 2px var(--ring)}
+#count{font-family:var(--mono); font-size:calc(var(--fs) * .84); color:var(--muted); white-space:nowrap}
+footer{padding:22px 0 40px; color:var(--muted); font-size:calc(var(--fs) * .86)}
+noscript p{border-left:3px solid var(--stop); padding-left:12px}
+
+@media print{
+  :root{color-scheme:light}
+  html,body{background:#fff; color:#000}
+  .bar{display:none}
+  button{display:none}
+  section{border-color:#bbb}
+  .band.alt{background:#fff}
+  .phase{break-inside:avoid}
+  figure{break-inside:avoid}
+  *{print-color-adjust:exact; -webkit-print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">План работ · передаётся исполнителю</div>
+    <h1>Миграция отправки почты на нового провайдера</h1>
+    <p class="lead">Сервис на 40 000 пользователей. Переезжаем без окна простоя: старый провайдер
+    остаётся включённым до самого конца, трафик переводится процентами, откат до последнего этапа
+    делается флагом за минуты. Шесть этапов ниже идут строго по порядку — каждый закрывается
+    критерием выхода, без него следующий не начинается.</p>
+    <div class="chips">
+      <span class="chip">Пользователей <b>40 000</b></span>
+      <span class="chip">Этапов <b>6</b></span>
+      <span class="chip">Срок <b>5–7 недель</b></span>
+      <span class="chip">Простой <b>0</b></span>
+      <span class="chip">Откат до этапа 5 <b>≤ 5 мин</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="bar">
+  <div class="wrap">
+    <span id="count">0 / 0</span>
+    <span class="progress"><i id="pbar"></i></span>
+    <button id="copy" type="button">Скопировать статус в Markdown</button>
+    <button id="reset" type="button">Сбросить отметки</button>
+    <span class="small muted" id="hint"></span>
+  </div>
+</div>
+
+<section class="band">
+  <div class="wrap">
+    <h2>Три правила, которые нельзя нарушать</h2>
+    <div class="rules">
+      <div class="rule">
+        <h3>Suppression list — первым</h3>
+        <p>Отписки, жалобы и hard bounce переносятся к новому провайдеру ДО первой отправки.
+        Единственный по-настоящему необратимый пункт плана.</p>
+      </div>
+      <div class="rule">
+        <h3>Одно изменение за раз</h3>
+        <p>Не ужесточать DMARC, не менять шаблоны и не переезжать на новый ESP в одну неделю.
+        Иначе при падении метрик причину не разделить.</p>
+      </div>
+      <div class="rule">
+        <h3>Старый контур не удалять 30 дней</h3>
+        <p>DNS-записи, ключи и договор старого провайдера живут ещё месяц после 100 %.
+        Это и есть механизм отката.</p>
+      </div>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 900 250" role="img" aria-label="График перевода трафика по этапам">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <!-- оси -->
+        <line x1="56" y1="30" x2="56" y2="186" stroke="currentColor" stroke-opacity=".35"/>
+        <line x1="56" y1="186" x2="878" y2="186" stroke="currentColor" stroke-opacity=".35" marker-end="url(#ar)"/>
+        <text x="56" y="22" font-size="11" fill="currentColor" fill-opacity=".6">% трафика на новом провайдере</text>
+        <!-- границы этапов -->
+        <g stroke="currentColor" stroke-opacity=".18" stroke-dasharray="3 4">
+          <line x1="160" y1="30" x2="160" y2="186"/><line x1="270" y1="30" x2="270" y2="186"/>
+          <line x1="390" y1="30" x2="390" y2="186"/><line x1="500" y1="30" x2="500" y2="186"/>
+          <line x1="740" y1="30" x2="740" y2="186"/>
+        </g>
+        <g font-size="11.5" fill="currentColor" fill-opacity=".72">
+          <text x="66" y="204">Э0 аудит</text><text x="170" y="204">Э1 DNS</text>
+          <text x="280" y="204">Э2 данные</text><text x="400" y="204">Э3 прогрев</text>
+          <text x="510" y="204">Э4 перевод трафика</text><text x="750" y="204">Э5 вывод</text>
+        </g>
+        <!-- ступени -->
+        <path d="M56 186 L500 186 L500 178 L560 178 L560 152 L620 152 L620 118 L680 118 L680 46 L878 46"
+              fill="none" stroke="currentColor" stroke-opacity=".85" stroke-width="2"/>
+        <path d="M56 186 L500 186 L500 178 L560 178 L560 152 L620 152 L620 118 L680 118 L680 46 L878 46 L878 186 Z"
+              fill="currentColor" fill-opacity=".07"/>
+        <g font-size="11" font-family="ui-monospace, monospace" fill="currentColor" fill-opacity=".75">
+          <text x="504" y="171">5 %</text><text x="564" y="145">25 %</text>
+          <text x="624" y="111">50 %</text><text x="684" y="39">100 %</text>
+        </g>
+        <!-- зона отката -->
+        <line x1="56" y1="226" x2="792" y2="226" stroke="currentColor" stroke-opacity=".45" stroke-width="2"/>
+        <text x="60" y="242" font-size="11.5" fill="currentColor" fill-opacity=".7">откат флагом ≤ 5 мин: старый провайдер и его DNS всё ещё живы</text>
+        <circle cx="800" cy="226" r="4.5" fill="currentColor" fill-opacity=".75"/>
+        <text x="812" y="230" font-size="11.5" fill="currentColor" fill-opacity=".7">точка</text>
+        <text x="812" y="243" font-size="11.5" fill="currentColor" fill-opacity=".7">невозврата</text>
+      </svg>
+      <figcaption>Ступени 5 → 25 → 50 → 100 % занимают 10–14 дней. Сокращать выдержку между
+      ступенями нельзя: жалобы и bounce приходят с задержкой в сутки-двое.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="wrap">
+    <h2>Этапы</h2>
+    <p class="lead muted small">Каждый пункт «Что делаем» — отметка в чек-листе. Отметки хранятся
+    в браузере; кнопка вверху выгружает текущее состояние обратно в Markdown для отчёта.</p>
+    <noscript><p>Без JavaScript этапы не отрисуются — данные лежат в блоке
+      <code>&lt;script type="application/json" id="plan-data"&gt;</code> внутри этого же файла.</p></noscript>
+    <div id="phases"></div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>Схема контура на время миграции</h2>
+    <figure>
+      <svg viewBox="0 0 900 300" role="img" aria-label="Схема маршрутизации отправки и приёма событий">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g fill="none" stroke="currentColor" stroke-opacity=".45">
+          <rect x="14" y="112" width="150" height="56" rx="8"/>
+          <rect x="230" y="104" width="170" height="72" rx="8"/>
+          <rect x="470" y="30" width="180" height="58" rx="8" stroke-dasharray="5 4"/>
+          <rect x="470" y="182" width="180" height="58" rx="8"/>
+          <rect x="712" y="104" width="174" height="60" rx="8"/>
+          <rect x="712" y="212" width="174" height="60" rx="8"/>
+        </g>
+        <g font-size="12.5" fill="currentColor">
+          <text x="30" y="136">Источники отправки<tspan x="30" dy="16" font-size="11" fill-opacity=".65">бэкенд, крон, CRM, биллинг</tspan></text>
+          <text x="246" y="132">mail-router (флаг)<tspan x="246" dy="16" font-size="11" fill-opacity=".65">провайдер = hash(user_id)</tspan><tspan x="246" dy="14" font-size="11" fill-opacity=".65">стабильно, не случайно</tspan></text>
+          <text x="486" y="56">Старый провайдер<tspan x="486" dy="15" font-size="11" fill-opacity=".65">выключается последним</tspan></text>
+          <text x="486" y="208">Новый провайдер<tspan x="486" dy="15" font-size="11" fill-opacity=".65">поддомен mail.example.com</tspan></text>
+          <text x="728" y="130">Свой /events<tspan x="728" dy="15" font-size="11" fill-opacity=".65">одна схема, идемпотентно,</tspan><tspan x="728" dy="14" font-size="11" fill-opacity=".65">подпись проверяется</tspan></text>
+          <text x="728" y="240">Suppression в своей БД<tspan x="728" dy="15" font-size="11" fill-opacity=".65">источник правды по отпискам</tspan></text>
+        </g>
+        <g fill="none" stroke="currentColor" stroke-opacity=".7" marker-end="url(#ar2)">
+          <path d="M164 140 L224 140"/>
+          <path d="M400 128 L436 128 L436 59 L464 59"/>
+          <path d="M400 152 L436 152 L436 211 L464 211"/>
+          <path d="M650 59 L682 59 L682 128 L706 128"/>
+          <path d="M650 211 L682 211 L682 140 L706 140"/>
+          <path d="M799 164 L799 206"/>
+        </g>
+        <path d="M712 242 L668 242 L668 276 L560 276 L560 246" fill="none" stroke="currentColor"
+              stroke-opacity=".5" stroke-dasharray="5 4" marker-end="url(#ar2)"/>
+        <text x="574" y="292" font-size="11" fill="currentColor" fill-opacity=".6">синхронизация отписок в обоих провайдеров, пока идёт двойной период</text>
+      </svg>
+      <figcaption>Пунктиром — то, что выключается на этапе 5. Приём событий от старого провайдера
+      живёт дольше отправки: события по уже отправленным письмам приходят ещё несколько суток.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="wrap">
+    <h2>DNS: что добавляем и как откатываем</h2>
+    <p class="small muted">Записи старого провайдера не трогаем и не удаляем до этапа 5 —
+    два набора DKIM-селекторов сосуществуют без конфликта.</p>
+    <div class="scroll"><table id="dns"></table></div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>Метрики и пороги отката</h2>
+    <p class="small muted">Эталон снимается на этапе 0 по каждому типу писем отдельно.
+    Сравнение «в среднем по всем письмам» скрывает провал в одном типе. Пороги живут в
+    мониторинге с алертом, а не в чьей-то привычке смотреть дашборд раз в день.</p>
+    <div class="scroll"><table id="metrics"></table></div>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="wrap">
+    <h2>Что нужно от заказчика до старта</h2>
+    <div class="scroll"><table id="needs"></table></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Открытые вопросы к заказчику: точное имя поддомена отправки, требуется ли dedicated IP
+    по требованиям бренда, кто дежурит на ступенях этапа 4 и в какой канал уходят алерты.
+    Без ответов этап 1 не стартует.</p>
+  </div>
+</footer>
+
+<script type="application/json" id="plan-data">
+{
+  "phases": [
+    {
+      "no": "Этап 0",
+      "title": "Инвентаризация и решение по IP",
+      "term": "3–5 дней",
+      "traffic": "0 %",
+      "goal": "Узнать, что именно мы отправляем и с какой репутацией, до того как что-то трогать. Без эталонных метрик на этапе 4 не с чем будет сравнивать.",
+      "acts": [
+        "Выгрузить за 90 дней объём по типам писем (транзакционные / дайджест / маркетинг), пики в сутки и в час, топ-20 доменов получателей.",
+        "Снять базовые метрики у старого провайдера: delivered, hard и soft bounce, complaint rate, отписки — по каждому типу писем отдельно.",
+        "Собрать все точки отправки: бэкенд, крон-рассылки, CRM, саппорт, биллинг, аналитика. Каждая забытая продолжит слать со старого провайдера.",
+        "Экспортировать suppression list целиком: hard bounces, жалобы, отписки, ручные блокировки.",
+        "Решить shared или dedicated IP: при 40 000 пользователей объёма обычно не хватает, чтобы прогреть и удержать выделенный IP — берём shared, если нет требования по бренду.",
+        "Зафиксировать окно миграции: не пятница, не конец месяца, не сезон массовых рассылок."
+      ],
+      "risk": "Неучтённый источник отправки. Он не падает и не шумит — он тихо продолжает слать со старого провайдера, и это выясняется через два месяца по счёту или по жалобе пользователя.",
+      "back": "Откатывать нечего: в проде ничего не менялось.",
+      "verify": "Список источников сверен с логами SMTP/API старого провайдера за 90 дней: отправителей в логах не больше, чем в списке.",
+      "exit": "Есть эталонные метрики по типам писем, полный suppression list, решение по IP и согласованное окно."
+    },
+    {
+      "no": "Этап 1",
+      "title": "Домены, DNS и аутентификация",
+      "term": "5–7 дней, из них 48 ч на прокатку TTL",
+      "traffic": "0 %",
+      "goal": "Поднять новому провайдеру собственный отправляющий поддомен так, чтобы репутация основного домена не зависела от исхода миграции.",
+      "acts": [
+        "Завести отдельный поддомен отправки (mail.example.com). Репутация нового провайдера копится на нём; основной домен не рискует.",
+        "За 48 часов до правок снизить TTL записей отправляющего поддомена до 300 с — иначе откат по DNS займёт сутки вместо пяти минут.",
+        "DKIM: отдельный селектор для нового провайдера, ключ 2048 бит. Селекторы двух провайдеров сосуществуют, старые записи не трогаем.",
+        "SPF: проверить лимит в 10 DNS-lookup. Два include подряд его часто пробивают, и тогда SPF ломается целиком (permerror), а не частично. Считать валидатором, не на глаз.",
+        "Подключить bounce/return-path домен провайдера через CNAME — без него не будет SPF-alignment, и DMARC не пройдёт даже при spf=pass.",
+        "DMARC оставить как есть. Ужесточение политики none → quarantine → reject в одну неделю с миграцией запрещено.",
+        "MX не трогаем: миграция исходящей почты входящую не затрагивает.",
+        "List-Unsubscribe и One-Click (RFC 8058) на всех массовых письмах — для отправителей от 5 000 писем в сутки это требование Gmail и Yahoo, а не пожелание."
+      ],
+      "risk": "SPF с одиннадцатым lookup возвращает permerror: письма разом проваливают и SPF, и DMARC-alignment у всех получателей. Ломается не постепенно, а сразу и везде.",
+      "back": "Удалить добавленные TXT/CNAME. При TTL 300 с изменения расходятся за ~5 минут; записи старого провайдера не удалялись, поэтому откатывать нечего — они просто снова единственные.",
+      "verify": "dig +short по каждой записи с двух независимых резолверов; тестовое письмо на seed-ящик, в исходнике Authentication-Results должно быть spf=pass, dkim=pass, dmarc=pass, а домен в d= совпадать с поддоменом отправки.",
+      "exit": "Все три проверки pass на четырёх почтовых системах, TTL снижен, DMARC rua-отчёты приходят."
+    },
+    {
+      "no": "Этап 2",
+      "title": "Единый контур данных: suppression и вебхуки",
+      "term": "5 дней",
+      "traffic": "0 %",
+      "goal": "Сделать так, чтобы отписки и жалобы были общими для обоих провайдеров, а события приходили в одну свою схему.",
+      "acts": [
+        "Импортировать suppression list к новому провайдеру ДО первой отправки. Это единственный необратимый пункт плана.",
+        "Принимать события (delivered, bounce, complaint, unsubscribe) от обоих провайдеров в один свой эндпоинт и приводить к одной схеме на своей стороне.",
+        "Обеспечить идемпотентность: провайдеры ретраят вебхуки, повторное событие не должно второй раз отписывать, списывать или слать уведомление.",
+        "Отписка пишется в свою БД и синхронизируется в оба провайдера, пока идёт двойной период.",
+        "Подписать вебхуки (HMAC) и проверять подпись: открытый эндпоинт отписок находят автоматическим сканом.",
+        "Настроить алерты на расхождение счётчиков между своей БД и провайдером — молчащая рассинхронизация здесь дороже падения."
+      ],
+      "risk": "Отправка на адреса из старого suppression list. Hard bounce и жалобы прилетают мгновенно, репутация свежего поддомена сгорает ещё до начала миграции и восстанавливается неделями.",
+      "back": "Приём вебхуков от нового провайдера выключается флагом. Импортированный suppression list удалять не нужно — он безвреден.",
+      "verify": "Число записей в suppression у нового провайдера не меньше выгрузки из старого. Тестовое событие каждого типа отправить трижды: в своей БД должна остаться ровно одна запись.",
+      "exit": "Дубли не создаются, подпись проверяется, счётчики сошлись."
+    },
+    {
+      "no": "Этап 3",
+      "title": "Seed-отправка и прогрев",
+      "term": "7–14 дней",
+      "traffic": "0 % реального трафика",
+      "goal": "Проверить попадание во «Входящие» и совпадение шаблонов, ничего не показывая живым пользователям.",
+      "acts": [
+        "Прогон по seed-листу: Gmail, Outlook/Hotmail, Yandex, Mail.ru, корпоративный Exchange и Google Workspace, плюс два-три ящика с жёсткими фильтрами.",
+        "Сверить рендер шаблонов: новый провайдер иначе переписывает ссылки для трекинга и может ломать вёрстку и UTM-метки.",
+        "Домен трекинга ссылок должен быть нашим поддоменом, а не общим доменом провайдера: общие чаще оказываются в блок-листах.",
+        "Подключить Google Postmaster Tools и Microsoft SNDS на отправляющий домен — без них репутация не видна вообще.",
+        "Теневую отправку вести только на seed-адреса. Дублировать реальные письма живым пользователям запрещено.",
+        "Если всё же выбран dedicated IP: расписание прогрева от 50 писем в сутки с удвоением, начиная с самых активных получателей."
+      ],
+      "risk": "«Тень», пущенная на живую базу, даёт пользователю два одинаковых письма от двух разных отправителей — и это первое, что попадает в поддержку и в жалобы.",
+      "back": "Остановить seed-прогон. Пользователи ничего не видели, откат мгновенный.",
+      "verify": "Письмо во «Входящих», а не в «Промоакциях» и не в спаме, на всех seed-ящиках; в Postmaster Tools домен виден и репутация не Low/Bad; ссылки и UTM открываются корректно.",
+      "exit": "Seed зелёный на всех почтовых системах, шаблоны совпадают с эталоном пиксель в пиксель."
+    },
+    {
+      "no": "Этап 4",
+      "title": "Перевод трафика 5 → 25 → 50 → 100 %",
+      "term": "10–14 дней",
+      "traffic": "5 → 100 %",
+      "goal": "Перевести реальные письма ступенями, на каждой сравнивая метрики с эталоном и имея откат за минуты.",
+      "acts": [
+        "Провайдер выбирается по стабильному хешу user_id, а не случайно: иначе один и тот же пользователь получает письма то от одного отправителя, то от другого, и это видно в почтовом клиенте.",
+        "Порядок типов: сначала транзакционные (их ждут и открывают — хорошие сигналы для репутации), затем дайджесты, маркетинг последним.",
+        "Ступени: 5 % → 48 ч наблюдения → 25 % → 48 ч → 50 % → 72 ч → 100 %. Выдержку не сокращать.",
+        "На каждой ступени сравнивать метрики с эталоном этапа 0 по тем же типам писем, а не по средним значениям.",
+        "Пороги отката из таблицы ниже — в мониторинг с алертом в дежурный канал, с указанием ответственного на каждую ступень.",
+        "Перед переходом на следующую ступень: короткая запись в журнал миграции — время, ступень, значения метрик, решение."
+      ],
+      "risk": "Просадка доставляемости видна не сразу: complaint rate догоняет за сутки-двое. Разгон 5 → 100 % за один день прячет провал ровно до момента, когда откат уже стоит дорого — часть базы успела получить письма в спам.",
+      "back": "Флаг на 0 % — минуты. DNS не трогаем: записи старого провайдера на месте, поэтому откат не зависит от кешей резолверов. Именно ради этого старый контур и держат до этапа 5.",
+      "verify": "На каждой ступени: delivery rate, hard bounce, complaint rate, p95 времени доставки — по каждому типу писем; расхождение с эталоном в пределах порогов.",
+      "exit": "100 % трафика семь суток подряд в пределах порогов."
+    },
+    {
+      "no": "Этап 5",
+      "title": "Стабилизация и вывод старого провайдера",
+      "term": "30 дней наблюдения",
+      "traffic": "100 %",
+      "goal": "Убедиться, что метрики держатся, и только потом закрыть старый контур — одним осознанным шагом.",
+      "acts": [
+        "30 дней ничего не удалять: аккаунт старого провайдера активен, ключи живы, DNS-записи на месте.",
+        "Отправку через старого провайдера отключить, приём его вебхуков оставить: события по ранее отправленным письмам идут ещё несколько суток.",
+        "Выгрузить из старого провайдера финальный suppression и логи до окончания договора — после закрытия они пропадают — и залить в новый.",
+        "Через 30 дней: удалить DNS-записи старого провайдера, отозвать API-ключи, закрыть договор, снять флаг маршрутизации и мёртвый код.",
+        "Только после этого, отдельным изменением, ужесточать DMARC до quarantine и позже reject."
+      ],
+      "risk": "Досрочно удалённые DNS-записи и ключи старого провайдера. Быстрый откат перестаёт существовать, и вместо флага остаётся повторная миграция в обратную сторону.",
+      "back": "До удаления записей — тот же флаг на 0 %. После удаления отката нет: это заявленная точка невозврата, и проходить её нужно осознанно, а не по инерции.",
+      "verify": "Ноль отправок в логах старого провайдера за 7 суток, счёт за период нулевой, в своих логах нет обращений к его API.",
+      "exit": "Метрики на уровне эталона или лучше, старый контур закрыт, флаг и мёртвый код удалены."
+    }
+  ],
+  "dns": {
+    "cols": ["Запись", "Значение", "TTL", "Когда", "Откат"],
+    "rows": [
+      ["TXT mail.example.com", "v=spf1 include:<новый> ~all", "300", "Этап 1", "удалить запись"],
+      ["CNAME s1._domainkey.mail", "селектор нового провайдера", "300", "Этап 1", "удалить, старый селектор не трогали"],
+      ["CNAME bounce.mail", "return-path провайдера", "300", "Этап 1", "удалить"],
+      ["CNAME link.mail", "домен трекинга ссылок", "300", "Этап 3", "удалить"],
+      ["TXT _dmarc", "p=none; rua=mailto:…", "3600", "не меняем", "—"],
+      ["MX", "без изменений", "—", "не трогаем", "—"],
+      ["записи старого провайдера", "остаются как есть", "—", "удалить на этапе 5", "точка невозврата"]
+    ]
+  },
+  "metrics": {
+    "cols": ["Метрика", "Эталон", "Алерт", "Стоп и откат"],
+    "rows": [
+      ["Delivery rate", "снят на этапе 0", "−1 п.п. к эталону", "−3 п.п. или ниже 95 %"],
+      ["Hard bounce", "обычно < 0,5 %", "> 1 %", "> 2 %"],
+      ["Complaint rate (Postmaster)", "обычно < 0,05 %", "> 0,10 %", "> 0,30 %"],
+      ["Отписки", "снят на этапе 0", "+50 % к эталону", "+100 % к эталону"],
+      ["p95 времени доставки", "снят на этапе 0", "> 5 мин", "> 15 мин"],
+      ["Ошибки API отправки", "0", "> 0,5 %", "> 2 % за 15 мин"],
+      ["Репутация домена", "High", "Medium", "Low или Bad"]
+    ]
+  },
+  "needs": {
+    "cols": ["Что нужно", "Зачем", "К какому этапу"],
+    "rows": [
+      ["Доступ к DNS-зоне на правку", "SPF, DKIM, return-path, трекинг ссылок", "до этапа 1"],
+      ["Админ-доступ к обоим провайдерам", "выгрузка suppression и логов, настройка вебхуков", "до этапа 0"],
+      ["Право включать флаги в проде", "ступени перевода трафика и мгновенный откат", "до этапа 4"],
+      ["Доступ к мониторингу и алертам", "пороги отката должны будить дежурного", "до этапа 4"],
+      ["6–8 seed-ящиков в разных системах", "проверка попадания во «Входящие»", "до этапа 3"],
+      ["Ответственный на стороне заказчика", "решение «идём дальше» на каждой ступени", "до этапа 0"]
+    ]
+  }
+}
+</script>
+
+<script>
+(function () {
+  const planData = JSON.parse(document.getElementById('plan-data').textContent);
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const STORE = 'mail-migration-checklist-v1';
+
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { saved = {}; }
+
+  const host = document.getElementById('phases');
+  host.innerHTML = planData.phases.map((ph, pi) => {
+    const items = ph.acts.map((act, ai) => {
+      const key = 'p' + pi + '-' + ai;
+      const on = saved[key] ? ' checked' : '';
+      return '<li><input type="checkbox" id="' + key + '" data-key="' + key + '"' + on + '>' +
+             '<label for="' + key + '">' + esc(act) + '</label></li>';
+    }).join('');
+    return '<article class="phase">' +
+      '<div class="phase-head"><span class="phase-no">' + esc(ph.no) + '</span>' +
+      '<h3>' + esc(ph.title) + '</h3>' +
+      '<span class="phase-meta"><span>срок <b>' + esc(ph.term) + '</b></span>' +
+      '<span>трафик <b>' + esc(ph.traffic) + '</b></span></span></div>' +
+      '<p class="goal">' + esc(ph.goal) + '</p>' +
+      '<div class="cols">' +
+        '<div class="col do"><h4>Что делаем</h4><ul class="acts">' + items + '</ul></div>' +
+        '<div class="col risk"><h4>Чем рискуем</h4><p>' + esc(ph.risk) + '</p></div>' +
+        '<div class="col back"><h4>Как откатываемся</h4><p>' + esc(ph.back) + '</p></div>' +
+        '<div class="col"><h4>Как проверяем</h4><p>' + esc(ph.verify) + '</p></div>' +
+      '</div>' +
+      '<p class="exit"><b>Критерий выхода:</b> ' + esc(ph.exit) + '</p>' +
+    '</article>';
+  }).join('');
+
+  const table = (el, spec) => {
+    document.getElementById(el).innerHTML =
+      '<thead><tr>' + spec.cols.map((c) => '<th>' + esc(c) + '</th>').join('') + '</tr></thead>' +
+      '<tbody>' + spec.rows.map((r) => '<tr>' + r.map((cell, ci) => {
+        let cls = ci === 0 || (el === 'dns' && ci <= 1) ? ' class="m"' : '';
+        if (el === 'metrics' && ci === 2) cls = ' class="w"';
+        if (el === 'metrics' && ci === 3) cls = ' class="s"';
+        return '<td' + cls + '>' + esc(cell) + '</td>';
+      }).join('') + '</tr>').join('') + '</tbody>';
+  };
+  table('dns', planData.dns);
+  table('metrics', planData.metrics);
+  table('needs', planData.needs);
+
+  const boxes = Array.from(host.querySelectorAll('input[type=checkbox]'));
+  const counter = document.getElementById('count');
+  const barFill = document.getElementById('pbar');
+  const hint = document.getElementById('hint');
+
+  function refresh() {
+    const done = boxes.filter((b) => b.checked).length;
+    counter.textContent = done + ' / ' + boxes.length;
+    barFill.style.width = (boxes.length ? (done / boxes.length * 100) : 0).toFixed(1) + '%';
+  }
+  host.addEventListener('change', (ev) => {
+    const box = ev.target;
+    if (!box.dataset || !box.dataset.key) return;
+    if (box.checked) saved[box.dataset.key] = 1; else delete saved[box.dataset.key];
+    try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch (e) { /* приватный режим */ }
+    refresh();
+  });
+  refresh();
+
+  function toMarkdown() {
+    const lines = ['# Миграция почтового провайдера — статус', ''];
+    planData.phases.forEach((ph, pi) => {
+      lines.push('## ' + ph.no + '. ' + ph.title + ' (' + ph.term + ', трафик ' + ph.traffic + ')');
+      ph.acts.forEach((act, ai) => {
+        lines.push('- [' + (saved['p' + pi + '-' + ai] ? 'x' : ' ') + '] ' + act);
+      });
+      lines.push('', 'Критерий выхода: ' + ph.exit, '');
+    });
+    const done = boxes.filter((b) => b.checked).length;
+    lines.push('Готово: ' + done + ' из ' + boxes.length + ' · выгружено ' + new Date().toLocaleString('ru-RU'));
+    return lines.join('\n');
+  }
+
+  document.getElementById('copy').addEventListener('click', () => {
+    const text = toMarkdown();
+    const done = (ok) => { hint.textContent = ok ? 'скопировано' : 'не удалось — выделите текст вручную'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove(); done(ok);
+    }
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    saved = {};
+    try { localStorage.removeItem(STORE); } catch (e) { /* приватный режим */ }
+    boxes.forEach((b) => { b.checked = false; });
+    hint.textContent = 'отметки сброшены';
+    refresh();
+  });
+})();
+</script>
+</body>
+</html>

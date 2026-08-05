@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Инцидент 03.08 — встала доставка сообщений между агентами</title>
+<style>
+:root {
+  --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
+  --border: #2a2a32; --ink: #f1f1f4; --ink-soft: #a8a8b3;
+  --accent: #7c3aed; --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+  --sans: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #fafaf7; --surface: #fff; --surface-2: #f2f1ec; --border: #e7e5df; --ink: #1a1a1f; --ink-soft: #555; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 40px 20px 80px; }
+
+header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+.kicker { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+h1 { font-size: clamp(26px, 4.5vw, 40px); line-height: 1.12; margin: 12px 0 0; letter-spacing: -.02em; font-weight: 650; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 18px; font: 13px/1 var(--mono); color: var(--ink-soft); }
+.meta b { color: var(--ink); font-weight: 500; }
+.tag { display: inline-block; padding: 3px 9px; border: 1px solid currentColor; border-radius: 3px; font: 500 11px/1.4 var(--mono); letter-spacing: .06em; }
+.tag.ok { color: var(--ok); }
+.tag.danger { color: var(--danger); }
+
+h2 { font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+     color: var(--ink-soft); margin: 52px 0 18px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+p { margin: 0 0 12px; }
+.lead { font-size: 19px; line-height: 1.5; margin: 0; }
+.lead b { color: var(--danger); font-weight: 600; }
+code { font: 13px/1.4 var(--mono); background: var(--surface-2); border: 1px solid var(--border);
+       border-radius: 3px; padding: 1px 5px; }
+
+.tldr { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+        padding: 20px 22px; }
+
+.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+        background: var(--border); border: 1px solid var(--border); margin-top: 28px; }
+.num { background: var(--surface); padding: 16px 18px; }
+.num .v { font: 600 28px/1 var(--sans); letter-spacing: -.02em; display: block; }
+.num .l { font: 12px/1.35 var(--mono); color: var(--ink-soft); margin-top: 7px; display: block; }
+.num.bad .v { color: var(--danger); }
+.num.good .v { color: var(--ok); }
+
+/* timeline */
+.tl { border-left: 1px solid var(--border); margin-left: 62px; }
+.tl-row { position: relative; padding: 0 0 26px 26px; }
+.tl-row:last-child { padding-bottom: 0; }
+.tl-row::before { content: ""; position: absolute; left: -4.5px; top: 7px; width: 8px; height: 8px;
+                  border-radius: 50%; background: var(--ink-soft); }
+.tl-row.hit::before { background: var(--danger); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 22%, transparent); }
+.tl-row.fix::before { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 22%, transparent); }
+.tl-row .t { position: absolute; left: -88px; top: 2px; width: 56px; text-align: right;
+             font: 500 13px/1.5 var(--mono); color: var(--ink-soft); }
+.tl-row.hit .t, .tl-row.fix .t { color: var(--ink); }
+.tl-row p { color: var(--ink-soft); margin: 0; font-size: 14.5px; }
+
+figure { margin: 0; }
+figure svg { width: 100%; height: auto; display: block; color: var(--ink-soft); }
+figcaption { font: 12px/1.5 var(--mono); color: var(--ink-soft); margin-top: 10px; }
+
+.chain-box { fill: var(--surface); stroke: currentColor; }
+.chain-box.bad { stroke: var(--danger); }
+.chain-t { fill: var(--ink); font: 600 13px var(--sans); }
+.chain-s { fill: var(--ink-soft); font: 11.5px var(--mono); }
+
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+th { text-align: left; font: 600 11.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+     color: var(--ink-soft); padding: 0 14px 10px 0; border-bottom: 1px solid var(--border); }
+td { padding: 13px 14px 13px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.st { white-space: nowrap; }
+.st-done { color: var(--ok); } .st-wip { color: var(--warn); } .st-todo { color: var(--ink-soft); }
+td .why { display: block; color: var(--ink-soft); font-size: 13.5px; margin-top: 4px; }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border);
+       border: 1px solid var(--border); }
+.two > div { background: var(--surface); padding: 18px 20px; }
+.two ul { margin: 8px 0 0; padding-left: 18px; color: var(--ink-soft); font-size: 14.5px; }
+.two li { margin-bottom: 7px; }
+.two .h-bad { color: var(--danger); } .two .h-ok { color: var(--ok); }
+
+.note { font-size: 13.5px; color: var(--ink-soft); border-left: 2px solid var(--border); padding-left: 14px; }
+@media (max-width: 620px) {
+  .two { grid-template-columns: 1fr; }
+  .tl { margin-left: 0; }
+  .tl-row .t { position: static; width: auto; text-align: left; display: block; margin-bottom: 3px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Разбор инцидента · Orchestra</div>
+  <h1>Доставка сообщений между агентами встала на 40 минут</h1>
+  <div class="meta">
+    <span>3 августа 2026, <b>14:20 – 15:00</b></span>
+    <span>Задето: <b>межагентные сообщения</b></span>
+    <span class="tag ok">УСТРАНЕНО</span>
+    <span class="tag danger">SEV-1</span>
+  </div>
+</header>
+
+<div class="tldr">
+  <p class="lead">Пачка служебных сообщений ушла в очередь с высоким приоритетом. Очередь захватила лок и <b>не отпустила его</b> — за ней встали все остальные сообщения, включая рабочие. Внешне это выглядело как «агенты друг друга не слышат»: отправка проходила без ошибки, доставки не было.</p>
+</div>
+
+<div class="nums">
+  <div class="num bad"><span class="v">40 мин</span><span class="l">от отказа до восстановления</span></div>
+  <div class="num bad"><span class="v">0</span><span class="l">доставленных сообщений за окно</span></div>
+  <div class="num"><span class="v">14:20</span><span class="l">момент постановки пачки</span></div>
+  <div class="num good"><span class="v">0</span><span class="l">потеряно сообщений после разбора очереди</span></div>
+</div>
+
+<h2>Таймлайн</h2>
+<div class="tl">
+  <div class="tl-row hit">
+    <span class="t">14:20</span>
+    <h3>Пачка служебных сообщений поставлена в очередь с высоким приоритетом</h3>
+    <p>Косметика и рабочие доставки идут через одну очередь. Приоритетная пачка занимает лок и держит его, пока не разгребёт себя целиком.</p>
+  </div>
+  <div class="tl-row hit">
+    <span class="t">~14:23</span>
+    <h3>Доставка встала. Ошибок нет</h3>
+    <p>Отправитель получает успех — сообщение принято в очередь. Получатель не получает ничего. Ни исключения, ни таймаута, ни записи в логе: тишина читается как «всё в порядке».</p>
+  </div>
+  <div class="tl-row">
+    <span class="t">~14:30</span>
+    <h3>Заметили по симптому, а не по алерту</h3>
+    <p>Обнаружено через поведение агентов — ждут ответ, которого нет. Алерта на «очередь не двигается» не существовало.</p>
+  </div>
+  <div class="tl-row">
+    <span class="t">~14:35</span>
+    <h3>Ложный след: сеть и провайдер</h3>
+    <p>Сначала проверяли транспорт и лимиты — снаружи это выглядит одинаково. Отпало, когда стало видно: сообщения принимаются, но не уходят из очереди.</p>
+  </div>
+  <div class="tl-row">
+    <span class="t">~14:45</span>
+    <h3>Нашли причину: лок держится приоритетной пачкой</h3>
+    <p>В очереди видно ту самую пачку служебных сообщений. За ней — всё остальное, в порядке поступления.</p>
+  </div>
+  <div class="tl-row fix">
+    <span class="t">15:00</span>
+    <h3>Очередь разобрана, доставка восстановлена</h3>
+    <p>Накопившиеся сообщения ушли получателям. Потерь нет — они лежали в очереди, а не исчезли.</p>
+  </div>
+</div>
+<p class="note" style="margin-top:18px">Жёстко зафиксированы 14:20 и 15:00. Промежуточные отметки восстановлены при разборе и даны с точностью до пяти минут.</p>
+
+<h2>Причина</h2>
+<figure>
+<svg viewBox="0 0 940 300" role="img" aria-label="Цепочка отказа: пачка служебных сообщений с высоким приоритетом захватывает лок, очередь не двигается, доставка нулевая, отправитель ошибки не видит">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <g class="chain">
+    <rect class="chain-box" x="1" y="40" width="205" height="76" rx="4" stroke-width="1"/>
+    <text class="chain-t" x="18" y="70">Пачка служебных</text>
+    <text class="chain-t" x="18" y="88">сообщений</text>
+    <text class="chain-s" x="18" y="106">important = high</text>
+
+    <line x1="212" y1="78" x2="246" y2="78" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+
+    <rect class="chain-box bad" x="252" y="40" width="205" height="76" rx="4" stroke-width="1.4"/>
+    <text class="chain-t" x="269" y="70">Лок очереди захвачен</text>
+    <text class="chain-t" x="269" y="88">и не отпускается</text>
+    <text class="chain-s" x="269" y="106">lock contention</text>
+
+    <line x1="463" y1="78" x2="497" y2="78" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+
+    <rect class="chain-box bad" x="503" y="40" width="205" height="76" rx="4" stroke-width="1.4"/>
+    <text class="chain-t" x="520" y="70">Очередь не двигается</text>
+    <text class="chain-t" x="520" y="88">для всех остальных</text>
+    <text class="chain-s" x="520" y="106">одна очередь на всё</text>
+
+    <line x1="714" y1="78" x2="748" y2="78" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+
+    <rect class="chain-box bad" x="754" y="40" width="185" height="76" rx="4" stroke-width="1.4"/>
+    <text class="chain-t" x="771" y="78">Доставка = 0</text>
+    <text class="chain-s" x="771" y="98">рабочие сообщения</text>
+  </g>
+
+  <line x1="846" y1="124" x2="846" y2="176" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#ar)"/>
+  <rect class="chain-box" x="600" y="182" width="339" height="76" rx="4" stroke-width="1"/>
+  <text class="chain-t" x="620" y="212">Отправитель видит успех</text>
+  <text class="chain-s" x="620" y="232">исключения нет · лога нет · алерта нет</text>
+  <text class="chain-s" x="620" y="249">→ отказ невидим 10 минут</text>
+</svg>
+<figcaption>Отказ одноступенчатый: приоритет означал «пропустить вперёд», а по факту дал «занять целиком». Второй контур — почему это не заметили сразу.</figcaption>
+</figure>
+
+<h2>Два дефекта, а не один</h2>
+<div class="two">
+  <div>
+    <h3 class="h-bad">Дефект доставки</h3>
+    <ul>
+      <li>Косметические служебные сообщения и рабочие доставки делят <b>одну очередь и один лок</b>.</li>
+      <li>Высокий приоритет на пачке — не «вперёд очереди», а удержание лока до конца пачки.</li>
+      <li>Одна пачка от одного отправителя останавливает обмен между всеми агентами.</li>
+    </ul>
+  </div>
+  <div>
+    <h3 class="h-bad">Дефект наблюдаемости</h3>
+    <ul>
+      <li>Отправка возвращает успех при нулевой доставке — тишина неотличима от нормы.</li>
+      <li>Нет метрики «возраст головы очереди» и алерта на неё.</li>
+      <li>Первые 10 минут ушли на сеть и лимиты провайдера: симптом снаружи выглядит так же.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Что чинили</h2>
+<table>
+  <thead><tr><th style="width:36%">Действие</th><th>Результат</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Проверили транспорт и лимиты провайдера</td>
+      <td>Отпало. Сообщения принимались — значит, дело не в канале наружу.<span class="why">10 минут потеряно: диагностику начали с внешнего контура, а не с очереди.</span></td>
+    </tr>
+    <tr>
+      <td>Посмотрели состояние очереди</td>
+      <td>Голова очереди — та самая приоритетная пачка, за ней всё остальное. Здесь причина стала видна.</td>
+    </tr>
+    <tr>
+      <td>Разобрали очередь</td>
+      <td>Накопленное доставлено получателям, доставка пошла. Потерь нет.<span class="why">Разовое действие руками, не исправление причины — до правок в коде повтор был возможен в любой момент.</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Что делаем, чтобы не повторилось</h2>
+<table>
+  <thead><tr><th style="width:44%">Мера</th><th style="width:34%">Зачем</th><th style="width:22%">Статус</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Развести косметику и рабочие доставки по разным очередям</td>
+      <td>Служебный трафик физически не может остановить рабочий. Убирает корневую причину.</td>
+      <td class="st st-wip">в работе</td>
+    </tr>
+    <tr>
+      <td>Убрать высокий приоритет с пачек служебных сообщений</td>
+      <td>Приоритет на пачке — это удержание лока. Одиночное важное сообщение — можно, пачка — нет.</td>
+      <td class="st st-done">сделано</td>
+    </tr>
+    <tr>
+      <td>Метрика «возраст головы очереди» + алерт</td>
+      <td>Даёт сигнал за минуты вместо десяти минут вслепую. Закрывает дефект наблюдаемости.</td>
+      <td class="st st-todo">запланировано</td>
+    </tr>
+    <tr>
+      <td>Отказ по таймауту удержания лока вместо бесконечного ожидания</td>
+      <td>Fail loud: видимая ошибка лучше тихой остановки обмена.</td>
+      <td class="st st-todo">запланировано</td>
+    </tr>
+    <tr>
+      <td>Тест: пачка приоритетных сообщений не блокирует обычную доставку</td>
+      <td>Без него правка выше защищена только словами. Проверять мутацией — сломать разведение очередей, тест обязан покраснеть.</td>
+      <td class="st st-todo">запланировано</td>
+    </tr>
+    <tr>
+      <td>В диагностику: при «агенты не слышат друг друга» первой смотреть очередь</td>
+      <td>Сеть и лимиты снаружи выглядят идентично — и стоили 10 минут из 40.</td>
+      <td class="st st-done">сделано</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Что важно не сломать по дороге</h2>
+<p class="note">
+  Зеркальный риск: у приоритета есть и вторая сторона — сообщения, помеченные как неважные, могут молча отбрасываться.
+  Лечим не «понижением приоритета у всего подряд», а разведением потоков: косметика и доставки не должны делить очередь.
+  Правка, которая просто снимает флаг, меняет один тихий отказ на другой.
+</p>
+
+</div>
+</body>
+</html>

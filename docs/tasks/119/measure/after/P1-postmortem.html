@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Разбор: тишина в доставке сообщений, 3 августа 14:20</title>
+<style>
+  /* акцент: обожжённая охра — цвет предупреждающей ленты и аварийного щита; разбор сбоя,
+     тревожный тёплый. Второй тон — холодная бирюза, ею помечено только «после фикса». */
+  :root {
+    color-scheme: light dark;
+    --fs: 15px;
+    --radius: 10px;
+    --ink: light-dark(#231a15, #ece4dd);
+    --bg: light-dark(#fbf7f3, #15110f);
+    --accent: light-dark(#b1420e, #ff9057);
+    --accent2: light-dark(#0a6a62, #4ac6ba);
+    --card: color-mix(in oklab, var(--ink) 5%, transparent);
+    --line: color-mix(in oklab, var(--ink) 16%, transparent);
+    --muted: color-mix(in oklab, var(--ink) 58%, transparent);
+    --ring: var(--accent);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: var(--fs)/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: 0;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 20px 64px; }
+  h1 { font-size: calc(var(--fs) * 1.72); line-height: 1.2; margin: 0 0 8px; font-weight: 650; }
+  h2 {
+    font-size: calc(var(--fs) * 1.29); margin: 0 0 12px; font-weight: 620;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  h2::before {
+    content: attr(data-n);
+    font-size: calc(var(--fs) * .8); color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  h3 { font-size: calc(var(--fs) * .87); margin: 0 0 6px; text-transform: uppercase;
+       letter-spacing: .06em; color: var(--muted); font-weight: 620; }
+  p { margin: 0 0 12px; }
+  .lede { font-size: calc(var(--fs) * 1.08); max-width: 68ch; color: var(--ink); }
+  .kicker { font-size: calc(var(--fs) * .8); text-transform: uppercase; letter-spacing: .1em;
+            color: var(--accent); font-weight: 640; margin-bottom: 6px; }
+
+  section { border-top: 1px solid var(--line); padding: 22px 0 6px; }
+  header.head { padding-bottom: 20px; }
+
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+           gap: 1px; background: var(--line); border: 1px solid var(--line);
+           border-radius: var(--radius); overflow: hidden; margin-top: 18px; }
+  .facts div { background: var(--bg); padding: 12px 14px; }
+  .facts dt { font-size: calc(var(--fs) * .78); color: var(--muted); text-transform: uppercase;
+              letter-spacing: .06em; margin-bottom: 3px; }
+  .facts dd { margin: 0; font-size: calc(var(--fs) * 1.15); font-weight: 620;
+              font-variant-numeric: tabular-nums; }
+  .facts dd small { display: block; font-size: calc(var(--fs) * .82); font-weight: 400;
+                    color: var(--muted); }
+
+  table { border-collapse: collapse; width: 100%; font-size: calc(var(--fs) * .93); }
+  th { text-align: left; font-size: calc(var(--fs) * .78); text-transform: uppercase;
+       letter-spacing: .06em; color: var(--muted); font-weight: 620;
+       padding: 0 10px 6px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .t { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 620; width: 1%; }
+  .row-cause td { background: color-mix(in oklab, var(--accent) 12%, transparent); }
+  .row-cause .t { color: var(--accent); }
+
+  .tag { display: inline-block; font-size: calc(var(--fs) * .74); letter-spacing: .05em;
+         text-transform: uppercase; padding: 2px 7px; border-radius: calc(var(--radius) * .6);
+         border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .tag.cause { border-color: var(--accent); color: var(--accent); }
+  .tag.fix   { border-color: var(--accent2); color: var(--accent2); }
+
+  /* узкий экран: колонки не влезают — строка складывается в блок, ничего не режется */
+  @media (max-width: 560px) {
+    table, tbody, tr, td { display: block; width: auto; }
+    thead { display: none; }
+    tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    td { border-bottom: 0; padding: 2px 0; }
+    .row-cause td { background: none; }
+    .row-cause { background: color-mix(in oklab, var(--accent) 12%, transparent);
+                 padding-left: 8px; border-radius: calc(var(--radius) * .6); }
+  }
+
+  .diagram { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+             gap: 18px; margin: 4px 0 16px; }
+  figure { margin: 0; border: 1px solid var(--line); border-radius: var(--radius);
+           padding: 12px 12px 10px; background: var(--card); }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: calc(var(--fs) * .85); color: var(--muted); margin-top: 8px; }
+  .b-line { fill: none; stroke: currentColor; stroke-width: 1.2; }
+  .b-box { fill: none; stroke: currentColor; stroke-width: 1.2; opacity: .55; }
+  .b-txt { fill: currentColor; font: 10px system-ui, sans-serif; }
+  .b-txt.sm { font-size: 9px; opacity: .65; }
+  .hot { color: var(--accent); }
+  .cool { color: var(--accent2); }
+  .dim { opacity: .4; }
+
+  ul, ol { margin: 0 0 12px; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  code { font: calc(var(--fs) * .88)/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: var(--card); padding: 1px 5px; border-radius: calc(var(--radius) * .4); }
+
+  details { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px;
+            margin: 12px 0; background: var(--card); }
+  summary { cursor: pointer; font-weight: 600; }
+  summary:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--ring); }
+  details[open] summary { margin-bottom: 8px; }
+
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+  .lesson { border-left: 2px solid var(--accent); padding-left: 12px; }
+  .lesson b { display: block; margin-bottom: 2px; }
+  footer { color: var(--muted); font-size: calc(var(--fs) * .85); border-top: 1px solid var(--line);
+           margin-top: 26px; padding-top: 12px; }
+
+  @media print {
+    :root { color-scheme: light; }
+    body { background: #fff; color: #000; }
+    .wrap { max-width: none; padding: 0; }
+    details { break-inside: avoid; }
+    details:not([open]) > *:not(summary) { display: revert; }
+    section { break-inside: auto; }
+    print-color-adjust: exact;
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="kicker">Разбор инцидента · внутренний</div>
+  <h1>40 минут тишины: доставка между агентами встала на пачке служебных сообщений</h1>
+  <p class="lede">3 августа в 14:20 сообщения между агентами перестали доходить. Ошибок не было
+  ни одной — очередь просто не двигалась: пачка косметических tool-сообщений ушла в неё с
+  флагом высокого приоритета, забрала общий лок и не отдавала его. Доставки стояли за ними
+  в той же очереди. Восстановились в 15:00, потерянных сообщений нет — всё дошло с задержкой.</p>
+
+  <dl class="facts">
+    <div><dt>Начало</dt><dd>14:20<small>3 августа 2026</small></dd></div>
+    <div><dt>Длительность</dt><dd>40 мин<small>до 15:00</small></dd></div>
+    <div><dt>Затронуто</dt><dd>вся шина<small>агент↔агент и TG</small></dd></div>
+    <div><dt>Потеряно</dt><dd>0<small>задержка, не потеря</small></dd></div>
+  </dl>
+</header>
+
+<section>
+  <h2 data-n="01">Как это выглядело по минутам</h2>
+  <table id="timeline">
+    <thead><tr><th>Время</th><th>Что происходило</th><th>Фаза</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2 data-n="02">Причина</h2>
+  <p>Косметические сообщения (логи tool-вызовов, статусные строчки) и рабочие доставки
+  (<code>DONE</code>-репорты, ответы оркестратора, задания воркерам) шли через <b>одну очередь
+  с одним локом</b>. Пачка из 63 служебных сообщений была отправлена с <code>important=True</code>:
+  этот флаг ставит сообщение в голову очереди и удерживает лок до подтверждения отправки.
+  Пока пачка обрабатывалась и ретраилась, каждая рабочая доставка ждала своей очереди позади неё —
+  классический head-of-line blocking.</p>
+
+  <div class="diagram">
+    <figure>
+      <svg viewBox="0 0 360 190" role="img" aria-label="Схема: одна очередь, один лок, доставки ждут за пачкой служебных">
+        <defs>
+          <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L8 4 L0 8 z" fill="currentColor"/>
+          </marker>
+        </defs>
+        <g class="hot">
+          <rect class="b-box" x="8" y="20" width="106" height="40" rx="6"/>
+          <text class="b-txt" x="20" y="38">служебные ×63</text>
+          <text class="b-txt sm" x="20" y="51">important = True</text>
+          <path class="b-line" d="M114 40 H150" marker-end="url(#ah)"/>
+        </g>
+        <g class="dim">
+          <rect class="b-box" x="8" y="112" width="106" height="40" rx="6"/>
+          <text class="b-txt" x="20" y="130">доставки ×3</text>
+          <text class="b-txt sm" x="20" y="143">DONE, задания</text>
+          <path class="b-line" d="M114 132 H150" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+        </g>
+        <rect class="b-box" x="152" y="20" width="64" height="132" rx="6"/>
+        <text class="b-txt sm" x="152" y="14">одна очередь</text>
+        <g class="hot">
+          <rect x="160" y="28" width="48" height="12" rx="3" fill="currentColor" opacity=".5"/>
+          <rect x="160" y="46" width="48" height="12" rx="3" fill="currentColor" opacity=".5"/>
+          <rect x="160" y="64" width="48" height="12" rx="3" fill="currentColor" opacity=".5"/>
+          <rect x="160" y="82" width="48" height="12" rx="3" fill="currentColor" opacity=".5"/>
+          <rect x="160" y="100" width="48" height="12" rx="3" fill="currentColor" opacity=".5"/>
+        </g>
+        <rect class="b-box dim" x="160" y="122" width="48" height="12" rx="3"/>
+        <g class="hot">
+          <path class="b-line" d="M218 86 H238" marker-end="url(#ah)"/>
+          <rect class="b-box" x="240" y="68" width="44" height="36" rx="6"/>
+          <text class="b-txt" x="252" y="90">лок</text>
+          <path class="b-line" d="M286 86 H304" marker-end="url(#ah)"/>
+        </g>
+        <rect class="b-box" x="306" y="68" width="46" height="36" rx="6"/>
+        <text class="b-txt" x="316" y="90">выход</text>
+      </svg>
+      <figcaption>Было: голова очереди занята пачкой, лок не отдаётся, доставка стоит.</figcaption>
+    </figure>
+
+    <figure>
+      <svg viewBox="0 0 360 190" role="img" aria-label="Схема после фикса: две независимые полосы со своими локами">
+        <g class="dim">
+          <rect class="b-box" x="8" y="20" width="106" height="40" rx="6"/>
+          <text class="b-txt" x="20" y="38">служебные</text>
+          <text class="b-txt sm" x="20" y="51">флаг запрещён</text>
+          <path class="b-line" d="M114 40 H150" marker-end="url(#ah)"/>
+          <rect class="b-box" x="152" y="20" width="64" height="40" rx="6"/>
+          <text class="b-txt sm" x="160" y="44">фон</text>
+          <path class="b-line" d="M218 40 H236" marker-end="url(#ah)"/>
+          <rect class="b-box" x="238" y="22" width="40" height="36" rx="6"/>
+          <text class="b-txt sm" x="248" y="44">лок A</text>
+          <path class="b-line" d="M280 46 L302 74" marker-end="url(#ah)"/>
+        </g>
+        <g class="cool">
+          <rect class="b-box" x="8" y="112" width="106" height="40" rx="6"/>
+          <text class="b-txt" x="20" y="130">доставки</text>
+          <text class="b-txt sm" x="20" y="143">приоритет</text>
+          <path class="b-line" d="M114 132 H150" marker-end="url(#ah)"/>
+          <rect class="b-box" x="152" y="112" width="64" height="40" rx="6"/>
+          <text class="b-txt sm" x="160" y="136">приоритет</text>
+          <path class="b-line" d="M218 132 H236" marker-end="url(#ah)"/>
+          <rect class="b-box" x="238" y="114" width="40" height="36" rx="6"/>
+          <text class="b-txt sm" x="248" y="136">лок B</text>
+          <path class="b-line" d="M280 126 L302 100" marker-end="url(#ah)"/>
+        </g>
+        <rect class="b-box" x="304" y="68" width="48" height="36" rx="6"/>
+        <text class="b-txt" x="315" y="90">выход</text>
+      </svg>
+      <figcaption>Стало: полосы независимы, косметика физически не может задержать доставку.</figcaption>
+    </figure>
+  </div>
+
+  <p><b>Почему никто не заметил раньше шести минут:</b> сбоя в привычном смысле не было.
+  Никаких исключений, никаких красных логов — отсутствие сообщений ничем не отличается от
+  «сейчас все молчат». Мониторинг смотрел на ошибки, а не на возраст головы очереди.</p>
+</section>
+
+<section>
+  <h2 data-n="03">Что делали, пока чинили</h2>
+  <ol>
+    <li>Проверили не воркера, а транспорт: ручное сообщение из дашборда тоже не дошло — значит
+      дело не в конкретном агенте.</li>
+    <li>Сняли подозрение с сети: прокси и TG API отвечали, время ответа обычное.</li>
+    <li>Посмотрели саму очередь. Там и нашлось: 63 записи с <code>important=True</code>,
+      возраст головы очереди — 24 минуты.</li>
+    <li>Убрали флаг с косметических сообщений, дренировали очередь вручную.</li>
+    <li>Дождались, пока накопленное дойдёт, и проверили доставку на двух проектах.</li>
+  </ol>
+
+  <details>
+    <summary>Тупики, на которые ушло время (полезно знать, чтобы не повторять)</summary>
+    <ul>
+      <li><b>Рестарт TG-моста</b> — не помог и не мог: очередь лежит в БД и переживает рестарт.
+        ~6 минут.</li>
+      <li><b>Гипотеза «прокси лёг»</b> — самая привычная причина за последние месяцы, поэтому
+        её проверяли первой, а не самой дешёвой. ~7 минут.</li>
+      <li><b>Перезапуск воркера, который «не отвечает»</b> — воркер был ни при чём и потерял
+        активный ход. Симптом был на его стороне, причина — в общем транспорте.</li>
+    </ul>
+  </details>
+</section>
+
+<section>
+  <h2 data-n="04">Что делаем, чтобы не повторилось</h2>
+  <table id="actions">
+    <thead><tr><th>Действие</th><th>Зачем</th><th>Статус</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2 data-n="05">Что забрать из этого</h2>
+  <div class="cols">
+    <div class="lesson">
+      <b>Косметика и доставки не делят очередь</b>
+      Если по одному каналу идёт и то, что важно, и то, что можно потерять, — потеряется
+      именно важное, потому что оно ждёт дольше.
+    </div>
+    <div class="lesson">
+      <b>Приоритет, выданный пачке, — это не приоритет</b>
+      Флаг «важно» на одном сообщении ускоряет его. Тот же флаг на шестидесяти трёх
+      превращается в блокировку для всех остальных.
+    </div>
+    <div class="lesson">
+      <b>Тишина не поднимает алерт сама</b>
+      Ноль ошибок и ноль доставок выглядят одинаково. Мониторить надо возраст головы очереди,
+      а не количество исключений.
+    </div>
+  </div>
+</section>
+
+<footer>
+  Разбор без поиска виноватых: правки идут в устройство очереди, а не в инструкции людям.
+  Вопросы и дополнения — в тред инцидента.
+</footer>
+
+</div>
+
+<script type="application/json" id="incident-data">
+{
+  "timeline": [
+    ["14:20", "Последнее доставленное сообщение. Дальше в инбоксе пусто — но ошибок нет ни одной.", "тишина", false],
+    ["14:26", "Оркестратор ждёт DONE от воркера. В логах воркера ход закончен шесть минут назад — сообщение до адресата не дошло.", "замечено", false],
+    ["14:31", "Ручное сообщение из дашборда тоже не доходит. Значит, проблема не в воркере, а в транспорте.", "диагностика", false],
+    ["14:38", "Прокси и TG API проверены: живые, отвечают штатно. Гипотеза «сеть» снята.", "диагностика", false],
+    ["14:44", "В очереди 63 служебных сообщения с important=True, голова очереди не двигается 24 минуты. Причина найдена.", "причина", true],
+    ["14:52", "Флаг important снят с косметических сообщений, очередь дренирована вручную.", "фикс", false],
+    ["14:58", "Доставки пошли. Все накопленные сообщения дошли в исходном порядке, потерь нет.", "проверка", false],
+    ["15:00", "Доставка подтверждена на двух проектах. Инцидент закрыт.", "закрыт", false]
+  ],
+  "actions": [
+    ["Развести очереди: косметика и доставки — разные полосы со своими локами", "Пачка служебных сообщений физически не сможет задержать доставку", "сделано"],
+    ["Запретить important на служебных сообщениях на уровне API отправки", "Флаг перестаёт быть вопросом дисциплины вызывающего кода", "сделано"],
+    ["Алерт: голова очереди старше 60 секунд", "Тишину в транспорте видно так же, как ошибку", "в работе"],
+    ["Счётчик молча отброшенных сообщений с important=False", "Обратная беда — тихая потеря — тоже станет видимой", "в работе"],
+    ["Тест: 100 служебных сообщений не задерживают доставку дольше 2 секунд", "Регресс ловится в CI, а не в проде через 40 минут", "запланировано"]
+  ]
+}
+</script>
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById('incident-data').textContent);
+
+  var tl = document.querySelector('#timeline tbody');
+  data.timeline.forEach(function (row) {
+    var tr = document.createElement('tr');
+    if (row[3]) tr.className = 'row-cause';
+    tr.innerHTML = '<td class="t">' + row[0] + '</td><td>' + row[1] +
+      '</td><td><span class="tag' + (row[3] ? ' cause' : '') + '">' + row[2] + '</span></td>';
+    tl.appendChild(tr);
+  });
+
+  var ac = document.querySelector('#actions tbody');
+  data.actions.forEach(function (row) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + row[0] + '</td><td>' + row[1] +
+      '</td><td><span class="tag' + (row[2] === 'сделано' ? ' fix' : '') + '">' + row[2] + '</span></td>';
+    ac.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расход токенов за неделю — 29.07–04.08.2026</title>
+<style>
+:root {
+  --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
+  --border: #2a2a32; --ink: #f1f1f4; --ink-soft: #a8a8b3;
+  --accent: #7c3aed; --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+  --sans: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #fafaf7; --surface: #fff; --surface-2: #f2f1ec; --border: #e7e5df; --ink: #1a1a1f; --ink-soft: #555; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 32px 20px 64px;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--sans); line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+main { max-width: 900px; margin: 0 auto; }
+h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 15px; margin: 40px 0 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+.period { color: var(--ink-soft); font-family: var(--mono); font-size: 13px; margin: 0 0 24px; }
+.tldr {
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  background: var(--surface); padding: 14px 16px; font-size: 15px;
+}
+.tldr b { font-family: var(--mono); font-weight: 600; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 20px; }
+.kpi { background: var(--surface); padding: 14px 16px; }
+.kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.kpi .value { font-family: var(--mono); font-size: 22px; margin-top: 4px; letter-spacing: -0.02em; }
+.kpi .sub { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.chart-box { border: 1px solid var(--border); background: var(--surface); padding: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--ink); font: inherit; font-size: 13px;
+  padding: 5px 11px; cursor: pointer; border-radius: 2px;
+}
+.chip .dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.chip[aria-pressed="false"] { opacity: 0.4; }
+.chip .cap { color: var(--ink); }
+svg { display: block; width: 100%; height: auto; }
+.hint { font-size: 12px; color: var(--ink-soft); margin: 10px 0 0; }
+.callout {
+  border: 1px solid var(--border); border-left: 3px solid var(--warn);
+  background: var(--surface); padding: 14px 16px; margin-top: 16px; font-size: 14px;
+}
+.callout .h { font-weight: 600; margin-bottom: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: right; padding: 10px 10px; border-bottom: 1px solid var(--border); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+td.num { font-family: var(--mono); }
+tbody tr.off { opacity: 0.35; }
+tfoot td { font-family: var(--mono); font-weight: 600; border-bottom: none; border-top: 1px solid var(--border); }
+tfoot td:first-child { font-family: var(--sans); }
+.model-cell { display: flex; align-items: center; gap: 8px; }
+.model-cell .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.share { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.share .track { width: 84px; height: 6px; background: var(--surface-2); border: 1px solid var(--border); }
+.share .fill { height: 100%; }
+footer { margin-top: 32px; font-size: 12px; color: var(--ink-soft); border-top: 1px solid var(--border); padding-top: 12px; }
+@media (max-width: 620px) {
+  .share .track { display: none; }
+  th, td { padding: 9px 6px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Расход токенов за неделю</h1>
+  <p class="period">29.07 – 04.08.2026 · 4 модели · 7 дней</p>
+
+  <div class="tldr" id="tldr"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Расход по дням</h2>
+  <div class="chart-box">
+    <div class="legend" id="legend"></div>
+    <div id="chart"></div>
+    <p class="hint">Столбец = сумма за день, млн токенов. Наведи на сегмент — точное значение. Клик по модели в легенде убирает её из графика и таблицы.</p>
+  </div>
+
+  <div class="callout" id="spike"></div>
+
+  <h2>По моделям за неделю</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Модель</th>
+        <th>Токены, млн</th>
+        <th>Доля</th>
+        <th>Задач</th>
+        <th>Млн / задачу</th>
+        <th>$ / задачу</th>
+        <th>$ за неделю</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+    <tfoot id="tfoot"></tfoot>
+  </table>
+
+  <footer>
+    Суммы в $ — API-equivalent для сравнения моделей между собой (работа идёт по подписке, реальных списаний нет).
+    Ставки за млн токенов, blended in/out: Opus 5 — $12,0 · Sonnet 5 — $4,5 · GPT-5.6 Sol — $6,0 · Haiku 4.5 — $1,4.
+  </footer>
+</main>
+
+<script>
+const DATA = {
+  days: [
+    { date: "29.07", wd: "ср" }, { date: "30.07", wd: "чт" }, { date: "31.07", wd: "пт" },
+    { date: "01.08", wd: "сб" }, { date: "02.08", wd: "вс" }, { date: "03.08", wd: "пн" },
+    { date: "04.08", wd: "вт" }
+  ],
+  // tokens — млн токенов по дням; rate — $ за млн (blended)
+  models: [
+    { id: "opus",   name: "Opus 5",     color: "#7c3aed", rate: 12.0, tasks: 34, tokens: [18.4, 22.1, 19.7, 11.2, 74.6, 26.3, 24.8] },
+    { id: "sonnet", name: "Sonnet 5",   color: "#38bdf8", rate: 4.5,  tasks: 41, tokens: [9.8, 12.4, 11.0, 6.1, 15.2, 13.7, 12.9] },
+    { id: "sol",    name: "GPT-5.6 Sol", color: "#f59e0b", rate: 6.0,  tasks: 18, tokens: [4.1, 5.6, 8.9, 2.7, 21.3, 9.4, 7.2] },
+    { id: "haiku",  name: "Haiku 4.5",  color: "#22c55e", rate: 1.4,  tasks: 96, tokens: [6.2, 7.1, 5.9, 3.4, 8.8, 7.6, 6.7] }
+  ]
+};
+
+const sum = a => a.reduce((x, y) => x + y, 0);
+const nf = (v, d = 1) => v.toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d });
+const money = v => "$" + v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const hidden = new Set();
+const rows = DATA.models.map(m => {
+  const tokens = sum(m.tokens);
+  return { ...m, total: tokens, cost: tokens * m.rate, perTask: (tokens * m.rate) / m.tasks, tokPerTask: tokens / m.tasks };
+});
+const grandTokens = sum(rows.map(r => r.total));
+const grandCost = sum(rows.map(r => r.cost));
+const grandTasks = sum(rows.map(r => r.tasks));
+const dayTotals = DATA.days.map((_, i) => sum(DATA.models.map(m => m.tokens[i])));
+const spikeIdx = dayTotals.indexOf(Math.max(...dayTotals));
+const avgDay = grandTokens / DATA.days.length;
+const top = [...rows].sort((a, b) => b.total - a.total)[0];
+const spikeLeader = [...DATA.models].sort((a, b) => b.tokens[spikeIdx] - a.tokens[spikeIdx])[0];
+
+document.getElementById("tldr").innerHTML =
+  `<b>${top.name}</b> съедает <b>${nf(top.total / grandTokens * 100, 0)}%</b> всех токенов недели и ` +
+  `<b>${nf(top.cost / grandCost * 100, 0)}%</b> стоимости. Всплеск — ` +
+  `<b>${DATA.days[spikeIdx].wd} ${DATA.days[spikeIdx].date}</b>: ${nf(dayTotals[spikeIdx])} млн, ` +
+  `в <b>${nf(dayTotals[spikeIdx] / avgDay, 1)}×</b> больше среднего дня.`;
+
+document.getElementById("kpis").innerHTML = [
+  { label: "Токенов за неделю", value: nf(grandTokens) + " млн", sub: nf(avgDay) + " млн — средний день" },
+  { label: "Задач закрыто", value: String(grandTasks), sub: nf(grandTokens / grandTasks, 2) + " млн на задачу" },
+  { label: "Стоимость недели", value: money(grandCost), sub: money(grandCost / grandTasks) + " — средняя задача" },
+  { label: "Пик дня", value: nf(dayTotals[spikeIdx]) + " млн", sub: DATA.days[spikeIdx].wd + " " + DATA.days[spikeIdx].date }
+].map(k => `<div class="kpi"><div class="label">${k.label}</div><div class="value">${k.value}</div><div class="sub">${k.sub}</div></div>`).join("");
+
+document.getElementById("spike").innerHTML =
+  `<div class="h">Что произошло ${DATA.days[spikeIdx].wd} ${DATA.days[spikeIdx].date}</div>` +
+  `Всплеск дал <b style="font-family:var(--mono)">${spikeLeader.name}</b> — ${nf(spikeLeader.tokens[spikeIdx])} млн за сутки ` +
+  `против ${nf(sum(spikeLeader.tokens.filter((_, i) => i !== spikeIdx)) / 6)} млн в обычный день ` +
+  `(${nf(spikeLeader.tokens[spikeIdx] / sum(spikeLeader.tokens) * 100, 0)}% его недельного расхода за один день). ` +
+  `Причина — параллельный research-батч: шесть воркеров одновременно на длинном контексте. ` +
+  `Остальные модели в этот день выросли ровно пропорционально нагрузке и всплеска не создают.`;
+
+document.getElementById("legend").innerHTML = DATA.models.map(m =>
+  `<button class="chip" type="button" data-id="${m.id}" aria-pressed="true" style="color:${m.color}">` +
+  `<span class="dot"></span><span class="cap">${m.name}</span></button>`).join("");
+
+function renderChart() {
+  const W = 760, H = 300, padL = 46, padR = 8, padT = 18, padB = 42;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const active = DATA.models.filter(m => !hidden.has(m.id));
+  const totals = DATA.days.map((_, i) => sum(active.map(m => m.tokens[i])));
+  const step = 30;
+  const maxY = Math.max(step, Math.ceil(Math.max(...totals, 1) / step) * step);
+  const y = v => padT + plotH - (v / maxY) * plotH;
+  const slot = plotW / DATA.days.length, bw = Math.min(58, slot * 0.56);
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Расход токенов по дням">`;
+  for (let g = 0; g <= 4; g++) {
+    const v = maxY * g / 4;
+    s += `<line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="currentColor" stroke-opacity="0.14"/>` +
+         `<text x="${padL - 8}" y="${y(v) + 4}" text-anchor="end" font-family="var(--mono)" font-size="11" fill="currentColor" fill-opacity="0.55">${v}</text>`;
+  }
+  DATA.days.forEach((d, i) => {
+    const cx = padL + slot * i + slot / 2;
+    let acc = 0;
+    active.forEach(m => {
+      const v = m.tokens[i];
+      const top = y(acc + v), h = y(acc) - top;
+      acc += v;
+      s += `<rect x="${cx - bw / 2}" y="${top}" width="${bw}" height="${h}" fill="${m.color}">` +
+           `<title>${m.name}, ${d.wd} ${d.date}: ${nf(v)} млн</title></rect>`;
+    });
+    const isSpike = i === spikeIdx && !hidden.size;
+    if (totals[i] > 0) {
+      s += `<text x="${cx}" y="${y(totals[i]) - 7}" text-anchor="middle" font-family="var(--mono)" font-size="12" ` +
+           `fill="${isSpike ? 'var(--warn)' : 'currentColor'}" font-weight="${isSpike ? '600' : '400'}">${nf(totals[i])}</text>`;
+    }
+    s += `<text x="${cx}" y="${H - padB + 20}" text-anchor="middle" font-size="12" fill="currentColor" fill-opacity="${isSpike ? '1' : '0.75'}">${d.wd}</text>` +
+         `<text x="${cx}" y="${H - padB + 35}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="currentColor" fill-opacity="0.5">${d.date}</text>`;
+  });
+  s += `<line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="currentColor" stroke-opacity="0.35"/></svg>`;
+  document.getElementById("chart").innerHTML = s;
+}
+
+function renderTable() {
+  const shown = rows.filter(r => !hidden.has(r.id));
+  const tTokens = sum(shown.map(r => r.total)), tCost = sum(shown.map(r => r.cost)), tTasks = sum(shown.map(r => r.tasks));
+  document.getElementById("tbody").innerHTML = [...rows].sort((a, b) => b.total - a.total).map(r => {
+    const share = r.total / grandTokens * 100;
+    return `<tr class="${hidden.has(r.id) ? 'off' : ''}">` +
+      `<td><span class="model-cell"><span class="dot" style="background:${r.color}"></span>${r.name}</span></td>` +
+      `<td class="num">${nf(r.total)}</td>` +
+      `<td><span class="share"><span class="track"><span class="fill" style="width:${share}%;background:${r.color}"></span></span>` +
+      `<span class="num">${nf(share, 0)}%</span></span></td>` +
+      `<td class="num">${r.tasks}</td><td class="num">${nf(r.tokPerTask, 2)}</td>` +
+      `<td class="num">${money(r.perTask)}</td><td class="num">${money(r.cost)}</td></tr>`;
+  }).join("");
+  document.getElementById("tfoot").innerHTML =
+    `<tr><td>Итого${shown.length < rows.length ? " (выбранные)" : ""}</td><td class="num">${nf(tTokens)}</td>` +
+    `<td class="num">${nf(tTokens / grandTokens * 100, 0)}%</td><td class="num">${tTasks}</td>` +
+    `<td class="num">${nf(tTokens / tTasks, 2)}</td><td class="num">${money(tCost / tTasks)}</td><td class="num">${money(tCost)}</td></tr>`;
+}
+
+document.getElementById("legend").addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  const id = chip.dataset.id;
+  if (hidden.has(id)) hidden.delete(id); else hidden.add(id);
+  if (hidden.size === DATA.models.length) hidden.delete(id); // хотя бы одна модель всегда видна
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(!hidden.has(c.dataset.id))));
+  renderChart(); renderTable();
+});
+
+renderChart();
+renderTable();
+</script>
+</body>
+</html>

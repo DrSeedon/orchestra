@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Путь задачи через оркестратор</title>
+<style>
+:root {
+  --bg: #0e0e12; --surface: #16161c; --surface-2: #1c1c24;
+  --border: #2a2a32; --ink: #f1f1f4; --ink-soft: #a8a8b3;
+  --accent: #7c3aed; --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+  --sans: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #fafaf7; --surface: #fff; --surface-2: #f2f1ec; --border: #e7e5df; --ink: #1a1a1f; --ink-soft: #555; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 28px 20px 48px;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--sans); line-height: 1.5;
+}
+main { max-width: 1080px; margin: 0 auto; }
+h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+.tldr { color: var(--ink-soft); margin: 0 0 22px; max-width: 70ch; }
+.tldr b { color: var(--ink); font-weight: 600; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.controls button {
+  font: inherit; font-size: 13px; cursor: pointer;
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft);
+}
+.controls button[aria-pressed="true"] { color: var(--ink); border-color: currentColor; }
+#f-main[aria-pressed="true"] { color: var(--accent); }
+#f-review[aria-pressed="true"] { color: var(--warn); }
+#f-crash[aria-pressed="true"] { color: var(--danger); }
+
+.board { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 10px 6px; }
+svg { display: block; width: 100%; height: auto; }
+
+.node rect, .node polygon { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+.node.start rect { stroke: var(--ink-soft); }
+.node.end rect { stroke: var(--ok); }
+.node.review polygon { stroke: var(--accent); }
+.node.fail rect { stroke: var(--warn); }
+.node.crash rect { stroke: var(--danger); }
+.ttl { font: 600 14px var(--sans); fill: var(--ink); }
+.sub { font: 11.5px var(--mono); fill: var(--ink-soft); }
+.tag { font: 600 11px var(--mono); fill: var(--ink-soft); }
+.num { font: 600 11px var(--mono); fill: var(--bg); }
+.numbg { fill: var(--accent); }
+
+.edge { fill: none; stroke-width: 2; }
+.e-main { stroke: var(--accent); marker-end: url(#head-main); }
+.e-fail { stroke: var(--warn); marker-end: url(#head-fail); stroke-dasharray: 7 5; }
+.e-crash { stroke: var(--danger); marker-end: url(#head-crash); stroke-dasharray: 7 5; }
+
+g[data-track] { transition: opacity .18s; }
+body[data-focus] g[data-track] { opacity: .13; }
+body[data-focus="main"] g[data-track="main"],
+body[data-focus="review"] g[data-track="review"],
+body[data-focus="crash"] g[data-track="crash"] { opacity: 1; }
+
+.notes { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 22px; }
+.note { border: 1px solid var(--border); border-left-width: 3px; border-radius: 10px; padding: 12px 14px; background: var(--surface); }
+.note.n-main { border-left-color: var(--accent); }
+.note.n-review { border-left-color: var(--warn); }
+.note.n-crash { border-left-color: var(--danger); }
+.note h2 { font-size: 14px; margin: 0 0 8px; }
+.note ul { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 13.5px; }
+.note li + li { margin-top: 5px; }
+code { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Путь задачи через оркестратор</h1>
+  <p class="tldr">Задача идёт по одной прямой: <b>пользователь → оркестратор → воркер в своём worktree → ревью → squash в main</b>.
+  Из этой прямой есть ровно два выхода — <b>ревью не прошло</b> (возврат к воркеру, ветка живёт) и <b>воркер упал</b>
+  (оркестратор поднимает работу из worktree). Оба возвращают задачу в ту же прямую, а не открывают новую.</p>
+
+  <div class="controls">
+    <button id="f-all" aria-pressed="true" data-focus="">Всё целиком</button>
+    <button id="f-main" aria-pressed="false" data-focus="main">Успешный путь</button>
+    <button id="f-review" aria-pressed="false" data-focus="review">Ревью не прошло</button>
+    <button id="f-crash" aria-pressed="false" data-focus="crash">Воркер упал</button>
+  </div>
+
+  <div class="board">
+  <svg viewBox="0 0 1000 770" role="img" aria-label="Схема прохождения задачи через оркестратор">
+    <defs>
+      <marker id="head-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+      </marker>
+      <marker id="head-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--warn)"/>
+      </marker>
+      <marker id="head-crash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--danger)"/>
+      </marker>
+    </defs>
+
+    <!-- ================= основной путь ================= -->
+    <g data-track="main">
+      <path class="edge e-main" d="M500,80 V120"/>
+      <path class="edge e-main" d="M500,192 V232"/>
+      <path class="edge e-main" d="M500,304 V344"/>
+      <path class="edge e-main" d="M500,420 V448"/>
+      <path class="edge e-main" d="M500,552 V592"/>
+      <path class="edge e-main" d="M500,656 V696"/>
+      <text class="tag" x="512" y="576" fill="var(--ok)">да</text>
+
+      <g class="node start">
+        <rect x="390" y="24" width="220" height="56" rx="10"/>
+        <text class="ttl" x="500" y="46" text-anchor="middle">Пользователь</text>
+        <text class="sub" x="500" y="65" text-anchor="middle">задача в чат или Telegram</text>
+      </g>
+
+      <g class="node">
+        <rect x="390" y="120" width="220" height="72" rx="10"/>
+        <circle class="numbg" cx="404" cy="134" r="9"/><text class="num" x="404" y="138" text-anchor="middle">1</text>
+        <text class="ttl" x="500" y="150" text-anchor="middle">Оркестратор</text>
+        <text class="sub" x="500" y="168" text-anchor="middle">task_create → приоритет</text>
+        <text class="sub" x="500" y="183" text-anchor="middle">модель по model-routing</text>
+      </g>
+
+      <g class="node">
+        <rect x="390" y="232" width="220" height="72" rx="10"/>
+        <circle class="numbg" cx="404" cy="246" r="9"/><text class="num" x="404" y="250" text-anchor="middle">2</text>
+        <text class="ttl" x="500" y="262" text-anchor="middle">spawn_worker</text>
+        <text class="sub" x="500" y="280" text-anchor="middle">git worktree, изоляция</text>
+        <text class="sub" x="500" y="295" text-anchor="middle">ветка task-&lt;id&gt;/&lt;worker&gt;</text>
+      </g>
+
+      <g class="node">
+        <rect x="390" y="344" width="220" height="76" rx="10"/>
+        <circle class="numbg" cx="404" cy="358" r="9"/><text class="num" x="404" y="362" text-anchor="middle">3</text>
+        <text class="ttl" x="500" y="374" text-anchor="middle">Воркер работает</text>
+        <text class="sub" x="500" y="392" text-anchor="middle">правки только в worktree</text>
+        <text class="sub" x="500" y="407" text-anchor="middle">коммиты #id, main не трогает</text>
+      </g>
+
+      <g class="node review">
+        <polygon points="500,448 610,500 500,552 390,500"/>
+        <text class="ttl" x="500" y="496" text-anchor="middle">Ревью прошло?</text>
+        <text class="sub" x="500" y="514" text-anchor="middle">codex_review, тесты</text>
+      </g>
+
+      <g class="node">
+        <rect x="390" y="592" width="220" height="64" rx="10"/>
+        <circle class="numbg" cx="404" cy="606" r="9"/><text class="num" x="404" y="610" text-anchor="middle">4</text>
+        <text class="ttl" x="500" y="622" text-anchor="middle">merge_worker</text>
+        <text class="sub" x="500" y="641" text-anchor="middle">squash: ветка → один коммит</text>
+      </g>
+
+      <g class="node end">
+        <rect x="390" y="696" width="220" height="56" rx="10"/>
+        <text class="ttl" x="500" y="718" text-anchor="middle">main</text>
+        <text class="sub" x="500" y="737" text-anchor="middle">kill или switch_worker_branch</text>
+      </g>
+    </g>
+
+    <!-- ================= ветка: ревью не прошло ================= -->
+    <g data-track="review">
+      <path class="edge e-fail" d="M610,500 H750"/>
+      <path class="edge e-fail" d="M860,448 V382 H614"/>
+      <text class="tag" x="668" y="492" fill="var(--warn)">нет</text>
+      <text class="tag" x="700" y="374" fill="var(--warn)">новый круг</text>
+
+      <g class="node fail">
+        <rect x="750" y="448" width="220" height="104" rx="10"/>
+        <text class="ttl" x="860" y="474" text-anchor="middle">Ревью не прошло</text>
+        <text class="sub" x="860" y="494" text-anchor="middle">замечания уходят воркеру</text>
+        <text class="sub" x="860" y="512" text-anchor="middle">ветка жива, мержа не было</text>
+        <text class="sub" x="860" y="530" text-anchor="middle">фиксы — новыми коммитами</text>
+        <text class="sub" x="860" y="546" text-anchor="middle">(amend запрещён)</text>
+      </g>
+    </g>
+
+    <!-- ================= ветка: воркер упал ================= -->
+    <g data-track="crash">
+      <path class="edge e-crash" d="M390,382 H254"/>
+      <path class="edge e-crash" d="M140,344 V308"/>
+      <path class="edge e-crash" d="M140,212 V156 H386"/>
+      <text class="tag" x="278" y="374" fill="var(--danger)">падение</text>
+      <text class="tag" x="200" y="148" fill="var(--danger)">задача возвращается</text>
+
+      <g class="node crash">
+        <rect x="30" y="344" width="220" height="76" rx="10"/>
+        <text class="ttl" x="140" y="370" text-anchor="middle">Воркер упал</text>
+        <text class="sub" x="140" y="389" text-anchor="middle">stop_reason=error</text>
+        <text class="sub" x="140" y="405" text-anchor="middle">пустой выход, журнал чист</text>
+      </g>
+
+      <g class="node crash">
+        <rect x="30" y="212" width="220" height="96" rx="10"/>
+        <text class="ttl" x="140" y="238" text-anchor="middle">Оркестратор поднимает</text>
+        <text class="sub" x="140" y="257" text-anchor="middle">1. GET /api/usage — лимит?</text>
+        <text class="sub" x="140" y="274" text-anchor="middle">2. worker_wip → коммит руками</text>
+        <text class="sub" x="140" y="291" text-anchor="middle">3. resume или новый воркер</text>
+      </g>
+    </g>
+  </svg>
+  </div>
+
+  <div class="notes">
+    <div class="note n-main">
+      <h2>Что держит прямую</h2>
+      <ul>
+        <li>Один воркер — один worktree — одна ветка <code>task-&lt;id&gt;/&lt;name&gt;</code>.</li>
+        <li>В <code>main</code> пишет только оркестратор и только через <code>merge_worker</code>.</li>
+        <li>DONE возможен лишь при чистом <code>git status</code>: незакоммиченного не существует.</li>
+      </ul>
+    </div>
+    <div class="note n-review">
+      <h2>Ревью не прошло</h2>
+      <ul>
+        <li>Мержа не было — <code>main</code> не изменился, откатывать нечего.</li>
+        <li>Воркер живой и с контекстом: правки дешевле, чем спавн нового.</li>
+        <li>Круг повторяется до зелёного ревью; каждый круг — новые коммиты поверх.</li>
+      </ul>
+    </div>
+    <div class="note n-crash">
+      <h2>Воркер упал</h2>
+      <ul>
+        <li>Первым делом квота (<code>/api/usage</code>), а не «сломалась инфраструктура».</li>
+        <li>Worktree переживает падение: сделанное достаётся через <code>worker_wip</code>.</li>
+        <li>Задача возвращается оркестратору целой — потерять её падение не может.</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<script>
+const buttons = [...document.querySelectorAll('.controls button')];
+buttons.forEach(btn => btn.addEventListener('click', () => {
+  const focus = btn.dataset.focus;
+  buttons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  if (focus) document.body.dataset.focus = focus;
+  else delete document.body.dataset.focus;
+}));
+</script>
+</body>
+</html>

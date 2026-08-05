@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расход токенов за неделю — 30.07–05.08.2026</title>
+<style>
+:root{
+  color-scheme: light dark;
+  /* акцент: зелёный — предмет отчёта деньги и расход бюджета, зелёный это цвет счёта и сметы */
+  --accent: light-dark(#0f7a52, #46d3a0);
+  /* второй акцент — жжёная охра, только для всплеска: тревожно, но не «авария» */
+  --warn:   light-dark(#a35a12, #eba447);
+
+  --bg:   light-dark(#fbfaf6, #101413);
+  --ink:  light-dark(#181d1b, #e5eae7);
+  --card: color-mix(in oklab, var(--ink) 5%, transparent);
+  --line: color-mix(in oklab, var(--ink) 14%, transparent);
+  --mute: color-mix(in oklab, var(--ink) 58%, transparent);
+  --ring: var(--accent);
+
+  --fs: 15px;
+  --radius: 10px;
+
+  /* серии: четыре разнесённых тона, каждый читается в обеих темах */
+  --s-opus:   light-dark(#0f7a52, #46d3a0);
+  --s-sonnet: light-dark(#0e6d86, #4cc9e8);
+  --s-sol:    light-dark(#9c6a10, #e0b04a);
+  --s-haiku:  light-dark(#9c3a5c, #e884a6);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:var(--fs)/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  letter-spacing:0;
+}
+.wrap{max-width:1040px; margin:0 auto; padding:28px 20px 56px}
+header{border-bottom:1px solid var(--line); padding-bottom:18px; margin-bottom:22px}
+h1{font-size:calc(var(--fs)*1.72); line-height:1.2; margin:0 0 6px; font-weight:650}
+h2{font-size:calc(var(--fs)*1.29); margin:0 0 12px; font-weight:620}
+h3{font-size:calc(var(--fs)*1.05); margin:0 0 6px; font-weight:620}
+p{margin:0 0 10px}
+.lede{max-width:66ch; color:var(--mute)}
+.lede b{color:var(--ink); font-weight:620}
+
+section{border-bottom:1px solid var(--line); padding:22px 0}
+section:last-of-type{border-bottom:0}
+
+.kpis{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); padding-top:0}
+.kpi{background:var(--card); border-radius:calc(var(--radius)*.8); padding:12px 14px}
+.kpi .v{font-size:calc(var(--fs)*1.45); font-weight:650; font-variant-numeric:tabular-nums; line-height:1.15}
+.kpi .k{font-size:calc(var(--fs)*.8); color:var(--mute); margin-top:3px}
+.kpi.hot .v{color:var(--warn)}
+
+.bar{display:flex; align-items:baseline; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:12px}
+.toggle{display:flex; gap:6px}
+.toggle button{
+  font:inherit; font-size:calc(var(--fs)*.85); color:var(--mute);
+  background:transparent; border:1px solid var(--line); border-radius:calc(var(--radius)*.6);
+  padding:5px 11px; cursor:pointer;
+}
+.toggle button[aria-pressed="true"]{color:var(--bg); background:var(--ink); border-color:var(--ink)}
+.toggle button:focus-visible{outline:none; box-shadow:inset 0 0 0 1px var(--ring)}
+
+figure{margin:0}
+svg{display:block; width:100%; height:auto}
+.legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:calc(var(--fs)*.85); color:var(--mute)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.legend i{width:11px; height:11px; border-radius:3px; display:inline-block}
+
+.tw{overflow-x:auto}
+table{width:100%; min-width:440px; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:calc(var(--fs)*.92)}
+th,td{text-align:right; padding:7px 10px; border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:calc(var(--fs)*.78); font-weight:600; color:var(--mute); text-transform:uppercase; letter-spacing:.03em}
+tbody tr:last-child td{border-bottom:0}
+tfoot td{font-weight:620; border-top:1px solid var(--line); border-bottom:0}
+.dot{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:7px; vertical-align:baseline}
+.share{position:relative}
+.share span{position:relative; z-index:1}
+.share::before{
+  content:""; position:absolute; inset:4px auto 4px 10px;
+  width:calc(var(--w) * 1%); max-width:calc(100% - 20px);
+  background:color-mix(in oklab, var(--c) 26%, transparent); border-radius:3px;
+}
+.hot td{background:color-mix(in oklab, var(--warn) 12%, transparent)}
+
+.two{display:grid; gap:22px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.note{font-size:calc(var(--fs)*.85); color:var(--mute); max-width:70ch}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.92em}
+footer{padding-top:18px; font-size:calc(var(--fs)*.82); color:var(--mute)}
+
+@media print{
+  :root{--bg:#fff; --ink:#000; --card:#f2f2f2; --line:#bbb; --mute:#444}
+  body{background:#fff; color:#000; print-color-adjust:exact; -webkit-print-color-adjust:exact}
+  .toggle{display:none}
+  .wrap{max-width:none; padding:0}
+  section{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Расход токенов: 30 июля — 5 августа 2026</h1>
+  <p class="lede" id="lede"></p>
+</header>
+
+<section class="kpis" id="kpis"></section>
+
+<section>
+  <div class="bar">
+    <h2>По дням, с разбивкой по моделям</h2>
+    <div class="toggle" role="group" aria-label="Что показывать на графике">
+      <button type="button" data-metric="cost" aria-pressed="true">Стоимость, $</button>
+      <button type="button" data-metric="tokens" aria-pressed="false">Токены, млн</button>
+      <button type="button" data-metric="tasks" aria-pressed="false">Задачи, шт</button>
+    </div>
+  </div>
+  <figure>
+    <div id="chart"></div>
+    <div class="legend" id="legend"></div>
+  </figure>
+</section>
+
+<section>
+  <h2>Модели за неделю</h2>
+  <div class="tw"><table id="models">
+    <thead>
+      <tr>
+        <th>Модель</th><th>Токены, млн</th><th>Стоимость, $</th>
+        <th>Доля расхода</th><th>Задач</th><th>$ / задача</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot></tfoot>
+  </table></div>
+  <p class="note" style="margin-top:12px">
+    Стоимость — API-эквивалент по тарифу вход/выход, а не реальный счёт: работа идёт по подписке.
+  </p>
+</section>
+
+<section>
+  <div class="two">
+    <div>
+      <h2>Всплеск</h2>
+      <div id="spike"></div>
+    </div>
+    <div>
+      <h3>Тот день по моделям</h3>
+      <div class="tw"><table id="spikeTable">
+        <thead><tr><th>Модель</th><th>Токены, млн</th><th>$</th><th>Задач</th><th>×&nbsp;к&nbsp;норме</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="note" style="margin-top:10px">
+        «×&nbsp;к&nbsp;норме» — токены дня к медиане остальных шести дней той же модели.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Источник — блок <code>&lt;script type="application/json" id="data"&gt;</code> в этом же файле:
+  вход/выход в токенах и число задач по дням. Всё остальное в отчёте — производные от него,
+  считаются при открытии страницы.
+</footer>
+
+</div>
+
+<script type="application/json" id="data">
+{
+  "period": "2026-07-30..2026-08-05",
+  "price_per_mtok": {
+    "opus":   {"in": 5.00, "out": 25.00},
+    "sonnet": {"in": 3.00, "out": 15.00},
+    "sol":    {"in": 1.25, "out": 10.00},
+    "haiku":  {"in": 1.00, "out": 5.00}
+  },
+  "models": [
+    {"id": "opus",   "name": "Opus 5",     "note": "оркестраторы и сложная реализация"},
+    {"id": "sonnet", "name": "Sonnet 5",   "note": "правки, ревью, тесты"},
+    {"id": "sol",    "name": "Sol medium", "note": "замеры и длинные механические прогоны"},
+    {"id": "haiku",  "name": "Haiku 4.5",  "note": "мелкие лиф-задачи"}
+  ],
+  "days": [
+    {"date": "2026-07-30", "label": "чт 30.07", "usage": {
+      "opus": [9.2, 0.42, 11], "sonnet": [5.1, 0.38, 14], "sol": [3.4, 0.29, 9], "haiku": [2.8, 0.19, 22]}},
+    {"date": "2026-07-31", "label": "пт 31.07", "usage": {
+      "opus": [10.8, 0.51, 13], "sonnet": [6.0, 0.44, 17], "sol": [3.9, 0.33, 11], "haiku": [3.1, 0.21, 26]}},
+    {"date": "2026-08-01", "label": "сб 01.08", "usage": {
+      "opus": [7.4, 0.33, 8], "sonnet": [4.2, 0.31, 10], "sol": [2.6, 0.22, 7], "haiku": [2.2, 0.15, 17]}},
+    {"date": "2026-08-02", "label": "вс 02.08", "usage": {
+      "opus": [6.1, 0.28, 6], "sonnet": [3.8, 0.26, 9], "sol": [2.1, 0.18, 5], "haiku": [1.9, 0.13, 15]}},
+    {"date": "2026-08-03", "label": "пн 03.08", "usage": {
+      "opus": [12.6, 0.60, 15], "sonnet": [6.9, 0.49, 19], "sol": [4.4, 0.37, 12], "haiku": [3.4, 0.24, 29]}},
+    {"date": "2026-08-04", "label": "вт 04.08", "usage": {
+      "opus": [31.4, 1.44, 19], "sonnet": [9.8, 0.71, 24], "sol": [5.2, 0.44, 13], "haiku": [4.1, 0.28, 33]}},
+    {"date": "2026-08-05", "label": "ср 05.08", "usage": {
+      "opus": [13.9, 0.66, 14], "sonnet": [7.2, 0.53, 18], "sol": [4.0, 0.34, 11], "haiku": [3.0, 0.21, 24]}}
+  ],
+  "spike": {
+    "date": "2026-08-04",
+    "cause": "перепрогон индексации памяти: 6 воркеров подряд читали docs/tasks целиком, каждый со своим контекстом"
+  }
+}
+</script>
+
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById('data').textContent);
+  const SERIES_VAR = {opus:'--s-opus', sonnet:'--s-sonnet', sol:'--s-sol', haiku:'--s-haiku'};
+
+  const cost = (id, mtokIn, mtokOut) => {
+    const p = DATA.price_per_mtok[id];
+    return mtokIn * p.in + mtokOut * p.out;
+  };
+  const fmt = (n, d = 0) => n.toLocaleString('ru-RU', {minimumFractionDigits: d, maximumFractionDigits: d});
+  const median = arr => {
+    const s = [...arr].sort((a, b) => a - b), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+
+  // сводка по каждой модели за неделю
+  const totals = DATA.models.map(m => {
+    let tin = 0, tout = 0, tasks = 0, c = 0;
+    for (const d of DATA.days) {
+      const [i, o, t] = d.usage[m.id];
+      tin += i; tout += o; tasks += t; c += cost(m.id, i, o);
+    }
+    return {...m, tin, tout, tokens: tin + tout, tasks, cost: c, perTask: c / tasks};
+  });
+  const grand = totals.reduce((a, m) => ({
+    tokens: a.tokens + m.tokens, tasks: a.tasks + m.tasks, cost: a.cost + m.cost
+  }), {tokens: 0, tasks: 0, cost: 0});
+
+  const leader = totals.reduce((a, b) => (b.cost > a.cost ? b : a));
+  const spikeDay = DATA.days.find(d => d.date === DATA.spike.date);
+  const spikeCost = DATA.models.reduce((s, m) => {
+    const [i, o] = spikeDay.usage[m.id]; return s + cost(m.id, i, o);
+  }, 0);
+  const otherDayCosts = DATA.days.filter(d => d !== spikeDay).map(d =>
+    DATA.models.reduce((s, m) => { const [i, o] = d.usage[m.id]; return s + cost(m.id, i, o); }, 0));
+  const normalCost = median(otherDayCosts);
+
+  document.getElementById('lede').innerHTML =
+    `За семь дней сожжено <b>${fmt(grand.tokens)} млн токенов</b> на <b>${fmt(grand.tasks)} задачах</b> — ` +
+    `$${fmt(grand.cost)} в API-эквиваленте. Больше всех ест <b>${leader.name}</b>: ` +
+    `${fmt(leader.cost / grand.cost * 100)}% денег при ${fmt(leader.tasks / grand.tasks * 100)}% задач. ` +
+    `Всплеск — <b>${spikeDay.label}</b>, день дороже обычного в ${fmt(spikeCost / normalCost, 1)} раза.`;
+
+  document.getElementById('kpis').innerHTML = [
+    {v: fmt(grand.tokens), k: 'млн токенов за неделю'},
+    {v: '$' + fmt(grand.cost), k: 'стоимость, API-эквивалент'},
+    {v: fmt(grand.tasks), k: 'задач закрыто'},
+    {v: '$' + fmt(grand.cost / grand.tasks, 2), k: 'средняя цена задачи'},
+    {v: '+$' + fmt(spikeCost - normalCost), k: 'переплата за ' + spikeDay.label, hot: true}
+  ].map(c => `<div class="kpi${c.hot ? ' hot' : ''}"><div class="v">${c.v}</div><div class="k">${c.k}</div></div>`).join('');
+
+  document.getElementById('legend').innerHTML = DATA.models.map(m =>
+    `<span><i style="background:var(${SERIES_VAR[m.id]})"></i>${m.name} — ${m.note}</span>`).join('');
+
+  // таблица моделей
+  document.querySelector('#models tbody').innerHTML = totals.map(m => {
+    const share = m.cost / grand.cost * 100;
+    return `<tr>
+      <td><i class="dot" style="background:var(${SERIES_VAR[m.id]})"></i>${m.name}</td>
+      <td>${fmt(m.tokens, 1)}</td>
+      <td>$${fmt(m.cost)}</td>
+      <td class="share" style="--w:${share.toFixed(1)};--c:var(${SERIES_VAR[m.id]})"><span>${fmt(share, 1)}%</span></td>
+      <td>${m.tasks}</td>
+      <td>$${fmt(m.perTask, 2)}</td>
+    </tr>`;
+  }).join('');
+  document.querySelector('#models tfoot').innerHTML =
+    `<tr><td>Итого</td><td>${fmt(grand.tokens, 1)}</td><td>$${fmt(grand.cost)}</td>
+     <td>100%</td><td>${grand.tasks}</td><td>$${fmt(grand.cost / grand.tasks, 2)}</td></tr>`;
+
+  // всплеск
+  const spikeShareOpus = cost('opus', ...spikeDay.usage.opus.slice(0, 2)) / spikeCost * 100;
+  const dayTasks = d => DATA.models.reduce((s, m) => s + d.usage[m.id][2], 0);
+  const spikeTasks = dayTasks(spikeDay);
+  const normalTasks = median(DATA.days.filter(d => d !== spikeDay).map(dayTasks));
+  document.getElementById('spike').innerHTML =
+    `<p>${spikeDay.label} стоил <b>$${fmt(spikeCost)}</b> против $${fmt(normalCost)} в обычный день —
+      это ${fmt(spikeCost / normalCost, 1)}× и <b>+$${fmt(spikeCost - normalCost)}</b> сверху.
+      ${fmt(spikeShareOpus)}% этих денег — Opus 5, его токены выросли втрое при 19 задачах.</p>
+     <p class="note">Задач в тот день было ${spikeTasks} против ${fmt(normalTasks)} в обычный, то есть
+      на ${fmt((spikeTasks / normalTasks - 1) * 100)}% больше — а денег в ${fmt(spikeCost / normalCost, 1)} раза.
+      Подорожала сама задача: $${fmt(spikeCost / spikeTasks, 2)} против $${fmt(normalCost / normalTasks, 2)}.
+      Рос вход, а не выход: контекст на задачу.</p>
+     <p><b>Причина:</b> ${DATA.spike.cause}.</p>`;
+
+  document.querySelector('#spikeTable tbody').innerHTML = DATA.models.map(m => {
+    const [i, o, t] = spikeDay.usage[m.id];
+    const norm = median(DATA.days.filter(d => d !== spikeDay).map(d => d.usage[m.id][0] + d.usage[m.id][1]));
+    const ratio = (i + o) / norm;
+    return `<tr class="${ratio >= 2 ? 'hot' : ''}">
+      <td><i class="dot" style="background:var(${SERIES_VAR[m.id]})"></i>${m.name}</td>
+      <td>${fmt(i + o, 1)}</td><td>$${fmt(cost(m.id, i, o))}</td><td>${t}</td>
+      <td>${fmt(ratio, 1)}×</td></tr>`;
+  }).join('');
+
+  // график: столбцы по дням, стопка по моделям
+  const W = 760, H = 300, PAD = {l: 52, r: 12, t: 14, b: 42};
+  const value = (dayUsage, id, metric) => {
+    const [i, o, t] = dayUsage[id];
+    if (metric === 'cost') return cost(id, i, o);
+    if (metric === 'tokens') return i + o;
+    return t;
+  };
+  const AXIS = {
+    cost:   {unit: '$', digits: 0, suffix: ''},
+    tokens: {unit: '',  digits: 0, suffix: ' млн'},
+    tasks:  {unit: '',  digits: 0, suffix: ''}
+  };
+
+  function draw(metric) {
+    const stacks = DATA.days.map(d => DATA.models.reduce((s, m) => s + value(d.usage, m.id, metric), 0));
+    const peak = Math.max(...stacks);
+    let step = Math.pow(10, Math.floor(Math.log10(peak))) / 2;
+    while (peak / step > 6) step *= 2;   // круглые подписи оси, не больше шести линий
+    const top = Math.ceil(peak / step) * step;
+    const ticks = Math.round(top / step);
+    const plotH = H - PAD.t - PAD.b, plotW = W - PAD.l - PAD.r;
+    const y = v => PAD.t + plotH - (v / top) * plotH;
+    const bw = Math.min(64, plotW / DATA.days.length * 0.62);
+    const ax = AXIS[metric];
+
+    let grid = '', bars = '', labels = '';
+    for (let g = 0; g <= ticks; g++) {
+      const v = step * g, yy = y(v);
+      grid += `<line x1="${PAD.l}" x2="${W - PAD.r}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/>
+               <text x="${PAD.l - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="var(--mute)">${ax.unit}${fmt(v, ax.digits)}</text>`;
+    }
+
+    DATA.days.forEach((d, di) => {
+      const cx = PAD.l + plotW * (di + 0.5) / DATA.days.length;
+      const isSpike = d.date === DATA.spike.date;
+      let acc = 0;
+      DATA.models.forEach(m => {
+        const v = value(d.usage, m.id, metric);
+        const y1 = y(acc + v), y2 = y(acc);
+        acc += v;
+        bars += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${y1.toFixed(1)}" width="${bw.toFixed(1)}"
+                   height="${Math.max(0.6, y2 - y1).toFixed(1)}" fill="var(${SERIES_VAR[m.id]})"
+                   opacity="${isSpike ? 1 : 0.82}"><title>${d.label} · ${m.name}: ${ax.unit}${fmt(v, v < 10 ? 1 : 0)}${ax.suffix}</title></rect>`;
+      });
+      const capY = y(acc);
+      bars += `<text x="${cx}" y="${capY - 7}" text-anchor="middle" font-size="11.5"
+                 font-weight="${isSpike ? 650 : 500}" fill="${isSpike ? 'var(--warn)' : 'var(--mute)'}"
+                 >${ax.unit}${fmt(acc, 0)}</text>`;
+      labels += `<text x="${cx}" y="${H - 20}" text-anchor="middle" font-size="11.5"
+                   fill="${isSpike ? 'var(--warn)' : 'var(--mute)'}" font-weight="${isSpike ? 650 : 400}">${d.label}</text>`;
+      if (isSpike) {
+        labels += `<text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="10.5" fill="var(--warn)">всплеск</text>`;
+      }
+    });
+
+    document.getElementById('chart').innerHTML =
+      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Расход по дням, стопка по моделям">
+         ${grid}${bars}
+         <line x1="${PAD.l}" x2="${W - PAD.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)" stroke-width="1.5"/>
+         ${labels}
+       </svg>`;
+  }
+
+  document.querySelectorAll('.toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.toggle button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      draw(btn.dataset.metric);
+    });
+  });
+
+  draw('cost');
+})();
+</script>
+</body>
+</html>
