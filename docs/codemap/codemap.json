@@ -68,7 +68,9 @@
      "symbol": "<script",
      "line": 8
     }
-   ]
+   ],
+   "group": "channels",
+   "weight": 3
   },
   {
    "id": "http_api",
@@ -123,7 +125,9 @@
      "symbol": "def check_internal_token",
      "line": 55
     }
-   ]
+   ],
+   "group": "entry",
+   "weight": 3
   },
   {
    "id": "routes_sessions",
@@ -180,7 +184,9 @@
      "symbol": "@router.post(\"\")",
      "line": 36
     }
-   ]
+   ],
+   "group": "entry",
+   "weight": 3
   },
   {
    "id": "routes_system",
@@ -232,7 +238,9 @@
      "symbol": "def build_usage_analytics",
      "line": 552
     }
-   ]
+   ],
+   "group": "entry",
+   "weight": 2
   },
   {
    "id": "routes_aux",
@@ -284,7 +292,9 @@
      "symbol": "send_file_to_tg",
      "line": 66
     }
-   ]
+   ],
+   "group": "entry",
+   "weight": 2
   },
   {
    "id": "manager",
@@ -336,7 +346,9 @@
      "symbol": "async def report_undelivered",
      "line": 26
     }
-   ]
+   ],
+   "group": "core",
+   "weight": 3
   },
   {
    "id": "session",
@@ -393,7 +405,9 @@
      "symbol": "class TurnManager",
      "line": 149
     }
-   ]
+   ],
+   "group": "core",
+   "weight": 3
   },
   {
    "id": "runtime_registry",
@@ -448,7 +462,9 @@
      "symbol": "class AgentEvent",
      "line": 9
     }
-   ]
+   ],
+   "group": "core",
+   "weight": 2
   },
   {
    "id": "backends",
@@ -505,7 +521,9 @@
      "symbol": "class JsonRpcStdioTransport",
      "line": 18
     }
-   ]
+   ],
+   "group": "core",
+   "weight": 2
   },
   {
    "id": "mcp_server",
@@ -558,7 +576,9 @@
      "symbol": "async def search_memory",
      "line": 1716
     }
-   ]
+   ],
+   "group": "entry",
+   "weight": 3
   },
   {
    "id": "workspace",
@@ -609,7 +629,9 @@
      "symbol": "def tracked_paths",
      "line": 380
     }
-   ]
+   ],
+   "group": "core",
+   "weight": 2
   },
   {
    "id": "merge_operations",
@@ -644,7 +666,9 @@
      "symbol": "def ensure_operation_runner",
      "line": 971
     }
-   ]
+   ],
+   "group": "core",
+   "weight": 2
   },
   {
    "id": "db",
@@ -697,7 +721,9 @@
      "symbol": "def session_dir",
      "line": 32
     }
-   ]
+   ],
+   "group": "services",
+   "weight": 3
   },
   {
    "id": "live_broker",
@@ -742,7 +768,9 @@
      "symbol": "broker = LiveBroker()",
      "line": 80
     }
-   ]
+   ],
+   "group": "services",
+   "weight": 2
   },
   {
    "id": "bg_jobs",
@@ -793,7 +821,9 @@
      "symbol": "def pidfd_send_group",
      "line": 95
     }
-   ]
+   ],
+   "group": "services",
+   "weight": 2
   },
   {
    "id": "tg_bridge",
@@ -844,7 +874,9 @@
      "symbol": "def render_edit_diff",
      "line": 134
     }
-   ]
+   ],
+   "group": "channels",
+   "weight": 2
   },
   {
    "id": "rag",
@@ -893,7 +925,9 @@
      "symbol": "def backfill_logs",
      "line": 545
     }
-   ]
+   ],
+   "group": "services",
+   "weight": 2
   },
   {
    "id": "tm",
@@ -937,7 +971,9 @@
      "symbol": "def yougile_sync_task",
      "line": 167
     }
-   ]
+   ],
+   "group": "services",
+   "weight": 2
   },
   {
    "id": "pipeline",
@@ -991,7 +1027,9 @@
      "symbol": "def build_codex_skills_index",
      "line": 278
     }
-   ]
+   ],
+   "group": "core",
+   "weight": 2
   },
   {
    "id": "net_proxy",
@@ -1033,7 +1071,9 @@
      "symbol": "def tunnel_status",
      "line": 213
     }
-   ]
+   ],
+   "group": "services",
+   "weight": 2
   },
   {
    "id": "sqlite_orchestra",
@@ -1064,7 +1104,9 @@
      "line": 14
     }
    ],
-   "resource": "data/orchestra.db"
+   "resource": "data/orchestra.db",
+   "group": "boundary",
+   "weight": 1
   },
   {
    "id": "vec_db",
@@ -1095,7 +1137,9 @@
      "line": 321
     }
    ],
-   "resource": "data/vec.db"
+   "resource": "data/vec.db",
+   "group": "boundary",
+   "weight": 1
   },
   {
    "id": "ext_agent_cli",
@@ -1137,7 +1181,9 @@
      "line": 282
     }
    ],
-   "resource": "claude-agent-sdk / codex / grok / opencode"
+   "resource": "claude-agent-sdk / codex / grok / opencode",
+   "group": "boundary",
+   "weight": 1
   },
   {
    "id": "ext_git",
@@ -1169,7 +1215,9 @@
      "line": 1338
     }
    ],
-   "resource": "git CLI"
+   "resource": "git CLI",
+   "group": "boundary",
+   "weight": 1
   },
   {
    "id": "ext_telegram",
@@ -1196,7 +1244,9 @@
      "line": 3546
     }
    ],
-   "resource": "telegram-bot-api"
+   "resource": "telegram-bot-api",
+   "group": "boundary",
+   "weight": 1
   },
   {
    "id": "ext_yougile",
@@ -1222,7 +1272,9 @@
      "line": 19
     }
    ],
-   "resource": "https://yougile.com/api-v2"
+   "resource": "https://yougile.com/api-v2",
+   "group": "boundary",
+   "weight": 1
   }
  ],
  "edges": [
@@ -2364,6 +2416,34 @@
     }
    ],
    "outcome": "Живой лог агента в браузере; первое событие __session называет разрешённый session_id, чтобы клиент не смешал историю двух агентов."
+  }
+ ],
+ "summary": "Оркестратор AI-агентов: дашборд и MCP-тулы порождают воркеров, каждый живёт в своём git-worktree, а сессии, логи, задачи и память лежат в SQLite.",
+ "groups": [
+  {
+   "id": "channels",
+   "label": "Каналы",
+   "hint": "через что с системой говорят люди"
+  },
+  {
+   "id": "entry",
+   "label": "Вход и API",
+   "hint": "HTTP-роуты и MCP-тулы агентов"
+  },
+  {
+   "id": "core",
+   "label": "Ядро оркестрации",
+   "hint": "жизненный цикл сессий и worktree"
+  },
+  {
+   "id": "services",
+   "label": "Сервисы и хранилище",
+   "hint": "задачи, джобы, память, SQLite"
+  },
+  {
+   "id": "boundary",
+   "label": "Граница системы",
+   "hint": "внешние зависимости и файлы БД"
   }
  ]
 }
