@@ -26,7 +26,9 @@ WAKE_STAGGER_SECONDS = 30
 MANUAL_ACTION_URL = "https://claude.ai/settings/usage"
 WAKE_MESSAGE_PREFIX = "[system wake:"
 ANTHROPIC_BASE_WINDOWS = ("five_hour", "seven_day")
+WAKE_AUTO_DEBOUNCE_SECONDS = 60
 _schedule_lock = asyncio.Lock()
+_last_auto_schedule: datetime | None = None
 
 
 def _provider_for_model(model: str) -> str:
@@ -362,6 +364,34 @@ def wake_status() -> dict:
         "unavailable": [],
         "warnings": [],
     }
+
+
+async def schedule_wake_auto() -> None:
+    """Debounced automatic entry point used when a turn ends on a subscription limit.
+
+    The manual dashboard button calls schedule_wake_after_reset directly and is never
+    debounced — a human clicked it deliberately.
+    """
+    global _last_auto_schedule
+    now = datetime.now(timezone.utc)
+    if (
+        _last_auto_schedule is not None
+        and (now - _last_auto_schedule).total_seconds() < WAKE_AUTO_DEBOUNCE_SECONDS
+    ):
+        return
+    # Stamped BEFORE the await: a burst of limited agents lands in one event-loop
+    # tick, and stamping afterwards would let every one of them through into its
+    # own force_refresh of provider usage.
+    _last_auto_schedule = now
+    try:
+        await schedule_wake_after_reset()
+    except Exception as error:
+        # Waking is best-effort and must never break the turn that triggered it.
+        logger.warning(
+            "automatic wake scheduling failed: %s: %s",
+            type(error).__name__,
+            error,
+        )
 
 
 async def schedule_wake_after_reset() -> dict:

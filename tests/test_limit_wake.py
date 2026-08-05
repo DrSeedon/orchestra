@@ -1140,3 +1140,184 @@ async def test_interrupted_triggering_wake_timer_replays_after_restart(
 
     assert len(restored) == 1
     assert restored[0][0][0] == "interrupted-wake"
+
+
+# ── automatic wake trigger (#156) ──
+
+
+@pytest.fixture
+def _reset_auto_debounce():
+    from app import limit_wake
+
+    limit_wake._last_auto_schedule = None
+    yield
+    limit_wake._last_auto_schedule = None
+
+
+@pytest.mark.asyncio
+async def test_auto_wake_debounces_a_burst_into_one_scheduling(
+    monkeypatch, _reset_auto_debounce
+):
+    """A burst of limited agents must trigger exactly one provider refresh."""
+    from app import limit_wake
+
+    calls = []
+    monkeypatch.setattr(
+        limit_wake,
+        "schedule_wake_after_reset",
+        AsyncMock(side_effect=lambda: calls.append(1) or {}),
+    )
+
+    await limit_wake.schedule_wake_auto()
+    await limit_wake.schedule_wake_auto()
+    await limit_wake.schedule_wake_auto()
+
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_auto_wake_debounce_stamped_before_await_survives_concurrency(
+    monkeypatch, _reset_auto_debounce
+):
+    """Ten agents limited in the same event-loop tick still schedule once."""
+    from app import limit_wake
+
+    calls = []
+
+    async def _slow():
+        calls.append(1)
+        await asyncio.sleep(0.01)
+        return {}
+
+    monkeypatch.setattr(limit_wake, "schedule_wake_after_reset", _slow)
+
+    await asyncio.gather(*(limit_wake.schedule_wake_auto() for _ in range(10)))
+
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_auto_wake_runs_again_after_the_debounce_window(
+    monkeypatch, _reset_auto_debounce
+):
+    from app import limit_wake
+
+    calls = []
+    monkeypatch.setattr(
+        limit_wake,
+        "schedule_wake_after_reset",
+        AsyncMock(side_effect=lambda: calls.append(1) or {}),
+    )
+
+    await limit_wake.schedule_wake_auto()
+    limit_wake._last_auto_schedule = datetime.now(timezone.utc) - timedelta(
+        seconds=limit_wake.WAKE_AUTO_DEBOUNCE_SECONDS + 1
+    )
+    await limit_wake.schedule_wake_auto()
+
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_auto_wake_failure_never_propagates_into_the_turn(
+    monkeypatch, _reset_auto_debounce
+):
+    """Waking is best-effort: a scheduling error must not break the finished turn."""
+    from app import limit_wake
+
+    monkeypatch.setattr(
+        limit_wake,
+        "schedule_wake_after_reset",
+        AsyncMock(side_effect=RuntimeError("provider usage unavailable")),
+    )
+
+    await limit_wake.schedule_wake_auto()
+
+
+@pytest.mark.asyncio
+async def test_turn_end_on_limit_wakes_only_after_status_left_running():
+    """The seam must fire after finish_turn_status, never mid-turn."""
+    from app.session_state import AgentStatus
+    from app.session_turns import TurnManager
+
+    observed = {}
+
+    class _Session:
+        status = AgentStatus.RUNNING
+        _compact_ack_event = None
+        _turn_gen = 0
+        _compact_ack_gen = -1
+        _pending_messages = []
+
+        def _spawn_bg(self, coro):
+            name = getattr(coro, "cr_code", None)
+            name = name.co_name if name is not None else ""
+            if name == "schedule_wake_auto":
+                observed["called"] = name
+                observed["status"] = self.status
+            if hasattr(coro, "close"):
+                coro.close()
+
+    session = _Session()
+    session.status = AgentStatus.IDLE  # finish_turn_status() already ran
+    turns = TurnManager.__new__(TurnManager)
+    turns.s = session
+    turns.schedule_context_compaction = lambda _pct: None
+    turns.fire_auto_report = lambda: None
+    session._hibernate = MagicMock()
+    session._notify_scope_idle = lambda: None
+
+    turns.after_turn_idle_actions(10, subscription_limited=True)
+
+    assert observed["called"] == "schedule_wake_auto"
+    assert observed["status"] is not AgentStatus.RUNNING
+
+
+@pytest.mark.asyncio
+async def test_normal_turn_end_does_not_schedule_a_wake():
+    from app.session_state import AgentStatus
+    from app.session_turns import TurnManager
+
+    spawned = []
+
+    class _Session:
+        status = AgentStatus.IDLE
+        _compact_ack_event = None
+        _turn_gen = 0
+        _compact_ack_gen = -1
+        _pending_messages = []
+
+        def _spawn_bg(self, coro):
+            code = getattr(coro, "cr_code", None)
+            spawned.append(code.co_name if code is not None else "")
+            if hasattr(coro, "close"):
+                coro.close()
+
+    session = _Session()
+    turns = TurnManager.__new__(TurnManager)
+    turns.s = session
+    turns.schedule_context_compaction = lambda _pct: None
+    turns.fire_auto_report = lambda: None
+    session._hibernate = MagicMock()
+    session._notify_scope_idle = lambda: None
+
+    turns.after_turn_idle_actions(10)
+
+    assert "schedule_wake_auto" not in spawned
+
+
+def test_subscription_limit_never_takes_the_auto_continue_early_return():
+    """AC from plan review: the seam at 287 must be reachable on a limited turn.
+
+    Measured, not assumed — the branch requires max_turns AND ok=True, while a
+    subscription limit ends the turn with stop_sequence.
+    """
+    import inspect
+
+    from app.session_turns import TurnManager
+
+    source = inspect.getsource(TurnManager.handle_turn_end)
+    branch = source.split("if sr in (\"error_max_turns\", \"max_turns\") and ok:")
+    assert len(branch) == 2, "auto-continue branch shape changed — re-verify the seam"
+    # The early return lives in that branch only; a stop_sequence turn cannot enter it.
+    assert "stop_sequence" not in branch[0]

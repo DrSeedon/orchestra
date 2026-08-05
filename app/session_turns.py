@@ -324,6 +324,7 @@ class TurnManager:
             live_pct,
             allow_auto_report=server_error_retry is None,
             allow_precompact=allow_context_compaction and context_known,
+            subscription_limited=subscription_limited,
         )
         if server_error_retry is not None:
             s._spawn_bg(s._retry_after_server_error(*server_error_retry))
@@ -344,9 +345,17 @@ class TurnManager:
 
     def after_turn_idle_actions(
             self, live_pct: int, *, allow_auto_report: bool = True,
-            allow_precompact: bool = True) -> None:
+            allow_precompact: bool = True,
+            subscription_limited: bool = False) -> None:
         """Post-turn actions: compact ack, scope idle, auto-compact, auto-report, flush/hibernate."""
         s = self.s
+
+        # finish_turn_status() has already set IDLE/WAITING and persisted, so waking
+        # here can never resume an agent mid-turn.
+        if subscription_limited:
+            from app.limit_wake import schedule_wake_auto
+
+            s._spawn_bg(schedule_wake_auto())
         if s._compact_ack_event is not None and s._turn_gen == s._compact_ack_gen:
             s._compact_ack_event.set()
 
