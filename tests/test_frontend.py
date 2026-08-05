@@ -524,7 +524,17 @@ def test_chat_drop_handles_files_tree_paths_and_upload_errors(
                 {{bubbles: true, cancelable: true, dataTransfer: dt}},
             );
             input.dispatchEvent(drop);
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Аплоады идут ПОСЛЕДОВАТЕЛЬНО, и фиксированные 100 мс под нагрузкой
+            // не покрывали поздний — тест терял его путь (#105: 3 красных из 9 ещё
+            // до #94). Ждём УСЛОВИЕ: каждый файл либо дал путь, либо назван в ошибке.
+            // Дедлайн — только страховка от зависания, не мерка скорости.
+            const settled = () => names.every(name =>
+                input.value.includes(`/tmp/${{name}}`)
+                || ($('#chat-drop-error')?.textContent || '').includes(name));
+            const deadline = Date.now() + 10000;
+            while (!settled() && Date.now() < deadline) {{
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }}
             return {{
                 value: input.value,
                 hinted,
