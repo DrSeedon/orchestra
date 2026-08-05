@@ -4535,3 +4535,43 @@ class TestToolMessagesAllDelivered141:
 
         assert bucket, "тела исчезли вместе с упавшей отправкой"
         assert any("tool-0" in item for item in bucket)
+
+
+class TestBackgroundSubagentFilter:
+    """`subagent_end` carries both background Bash and real subagents.
+
+    Live week: 1608 of 1612 events were background Bash. Announcing each as
+    "Sub-agent done" both lied about delegation and ate the 20 msg/60 s budget.
+    """
+
+    def test_explicit_background_type_is_filtered(self, tb):
+        assert tb._is_background_subagent(
+            "Run tests | type=local_bash | id=bo6qcdg9w | status=completed"
+        )
+
+    def test_explicit_type_wins_over_id_shape(self, tb):
+        """Type must be read on its own: an id-only check would miss this."""
+        assert tb._is_background_subagent(
+            "Run tests | type=local_bash | id=xyz123 | status=completed"
+        )
+
+    def test_real_subagents_are_kept(self, tb):
+        assert not tb._is_background_subagent(
+            "Ресёрч грантов | type=local_agent | id=a68c1b91c70e01ead | status=completed"
+        )
+        assert not tb._is_background_subagent(
+            "wait | type=codex | id=t-1 | status=completed"
+        )
+
+    def test_empty_type_falls_back_to_id_shape(self, tb):
+        """Real live rows: type is missing, only the id tells them apart."""
+        assert tb._is_background_subagent(
+            " | type= | id=bdtgmnypg | tool_use_id=toolu_01JW | status=stopped"
+        )
+        assert not tb._is_background_subagent(
+            " | type= | id=a1d116686cc8ce | tool_use_id=toolu_01X5 | status=stopped"
+        )
+
+    def test_unparseable_content_is_kept(self, tb):
+        """Unknown shape → announce it; silently dropping delegation is worse."""
+        assert not tb._is_background_subagent("something unexpected")

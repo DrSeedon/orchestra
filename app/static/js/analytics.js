@@ -468,6 +468,7 @@ function _analyticsRenderEfficiency(body) {
 function _analyticsRenderReliability(body) {
     const reliability = _analyticsPayload.reliability || {};
     const subagents = reliability.subagents || {};
+    const background = reliability.background_tasks || {};
     const voice = reliability.voice || {};
     const linkage = reliability.task_linkage || {};
     const errors = reliability.tool_errors || {};
@@ -489,14 +490,18 @@ function _analyticsRenderReliability(body) {
     body.innerHTML = `
         <section class="analytics-reliability-grid">
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">Delegation</span><h3>Native subagents</h3></div><span>только Claude</span></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">Delegation</span><h3>Native subagents</h3></div><span>без фоновых Bash</span></div>
                 <div class="analytics-status-grid">
                     ${_analyticsStatus('Completed', subagents.completed, 'ok')}
                     ${_analyticsStatus('Failed', subagents.failed, 'danger')}
                     ${_analyticsStatus('Running', subagents.running, 'cyan')}
                     ${_analyticsStatus('Stopped', subagents.stopped, 'muted')}
                 </div>
-                <p class="analytics-footnote">Codex worker sessions сюда не приравниваются: общего delegation-контракта пока нет.</p>
+                <div class="analytics-reliability-stats">
+                    <div><span>Фоновые Bash</span><strong>${_analyticsNumber(background.total)}</strong><small>${_analyticsNumber(background.failed)} failed · тот же событийный поток, но это не делегирование</small></div>
+                    ${subagents.unclassified ? `<div><span>Неизвестный тип</span><strong>${_analyticsNumber(subagents.unclassified)}</strong><small>task_type не распознан — в делегирование не засчитаны</small></div>` : ''}
+                </div>
+                <p class="analytics-footnote">Считаются local_agent (Claude) и codex. Фоновые Bash-задачи приходят тем же событием <code>subagent_start</code> и раньше попадали сюда же — на живой базе это завышало цифру примерно в 390 раз.</p>
             </article>
             <article class="analytics-panel">
                 <div class="analytics-section-head"><div><span class="analytics-kicker">Coverage</span><h3>Задачи и голос</h3></div></div>

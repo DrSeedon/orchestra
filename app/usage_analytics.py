@@ -415,22 +415,41 @@ def _lifetime_summary(conn: sqlite3.Connection) -> dict:
     }
 
 
-def _reliability(conn: sqlite3.Connection, since: str, tasks: dict) -> dict:
-    subagent_rows = conn.execute(
-        """SELECT status, COUNT(*) AS count
+def _subagent_buckets(conn: sqlite3.Connection, since: str) -> tuple[dict, dict]:
+    """Split the `subagents` table by entity, not by event name.
+
+    The table mixes background Bash tasks (task_type=local_bash) with real
+    delegated subagents (local_agent for Claude, codex for Codex). They arrive
+    on the same `subagent_start` event, so counting rows overstated delegation
+    ~390x on the live DB. Rows with an unknown task_type are reported as
+    `unclassified` rather than assumed to be either.
+    """
+    rows = conn.execute(
+        """SELECT task_type, status, COUNT(*) AS count
            FROM subagents
            WHERE date(started_at) >= date('now', ?)
-           GROUP BY status""",
+           GROUP BY task_type, status""",
         (since,),
     ).fetchall()
-    subagents = {
-        "completed": 0,
-        "failed": 0,
-        "running": 0,
-        "stopped": 0,
-    }
-    for row in subagent_rows:
-        subagents[row["status"]] = int(row["count"] or 0)
+
+    def _empty() -> dict:
+        return {"completed": 0, "failed": 0, "running": 0, "stopped": 0,
+                "unclassified": 0, "total": 0}
+
+    subagents, background = _empty(), _empty()
+    for row in rows:
+        count = int(row["count"] or 0)
+        bucket = background if row["task_type"] == "local_bash" else subagents
+        if row["task_type"] not in ("local_bash", "local_agent", "codex"):
+            bucket["unclassified"] += count
+        elif row["status"] in bucket:
+            bucket[row["status"]] += count
+        bucket["total"] += count
+    return subagents, background
+
+
+def _reliability(conn: sqlite3.Connection, since: str, tasks: dict) -> dict:
+    subagents, background_tasks = _subagent_buckets(conn, since)
 
     voice = conn.execute(
         """SELECT COUNT(*) AS entries,
@@ -481,6 +500,7 @@ def _reliability(conn: sqlite3.Connection, since: str, tasks: dict) -> dict:
     )
     return {
         "subagents": subagents,
+        "background_tasks": background_tasks,
         "voice": {
             "entries": int(voice["entries"] or 0),
             "duration_sec": round(float(voice["duration_sec"] or 0), 1),

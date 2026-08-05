@@ -207,8 +207,9 @@ def test_analytics_snapshot_has_one_consistent_provider_breakdown(usage_db):
         )
         conn.execute(
             """INSERT INTO subagents
-               (session_id, task_id, status, total_tokens, tool_uses, duration_ms, started_at, ended_at)
-               VALUES ('claude-a', 'sub-1', 'completed', 1200, 2, 3000, ?, ?)""",
+               (session_id, task_id, task_type, status, total_tokens, tool_uses,
+                duration_ms, started_at, ended_at)
+               VALUES ('claude-a', 'sub-1', 'local_agent', 'completed', 1200, 2, 3000, ?, ?)""",
             (now.isoformat(), now.isoformat()),
         )
         conn.execute(
@@ -261,6 +262,61 @@ def test_analytics_snapshot_has_one_consistent_provider_breakdown(usage_db):
     assert payload["reliability"]["turn_usage"]["coverage_complete"] is False
     assert payload["reliability"]["turn_usage"]["collector_started_at"]
     assert payload["reliability"]["turn_usage"]["historical_rows_unknown"] is True
+
+
+def test_background_bash_is_counted_apart_from_real_subagents(usage_db):
+    """`subagent_start` carries two different entities: background Bash tasks
+    (task_type=local_bash) and real delegated subagents (local_agent/codex).
+    Live DB had 1557 bash vs 4 subagents in one week — counting them together
+    overstated delegation ~390x."""
+    from app.usage_analytics import build_usage_analytics
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    with sqlite3.connect(usage_db) as conn:
+        _seed_session(conn, "claude-a", "claude-opus-5[1m]", "claude")
+        rows = [
+            ("bash-1", "local_bash", "completed"),
+            ("bash-2", "local_bash", "completed"),
+            ("bash-3", "local_bash", "failed"),
+            ("agent-1", "local_agent", "completed"),
+            ("agent-2", "codex", "failed"),
+            ("legacy-1", "", "completed"),
+        ]
+        for task_id, task_type, status in rows:
+            conn.execute(
+                """INSERT INTO subagents
+                   (session_id, task_id, task_type, status, started_at, ended_at)
+                   VALUES ('claude-a', ?, ?, ?, ?, ?)""",
+                (task_id, task_type, status, now.isoformat(), now.isoformat()),
+            )
+
+    reliability = build_usage_analytics(days=7, capacity={}, now=now)["reliability"]
+
+    assert reliability["subagents"]["completed"] == 1
+    assert reliability["subagents"]["failed"] == 1
+    assert reliability["background_tasks"]["completed"] == 2
+    assert reliability["background_tasks"]["failed"] == 1
+    # unknown task_type is neither claimed as delegation nor silently dropped
+    assert reliability["subagents"]["unclassified"] == 1
+
+
+def test_subagent_counts_survive_unknown_status(usage_db):
+    from app.usage_analytics import build_usage_analytics
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    with sqlite3.connect(usage_db) as conn:
+        _seed_session(conn, "claude-a", "claude-opus-5[1m]", "claude")
+        conn.execute(
+            """INSERT INTO subagents
+               (session_id, task_id, task_type, status, started_at)
+               VALUES ('claude-a', 'a1', 'local_agent', 'interrupted', ?)""",
+            (now.isoformat(),),
+        )
+
+    reliability = build_usage_analytics(days=7, capacity={}, now=now)["reliability"]
+
+    assert reliability["subagents"]["completed"] == 0
+    assert reliability["subagents"]["total"] == 1
 
 
 def test_analytics_snapshot_reports_retention_and_empty_task_cost(usage_db):

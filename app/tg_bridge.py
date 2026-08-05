@@ -1172,6 +1172,24 @@ def _tg_first_ordered_sequence(state: _TgDeliveryState) -> int | None:
     return min(sequences) if sequences else None
 
 
+def _is_background_subagent(content: str) -> bool:
+    """True for background Bash tasks riding the `subagent_end` event.
+
+    One event type, two entities: real delegated subagents (local_agent/codex)
+    and background Bash. Prefer the explicit type; older rows leave it empty,
+    so fall back to the id shape (`b…` = bash, `a…` = agent).
+    """
+    if "type=local_bash" in content:
+        return True
+    if "type=local_agent" in content or "type=codex" in content:
+        return False
+    for part in content.split("|"):
+        part = part.strip()
+        if part.startswith("id="):
+            return part[3:].startswith("b")
+    return False
+
+
 _tg_tool_batches: dict = {}
 
 
@@ -3202,6 +3220,14 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "subagent_end":
                         # Only the FINAL of a sub-agent (start/progress/stream = spam, dropped).
                         # Content: "desc | status=X | summary". Show desc + ok/fail.
+                        # `subagent_end` also fires for background Bash tasks —
+                        # 1608 of 1612 in one live week. They are not delegation
+                        # and would flood the 20 msg/60 s group budget.
+                        # task_type is sometimes empty in older rows, so fall back
+                        # to the task_id shape: bash ids start with "b", agent
+                        # ids with "a" (0 mismatches across 3238 live rows).
+                        if _is_background_subagent(c):
+                            continue
                         _parts = [p.strip() for p in c.split("|")]
                         _desc = _parts[0] if _parts else ""
                         _ok = "status=failed" not in c
