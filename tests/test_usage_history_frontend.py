@@ -12,6 +12,7 @@ from playwright.sync_api import Browser, sync_playwright
 ROOT = Path(__file__).parent.parent
 UTILS_JS = ROOT / "app/static/js/utils.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
+APP_JS = ROOT / "app/static/js/app.js"
 
 
 @pytest.fixture(scope="module")
@@ -20,6 +21,27 @@ def browser():
         instance = playwright.chromium.launch(headless=True)
         yield instance
         instance.close()
+
+
+def _page_with_api(browser: Browser):
+    """Страница с РЕАЛЬНЫМ origin и полностью загруженным app.js.
+
+    `set_content` даёт about:blank, где localStorage запрещён, и исполнение
+    app.js обрывается на полпути — api() определён, а объявленные ниже него
+    `_netFailPath`/`_API_TIMEOUT_MS` нет. Нужен настоящий origin.
+    """
+    page = browser.new_page()
+    page.route(
+        "http://harness.local/**",
+        lambda route: route.fulfill(
+            status=200, content_type="text/html",
+            body="<body><div id='usage-bar'></div></body>",
+        ),
+    )
+    page.goto("http://harness.local/")
+    page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(APP_JS))
+    return page
 
 
 def _slot_text(browser: Browser, api_script: str) -> str:
@@ -195,9 +217,66 @@ def test_series_order_does_not_depend_on_which_chunk_loaded_first(browser):
 
 
 def test_history_request_gets_its_own_timeout(browser):
-    """4 МБ на общем 5-секундном таймауте api() обрывались раньше ответа."""
-    source = USAGE_JS.read_text()
-    block = source.split("async function _sparkFetch", 1)[1].split("\n}", 1)[0]
+    """4 МБ на общем таймауте api() обрывались раньше ответа.
 
-    assert "api(" in block, "запрос истории уехал из _sparkFetch — проверка ослепла"
-    assert "AbortSignal.timeout(30000)" in block
+    Проверяется ПОВЕДЕНИЕ, а не текст вызова: запрошенный бюджет и то, что свой
+    signal вызывающего его не отменяет. Прошлая версия искала дословное
+    `AbortSignal.timeout(30000)` внутри `_sparkFetch` и покраснела, когда #58
+    перевёл бюджет в параметр `api(url, {timeoutMs})` — поведение при этом
+    сохранилось. Никакого wall-clock: бюджет снимается с самого AbortSignal.
+    """
+    page = _page_with_api(browser)
+    page.add_script_tag(path=str(USAGE_JS))
+    result = page.evaluate(
+        """() => {
+            const asked = [];
+            const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+            AbortSignal.timeout = ms => { asked.push(ms); return realTimeout(ms); };
+            let sawAbort = null;
+            window.fetch = (url, opts) => {
+                sawAbort = opts.signal.aborted;
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({rows: [], step_minutes: 5, oldest_ts: ''}),
+                });
+            };
+            return _sparkFetch('').then(() => ({asked, sawAbort}));
+        }"""
+    )
+    page.close()
+
+    assert result["asked"], "api() больше не ставит таймаут на запрос истории"
+    assert max(result["asked"]) >= 30000, (
+        f"бюджет истории просел до {result['asked']}; годовой ответ (4.36 МБ) "
+        f"снова оборвётся раньше, чем доедет"
+    )
+    assert result["sawAbort"] is False, "запрос ушёл уже отменённым"
+
+
+def test_history_timeout_survives_a_caller_signal(browser):
+    """`opts.signal || AbortSignal.timeout(...)` молча съедал бы таймаут.
+
+    Если вызывающий передал свой signal, комбинировать надо через
+    `AbortSignal.any`, иначе зависший ответ висит вечно.
+    """
+    page = _page_with_api(browser)
+    result = page.evaluate(
+        """() => {
+            window.fetch = (url, opts) => new Promise((_, reject) => {
+                opts.signal.addEventListener('abort', () => reject(opts.signal.reason));
+            });
+            const caller = new AbortController();  // жив и не срабатывает
+            // Свой потолок: со съеденным таймаутом запрос висит ВЕЧНО, и без него
+            // тест умирал бы на разрушении контекста вместо внятного диагноза.
+            const hung = new Promise(r => setTimeout(() => r({name: 'HUNG'}), 3000));
+            const call = api('/api/usage/history?hours=1',
+                             {signal: caller.signal, timeoutMs: 40})
+                .then(() => ({name: 'resolved'}), e => ({name: e.name}));
+            return Promise.race([call, hung]);
+        }"""
+    )
+    page.close()
+
+    assert result["name"] == "TimeoutError", (
+        f"свой signal вызывающего отменил таймаут: {result}"
+    )
