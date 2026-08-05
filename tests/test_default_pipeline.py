@@ -143,7 +143,7 @@ class TestDefaultRolesResolve:
     def test_orchestrator_skills_from_manifest(self):
         rr = P.get_role(PIPELINE, "orchestrator")
         assert set(rr.skills) == {
-            "html-artifacts", "vps-deploy", "codex-debate", "grill-me",
+            "html-artifacts", "vps-deploy", "codex-debate", "grill-me", "orchestra-agents",
         }
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):

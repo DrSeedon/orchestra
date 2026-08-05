@@ -446,7 +446,9 @@ def sync_agents_md(worktree_path: str) -> bool:
     return True
 
 
-def _exclude_worktree_artifacts(wt_path: Path, extra: list[str] | None = None) -> None:
+def _exclude_worktree_artifacts(
+    wt_path: Path, extra: list[str] | None = None, only: tuple[str, ...] | None = None,
+) -> None:
     """Ignore injected/machine-local artifacts via `info/exclude` — untracked, never committed,
     so they can't dirty the tree or block merge_worker. Idempotent. External repos that don't
     already ignore these would otherwise leave them as untracked files.
@@ -454,6 +456,11 @@ def _exclude_worktree_artifacts(wt_path: Path, extra: list[str] | None = None) -
     `extra` = paths this spawn actually planted (copies/symlinks from the manifest, e.g. `.env`),
     anchored to the repo root so they don't shadow same-named files deeper in the tree. Only
     untracked ones get here — see `tracked_paths`.
+
+    `only` narrows the default set to the patterns the caller actually needs. Skill injection
+    now also runs in an agent's plain cwd — a repository the user works in by hand — where
+    adding ignore rules for artifacts we did not plant (`AGENTS.md`, `codex_sessions.json`)
+    would be an unmandated side effect in someone else's repo.
 
     Git reads `info/exclude` from the COMMON git dir (`--git-common-dir`), not the
     per-worktree dir — a per-worktree `info/exclude` is silently ignored.
@@ -472,7 +479,7 @@ def _exclude_worktree_artifacts(wt_path: Path, extra: list[str] | None = None) -
     exclude.parent.mkdir(parents=True, exist_ok=True)
     existing = exclude.read_text() if exclude.exists() else ""
     have = {line.strip() for line in existing.splitlines()}
-    patterns = list(_WORKTREE_EXCLUDES) + [f"/{p}" for p in (extra or [])]
+    patterns = list(only if only is not None else _WORKTREE_EXCLUDES) + [f"/{p}" for p in (extra or [])]
     missing = [p for p in patterns if p not in have]
     if not missing:
         return

@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.events import AgentEvent
 from app.models import backend_for_model, get_model_spec
-from app.prompting import is_orchestrator_role, prompt_template_hash
+from app.prompting import inject_skills_to_worktree, is_orchestrator_role, prompt_template_hash
 from app.runtime_registry import (
     BackendBuildContext,
     _load_scope_mcp_servers,
@@ -823,6 +823,33 @@ class AgentSession:
                 )
                 self._listen_task.add_done_callback(self._on_task_done)
 
+    async def _refresh_skills(self) -> None:
+        """Re-install this role's pipeline skills before the CLI starts.
+
+        Claude reads skills as FILES from `<cwd>/.claude/skills/`, so its copy goes stale the
+        moment a skill is edited, and a skill added to a role after spawn never arrives at all.
+        Codex needs nothing here: it gets a freshly built index of canonical source paths on
+        every connect (`build_codex_skills_index`), i.e. it reads the original, not a copy.
+
+        Falls back to `self.cwd` when there is no worktree — orchestrators run without one,
+        which is why a worktree-only injection reached none of them.
+        """
+        if self.backend_type != "claude":
+            return
+        path = self.worktree_path or self.cwd
+        if not path:
+            return
+        try:
+            from app.pipeline import get_role
+            role = get_role(self.pipeline, self.role)
+            skills = role.skills if role else None
+            # "all" means the CLI discovers skills itself — nothing to copy.
+            if not skills or skills == "all":
+                return
+            await asyncio.to_thread(inject_skills_to_worktree, skills, path)
+        except Exception as e:
+            logger.warning(f"[{self.name}] skill refresh failed: {e}")
+
     async def _ensure_backend(self, force_fresh: bool = False):
         if self._backend is not None:
             if not force_fresh:
@@ -836,6 +863,7 @@ class AgentSession:
                 await asyncio.to_thread(sync_agents_md, self.worktree_path)
             except Exception as e:
                 logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
+        await self._refresh_skills()
         self._backend = self._make_backend(force_fresh=force_fresh)
         candidate = self._backend
         try:

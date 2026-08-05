@@ -782,6 +782,100 @@ class TestInjectSkillsRealCopy:
         assert not (wt / ".claude").exists()
 
 
+class TestRefreshSkills:
+    """Task #149: injection runs on every backend connect, not only at spawn.
+
+    Two failures it fixes: copies going stale after the source skill is edited, and skills
+    added to a role after spawn never arriving (orchestrators have no worktree at all, so
+    the worktree-only call site reached none of them — `orchestra-agents` sat at 0 agents).
+    The destination may be the user's real working repository, hence the safety assertions.
+    """
+
+    def _source(self, name="codex-debate"):
+        from app.prompting import _SKILLS_DIR
+        return _SKILLS_DIR / f"{name}.md"
+
+    def test_stale_copy_is_refreshed(self, tmp_path):
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        dest = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        dest.parent.mkdir(parents=True)
+        dest.write_text("# ancient version from spawn day\n")
+
+        written = inject_skills_to_worktree(["codex-debate"], str(wt))
+
+        assert dest.read_bytes() == self._source().read_bytes()
+        assert written == 1
+
+    def test_unchanged_copy_is_not_rewritten(self, tmp_path):
+        """Steady state must cost zero writes — otherwise every connect swaps a file
+        under a running CLI for no reason."""
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        inject_skills_to_worktree(["codex-debate"], str(wt))
+        dest = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        before_mtime = dest.stat().st_mtime_ns
+
+        written = inject_skills_to_worktree(["codex-debate"], str(wt))
+
+        assert written == 0
+        assert dest.stat().st_mtime_ns == before_mtime
+
+    def test_tracked_and_untracked_in_one_repo(self, tmp_path):
+        """Models the live seedon case: the same repo tracks some of the role's skills and
+        not others. Tracked file untouched, untracked one delivered — in a single pass."""
+        import subprocess
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        own = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        own.parent.mkdir(parents=True)
+        own.write_text("# repo's own skill\n")
+        subprocess.run(["git", "add", "-Af"], cwd=wt, capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", "own skill"], cwd=wt, capture_output=True, check=True)
+
+        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+
+        assert own.read_text() == "# repo's own skill\n"
+        assert (wt / ".claude" / "skills" / "html-artifacts" / "SKILL.md").read_bytes() \
+            == self._source("html-artifacts").read_bytes()
+
+    def test_injection_leaves_repo_clean_without_gitignore(self, tmp_path):
+        """The expensive scenario, live in `games`: a repo that ignores `.claude/` NOWHERE.
+        Without the exclude step we leave permanent untracked junk in the user's git status."""
+        import subprocess
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        assert not (wt / ".gitignore").exists()
+
+        inject_skills_to_worktree(["codex-debate"], str(wt))
+
+        status = subprocess.run(
+            ["git", "status", "--short"], cwd=wt, capture_output=True, text=True,
+        ).stdout
+        assert ".claude" not in status, f"injection dirtied the repo: {status!r}"
+
+    def test_nothing_written_leaves_exclude_untouched(self, tmp_path):
+        """No side effects in someone else's repo when we planted nothing."""
+        from app.prompting import inject_skills_to_worktree
+        wt = _git_repo(tmp_path)
+        exclude = wt / ".git" / "info" / "exclude"
+        before = exclude.read_text() if exclude.exists() else ""
+
+        assert inject_skills_to_worktree(["no-such-skill-anywhere"], str(wt)) == 0
+
+        after = exclude.read_text() if exclude.exists() else ""
+        assert after == before
+
+    def test_non_repo_path_is_skipped(self, tmp_path):
+        """Git can't say who owns the file → writing on a guess is what dirties repos."""
+        from app.prompting import inject_skills_to_worktree
+        plain = tmp_path / "not-a-repo"
+        plain.mkdir()
+
+        assert inject_skills_to_worktree(["codex-debate"], str(plain)) == 0
+        assert not (plain / ".claude").exists()
+
+
 class TestResolveBaseBranch:
     """DESIGN §10: резолв base_branch по стратегии манифеста (B3).
 

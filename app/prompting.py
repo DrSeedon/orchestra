@@ -6,9 +6,10 @@ import os
 import re
 import shutil
 import subprocess
+import uuid
 from pathlib import Path
 
-from app.workspace import tracked_paths
+from app.workspace import _exclude_worktree_artifacts, tracked_paths
 
 logger = logging.getLogger(__name__)
 
@@ -122,22 +123,36 @@ def _run_as_agent(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
-def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> None:
-    """Copy resolved pipeline skills into worktree/.claude/skills/ as native Claude CLI skills.
+def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> int:
+    """Copy resolved pipeline skills into <path>/.claude/skills/ as native Claude CLI skills.
 
-    Skills are resolved from pipeline.yaml (ResolvedRole.skills), not role-file
-    frontmatter — role bodies are frontmatter-free, so reading them yielded nothing.
+    Runs on every backend (re)connect, not just at worktree creation — a long-lived agent
+    would otherwise keep the skill files from the day it was spawned, and a skill added to a
+    role after spawn would never reach anyone. Same reasoning, same seam as `sync_agents_md`.
+
+    ``worktree_path`` is the agent's worktree when it has one, otherwise its plain cwd —
+    orchestrators run without a worktree, so a worktree-only path never delivered to them.
+    That cwd is a REAL repository the user works in by hand, hence the two guards below.
 
     A repo that TRACKS `.claude/skills/<name>/SKILL.md` owns that file: `info/exclude` cannot
-    ignore a tracked path, so overwriting it leaves the worker's tree dirty forever and blocks
+    ignore a tracked path, so overwriting it leaves the tree dirty forever and blocks
     every merge. Such skills are left alone — the agent reads the repo's own version, which
     Claude CLI already loads from the same path.
+
+    Returns the number of files actually written (unchanged copies are not rewritten, so a
+    steady state costs zero writes and never swaps a file under a running CLI).
     """
     if not skill_names or not _SKILLS_DIR.is_dir():
-        return
+        return 0
     wt = Path(worktree_path)
     rels = {sname: f".claude/skills/{sname}/SKILL.md" for sname in skill_names}
-    tracked = tracked_paths(wt, list(rels.values()))
+    try:
+        tracked = tracked_paths(wt, list(rels.values()))
+    except RuntimeError as exc:
+        # Git failing (not a repo, ownership, broken worktree) proves nothing about who owns
+        # these files. Writing on a guess is what dirties someone else's repository.
+        logger.warning(f"{exc} — skill injection skipped for {wt}")
+        return 0
     injected = 0
     for sname in skill_names:
         skill_src = _SKILLS_DIR / f"{sname}.md"
@@ -147,11 +162,40 @@ def inject_skills_to_worktree(skill_names: list[str], worktree_path: str) -> Non
         if rels[sname] in tracked:
             logger.info(f"Skill '{sname}' is tracked by the repo at {wt} — injection skipped")
             continue
-        skill_dir = wt / ".claude" / "skills" / sname
-        _run_as_agent(["mkdir", "-p", str(skill_dir)], capture_output=True)
-        _run_as_agent(["cp", "-p", str(skill_src), str(skill_dir / "SKILL.md")], capture_output=True)
+        dest = wt / ".claude" / "skills" / sname / "SKILL.md"
+        if dest.is_symlink():
+            logger.warning(f"Skill '{sname}' at {dest} is a symlink — skipped (copy would clobber its target)")
+            continue
+        try:
+            if dest.is_file() and dest.read_bytes() == skill_src.read_bytes():
+                continue
+        except OSError as exc:
+            logger.warning(f"Skill '{sname}' at {dest} unreadable ({exc}) — rewriting")
+        _run_as_agent(["mkdir", "-p", str(dest.parent)], capture_output=True)
+        # tmp + mv: `cp` onto a live file lets the CLI read a half-written skill. `mv` within
+        # the same directory is atomic, so a reader sees either the old file or the new one.
+        tmp = dest.parent / f".SKILL.md.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+        try:
+            _run_as_agent(["cp", "-p", str(skill_src), str(tmp)], capture_output=True)
+            moved = _run_as_agent(["mv", "-f", str(tmp), str(dest)], capture_output=True)
+            if moved.returncode != 0:
+                logger.warning(f"Skill '{sname}' install failed at {dest}")
+                continue
+        finally:
+            if tmp.exists():
+                _run_as_agent(["rm", "-f", str(tmp)], capture_output=True)
         injected += 1
-    logger.info(f"Injected {injected} skills into {worktree_path}/.claude/skills/")
+    if injected:
+        # Only after actually planting something, and only `.claude/` — this path may be the
+        # user's working repository, where adding unrelated ignore rules is a side effect we
+        # have no mandate for. Without this, a repo that doesn't already ignore `.claude/`
+        # (e.g. games) gets permanent untracked junk in the user's `git status`.
+        try:
+            _exclude_worktree_artifacts(wt, only=(".claude/",))
+        except Exception as exc:
+            logger.warning(f"could not exclude .claude/ in {wt}: {exc}")
+        logger.info(f"Injected {injected} skills into {worktree_path}/.claude/skills/")
+    return injected
 
 
 _SKILL_INDEX_HEADER = """## Available skills (progressive loading)
