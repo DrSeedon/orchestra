@@ -1,0 +1,2369 @@
+{
+ "generated_at": "2026-08-05T10:53:12Z",
+ "generated_from_commit": "40691d4c6829032e7268f5af06e0449e55e37ca7",
+ "scope": [
+  "app/",
+  "app/routes/",
+  "app/static/",
+  "app/templates/",
+  "tests/",
+  "scripts/",
+  "pipelines/"
+ ],
+ "excluded": [
+  "worktrees/",
+  ".venv/",
+  "__pycache__/",
+  "node_modules/",
+  "data/",
+  "docs/archive/",
+  "orchestra-archive/",
+  "app/static/css/vendor/"
+ ],
+ "nodes": [
+  {
+   "id": "web_ui",
+   "label": "Dashboard UI",
+   "type": "ui",
+   "primary": true,
+   "path": "app/static/js/app.js",
+   "files": [
+    "app/templates/dashboard.html",
+    "app/templates/login.html",
+    "app/templates/_globals.html",
+    "app/static/js/app.js",
+    "app/static/js/usage.js",
+    "app/static/js/analytics.js",
+    "app/static/js/tool-renderers.js",
+    "app/static/js/utils.js",
+    "app/static/css/style.css",
+    "scripts/build-tailwind.sh"
+   ],
+   "role": "Браузерный дашборд: список агентов, живой лог через SSE, спавн/управление сессиями, вкладки usage/tasks/bg.",
+   "entrypoints": [
+    "GET / → dashboard.html",
+    "EventSource /api/sessions/{name}/stream"
+   ],
+   "tests": [
+    "tests/test_frontend.py",
+    "tests/test_static_js_globals.py",
+    "tests/test_template_window.py",
+    "tests/test_usage_history_frontend.py",
+    "tests/test_usage_analytics_frontend.py",
+    "tests/test_grok_usage_frontend.py",
+    "tests/test_tailwind_css.py"
+   ],
+   "constraints": [
+    "Правки фронта в worktree не проверяются на живом :8888 — статика отдаётся из основного чекаута",
+    "Никаких CDN: vendor-библиотеки лежат в app/static/css/vendor/"
+   ],
+   "evidence": [
+    {
+     "path": "app/static/js/app.js",
+     "symbol": "eventSource = new EventSource(url)",
+     "line": 676
+    },
+    {
+     "path": "app/templates/dashboard.html",
+     "symbol": "<script",
+     "line": 8
+    }
+   ]
+  },
+  {
+   "id": "http_api",
+   "label": "FastAPI app + auth",
+   "type": "entrypoint",
+   "primary": true,
+   "path": "app/main.py",
+   "files": [
+    "app/main.py",
+    "app/auth.py",
+    "app/deps.py",
+    "app/bootstrap.py",
+    "app/__init__.py",
+    "app/routes/__init__.py"
+   ],
+   "role": "Точка входа процесса Orchestra: создаёт FastAPI, поднимает lifespan (БД, bg-джобы, TG-мост, SSH-туннели, merge-операции), монтирует все роутеры и auth-middleware.",
+   "entrypoints": [
+    "uvicorn app.main:app",
+    "lifespan()",
+    "AuthMiddleware"
+   ],
+   "tests": [
+    "tests/test_api.py",
+    "tests/test_auth.py",
+    "tests/test_owner_mode.py",
+    "tests/test_build_signal.py",
+    "tests/test_routes_surface.py",
+    "tests/test_system_restart.py"
+   ],
+   "constraints": [
+    "Python-код живёт в памяти systemd до рестарта — контракт MCP↔route ломается в окне до рестарта",
+    "Auth: cookie-сессия ИЛИ INTERNAL_TOKEN (для MCP-субпроцессов)"
+   ],
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "app = FastAPI(title=\"Orchestra\"",
+     "line": 151
+    },
+    {
+     "path": "app/main.py",
+     "symbol": "async def lifespan",
+     "line": 54
+    },
+    {
+     "path": "app/main.py",
+     "symbol": "app.add_middleware(AuthMiddleware)",
+     "line": 224
+    },
+    {
+     "path": "app/auth.py",
+     "symbol": "def check_internal_token",
+     "line": 55
+    }
+   ]
+  },
+  {
+   "id": "routes_sessions",
+   "label": "Routes: sessions & merge",
+   "type": "api",
+   "primary": true,
+   "path": "app/routes/sessions.py",
+   "files": [
+    "app/routes/sessions.py",
+    "app/routes/subagent.py",
+    "app/routes/merge_operations.py"
+   ],
+   "role": "HTTP-поверхность жизненного цикла агента: спавн, send, SSE-стрим логов, compact/interrupt/stop, merge, switch-branch, wip, check-conflict, blobs, субагенты.",
+   "entrypoints": [
+    "POST /api/sessions",
+    "POST /api/sessions/{name}/send",
+    "GET /api/sessions/{name}/stream",
+    "POST /api/sessions/{name}/merge",
+    "POST /api/merge-operations"
+   ],
+   "tests": [
+    "tests/test_api.py",
+    "tests/test_adhoc_switch.py",
+    "tests/test_identity_drift.py",
+    "tests/test_logs_sync.py",
+    "tests/test_merge_stuck.py",
+    "tests/test_return_to_merged_branch.py",
+    "tests/test_merge_operations.py",
+    "tests/test_subagent_routes.py",
+    "tests/test_subagents.py"
+   ],
+   "constraints": [
+    "Поверхность роутов зафиксирована снапшотом tests/route_surface_snapshot.json",
+    "execute_merge_session вызывается и из routes, и из merge_operations-раннера"
+   ],
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "@router.post(\"/api/sessions\", status_code=201)",
+     "line": 172
+    },
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "@router.get(\"/api/sessions/{name}/stream\")",
+     "line": 358
+    },
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "async def execute_merge_session",
+     "line": 826
+    },
+    {
+     "path": "app/routes/merge_operations.py",
+     "symbol": "@router.post(\"\")",
+     "line": 36
+    }
+   ]
+  },
+  {
+   "id": "routes_system",
+   "label": "Routes: system, usage, proxy",
+   "type": "api",
+   "primary": true,
+   "path": "app/routes/system.py",
+   "files": [
+    "app/routes/system.py",
+    "app/routes/proxy.py",
+    "app/usage_analytics.py"
+   ],
+   "role": "Системная поверхность: логин, дашборд-шаблон, модели и провайдеры, usage/лимиты, файлы и папки, инбокс баг-репортов, прокси-статус, рестарт.",
+   "entrypoints": [
+    "GET /",
+    "POST /api/login",
+    "GET /api/usage",
+    "POST /api/report_bug",
+    "GET /api/models"
+   ],
+   "tests": [
+    "tests/test_api.py",
+    "tests/test_backend_routing.py",
+    "tests/test_bug_report_notify.py",
+    "tests/test_cache_tokens.py",
+    "tests/test_codex_usage.py",
+    "tests/test_usage_analytics.py",
+    "tests/test_usage_snapshot.py",
+    "tests/test_usage_history_resolution.py",
+    "tests/test_proxy.py"
+   ],
+   "constraints": [
+    "report_bug пишет в инбокс вне рабочего дерева, чтобы не блокировать мержи",
+    "_usage_cache читается напрямую из session.py и session_turns.py"
+   ],
+   "evidence": [
+    {
+     "path": "app/routes/system.py",
+     "symbol": "templates.TemplateResponse(request, \"dashboard.html\"",
+     "line": 69
+    },
+    {
+     "path": "app/routes/system.py",
+     "symbol": "def _is_safe_path",
+     "line": 181
+    },
+    {
+     "path": "app/usage_analytics.py",
+     "symbol": "def build_usage_analytics",
+     "line": 552
+    }
+   ]
+  },
+  {
+   "id": "routes_aux",
+   "label": "Routes: tm, bg, memory, tg",
+   "type": "api",
+   "primary": true,
+   "path": "app/routes/tm.py",
+   "files": [
+    "app/routes/tm.py",
+    "app/routes/bg.py",
+    "app/routes/memory.py",
+    "app/routes/tg.py"
+   ],
+   "role": "Тонкие роутеры к предметным модулям: задачи и платежи (tm), фоновые джобы (bg_jobs), семантическая память (rag_service), отправка файлов в TG.",
+   "entrypoints": [
+    "POST /api/tm/tasks",
+    "POST /api/bg/jobs",
+    "POST /api/memory/search",
+    "POST /api/tg/send_file"
+   ],
+   "tests": [
+    "tests/test_tm.py",
+    "tests/test_tasks_pm_pipeline.py",
+    "tests/test_session_id_guard.py",
+    "tests/test_search_deadline.py",
+    "tests/test_tm_sync_loop.py"
+   ],
+   "constraints": [
+    "/api/memory/search имеет дедлайн: занятой индекс отвечает отказом, а не ждёт"
+   ],
+   "evidence": [
+    {
+     "path": "app/routes/tm.py",
+     "symbol": "@router.post",
+     "line": 62
+    },
+    {
+     "path": "app/routes/bg.py",
+     "symbol": "@router.post(\"/jobs\")",
+     "line": 22
+    },
+    {
+     "path": "app/routes/memory.py",
+     "symbol": "@router.post(\"/search\")",
+     "line": 30
+    },
+    {
+     "path": "app/routes/tg.py",
+     "symbol": "send_file_to_tg",
+     "line": 66
+    }
+   ]
+  },
+  {
+   "id": "manager",
+   "label": "Session Manager",
+   "type": "core",
+   "primary": true,
+   "path": "app/manager.py",
+   "files": [
+    "app/manager.py",
+    "app/notify.py"
+   ],
+   "role": "Реестр живых сессий: create/stop/archive/compact/rename, подготовка worktree и промпта, доставка сообщений в сессию, отчёт о НЕдоставке оркестратору scope.",
+   "entrypoints": [
+    "SessionManager.create_session()",
+    "SessionManager.send()",
+    "SessionManager.ensure_loaded()",
+    "notify.report_undelivered()"
+   ],
+   "tests": [
+    "tests/test_manager.py",
+    "tests/test_adhoc_switch.py",
+    "tests/test_auto_report_undelivered.py",
+    "tests/test_undelivered.py",
+    "tests/test_cache_tokens.py",
+    "tests/test_bg_jobs.py"
+   ],
+   "constraints": [
+    "Валидация спавна — ДО любых side-effects (worktree/start)",
+    "manager НЕ импортирует tg_bridge: связь только через wired callback"
+   ],
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "class SessionManager",
+     "line": 430
+    },
+    {
+     "path": "app/manager.py",
+     "symbol": "async def create_session",
+     "line": 470
+    },
+    {
+     "path": "app/manager.py",
+     "symbol": "async def send(self, session_id: str, message: str)",
+     "line": 924
+    },
+    {
+     "path": "app/notify.py",
+     "symbol": "async def report_undelivered",
+     "line": 26
+    }
+   ]
+  },
+  {
+   "id": "session",
+   "label": "Agent session runtime",
+   "type": "core",
+   "primary": true,
+   "path": "app/session.py",
+   "files": [
+    "app/session.py",
+    "app/session_state.py",
+    "app/session_turns.py",
+    "app/session_cost.py",
+    "app/session_hibernate.py"
+   ],
+   "role": "Один живой агент: persistent-клиент бэкенда, ход (turn), инжект сообщения в текущий ход, статусы, автокомпакт, гибернация, учёт стоимости и контекста.",
+   "entrypoints": [
+    "AgentSession.send()",
+    "AgentSession.compact()",
+    "TurnManager",
+    "HibernateManager",
+    "on_scope_idle / on_scope_running (wired)"
+   ],
+   "tests": [
+    "tests/test_session.py",
+    "tests/test_session_hibernate.py",
+    "tests/test_turn_usage.py",
+    "tests/test_p1_union.py",
+    "tests/test_p4_cost.py",
+    "tests/test_undelivered_queue.py",
+    "tests/test_identity_drift.py"
+   ],
+   "constraints": [
+    "Роль теряется на РЕКОННЕКТЕ, не на компакте — правится там же",
+    "precompact только для Claude: у Codex cache TTL ≈30 мин и 10× cold penalty"
+   ],
+   "evidence": [
+    {
+     "path": "app/session.py",
+     "symbol": "class AgentSession",
+     "line": 184
+    },
+    {
+     "path": "app/session.py",
+     "symbol": "async def send(self, message: str)",
+     "line": 676
+    },
+    {
+     "path": "app/session.py",
+     "symbol": "async def compact(self)",
+     "line": 1256
+    },
+    {
+     "path": "app/session_turns.py",
+     "symbol": "class TurnManager",
+     "line": 149
+    }
+   ]
+  },
+  {
+   "id": "runtime_registry",
+   "label": "Runtime registry & contracts",
+   "type": "core",
+   "primary": true,
+   "path": "app/runtime_registry.py",
+   "files": [
+    "app/runtime_registry.py",
+    "app/models.py",
+    "app/backend_protocol.py",
+    "app/runtime_env.py",
+    "app/events.py",
+    "app/usage_contract.py"
+   ],
+   "role": "Каталог моделей/рантаймов и сборка бэкенда под сессию: resolve_model, backend_for_model, cache-политики, env для MCP-субпроцесса, контракты событий и usage.",
+   "entrypoints": [
+    "build_backend()",
+    "get_runtime()",
+    "resolve_model()",
+    "MCP_STDIO_CMD"
+   ],
+   "tests": [
+    "tests/test_runtime_registry.py",
+    "tests/test_backend_routing.py",
+    "tests/test_usage_contract.py",
+    "tests/test_backend_stream.py",
+    "tests/test_dependency_policy.py"
+   ],
+   "constraints": [
+    "Хвост ELSE 'claude' при определении рантайма — всегда баг (расход утечёт в чужой пул)",
+    "Цены рантайма с кеш-тарифом не кладутся в общий TOKEN_PRICES"
+   ],
+   "evidence": [
+    {
+     "path": "app/runtime_registry.py",
+     "symbol": "def build_backend",
+     "line": 95
+    },
+    {
+     "path": "app/runtime_registry.py",
+     "symbol": "def get_runtime",
+     "line": 88
+    },
+    {
+     "path": "app/runtime_env.py",
+     "symbol": "MCP_STDIO_CMD = ",
+     "line": 13
+    },
+    {
+     "path": "app/events.py",
+     "symbol": "class AgentEvent",
+     "line": 9
+    }
+   ]
+  },
+  {
+   "id": "backends",
+   "label": "CLI backends",
+   "type": "core",
+   "primary": true,
+   "path": "app/backend_claude.py",
+   "files": [
+    "app/backend_claude.py",
+    "app/backend_codex.py",
+    "app/backend_grok.py",
+    "app/backend_opencode.py",
+    "app/backend_jsonrpc.py"
+   ],
+   "role": "Адаптеры к CLI/SDK агентов: Claude через claude-agent-sdk, Codex/Grok через JSON-RPC поверх stdio, OpenCode. Нормализуют поток событий и usage в общий контракт.",
+   "entrypoints": [
+    "ClaudeBackend",
+    "CodexBackend",
+    "GrokBackend",
+    "OpenCodeBackend",
+    "JsonRpcStdioTransport"
+   ],
+   "tests": [
+    "tests/test_backend_claude.py",
+    "tests/test_backend_codex.py",
+    "tests/test_backend_grok.py",
+    "tests/test_backend_opencode.py",
+    "tests/test_backend_stream.py",
+    "tests/test_disallowed_tools.py",
+    "tests/test_codex_bin_resolution.py"
+   ],
+   "constraints": [
+    "asyncio.StreamReader по умолчанию 64KB → у JSON-RPC транспорта поднят лимит",
+    "Терминальный лимит квоты Codex ловится прямо в error handler"
+   ],
+   "evidence": [
+    {
+     "path": "app/backend_claude.py",
+     "symbol": "class ClaudeBackend",
+     "line": 92
+    },
+    {
+     "path": "app/backend_codex.py",
+     "symbol": "class CodexBackend",
+     "line": 269
+    },
+    {
+     "path": "app/backend_grok.py",
+     "symbol": "class GrokBackend",
+     "line": 182
+    },
+    {
+     "path": "app/backend_jsonrpc.py",
+     "symbol": "class JsonRpcStdioTransport",
+     "line": 18
+    }
+   ]
+  },
+  {
+   "id": "mcp_server",
+   "label": "External MCP server",
+   "type": "entrypoint",
+   "primary": true,
+   "path": "app/mcp_stdio.py",
+   "files": [
+    "app/mcp_stdio.py",
+    "app/charts.py",
+    "app/codex_review_artifact.py"
+   ],
+   "role": "Отдельный stdio-процесс (FastMCP) — весь инструментарий агентов: spawn_worker, send_message, merge_worker, task_*, bg_*, search_memory, codex_review, send_chart. Ходит в Orchestra по HTTP с INTERNAL_TOKEN.",
+   "entrypoints": [
+    "python app/mcp_stdio.py",
+    "spawn_worker()",
+    "send_message()",
+    "merge_worker()",
+    "search_memory()",
+    "codex_review()"
+   ],
+   "tests": [
+    "tests/test_mcp_stdio.py",
+    "tests/test_mcp_codex_review.py",
+    "tests/test_charts.py",
+    "tests/test_codex_review_artifact.py"
+   ],
+   "constraints": [
+    "Подхватывается НЕМЕДЛЕННО при правке (отдельный процесс) — а роуты живут в памяти до рестарта",
+    "Каждая ветка ошибки обязана показать класс исключения или ответ сервера"
+   ],
+   "evidence": [
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "async def _api",
+     "line": 447
+    },
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "async def spawn_worker",
+     "line": 541
+    },
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "async def send_message",
+     "line": 725
+    },
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "async def search_memory",
+     "line": 1716
+    }
+   ]
+  },
+  {
+   "id": "workspace",
+   "label": "Worktree isolation",
+   "type": "core",
+   "primary": true,
+   "path": "app/workspace.py",
+   "files": [
+    "app/workspace.py"
+   ],
+   "role": "Git-изоляция воркеров: создание/удаление worktree и ветки task-<id>/<name>, зеркало AGENTS.md, info/exclude, squash-мерж в main, разбор коммитов и дрейфа HEAD.",
+   "entrypoints": [
+    "create_worktree()",
+    "merge_worktree_to_main()",
+    "sync_agents_md()",
+    "tracked_paths()"
+   ],
+   "tests": [
+    "tests/test_workspace.py",
+    "tests/test_adhoc_switch.py",
+    "tests/test_identity_drift.py",
+    "tests/test_merge_stuck.py",
+    "tests/test_return_to_merged_branch.py",
+    "tests/test_scaffold.py"
+   ],
+   "constraints": [
+    "Платформа НИКОГДА не пишет поверх файла, который репозиторий трекает (tracked_paths)",
+    "info/exclude бессилен против ОТСЛЕЖИВАЕМЫХ файлов"
+   ],
+   "evidence": [
+    {
+     "path": "app/workspace.py",
+     "symbol": "def create_worktree",
+     "line": 485
+    },
+    {
+     "path": "app/workspace.py",
+     "symbol": "def merge_worktree_to_main",
+     "line": 1111
+    },
+    {
+     "path": "app/workspace.py",
+     "symbol": "def sync_agents_md",
+     "line": 400
+    },
+    {
+     "path": "app/workspace.py",
+     "symbol": "def tracked_paths",
+     "line": 380
+    }
+   ]
+  },
+  {
+   "id": "merge_operations",
+   "label": "Durable merge operations",
+   "type": "core",
+   "primary": true,
+   "path": "app/merge_operations.py",
+   "files": [
+    "app/merge_operations.py"
+   ],
+   "role": "Долгоживущие merge-операции: идемпотентный runner, состояния SUCCEEDED/FAILED/PARTIAL/UNKNOWN, восстановление после рестарта, разблокировка воркера после ручной сверки.",
+   "entrypoints": [
+    "restore_merge_operations()",
+    "ensure_operation_runner()",
+    "resolve_operation()"
+   ],
+   "tests": [
+    "tests/test_merge_operations.py",
+    "tests/test_merge_stuck.py"
+   ],
+   "constraints": [
+    "PARTIAL/UNKNOWN блокирует дальнейшие мержи воркера до явного resolve"
+   ],
+   "evidence": [
+    {
+     "path": "app/merge_operations.py",
+     "symbol": "def restore_merge_operations",
+     "line": 1045
+    },
+    {
+     "path": "app/merge_operations.py",
+     "symbol": "def ensure_operation_runner",
+     "line": 971
+    }
+   ]
+  },
+  {
+   "id": "db",
+   "label": "SQLite layer",
+   "type": "datastore",
+   "primary": true,
+   "path": "app/db.py",
+   "files": [
+    "app/db.py",
+    "app/blobs.py",
+    "scripts/migrate_agent.py",
+    "scripts/blob-inventory.py"
+   ],
+   "role": "Единственный слой доступа к orchestra.db: сессии, логи, субагенты, bg-джобы, профили, факты/очереди, usage по ходам, миграции схемы; blobs — файловые вложения логов.",
+   "entrypoints": [
+    "init_db()",
+    "save_session()",
+    "add_log()",
+    "get_logs()",
+    "bg_save_job()"
+   ],
+   "tests": [
+    "tests/test_db.py",
+    "tests/test_blobs.py",
+    "tests/test_logs_sync.py",
+    "tests/test_migrate_agent.py"
+   ],
+   "constraints": [
+    "ORCHESTRA_DB_PATH позволяет тестам и веткам держать свою БД",
+    "_guard_session_id защищает от воскрешения устаревших session_id"
+   ],
+   "evidence": [
+    {
+     "path": "app/db.py",
+     "symbol": "def init_db",
+     "line": 45
+    },
+    {
+     "path": "app/db.py",
+     "symbol": "def add_log",
+     "line": 982
+    },
+    {
+     "path": "app/db.py",
+     "symbol": "DB_PATH = _resolve_db_path()",
+     "line": 30
+    },
+    {
+     "path": "app/blobs.py",
+     "symbol": "def session_dir",
+     "line": 32
+    }
+   ]
+  },
+  {
+   "id": "live_broker",
+   "label": "Live broker (SSE fan-out)",
+   "type": "queue",
+   "primary": true,
+   "path": "app/live_broker.py",
+   "files": [
+    "app/live_broker.py"
+   ],
+   "role": "In-memory pub/sub на asyncio.Queue: сессия публикует куски потока и события, SSE-эндпоинт подписывается по session_id, STREAM_CLOSE закрывает поток.",
+   "entrypoints": [
+    "broker.publish()",
+    "broker.subscribe()",
+    "STREAM_CLOSE"
+   ],
+   "tests": [
+    "tests/test_live_broker.py",
+    "tests/test_session.py"
+   ],
+   "constraints": [
+    "Очередь на подписчика ограничена — медленный клиент не тормозит сессию"
+   ],
+   "evidence": [
+    {
+     "path": "app/live_broker.py",
+     "symbol": "class LiveBroker",
+     "line": 16
+    },
+    {
+     "path": "app/live_broker.py",
+     "symbol": "def publish",
+     "line": 44
+    },
+    {
+     "path": "app/live_broker.py",
+     "symbol": "def subscribe",
+     "line": 22
+    },
+    {
+     "path": "app/live_broker.py",
+     "symbol": "broker = LiveBroker()",
+     "line": 80
+    }
+   ]
+  },
+  {
+   "id": "bg_jobs",
+   "label": "Background jobs & wake",
+   "type": "queue",
+   "primary": true,
+   "path": "app/bg_jobs.py",
+   "files": [
+    "app/bg_jobs.py",
+    "app/tasks.py",
+    "app/limit_wake.py",
+    "app/pidfd_exec.py"
+   ],
+   "role": "Серверные фоновые джобы (timer/file/command/ssh/run/cron), переживающие рестарт: хранятся в SQLite, будят агента сообщением. limit_wake будит агентов после сброса лимита провайдера.",
+   "entrypoints": [
+    "bg_manager",
+    "spawn_supervised()",
+    "schedule_wake_after_reset()",
+    "wake_status()"
+   ],
+   "tests": [
+    "tests/test_bg_jobs.py",
+    "tests/test_limit_wake.py",
+    "tests/test_undelivered.py"
+   ],
+   "constraints": [
+    "Джобы обязаны переживать hibernate и рестарт — состояние только в БД",
+    "killpg по сохранённому PGID убьёт чужую группу → сигналить по живому handle (pidfd)"
+   ],
+   "evidence": [
+    {
+     "path": "app/bg_jobs.py",
+     "symbol": "bg_manager = BgJobManager()",
+     "line": 958
+    },
+    {
+     "path": "app/tasks.py",
+     "symbol": "def spawn_supervised",
+     "line": 19
+    },
+    {
+     "path": "app/limit_wake.py",
+     "symbol": "async def schedule_wake_after_reset",
+     "line": 367
+    },
+    {
+     "path": "app/pidfd_exec.py",
+     "symbol": "def pidfd_send_group",
+     "line": 95
+    }
+   ]
+  },
+  {
+   "id": "tg_bridge",
+   "label": "Telegram bridge",
+   "type": "integration",
+   "primary": true,
+   "path": "app/tg_bridge.py",
+   "files": [
+    "app/tg_bridge.py",
+    "app/diff_image.py",
+    "app/tool_call_guard.py"
+   ],
+   "role": "Двусторонний мост с Telegram: топики на агента, доставка вывода агента в чат, входящие сообщения и голосовые (транскрипция) в сессию, рендер diff/tool-вызовов картинками.",
+   "entrypoints": [
+    "start_bridge()",
+    "stop_bridge()",
+    "send_file_to_tg()",
+    "_on_session_scope_idle()"
+   ],
+   "tests": [
+    "tests/test_tg_bridge.py",
+    "tests/test_startup_bridge.py",
+    "tests/test_undelivered.py",
+    "tests/test_bug_report_notify.py"
+   ],
+   "constraints": [
+    "important=True на пачке tool-сообщений → lock contention и вечная очередь",
+    "Мост НЕ импортируется из session/manager: связь через wired callbacks (разрыв цикла)"
+   ],
+   "evidence": [
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "async def start_bridge",
+     "line": 3501
+    },
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "async def stop_bridge",
+     "line": 3621
+    },
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "_session_mod.on_scope_idle = ",
+     "line": 3514
+    },
+    {
+     "path": "app/diff_image.py",
+     "symbol": "def render_edit_diff",
+     "line": 134
+    }
+   ]
+  },
+  {
+   "id": "rag",
+   "label": "Semantic memory (RAG)",
+   "type": "core",
+   "primary": true,
+   "path": "app/rag_service.py",
+   "files": [
+    "app/rag.py",
+    "app/rag_service.py"
+   ],
+   "role": "Семантическая память проекта: чанкинг docs/tasks и CLAUDE.md, индексация логов агентов из orchestra.db, векторный+FTS поиск в vec.db, фоновый backfill после мержа.",
+   "entrypoints": [
+    "rag_service.search()",
+    "rag_service.schedule_backfill()",
+    "RagMemory.index_file()",
+    "RagMemory.backfill_logs()"
+   ],
+   "tests": [
+    "tests/test_rag.py",
+    "tests/test_rag_service.py",
+    "tests/test_search_deadline.py"
+   ],
+   "constraints": [
+    "Поиск не должен ждать занятый индекс — есть дедлайн и SearchBusy",
+    "Смена модели эмбеддинга требует бампа версии схемы (вектора переиспользуются)"
+   ],
+   "evidence": [
+    {
+     "path": "app/rag_service.py",
+     "symbol": "async def search",
+     "line": 123
+    },
+    {
+     "path": "app/rag_service.py",
+     "symbol": "def schedule_backfill",
+     "line": 269
+    },
+    {
+     "path": "app/rag.py",
+     "symbol": "class RagMemory",
+     "line": 308
+    },
+    {
+     "path": "app/rag.py",
+     "symbol": "def backfill_logs",
+     "line": 545
+    }
+   ]
+  },
+  {
+   "id": "tm",
+   "label": "Task Manager",
+   "type": "core",
+   "primary": true,
+   "path": "app/tm.py",
+   "files": [
+    "app/tm.py",
+    "app/tm_yougile.py",
+    "app/tm_import_yougile.py"
+   ],
+   "role": "Задачи и деньги: CRUD задач с приоритетами, привязка коммитов к задаче после мержа, платежи и распределение долга, двусторонняя синхронизация с YouGile.",
+   "entrypoints": [
+    "link_commits_to_task()",
+    "api_update_task_if_current()",
+    "yougile_sync_task()"
+   ],
+   "tests": [
+    "tests/test_tm.py",
+    "tests/test_tm_sync_loop.py",
+    "tests/test_tasks_pm_pipeline.py",
+    "tests/test_db.py"
+   ],
+   "constraints": [
+    "Задачи живут в той же orchestra.db, отдельного стораджа нет"
+   ],
+   "evidence": [
+    {
+     "path": "app/tm.py",
+     "symbol": "def link_commits_to_task",
+     "line": 364
+    },
+    {
+     "path": "app/tm.py",
+     "symbol": "def resolve_scoped_task_identity",
+     "line": 327
+    },
+    {
+     "path": "app/tm_yougile.py",
+     "symbol": "def yougile_sync_task",
+     "line": 167
+    }
+   ]
+  },
+  {
+   "id": "pipeline",
+   "label": "Pipelines & prompts",
+   "type": "core",
+   "primary": true,
+   "path": "app/pipeline.py",
+   "files": [
+    "app/pipeline.py",
+    "app/prompting.py",
+    "pipelines/default/pipeline.yaml",
+    "pipelines/default/prompts/base.md",
+    "scripts/extract-manifest.py"
+   ],
+   "role": "Манифест пайплайна: роли, модули промпта, скиллы, worktree-конфиг, стратегия базовой ветки. prompting собирает системный промпт роли и инжектит скиллы в worktree.",
+   "entrypoints": [
+    "build_system_prompt()",
+    "get_role()",
+    "load_pipeline()",
+    "inject_skills_to_worktree()",
+    "build_codex_skills_index()"
+   ],
+   "tests": [
+    "tests/test_pipeline.py",
+    "tests/test_default_pipeline.py",
+    "tests/test_prompting.py",
+    "tests/test_scaffold.py"
+   ],
+   "constraints": [
+    "Правило в CLAUDE.md и промпт роли в pipelines/ расходятся — воркер слушается ПРОМПТА",
+    "Sol не видит .claude/skills — ему уходит сгенерированное оглавление"
+   ],
+   "evidence": [
+    {
+     "path": "app/pipeline.py",
+     "symbol": "def build_system_prompt",
+     "line": 427
+    },
+    {
+     "path": "app/pipeline.py",
+     "symbol": "def load_pipeline",
+     "line": 295
+    },
+    {
+     "path": "app/prompting.py",
+     "symbol": "def inject_skills_to_worktree",
+     "line": 125
+    },
+    {
+     "path": "app/prompting.py",
+     "symbol": "def build_codex_skills_index",
+     "line": 278
+    }
+   ]
+  },
+  {
+   "id": "net_proxy",
+   "label": "Proxy & SSH tunnels",
+   "type": "integration",
+   "primary": true,
+   "path": "app/proxy_manager.py",
+   "files": [
+    "app/proxy_manager.py",
+    "app/ssh_tunnel.py",
+    "scripts/check-proxies.sh"
+   ],
+   "role": "Read-only список прокси из .env и их проверка на живость + локальные SSH-туннели к VPS. Переключение прокси — только правкой .env и рестартом, из кода env не мутируется.",
+   "entrypoints": [
+    "proxy_manager.check_all()",
+    "start_tunnel()",
+    "tunnel_status()"
+   ],
+   "tests": [
+    "tests/test_proxy.py"
+   ],
+   "constraints": [
+    ".env HTTPS_PROXY/HTTP_PROXY — единственный источник истины, ни БД, ни hot-switch",
+    "Мёртвые VPS не спамят реконнектом: health-gate + backoff"
+   ],
+   "evidence": [
+    {
+     "path": "app/proxy_manager.py",
+     "symbol": "class ProxyManager",
+     "line": 85
+    },
+    {
+     "path": "app/proxy_manager.py",
+     "symbol": "proxy_manager = ProxyManager()",
+     "line": 148
+    },
+    {
+     "path": "app/ssh_tunnel.py",
+     "symbol": "def tunnel_status",
+     "line": 213
+    }
+   ]
+  },
+  {
+   "id": "sqlite_orchestra",
+   "label": "orchestra.db (SQLite)",
+   "type": "datastore",
+   "primary": false,
+   "path": "app/db.py",
+   "files": [
+    "app/db.py"
+   ],
+   "role": "Файл SQLite со всем состоянием: sessions, logs, subagents, bg_jobs, tasks, payments, facts, turn_usage.",
+   "entrypoints": [
+    "sqlite3.connect(DB_PATH)"
+   ],
+   "tests": [],
+   "constraints": [
+    "Путь переопределяется ORCHESTRA_DB_PATH; в чекауте файла может не быть (data/ в .gitignore)"
+   ],
+   "evidence": [
+    {
+     "path": "app/db.py",
+     "symbol": "conn = sqlite3.connect(str(DB_PATH))",
+     "line": 35
+    },
+    {
+     "path": "app/db.py",
+     "symbol": "_DEFAULT_DB_PATH",
+     "line": 14
+    }
+   ],
+   "resource": "data/orchestra.db"
+  },
+  {
+   "id": "vec_db",
+   "label": "vec.db (векторный индекс)",
+   "type": "datastore",
+   "primary": false,
+   "path": "app/rag.py",
+   "files": [
+    "app/rag.py"
+   ],
+   "role": "Отдельная SQLite-база семантической памяти: vec_files/vec_logs, FTS, log_chunks, дедуп по log_id.",
+   "entrypoints": [
+    "RagMemory(path=DB_PATH)"
+   ],
+   "tests": [],
+   "constraints": [
+    "Схема версионируется: бамп версии дропает индекс и требует backfill"
+   ],
+   "evidence": [
+    {
+     "path": "app/rag.py",
+     "symbol": "DB_PATH = Path(\"./data/vec.db\")",
+     "line": 27
+    },
+    {
+     "path": "app/rag.py",
+     "symbol": "sqlite3.connect(str(path)",
+     "line": 321
+    }
+   ],
+   "resource": "data/vec.db"
+  },
+  {
+   "id": "ext_agent_cli",
+   "label": "Agent CLIs / SDK",
+   "type": "external",
+   "primary": false,
+   "path": "app/backend_codex.py",
+   "files": [
+    "app/backend_claude.py",
+    "app/backend_codex.py",
+    "app/backend_grok.py",
+    "app/backend_opencode.py"
+   ],
+   "role": "Внешние процессы агентов: claude-agent-sdk (ClaudeSDKClient), бинарники codex, grok, opencode. Каждая сессия — свой процесс со своим MCP-конфигом.",
+   "entrypoints": [
+    "ClaudeSDKClient",
+    "codex",
+    "grok agent"
+   ],
+   "tests": [],
+   "constraints": [
+    "ТОЛЬКО подписка, никаких API-ключей",
+    "Пинить claude-opus-5[1m]: голый alias репортит 200K контекста"
+   ],
+   "evidence": [
+    {
+     "path": "app/backend_claude.py",
+     "symbol": "return ClaudeSDKClient(options=options)",
+     "line": 188
+    },
+    {
+     "path": "app/backend_codex.py",
+     "symbol": "codex_cmd = [CODEX_BIN]",
+     "line": 347
+    },
+    {
+     "path": "app/backend_grok.py",
+     "symbol": "cmd = [GROK_BIN, \"agent\"]",
+     "line": 282
+    }
+   ],
+   "resource": "claude-agent-sdk / codex / grok / opencode"
+  },
+  {
+   "id": "ext_git",
+   "label": "git (worktrees & merges)",
+   "type": "external",
+   "primary": false,
+   "path": "app/workspace.py",
+   "files": [
+    "app/workspace.py"
+   ],
+   "role": "Сам git: worktree add/remove, ветки, squash-мерж, ls-files, rev-parse. Вызывается только из workspace.py через subprocess.",
+   "entrypoints": [
+    "git worktree",
+    "git merge --squash"
+   ],
+   "tests": [],
+   "constraints": [
+    "Все git-вызовы идут через один хелпер в workspace.py"
+   ],
+   "evidence": [
+    {
+     "path": "app/workspace.py",
+     "symbol": "[\"git\", \"worktree\", \"list\", \"--porcelain\"]",
+     "line": 231
+    },
+    {
+     "path": "app/workspace.py",
+     "symbol": "\"git\", \"merge\", \"--squash\"",
+     "line": 1338
+    }
+   ],
+   "resource": "git CLI"
+  },
+  {
+   "id": "ext_telegram",
+   "label": "Telegram Bot API",
+   "type": "external",
+   "primary": false,
+   "path": "app/tg_bridge.py",
+   "files": [
+    "app/tg_bridge.py"
+   ],
+   "role": "Локальный telegram-bot-api (или облачный) через aiogram: топики группы, сообщения, файлы, голосовые.",
+   "entrypoints": [
+    "aiogram Bot",
+    "TelegramAPIServer"
+   ],
+   "tests": [],
+   "constraints": [
+    "C++ бинарник не читает .env — прокси только через proxychains"
+   ],
+   "evidence": [
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "from aiogram.client.telegram import TelegramAPIServer",
+     "line": 3546
+    }
+   ],
+   "resource": "telegram-bot-api"
+  },
+  {
+   "id": "ext_yougile",
+   "label": "YouGile API",
+   "type": "external",
+   "primary": false,
+   "path": "app/tm_yougile.py",
+   "files": [
+    "app/tm_yougile.py"
+   ],
+   "role": "Внешний трекер: задачи Orchestra синхронизируются с досками YouGile по HTTP.",
+   "entrypoints": [
+    "https://yougile.com/api-v2"
+   ],
+   "tests": [],
+   "constraints": [
+    "Синхронизация двусторонняя — конфликт статусов разрешается по колонке YouGile"
+   ],
+   "evidence": [
+    {
+     "path": "app/tm_yougile.py",
+     "symbol": "YOUGILE_API = \"https://yougile.com/api-v2\"",
+     "line": 19
+    }
+   ],
+   "resource": "https://yougile.com/api-v2"
+  }
+ ],
+ "edges": [
+  {
+   "from": "web_ui",
+   "to": "routes_sessions",
+   "type": "subscribes",
+   "evidence": [
+    {
+     "path": "app/static/js/app.js",
+     "symbol": "eventSource = new EventSource(url)",
+     "line": 676
+    }
+   ],
+   "note": "SSE-поток логов агента"
+  },
+  {
+   "from": "web_ui",
+   "to": "routes_sessions",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/static/js/app.js",
+     "symbol": "await api('/api/sessions', { method: 'POST'",
+     "line": 1184
+    }
+   ],
+   "note": "спавн оркестратора/агента из UI"
+  },
+  {
+   "from": "web_ui",
+   "to": "routes_system",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/static/js/app.js",
+     "symbol": "fetch('/api/models'",
+     "line": 6048
+    }
+   ]
+  },
+  {
+   "from": "web_ui",
+   "to": "routes_aux",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/static/js/app.js",
+     "symbol": "fetch(`/api/tm/tasks?scope=",
+     "line": 6316
+    },
+    {
+     "path": "app/static/js/app.js",
+     "symbol": "fetch(`/api/bg/jobs?scope=",
+     "line": 6778
+    }
+   ]
+  },
+  {
+   "from": "routes_system",
+   "to": "web_ui",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/routes/system.py",
+     "symbol": "templates.TemplateResponse(request, \"dashboard.html\"",
+     "line": 69
+    }
+   ],
+   "note": "отдаёт шаблон дашборда"
+  },
+  {
+   "from": "http_api",
+   "to": "routes_sessions",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.routes.sessions import router",
+     "line": 157
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "routes_system",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.routes.system import router",
+     "line": 158
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "routes_aux",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.routes.tm import router",
+     "line": 154
+    },
+    {
+     "path": "app/main.py",
+     "symbol": "from app.routes.bg import router",
+     "line": 155
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "db",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.db import init_db",
+     "line": 15
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "tg_bridge",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.tg_bridge import start_bridge",
+     "line": 44
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "bg_jobs",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.bg_jobs import bg_manager",
+     "line": 94
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "merge_operations",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.merge_operations import restore_merge_operations",
+     "line": 108
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "net_proxy",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/main.py",
+     "symbol": "from app.ssh_tunnel import start_tunnel",
+     "line": 64
+    }
+   ]
+  },
+  {
+   "from": "http_api",
+   "to": "manager",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/deps.py",
+     "symbol": "from app.manager import SessionManager",
+     "line": 8
+    }
+   ]
+  },
+  {
+   "from": "mcp_server",
+   "to": "routes_sessions",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "_api(\"POST\", \"/api/sessions\", json=body)",
+     "line": 615
+    },
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "/api/sessions/{to}/send",
+     "line": 727
+    },
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "_api(\"POST\", \"/api/merge-operations\"",
+     "line": 1266
+    }
+   ],
+   "note": "HTTP с INTERNAL_TOKEN: spawn_worker / send_message / merge_worker"
+  },
+  {
+   "from": "mcp_server",
+   "to": "routes_aux",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "_api(\"POST\", \"/api/memory/search\"",
+     "line": 1729
+    },
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "_api(\"POST\", \"/api/bg/jobs\"",
+     "line": 1669
+    },
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "_api(\"POST\", \"/api/tm/tasks\"",
+     "line": 1533
+    }
+   ],
+   "note": "search_memory / bg_create / task_create"
+  },
+  {
+   "from": "mcp_server",
+   "to": "routes_system",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/mcp_stdio.py",
+     "symbol": "/api/report_bug",
+     "line": 1493
+    }
+   ]
+  },
+  {
+   "from": "runtime_registry",
+   "to": "mcp_server",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/runtime_env.py",
+     "symbol": "_MCP_SCRIPT = str(Path(__file__).parent / \"mcp_stdio.py\")",
+     "line": 12
+    },
+    {
+     "path": "app/manager.py",
+     "symbol": "from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD",
+     "line": 139
+    }
+   ],
+   "note": "команда запуска stdio-MCP кладётся в конфиг бэкенда"
+  },
+  {
+   "from": "ext_agent_cli",
+   "to": "mcp_server",
+   "type": "calls",
+   "evidence": [],
+   "note": "CLI агента сам порождает процесс MCP по переданной команде — исполнение внутри вендорского CLI, в нашем коде доказательства нет",
+   "unknown": true
+  },
+  {
+   "from": "routes_sessions",
+   "to": "manager",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "await manager.create_session(",
+     "line": 179
+    },
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "await manager.send(session.id, msg)",
+     "line": 476
+    }
+   ]
+  },
+  {
+   "from": "routes_sessions",
+   "to": "db",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "get_logs_before(session_id, before_id=2**31 - 1",
+     "line": 379
+    }
+   ]
+  },
+  {
+   "from": "routes_sessions",
+   "to": "live_broker",
+   "type": "subscribes",
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "q = broker.subscribe(session_id)",
+     "line": 370
+    }
+   ]
+  },
+  {
+   "from": "routes_sessions",
+   "to": "workspace",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "merge_worktree_to_main,",
+     "line": 841
+    },
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "inspect_worktree_identity",
+     "line": 50
+    }
+   ]
+  },
+  {
+   "from": "routes_sessions",
+   "to": "tm",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "_tm.link_commits_to_task,",
+     "line": 1035
+    }
+   ],
+   "note": "после мержа коммиты привязываются к задаче"
+  },
+  {
+   "from": "routes_sessions",
+   "to": "rag",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "rag_service.schedule_backfill(row_scope)",
+     "line": 1074
+    }
+   ],
+   "note": "после мержа — переиндексация памяти scope"
+  },
+  {
+   "from": "routes_sessions",
+   "to": "tg_bridge",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/sessions.py",
+     "symbol": "from app.tg_bridge import rename_orch_topic",
+     "line": 690
+    }
+   ]
+  },
+  {
+   "from": "routes_system",
+   "to": "db",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/routes/system.py",
+     "symbol": "from app.db import get_all_sessions",
+     "line": 27
+    }
+   ]
+  },
+  {
+   "from": "routes_system",
+   "to": "runtime_registry",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/system.py",
+     "symbol": "from app.runtime_registry import get_runtime",
+     "line": 38
+    }
+   ]
+  },
+  {
+   "from": "routes_system",
+   "to": "bg_jobs",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/system.py",
+     "symbol": "from app.limit_wake import wake_status",
+     "line": 1047
+    }
+   ]
+  },
+  {
+   "from": "routes_system",
+   "to": "net_proxy",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/routes/proxy.py",
+     "symbol": "from app.proxy_manager import proxy_manager",
+     "line": 12
+    }
+   ]
+  },
+  {
+   "from": "routes_system",
+   "to": "manager",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/system.py",
+     "symbol": "from app.deps import build_id, manager, templates",
+     "line": 28
+    }
+   ]
+  },
+  {
+   "from": "routes_aux",
+   "to": "rag",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/memory.py",
+     "symbol": "await rag_service.search(",
+     "line": 39
+    }
+   ]
+  },
+  {
+   "from": "routes_aux",
+   "to": "bg_jobs",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/bg.py",
+     "symbol": "from app.bg_jobs import bg_manager",
+     "line": 24
+    }
+   ]
+  },
+  {
+   "from": "routes_aux",
+   "to": "tm",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/tm.py",
+     "symbol": "from app import tm",
+     "line": 9
+    }
+   ]
+  },
+  {
+   "from": "routes_aux",
+   "to": "tg_bridge",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/routes/tg.py",
+     "symbol": "from app.tg_bridge import send_file_to_tg",
+     "line": 66
+    }
+   ]
+  },
+  {
+   "from": "routes_sessions",
+   "to": "merge_operations",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/routes/merge_operations.py",
+     "symbol": "from app.merge_operations import",
+     "line": 8
+    }
+   ]
+  },
+  {
+   "from": "merge_operations",
+   "to": "routes_sessions",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/merge_operations.py",
+     "symbol": "from app.routes.sessions import execute_merge_session",
+     "line": 901
+    }
+   ],
+   "note": "раннер операции исполняет тот же мерж, что и синхронный роут"
+  },
+  {
+   "from": "merge_operations",
+   "to": "rag",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/merge_operations.py",
+     "symbol": "rag_enabled=rag_service.is_enabled()",
+     "line": 923
+    }
+   ]
+  },
+  {
+   "from": "merge_operations",
+   "to": "workspace",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/merge_operations.py",
+     "symbol": "from app.workspace import inspect_worktree_identity",
+     "line": 445
+    }
+   ]
+  },
+  {
+   "from": "merge_operations",
+   "to": "db",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/merge_operations.py",
+     "symbol": "from app.db import _conn, get_session, get_session_by_name",
+     "line": 14
+    }
+   ]
+  },
+  {
+   "from": "manager",
+   "to": "session",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "session = AgentSession(",
+     "line": 651
+    }
+   ]
+  },
+  {
+   "from": "manager",
+   "to": "workspace",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "create_worktree, repo_path, name, task_id, base_branch, worktree_cfg)",
+     "line": 683
+    }
+   ]
+  },
+  {
+   "from": "manager",
+   "to": "pipeline",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "base = build_system_prompt(pipeline, role, scope)",
+     "line": 310
+    }
+   ]
+  },
+  {
+   "from": "manager",
+   "to": "db",
+   "type": "writes",
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "publish_ready_session",
+     "line": 54
+    }
+   ]
+  },
+  {
+   "from": "manager",
+   "to": "tm",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "from app.tm import resolve_scoped_task_identity",
+     "line": 634
+    }
+   ]
+  },
+  {
+   "from": "manager",
+   "to": "bg_jobs",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "from app.bg_jobs import bg_manager",
+     "line": 951
+    }
+   ]
+  },
+  {
+   "from": "manager",
+   "to": "runtime_registry",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/manager.py",
+     "symbol": "from app.models import (",
+     "line": 33
+    }
+   ]
+  },
+  {
+   "from": "session",
+   "to": "runtime_registry",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/session.py",
+     "symbol": "return build_backend(self.backend_type, context)",
+     "line": 574
+    }
+   ]
+  },
+  {
+   "from": "session",
+   "to": "backends",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/runtime_registry.py",
+     "symbol": "from app.backend_claude import ClaudeBackend",
+     "line": 152
+    },
+    {
+     "path": "app/runtime_registry.py",
+     "symbol": "from app.backend_codex import CodexBackend",
+     "line": 186
+    }
+   ],
+   "note": "конкретный класс бэкенда выбирает реестр рантаймов"
+  },
+  {
+   "from": "session",
+   "to": "live_broker",
+   "type": "publishes",
+   "evidence": [
+    {
+     "path": "app/session.py",
+     "symbol": "broker.publish(self.id, {\"type\": \"stream\"",
+     "line": 978
+    }
+   ]
+  },
+  {
+   "from": "session",
+   "to": "db",
+   "type": "writes",
+   "evidence": [
+    {
+     "path": "app/session.py",
+     "symbol": "from app.db import add_log, get_logs, save_session, tool_error_add",
+     "line": 34
+    }
+   ]
+  },
+  {
+   "from": "session",
+   "to": "workspace",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/session.py",
+     "symbol": "from app.workspace import sync_agents_md",
+     "line": 859
+    }
+   ]
+  },
+  {
+   "from": "session",
+   "to": "pipeline",
+   "type": "imports",
+   "evidence": [
+    {
+     "path": "app/session.py",
+     "symbol": "from app.prompting import is_orchestrator_role, prompt_template_hash",
+     "line": 16
+    }
+   ]
+  },
+  {
+   "from": "session",
+   "to": "bg_jobs",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/session.py",
+     "symbol": "from app.bg_jobs import bg_manager",
+     "line": 481
+    }
+   ]
+  },
+  {
+   "from": "runtime_registry",
+   "to": "backends",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/runtime_registry.py",
+     "symbol": "from app.backend_grok import GrokBackend",
+     "line": 221
+    },
+    {
+     "path": "app/runtime_registry.py",
+     "symbol": "from app.backend_opencode import OpenCodeBackend",
+     "line": 260
+    }
+   ]
+  },
+  {
+   "from": "runtime_registry",
+   "to": "pipeline",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/runtime_registry.py",
+     "symbol": "from app.pipeline import get_role",
+     "line": 154
+    }
+   ]
+  },
+  {
+   "from": "backends",
+   "to": "ext_agent_cli",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/backend_claude.py",
+     "symbol": "return ClaudeSDKClient(options=options)",
+     "line": 188
+    },
+    {
+     "path": "app/backend_codex.py",
+     "symbol": "codex_cmd = [CODEX_BIN]",
+     "line": 347
+    },
+    {
+     "path": "app/backend_grok.py",
+     "symbol": "cmd = [GROK_BIN, \"agent\"]",
+     "line": 282
+    }
+   ]
+  },
+  {
+   "from": "db",
+   "to": "sqlite_orchestra",
+   "type": "writes",
+   "evidence": [
+    {
+     "path": "app/db.py",
+     "symbol": "conn = sqlite3.connect(str(DB_PATH))",
+     "line": 35
+    }
+   ]
+  },
+  {
+   "from": "workspace",
+   "to": "ext_git",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/workspace.py",
+     "symbol": "\"git\", \"merge\", \"--squash\"",
+     "line": 1338
+    },
+    {
+     "path": "app/workspace.py",
+     "symbol": "[\"git\", \"worktree\", \"list\", \"--porcelain\"]",
+     "line": 231
+    }
+   ]
+  },
+  {
+   "from": "workspace",
+   "to": "db",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/workspace.py",
+     "symbol": "from app.db import",
+     "line": 2146
+    }
+   ]
+  },
+  {
+   "from": "bg_jobs",
+   "to": "db",
+   "type": "writes",
+   "evidence": [
+    {
+     "path": "app/bg_jobs.py",
+     "symbol": "from app.db import (",
+     "line": 19
+    }
+   ]
+  },
+  {
+   "from": "bg_jobs",
+   "to": "manager",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/bg_jobs.py",
+     "symbol": "from app.notify import report_undelivered",
+     "line": 558
+    }
+   ],
+   "note": "недоставленное будит оркестратора scope через manager.send"
+  },
+  {
+   "from": "bg_jobs",
+   "to": "session",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/limit_wake.py",
+     "symbol": "from app.session import _subscription_limit_kind",
+     "line": 18
+    }
+   ],
+   "note": "limit_wake читает состояние сессий, чтобы разбудить после сброса лимита"
+  },
+  {
+   "from": "tg_bridge",
+   "to": "manager",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "await _manager.send(sid, combined)",
+     "line": 368
+    }
+   ]
+  },
+  {
+   "from": "tg_bridge",
+   "to": "session",
+   "type": "writes",
+   "evidence": [
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "_session_mod.on_scope_idle = ",
+     "line": 3514
+    }
+   ],
+   "note": "wired callback: мост подписывается на события сессии без импорта в обратную сторону"
+  },
+  {
+   "from": "tg_bridge",
+   "to": "db",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "from app.db import get_logs, get_session_by_name, get_all_sessions",
+     "line": 2962
+    }
+   ]
+  },
+  {
+   "from": "tg_bridge",
+   "to": "ext_telegram",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/tg_bridge.py",
+     "symbol": "from aiogram.client.telegram import TelegramAPIServer",
+     "line": 3546
+    }
+   ]
+  },
+  {
+   "from": "rag",
+   "to": "vec_db",
+   "type": "writes",
+   "evidence": [
+    {
+     "path": "app/rag.py",
+     "symbol": "self.conn = sqlite3.connect(str(path)",
+     "line": 321
+    }
+   ]
+  },
+  {
+   "from": "rag",
+   "to": "sqlite_orchestra",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/rag_service.py",
+     "symbol": "\"backfill_logs\", project, _ORCHESTRA_DB",
+     "line": 175
+    }
+   ],
+   "note": "логи агентов индексируются из orchestra.db read-only"
+  },
+  {
+   "from": "tm",
+   "to": "db",
+   "type": "writes",
+   "evidence": [
+    {
+     "path": "app/tm.py",
+     "symbol": "from app.db import _conn",
+     "line": 17
+    }
+   ]
+  },
+  {
+   "from": "tm",
+   "to": "ext_yougile",
+   "type": "calls",
+   "evidence": [
+    {
+     "path": "app/tm_yougile.py",
+     "symbol": "url = f\"{YOUGILE_API}{path}\"",
+     "line": 80
+    }
+   ]
+  },
+  {
+   "from": "pipeline",
+   "to": "workspace",
+   "type": "reads",
+   "evidence": [
+    {
+     "path": "app/prompting.py",
+     "symbol": "from app.workspace import tracked_paths",
+     "line": 11
+    }
+   ],
+   "note": "скиллы не инжектятся поверх трекнутых файлов"
+  }
+ ],
+ "flows": [
+  {
+   "id": "flow_spawn",
+   "title": "spawn_worker → worktree → живая CLI-сессия",
+   "trigger": "Оркестратор вызывает MCP-тул spawn_worker(name, task, repo_path, model)",
+   "steps": [
+    {
+     "node": "mcp_server",
+     "what": "spawn_worker() собирает тело и шлёт POST /api/sessions с INTERNAL_TOKEN"
+    },
+    {
+     "node": "routes_sessions",
+     "what": "create_session() проверяет cwd через _is_safe_path и зовёт manager"
+    },
+    {
+     "node": "manager",
+     "what": "валидация спавна, резолв модели/роли/базовой ветки ДО side-effects"
+    },
+    {
+     "node": "pipeline",
+     "what": "build_system_prompt(pipeline, role, scope) + inject_skills_to_worktree"
+    },
+    {
+     "node": "workspace",
+     "what": "create_worktree(): ветка task-<id>/<name>, симлинки, info/exclude, AGENTS.md"
+    },
+    {
+     "node": "ext_git",
+     "what": "git worktree add + update-ref новой ветки"
+    },
+    {
+     "node": "session",
+     "what": "AgentSession стартует, строит бэкенд через реестр рантаймов"
+    },
+    {
+     "node": "runtime_registry",
+     "what": "build_backend(): класс бэкенда + env с MCP_STDIO_CMD"
+    },
+    {
+     "node": "backends",
+     "what": "запуск CLI/SDK агента персистентным клиентом"
+    },
+    {
+     "node": "ext_agent_cli",
+     "what": "процесс агента поднимается и подключает Orchestra MCP"
+    },
+    {
+     "node": "db",
+     "what": "save_session(): строка сессии, статус, worktree, ветка"
+    }
+   ],
+   "outcome": "Воркер работает в изолированном worktree на своей ветке; сессия видна в дашборде и переживает рестарт."
+  },
+  {
+   "id": "flow_message",
+   "title": "send_message → инжект в текущий ход агента",
+   "trigger": "Агент или дашборд отправляет сообщение другому агенту по имени",
+   "steps": [
+    {
+     "node": "mcp_server",
+     "what": "send_message() → POST /api/sessions/{to}/send"
+    },
+    {
+     "node": "routes_sessions",
+     "what": "резолв агента по имени+scope, префикс [from:sender]"
+    },
+    {
+     "node": "manager",
+     "what": "manager.send() находит живую сессию (или поднимает её)"
+    },
+    {
+     "node": "session",
+     "what": "сообщение инжектится в идущий ход через stdin персистентного клиента"
+    },
+    {
+     "node": "backends",
+     "what": "бэкенд отдаёт поток событий хода"
+    },
+    {
+     "node": "live_broker",
+     "what": "broker.publish() раздаёт куски подписчикам"
+    },
+    {
+     "node": "web_ui",
+     "what": "SSE дорисовывает ответ в открытом логе агента"
+    }
+   ],
+   "outcome": "Получатель видит сообщение в ТЕКУЩЕМ ходе; недоставка отдельно докладывается оркестратору scope."
+  },
+  {
+   "id": "flow_merge",
+   "title": "merge_worker (squash) → link_commits → переиндексация памяти",
+   "trigger": "Оркестратор вызывает merge_worker(name) после DONE-репорта воркера",
+   "steps": [
+    {
+     "node": "mcp_server",
+     "what": "merge_worker() → POST /api/merge-operations (идемпотентно по operation_id)"
+    },
+    {
+     "node": "routes_sessions",
+     "what": "роут merge-operations принимает операцию"
+    },
+    {
+     "node": "merge_operations",
+     "what": "долгоживущий runner ведёт состояние SUCCEEDED/PARTIAL/UNKNOWN"
+    },
+    {
+     "node": "workspace",
+     "what": "merge_worktree_to_main(): squash-мерж ветки воркера"
+    },
+    {
+     "node": "ext_git",
+     "what": "git merge --squash + commit в целевой ветке"
+    },
+    {
+     "node": "tm",
+     "what": "link_commits_to_task(): коммиты привязываются к задаче"
+    },
+    {
+     "node": "rag",
+     "what": "schedule_backfill(scope): фоновая переиндексация docs/tasks и логов"
+    },
+    {
+     "node": "vec_db",
+     "what": "новые чанки и вектора попадают в индекс"
+    }
+   ],
+   "outcome": "Работа воркера в main одним коммитом, задача связана с коммитами, память проекта знает о новом коде."
+  },
+  {
+   "id": "flow_tg",
+   "title": "Telegram → мост → агент → ответ в топик",
+   "trigger": "Пользователь пишет (или наговаривает) в топик агента в TG-группе",
+   "steps": [
+    {
+     "node": "ext_telegram",
+     "what": "telegram-bot-api отдаёт апдейт aiogram-диспетчеру"
+    },
+    {
+     "node": "tg_bridge",
+     "what": "определяет агента по топику, транскрибирует голос, склеивает текст"
+    },
+    {
+     "node": "manager",
+     "what": "_manager.send(sid, combined) кладёт сообщение в сессию"
+    },
+    {
+     "node": "session",
+     "what": "агент отрабатывает ход и порождает события"
+    },
+    {
+     "node": "tg_bridge",
+     "what": "wired callbacks + очередь доставки рисуют вывод и diff-картинки"
+    },
+    {
+     "node": "ext_telegram",
+     "what": "ответ уходит в тот же топик"
+    }
+   ],
+   "outcome": "Полный цикл общения с агентом из телефона; косметика и важные сообщения не делят одну очередь."
+  },
+  {
+   "id": "flow_sse",
+   "title": "Поток лога агента → SSE → дашборд",
+   "trigger": "Пользователь открыл агента в дашборде",
+   "steps": [
+    {
+     "node": "backends",
+     "what": "CLI отдаёт события хода (текст, tool_use, usage)"
+    },
+    {
+     "node": "session",
+     "what": "события пишутся в лог и публикуются в брокер"
+    },
+    {
+     "node": "db",
+     "what": "add_log(): история переживает рестарт и compact"
+    },
+    {
+     "node": "live_broker",
+     "what": "fan-out по подписчикам session_id"
+    },
+    {
+     "node": "routes_sessions",
+     "what": "GET /stream отдаёт историю, затем живые события"
+    },
+    {
+     "node": "web_ui",
+     "what": "EventSource дорисовывает строки без перезагрузки"
+    }
+   ],
+   "outcome": "Живой лог агента в браузере; первое событие __session называет разрешённый session_id, чтобы клиент не смешал историю двух агентов."
+  }
+ ]
+}

@@ -1,0 +1,202 @@
+{
+ "commit": "40691d4c6829032e7268f5af06e0449e55e37ca7",
+ "commit_policy": "коммит, из которого снята карта; актуальность проверяется фингерпринтами, а сам коммит обязан быть предком HEAD",
+ "working_tree_dirty": false,
+ "generated_at": "2026-08-05T10:53:12Z",
+ "scope": [
+  "app/",
+  "app/routes/",
+  "app/static/",
+  "app/templates/",
+  "tests/",
+  "scripts/",
+  "pipelines/"
+ ],
+ "excluded": [
+  "worktrees/",
+  ".venv/",
+  "__pycache__/",
+  "node_modules/",
+  "data/",
+  "docs/archive/",
+  "orchestra-archive/",
+  "app/static/css/vendor/"
+ ],
+ "fingerprint_algorithm": "sha256-v1: sha256 над отсортированными строками '<путь>\\0<sha256 содержимого>\\n'",
+ "modules": {
+  "web_ui": {
+   "files": [
+    "app/static/css/style.css",
+    "app/static/js/analytics.js",
+    "app/static/js/app.js",
+    "app/static/js/tool-renderers.js",
+    "app/static/js/usage.js",
+    "app/static/js/utils.js",
+    "app/templates/_globals.html",
+    "app/templates/dashboard.html",
+    "app/templates/login.html",
+    "scripts/build-tailwind.sh"
+   ],
+   "fingerprint": "6d7cce480a975eb2fe1a3ad7ea1dd3422edc3cbd942cf054da6ee58a20e2e1c6"
+  },
+  "http_api": {
+   "files": [
+    "app/__init__.py",
+    "app/auth.py",
+    "app/bootstrap.py",
+    "app/deps.py",
+    "app/main.py",
+    "app/routes/__init__.py"
+   ],
+   "fingerprint": "efa960ef6df0748e243e1614eec413bb2b31b9bbba05c93e7772cb00452a12ee"
+  },
+  "routes_sessions": {
+   "files": [
+    "app/routes/merge_operations.py",
+    "app/routes/sessions.py",
+    "app/routes/subagent.py"
+   ],
+   "fingerprint": "41098f974ba26051736df8cb5443610339d3b7a51a1eac44291b6268ec90c710"
+  },
+  "routes_system": {
+   "files": [
+    "app/routes/proxy.py",
+    "app/routes/system.py",
+    "app/usage_analytics.py"
+   ],
+   "fingerprint": "1fe5a3a9541d3da5ee4db2bfd9d5fdb34064c6fdbdcc457c6d2bcf510047539a"
+  },
+  "routes_aux": {
+   "files": [
+    "app/routes/bg.py",
+    "app/routes/memory.py",
+    "app/routes/tg.py",
+    "app/routes/tm.py"
+   ],
+   "fingerprint": "ea4977d41a4c65206e80cd9fc28f3495441916ff92559317b404fc0a02a397d4"
+  },
+  "manager": {
+   "files": [
+    "app/manager.py",
+    "app/notify.py"
+   ],
+   "fingerprint": "7927ac920a4def5becfcc7c71a6507862e8c1c6ba8992c2509a2bbadd173f962"
+  },
+  "session": {
+   "files": [
+    "app/session.py",
+    "app/session_cost.py",
+    "app/session_hibernate.py",
+    "app/session_state.py",
+    "app/session_turns.py"
+   ],
+   "fingerprint": "6728396544fca6a50c1af39b2d94608467f104da6c0c70c8a73d914f1c122602"
+  },
+  "runtime_registry": {
+   "files": [
+    "app/backend_protocol.py",
+    "app/events.py",
+    "app/models.py",
+    "app/runtime_env.py",
+    "app/runtime_registry.py",
+    "app/usage_contract.py"
+   ],
+   "fingerprint": "a5e647a934429487502fe94a81d4ca224cf482fe722a5b25b9f44a082547051d"
+  },
+  "backends": {
+   "files": [
+    "app/backend_claude.py",
+    "app/backend_codex.py",
+    "app/backend_grok.py",
+    "app/backend_jsonrpc.py",
+    "app/backend_opencode.py"
+   ],
+   "fingerprint": "7fd8167b143f58f59db03bac437edade264af3252d0f51cefe7261eef30f0ec5"
+  },
+  "mcp_server": {
+   "files": [
+    "app/charts.py",
+    "app/codex_review_artifact.py",
+    "app/mcp_stdio.py"
+   ],
+   "fingerprint": "cf16d98fc729c0c6ad95d8602d29a13eb9b1b324e4f2e88657fc729244e6d3d9"
+  },
+  "workspace": {
+   "files": [
+    "app/workspace.py"
+   ],
+   "fingerprint": "60e0558e67010b1830f58f5a03c183de9d5492b261a578128537b93c72056bd7"
+  },
+  "merge_operations": {
+   "files": [
+    "app/merge_operations.py"
+   ],
+   "fingerprint": "c77e6d80faf1a7823c85110dfa409bf4460cc73652a3135def336a0268fc2933"
+  },
+  "db": {
+   "files": [
+    "app/blobs.py",
+    "app/db.py",
+    "scripts/blob-inventory.py",
+    "scripts/migrate_agent.py"
+   ],
+   "fingerprint": "b22b3b00a370d1ebfa9a433533a1c7945caa57efd0f37cccc74d3c5a7cdc7590"
+  },
+  "live_broker": {
+   "files": [
+    "app/live_broker.py"
+   ],
+   "fingerprint": "fa593ecf68b75de45bdd67fd25221eb89adfa9b23ee2bb76fa2bff1fb8798e56"
+  },
+  "bg_jobs": {
+   "files": [
+    "app/bg_jobs.py",
+    "app/limit_wake.py",
+    "app/pidfd_exec.py",
+    "app/tasks.py"
+   ],
+   "fingerprint": "5dea7af0d5aa7ed62361c4fa69ae275e2f1ca50076f00f693c46dab4d75f9a2a"
+  },
+  "tg_bridge": {
+   "files": [
+    "app/diff_image.py",
+    "app/tg_bridge.py",
+    "app/tool_call_guard.py"
+   ],
+   "fingerprint": "1f3f268d6459613436dc559be5cc86157c11bf8fd65a15a399be4705f15e1f15"
+  },
+  "rag": {
+   "files": [
+    "app/rag.py",
+    "app/rag_service.py"
+   ],
+   "fingerprint": "e883b63d3588c772c60e5fe36a1f6eda4d70bef9b8e9211e0b27f11ee3d8e04a"
+  },
+  "tm": {
+   "files": [
+    "app/tm.py",
+    "app/tm_import_yougile.py",
+    "app/tm_yougile.py"
+   ],
+   "fingerprint": "4e5eb3f992531d2d1ac3eda464692ec10a081f70175e585fdb401538cdbdfcaa"
+  },
+  "pipeline": {
+   "files": [
+    "app/pipeline.py",
+    "app/prompting.py",
+    "pipelines/default/pipeline.yaml",
+    "pipelines/default/prompts/base.md",
+    "scripts/extract-manifest.py"
+   ],
+   "fingerprint": "bdc6e4445e91ebf1dbd764ef11650771edb4a210d14fb25c4c6b51193acafb87"
+  },
+  "net_proxy": {
+   "files": [
+    "app/proxy_manager.py",
+    "app/ssh_tunnel.py",
+    "scripts/check-proxies.sh"
+   ],
+   "fingerprint": "9d0657e7623a0ff910af402bd3a3c05e6a688970f9c4811cebaef776dff726c9"
+  }
+ }
+}
