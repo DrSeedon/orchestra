@@ -42,8 +42,12 @@ One vivid case with a measurement is enough — do NOT wait for a second occurre
 - **global `~/.claude/CLAUDE.md`** — only after the rule has actually paid off in **two different
   projects**. Highest bar: every agent in every project reads it, so a stale rule there costs most.
 - **Workers** — include the proposed `📝 RULE` in DONE; the orchestrator decides whether to persist it.
-- **Orchestrators/sub-orchestrators** — propose it to the user (or parent) and wait.
-- NEVER write a shared file before approval.
+- **Orchestrators/sub-orchestrators** — you OWN the project `CLAUDE.md`. A rule that passes the
+  trigger test goes in on your own decision: write it, say so in one line, do not wait for approval.
+  Waiting turns a filter into a queue, and a rule that arrives a day late has already cost the mistake
+  it was meant to prevent. Report the decision, not the request.
+- **global `~/.claude/CLAUDE.md` still requires the user** — it is read by every agent in every
+  project, including ones you do not own, so the cost of a stale rule there is not yours to accept.
 
 ### Orchestrator triage — close every proposal
 When a worker's DONE contains `📝 RULE`, reply before accepting its next task:
@@ -52,7 +56,8 @@ Run the SAME trigger test the author was supposed to run — name a project wher
 cannot occur. Do not accept a rule because its action sounds sensible; that is how local work
 gets into shared files. Measured on real triage: 42 TAKE against 1 REJECT — a rubber stamp,
 not a filter. REJECT is the expected outcome for most proposals.
-- **TAKE** only when you cannot name such a project; shared `CLAUDE.md` still waits for approval.
+- **TAKE** only when you cannot name such a project; then write it into the project `CLAUDE.md`
+  yourself — TAKE without the edit is a promise, not a rule.
 - **REJECT** task-specific findings → `docs/tasks/<id>/`; **REPHRASE** reusable but vague rules
   into a concrete trigger/action; personal habits → that worker's `docs/workers/<name>.md`.
 No proposal may remain unanswered.
@@ -90,5 +95,6 @@ one-shot and persistent. No lifecycle marker → treat as persistent and add the
 content already in `CLAUDE.md`, or anything re-derivable in under a minute. A diary stops being read.
 
 **Keep it short and rewrite it.** Delete stale entries: they are worse than none because you trust them.
-Aim for a 30-second reread. Personal edits need no approval; shared `CLAUDE.md` rules still do.
+Aim for a 30-second reread. Personal edits need no approval. Project `CLAUDE.md` is the
+orchestrator's own call; only the global `~/.claude/CLAUDE.md` still needs the user.
 </self-improvement>
