@@ -1450,14 +1450,19 @@ function _showChatDropError(message) {
     error.textContent = message;
 }
 
-function _appendDroppedPath(input, path, url) {
-    // Присваивание value уводит каретку в конец — юзер в этот момент печатает,
-    // поэтому позицию возвращаем на место
-    const {selectionStart, selectionEnd} = input;
-    const focused = document.activeElement === input;
-    input.value += (input.value ? '\n' : '') + path;
+function _insertPathAtCaret(input, path, url) {
+    // Путь встаёт туда, где каретка (заменяя выделение): юзер в этот момент печатает,
+    // и дописывание в конец уводило бы его текст ЗА путь
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    const before = input.value.slice(0, start);
+    const after = input.value.slice(end);
+    const prefix = before && !before.endsWith('\n') ? '\n' : '';
+    const suffix = after && !after.startsWith('\n') ? '\n' : '';
+    input.value = before + prefix + path + suffix + after;
+    const caret = before.length + prefix.length + path.length;
     input.focus();
-    if (focused) input.setSelectionRange(selectionStart, selectionEnd);
+    input.setSelectionRange(caret, caret);
     pastedImages.push(url);
     showImagePreview(url, path);
 }
@@ -1474,7 +1479,7 @@ async function _handleChatDrop(input, dataTransfer) {
     if (!path) return;
     const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)
         ? `/api/files/raw?path=${encodeURIComponent(path)}` : path;
-    _appendDroppedPath(input, path, url);
+    _insertPathAtCaret(input, path, url);
 }
 
 function _hasDropType(dataTransfer, type) {
@@ -2624,7 +2629,7 @@ async function _uploadToChat(file, filename) {
     })();
     try {
         const data = await promise;
-        _appendDroppedPath($('#chat-input'), data.path, data.url || data.path);
+        _insertPathAtCaret($('#chat-input'), data.path, data.url || data.path);
         return data;
     } catch (error) {
         // У TimeoutError и сетевых ошибок message бывает пустой — печатаем и класс.
@@ -5791,13 +5796,9 @@ function _createFileItem(f, container) {
         sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
         sendBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const input = $('#chat-input');
-            input.value += (input.value ? '\n' : '') + f.path;
-            input.focus();
             const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
                 ? `/api/files/raw?path=${encodeURIComponent(f.path)}` : f.path;
-            pastedImages.push(url);
-            showImagePreview(url, f.path);
+            _insertPathAtCaret($('#chat-input'), f.path, url);
         });
         item.appendChild(sendBtn);
         item.addEventListener('mouseenter', () => sendBtn.style.opacity = '1');

@@ -413,6 +413,40 @@ def test_orchestrator_unread_tracks_own_turn_only(dashboard_browser: Browser):
     }
 
 
+def test_dropped_path_lands_at_caret_not_at_end(dashboard_browser: Browser):
+    """#94: юзер печатал в середине — путь обязан встать туда, а не в конец."""
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    insert_code = "function _insertPathAtCaret" + source.split(
+        "function _insertPathAtCaret", 1,
+    )[1].split("\nasync function _handleChatDrop", 1)[0]
+
+    page = dashboard_browser.new_page()
+    page.set_content('<textarea id="chat-input"></textarea>')
+    page.add_script_tag(content=f"""
+        let pastedImages = [];
+        function showImagePreview() {{}}
+        {insert_code}
+        window.insert = (text, start, end) => {{
+            const i = document.querySelector('#chat-input');
+            i.value = text; i.focus(); i.setSelectionRange(start, end ?? start);
+            _insertPathAtCaret(i, '/tmp/pic.png', '/tmp/pic.png');
+            return {{value: i.value, start: i.selectionStart, end: i.selectionEnd}};
+        }};
+    """)
+    middle = page.evaluate("() => insert('посмотри сюда', 9)")
+    selection = page.evaluate("() => insert('убери это слово', 6, 9)")
+    empty = page.evaluate("() => insert('', 0)")
+    tail = page.evaluate("() => insert('хвост', 5)")
+    page.close()
+
+    assert middle["value"] == "посмотри \n/tmp/pic.png\nсюда"
+    # каретка сразу после пути — юзер дописывает ПОСЛЕ него, а не перед
+    assert middle["start"] == middle["end"] == len("посмотри \n/tmp/pic.png")
+    assert selection["value"] == "убери \n/tmp/pic.png\n слово"
+    assert empty["value"] == "/tmp/pic.png"
+    assert tail["value"] == "хвост\n/tmp/pic.png"
+
+
 def test_chat_drop_handles_files_tree_paths_and_upload_errors(
     dashboard_browser: Browser,
 ):
