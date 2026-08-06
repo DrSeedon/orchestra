@@ -89,6 +89,29 @@ def _extract_tool_result(block) -> str:
     return text
 
 
+# Above 2^53 an integer no longer survives a float64 JSON parse, and every hop between the
+# model and an MCP server that is written in JS does exactly that parse. 19-digit ids are
+# normal for Yandex.Direct, Telegram and Discord. A schema typed `string` rejects the rounded
+# value loudly; a schema that accepts `number` takes it silently and the write lands on
+# somebody else's object. See docs/tasks/129/research.md.
+_FLOAT64_SAFE_INT = 2 ** 53
+
+
+def _oversized_ints(value, path: str = ""):
+    """Yield (json path, value) for every int in a tool argument that exceeds 2^53."""
+    if isinstance(value, bool):
+        return
+    if isinstance(value, int):
+        if abs(value) > _FLOAT64_SAFE_INT:
+            yield path or "<root>", value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _oversized_ints(item, f"{path}.{key}")
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            yield from _oversized_ints(item, f"{path}[{i}]")
+
+
 class ClaudeBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
@@ -400,6 +423,12 @@ class ClaudeBackend:
                         inp = _json.dumps(block.input, ensure_ascii=False, indent=2)
                     except Exception:
                         inp = str(block.input)
+                    for field, big in _oversized_ints(block.input):
+                        logger.warning(
+                            "big-int tool arg: %s %s = %d exceeds 2^53 — precision is not "
+                            "guaranteed past a JS JSON.parse; ids must be passed as strings",
+                            block.name, field, big,
+                        )
                     short_name = block.name.split('__')[-1] if '__' in block.name else block.name
                     events.append(self._tag_sub(AgentEvent("tool_use", f"{block.name}: {inp}",
                                              metadata={

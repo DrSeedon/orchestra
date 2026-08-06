@@ -1,6 +1,7 @@
 """Task #39 Fix 6 — ClaudeBackend cleans up client on connect/reconnect failure (no zombie CLI)."""
 
 import asyncio
+import logging
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -234,3 +235,53 @@ def test_tool_failure_preserves_stable_use_id_and_explicit_error():
         "is_error": True,
     }
     assert completed[0].content == "file not found"
+
+
+# --- #130: big-int tool arguments are flagged before a float64 parse eats them ---
+
+_BIG = 1917704623170653147  # real Yandex.Direct ad id from docs/tasks/129/research.md
+
+
+def _warnings(caplog, tool_input, name="mcp__yandex-direct__update_text_ad"):
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="app.backend_claude"):
+        _backend()._convert(AssistantMessage(
+            content=[ToolUseBlock(id="t-1", name=name, input=tool_input)],
+            model="claude-sonnet-5[1m]",
+        ))
+    return [r.getMessage() for r in caplog.records if "big-int tool arg" in r.getMessage()]
+
+
+def test_big_int_tool_arg_is_logged_with_tool_name_and_field_path(caplog):
+    msgs = _warnings(caplog, {"ad_id": _BIG, "title2": "Договор"})
+
+    assert len(msgs) == 1
+    assert "mcp__yandex-direct__update_text_ad" in msgs[0]
+    assert ".ad_id" in msgs[0]
+    assert str(_BIG) in msgs[0]
+
+
+def test_big_int_found_inside_nested_dicts_and_lists(caplog):
+    msgs = _warnings(caplog, {"batch": [{"ids": [1, _BIG]}, {"ids": [2]}]})
+
+    assert len(msgs) == 1
+    assert ".batch[0].ids[1]" in msgs[0]
+
+
+def test_every_big_int_gets_its_own_line(caplog):
+    msgs = _warnings(caplog, {"a": _BIG, "b": -_BIG - 5})
+
+    assert len(msgs) == 2
+    assert {".a", ".b"} == {m.split(" = ")[0].rsplit(" ", 1)[-1] for m in msgs}
+
+
+def test_safe_tool_args_log_nothing(caplog):
+    # 2**53 itself is exactly representable; strings, bools and floats are not our business
+    assert _warnings(caplog, {
+        "ad_id": str(_BIG),
+        "campaign_id": 713339200,
+        "edge": 2 ** 53,
+        "enabled": True,
+        "ratio": 1.5,
+        "text": f"id {_BIG} came back from list_ads",
+    }) == []
