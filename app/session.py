@@ -155,6 +155,19 @@ def _configured_auto_compact_window_state(
     }
 
 
+def auto_compact_enabled() -> bool:
+    """`AUTO_COMPACT_ENABLED=0` полностью выключает АВТОМАТИЧЕСКИЙ компакт оркестратора.
+
+    Ручной `compact_worker` не затрагивается — это аварийный выход. Воркерский автокомпакт
+    по >90% тоже: он держит воркера работоспособным, а жалоба была про оркестратора, который
+    к утру приходил с компакта посреди начатой ночью работы.
+
+    Читается на КАЖДОМ решении, а не при импорте: иначе значение застывает на момент старта
+    процесса, и правка `.env` не действует до перезапуска даже там, где могла бы.
+    """
+    return os.getenv("AUTO_COMPACT_ENABLED", "1").strip().lower() in ("1", "true", "yes")
+
+
 def validate_auto_compact_window_config() -> None:
     _configured_auto_compact_window_state(
         datetime.now(timezone.utc),
@@ -288,6 +301,8 @@ class AgentSession:
     _manually_interrupted: bool = field(default=False, repr=False)
     _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
     _precompact_timer: dict | None = field(default=None, repr=False)
+    # Одна строка в журнал на сессию: решение принимается каждый ход, а причина не меняется.
+    _auto_compact_off_logged: bool = field(default=False, repr=False)
 
     AUTO_CONTINUE_MAX = 5
     RATE_LIMIT_MAX_RETRIES = 3
@@ -348,6 +363,16 @@ class AgentSession:
             *, log_status: bool = True, deferred: bool = False) -> bool:
         if not self.is_orchestrator:
             return False
+        if not auto_compact_enabled():
+            # Таймер мог быть взведён до того, как флаг выставили: решение о компакте
+            # принимается здесь, поэтому здесь же он и обязан гаситься.
+            if log_status:
+                self._log(
+                    "status",
+                    "auto-compact disabled (AUTO_COMPACT_ENABLED=0); "
+                    "manual compact remains available",
+                )
+            return True
         state = self._auto_compact_window_state(now_utc)
         if state["allowed"]:
             return False
@@ -430,6 +455,17 @@ class AgentSession:
             return
         policy = self._precompact_policy()
         if policy is None or context_pct < policy["arm_threshold"]:
+            return
+        if self.is_orchestrator and not auto_compact_enabled():
+            # Не взводим вовсе: гейт ниже по течению отменил бы компакт, но таймер писал бы
+            # в журнал «запланирован» и «пропущен» на каждом ходу.
+            if not self._auto_compact_off_logged:
+                self._auto_compact_off_logged = True
+                self._log(
+                    "status",
+                    "auto-compact disabled (AUTO_COMPACT_ENABLED=0): precompact timer not "
+                    "scheduled; manual compact remains available",
+                )
             return
         window_warning_logged = False
         if context_pct > 90:

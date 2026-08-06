@@ -3282,3 +3282,77 @@ async def test_image_tool_result_is_logged_verbatim_not_as_a_blob_reference(
 
     session._log.assert_any_call("tool_result", payload)
     assert not (tmp_path / "blobs").exists()
+
+
+class TestAutoCompactKillSwitch:
+    """`AUTO_COMPACT_ENABLED=0` — выключатель автокомпакта оркестратора (#122).
+
+    Жалоба была буквальной: ночью идёт работа, утром оркестратор приходит с компакта.
+    Окно 21:00-06:00 компакт внутри себя РАЗРЕШАЛО, то есть срабатывало ровно в рабочие часы,
+    а выключателя не существовало вовсе.
+    """
+
+    @staticmethod
+    def _orchestrator(session, monkeypatch):
+        monkeypatch.delenv("AUTO_COMPACT_WINDOW_START", raising=False)
+        monkeypatch.delenv("AUTO_COMPACT_WINDOW_END", raising=False)
+        monkeypatch.delenv("AUTO_COMPACT_TIMEZONE", raising=False)
+        session._is_orchestrator = True
+        session.backend_type = "claude"
+        session._last_context = {"percentage": 95, "known": True}
+        return session
+
+    def test_disabled_blocks_compaction_inside_the_window(self, session, monkeypatch):
+        """Внутри окна компакт разрешён, значит проверять флаг надо именно здесь."""
+        s = self._orchestrator(session, monkeypatch)
+        logs = []
+        s._log = lambda kind, content, **_kw: logs.append(content)
+        inside_window = datetime(2026, 7, 28, 23, 0, tzinfo=timezone.utc)  # 06:00 Krasnoyarsk
+        assert s._auto_compact_window_state(inside_window)["allowed"] is False
+
+        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+        assert s._auto_compact_window_blocked(95, inside_window) is True
+        assert any("AUTO_COMPACT_ENABLED=0" in line for line in logs)
+        assert any("manual compact remains available" in line for line in logs)
+
+    def test_disabled_does_not_arm_the_precompact_timer(self, session, monkeypatch):
+        s = self._orchestrator(session, monkeypatch)
+        logs = []
+        s._log = lambda kind, content, **_kw: logs.append(content)
+        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+
+        s._schedule_precompact_timer(95)
+        s._schedule_precompact_timer(95)  # решение принимается каждый ход
+
+        assert s._precompact_timer is None
+        assert sum("AUTO_COMPACT_ENABLED=0" in line for line in logs) == 1, \
+            "причина не меняется — в журнал она попадает один раз за сессию"
+
+    def test_enabled_is_the_current_behaviour(self, session, monkeypatch):
+        """Дефолт — как было: переменной нет, таймер взводится, гейт решает по окну."""
+        s = self._orchestrator(session, monkeypatch)
+        s._log = lambda *_a, **_kw: None
+        # взведённый таймер уходит в фон, а лупа в синхронном тесте нет
+        s._spawn_bg = lambda coro: (coro.close(), MagicMock())[1]
+        monkeypatch.delenv("AUTO_COMPACT_ENABLED", raising=False)
+
+        s._schedule_precompact_timer(95)
+
+        assert s._precompact_timer is not None
+        allowed_hour = datetime(2026, 7, 28, 14, 0, tzinfo=timezone.utc)  # 21:00 Krasnoyarsk
+        assert s._auto_compact_window_blocked(95, allowed_hour, log_status=False) is False
+
+    def test_worker_path_is_untouched_by_the_switch(self, session, monkeypatch):
+        """Воркерский автокомпакт защищает от упора в лимит — флаг его не касается."""
+        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+        session._is_orchestrator = False
+        assert session._auto_compact_window_blocked(95) is False
+
+    @pytest.mark.parametrize(
+        ("raw", "enabled"),
+        [("0", False), ("false", False), ("no", False), ("1", True), ("true", True), ("", False)],
+    )
+    def test_value_is_read_on_every_decision(self, monkeypatch, raw, enabled):
+        from app.session import auto_compact_enabled
+        monkeypatch.setenv("AUTO_COMPACT_ENABLED", raw)
+        assert auto_compact_enabled() is enabled
