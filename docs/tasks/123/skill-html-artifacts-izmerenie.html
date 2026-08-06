@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Скилл html-artifacts — что изменилось и чему из этого верить</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%238a5512'/%3E%3Cpath d='M3 11h10M5 11V6M8 11V4M11 11V7' stroke='%23fff' stroke-width='1.4' fill='none'/%3E%3C/svg%3E">
+<style>
+/* акцент: латунная охра — предмет отчёта не дизайн, а ИЗМЕРЕНИЕ. Это цвет шкалы
+   прибора, нониуса и клейма на гире: латунь — то, из чего делают меры. И он же
+   единственный тон, которого не даёт ни фиолетовый дефолт «до», ни бирюзовый
+   кластер «после», — то есть подпись под главной оговоркой отчёта. */
+:root{
+  color-scheme: light dark;
+  --accent: light-dark(#8a5512, #d59a3a);
+  --ink:    light-dark(#1b1712, #ebe4d7);
+  --bg:     light-dark(#f7f4ee, #14120e);
+
+  --fs: 15px;
+  --radius: 10px;
+
+  --muted: color-mix(in oklab, var(--ink) 62%, var(--bg));
+  --faint: color-mix(in oklab, var(--ink) 38%, var(--bg));
+  --rule:  color-mix(in oklab, var(--ink) 15%, var(--bg));
+  --card:  color-mix(in oklab, var(--ink) 5%, transparent);
+  --wash:  color-mix(in oklab, var(--accent) 9%, var(--bg));
+  --ring:  var(--accent);
+
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: ui-serif, Georgia, "Times New Roman", serif;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+}
+*{ box-sizing: border-box; }
+html{ background: var(--bg); }
+body{
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: var(--fs)/1.55 var(--sans);
+  letter-spacing: 0;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap{ max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+/* Секции — горизонтальные полосы, разделённые линейкой, а не плавающие карточки */
+.band{ border-bottom: 1px solid var(--rule); padding: 26px 0; }
+.band:last-of-type{ border-bottom: 0; }
+
+h1, h2, h3{ font-family: var(--serif); font-weight: 600; letter-spacing: 0; margin: 0; }
+h1{ font-size: calc(var(--fs) * 1.72); line-height: 1.22; max-width: 40ch; }
+h2{ font-size: calc(var(--fs) * 1.29); margin-bottom: 10px; }
+h3{ font-size: calc(var(--fs) * 1.06); margin-bottom: 4px; }
+p{ margin: 0 0 10px; max-width: 78ch; }
+p:last-child{ margin-bottom: 0; }
+
+.eyebrow{
+  font: 600 calc(var(--fs) * .72)/1 var(--mono);
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 10px;
+}
+.lede{ font-size: calc(var(--fs) * 1.06); color: var(--muted); max-width: 74ch; }
+b, strong{ font-weight: 650; }
+code{ font: calc(var(--fs) * .88)/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+
+/* ── шапка ───────────────────────────────────────────────────────────── */
+header.band{ padding: 30px 0 24px; }
+.head-grid{ display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 28px; align-items: end; }
+.meta{ margin: 0; font: calc(var(--fs) * .8)/1.7 var(--mono); color: var(--faint); text-align: right; white-space: nowrap; }
+.meta b{ color: var(--muted); font-weight: 500; }
+header p.lede{ margin-top: 12px; }
+
+/* ── строка чисел ────────────────────────────────────────────────────── */
+.scores{ display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+.score{ background: var(--bg); padding: 13px 15px 15px; }
+.score .k{ font: calc(var(--fs) * .74)/1.35 var(--mono); color: var(--faint); text-transform: uppercase; min-height: 2.7em; }
+.score .v{ font: 500 calc(var(--fs) * 1.72)/1.1 var(--mono); color: var(--accent); margin-top: 9px; white-space: nowrap; }
+.score .v .of{ font-size: calc(var(--fs) * .84); color: var(--muted); margin-left: .2em; }
+.score.hold .v{ color: var(--muted); }
+.score .was{ font: calc(var(--fs) * .78)/1.4 var(--mono); color: var(--faint); margin-top: 3px; white-space: nowrap; }
+.score .n{ font: calc(var(--fs) * .76)/1.4 var(--sans); color: var(--faint); margin-top: 7px; }
+
+/* ── оговорка ────────────────────────────────────────────────────────── */
+.caveat{ background: var(--wash); border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; margin-top: 22px; }
+.caveat h2{ margin-bottom: 6px; }
+.caveat p{ color: var(--muted); }
+.caveat p b{ color: var(--ink); }
+
+/* ── общая сетка колонок ─────────────────────────────────────────────── */
+.cols{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 26px; }
+.cols-3{ display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 20px; }
+
+/* ── таблицы ─────────────────────────────────────────────────────────── */
+table{ width: 100%; border-collapse: collapse; font-size: calc(var(--fs) * .9); }
+th, td{ text-align: left; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th{ font: 600 calc(var(--fs) * .72)/1.3 var(--mono); text-transform: uppercase; color: var(--faint); }
+tbody tr:last-child td{ border-bottom: 0; }
+td.num{ font-family: var(--mono); white-space: nowrap; color: var(--muted); }
+.yes{ color: var(--accent); font-weight: 600; }
+.no{ color: var(--muted); font-weight: 600; }
+.no::before{ content: "— "; color: var(--faint); }
+
+/* ── шкала тонов ─────────────────────────────────────────────────────── */
+.hue{ width: 100%; height: auto; display: block; }
+.hue text{ font-family: var(--mono); fill: currentColor; }
+.hue .ax{ stroke: var(--rule); }
+.hue .lab{ font-size: 8.5px; fill: var(--faint); }
+.hue .row-lab{ font-size: 9.5px; fill: var(--muted); }
+.hue .grp{ stroke: var(--faint); fill: none; }
+.dot-stroke{ stroke: var(--bg); stroke-width: 1.5; }
+
+.legend{ font-size: calc(var(--fs) * .95); color: var(--muted); margin: 12px 0 14px; }
+.legend b{ color: var(--ink); }
+
+/* ── три случая ──────────────────────────────────────────────────────── */
+.case{ background: var(--card); border-radius: var(--radius); padding: 15px 17px; }
+.case .badnum{ font: 500 calc(var(--fs) * 1.06)/1.3 var(--mono); color: var(--muted); margin: 6px 0 8px; padding-left: 11px; border-left: 2px solid var(--accent); }
+.case p{ font-size: calc(var(--fs) * .9); color: var(--muted); }
+details{ margin-top: 9px; border-top: 1px solid var(--rule); padding-top: 8px; }
+summary{ font: 600 calc(var(--fs) * .76)/1.4 var(--mono); text-transform: uppercase; color: var(--faint); cursor: pointer; border-radius: calc(var(--radius) * .6); padding: 2px 4px; margin-left: -4px; list-style-position: inside; }
+summary:hover{ color: var(--muted); }
+details > *:not(summary){ font-size: calc(var(--fs) * .84); color: var(--muted); margin-top: 7px; }
+details pre{ font-family: var(--mono); white-space: pre-wrap; margin: 7px 0 0; }
+
+/* ── источники ───────────────────────────────────────────────────────── */
+.src td:first-child{ width: 38%; }
+.src td:nth-child(2){ width: 25%; }
+.tag{ display: block; font: 600 calc(var(--fs) * .74)/1 var(--mono); text-transform: uppercase; }
+.why{ display: block; margin-top: 4px; font-size: calc(var(--fs) * .84); color: var(--muted); }
+
+/* Числовые колонки узкие: их читают глазом вдоль, а не поперёк */
+.survive td:first-child{ width: 27%; }
+.survive td:nth-child(2), .survive td:nth-child(3){ width: 13%; }
+
+.footnote{ font-size: calc(var(--fs) * .84); color: var(--muted); }
+.footnote code{ font-size: calc(var(--fs) * .82); }
+
+/* Тень — только как состояние фокуса, не как украшение */
+a{ color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; border-radius: calc(var(--radius) * .4); }
+a:focus-visible, summary:focus-visible{
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--ring), 0 0 0 2px color-mix(in oklab, var(--ring) 35%, transparent);
+}
+
+@media (max-width: 720px){
+  .head-grid{ grid-template-columns: 1fr; align-items: start; }
+  .meta{ text-align: left; white-space: normal; }
+  .wrap{ padding: 0 18px; }
+  /* Проценты колонок держат сетку только пока помещается содержимое */
+  table{ font-size: calc(var(--fs) * .82); }
+  td.num{ white-space: normal; }
+  .survive td, .src td{ width: auto; }
+}
+
+@media print{
+  :root{ color-scheme: light; }
+  html, body{ background: #fff; color: #000; }
+  body{ font-size: 10.5pt; }
+  .wrap{ max-width: none; padding: 0; }
+  .band{ padding: 12px 0; break-inside: avoid; border-bottom: 1px solid #bbb; }
+  .caveat{ background: #f2f2f2; border-left-color: #000; }
+  .scores{ border-color: #bbb; }
+  .score{ background: #fff; }
+  summary{ cursor: auto; }
+  a{ color: #000; }
+  *{ print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="band">
+  <div class="head-grid">
+    <div>
+      <div class="eyebrow">Задача #119 · замер до/после</div>
+      <h1>Скилл html-artifacts: что изменилось и чему из этого верить</h1>
+    </div>
+    <p class="meta">
+      05.08.2026<br>
+      <b>14</b> артефактов · <b>14</b> независимых сессий<br>
+      <b>claude-opus-5[1m]</b>, роль worker<br>
+      пороги пререгистрированы <b>до</b> правки
+    </p>
+  </div>
+  <p class="lede">
+    Из системных промптов Codex вытащили дизайн-принципы и переписали ими наш скилл. Между двумя
+    плечами замера отличается <b>только текст файла-скилла</b> — задания, модель и роль дословно те же.
+    Ниже сначала то, что правка действительно даёт, потом то, что ей приписали незаслуженно.
+  </p>
+</header>
+
+<section class="band">
+  <div class="eyebrow">Пять заданий, по независимой сессии на каждое</div>
+  <div class="scores">
+    <div class="score">
+      <div class="k">Фиолетовый дефолт<br>H 235–295</div>
+      <div class="v">0 <span class="of">из 5</span></div>
+      <div class="was">было 5 из 5</div>
+      <div class="n">порог ≤ 1 из 5</div>
+    </div>
+    <div class="score">
+      <div class="k">Уникальных<br>акцентов</div>
+      <div class="v">5 <span class="of">из 5</span></div>
+      <div class="was">было 1 из 5</div>
+      <div class="n">по хексам — см. оговорку</div>
+    </div>
+    <div class="score">
+      <div class="k">Типографская<br>иерархия</div>
+      <div class="v">5 <span class="of">из 5</span></div>
+      <div class="was">было 3 из 5</div>
+      <div class="n">шкала на <code>calc</code>/<code>var</code>: было 0 из 5</div>
+    </div>
+    <div class="score">
+      <div class="k">Фокус<br>с клавиатуры</div>
+      <div class="v">3 <span class="of">из 3</span></div>
+      <div class="was">было 1 из 4</div>
+      <div class="n">все интерактивные артефакты</div>
+    </div>
+    <div class="score">
+      <div class="k">Печать<br><code>@media print</code></div>
+      <div class="v">5 <span class="of">из 5</span></div>
+      <div class="was">было 0 из 5</div>
+      <div class="n">порог 5 из 5</div>
+    </div>
+    <div class="score hold">
+      <div class="k">Гард: один файл<br>+ работает офлайн</div>
+      <div class="v">5 <span class="of">из 5</span></div>
+      <div class="was">было 5 из 5</div>
+      <div class="n">блокер — не сломан</div>
+    </div>
+  </div>
+
+  <div class="caveat">
+    <h2>Оговорка, без которой эта таблица врёт</h2>
+    <p>
+      «Уникальных акцентов 5 из 5» считает <b>хексы</b>. По тону перцептивно различимых групп
+      <b>две, а не пять</b>: тревожный тёплый на разборе сбоя и один бирюзовый на остальных
+      четырёх — четыре задания из пяти инфраструктурные, а ориентиры в скилле отправляют
+      инфраструктуру в холодную зону.
+    </p>
+    <p>
+      И вторая половина цены: на ярких бытовых темах <b>старый скилл уходил от фиолетового сам</b>
+      (меню детского праздника — <code>#e0653f</code>) и <b>сам добавлял печать</b>. Значит часть
+      прироста по этим двум метрикам принадлежит теме, а не правке.
+    </p>
+  </div>
+</section>
+
+<section class="band">
+  <h2>Все 14 артефактов по тону</h2>
+  <p class="lede">
+    Каждая точка — объявленный акцент одного артефакта, закрашена своим же цветом.
+    Скобка снизу — группа тонов, неразличимых при пороге 25°.
+  </p>
+
+  <svg class="hue" viewBox="0 0 720 196" role="img"
+       aria-label="Шкала тонов: до правки шесть артефактов в фиолетовом и один тёплый, две группы. После правки пять в бирюзовом кластере, один тёплый, один малиновый, три группы.">
+    <!-- Ось тона 0–360°, x = 92 + H/360*600 -->
+    <g class="ax">
+      <line x1="92" y1="168" x2="692" y2="168"/>
+      <line x1="92" y1="164" x2="92" y2="172"/>
+      <line x1="242" y1="164" x2="242" y2="172"/>
+      <line x1="392" y1="164" x2="392" y2="172"/>
+      <line x1="542" y1="164" x2="542" y2="172"/>
+      <line x1="692" y1="164" x2="692" y2="172"/>
+    </g>
+    <g class="lab" text-anchor="middle">
+      <text x="92"  y="188">0°</text>
+      <text x="242" y="188">90°</text>
+      <text x="392" y="188">180°</text>
+      <text x="542" y="188">270°</text>
+      <text x="692" y="188">360°</text>
+    </g>
+
+    <!-- ДО: 6 × #7c3aed (262°) + #e0653f (14°). Это ДАННЫЕ замера, а не тема страницы. -->
+    <g class="row-lab"><text x="0" y="44">ДО</text><text x="0" y="60" class="lab">2 группы</text></g>
+    <line class="ax" x1="92" y1="48" x2="692" y2="48" stroke-dasharray="2 4"/>
+    <circle class="dot-stroke" cx="115" cy="48" r="9" fill="#e0653f"/>
+    <circle class="dot-stroke" cx="529" cy="48" r="9" fill="#7c3aed"/>
+    <circle class="dot-stroke" cx="529" cy="48" r="15" fill="none" stroke="#7c3aed" stroke-opacity=".45" stroke-width="1.5"/>
+    <text class="lab" x="529" y="26" text-anchor="middle">× 6 — один и тот же #7c3aed</text>
+    <text class="lab" x="115" y="26" text-anchor="middle">праздник</text>
+
+    <!-- ПОСЛЕ -->
+    <g class="row-lab"><text x="0" y="106">ПОСЛЕ</text><text x="0" y="122" class="lab">3 группы</text></g>
+    <line class="ax" x1="92" y1="110" x2="692" y2="110" stroke-dasharray="2 4"/>
+    <circle class="dot-stroke" cx="124" cy="110" r="9" fill="#b1420e"/>
+    <circle class="dot-stroke" cx="355" cy="110" r="9" fill="#0f7a52"/>
+    <circle class="dot-stroke" cx="379" cy="110" r="9" fill="#0b7264"/>
+    <circle class="dot-stroke" cx="379" cy="110" r="9" fill="#0c6b5f"/>
+    <circle class="dot-stroke" cx="382" cy="110" r="9" fill="#0d7a70"/>
+    <circle class="dot-stroke" cx="384" cy="110" r="9" fill="#0a6a62"/>
+    <circle class="dot-stroke" cx="665" cy="110" r="9" fill="#bd2a52"/>
+    <text class="lab" x="124" y="88" text-anchor="middle">пост-мортем</text>
+    <text class="lab" x="371" y="88" text-anchor="middle">× 5 — 158…175°, один кластер</text>
+    <text class="lab" x="665" y="88" text-anchor="middle">праздник</text>
+
+    <!-- Группы при пороге 25° -->
+    <path class="grp" d="M110 132 v8 h28 v-8"/>
+    <path class="grp" d="M341 132 v8 h57 v-8"/>
+    <path class="grp" d="M651 132 v8 h28 v-8"/>
+  </svg>
+
+  <p class="legend">
+    Разнообразие выросло <b>с 2 групп до 3 из 7</b> — заметно скромнее, чем «5 из 5» по хексам.
+  </p>
+  <p>
+    Правило «выводи цвет из предмета» соблюдено 5 из 5, и обоснования осмысленные, а не
+    декоративные. Упёрлось не оно: даже максимально далёкая от инфраструктуры тема — памятка
+    о правах пациента при отказе в госпитализации — пришла в тот же бирюзовый кластер
+    (<code>#0a6a62</code>, 175°, один градус от «сравнения хранилищ»). Ожидание было записано
+    до прогона и провалено наполовину. <b>Цветовые предпочтения самой модели стягивают всё
+    «серьёзное и профессиональное» в один тон, и правилом это не лечится.</b>
+  </p>
+</section>
+
+<section class="band">
+  <h2>Что останется, если вычесть жанровый эффект</h2>
+  <p class="lede">
+    Считаем только технические задания — отчёты, дашборды, схемы, планы. Там, где старый скилл
+    ни разу не ушёл от фиолетового сам и ни разу не добавил печать. Это и есть наш реальный профиль.
+  </p>
+  <table class="survive">
+    <thead>
+      <tr><th>Что мерили</th><th>До</th><th>После</th><th>Выживает?</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Фиолетовый ушёл</td><td class="num">5 из 5</td><td class="num">0 из 5</td><td class="yes">да — на технике старый не уходил ни разу</td></tr>
+      <tr><td>Типографская шкала</td><td class="num"><code>calc</code>/<code>var</code> 0 из 5</td><td class="num">есть</td><td class="yes">да — шкалы не строил никто</td></tr>
+      <tr><td>Иерархия заголовков</td><td class="num">3 из 5</td><td class="num">5 из 5</td><td class="yes">да</td></tr>
+      <tr><td>Состояния фокуса</td><td class="num">1 из 4</td><td class="num">3 из 3</td><td class="yes">да</td></tr>
+      <tr><td><code>@media print</code></td><td class="num">0 из 5</td><td class="num">5 из 5</td><td class="yes">да на технике, на бытовых темах — нет</td></tr>
+      <tr><td>Разнообразие палитры</td><td class="num">1 тон</td><td class="num">2 тона</td><td class="no">нет — по хексам 5 из 5, перцептивно две группы</td></tr>
+      <tr><td>Гард: один файл + офлайн</td><td class="num">5 из 5</td><td class="num">5 из 5</td><td class="yes">цел</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:14px">
+    <b>Итог одной строкой:</b> правка даёт «фиолетовый ушёл + появилась типографская шкала +
+    состояния фокуса + печать на технических артефактах». Разнообразие палитры она не даёт.
+    Этого достаточно для внедрения; набивать больше нечем.
+  </p>
+</section>
+
+<section class="band">
+  <h2>Откуда взялись принципы</h2>
+  <p class="lede">
+    Отдельного «скилла про HTML-артефакты» у Codex нет. Дизайн-правила зашиты прямо в бинарь,
+    в системные промпты — и <b>разные для разных моделей</b>.
+  </p>
+  <table class="src">
+    <thead>
+      <tr><th>Что нашлось</th><th>Где лежит</th><th>Достаётся нашим воркерам</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>21 правило про вёрстку, палитру, типографику</b><br><code>## Frontend guidance</code></td>
+        <td>зашито в бинарь, шаблон модели <code>gpt-5.5</code></td>
+        <td><span class="tag no">нет</span></td>
+      </tr>
+      <tr>
+        <td>«не скатывайся в AI slop»<br><code>## Frontend tasks</code></td>
+        <td>зашито в бинарь, <code>gpt-5.4</code> / <code>-mini</code> / <code>codex-auto-review</code></td>
+        <td><span class="tag no">нет</span></td>
+      </tr>
+      <tr>
+        <td>Когда вообще рисовать визуал<br><code>### Visualizations</code></td>
+        <td>шаблон <code>gpt-5.6-sol</code> — <b>наши Sol-воркеры</b></td>
+        <td><span class="tag yes">да</span><span class="why">но дизайн-правил в нём нет <b>ни одного</b> — только про то, когда визуал вообще уместен</span></td>
+      </tr>
+      <tr>
+        <td><b><code>visualize.css</code> — дизайн-система на 101 правило</b><br>токены, таблицы, формы, 6-цветная палитра серий</td>
+        <td>публичный репозиторий, <b>Apache-2.0</b></td>
+        <td><span class="tag no">нет</span><span class="why">рендерер живёт только в терминальном режиме, а Orchestra поднимает Codex иначе</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="footnote" style="margin-top:14px">
+    Перенесены <b>формулировки и принципы</b>, не цвета: дословный CSS не копировался, поэтому
+    атрибуция в скилле не требуется. Вербатим лежит в <code>docs/tasks/119/extracted/</code>
+    с URL первоисточника и лицензией. Перенос виден в выходе, а не только в тексте правила —
+    в артефактах «после» появились <code>light-dark()</code>, <code>color-mix(in oklab, …)</code>,
+    <code>--ring: var(--accent)</code>, <code>calc(var(--fs) * …)</code>.
+  </p>
+</section>
+
+<section class="band">
+  <h2>Три раза измерительный стенд едва не соврал</h2>
+  <p class="lede">
+    Каждый случай давал правдоподобное число и вёл к неверному действию — в первом к отмене
+    верной задачи. Это главный урок замера, и он не про цвета.
+  </p>
+  <div class="cols-3">
+
+    <article class="case">
+      <h3>Метрика считала не то</h3>
+      <div class="badnum">пилот: «2 разных акцента из 2»</div>
+      <p>
+        То есть сигнал «гипотеза ложна, останавливай задачу». Первая редакция метрики брала
+        самый частый насыщенный цвет страницы — а различались <b>частоты статусных цветов</b>:
+        в одном артефакте красный статус инцидента повторился 12 раз.
+      </p>
+      <details open>
+        <summary>Что было в файлах на самом деле</summary>
+        <p>Оба артефакта объявляли <b>один и тот же</b> <code>--accent: #7c3aed</code>.
+        Метрика переписана на объявленный токен и проверена мутацией.</p>
+      </details>
+    </article>
+
+    <article class="case">
+      <h3>Полоса определения была дырявой</h3>
+      <div class="badnum">пропускала <code>#8b5cf6</code></div>
+      <p>
+        Границы «фиолетового» стояли на 260–290°, а violet-500 — самый ходовой AI-дефолт —
+        лежит на 258,3° и в них не попадал. Метрика честно рапортовала бы «фиолетового нет»
+        на самом фиолетовом файле.
+      </p>
+      <details open>
+        <summary>Как пересчитали</summary>
+        <pre>по замеру 14 типовых акцентов → 235–295°
+indigo и fuchsia внутри
+blue-500 (217°) снаружи с запасом 18°</pre>
+      </details>
+    </article>
+
+    <article class="case">
+      <h3>Греп не видел многострочное</h3>
+      <div class="badnum">вывод: «правило соблюдено 1 из 3»</div>
+      <p>
+        Построчный <code>grep</code> искал комментарий-обоснование выбора цвета и не находил его:
+        комментарии многострочные. При чтении файла целиком — <b>5 из 5</b>.
+      </p>
+      <details open>
+        <summary>Цена ошибки</summary>
+        <p>Неверный вывод успел уйти оркестратору и был отозван.</p>
+      </details>
+    </article>
+
+  </div>
+  <p style="margin-top:18px">
+    <b>Общее правило:</b> проверка, которая агрегирует текст артефакта, обязана быть проверена
+    мутацией на живой фикстуре <b>прежде</b>, чем на её выводе принимают решение. И шире, за
+    пределами цветов: baseline на однородном наборе завышает эффект правки, потому что мерит
+    не правку, а тему. Две сессии на далёких заданиях стоили дешевле, чем внедрённый вывод
+    с завышенной ценой.
+  </p>
+</section>
+
+<section class="band">
+  <h2>Что осталось нерешённым</h2>
+  <div class="cols">
+    <div>
+      <p><b>Ориентиры в скилле сужают палитру.</b> «Инфраструктура → холодный синий/бирюза»
+      стягивает большинство рабочих тем в одну зону. Кандидат на правку: требовать отличия
+      по тону от соседнего артефакта явно, а не только через тему.</p>
+      <p><b>Тематическая однородность стенда.</b> Чтобы честно мерить разнообразие, набор заданий
+      должен быть разнесён по областям, а не быть инфраструктурным на четыре пятых.</p>
+    </div>
+    <div>
+      <p><b>Бюджет тела скилла превышен на 10%</b> — 6 598 байт против обещанных 6 000. Резать
+      дальше значило резать проверенное содержание ради круглого числа, которое я сам и назначил.
+      Дорогая часть — <code>description</code>, платящаяся в каждой сессии, — уложена: 243 символа
+      из 250.</p>
+      <p><b>Codex-ревью не проводилось ни на одной фазе</b> — квота выбрана, запуск упал на
+      терминальном лимите. Заменено состязательной самопроверкой: 3 ошибки в исследовании,
+      3 в плане.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="band footnote">
+  Источник чисел — <code>docs/tasks/119/report.md</code>; сырые артефакты обоих плеч и скрипт
+  метрик — <code>docs/tasks/119/measure/</code>, числа воспроизводятся
+  <code>python3 metrics.py before after</code>. Инвариант скилла закреплён тестом
+  <code>tests/test_prompting.py::TestHtmlArtifactsSkillInvariants</code>: падает, если в скилл
+  вернут любой цветовой литерал или исчезнет правило про вывод палитры из предмета.
+</footer>
+
+</div>
+</body>
+</html>
