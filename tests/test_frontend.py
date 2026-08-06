@@ -413,6 +413,31 @@ def test_orchestrator_unread_tracks_own_turn_only(dashboard_browser: Browser):
     }
 
 
+def test_json_preview_keeps_long_numbers_verbatim(dashboard_browser: Browser):
+    """#136: просмотр .json не должен округлять целые больше 2^53."""
+    utils = (Path(__file__).parent.parent / "app/static/js/utils.js").read_text()
+    pretty = "function _prettyJsonText" + utils.split(
+        "function _prettyJsonText", 1,
+    )[1].split("\nmarked.setOptions", 1)[0]
+    app = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    # просмотрщик обязан звать форматтер текста, а не пересобирать разобранный объект
+    assert "pretty = _prettyJsonText(raw)" in app
+    assert "JSON.stringify(JSON.parse(raw)" not in app
+
+    raw = '{"id": 1917704623170653147, "a": [1.0, {}, []], "s": "\\"x\\""}'
+    page = dashboard_browser.new_page()
+    page.set_content("<div></div>")
+    page.add_script_tag(content=pretty)
+    shown = page.evaluate("raw => _prettyJsonText(raw)", raw)
+    page.close()
+
+    assert "1917704623170653147" in shown
+    assert shown == (
+        '{\n  "id": 1917704623170653147,\n  "a": [\n    1.0,\n    {},\n    []\n  ],'
+        '\n  "s": "\\"x\\""\n}'
+    )
+
+
 def test_dropped_path_lands_at_caret_not_at_end(dashboard_browser: Browser):
     """#94: юзер печатал в середине — путь обязан встать туда, а не в конец."""
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()

@@ -1083,7 +1083,7 @@ async function openFilePreview(path) {
                 contentEl.innerHTML = html;
             } else if (ext === 'json') {
                 let pretty = raw;
-                try { pretty = JSON.stringify(JSON.parse(raw), null, 2); } catch {}
+                try { JSON.parse(raw); pretty = _prettyJsonText(raw); } catch {}
                 contentEl.className = 'flex-1 text-xs p-4';
                 contentEl.style.cssText = 'overflow-y:auto;overflow-x:hidden;max-height:calc(80vh - 48px)';
                 const pre = document.createElement('pre');

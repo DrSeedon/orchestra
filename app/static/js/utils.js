@@ -63,6 +63,41 @@ function _stripXmlTags(text) {
     return text.replace(/<\/?[a-z][a-z0-9_-]*(?:\s[^>]*)?\s*>/gi, '');
 }
 
+// Форматируем ТЕКСТ файла, а не разобранный объект: JSON.parse превращает целые больше
+// 2^53 в ближайший double (19-значный id показывался как ...200 вместо ...147), и значение,
+// скопированное из окна просмотра, было неверным. Числа и строки переносятся посимвольно,
+// добавляются только отступы — раскладка та же, что у JSON.stringify(x, null, 2).
+function _prettyJsonText(raw) {
+    let out = '', depth = 0, inStr = false;
+    for (let i = 0; i < raw.length; i++) {
+        const ch = raw[i];
+        if (inStr) {
+            out += ch;
+            if (ch === '\\') out += raw[++i];
+            else if (ch === '"') inStr = false;
+            continue;
+        }
+        if (ch === '"') { inStr = true; out += ch; continue; }
+        if (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') continue;
+        if (ch === '{' || ch === '[') {
+            const close = ch === '{' ? '}' : ']';
+            let j = i + 1;
+            while (j < raw.length && ' \n\r\t'.includes(raw[j])) j++;
+            if (raw[j] === close) { out += ch + close; i = j; continue; }
+            out += ch + '\n' + '  '.repeat(++depth);
+        } else if (ch === '}' || ch === ']') {
+            out += '\n' + '  '.repeat(--depth) + ch;
+        } else if (ch === ',') {
+            out += ',\n' + '  '.repeat(depth);
+        } else if (ch === ':') {
+            out += ': ';
+        } else {
+            out += ch;
+        }
+    }
+    return out;
+}
+
 marked.setOptions({ breaks: true, gfm: true });
 
 // Remove structural tags DOMPurify would leave as text nodes — they'd break layout if injected via agent output
