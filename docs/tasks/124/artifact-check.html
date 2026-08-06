@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#124 — порядок аргументов light-dark()</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 2rem;
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+         background: light-dark(#f6f7f9, #101418);
+         color: light-dark(#101418, #e9edf2); }
+  .card { max-width: 34rem; padding: 1.25rem 1.5rem; border-radius: 12px;
+          background: light-dark(#ffffff, #1b212a);
+          border: 1px solid light-dark(#d8dde5, #2c3440); }
+  code { background: light-dark(#eceff3, #232b36); padding: .1em .35em; border-radius: 4px; }
+</style>
+<div class="card">
+  <h1>light-dark(светлое, тёмное)</h1>
+  <p>Артефакт написан по исправленной строке скилла: первым аргументом идёт значение
+     для СВЕТЛОЙ схемы. В светлой теме фон светлый, в тёмной — тёмный.</p>
+  <p><code>background: light-dark(#f6f7f9, #101418)</code></p>
+</div>
