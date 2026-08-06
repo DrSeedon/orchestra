@@ -1838,6 +1838,7 @@ class TestAutoResume:
         DEFAULT_PIPELINE. Without it ROLE_SYSTEM_PROMPT('') fails loud (fallback
         removed) and pre-pipeline sessions can't resume."""
         from app.db import save_session, get_session_by_name
+        from app.pipeline import DEFAULT_PIPELINE, get_role
         from tests.conftest import make_backend_mock
         save_session({
             "id": "old-empty-pipe", "name": "oldw", "scope": "/tmp", "cwd": "/tmp",
@@ -1852,6 +1853,11 @@ class TestAutoResume:
             session = await mgr._load_from_db(row)  # must NOT raise ValueError
         assert session.name == "oldw"
         assert session.system_prompt  # prompt built from default pipeline
+        # #167: нормализация обязана доехать и до объекта сессии, а не только до
+        # промпта. Пока здесь оставалось '', _refresh_skills падал на «pipeline name
+        # is empty» и агент работал без ВСЕХ скиллов своей роли.
+        assert session.pipeline == DEFAULT_PIPELINE
+        assert get_role(session.pipeline, session.role) is not None
 
 
 

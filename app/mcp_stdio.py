@@ -23,6 +23,11 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult, TextContent
 
+# Единственный владелец правила «ошибка обязана назвать себя». Модуль на голой
+# stdlib — этот процесс запускается как СКРИПТ (runtime_env: python mcp_stdio.py)
+# и ничего больше из app/ не тянет.
+from app.errtext import err_text
+
 # Logs go to stderr so they don't pollute the JSON-RPC stdout stream
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("orchestra-mcp")
@@ -86,11 +91,6 @@ class ApiToolError(RuntimeError):
             "outcome_unknown": self.outcome_unknown,
             "details": self.details,
         }
-
-
-def _exception_text(exc: BaseException) -> str:
-    message = str(exc).strip()
-    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
 
 
 def _canonical_error(error: ApiToolError | dict[str, Any]) -> dict[str, Any]:
@@ -183,7 +183,7 @@ class OrchestraMCP(FastMCP):
                 root = _root_exception(exc)
                 error = ApiToolError(
                     code="tool_error",
-                    message=_exception_text(root),
+                    message=err_text(root),
                     details={"exception_type": type(root).__name__, "tool": name},
                 )
             envelope = _canonical_error(error)
@@ -436,7 +436,7 @@ def _transport_error(
     timeout = isinstance(exc, httpx.TimeoutException)
     return ApiToolError(
         code="connect_error" if connect_failure else ("transport_timeout" if timeout else "transport_error"),
-        message=_exception_text(exc),
+        message=err_text(exc),
         retryable=method == "GET" or no_request_sent,
         request_id=request_id,
         outcome_unknown=method != "GET" and not no_request_sent,
@@ -1319,7 +1319,7 @@ async def merge_worker(
             operation_id,
             "UNKNOWN",
             code="UNKNOWN_OUTCOME",
-            message=f"Merge result handling failed: {_exception_text(exc)}",
+            message=f"Merge result handling failed: {err_text(exc)}",
             retryable=False,
             outcome_unknown=True,
             target=target,

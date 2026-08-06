@@ -54,6 +54,7 @@ from app.db import (
     get_session, get_session_by_name, get_all_sessions, publish_ready_session,
     archive_session, get_stats, update_session_lifecycle,
 )
+from app.errtext import err_text
 from app.tasks import spawn_supervised
 
 logger = logging.getLogger(__name__)
@@ -770,7 +771,7 @@ class SessionManager:
                         worker_session_id=session.id,
                     )
                 except Exception as task_error:
-                    detail = str(task_error) or type(task_error).__name__
+                    detail = err_text(task_error)
                     task_status = {"ok": False, "error": detail}
                 if not task_status.get("ok"):
                     detail = task_status.get("error") or "unknown task update failure"
@@ -811,10 +812,8 @@ class SessionManager:
                     session.base_branch,
                 )
             except Exception as error:
-                detail = str(error) or type(error).__name__
                 raise RuntimeError(
-                    f"auto-switch failed: base resolution raised "
-                    f"{type(error).__name__}: {detail}"
+                    f"auto-switch failed: base resolution raised {err_text(error)}"
                 ) from error
             new_branch = next_adhoc_branch(session.name)
             try:
@@ -827,7 +826,7 @@ class SessionManager:
                     expect_absent=True,
                 )
             except Exception as error:
-                detail = str(error) or type(error).__name__
+                detail = err_text(error)
                 session.task_id = ""
                 session.needs_switch = True
                 try:
@@ -835,7 +834,7 @@ class SessionManager:
                         inspect_worktree_identity, session.worktree_path,
                     )
                 except Exception as inspect_error:
-                    inspect_detail = str(inspect_error) or type(inspect_error).__name__
+                    inspect_detail = err_text(inspect_error)
                     detail = f"{detail}; actual Git state unavailable: {inspect_detail}"
                 else:
                     try:
@@ -851,15 +850,12 @@ class SessionManager:
                         session.base_branch = base_branch
                         session.task_id = ""
                         session.needs_switch = True
-                        persist_detail = (
-                            str(persist_error) or type(persist_error).__name__
-                        )
+                        persist_detail = err_text(persist_error)
                         detail = (
                             f"{detail}; quarantine persistence failed: {persist_detail}"
                         )
                 raise RuntimeError(
-                    f"auto-switch failed: Git switch raised "
-                    f"{type(error).__name__}: {detail}"
+                    f"auto-switch failed: Git switch raised {detail}"
                 ) from error
             if not result.get("ok"):
                 detail = result.get("error") or "Git switch returned no error detail"
@@ -878,7 +874,7 @@ class SessionManager:
                         session.base_branch = base_branch
                         session.task_id = ""
                         session.needs_switch = True
-                        persist_detail = str(persist_error) or type(persist_error).__name__
+                        persist_detail = err_text(persist_error)
                         detail = f"{detail}; quarantine persistence failed: {persist_detail}"
                 raise RuntimeError(f"auto-switch failed: {detail}")
 
@@ -892,7 +888,7 @@ class SessionManager:
                     needs_switch=False,
                 )
             except Exception as persist_error:
-                first_detail = str(persist_error) or type(persist_error).__name__
+                first_detail = err_text(persist_error)
                 try:
                     await self.persist_lifecycle(
                         session,
@@ -906,9 +902,7 @@ class SessionManager:
                     session.base_branch = base_branch
                     session.task_id = ""
                     session.needs_switch = True
-                    quarantine_detail = (
-                        str(quarantine_error) or type(quarantine_error).__name__
-                    )
+                    quarantine_detail = err_text(quarantine_error)
                     first_detail = (
                         f"{first_detail}; quarantine persistence failed: "
                         f"{quarantine_detail}"
@@ -1399,6 +1393,10 @@ class SessionManager:
         # Old rows (migrated) store pipeline='' → normalize to DEFAULT_PIPELINE.
         # Without this, ROLE_SYSTEM_PROMPT('') now fails loud (legacy fallback removed)
         # and resume/load of pre-pipeline sessions would break.
+        # Нормализованное значение обязано доехать и до самой сессии (см. AgentSession
+        # ниже): пока в объект клался сырой db_row, промпт брал 'default', а
+        # _refresh_skills — '', падал на «pipeline name is empty», и корневой
+        # оркестратор оставался без ВСЕХ скиллов своей роли (#167).
         pipeline = db_row.get("pipeline") or DEFAULT_PIPELINE
         # R1: is_orch из манифеста пайплайна (kind) при наличии; иначе хранимая
         # колонка is_orchestrator (денормализована при спавне); иначе frozenset.
@@ -1450,7 +1448,7 @@ class SessionManager:
             role=role,
             parent_id=db_row.get("parent_id", ""),
             parent_name=db_row.get("parent_name", ""),
-            pipeline=db_row.get("pipeline", ""),
+            pipeline=pipeline,
             profile=db_row.get("profile", ""),
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role,

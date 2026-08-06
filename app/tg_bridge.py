@@ -24,6 +24,7 @@ from aiogram.exceptions import (
 from aiogram.client.default import DefaultBotProperties
 from telegramify_markdown import convert as md_convert
 
+from app.errtext import err_text
 from app.tasks import spawn_supervised
 
 logger = logging.getLogger("tg-bridge")
@@ -390,7 +391,7 @@ async def _report_undelivered_to_user(sid: str, valid: list, error: Exception) -
         name = getattr(session, "name", None) or sid
     except Exception:
         pass
-    detail = f"{type(error).__name__}: {error}"
+    detail = err_text(error)
     logger.warning("TG delivery to %s failed, user notified: %s", name, detail)
 
     # Факт недоставки переживает недоступность TG: строка в истории сессии видна в дашборде,

@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.db import _conn, get_session, get_session_by_name
+from app.errtext import err_text
 
 logger = logging.getLogger("orchestra.merge_operations")
 
@@ -462,7 +463,7 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
     try:
         current = _session_snapshot(record["session_id"])
     except Exception as exc:
-        return None, _text(exc, type(exc).__name__)
+        return None, err_text(exc)
     expected = {
         "name": record["worker_name"],
         "scope": record["scope"],
@@ -492,7 +493,7 @@ def _replay_drift(record: dict[str, Any]) -> dict[str, Any] | None:
     except Exception as exc:
         detail = (
             f"Cannot verify that the worker is still where this operation was accepted: "
-            f"{type(exc).__name__}: {_text(exc, type(exc).__name__)}"
+            f"{err_text(exc)}"
         )
         error = _error(
             "REPLAY_VERIFICATION_FAILED", detail, operation_id=operation_id,
@@ -884,7 +885,7 @@ def _mark_terminal_snapshot_failure(
 ) -> None:
     if result["commit_point"] != "REACHED":
         return
-    detail = f"Cannot verify terminal worker state: {type(exc).__name__}: {_text(exc, type(exc).__name__)}"
+    detail = f"Cannot verify terminal worker state: {err_text(exc)}"
     if result["operation_state"] == "SUCCEEDED":
         result["operation_state"] = "PARTIAL"
         result["retryable"] = False
@@ -1018,7 +1019,7 @@ async def _run_operation(operation_id: str) -> None:
         record = await asyncio.to_thread(get_operation_record, operation_id) or record
         result = _unknown_from_record(
             record,
-            f"Merge operation crashed: {type(exc).__name__}: {_text(exc, type(exc).__name__)}",
+            f"Merge operation crashed: {err_text(exc)}",
             exception_type=type(exc).__name__,
         )
         try:
@@ -1107,7 +1108,7 @@ async def accept_merge_operation(
     except Exception as exc:
         error = _error(
             "SESSION_SNAPSHOT_FAILED",
-            f"Cannot snapshot worker before merge: {type(exc).__name__}: {_text(exc, type(exc).__name__)}",
+            f"Cannot snapshot worker before merge: {err_text(exc)}",
             operation_id=canonical_id, status=409,
             details={"exception_type": type(exc).__name__},
         )
