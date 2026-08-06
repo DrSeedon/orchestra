@@ -4580,3 +4580,289 @@ class TestBackgroundSubagentFilter:
     def test_unparseable_content_is_kept(self, tb):
         """Unknown shape → announce it; silently dropping delegation is worse."""
         assert not tb._is_background_subagent("something unexpected")
+
+
+class TestTurnEndMention:
+    """@mention юзера на ФИНАЛЬНОМ сообщении хода оркестратора (#158).
+
+    Разметки «финальное сообщение» на строке `text` НЕТ и быть не может: мост
+    стримит журнал вперёд и в момент отправки текста не знает, будет ли ещё один.
+    Живой замер (1384 хода оркестраторов): 4777 из 6161 строк `text` —
+    промежуточные, то есть тег на каждом `text` = тег почти на всём подряд.
+    Границу хода даёт отдельная durable-строка `status: turn ended (...)`,
+    которую мост и так читает. Тег уходит на ней — отдельным important-сообщением,
+    потому что сам `status` идёт по косметической полосе и может быть дропнут.
+    """
+
+    def test_mention_renders_as_clickable_entity_for_numeric_id(self, tb):
+        """user_id → text_link `tg://user?id=`: уведомление приходит даже если
+        username не резолвится. Проверяем сущность, а не подстроку."""
+        converted, entities = tb._formatted_chunks(tb._mention_markup("123456"))[0]
+        assert entities
+        assert entities[0].type == "text_link"
+        assert entities[0].url == "tg://user?id=123456"
+
+    def test_username_is_passed_through(self, tb):
+        assert "@DrSeedon" in tb._mention_markup("@DrSeedon")
+
+    @staticmethod
+    async def _run(tb, monkeypatch, logs, *, role="orchestrator", mention="@DrSeedon"):
+        class FakeConn:
+            def close(self):
+                pass
+
+        calls = 0
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            if calls == 2:
+                return logs
+            raise asyncio.CancelledError
+
+        async def no_sleep(_delay):
+            return None
+
+        sent = []
+
+        async def tg_send_safe(chat_id, text, thread_id, entities=None, important=False, **kw):
+            sent.append({"text": text, "important": important, "entities": entities})
+
+        monkeypatch.setattr(tb, "TG_USER_MENTION", mention)
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "scope": "/scope", "role": role}],
+        )
+        monkeypatch.setattr(
+            "app.db.get_session_by_name", lambda name, scope: {"id": "sid"},
+        )
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *a: None)
+        monkeypatch.setattr(tb, "_any_running_in_scope", lambda scope: False)
+        monkeypatch.setattr(tb, "_tg_send_safe", tg_send_safe)
+        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
+        monkeypatch.setattr(tb.asyncio, "sleep", no_sleep)
+
+        with pytest.raises(asyncio.CancelledError):
+            await tb.stream_logs("orch", 42)
+        return sent
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_final_message_is_mentioned(self, tb, monkeypatch):
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "промежуточный шаг"},
+            {"id": 2, "type": "text", "content": "готово, жду ответа"},
+            {"id": 3, "type": "status", "content": "turn ended (end_turn, 4 turns, $0.10 turn)"},
+        ])
+        mentions = [m for m in sent if "@DrSeedon" in m["text"]]
+        assert len(mentions) == 1, sent
+        # Тег обязан ехать по надёжной полосе: important=False молча дропается.
+        assert mentions[0]["important"] is True
+        # И только ПОСЛЕ финального текста, иначе уведомление опережает содержание.
+        assert sent.index(mentions[0]) == len(sent) - 1
+
+    @pytest.mark.asyncio
+    async def test_intermediate_messages_carry_no_mention(self, tb, monkeypatch):
+        """Ход ещё не кончился — тега нет вообще."""
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "работаю"},
+            {"id": 2, "type": "tool", "content": 'Bash: {"command":"ls"}'},
+        ])
+        assert not [m for m in sent if "@DrSeedon" in m["text"]]
+
+    @pytest.mark.asyncio
+    async def test_worker_turn_end_is_not_mentioned(self, tb, monkeypatch):
+        """Воркеры шлют оркестратору, а не юзеру — дёргать его нечем."""
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "DONE #1"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 2 turns, $0.01 turn)"},
+        ], role="worker")
+        assert not [m for m in sent if "@DrSeedon" in m["text"]]
+
+    @pytest.mark.asyncio
+    async def test_sub_orchestrator_is_mentioned(self, tb, monkeypatch):
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "фаза закрыта"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+        ], role="sub-orchestrator")
+        assert len([m for m in sent if "@DrSeedon" in m["text"]]) == 1
+
+    @pytest.mark.asyncio
+    async def test_turn_without_speech_is_not_mentioned(self, tb, monkeypatch):
+        """Ход кончился, но юзеру ничего не сказали — уведомлять не о чем."""
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "tool", "content": 'Bash: {"command":"ls"}'},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+        ])
+        assert not [m for m in sent if "@DrSeedon" in m["text"]]
+
+    @pytest.mark.asyncio
+    async def test_two_turns_give_two_mentions(self, tb, monkeypatch):
+        """Счётчик речи сбрасывается на границе — второй ход тегается заново."""
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "первый ответ"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+            {"id": 3, "type": "text", "content": "второй ответ"},
+            {"id": 4, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.02 turn)"},
+        ])
+        assert len([m for m in sent if "@DrSeedon" in m["text"]]) == 2
+
+    @pytest.mark.asyncio
+    async def test_silent_turn_after_a_speaking_turn_is_not_mentioned(
+        self, tb, monkeypatch,
+    ):
+        """Флаг речи обязан сбрасываться на границе.
+
+        Без сброса «оркестратор» и «был текст» остаются истинными от ПРОШЛОГО хода,
+        и молчаливый ход (только тулы — типовой ход воркер-менеджмента) дёргает юзера
+        зря. Прочие условия здесь помочь не могут: они оба уже true.
+        """
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "ответ юзеру"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+            {"id": 3, "type": "tool", "content": 'Bash: {"command":"ls"}'},
+            {"id": 4, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.02 turn)"},
+        ])
+        assert len([m for m in sent if "@DrSeedon" in m["text"]]) == 1
+
+    @pytest.mark.asyncio
+    async def test_no_mention_configured_sends_nothing_extra(self, tb, monkeypatch):
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "готово"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+        ], mention="")
+        assert len(sent) == 2
+
+    @pytest.mark.asyncio
+    async def test_agent_speech_itself_is_not_tagged(self, tb, monkeypatch):
+        """Регресс на прежнее поведение: тег на КАЖДОЙ строке text (78% из них —
+        промежуточные) заменён тегом на границе хода."""
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": "шаг"},
+        ])
+        assert sent and "@DrSeedon" not in sent[0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_mention_survives_backpressure_replay(self, tb, monkeypatch):
+        """Перегрузка на ⚡ откатывает курсор и ПЕРЕИГРЫВАЕТ строки хода.
+
+        Флаг речи к этому моменту уже сброшен первым проходом, поэтому наивная
+        реализация на повторе вычисляет `is_orch and False` и молча теряет тег —
+        ровно тот ход, ради которого юзер и просил уведомление.
+        """
+        class FakeConn:
+            def close(self):
+                pass
+
+        rows = [
+            {"id": 1, "type": "text", "content": "готово, жду ответа"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+        ]
+        calls = 0
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            if calls in (2, 3):
+                return [r for r in rows if r["id"] > after_id]
+            raise asyncio.CancelledError
+
+        sent = []
+        overloaded_once = False
+
+        async def tg_send_safe(chat_id, text, thread_id, entities=None, important=False, **kw):
+            nonlocal overloaded_once
+            if text.startswith("⚡") and not overloaded_once:
+                overloaded_once = True
+                raise tb._TgDeliveryOverloaded("queue full")
+            sent.append({"text": text, "important": important})
+
+        async def no_sleep(_delay):
+            return None
+
+        monkeypatch.setattr(tb, "TG_USER_MENTION", "@DrSeedon")
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "scope": "/scope", "role": "orchestrator"}],
+        )
+        monkeypatch.setattr(
+            "app.db.get_session_by_name", lambda name, scope: {"id": "sid"},
+        )
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *a: None)
+        monkeypatch.setattr(tb, "_any_running_in_scope", lambda scope: False)
+        monkeypatch.setattr(tb, "_tg_send_safe", tg_send_safe)
+        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
+        monkeypatch.setattr(tb.asyncio, "sleep", no_sleep)
+
+        with pytest.raises(asyncio.CancelledError):
+            await tb.stream_logs("orch", 42)
+
+        assert len([m for m in sent if "@DrSeedon" in m["text"]]) == 1, sent
+
+    @pytest.mark.asyncio
+    async def test_replay_after_mention_does_not_duplicate_it(self, tb, monkeypatch):
+        """Перегрузка на строке ПОСЛЕ тега не должна слать тег дважды.
+
+        Курсор откатывается на начало пачки, но `turn ended` уже переигран не будет:
+        рассылка идёт по строкам с id > last_id, а он сдвинут за границу хода.
+        """
+        class FakeConn:
+            def close(self):
+                pass
+
+        rows = [
+            {"id": 1, "type": "text", "content": "готово"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+            {"id": 3, "type": "error", "content": "後из фона"},
+        ]
+        calls = 0
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            if calls in (2, 3):
+                return [r for r in rows if r["id"] > after_id]
+            raise asyncio.CancelledError
+
+        sent = []
+        failed_once = False
+
+        async def tg_send_safe(chat_id, text, thread_id, entities=None, important=False, **kw):
+            nonlocal failed_once
+            if text.startswith("❌") and not failed_once:
+                failed_once = True
+                raise tb._TgDeliveryOverloaded("queue full")
+            sent.append({"text": text, "important": important})
+
+        async def no_sleep(_delay):
+            return None
+
+        monkeypatch.setattr(tb, "TG_USER_MENTION", "@DrSeedon")
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "scope": "/scope", "role": "orchestrator"}],
+        )
+        monkeypatch.setattr(
+            "app.db.get_session_by_name", lambda name, scope: {"id": "sid"},
+        )
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *a: None)
+        monkeypatch.setattr(tb, "_any_running_in_scope", lambda scope: False)
+        monkeypatch.setattr(tb, "_tg_send_safe", tg_send_safe)
+        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
+        monkeypatch.setattr(tb.asyncio, "sleep", no_sleep)
+
+        with pytest.raises(asyncio.CancelledError):
+            await tb.stream_logs("orch", 42)
+
+        assert len([m for m in sent if "@DrSeedon" in m["text"]]) == 1, sent

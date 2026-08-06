@@ -111,10 +111,18 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
 
 UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 
-# @mention for agent-to-user speech (type "text" → 💬) so TG notifications fire on the owner.
-# NOT applied to inter-agent messages (📨 [from:]) — only direct user-facing responses.
-# Static username from env (MVP). Dynamic "is this addressed to the user" detection is in backlog.
+# @mention of the owner, fired once per ORCHESTRATOR turn on the turn boundary (#158),
+# so a TG push arrives exactly when an orchestrator stopped and is waiting for an answer.
+# Accepts "@username" or a numeric user_id; the id renders as a tg:// text_mention and
+# notifies even when the username does not resolve for the bot.
 TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
+
+
+def _mention_markup(mention: str) -> str:
+    """Markdown for the owner mention. Numeric → tg:// link (reliable), else @username."""
+    if mention.lstrip("-").isdigit():
+        return f"[⬆️ ответь](tg://user?id={mention})"
+    return f"⬆️ {mention}"
 
 
 def _cleanup_uploads():
@@ -2980,9 +2988,12 @@ async def stream_logs(orch_name: str, thread_id: int):
     from app.db import get_logs, get_session_by_name, get_all_sessions
 
     scope = None
+    is_orch = False
     for s in get_all_sessions():
         if s["name"] == orch_name:
             scope = s.get("scope", "")
+            # Воркеры отчитываются оркестратору, а не юзеру — тегать его на их ходах нечем.
+            is_orch = s.get("role", "worker") in ("orchestrator", "sub-orchestrator")
             break
     if not scope:
         return
@@ -3003,6 +3014,8 @@ async def stream_logs(orch_name: str, thread_id: int):
     _last_tool_text = ""
     _last_tool_name = ""   # track last tool for result image rendering
     _last_tool_raw = ""    # full raw content of last tool call
+    _spoke_this_turn = False          # был ли текст юзеру в текущем ходе
+    _pending_turn_end_mention = False
     _idle_ticks = 0
     current_log_previous_id = last_id
 
@@ -3045,12 +3058,10 @@ async def stream_logs(orch_name: str, thread_id: int):
                         else:
                             text = f"👤\n{c}" if c.startswith("> ") else f"👤 {c}"
                     elif t == "text":
-                        # @mention пользователя — только в речи агента (text), чтобы уведы
-                        # приходили на обращения к тебе, а не на внутрянку (📨 [from:]).
                         from app.tool_call_guard import mark_unexecuted_tool_call
 
-                        head = f"💬 {TG_USER_MENTION}" if TG_USER_MENTION else "💬"
-                        raw_text = f"{head}\n{mark_unexecuted_tool_call(c)}"
+                        _spoke_this_turn = True
+                        raw_text = f"💬\n{mark_unexecuted_tool_call(c)}"
                         for converted, aio_ents in _formatted_chunks(raw_text):
                             await _tg_send_safe(
                                 config["group_id"], converted, thread_id,
@@ -3216,6 +3227,11 @@ async def stream_logs(orch_name: str, thread_id: int):
                             still_running = _any_running_in_scope(scope)
                             if not still_running:
                                 _schedule_topic_status(orch_name, False)
+                            # Граница хода — единственная durable-разметка «агент договорил»:
+                            # на самой строке text её нет, мост стримит журнал вперёд и в
+                            # момент отправки не знает, будет ли ещё текст (живой замер:
+                            # 4777 из 6161 строк text — промежуточные).
+                            _pending_turn_end_mention = is_orch and _spoke_this_turn
                         text = f"⚡ {c}"
                     elif t == "subagent_end":
                         # Only the FINAL of a sub-agent (start/progress/stream = spam, dropped).
@@ -3244,6 +3260,23 @@ async def stream_logs(orch_name: str, thread_id: int):
                             orch_name, converted, entities=aio_ents,
                             important=is_important,
                         )
+                    if _pending_turn_end_mention:
+                        # Отдельным сообщением, а не хвостом к ⚡: status идёт по
+                        # косметической полосе (important=False) и может быть дропнут,
+                        # а дропнутое уведомление хуже отсутствующего.
+                        if TG_USER_MENTION:
+                            for converted, aio_ents in _formatted_chunks(
+                                _mention_markup(TG_USER_MENTION)
+                            ):
+                                await _tg_send_safe(
+                                    config["group_id"], converted, thread_id,
+                                    entities=aio_ents, important=True,
+                                )
+                        # Флаги гасим только ПОСЛЕ доставки: перегрузка откатывает
+                        # курсор и переигрывает строки хода, а сброшенный раньше
+                        # времени _spoke_this_turn дал бы на повторе тихую потерю тега.
+                        _pending_turn_end_mention = False
+                        _spoke_this_turn = False
             except _TgDeliveryOverloaded as e:
                 last_id = current_log_previous_id
                 logger.error(
