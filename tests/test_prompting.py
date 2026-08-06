@@ -507,3 +507,68 @@ class TestHtmlArtifactsSkillInvariants:
         # Платится оно не в каждой сессии — `build_skills_index` кладёт в промпт только
         # строку «имя — описание — путь», тело агент читает при срабатывании скилла.
         assert len(text.split("---", 2)[2].encode()) <= 12500, "тело скилла раздулось"
+
+
+class TestRefreshWorkerMemory:
+    """#137: personal memory must be re-read from disk when the prompt is re-injected.
+
+    Measured before the fix: 11 of 13 live sessions carried a stale <worker-memory>
+    block; the worst was running without 61% of its own accumulated file.
+    """
+
+    PROMPT = "ROLE: worker.\n\n<worker-memory>\nOLD\n</worker-memory>"
+
+    def _mem(self, tmp_path, filename, text):
+        d = tmp_path / "docs" / "workers"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / filename).write_text(text)
+
+    def test_replaces_block_and_keeps_the_blank_line_separator(self, tmp_path):
+        from app.prompting import refresh_worker_memory
+
+        self._mem(tmp_path, "w1.md", "FRESH")
+        out = refresh_worker_memory(self.PROMPT, "w1", "worker", str(tmp_path))
+        assert out == "ROLE: worker.\n\n<worker-memory>\nFRESH\n</worker-memory>", (
+            "the block must be swapped in place, still separated from the role text"
+        )
+        assert refresh_worker_memory(out, "w1", "worker", str(tmp_path)) == out, (
+            "re-injection happens on every resume — it must be idempotent"
+        )
+
+    def test_missing_unreadable_or_bad_scope_empties_the_block_without_raising(
+        self, tmp_path
+    ):
+        from app.prompting import refresh_worker_memory
+
+        # A raise here would land on the turn boundary, killing the agent's turn.
+        assert refresh_worker_memory(
+            self.PROMPT, "w1", "worker", str(tmp_path)
+        ) == "ROLE: worker."
+        assert refresh_worker_memory(
+            self.PROMPT, "w1", "worker", "/nope/nowhere"
+        ) == "ROLE: worker."
+
+        self._mem(tmp_path, "w1.md", "SECRET")
+        (tmp_path / "docs" / "workers" / "w1.md").chmod(0o000)
+        try:
+            assert refresh_worker_memory(
+                self.PROMPT, "w1", "worker", str(tmp_path)
+            ) == "ROLE: worker."
+        finally:
+            (tmp_path / "docs" / "workers" / "w1.md").chmod(0o644)
+
+    def test_memory_containing_regex_escapes_is_inserted_literally(self, tmp_path):
+        from app.prompting import refresh_worker_memory
+
+        self._mem(tmp_path, "w1.md", r"backref \1 and \g<0>")
+        out = refresh_worker_memory(self.PROMPT, "w1", "worker", str(tmp_path))
+        assert r"backref \1 and \g<0>" in out, (
+            "memory is arbitrary text; a string replacement would expand \\1 as a group"
+        )
+
+    def test_falls_back_to_role_file(self, tmp_path):
+        from app.prompting import refresh_worker_memory
+
+        self._mem(tmp_path, "worker.md", "ROLE-LEVEL")
+        out = refresh_worker_memory(self.PROMPT, "w1", "worker", str(tmp_path))
+        assert "ROLE-LEVEL" in out

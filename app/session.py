@@ -13,7 +13,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.events import AgentEvent
 from app.models import backend_for_model, get_model_spec
-from app.prompting import inject_skills_to_worktree, is_orchestrator_role, prompt_template_hash
+from app.prompting import (
+    inject_skills_to_worktree, is_orchestrator_role, prompt_template_hash,
+    refresh_worker_memory,
+)
 from app.runtime_registry import (
     BackendBuildContext,
     _load_scope_mcp_servers,
@@ -775,6 +778,12 @@ class AgentSession:
                 old_th = self._template_hash or current_th
                 templates_changed = old_th != current_th
                 pending_th = current_th
+                # Personal memory is re-read here, not reused from the assembled string:
+                # the prompt is built at spawn / _load_from_db, so anything the agent
+                # wrote to its own memory since then would otherwise wait for a restart.
+                self._current_prompt = refresh_worker_memory(
+                    self._current_prompt, self.name, self.role, self.scope
+                )
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True
 

@@ -68,12 +68,10 @@ files, where a stale rule misleads every agent. Here the only reader is you, an 
 nothing, and local specifics are exactly what you want. Never skip a personal note because it
 "wouldn't help other agents" — that is the wrong question for this file.
 
-This file auto-injects into your prompt on spawn/restart and survives worktree merge.
-**Its content is re-read only at spawn/restart, NOT at compact:** a lesson you write now stays
-in the file, but your post-compact session keeps running on the version loaded at spawn until
-the next reload. So when you add a lesson and a compact may follow, also put that lesson in
-your compact handoff summary — otherwise the very knowledge you just saved is missing from the
-session that needed it.
+This file auto-injects into your prompt and survives worktree merge. **Its content is re-read
+from disk every time the prompt is re-injected — on resume and after compact (#137)** — so a
+lesson you write now reaches you on your next turn without waiting for a restart. Write it down
+when you learn it; you no longer need to also carry it in a compact handoff summary.
 Use it only for knowledge that will matter to YOU on a LATER, DIFFERENT task:
 - a project convention you had to reverse-engineer;
 - a working tool/command and the obvious variant that failed;

@@ -22,6 +22,7 @@ _SKILLS_DIR = _PROMPTS_DIR / "skills"
 
 _ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 _IDENTITY_PLACEHOLDERS = re.compile(r"\{(worker_name|orchestrator_name|scope|branch)\}")
+_WORKER_MEMORY_BLOCK = re.compile(r"\n*<worker-memory>.*?</worker-memory>", re.DOTALL)
 
 
 def is_orchestrator_role(role: str) -> bool:
@@ -31,6 +32,47 @@ def is_orchestrator_role(role: str) -> bool:
 def safe_format_prompt(template: str, **kwargs: str) -> str:
     """Substitute only known identity placeholders, leaving other {braces} intact."""
     return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
+
+
+def load_worker_memory(name: str, role: str, scope: str) -> str:
+    """Load persistent memory from docs/workers/{name}.md or docs/workers/{role}.md.
+
+    Workers write their learned rules here; the file survives kill/respawn/compact
+    and is re-read whenever the prompt is (re)assembled.
+    """
+    base = Path(scope)
+    for filename in (f"{name}.md", f"{role}.md" if role else None):
+        if not filename:
+            continue
+        path = base / "docs" / "workers" / filename
+        if path.is_file():
+            try:
+                content = path.read_text().strip()
+                if content:
+                    logger.info(f"Loaded worker memory: {path} ({len(content)} chars)")
+                    return content
+            except Exception as e:
+                logger.warning(f"Failed to read worker memory {path}: {e}")
+    return ""
+
+
+def refresh_worker_memory(prompt: str, name: str, role: str, scope: str) -> str:
+    """Re-read personal memory from disk and swap it into an already-assembled prompt.
+
+    The prompt is assembled once (spawn / _load_from_db) but re-injected on every
+    resume and compact, so without this the agent keeps receiving the memory as it
+    was at the last server restart — measured in #137 as 11 of 13 live sessions
+    carrying a stale block, the worst missing 61% of its own file.
+    """
+    mem = load_worker_memory(name, role, scope)
+    block = f"<worker-memory>\n{mem}\n</worker-memory>" if mem else ""
+    if _WORKER_MEMORY_BLOCK.search(prompt):
+        # Replacement is a callable on purpose: memory is arbitrary user text and a
+        # plain string would have its backslash escapes (\1, \g) expanded by re.
+        # The pattern eats the leading newlines, so put the separator back with it.
+        sep = f"\n\n{block}" if block else ""
+        return _WORKER_MEMORY_BLOCK.sub(lambda _: sep, prompt, count=1).rstrip()
+    return f"{prompt}\n\n{block}".rstrip() if block else prompt
 
 
 def read_prompt(name: str) -> str:

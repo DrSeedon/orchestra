@@ -127,7 +127,7 @@ class TestDefaultRolesResolve:
         ]
         assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
             "git-workflow", "orchestration", "worker-lifecycle", "background-jobs",
-            "task-management", "self-improvement",
+            "task-management", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "worker").modules == [
             "git-workflow", "report-format", "self-improvement", "memory-search",
@@ -358,3 +358,19 @@ class TestDefaultValidateSpawn:
     def test_fail_open_unknown_parent_passes(self):
         """fail-open: неизвестный parent не роняет спавн."""
         assert P.validate_spawn(PIPELINE, "phantom", "worker") is None
+
+
+class TestSubOrchestratorGetsMemorySearch:
+    """#137: sub-orchestrators work in worktrees and search the same project memory."""
+
+    def test_module_text_reaches_the_assembled_prompt(self):
+        from app.manager import ROLE_SYSTEM_PROMPT
+
+        prompt = ROLE_SYSTEM_PROMPT(PIPELINE, "sub-orchestrator", "/tmp")
+        assert "<memory-search>" in prompt, (
+            "listing the module in pipeline.yaml is not enough — its text must assemble in"
+        )
+        assert "search_memory(" in prompt
+        assert "/api/sessions/" in prompt, (
+            "the own-transcript recipe added to this module must reach the role too"
+        )

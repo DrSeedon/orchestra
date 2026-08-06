@@ -2591,6 +2591,61 @@ class TestCompactReArmsPromptInjection:
             "the actual role text must be present, not just the wrapper"
         )
 
+    @pytest.mark.asyncio
+    async def test_personal_memory_written_mid_session_is_re_read_from_disk(
+        self, session, monkeypatch, tmp_path
+    ):
+        """#137: a lesson the worker writes to its own memory must come back to it.
+
+        Measured before the fix: 11 of 13 live sessions carried a stale <worker-memory>
+        block, the worst missing 61% of its own file, because `_current_prompt` was only
+        ever assembled in `_load_from_db` — i.e. on server restart.
+        """
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        mem_dir = tmp_path / "docs" / "workers"
+        mem_dir.mkdir(parents=True)
+        session.scope = str(tmp_path)
+        session.role = "worker"
+        session._log = MagicMock()
+        session._prompt_injected = True
+        session._current_prompt = (
+            "ROLE: worker.\n\n<worker-memory>\nSTALE: written at spawn\n</worker-memory>"
+        )
+
+        # The worker learns something and writes it down mid-session.
+        (mem_dir / f"{session.name}.md").write_text("FRESH: learned this mid-session")
+
+        await self._run_compact(session, monkeypatch)
+
+        sent = []
+        resumed = AsyncMock()
+        resumed.send = AsyncMock(side_effect=lambda m: sent.append(m))
+
+        async def events():
+            yield AgentEvent(type="turn_end", content="",
+                             metadata={"ok": True, "session_id": "post-compact-sid"})
+
+        resumed.events = lambda: events()
+        session._backend = resumed
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._persist = MagicMock()
+        monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
+
+        with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
+            await session.send("next task")
+
+        assert sent, "the turn after compact must reach the backend"
+        assert "FRESH: learned this mid-session" in sent[0], (
+            "memory written during the session must be re-read from disk, "
+            "not served from the string cached at the last server restart"
+        )
+        assert "STALE: written at spawn" not in sent[0], (
+            "the superseded memory block must be replaced, not appended to"
+        )
+
 
 class TestCompactPromptContract:
     """#106 Q6: properties the measured GO rests on. Changing these invalidates the experiment."""

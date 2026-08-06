@@ -19,7 +19,7 @@ from typing import Awaitable, Callable, Optional
 from app.session import AgentSession, AgentStatus
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
-    prompt_template_hash, inject_skills_to_worktree,
+    prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
 )
 
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
@@ -606,7 +606,7 @@ class SessionManager:
 
         # Worker persistent memory: docs/workers/{name}.md or docs/workers/{role}.md
         # Survives kill/respawn/compact — worker writes rules here, they auto-inject next time
-        worker_memory = self._load_worker_memory(name, role, scope)
+        worker_memory = load_worker_memory(name, role, scope)
         if worker_memory:
             prompt += f"\n\n<worker-memory>\n{worker_memory}\n</worker-memory>"
 
@@ -1410,7 +1410,7 @@ class SessionManager:
             is_orch = bool(db_row.get("is_orchestrator")) or is_orchestrator_role(role)
         old_prompt = db_row.get("system_prompt", "")
         current_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
-        worker_memory = self._load_worker_memory(db_row["name"], role, db_row["scope"])
+        worker_memory = load_worker_memory(db_row["name"], role, db_row["scope"])
         if worker_memory:
             current_prompt += f"\n\n<worker-memory>\n{worker_memory}\n</worker-memory>"
         cwd = db_row.get("cwd") or db_row["scope"]
@@ -1648,28 +1648,6 @@ class SessionManager:
                 return s.id
         db_row = get_session_by_name(name, scope)
         return db_row["id"] if db_row else None
-
-    @staticmethod
-    def _load_worker_memory(name: str, role: str, scope: str) -> str:
-        """Load persistent memory from docs/workers/{name}.md or docs/workers/{role}.md.
-
-        Workers write their learned rules here; the file survives kill/respawn/compact
-        and auto-injects into system_prompt on next spawn.
-        """
-        base = Path(scope)
-        for filename in (f"{name}.md", f"{role}.md" if role else None):
-            if not filename:
-                continue
-            path = base / "docs" / "workers" / filename
-            if path.is_file():
-                try:
-                    content = path.read_text().strip()
-                    if content:
-                        logger.info(f"Loaded worker memory: {path} ({len(content)} chars)")
-                        return content
-                except Exception as e:
-                    logger.warning(f"Failed to read worker memory {path}: {e}")
-        return ""
 
     def _pick_color(self) -> str:
         # Check both in-memory sessions AND DB to avoid duplicates on concurrent spawn / resume
