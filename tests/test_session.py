@@ -526,8 +526,14 @@ class TestTurn:
 
 class TestStop:
     @pytest.mark.asyncio
-    async def test_stop_sets_idle(self, session):
-        """stop() на работающей сессии → status=IDLE, backend disconnect вызван."""
+    async def test_stop_marks_running_session_interrupted(self, session):
+        """stop() на РАБОТАЮЩЕЙ сессии → status=INTERRUPTED, backend disconnect вызван.
+
+        Было IDLE. Изменено в #160: stop() зовётся только из shutdown_all, то есть
+        ход не завершён, а оборван выключением сервера. Запись 'idle' стирала этот
+        факт, и старт не знал, кого будить. Проверка поведения, не формы: агент,
+        застигнутый в RUNNING, обязан остаться отличимым от честно закончившего.
+        """
         from app.session import AgentStatus
         backend = _MockBackend()
 
@@ -547,6 +553,20 @@ class TestStop:
                     await send_task
                 except (asyncio.CancelledError, Exception):
                     pass
+
+        assert session.status == AgentStatus.INTERRUPTED
+
+    @pytest.mark.asyncio
+    async def test_stop_leaves_finished_session_idle(self, session):
+        """Обратная сторона: агент, честно закончивший ход, признака НЕ получает.
+
+        Fail-closed в обе стороны (#160): пометить прерванным того, кто уже был IDLE,
+        значит будить его после рестарта без причины.
+        """
+        from app.session import AgentStatus
+
+        session.status = AgentStatus.IDLE
+        await session.stop()
 
         assert session.status == AgentStatus.IDLE
 

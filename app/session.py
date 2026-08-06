@@ -1788,12 +1788,18 @@ class AgentSession:
                 logger.warning(f"[{self.name}] listen task failed on disconnect: {e}")
 
     async def stop(self) -> None:
-        self._log("status", "⏹️ stopped (manual interrupt)")
+        # Единственный вызывающий — shutdown_all(), то есть выключение сервера
+        # (пользовательский стоп идёт через interrupt()). Поэтому агент, застигнутый
+        # в RUNNING, не «закончил ход», а оборван: помечаем это в БД, иначе старт
+        # прочитает 'idle' и не узнает, кого будить (#160).
+        interrupted = self.status == AgentStatus.RUNNING
+        self._log("status", "⏹️ stopped (server shutdown)" if interrupted
+                  else "⏹️ stopped (manual interrupt)")
         self._turns.cancel_auto_report()
         self._cancel_precompact_timer("stop")
         await self._disconnect_backend()
         self._hibernated = False
-        self.status = AgentStatus.IDLE
+        self.status = AgentStatus.INTERRUPTED if interrupted else AgentStatus.IDLE
         self._persist()
         self._turns.publish_turn_finished()
 

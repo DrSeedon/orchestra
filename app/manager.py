@@ -1670,19 +1670,24 @@ class SessionManager:
     async def auto_resume_all(self) -> None:
         from app.db import _conn
         with _conn() as c:
+            # 'interrupted' — graceful shutdown успел пометить оборванный ход;
+            # 'running' — не успел (SIGKILL/OOM). Оба означают одно: ход прерван
+            # рестартом. Читать только 'running' значило будить лишь тех, кого
+            # застал аварийный путь (#160).
             was_running = {r["id"] for r in c.execute(
-                "SELECT id FROM sessions WHERE status = 'running'"
+                "SELECT id FROM sessions WHERE status IN ('running', 'interrupted')"
             ).fetchall()}
             was_waiting = {r["id"] for r in c.execute(
                 "SELECT id FROM sessions WHERE status = 'waiting'"
             ).fetchall()}
             resumable = [dict(r) for r in c.execute(
                 "SELECT * FROM sessions WHERE session_id IS NOT NULL "
-                "AND status IN ('running', 'idle', 'waiting')"
+                "AND status IN ('running', 'interrupted', 'idle', 'waiting')"
             ).fetchall()]
             # Reset to idle before loading: prevents any session from resuming
             # as 'running' (the backend process died on server restart)
-            c.execute("UPDATE sessions SET status='idle' WHERE status IN ('running', 'waiting')")
+            c.execute("UPDATE sessions SET status='idle' "
+                      "WHERE status IN ('running', 'interrupted', 'waiting')")
 
         # R1: load orchestrators first — workers need their parent_name resolved,
         # and the orchestrator's on_idle callback registered before workers resume
