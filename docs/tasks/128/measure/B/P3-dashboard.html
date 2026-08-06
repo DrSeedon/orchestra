@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расход токенов за неделю · 30.07–05.08.2026</title>
+<style>
+/* костяк производен от visualize.css, (c) OpenAI, Apache-2.0;
+   изменено: убран внешний JS, добавлены печать и вторая шрифтовая семья */
+:root{
+  color-scheme: light dark;
+  /* акцент: холодный синий — расход считается по вычислительной инфраструктуре,
+     а не по выручке; зелёный и красный оставлены смыслам «дёшево» и «всплеск» */
+  --accent: light-dark(#1256a8, #6fb2ff);
+  --fs: 15px;
+  --radius: 12px;
+  --font: ui-sans-serif, system-ui, sans-serif;
+  --font-head: ui-serif, Georgia, "Times New Roman", serif;
+  --bg: light-dark(#fff, #181818);
+  --ink: light-dark(#1a1c1f, #f2f2f0);
+  --mut: color-mix(in srgb, var(--ink) 48%, transparent);
+  --card: color-mix(in oklab, var(--ink) 5%, transparent);
+  --border: color-mix(in srgb, var(--ink) 12%, transparent);
+  --ring: var(--accent);
+  --bad: light-dark(#c0341a, #ff7a63);
+  --fs-sm: max(11px, calc(var(--fs) - 2px));
+  --fs-h3: calc(var(--fs) * 1.29);
+  --fs-h2: calc(var(--fs) * 1.43);
+  --fs-h1: calc(var(--fs) * 1.72);
+  --r-sm: calc(var(--radius) * .6);
+  --r-lg: calc(var(--radius) * 1.6);
+  --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --s1: var(--accent);
+  --s2: light-dark(#c26a1f, #f59a56);
+  --s3: light-dark(#2f7d46, #74d58b);
+  --s4: light-dark(#b8457f, #f08fc0);
+  --s5: light-dark(#6b57c4, #aa91ef);
+  --s6: light-dark(#1f7a72, #5acbc2);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
+     font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
+h1{font-size:var(--fs-h1)} h2{font-size:var(--fs-h2)} h3{font-size:var(--fs-h3)}
+small,.sm{font-size:var(--fs-sm)} .mut{color:var(--mut)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 24px 10px 0;border-bottom:1px solid var(--border);
+      text-align:start;vertical-align:top;overflow-wrap:anywhere}
+th{font-weight:600;border-bottom-color:color-mix(in srgb,var(--ink) 16%,transparent)}
+tbody tr:last-child :is(th,td){border-bottom:0}
+.num{text-align:end;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;scrollbar-width:thin}
+.card{padding:12px;border-radius:var(--r-lg);background:var(--card)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(180px,24%),1fr));gap:12px}
+.badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
+       background:color-mix(in srgb,var(--accent) 15%,transparent)}
+code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
+     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+     background:color-mix(in srgb,var(--ink) 10%,transparent);
+     box-decoration-break:clone;-webkit-box-decoration-break:clone;overflow-wrap:anywhere}
+:is(a,button,summary,input,select,[tabindex]):focus-visible{
+     outline:2px solid var(--ring);outline-offset:2px}
+:is([aria-pressed="true"],[aria-selected="true"]){background:var(--accent);color:var(--bg)}
+svg{display:block;max-width:100%;height:auto}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media print{
+  :root{color-scheme:light}
+  body{padding:0;background:#fff;color:#000}
+  .no-print{display:none}
+  tr,li{break-inside:avoid}
+  *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+
+/* ── разметка страницы ─────────────────────────────────────────────── */
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+header p{margin:8px 0 0;max-width:66ch}
+section{display:flex;flex-direction:column;gap:12px}
+section > h2{padding-bottom:6px;border-bottom:1px solid var(--border)}
+.kpi{padding:12px;border-radius:var(--r-lg);background:var(--card)}
+.kpi .k{font-size:var(--fs-sm);color:var(--mut);font-weight:600;letter-spacing:.02em}
+.kpi .v{margin-top:4px;font-family:var(--font-head);font-size:calc(var(--fs) * 2);
+        line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .n{margin-top:2px;font-size:var(--fs-sm);color:var(--mut)}
+.kpi.hot .v{color:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:var(--fs-sm)}
+.legend span{display:flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:3px;flex:none}
+.bar{height:8px;border-radius:9999px;background:color-mix(in srgb,var(--ink) 10%,transparent);
+     min-width:60px;margin-top:6px}
+.bar > i{display:block;height:100%;border-radius:9999px;background:var(--s1)}
+tr.spike :is(td,th){background:color-mix(in srgb,var(--bad) 10%,transparent)}
+/* подписи столбцов перебивают пунктир медианы, а не тонут в нём */
+.vlabel{fill:var(--ink);fill-opacity:.62;paint-order:stroke;stroke:var(--bg);
+        stroke-width:4px;stroke-linejoin:round}
+ul{margin:0;padding-inline-start:20px}
+li{margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Расход токенов за неделю</h1>
+  <p class="mut sm">30 июля — 5 августа 2026 · четыре модели · 159 задач</p>
+  <p><strong>Opus 5 съедает больше половины недельного расхода</strong> — 187 M токенов из 353 M
+  (53 %) и $1 496 из $2 173. Всплеск один и датируется точно: 3 августа, 94.7 M токенов за сутки —
+  вдвое выше медианного дня, и почти весь перевес дал тот же Opus (61.3 M против своей медианы 21.7 M).</p>
+</header>
+
+<section>
+  <h2 class="sr-only">Итоги недели</h2>
+  <div class="grid">
+    <div class="kpi">
+      <div class="k">ТОКЕНОВ ЗА НЕДЕЛЮ</div>
+      <div class="v">352.9 M</div>
+      <div class="n">$2 173 API-equivalent</div>
+    </div>
+    <div class="kpi">
+      <div class="k">ЗАДАЧ ЗАКРЫТО</div>
+      <div class="v">159</div>
+      <div class="n">$13.67 средняя задача</div>
+    </div>
+    <div class="kpi">
+      <div class="k">САМАЯ ПРОЖОРЛИВАЯ</div>
+      <div class="v">Opus 5</div>
+      <div class="n">53 % токенов · 21 % задач</div>
+    </div>
+    <div class="kpi hot">
+      <div class="k">ВСПЛЕСК</div>
+      <div class="v">3 авг</div>
+      <div class="n">94.7 M · ×2.1 к медиане дня</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Расход по дням</h2>
+  <p class="mut sm">Столбцы сложены по моделям, шкала — миллионы токенов.
+  Пунктир — медианный день недели (45.3 M).</p>
+  <div class="scroll">
+  <svg viewBox="0 0 720 300" role="img" aria-label="Столбчатая диаграмма расхода токенов по дням с 30 июля по 5 августа: пик 3 августа 94.7 M токенов">
+    <!-- сетка -->
+    <g stroke="currentColor" stroke-opacity=".14">
+      <line x1="56" y1="250" x2="700" y2="250"/>
+      <line x1="56" y1="192.5" x2="700" y2="192.5"/>
+      <line x1="56" y1="135" x2="700" y2="135"/>
+      <line x1="56" y1="77.5" x2="700" y2="77.5"/>
+      <line x1="56" y1="20" x2="700" y2="20"/>
+    </g>
+    <g fill="currentColor" fill-opacity=".55" font-size="11" text-anchor="end"
+       font-family="ui-sans-serif, system-ui, sans-serif">
+      <text x="46" y="254">0</text>
+      <text x="46" y="196.5">25</text>
+      <text x="46" y="139">50</text>
+      <text x="46" y="81.5">75</text>
+      <text x="46" y="24">100 M</text>
+    </g>
+    <!-- медианный день -->
+    <line x1="56" y1="145.8" x2="700" y2="145.8" stroke="currentColor" stroke-opacity=".45"
+          stroke-dasharray="4 4"/>
+
+    <!-- 30.07 -->
+    <g><rect x="74" y="207.7" width="56" height="42.3" fill="var(--s1)"/>
+       <rect x="74" y="185.6" width="56" height="22.1" fill="var(--s3)"/>
+       <rect x="74" y="169.0" width="56" height="16.6" fill="var(--s2)"/>
+       <rect x="74" y="159.6" width="56" height="9.4" fill="var(--s4)"/></g>
+    <!-- 31.07 -->
+    <g><rect x="166" y="200.1" width="56" height="49.9" fill="var(--s1)"/>
+       <rect x="166" y="174.3" width="56" height="25.8" fill="var(--s3)"/>
+       <rect x="166" y="153.9" width="56" height="20.5" fill="var(--s2)"/>
+       <rect x="166" y="145.1" width="56" height="8.7" fill="var(--s4)"/></g>
+    <!-- 01.08 -->
+    <g><rect x="258" y="205.8" width="56" height="44.2" fill="var(--s1)"/>
+       <rect x="258" y="181.9" width="56" height="23.9" fill="var(--s3)"/>
+       <rect x="258" y="167.0" width="56" height="14.9" fill="var(--s2)"/>
+       <rect x="258" y="156.4" width="56" height="10.6" fill="var(--s4)"/></g>
+    <!-- 02.08 -->
+    <g><rect x="350" y="211.4" width="56" height="38.6" fill="var(--s1)"/>
+       <rect x="350" y="192.7" width="56" height="18.6" fill="var(--s3)"/>
+       <rect x="350" y="180.3" width="56" height="12.4" fill="var(--s2)"/>
+       <rect x="350" y="173.0" width="56" height="7.4" fill="var(--s4)"/></g>
+    <!-- 03.08 — всплеск -->
+    <g><rect x="442" y="109.0" width="56" height="141.0" fill="var(--s1)"/>
+       <rect x="442" y="75.2" width="56" height="33.8" fill="var(--s3)"/>
+       <rect x="442" y="45.8" width="56" height="29.4" fill="var(--s2)"/>
+       <rect x="442" y="32.2" width="56" height="13.6" fill="var(--s4)"/></g>
+    <!-- 04.08 -->
+    <g><rect x="534" y="186.8" width="56" height="63.2" fill="var(--s1)"/>
+       <rect x="534" y="158.5" width="56" height="28.3" fill="var(--s3)"/>
+       <rect x="534" y="136.4" width="56" height="22.1" fill="var(--s2)"/>
+       <rect x="534" y="126.3" width="56" height="10.1" fill="var(--s4)"/></g>
+    <!-- 05.08 -->
+    <g><rect x="626" y="199.2" width="56" height="50.8" fill="var(--s1)"/>
+       <rect x="626" y="174.1" width="56" height="25.1" fill="var(--s3)"/>
+       <rect x="626" y="155.0" width="56" height="19.1" fill="var(--s2)"/>
+       <rect x="626" y="145.8" width="56" height="9.2" fill="var(--s4)"/></g>
+
+    <!-- итоги над столбцами -->
+    <!-- подложки под подписи: пунктир медианы не должен идти сквозь цифры -->
+    <g fill="var(--bg)">
+      <rect x="86" y="140" width="32" height="14"/>
+      <rect x="178" y="125" width="32" height="14"/>
+      <rect x="270" y="137" width="32" height="14"/>
+      <rect x="362" y="153" width="32" height="14"/>
+      <rect x="546" y="107" width="32" height="14"/>
+      <rect x="638" y="126" width="32" height="14"/>
+    </g>
+    <g class="vlabel" font-size="11" text-anchor="middle"
+       font-family="ui-sans-serif, system-ui, sans-serif">
+      <text x="102" y="151">39.3</text>
+      <text x="194" y="136">45.6</text>
+      <text x="286" y="148">40.7</text>
+      <text x="378" y="164">33.5</text>
+      <text x="562" y="118">53.8</text>
+      <text x="654" y="137">45.3</text>
+    </g>
+    <text x="470" y="24" text-anchor="middle" font-size="12" font-weight="600"
+          font-family="ui-sans-serif, system-ui, sans-serif" fill="var(--bad)">94.7 · ×2.1</text>
+
+    <!-- дни -->
+    <g fill="currentColor" fill-opacity=".7" font-size="12" text-anchor="middle"
+       font-family="ui-sans-serif, system-ui, sans-serif">
+      <text x="102" y="270">30.07</text>
+      <text x="194" y="270">31.07</text>
+      <text x="286" y="270">01.08</text>
+      <text x="378" y="270">02.08</text>
+      <text x="470" y="270" font-weight="600">03.08</text>
+      <text x="562" y="270">04.08</text>
+      <text x="654" y="270">05.08</text>
+    </g>
+    <text x="470" y="288" text-anchor="middle" font-size="11" fill="var(--bad)"
+          font-family="ui-sans-serif, system-ui, sans-serif">миграция на VPS</text>
+  </svg>
+  </div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--s1)"></i>Opus 5</span>
+    <span><i class="dot" style="background:var(--s3)"></i>Sonnet 5</span>
+    <span><i class="dot" style="background:var(--s2)"></i>GPT-5.6 Sol</span>
+    <span><i class="dot" style="background:var(--s4)"></i>Haiku 4.5</span>
+  </div>
+</section>
+
+<section>
+  <h2>По моделям за неделю</h2>
+  <div class="scroll">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Модель</th>
+        <th scope="col" class="num">Токенов</th>
+        <th scope="col">Доля расхода</th>
+        <th scope="col" class="num">Задач</th>
+        <th scope="col" class="num">Токенов / задачу</th>
+        <th scope="col" class="num">Стоимость задачи</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Opus 5 <span class="badge">лидер</span></th>
+        <td class="num">187.0 M</td>
+        <td>53.0 %<div class="bar"><i style="width:53%;background:var(--s1)"></i></div></td>
+        <td class="num">34</td>
+        <td class="num">5.50 M</td>
+        <td class="num">$44.00</td>
+      </tr>
+      <tr>
+        <th scope="row">Sonnet 5</th>
+        <td class="num">77.2 M</td>
+        <td>21.9 %<div class="bar"><i style="width:21.9%;background:var(--s3)"></i></div></td>
+        <td class="num">41</td>
+        <td class="num">1.88 M</td>
+        <td class="num">$9.04</td>
+      </tr>
+      <tr>
+        <th scope="row">GPT-5.6 Sol</th>
+        <td class="num">58.7 M</td>
+        <td>16.6 %<div class="bar"><i style="width:16.6%;background:var(--s2)"></i></div></td>
+        <td class="num">26</td>
+        <td class="num">2.26 M</td>
+        <td class="num">$9.93</td>
+      </tr>
+      <tr>
+        <th scope="row">Haiku 4.5</th>
+        <td class="num">30.0 M</td>
+        <td>8.5 %<div class="bar"><i style="width:8.5%;background:var(--s4)"></i></div></td>
+        <td class="num">58</td>
+        <td class="num">0.52 M</td>
+        <td class="num">$0.83</td>
+      </tr>
+      <tr>
+        <th scope="row">Итого</th>
+        <td class="num">352.9 M</td>
+        <td>100 %</td>
+        <td class="num">159</td>
+        <td class="num">2.22 M</td>
+        <td class="num">$13.67</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="mut sm">Стоимость — API-equivalent при смеси 85 % входных / 15 % выходных токенов
+  (<code>Opus $5/$25</code>, <code>Sonnet $3/$15</code>, <code>Haiku $1/$5</code> за M).
+  Реальных трат нет, работа идёт по подписке.</p>
+</section>
+
+<section>
+  <h2>По дням</h2>
+  <div class="scroll">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">День</th>
+        <th scope="col" class="num">Opus 5</th>
+        <th scope="col" class="num">Sonnet 5</th>
+        <th scope="col" class="num">Sol</th>
+        <th scope="col" class="num">Haiku 4.5</th>
+        <th scope="col" class="num">Всего</th>
+        <th scope="col" class="num">$</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">30.07 чт</th><td class="num">18.4</td><td class="num">9.6</td><td class="num">7.2</td><td class="num">4.1</td><td class="num">39.3</td><td class="num">232</td></tr>
+      <tr><th scope="row">31.07 пт</th><td class="num">21.7</td><td class="num">11.2</td><td class="num">8.9</td><td class="num">3.8</td><td class="num">45.6</td><td class="num">273</td></tr>
+      <tr><th scope="row">01.08 сб</th><td class="num">19.2</td><td class="num">10.4</td><td class="num">6.5</td><td class="num">4.6</td><td class="num">40.7</td><td class="num">239</td></tr>
+      <tr><th scope="row">02.08 вс</th><td class="num">16.8</td><td class="num">8.1</td><td class="num">5.4</td><td class="num">3.2</td><td class="num">33.5</td><td class="num">202</td></tr>
+      <tr class="spike"><th scope="row">03.08 пн</th><td class="num">61.3</td><td class="num">14.7</td><td class="num">12.8</td><td class="num">5.9</td><td class="num">94.7</td><td class="num">627</td></tr>
+      <tr><th scope="row">04.08 вт</th><td class="num">27.5</td><td class="num">12.3</td><td class="num">9.6</td><td class="num">4.4</td><td class="num">53.8</td><td class="num">328</td></tr>
+      <tr><th scope="row">05.08 ср</th><td class="num">22.1</td><td class="num">10.9</td><td class="num">8.3</td><td class="num">4.0</td><td class="num">45.3</td><td class="num">272</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="mut sm">Значения — миллионы токенов; последний столбец — API-equivalent за день.</p>
+</section>
+
+<section>
+  <h2>Что видно</h2>
+  <ul>
+    <li><strong>Расход концентрируется на Opus 5.</strong> Одна модель из четырёх — 53 % токенов
+    и 69 % денег при 21 % задач. Задача на Opus стоит $44.00 против $0.83 на Haiku: разрыв
+    в 53 раза, и он полностью объясняет форму недели.</li>
+    <li><strong>Всплеск один и локальный — 3 августа.</strong> 94.7 M токенов и $627 за сутки:
+    26.8 % недельного расхода в один день. Перевес дал Opus (61.3 M, ×2.8 к своей медиане),
+    остальные три модели выросли слабо — Sonnet ×1.35, Sol ×1.54, Haiku ×1.44. Это не общий
+    подъём нагрузки, а один тяжёлый прогон на дорогой модели.</li>
+    <li><strong>Дешёвый хвост держит объём задач.</strong> Haiku закрыл 58 задач из 159 — больше
+    всех — за 8.5 % токенов и $48 за неделю. Sonnet и Sol почти совпали по цене задачи
+    ($9.04 и $9.93), так что выбор между ними — про пригодность, а не про экономию.</li>
+    <li><strong>Куда смотреть дальше:</strong> откат недели к базовым 45 M/сутки после 3 августа
+    держится, но 04.08 всё ещё на 19 % выше медианы — хвост миграции ещё не догорел.</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

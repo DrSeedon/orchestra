@@ -1,0 +1,93 @@
+/* ПРЕДЛОЖЕНИЕ #128 — костяк, который агент вставляет и наполняет.
+   Скилл НЕ правлен: это черновик для решения.
+
+   Производное от visualize.css, © OpenAI, Apache License 2.0
+   (codex-rs/tui/src/inline_visualization/assets/visualize.css).
+   Изменено: убран внешний JS и #widget, добавлены печать, вторая шрифтовая семья
+   и ручки, выбираемые под предмет артефакта.
+
+   ПРАВИЛО ИСПОЛЬЗОВАНИЯ: агент меняет только блок «ручки». Всё, что ниже
+   «система», копируется как есть — там нечего выбирать, там уже выбрано. */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── ручки: 5 решений под предмет артефакта ───────────────────────── */
+  --accent: light-dark(#0a6b5d, #4fd3bd); /* тон предмета; не фиолетовый */
+  --fs: 15px;                             /* 14–16 */
+  --radius: 12px;                         /* 12 обычно, 4 для строгих тем, 0 для схем */
+  --font: ui-sans-serif, system-ui, sans-serif;
+  --font-head: var(--font);               /* вторая семья — Georgia, ui-serif, ui-rounded */
+
+  /* ── система: копируется как есть ─────────────────────────────────── */
+  --bg: light-dark(#fff, #181818);
+  --ink: light-dark(#1a1c1f, #fff);
+  --muted: color-mix(in srgb, var(--ink) 50%, transparent);
+  --card: color-mix(in oklab, var(--ink) 5%, transparent);
+  --border: color-mix(in srgb, var(--ink) 12%, transparent);
+  --ring: var(--accent);
+  --bad: light-dark(#e25507, #ff8549);
+  --fs-sm: max(11px, calc(var(--fs) - 2px));
+  --fs-h3: calc(var(--fs) * 1.29);
+  --fs-h2: calc(var(--fs) * 1.43);
+  --fs-h1: calc(var(--fs) * 1.72);
+  --r-sm: calc(var(--radius) * .6);
+  --r-md: calc(var(--radius) * .8);
+  --r-lg: calc(var(--radius) * 1.6);
+  --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  /* серии графиков; --s1 наследует акцент, остальные разнесены по кругу */
+  --s1: var(--accent);
+  --s2: light-dark(#f3883b, #f59a56);
+  --s3: light-dark(#5dc977, #74d58b);
+  --s4: light-dark(#eb77b1, #f08fc0);
+  --s5: light-dark(#9b79ec, #aa91ef);
+  --s6: light-dark(#3ab9b1, #5acbc2);
+  /* отступы только из этого ряда: 2 4 6 8 12 16 24 40 */
+}
+
+* { box-sizing: border-box }
+body {
+  margin: 0; padding: clamp(16px, 4vw, 40px);
+  background: var(--bg); color: var(--ink);
+  font: 430 var(--fs)/1.5 var(--font); letter-spacing: 0;
+}
+h1, h2, h3 { margin: 0; font-family: var(--font-head); font-weight: 500; line-height: 1.25 }
+h1 { font-size: var(--fs-h1) } h2 { font-size: var(--fs-h2) } h3 { font-size: var(--fs-h3) }
+small, .sm { font-size: var(--fs-sm) }
+.muted { color: var(--muted) }
+
+table { width: 100%; border-collapse: collapse }
+th, td {
+  padding: 10px 24px 10px 0; border-bottom: 1px solid var(--border);
+  text-align: start; vertical-align: top; overflow-wrap: anywhere;
+}
+thead th { font-weight: 600; border-bottom-color: color-mix(in srgb, var(--ink) 16%, transparent) }
+tbody tr:last-child :is(th, td) { border-bottom: 0 }
+.num { text-align: end; font-variant-numeric: tabular-nums }
+.scroll-x { overflow-x: auto; scrollbar-width: thin }
+
+.card { padding: 12px; border-radius: var(--r-lg); background: var(--card) }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr)); gap: 12px }
+.badge {
+  padding: 3px 8px; border-radius: 9999px; font-size: var(--fs-sm);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+code {
+  padding: 1px 6px; border-radius: var(--r-sm); font-size: .92em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  box-decoration-break: clone; overflow-wrap: anywhere;
+}
+:is(a, button, summary, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--ring); outline-offset: 2px;
+}
+:is([aria-pressed="true"], [aria-selected="true"]) { background: var(--accent); color: var(--bg) }
+svg { display: block; max-width: 100%; height: auto }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap }
+
+@media print {
+  :root { color-scheme: light }
+  body { padding: 0; background: #fff; color: #000 }
+  .no-print { display: none }
+  * { print-color-adjust: exact }
+}

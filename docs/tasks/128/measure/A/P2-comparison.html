@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Где хранить историю диалогов агента — SQLite, JSONL, вектор-стор</title>
+<style>
+/* акцент: бирюзово-зелёный — цвет сохранности данных: журнал, который дожил до перезапуска.
+   Второй тон, тёплая охра, только для «слабое место» и цены — чтобы риск было видно, не читая. */
+:root{
+  color-scheme: light dark;
+  --fs: 15px;
+  --radius: 10px;
+  --bg:      light-dark(#f6f5f1, #0f1417);
+  --ink:     light-dark(#161d1c, #e4ebe8);
+  --accent:  light-dark(#0b7264, #3fd3bb);
+  --warn:    light-dark(#9a5209, #e9a45a);
+  --card:    color-mix(in oklab, var(--ink) 5%, transparent);
+  --line:    color-mix(in oklab, var(--ink) 16%, transparent);
+  --mute:    color-mix(in oklab, var(--ink) 62%, transparent);
+  --ring:    var(--accent);
+}
+
+*{ box-sizing: border-box; }
+html{ background: var(--bg); }
+body{
+  margin: 0;
+  padding: 0 20px 72px;
+  font: var(--fs)/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--bg);
+}
+.wrap{ max-width: 1080px; margin: 0 auto; }
+h1,h2,h3{ letter-spacing: 0; font-weight: 640; margin: 0; }
+h1{ font-size: calc(var(--fs) * 1.72); line-height: 1.2; }
+h2{ font-size: calc(var(--fs) * 1.29); line-height: 1.25; }
+h3{ font-size: calc(var(--fs) * 1.06); line-height: 1.3; }
+p{ margin: .55em 0; }
+code, .mono{ font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .92em; }
+
+/* ——— полосы-секции, не плавающие карточки ——— */
+section{
+  border-top: 1px solid var(--line);
+  padding: 26px 0 6px;
+}
+.eyebrow{
+  font-size: calc(var(--fs) * .8); text-transform: uppercase;
+  color: var(--mute); margin-bottom: 6px;
+}
+
+header{ padding: 40px 0 24px; }
+header .lede{ max-width: 66ch; font-size: calc(var(--fs) * 1.06); color: var(--ink); }
+.verdict{
+  margin-top: 18px; padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--card);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  max-width: 72ch;
+}
+.verdict b{ color: var(--accent); }
+
+/* ——— выбор по профилю ——— */
+.profiles{ display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 12px; }
+.profiles button{
+  font: inherit; font-size: calc(var(--fs) * .94);
+  color: var(--ink); background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * .6);
+  padding: 7px 12px; cursor: pointer;
+}
+.profiles button:hover{ border-color: color-mix(in oklab, var(--accent) 55%, transparent); }
+.profiles button:focus-visible{ outline: none; box-shadow: inset 0 0 0 1px var(--ring); }
+.profiles button[aria-pressed="true"]{
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+#profile-note{ min-height: 3.1em; max-width: 76ch; color: var(--ink); margin: 4px 0 4px; }
+#profile-note .pick{ color: var(--accent); font-weight: 640; }
+
+/* ——— матрица ——— */
+.matrix-scroll{ overflow-x: auto; }
+table{ border-collapse: collapse; width: 100%; min-width: 700px; }
+th, td{ text-align: left; vertical-align: top; padding: 11px 12px; border-bottom: 1px solid var(--line); }
+thead th{ font-size: calc(var(--fs) * .94); font-weight: 640; border-bottom: 1px solid var(--line); }
+thead th small{ display: block; font-weight: 400; color: var(--mute); font-size: calc(var(--fs) * .84); }
+tbody th{ font-weight: 560; width: 21%; }
+tbody th small{ display: block; font-weight: 400; color: var(--mute); font-size: calc(var(--fs) * .84); }
+td{ font-size: calc(var(--fs) * .92); width: 26.3%; }
+td .num{ display: block; font-weight: 620; margin-bottom: 2px; }
+td .txt{ color: var(--mute); }
+col.on, th.on{ background: color-mix(in oklab, var(--accent) 11%, transparent); }
+td.on{ background: color-mix(in oklab, var(--accent) 11%, transparent); }
+
+.chip{
+  display: inline-block; margin-right: 6px; padding: 0 6px;
+  border-radius: 999px; font-size: calc(var(--fs) * .76); line-height: 1.65;
+  border: 1px solid currentColor;
+}
+.v-good{ color: var(--accent); }
+.v-ok{ color: var(--mute); }
+.v-bad{ color: var(--warn); }
+
+/* ——— сетки разборов ——— */
+.cols{ display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 6px; }
+.cols > div > h3{ margin-bottom: 4px; }
+.cols ul{ margin: .35em 0; padding-left: 1.1em; }
+.cols li{ margin: .22em 0; font-size: calc(var(--fs) * .94); }
+.cols li::marker{ color: var(--mute); }
+
+.math{
+  background: var(--card); border-radius: var(--radius);
+  padding: 12px 14px; margin: 10px 0 2px;
+  font-size: calc(var(--fs) * .9);
+}
+.math div{ margin: 3px 0; }
+.math .r{ color: var(--accent); font-weight: 620; }
+
+figure{ margin: 8px 0 0; }
+figcaption{ color: var(--mute); font-size: calc(var(--fs) * .86); margin-top: 6px; }
+svg{ width: 100%; height: auto; display: block; }
+svg text{ font-family: ui-sans-serif, system-ui, sans-serif; fill: currentColor; }
+
+footer{ color: var(--mute); font-size: calc(var(--fs) * .86); padding-top: 22px; border-top: 1px solid var(--line); margin-top: 26px; }
+
+@media print{
+  :root{ color-scheme: light; }
+  html, body{ background: #fff; color: #000; }
+  .profiles, #profile-note{ display: none; }
+  body{ padding: 0; }
+  section{ break-inside: avoid; }
+  *{ print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Историю диалогов надо где-то держать. Три варианта, пять критериев</h1>
+  <p class="lede">
+    SQLite-таблица, JSONL-файлы на диске, внешний вектор-стор. Спор обычно идёт «что лучше», а
+    решается он не так: у трёх вариантов разные роли. Ниже — цифры по каждому критерию, арифметика
+    цены, и что именно ломается в каждом варианте, когда процесс падает посреди записи.
+  </p>
+  <div class="verdict">
+    <b>Короткий ответ.</b> Первоисточник — <b>JSONL</b>: дописывание в конец файла переживает падение
+    лучше всех и читается глазами. <b>SQLite</b> — рабочая копия поверх него: всё, что нужно спросить
+    фильтром («сессия X за вторник»), спрашивается за миллисекунды. <b>Вектор-стор</b> — не хранилище,
+    а индекс: он производный, его можно потерять и пересобрать. Один вариант из трёх выбирают, только
+    когда система маленькая и такой останется.
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">Выбор за 10 секунд</div>
+  <h2>Что у вас за нагрузка?</h2>
+  <div class="profiles" id="profiles" role="group" aria-label="Профиль нагрузки"></div>
+  <p id="profile-note">Выберите профиль — колонка в таблице ниже подсветится.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Матрица</div>
+  <h2>Пять критериев, три варианта</h2>
+  <div class="matrix-scroll">
+    <table id="matrix">
+      <colgroup><col><col data-opt="sqlite"><col data-opt="jsonl"><col data-opt="vector"></colgroup>
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p style="color:var(--mute); font-size:calc(var(--fs)*.86); max-width:78ch">
+    Цифры — порядки величин для сообщения ~1 КБ на локальном NVMe, не бенчмарк вашего железа.
+    Разброс внутри строки важнее абсолютных значений: он не меняется от машины.
+  </p>
+</section>
+
+<section>
+  <div class="eyebrow">Схема</div>
+  <h2>Путь одного сообщения</h2>
+  <figure>
+    <svg viewBox="0 0 900 330" role="img" aria-label="Схема пути записи и чтения для трёх вариантов хранения">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+        </marker>
+        <marker id="ar-mute" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,1 L9,5 L0,9 z" fill="currentColor" opacity=".45"/>
+        </marker>
+      </defs>
+
+      <!-- общий источник -->
+      <rect x="8" y="130" width="104" height="52" rx="8" fill="none" stroke="currentColor" stroke-opacity=".45"/>
+      <text x="60" y="152" text-anchor="middle" font-size="13">ход агента</text>
+      <text x="60" y="169" text-anchor="middle" font-size="11" opacity=".6">сообщение</text>
+
+      <!-- линия 1: SQLite -->
+      <g>
+        <path d="M112,148 L196,60" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#ar-mute)"/>
+        <rect x="200" y="34" width="150" height="52" rx="8" fill="none" stroke="currentColor" stroke-opacity=".45"/>
+        <text x="275" y="56" text-anchor="middle" font-size="13">INSERT в транзакции</text>
+        <text x="275" y="73" text-anchor="middle" font-size="11" opacity=".6">WAL, один писатель</text>
+        <path d="M350,60 L420,60" fill="none" stroke="var(--accent)" marker-end="url(#ar)" color="var(--accent)"/>
+        <rect x="424" y="34" width="132" height="52" rx="8" fill="none" stroke="var(--accent)"/>
+        <text x="490" y="56" text-anchor="middle" font-size="13" fill="var(--accent)">history.db</text>
+        <text x="490" y="73" text-anchor="middle" font-size="11" opacity=".65">+ индексы</text>
+        <path d="M556,60 L636,60" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#ar-mute)"/>
+        <text x="700" y="52" text-anchor="middle" font-size="12">SELECT … WHERE</text>
+        <text x="700" y="70" text-anchor="middle" font-size="11" opacity=".6">точный фильтр, мс</text>
+        <text x="836" y="62" font-size="12" opacity=".75">SQLite</text>
+      </g>
+
+      <!-- линия 2: JSONL -->
+      <g>
+        <path d="M112,156 L196,156" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#ar-mute)"/>
+        <rect x="200" y="130" width="150" height="52" rx="8" fill="none" stroke="currentColor" stroke-opacity=".45"/>
+        <text x="275" y="152" text-anchor="middle" font-size="13">append + fsync</text>
+        <text x="275" y="169" text-anchor="middle" font-size="11" opacity=".6">без блокировок</text>
+        <path d="M350,156 L420,156" fill="none" stroke="var(--accent)" marker-end="url(#ar)" color="var(--accent)"/>
+        <rect x="424" y="130" width="132" height="52" rx="8" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+        <text x="490" y="152" text-anchor="middle" font-size="13" fill="var(--accent)">2026-08-05.jsonl</text>
+        <text x="490" y="169" text-anchor="middle" font-size="11" opacity=".65">первоисточник</text>
+        <path d="M556,156 L636,156" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#ar-mute)"/>
+        <text x="700" y="148" text-anchor="middle" font-size="12">rg / jq, линейно</text>
+        <text x="700" y="166" text-anchor="middle" font-size="11" opacity=".6">индекса нет</text>
+        <text x="836" y="158" font-size="12" opacity=".75">JSONL</text>
+      </g>
+
+      <!-- линия 3: вектор -->
+      <g>
+        <path d="M112,164 L196,252" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#ar-mute)"/>
+        <rect x="200" y="226" width="150" height="52" rx="8" fill="none" stroke="var(--warn)" stroke-dasharray="4 3"/>
+        <text x="275" y="248" text-anchor="middle" font-size="13" fill="var(--warn)">эмбеддинг</text>
+        <text x="275" y="265" text-anchor="middle" font-size="11" opacity=".7">сеть · деньги · 20–200 мс</text>
+        <path d="M350,252 L420,252" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#ar-mute)"/>
+        <rect x="424" y="226" width="132" height="52" rx="8" fill="none" stroke="currentColor" stroke-opacity=".45"/>
+        <text x="490" y="248" text-anchor="middle" font-size="13">ANN-индекс</text>
+        <text x="490" y="265" text-anchor="middle" font-size="11" opacity=".6">производный</text>
+        <path d="M556,252 L636,252" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#ar-mute)"/>
+        <text x="700" y="244" text-anchor="middle" font-size="12">kNN → top-k</text>
+        <text x="700" y="262" text-anchor="middle" font-size="11" opacity=".6">по смыслу, recall &lt; 100%</text>
+        <text x="836" y="254" font-size="12" opacity=".75">вектор</text>
+      </g>
+
+      <!-- обратная стрелка: пересборка индекса из первоисточника -->
+      <path d="M486,186 C486,210 486,214 486,222" fill="none" stroke="var(--accent)" stroke-opacity=".55" stroke-dasharray="3 3" marker-end="url(#ar)" color="var(--accent)"/>
+      <text x="500" y="207" font-size="11" opacity=".7">пересобирается</text>
+    </svg>
+    <figcaption>
+      Сплошной контур акцентом — то, что можно считать источником правды. Пунктир вниз: вектор-индекс
+      строится из первоисточника и восстанавливается из него же, поэтому его потеря — это счёт за
+      переэмбеддинг, а не потеря истории.
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="eyebrow">Разбор · критерий 1 и 2</div>
+  <h2>Запись и поиск</h2>
+  <div class="cols">
+    <div>
+      <h3>SQLite-таблица</h3>
+      <ul>
+        <li>Запись быстрая, пока сообщения идут пачкой в одной транзакции. Отдельная транзакция на
+          сообщение при <code>synchronous=FULL</code> упирается в fsync — единицы мс.</li>
+        <li><code>WAL</code> обязателен: без него читатели блокируют писателя.</li>
+        <li>Писатель ровно один на файл. Десять агентов пишут параллельно — они стоят в очереди
+          (<code>SQLITE_BUSY</code>, нужен <code>busy_timeout</code>).</li>
+        <li>Поиск — это то, ради чего вариант и берут: <code>WHERE session_id=? AND ts&gt;?</code>
+          с индексом идёт за миллисекунды на миллионах строк. Полнотекст — <code>FTS5</code>,
+          в том же файле, без новой зависимости.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>JSONL-файлы</h3>
+      <ul>
+        <li>Самый короткий путь записи: <code>open(a)</code> → строка → <code>\n</code>. Без fsync —
+          десятки микросекунд, с fsync на строку — миллисекунды (тот же барьер, что у всех).</li>
+        <li>Параллельность бесплатна, если у каждого агента свой файл. Один файл на всех —
+          нужен <code>O_APPEND</code> и строки меньше <code>PIPE_BUF</code>, иначе записи перемешаются.</li>
+        <li>Поиск — линейный. <code>rg</code> идёт примерно гигабайт в секунду; до нескольких ГБ это
+          терпимо, дальше каждый вопрос стоит секунды.</li>
+        <li>Запрос вида «последние 20 сообщений по 40 агентам» превращается в скрипт. Это и есть
+          момент, когда рядом заводят SQLite.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Вектор-стор</h3>
+      <ul>
+        <li>Стоимость записи задаёт не диск, а эмбеддинг: сетевой вызов на каждое сообщение или на
+          пачку. Синхронно в горячем пути — так делать нельзя, только очередь и фоновая индексация.</li>
+        <li>Отсюда следствие: индекс всегда чуть отстаёт от истории. «Только что сказанное» через
+          него не ищется.</li>
+        <li>Единственный вариант, отвечающий на «где мы это обсуждали» без точных слов. Остальные два
+          такого не умеют вообще — это не разница в скорости, это разница в классе вопроса.</li>
+        <li>Плата за это: ответ недетерминирован и неполон. <code>recall</code> у ANN — не 100%,
+          и «ничего не нашлось» не доказывает, что этого не было.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Разбор · критерий 3</div>
+  <h2>Цена: считаем на миллион сообщений</h2>
+  <p style="max-width:74ch">Возьмём 1 000 000 сообщений по ~1 КБ ≈ 1 ГБ сырого текста, ~250 токенов на
+    сообщение. Арифметика открыта — подставьте свои числа, порядок не изменится.</p>
+  <div class="math mono">
+    <div>JSONL &nbsp; 1 ГБ на диске · zstd → <span class="r">~150–250 МБ</span> · инфраструктуры нет — <span class="r">$0</span></div>
+    <div>SQLite &nbsp; 1 ГБ данных + индексы ~30–60% → <span class="r">~1.3–1.6 ГБ</span> · один файл, процесса нет — <span class="r">$0</span></div>
+    <div>Вектор &nbsp; эмбеддинги: 250 M токенов × $0.02/M → <span class="r">~$5 разово</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; индекс в RAM: 1 M × 1536 dim × 4 Б = 6.1 ГБ + граф HNSW ~25% → <span class="r">~7–8 ГБ RAM</span></div>
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; или managed-сервис → <span class="r">десятки $/мес постоянно</span></div>
+  </div>
+  <p style="max-width:74ch; color:var(--mute)">
+    Пять долларов за эмбеддинги — не та цифра, которая решает. Решают 7 ГБ памяти под индекс и то,
+    что этот счёт повторяется при каждой смене модели эмбеддингов: старые векторы с новой моделью
+    несовместимы, и «просто обновить» означает переэмбеддить всё заново. Ужать можно —
+    <span class="mono">int8</span>-квантизация режет память вчетверо, размерность
+    <span class="mono">768</span> вместо <span class="mono">1536</span> — вдвое; обе меры стоят качества поиска.
+  </p>
+</section>
+
+<section>
+  <div class="eyebrow">Разбор · критерий 4</div>
+  <h2>Что остаётся после падения посреди записи</h2>
+  <div class="cols">
+    <div>
+      <h3>JSONL — лучший случай</h3>
+      <ul>
+        <li>Битой будет максимум последняя строка. Читатель, который пропускает нераспарсившуюся
+          строку, восстанавливает всё остальное без единой команды.</li>
+        <li>Повреждение локально: файл вторника не влияет на файл среды.</li>
+        <li>Обратная сторона — <b>ротация ваша забота</b>. Никто не удалит старое за вас, и каталог
+          на миллион файлов сам по себе становится проблемой.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>SQLite — надёжно, но целиком</h3>
+      <ul>
+        <li>WAL даёт атомарность: незавершённая транзакция откатывается при следующем открытии.
+          Потеря — последняя транзакция, не больше.</li>
+        <li>Риск другой: <b>всё в одном файле</b>. Порча страницы или ошибка ФС — и под ударом вся
+          история, а не один день. <code>PRAGMA integrity_check</code> покажет, но не починит.</li>
+        <li>Значит нужен бэкап (<code>VACUUM INTO</code>, <code>.backup</code>) — то есть та же
+          операционная работа, от которой вариант якобы избавлял.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Вектор — восстановим, но небесплатно</h3>
+      <ul>
+        <li>Индекс производный: пока цел первоисточник, потеря индекса ничего не теряет по существу.</li>
+        <li>Но пересборка — это снова эмбеддинги: деньги, часы и лимиты провайдера. Без снапшота
+          индекса «просто перезапустить» не выйдет.</li>
+        <li>Отдельный отказ: <b>рассинхрон</b>. Сообщение удалили из первоисточника, а вектор остался —
+          и поиск возвращает то, чего уже нет.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Разбор · критерий 5</div>
+  <h2>Отладка: во что вы смотрите в три часа ночи</h2>
+  <div class="cols">
+    <div>
+      <h3>JSONL</h3>
+      <ul>
+        <li><code>tail -f</code> в реальном времени, <code>diff</code> двух прогонов, <code>jq</code>
+          по полям. Файл читается человеком и агентом без инструментов.</li>
+        <li>Приложить кусок к баг-репорту — это <code>sed -n</code>, а не выгрузка.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>SQLite</h3>
+      <ul>
+        <li>Есть SQL: агрегаты, джойны, «сколько сообщений на агента за неделю» — один запрос.
+          Любой GUI открывает файл.</li>
+        <li>Слабее в живом наблюдении: «что происходит прямо сейчас» — это опрос в цикле, а не
+          <code>tail -f</code>.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Вектор</h3>
+      <ul>
+        <li>Худший из трёх. «Почему не нашлось нужное» — это не чтение файла, а разбор косинусных
+          расстояний.</li>
+        <li>Чтобы отлаживать всерьёз, нужен набор эталонных запросов и метрика. Без него правки
+          пайплайна неотличимы от шума.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Итог</div>
+  <h2>Как обычно и заканчивается</h2>
+  <p style="max-width:76ch">
+    Три варианта не заменяют друг друга, потому что отвечают на разные вопросы: «покажи всё, что было»
+    (JSONL), «покажи вот это по фильтру» (SQLite), «покажи похожее» (вектор). Практика сходится к
+    связке: <b>JSONL — append-only первоисточник, SQLite — индекс и метаданные поверх, вектор —
+    опционально и последним</b>, когда вопрос «где мы это обсуждали» реально начали задавать.
+  </p>
+  <p style="max-width:76ch">
+    У связки своя цена, и её надо назвать честно: два хранилища расходятся. Правило, которое это
+    держит, простое — <b>пишем всегда в первоисточник, всё остальное перестраивается из него</b>.
+    Как только SQLite или вектор начинают получать данные в обход JSONL, гарантия восстановления,
+    ради которой всё затевалось, исчезает.
+  </p>
+  <p style="max-width:76ch; color:var(--mute)">
+    Когда одного варианта достаточно: история за неделю и один агент — хватит JSONL. Дашборд с
+    фильтрами и десятки агентов, а объёмы небольшие — хватит SQLite, и это нормальный конечный
+    выбор, а не полумера. Отдельный вектор-стор как <i>единственное</i> хранилище — ошибка при любых
+    объёмах: он не хранит, он ищет.
+  </p>
+</section>
+
+<footer>
+  Оценки — порядки величин для локального NVMe и сообщения ~1 КБ; цена эмбеддингов по тарифу
+  ~$0.02 за 1 M токенов. Проверяйте на своих данных: меняются абсолютные числа, не соотношения.
+</footer>
+
+</div>
+
+<!-- durable source: факты живут здесь, разметка выше — их представление -->
+<script type="application/json" id="facts">
+{
+  "options": [
+    { "id": "sqlite", "name": "SQLite-таблица",  "sub": "одна БД, INSERT + индексы" },
+    { "id": "jsonl",  "name": "JSONL на диске",  "sub": "append-only, файл на сессию" },
+    { "id": "vector", "name": "Вектор-стор",     "sub": "эмбеддинг + ANN-индекс" }
+  ],
+  "criteria": [
+    { "id": "write",    "name": "Скорость записи",  "hint": "одно сообщение ~1 КБ" },
+    { "id": "search",   "name": "Скорость поиска",  "hint": "1 M сообщений" },
+    { "id": "cost",     "name": "Цена",             "hint": "на 1 M сообщений" },
+    { "id": "recovery", "name": "Восстановление",   "hint": "падение посреди записи" },
+    { "id": "debug",    "name": "Отладка",          "hint": "смотреть руками" }
+  ],
+  "cells": {
+    "write": {
+      "sqlite": { "v": "ok",   "k": "0.05–3 мс", "t": "быстро пачкой в транзакции; отдельная транзакция упирается в fsync. Писатель один — параллельные агенты ждут" },
+      "jsonl":  { "v": "good", "k": "0.01–2 мс", "t": "дописывание в конец, блокировок нет; свой файл на агента — параллельность бесплатна" },
+      "vector": { "v": "bad",  "k": "20–200 мс", "t": "правит не диск, а вызов эмбеддинга по сети; в горячем пути недопустимо, только фоновая очередь" }
+    },
+    "search": {
+      "sqlite": { "v": "good", "k": "мс по индексу", "t": "точные фильтры и агрегаты искаробки; полнотекст — FTS5 в том же файле" },
+      "jsonl":  { "v": "ok",   "k": "секунды, линейно", "t": "rg ~1 ГБ/с: до нескольких ГБ терпимо. Кросс-сессионные запросы превращаются в скрипт" },
+      "vector": { "v": "good", "k": "мс, ANN", "t": "единственный ищет по смыслу без точных слов. Взамен — неполный recall и недетерминированность" }
+    },
+    "cost": {
+      "sqlite": { "v": "good", "k": "$0 · ~1.5 ГБ", "t": "файл на диске, отдельного процесса нет; индексы добавляют 30–60% объёма" },
+      "jsonl":  { "v": "good", "k": "$0 · ~1 ГБ", "t": "самый дешёвый по хранению, сжимается в 5–7 раз; платите CPU на каждом поиске" },
+      "vector": { "v": "bad",  "k": "~$5 + 7 ГБ RAM", "t": "эмбеддинги разово, память под индекс постоянно; смена модели эмбеддингов = пересчёт всего" }
+    },
+    "recovery": {
+      "sqlite": { "v": "ok",   "k": "теряется транзакция", "t": "WAL откатывает незавершённое. Риск в другом: всё в одном файле, порча бьёт по всей истории — нужен бэкап" },
+      "jsonl":  { "v": "good", "k": "теряется строка", "t": "битой будет максимум последняя; повреждение локально в файле дня. Ротацию делать самим" },
+      "vector": { "v": "ok",   "k": "пересборка", "t": "индекс производный и восстановим из первоисточника, но это снова деньги и часы. Отдельный риск — рассинхрон с источником" }
+    },
+    "debug": {
+      "sqlite": { "v": "ok",   "k": "SQL и любой GUI", "t": "агрегаты одним запросом; за живым потоком следить хуже — опрос вместо tail -f" },
+      "jsonl":  { "v": "good", "k": "tail, diff, jq", "t": "открывается чем угодно, читается человеком, кусок прикладывается в баг-репорт как есть" },
+      "vector": { "v": "bad",  "k": "нужен эвал", "t": "«почему не нашлось» глазами не отлаживается: нужен набор эталонных запросов и метрика" }
+    }
+  },
+  "profiles": [
+    { "id": "solo",  "label": "Один агент, читаю логи руками", "pick": "jsonl",
+      "why": "Индекс не нужен: rg по гигабайту отвечает быстрее, чем вы напишете запрос. Берите файлы и не вводите БД, пока запросы не станут кросс-сессионными." },
+    { "id": "fleet", "label": "Десятки агентов, дашборд с фильтрами", "pick": "sqlite",
+      "why": "Вопросы стали табличными («сессия X за вторник», «сколько на агента»), а на них линейный скан отвечать перестал. Пишите в JSONL, а SQLite держите индексом поверх — и не забудьте про бэкап одного файла." },
+    { "id": "recall", "label": "«Где мы это обсуждали?» по смыслу", "pick": "vector",
+      "why": "Это единственный класс вопроса, который двум другим недоступен в принципе. Но ставьте вектор поверх существующего первоисточника, не вместо: индекс отстаёт от истории и отвечает неполно." },
+    { "id": "crash", "label": "Падаем посреди хода, терять нельзя", "pick": "jsonl",
+      "why": "Дописывание в конец теряет максимум одну строку, и повреждение не выходит за файл дня. У единственной БД под всё риск противоположный: одна порченая страница — и под ударом вся история." }
+  ]
+}
+</script>
+
+<script>
+(function () {
+  var facts = JSON.parse(document.getElementById('facts').textContent);
+  var VERDICT = { good: 'сильная сторона', ok: 'терпимо', bad: 'слабое место' };
+
+  var table = document.getElementById('matrix');
+  var headRow = document.createElement('tr');
+  headRow.appendChild(document.createElement('th'));
+  facts.options.forEach(function (opt) {
+    var th = document.createElement('th');
+    th.dataset.opt = opt.id;
+    th.innerHTML = opt.name + '<small>' + opt.sub + '</small>';
+    headRow.appendChild(th);
+  });
+  table.tHead.appendChild(headRow);
+
+  var tbody = table.tBodies[0];
+  facts.criteria.forEach(function (crit) {
+    var tr = document.createElement('tr');
+    var th = document.createElement('th');
+    th.scope = 'row';
+    th.innerHTML = crit.name + '<small>' + crit.hint + '</small>';
+    tr.appendChild(th);
+    facts.options.forEach(function (opt) {
+      var cell = facts.cells[crit.id][opt.id];
+      var td = document.createElement('td');
+      td.dataset.opt = opt.id;
+      td.innerHTML =
+        '<span class="num"><span class="chip v-' + cell.v + '" title="' + VERDICT[cell.v] + '">' +
+        VERDICT[cell.v] + '</span>' + cell.k + '</span>' +
+        '<span class="txt">' + cell.t + '</span>';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  var optName = {};
+  facts.options.forEach(function (opt) { optName[opt.id] = opt.name; });
+
+  var note = document.getElementById('profile-note');
+  var bar = document.getElementById('profiles');
+  var buttons = [];
+
+  function highlight(optId) {
+    var marked = table.querySelectorAll('[data-opt]');
+    for (var i = 0; i < marked.length; i++) {
+      marked[i].classList.toggle('on', marked[i].dataset.opt === optId);
+    }
+  }
+
+  facts.profiles.forEach(function (prof) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = prof.label;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.addEventListener('click', function () {
+      var already = btn.getAttribute('aria-pressed') === 'true';
+      buttons.forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      if (already) {
+        highlight(null);
+        note.textContent = 'Выберите профиль — колонка в таблице ниже подсветится.';
+        return;
+      }
+      btn.setAttribute('aria-pressed', 'true');
+      highlight(prof.pick);
+      note.innerHTML = '<span class="pick">' + optName[prof.pick] + '.</span> ' + prof.why;
+    });
+    buttons.push(btn);
+    bar.appendChild(btn);
+  });
+})();
+</script>
+</body>
+</html>

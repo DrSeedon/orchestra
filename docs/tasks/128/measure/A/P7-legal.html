@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Отказали в плановой госпитализации — памятка пациента</title>
+<style>
+/* акцент: приглушённый бирюзовый — единственное цветное пятно на нейтральной странице.
+   Юридическая памятка не должна кричать красным, но и серой стеной быть не должна:
+   бирюза читается как «медицинское», а не как «тревога». Красный оставлен только
+   для одного смысла — «срок нарушен». */
+:root{
+  color-scheme: light dark;
+
+  --fs: 15px;
+  --radius: 10px;
+
+  --bg:     light-dark(#f5f6f6, #15191b);
+  --ink:    light-dark(#1a2422, #e3e9e7);
+  --accent: light-dark(#0a6a62, #5ccfc1);
+  --warn:   light-dark(#9d3626, #f0a18d);
+
+  --muted: color-mix(in oklab, var(--ink) 58%, transparent);
+  --faint: color-mix(in oklab, var(--ink) 38%, transparent);
+  --card:  color-mix(in oklab, var(--ink) 5%, transparent);
+  --line:  color-mix(in oklab, var(--ink) 15%, transparent);
+  --ring:  var(--accent);
+}
+
+*{ box-sizing: border-box; }
+
+html{ background: var(--bg); }
+
+body{
+  margin: 0;
+  padding: 0 20px 64px;
+  background: var(--bg);
+  color: var(--ink);
+  font: var(--fs)/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap{ max-width: 940px; margin: 0 auto; }
+
+h1, h2, h3{ letter-spacing: 0; font-weight: 650; margin: 0; }
+h1{ font-size: calc(var(--fs) * 1.72); line-height: 1.2; }
+h2{ font-size: calc(var(--fs) * 1.43); line-height: 1.25; }
+h3{ font-size: calc(var(--fs) * 1.29); line-height: 1.3; }
+p{ margin: 0 0 10px; }
+ul, ol{ margin: 0 0 10px; padding-left: 20px; }
+li{ margin: 4px 0; }
+b, strong{ font-weight: 650; }
+code{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+
+/* ── шапка ───────────────────────────────────────────────────────── */
+header{ padding: 34px 0 22px; border-bottom: 1px solid var(--line); }
+.kicker{
+  font-size: calc(var(--fs) * .8); text-transform: uppercase;
+  color: var(--accent); font-weight: 650; margin-bottom: 8px;
+}
+.lede{ font-size: calc(var(--fs) * 1.1); max-width: 68ch; margin-top: 12px; }
+.lede b{ box-shadow: inset 0 -.42em 0 color-mix(in oklab, var(--accent) 22%, transparent); }
+
+/* ── секции-полосы, не плавающие карточки ────────────────────────── */
+section{ padding: 26px 0; border-bottom: 1px solid var(--line); }
+.sec-head{ display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.sec-num{ color: var(--faint); font-variant-numeric: tabular-nums; font-size: calc(var(--fs) * 1.43); }
+.sec-note{ color: var(--muted); font-size: calc(var(--fs) * .88); }
+
+.grid{ display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); }
+
+.tile{
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * .8);
+  padding: 13px 15px;
+  font-size: calc(var(--fs) * .95);
+}
+.tile h3{ font-size: calc(var(--fs) * 1.02); margin-bottom: 5px; }
+.tile p{ color: var(--muted); margin: 0; }
+.law{
+  display: block; margin-top: 8px;
+  font-size: calc(var(--fs) * .8); color: var(--faint);
+  border-top: 1px solid var(--line); padding-top: 7px;
+}
+
+/* ── таблица сроков ──────────────────────────────────────────────── */
+.tbl-scroll{ overflow-x: auto; }
+table{ border-collapse: collapse; width: 100%; font-size: calc(var(--fs) * .93); }
+th, td{ text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th{ font-weight: 650; color: var(--muted); font-size: calc(var(--fs) * .82); text-transform: uppercase; }
+td.term{ white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 650; color: var(--accent); }
+tbody tr:last-child td{ border-bottom: 0; }
+
+/* ── калькулятор ─────────────────────────────────────────────────── */
+.calc{
+  margin-top: 16px; padding: 14px 15px;
+  border: 1px solid var(--line); border-radius: calc(var(--radius) * .8);
+  background: var(--card);
+}
+.calc-row{ display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+label{ display: block; font-size: calc(var(--fs) * .82); color: var(--muted); margin-bottom: 4px; }
+input[type=date], select, button{
+  font: inherit; font-size: calc(var(--fs) * .95);
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: calc(var(--radius) * .6);
+  padding: 7px 10px;
+}
+button{ cursor: pointer; background: var(--accent); color: var(--bg); border-color: transparent; font-weight: 650; }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+  outline: none; box-shadow: inset 0 0 0 1px var(--ring);
+}
+button:focus-visible{ box-shadow: inset 0 0 0 1px var(--bg); }
+#calcOut{ margin-top: 11px; font-size: calc(var(--fs) * .97); min-height: 1.5em; }
+#calcOut .over{ color: var(--warn); font-weight: 650; }
+#calcOut .ok{ color: var(--accent); font-weight: 650; }
+
+/* ── шаги ────────────────────────────────────────────────────────── */
+.steps{ list-style: none; padding: 0; margin: 0; counter-reset: s; }
+.steps > li{
+  counter-increment: s;
+  position: relative;
+  padding: 0 0 16px 42px;
+  border-left: 1px solid var(--line);
+  margin-left: 12px;
+}
+.steps > li:last-child{ border-left-color: transparent; padding-bottom: 0; }
+.steps > li::before{
+  content: counter(s);
+  position: absolute; left: -13px; top: -2px;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--bg); border: 1px solid var(--accent);
+  color: var(--accent); font-size: calc(var(--fs) * .82); font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.steps h3{ font-size: calc(var(--fs) * 1.05); margin-bottom: 4px; }
+.steps p{ color: var(--muted); font-size: calc(var(--fs) * .95); }
+.say{
+  display: block; margin: 7px 0 0;
+  padding: 8px 11px; background: var(--card);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 calc(var(--radius) * .6) calc(var(--radius) * .6) 0;
+  font-size: calc(var(--fs) * .93); color: var(--ink);
+}
+.say em{ font-style: normal; color: var(--faint); font-size: calc(var(--fs) * .8); display: block; margin-bottom: 3px; text-transform: uppercase; }
+
+/* ── лестница инстанций ──────────────────────────────────────────── */
+.ladder{ display: grid; gap: 0; margin-top: 4px; }
+.rung{
+  display: grid; grid-template-columns: 30px 1fr 148px;
+  gap: 14px; align-items: start;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.rung:last-child{ border-bottom: 0; }
+.rung-n{ color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 650; }
+.rung h3{ font-size: calc(var(--fs) * 1.02); margin-bottom: 3px; }
+.rung p{ margin: 0; color: var(--muted); font-size: calc(var(--fs) * .93); }
+.rung .when{ font-size: calc(var(--fs) * .85); color: var(--muted); }
+.rung .when b{ color: var(--ink); display: block; font-size: calc(var(--fs) * .93); }
+.rung--key h3{ color: var(--accent); }
+@media (max-width: 620px){
+  .rung{ grid-template-columns: 26px 1fr; }
+  .rung .when{ grid-column: 2; }
+}
+
+/* ── чек-лист документов ─────────────────────────────────────────── */
+.check{ list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.check li{
+  display: grid; grid-template-columns: 17px 1fr; gap: 10px; align-items: start;
+  font-size: calc(var(--fs) * .95); margin: 0;
+}
+.check li::before{
+  content: ""; width: 15px; height: 15px; margin-top: 4px;
+  border: 1px solid var(--faint); border-radius: 3px;
+}
+.check span{ color: var(--muted); display: block; font-size: calc(var(--fs) * .85); }
+
+/* ── шаблон заявления ────────────────────────────────────────────── */
+.tpl{
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: calc(var(--radius) * .8);
+  padding: 15px 17px; font-size: calc(var(--fs) * .93);
+  white-space: pre-wrap; margin: 0;
+  font-family: inherit;
+}
+.tpl mark{ background: color-mix(in oklab, var(--accent) 20%, transparent); color: inherit; padding: 0 2px; border-radius: 3px; }
+.tpl-bar{ display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+#copyMsg{ font-size: calc(var(--fs) * .85); color: var(--accent); }
+
+/* ── ошибки ──────────────────────────────────────────────────────── */
+.dont li{ font-size: calc(var(--fs) * .95); }
+.dont li b{ color: var(--warn); }
+
+figure{ margin: 4px 0 0; }
+figcaption{ font-size: calc(var(--fs) * .82); color: var(--faint); margin-top: 6px; }
+svg{ width: 100%; height: auto; display: block; }
+
+footer{ padding-top: 22px; color: var(--muted); font-size: calc(var(--fs) * .85); }
+footer p{ max-width: 78ch; }
+
+@media print{
+  :root{ --bg: #fff; --ink: #000; --accent: #000; --warn: #000;
+         --muted: #333; --faint: #555; --card: #fff; --line: #bbb; }
+  html, body{ background: #fff; color: #000; }
+  body{ padding: 0; font-size: 10.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .no-print{ display: none !important; }
+  section{ break-inside: avoid; }
+  .steps > li, .rung, .tile{ break-inside: avoid; }
+  .tile, .calc, .tpl{ background: #fff; }
+  .lede b{ box-shadow: none; text-decoration: underline; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Памятка пациента · ОМС · 2026</div>
+  <h1>Отказали в плановой госпитализации</h1>
+  <p class="lede">Если у вас на руках направление, отказ в госпитализации по ОМС незаконен, а срок ожидания
+  ограничен законом — <b>14 рабочих дней</b> (для онкологии и болезней сердца — 7).
+  Самое действенное, что можно сделать, — <b>позвонить в свою страховую компанию прямо из больницы</b>,
+  номер напечатан на полисе. Это бесплатно, работает круглосуточно и обычно быстрее любой жалобы.
+  Ниже — что именно вам положено, какие сроки идут, что говорить и писать, и куда обращаться дальше.</p>
+</header>
+
+<!-- 1. Права -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">01</span>
+    <h2>На что вы имеете право</h2>
+  </div>
+  <div class="grid">
+    <div class="tile">
+      <h3>На бесплатную помощь без отказа</h3>
+      <p>Помощь в рамках программы госгарантий оказывается бесплатно, отказ в ней не допускается.
+      Это прямая норма закона, а не добрая воля больницы.</p>
+      <span class="law">ч. 1 ст. 11 Федерального закона № 323-ФЗ</span>
+    </div>
+    <div class="tile">
+      <h3>На госпитализацию в срок</h3>
+      <p>Срок ожидания считается со дня, когда лечащий врач выдал направление, — в том числе
+      электронное. Больница обязана внести вас в лист ожидания.</p>
+      <span class="law">Программа госгарантий на 2026 год, ПП РФ от 29.12.2025 № 2188</span>
+    </div>
+    <div class="tile">
+      <h3>На выбор больницы</h3>
+      <p>При направлении на госпитализацию лечащий врач обязан предложить варианты стационаров,
+      где помощь оказывают по вашему профилю, — выбираете вы.</p>
+      <span class="law">ст. 21 Федерального закона № 323-ФЗ</span>
+    </div>
+    <div class="tile">
+      <h3>На объяснение и документы</h3>
+      <p>Вам обязаны в доступной форме объяснить решение, а по требованию — выдать копии
+      медицинских документов и выписок.</p>
+      <span class="law">ст. 22 Федерального закона № 323-ФЗ</span>
+    </div>
+    <div class="tile">
+      <h3>На защиту через страховую</h3>
+      <p>Страховая компания обязана не просто принять жалобу, а организовать вам помощь
+      и провести экспертизу качества, по итогам которой больницу штрафуют.</p>
+      <span class="law">ст. 16 и 40 Федерального закона № 326-ФЗ</span>
+    </div>
+    <div class="tile">
+      <h3>На возврат денег</h3>
+      <p>Если из-за отказа пришлось лечиться или обследоваться платно, потраченное можно
+      вернуть. Сохраняйте договор, чеки и назначения.</p>
+      <span class="law">Через страховую, ТФОМС или суд</span>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Сроки -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">02</span>
+    <h2>Сроки, которые уже идут</h2>
+    <span class="sec-note">рабочие дни — без суббот, воскресений и праздников</span>
+  </div>
+
+  <div class="tbl-scroll">
+    <table>
+      <thead>
+        <tr><th>Ситуация</th><th>Предельный срок</th><th>С какого дня считается</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Плановая госпитализация (кроме высокотехнологичной помощи)</td>
+          <td class="term">14 рабочих дней</td>
+          <td>со дня выдачи врачом направления, включая электронное</td>
+        </tr>
+        <tr>
+          <td>Онкологическое заболевание</td>
+          <td class="term">7 рабочих дней</td>
+          <td>с момента гистологического подтверждения опухоли или установления диагноза</td>
+        </tr>
+        <tr>
+          <td>Сердечно-сосудистое заболевание <span style="color:var(--accent)">(новое с 2026 года)</span></td>
+          <td class="term">7 рабочих дней</td>
+          <td>со дня установления предварительного диагноза; приём кардиолога — 3 рабочих дня,
+              исследования — 7 рабочих дней</td>
+        </tr>
+        <tr>
+          <td>Высокотехнологичная медицинская помощь (ВМП)</td>
+          <td class="term">по решению ВК</td>
+          <td>срок определяет врачебная комиссия по каждому случаю; правило 14 дней не применяется</td>
+        </tr>
+        <tr>
+          <td>Консультация врача-специалиста, КТ, МРТ, лабораторные исследования</td>
+          <td class="term">14 рабочих дней</td>
+          <td>со дня обращения или назначения (при подозрении на онкологию — 7 рабочих дней)</td>
+        </tr>
+        <tr>
+          <td>Ответ на вашу письменную жалобу</td>
+          <td class="term">30 дней</td>
+          <td>со дня регистрации обращения; продление ещё на 30 дней — только с уведомлением вас</td>
+        </tr>
+        <tr>
+          <td>Переадресация жалобы «не по адресу» в нужный орган</td>
+          <td class="term">7 дней</td>
+          <td>орган обязан переслать сам и письменно сообщить вам об этом</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="calc no-print">
+    <div class="calc-row">
+      <div>
+        <label for="dStart">Дата направления (или диагноза)</label>
+        <input type="date" id="dStart">
+      </div>
+      <div>
+        <label for="dKind">Ваш случай</label>
+        <select id="dKind">
+          <option value="14">Обычная плановая госпитализация — 14 рабочих дней</option>
+          <option value="7">Онкология или болезнь сердца — 7 рабочих дней</option>
+        </select>
+      </div>
+      <button id="dGo" type="button">Посчитать срок</button>
+    </div>
+    <div id="calcOut" role="status"></div>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 940 168" role="img" aria-label="Шкала: день выдачи направления, лист ожидания, 14-й рабочий день — крайний срок, дальше зона нарушения">
+      <defs>
+        <marker id="arwWarn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--warn)"/>
+        </marker>
+      </defs>
+      <g fill="none" stroke="currentColor" stroke-width="1.4" opacity=".9">
+        <line x1="60" y1="86" x2="640" y2="86"/>
+      </g>
+      <g stroke="var(--warn)" stroke-width="1.4" fill="none">
+        <line x1="640" y1="86" x2="884" y2="86" stroke-dasharray="6 5" marker-end="url(#arwWarn)"/>
+      </g>
+      <g stroke="currentColor" stroke-width="1.4">
+        <line x1="60" y1="72" x2="60" y2="100"/>
+        <line x1="350" y1="78" x2="350" y2="94" opacity=".5"/>
+      </g>
+      <line x1="640" y1="66" x2="640" y2="106" stroke="var(--warn)" stroke-width="2.4"/>
+      <circle cx="60" cy="86" r="5" fill="currentColor" stroke="none"/>
+      <circle cx="640" cy="86" r="6" fill="var(--warn)" stroke="none"/>
+      <g font-size="13" fill="currentColor">
+        <text x="60" y="52" text-anchor="middle" font-weight="650">День 0</text>
+        <text x="60" y="126" text-anchor="middle" opacity=".65"><tspan x="60">врач выдал</tspan><tspan x="60" dy="15">направление</tspan></text>
+        <text x="350" y="52" text-anchor="middle" opacity=".8">Лист ожидания</text>
+        <text x="350" y="126" text-anchor="middle" opacity=".65"><tspan x="350">вас обязаны в него</tspan><tspan x="350" dy="15">внести и назвать дату</tspan></text>
+        <text x="640" y="52" text-anchor="middle" font-weight="650" fill="var(--warn)">14-й рабочий день</text>
+        <text x="640" y="126" text-anchor="middle" opacity=".65"><tspan x="640">крайний срок</tspan><tspan x="640" dy="15">госпитализации</tspan></text>
+        <text x="770" y="52" text-anchor="middle" fill="var(--warn)" font-weight="650">Нарушение</text>
+        <text x="770" y="126" text-anchor="middle" opacity=".65"><tspan x="770">готовое основание</tspan><tspan x="770" dy="15">для жалобы</tspan></text>
+      </g>
+    </svg>
+    <figcaption>Для онкологии и сердечно-сосудистых заболеваний та же шкала, но крайний срок — 7-й рабочий день.</figcaption>
+  </figure>
+</section>
+
+<!-- 3. Устный отказ -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">03</span>
+    <h2>Если отказали устно — пять шагов, не выходя из больницы</h2>
+    <span class="sec-note">устный отказ невозможно обжаловать, поэтому задача — превратить его в бумагу</span>
+  </div>
+
+  <ol class="steps">
+    <li>
+      <h3>Попросите письменный отказ</h3>
+      <p>Спокойно, без спора: нужен документ с датой, причиной отказа, фамилией, должностью и подписью.
+      Одного этого требования часто достаточно, чтобы решение изменилось на месте.</p>
+      <span class="say"><em>что сказать</em>Прошу оформить отказ письменно, с указанием причины и ссылкой на нормативный документ. Мне нужно обратиться в страховую компанию.</span>
+    </li>
+    <li>
+      <h3>Отказ оформлять не хотят — пишите заявление сами</h3>
+      <p>От руки, в свободной форме, в двух экземплярах. Один сдаёте в регистратуру или канцелярию,
+      на втором просите поставить входящий номер, дату и фамилию принявшего. Этот второй экземпляр —
+      ваше главное доказательство. Шаблон — в разделе 06.</p>
+    </li>
+    <li>
+      <h3>Заявление не принимают — отправьте его сами</h3>
+      <p>Заказным письмом с уведомлением о вручении и описью вложения на адрес больницы, либо через
+      электронную приёмную на её сайте. Сохраните почтовую квитанцию с описью или скриншот с номером
+      обращения — юридически это равно личной подаче.</p>
+    </li>
+    <li>
+      <h3>Позвоните в свою страховую прямо из коридора</h3>
+      <p>Номер — на полисе ОМС, линия круглосуточная, звонок бесплатный. Страховой представитель обязан
+      разобраться и организовать госпитализацию, а не просто «принять обращение». Запишите номер
+      обращения и фамилию сотрудника.</p>
+      <span class="say"><em>что сказать по телефону</em>У меня направление на плановую госпитализацию от <mark>даты</mark>, в госпитализации отказано. Прошу зарегистрировать обращение и организовать оказание помощи в установленный срок.</span>
+    </li>
+    <li>
+      <h3>Зафиксируйте всё, пока помните</h3>
+      <p>Запишите: дату и время, номер кабинета или отделения, фамилию и должность врача,
+      дословную формулировку отказа, кто присутствовал. Сфотографируйте направление, талон,
+      запись в листе ожидания, экран с записью. Идти на приём лучше со спутником — он свидетель.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- 4. Куда жаловаться -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">04</span>
+    <h2>Куда обращаться и в каком порядке</h2>
+    <span class="sec-note">шаги 1 и 2 можно делать одновременно — ждать ответа больницы необязательно</span>
+  </div>
+
+  <div class="ladder">
+    <div class="rung">
+      <span class="rung-n">1</span>
+      <div>
+        <h3>Заведующий отделением, затем главный врач</h3>
+        <p>Самый быстрый путь, если отказ — самодеятельность одного сотрудника. Идти лично,
+        но обращение всё равно оставить письменно, с входящим номером.</p>
+      </div>
+      <div class="when"><b>до 30 дней</b>на письменный ответ</div>
+    </div>
+
+    <div class="rung rung--key">
+      <span class="rung-n">2</span>
+      <div>
+        <h3>Страховая компания, выдавшая полис ОМС</h3>
+        <p>Ключевой шаг, и он бесплатный. Страховая обязана организовать вам помощь, провести
+        экспертизу качества и оштрафовать больницу, а также помочь составить жалобу дальше.
+        Устно — по телефону с полиса, письменно — заявление или форма на сайте.</p>
+      </div>
+      <div class="when"><b>сразу по телефону</b>письменный ответ — до 30 дней</div>
+    </div>
+
+    <div class="rung">
+      <span class="rung-n">3</span>
+      <div>
+        <h3>Территориальный фонд ОМС вашего региона</h3>
+        <p>Если страховая тянет время или отвечает отпиской. ТФОМС контролирует сами страховые
+        компании и работу больниц по ОМС.</p>
+      </div>
+      <div class="when"><b>до 30 дней</b>приём онлайн и по телефону</div>
+    </div>
+
+    <div class="rung">
+      <span class="rung-n">4</span>
+      <div>
+        <h3>Министерство (департамент) здравоохранения региона</h3>
+        <p>Больница подчиняется ему напрямую. Эффективно, когда проблема системная: нет мест,
+        нет квот, «направление не берём».</p>
+      </div>
+      <div class="when"><b>до 30 дней</b>через сайт или Госуслуги</div>
+    </div>
+
+    <div class="rung">
+      <span class="rung-n">5</span>
+      <div>
+        <h3>Территориальный орган Росздравнадзора</h3>
+        <p>Надзор за качеством и безопасностью медицинской помощи и за соблюдением прав пациентов.
+        Может провести проверку и выдать больнице предписание.</p>
+      </div>
+      <div class="when"><b>до 30 дней</b>онлайн-приёмная</div>
+    </div>
+
+    <div class="rung">
+      <span class="rung-n">6</span>
+      <div>
+        <h3>Прокуратура</h3>
+        <p>Когда предыдущие инстанции промолчали или отписались, а здоровье под угрозой.
+        Заказным письмом с уведомлением, приложив все прежние обращения и ответы.</p>
+      </div>
+      <div class="when"><b>до 30 дней</b>без проверки — 15 дней</div>
+    </div>
+
+    <div class="rung">
+      <span class="rung-n">7</span>
+      <div>
+        <h3>Суд</h3>
+        <p>Вернуть деньги за платное лечение, которое положено по ОМС, и взыскать компенсацию
+        морального вреда. Иск подаётся по месту нахождения больницы. Акты проверок и экспертиза
+        качества от страховой становятся вашими доказательствами.</p>
+      </div>
+      <div class="when"><b>после отказов</b>госпошлины по таким искам нет</div>
+    </div>
+  </div>
+
+  <figure style="margin-top:18px">
+    <svg viewBox="0 0 940 132" role="img" aria-label="Схема: два пути — быстрый через страховую и надзорный через жалобы">
+      <defs>
+        <marker id="arw2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g stroke="currentColor" fill="none" stroke-width="1.3" marker-end="url(#arw2)">
+        <line x1="196" y1="42" x2="292" y2="42"/>
+        <line x1="516" y1="42" x2="612" y2="42"/>
+        <line x1="196" y1="100" x2="292" y2="100"/>
+        <line x1="516" y1="100" x2="612" y2="100"/>
+      </g>
+      <g fill="none" stroke="currentColor" opacity=".55" stroke-width="1.2" stroke-dasharray="5 4">
+        <path d="M404 62 L404 80" marker-end="url(#arw2)"/>
+      </g>
+      <g fill="none" stroke="currentColor" opacity=".35">
+        <rect x="20" y="22" width="176" height="40" rx="7"/>
+        <rect x="292" y="22" width="224" height="40" rx="7"/>
+        <rect x="612" y="22" width="308" height="40" rx="7"/>
+        <rect x="20" y="80" width="176" height="40" rx="7"/>
+        <rect x="292" y="80" width="224" height="40" rx="7"/>
+        <rect x="612" y="80" width="308" height="40" rx="7"/>
+      </g>
+      <g font-size="13" fill="currentColor" text-anchor="middle">
+        <text x="108" y="47" font-weight="650">Устный отказ</text>
+        <text x="404" y="47">Звонок в страховую</text>
+        <text x="766" y="47" font-weight="650">Госпитализацию организуют</text>
+        <text x="108" y="105">Письменное заявление</text>
+        <text x="404" y="105">Жалоба: ТФОМС, минздрав</text>
+        <text x="766" y="105">Проверка, предписание, суд</text>
+      </g>
+      <text x="416" y="76" font-size="11.5" fill="currentColor" opacity=".6">если не помогло</text>
+    </svg>
+    <figcaption>Верхний путь занимает часы, нижний — недели. Начинать всегда стоит с верхнего, но бумагу
+    писать в тот же день: она понадобится, если понадобится нижний.</figcaption>
+  </figure>
+</section>
+
+<!-- 5. Документы -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">05</span>
+    <h2>Что приложить к жалобе</h2>
+    <span class="sec-note">копии, оригиналы оставляйте себе · распечатайте страницу и отмечайте галочками</span>
+  </div>
+  <ul class="check">
+    <li><div>Паспорт, полис ОМС, СНИЛС <span>копии первой страницы и обеих сторон полиса</span></div></li>
+    <li><div>Направление на госпитализацию <span>форма 057/у-04 или номер электронного направления</span></div></li>
+    <li><div>Выписка из медкарты или заключение врача <span>то, чем подтверждаются показания к лечению</span></div></li>
+    <li><div>Талон, лист ожидания, скриншот записи <span>доказывает, с какой даты идёт срок</span></div></li>
+    <li><div>Письменный отказ больницы <span>если выдали — самый весомый документ</span></div></li>
+    <li><div>Ваш экземпляр заявления с входящим номером <span>если письменный отказ выдать отказались</span></div></li>
+    <li><div>Почтовая квитанция и опись вложения <span>если отправляли письмом</span></div></li>
+    <li><div>Договор, чеки, назначения на платные услуги <span>основание вернуть потраченное</span></div></li>
+    <li><div>Хронология событий на одной странице <span>дата — что произошло — кто участвовал</span></div></li>
+    <li><div>Ваши контакты и способ ответа <span>анонимные обращения не рассматриваются</span></div></li>
+  </ul>
+</section>
+
+<!-- 6. Шаблон -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">06</span>
+    <h2>Шаблон заявления в больницу</h2>
+    <span class="sec-note">подставьте своё вместо выделенного · тот же текст годится для страховой и надзора</span>
+  </div>
+
+  <div class="tpl-bar no-print">
+    <button id="copyBtn" type="button">Скопировать текст</button>
+    <span id="copyMsg" role="status"></span>
+  </div>
+
+<pre class="tpl" id="tplText">Главному врачу <mark>полное название больницы</mark>
+<mark>Фамилия И. О. главного врача, если известна</mark>
+от <mark>Фамилия Имя Отчество полностью</mark>,
+адрес: <mark>адрес для ответа</mark>,
+телефон: <mark>телефон</mark>, полис ОМС № <mark>номер</mark>
+
+ЗАЯВЛЕНИЕ
+
+<mark>дата</mark> лечащим врачом <mark>название поликлиники</mark> мне выдано направление
+на плановую госпитализацию в <mark>название отделения / профиль</mark>
+с диагнозом <mark>диагноз или «указан в направлении»</mark>.
+
+<mark>дата</mark> при обращении в <mark>название больницы</mark> в госпитализации мне было отказано
+устно, письменный отказ с указанием причины выдать отказались. Отказ озвучил
+<mark>должность, фамилия, если известны</mark>, мотивировав его <mark>что именно сказали</mark>.
+
+Согласно ч. 1 ст. 11 Федерального закона от 21.11.2011 № 323-ФЗ отказ в оказании
+медицинской помощи в рамках программы государственных гарантий не допускается.
+Предельный срок ожидания плановой госпитализации, установленный Программой
+государственных гарантий на 2026 год (постановление Правительства РФ
+от 29.12.2025 № 2188), составляет 14 рабочих дней со дня выдачи направления.
+
+ПРОШУ:
+1. Госпитализировать меня в установленный законом срок.
+2. В случае отказа выдать его в письменной форме с указанием причины,
+   должности и фамилии принявшего решение лица.
+3. О результатах рассмотрения сообщить мне письменно по указанному адресу.
+
+Копия настоящего заявления направлена в страховую медицинскую организацию
+<mark>название страховой</mark>.
+
+Приложения: <mark>перечислите копии документов</mark>.
+
+<mark>дата</mark>                                        <mark>подпись</mark> / <mark>расшифровка</mark>
+</pre>
+</section>
+
+<!-- 7. Ошибки -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">07</span>
+    <h2>Из-за чего чаще всего проигрывают</h2>
+  </div>
+  <ul class="dont">
+    <li><b>Уходят без бумаги.</b> Устного отказа юридически не существует: в отчётах больницы его нет,
+    доказать нечем. Пять минут на заявление с входящим номером решают исход.</li>
+    <li><b>Ждут, что «перезвонят».</b> Срок идёт со дня направления и никем не приостанавливается.
+    Обещание перезвонить не продлевает 14 рабочих дней.</li>
+    <li><b>Соглашаются заплатить «чтобы быстрее».</b> Платить не запрещено, но сохраните договор,
+    чеки и назначения — без них вернуть деньги не выйдет.</li>
+    <li><b>Пишут анонимно или без обратного адреса.</b> Такие обращения по закону не рассматриваются.</li>
+    <li><b>Пишут эмоции вместо фактов.</b> Работает сухая хронология: дата, кто, что сказал,
+    какой документ на руках, чего требуете.</li>
+    <li><b>Сразу идут в прокуратуру.</b> Она почти всегда пересылает обращение в тот же
+    Росздравнадзор или минздрав — вы теряете недели. Страховая быстрее.</li>
+    <li><b>Забывают про скорую.</b> Если состояние ухудшилось, это уже не плановая помощь:
+    вызывайте скорую, отказ в экстренной госпитализации — тяжёлое нарушение вплоть до уголовного.</li>
+  </ul>
+</section>
+
+<footer>
+  <p><b>Правовая база:</b> Федеральный закон от 21.11.2011 № 323-ФЗ «Об основах охраны здоровья граждан
+  в РФ» (ст. 11, 19, 21, 22); Федеральный закон от 29.11.2010 № 326-ФЗ «Об обязательном медицинском
+  страховании в РФ» (ст. 16, 40); Программа государственных гарантий бесплатного оказания гражданам
+  медицинской помощи на 2026 год и плановый период 2027–2028 годов, утверждённая постановлением
+  Правительства РФ от 29.12.2025 № 2188; Федеральный закон от 02.05.2006 № 59-ФЗ «О порядке
+  рассмотрения обращений граждан РФ» (ст. 12); приказ Минздрава России от 23.12.2020 № 1363н.</p>
+  <p>Регионы принимают собственные территориальные программы, и сроки в них могут быть только
+  строже федеральных — сверьтесь с программой своего субъекта РФ. Памятка носит справочный характер
+  и не заменяет консультацию юриста по вашей конкретной ситуации.</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var HOLIDAY_NOTE = "Праздничные дни срок удлиняют — считайте их в свою пользу.";
+
+  function addWorkingDays(startDate, count){
+    var d = new Date(startDate.getTime());
+    var remaining = count;
+    while(remaining > 0){
+      d.setDate(d.getDate() + 1);
+      var wd = d.getDay();
+      if(wd !== 0 && wd !== 6) remaining--;
+    }
+    return d;
+  }
+
+  function fmt(d){
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+  }
+
+  function plural(n, one, few, many){
+    var a = Math.abs(n) % 100, b = a % 10;
+    if(a > 10 && a < 20) return many;
+    if(b > 1 && b < 5) return few;
+    if(b === 1) return one;
+    return many;
+  }
+
+  function workingDaysBetween(from, to){
+    var d = new Date(from.getTime()), n = 0;
+    while(d < to){
+      d.setDate(d.getDate() + 1);
+      var wd = d.getDay();
+      if(wd !== 0 && wd !== 6) n++;
+    }
+    return n;
+  }
+
+  var startEl = document.getElementById('dStart');
+  var kindEl  = document.getElementById('dKind');
+  var outEl   = document.getElementById('calcOut');
+
+  function run(){
+    if(!startEl.value){ outEl.textContent = 'Укажите дату направления.'; return; }
+    var start = new Date(startEl.value + 'T00:00:00');
+    if(isNaN(start.getTime())){ outEl.textContent = 'Дата не распознана.'; return; }
+
+    var limit = parseInt(kindEl.value, 10);
+    var due = addWorkingDays(start, limit);
+    var today = new Date(); today.setHours(0,0,0,0);
+
+    var head = 'Крайний срок госпитализации — <b>' + fmt(due) + '</b>. ';
+    if(today > due){
+      var over = workingDaysBetween(due, today);
+      outEl.innerHTML = head + '<span class="over">Срок нарушен на ' + over + ' ' +
+        plural(over, 'рабочий день', 'рабочих дня', 'рабочих дней') +
+        '.</span> Это готовое основание для обращения в страховую — шаг 2 в разделе 04. ' + HOLIDAY_NOTE;
+    } else {
+      var leftDays = workingDaysBetween(today, due);
+      outEl.innerHTML = head + '<span class="ok">В запасе ' + leftDays + ' ' +
+        plural(leftDays, 'рабочий день', 'рабочих дня', 'рабочих дней') +
+        '.</span> Если даты госпитализации вам так и не назвали, звоните в страховую не дожидаясь конца срока. ' + HOLIDAY_NOTE;
+    }
+  }
+
+  document.getElementById('dGo').addEventListener('click', run);
+  startEl.addEventListener('change', run);
+  kindEl.addEventListener('change', function(){ if(startEl.value) run(); });
+
+  var copyBtn = document.getElementById('copyBtn');
+  var copyMsg = document.getElementById('copyMsg');
+  copyBtn.addEventListener('click', function(){
+    var text = document.getElementById('tplText').innerText;
+    function done(ok){ copyMsg.textContent = ok ? 'Скопировано' : 'Не вышло — выделите текст вручную'; }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(false); });
+    } else {
+      done(false);
+    }
+  });
+})();
+</script>
+</body>
+</html>

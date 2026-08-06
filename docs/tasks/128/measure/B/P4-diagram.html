@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Путь задачи через оркестратор</title>
+<style>
+/* костяк производен от visualize.css, (c) OpenAI, Apache-2.0;
+   изменено: убран внешний JS, добавлены печать и вторая шрифтовая семья */
+:root{
+  color-scheme: light dark;
+  /* акцент: холодный сине-бирюзовый — цвет инфраструктуры и конвейера,
+     не сваливается в фиолетовый и разведён с красным аварийных веток */
+  --accent: light-dark(#0f6f8c, #56c8e4);
+  --fs: 15px;
+  --radius: 4px;                                       /* строгая схема */
+  --font: ui-sans-serif, system-ui, sans-serif;        /* текст */
+  --font-head: ui-monospace, SFMono-Regular, Menlo, monospace;  /* заголовки */
+  --bg: light-dark(#fff, #181818);
+  --ink: light-dark(#1a1c1f, #f2f2f0);
+  --mut: color-mix(in srgb, var(--ink) 48%, transparent);
+  --card: color-mix(in oklab, var(--ink) 5%, transparent);
+  --border: color-mix(in srgb, var(--ink) 12%, transparent);
+  --ring: var(--accent);
+  --bad: light-dark(#c0341a, #ff7a63);
+  --fs-sm: max(11px, calc(var(--fs) - 2px));
+  --fs-h3: calc(var(--fs) * 1.29);
+  --fs-h2: calc(var(--fs) * 1.43);
+  --fs-h1: calc(var(--fs) * 1.72);
+  --r-sm: calc(var(--radius) * .6);
+  --r-lg: calc(var(--radius) * 1.6);
+  --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --s1: var(--accent);
+  --s2: light-dark(#c26a1f, #f59a56);
+  --s3: light-dark(#2f7d46, #74d58b);
+  --s4: light-dark(#b8457f, #f08fc0);
+  --s5: light-dark(#6b57c4, #aa91ef);
+  --s6: light-dark(#1f7a72, #5acbc2);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
+     font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
+h1{font-size:var(--fs-h1)} h2{font-size:var(--fs-h2)} h3{font-size:var(--fs-h3)}
+small,.sm{font-size:var(--fs-sm)} .mut{color:var(--mut)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 24px 10px 0;border-bottom:1px solid var(--border);
+      text-align:start;vertical-align:top;overflow-wrap:anywhere}
+th{font-weight:600;border-bottom-color:color-mix(in srgb,var(--ink) 16%,transparent)}
+tbody tr:last-child :is(th,td){border-bottom:0}
+.num{text-align:end;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;scrollbar-width:thin}
+.card{padding:12px;border-radius:var(--r-lg);background:var(--card)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(180px,24%),1fr));gap:12px}
+.badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
+       background:color-mix(in srgb,var(--accent) 15%,transparent)}
+code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
+     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+     background:color-mix(in srgb,var(--ink) 10%,transparent);
+     box-decoration-break:clone;-webkit-box-decoration-break:clone;overflow-wrap:anywhere}
+:is(a,button,summary,input,select,[tabindex]):focus-visible{
+     outline:2px solid var(--ring);outline-offset:2px}
+:is([aria-pressed="true"],[aria-selected="true"]){background:var(--accent);color:var(--bg)}
+svg{display:block;max-width:100%;height:auto}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media print{
+  :root{color-scheme:light}
+  body{padding:0;background:#fff;color:#000}
+  .no-print{display:none}
+  tr,li{break-inside:avoid}
+  *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+
+/* ── страница ─────────────────────────────────────────────────────────── */
+main{max-width:1060px;margin:0 auto}
+header{max-width:64ch;margin-bottom:24px}
+header p{margin:8px 0 0}
+section{padding-top:16px;margin-top:16px;border-top:1px solid var(--border)}
+section:first-of-type{border-top:0}
+.figure{padding:8px 0 4px}
+.figure svg{min-width:760px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 24px;margin-top:8px;font-size:var(--fs-sm)}
+.legend span{display:inline-flex;align-items:center;gap:8px;color:var(--mut)}
+.key{width:26px;height:0;border-top-width:2px;border-top-style:solid;flex:none}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(260px,30%),1fr));gap:12px;margin-top:8px}
+.notes h3{font-size:var(--fs);margin-bottom:4px}
+.notes p{margin:0;color:var(--mut);font-size:var(--fs-sm)}
+.notes div{padding-inline-start:12px;border-inline-start:2px solid var(--border)}
+.notes .bad{border-inline-start-color:var(--bad)}
+.notes .ok{border-inline-start-color:var(--s3)}
+
+/* ── схема ────────────────────────────────────────────────────────────── */
+.box{fill:var(--card);stroke:var(--border);stroke-width:1}
+.box-hot{fill:color-mix(in srgb,var(--accent) 12%,transparent);stroke:var(--accent)}
+.box-end{fill:color-mix(in srgb,var(--s3) 14%,transparent);stroke:var(--s3)}
+.t{fill:currentColor;font-family:var(--font);font-size:14px;font-weight:500}
+.t-sub{fill:var(--mut);font-family:var(--font);font-size:11.5px;font-weight:430}
+.t-edge{fill:var(--mut);font-family:var(--font);font-size:11.5px}
+.t-edge.hot{fill:var(--bad)}
+.flow{fill:none;stroke:var(--accent);stroke-width:2}
+.back{fill:none;stroke:var(--bad);stroke-width:1.6;stroke-dasharray:6 4}
+.done{fill:none;stroke:var(--mut);stroke-width:1.4;stroke-dasharray:2 4}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Путь задачи через оркестратор</h1>
+  <p>Один прямой маршрут: задача от пользователя, воркер в отдельном worktree, гейт ревью,
+     squash-мерж в <code>main</code>. Две петли возврата — красные — и есть вся система:
+     непройденное ревью возвращает работу в ту же ветку, упавший воркер возвращает
+     решение оркестратору.</p>
+</header>
+
+<section class="figure">
+  <div class="scroll">
+    <svg viewBox="0 48 1000 404" role="img" aria-labelledby="d-title d-desc">
+      <title id="d-title">Схема прохождения задачи через оркестратор</title>
+      <desc id="d-desc">Пользователь ставит задачу оркестратору, тот спавнит воркера в отдельном
+        git worktree; работа уходит на ревью, оттуда в main squash-мержем, а результат
+        возвращается пользователю. Из ревью есть обратная ветка в воркера при непройденной
+        проверке, и из воркера — обратная ветка в оркестратор при падении.</desc>
+
+      <defs>
+        <marker id="a-flow" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+        </marker>
+        <marker id="a-back" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--bad)"/>
+        </marker>
+        <marker id="a-done" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--mut)"/>
+        </marker>
+      </defs>
+
+      <!-- петля: воркер упал -->
+      <path class="back" d="M516 170 V108 Q516 96 504 96 H303 Q291 96 291 108 V166"
+            marker-end="url(#a-back)"/>
+      <text class="t-edge hot" x="403" y="70" text-anchor="middle">воркер упал</text>
+      <text class="t-edge" x="403" y="85" text-anchor="middle">worker_wip → коммит → переспавн</text>
+
+      <!-- главный путь -->
+      <path class="flow" d="M166 206 H200" marker-end="url(#a-flow)"/>
+      <path class="flow" d="M376 206 H410" marker-end="url(#a-flow)"/>
+      <path class="flow" d="M616 206 H650" marker-end="url(#a-flow)"/>
+      <path class="flow" d="M806 206 H840" marker-end="url(#a-flow)"/>
+      <text class="t-edge" x="393" y="163" text-anchor="middle">spawn_worker</text>
+      <text class="t-edge" x="633" y="163" text-anchor="middle">DONE</text>
+      <text class="t-edge" x="823" y="163" text-anchor="middle">merge_worker</text>
+
+      <rect class="box" x="16" y="170" width="150" height="72" rx="4"/>
+      <text class="t" x="91" y="202" text-anchor="middle">Пользователь</text>
+      <text class="t-sub" x="91" y="222" text-anchor="middle">ставит задачу</text>
+
+      <rect class="box" x="206" y="170" width="170" height="72" rx="4"/>
+      <text class="t" x="291" y="202" text-anchor="middle">Оркестратор</text>
+      <text class="t-sub" x="291" y="222" text-anchor="middle">режет задачу, спавнит</text>
+
+      <rect class="box box-hot" x="416" y="170" width="200" height="72" rx="4"/>
+      <text class="t" x="516" y="202" text-anchor="middle">Воркер</text>
+      <text class="t-sub" x="516" y="222" text-anchor="middle">отдельный worktree, своя ветка</text>
+
+      <rect class="box" x="656" y="170" width="150" height="72" rx="4"/>
+      <text class="t" x="731" y="202" text-anchor="middle">Ревью — гейт</text>
+      <text class="t-sub" x="731" y="222" text-anchor="middle">тесты, codex_review</text>
+
+      <rect class="box box-end" x="846" y="170" width="138" height="72" rx="4"/>
+      <text class="t" x="915" y="202" text-anchor="middle">main</text>
+      <text class="t-sub" x="915" y="222" text-anchor="middle">squash, один коммит</text>
+
+      <!-- петля: ревью не прошло -->
+      <path class="back" d="M731 242 V318 Q731 330 719 330 H528 Q516 330 516 318 V246"
+            marker-end="url(#a-back)"/>
+      <text class="t-edge hot" x="623" y="352" text-anchor="middle">ревью не прошло</text>
+      <text class="t-edge" x="623" y="367" text-anchor="middle">правки в той же ветке, новый worktree не заводится</text>
+
+      <!-- возврат результата -->
+      <path class="done" d="M915 242 V418 Q915 430 903 430 H103 Q91 430 91 418 V246"
+            marker-end="url(#a-done)"/>
+      <text class="t-edge" x="500" y="422" text-anchor="middle">результат и отчёт пользователю</text>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <span><i class="key" style="border-top-color:var(--accent)"></i>главный путь</span>
+    <span><i class="key" style="border-top-color:var(--bad);border-top-style:dashed"></i>возврат по сбою</span>
+    <span><i class="key" style="border-top-color:var(--mut);border-top-style:dotted"></i>отчёт пользователю</span>
+  </div>
+</section>
+
+<section>
+  <h2>Чем петли отличаются</h2>
+  <div class="notes">
+    <div class="bad">
+      <h3>Ревью не прошло</h3>
+      <p>Работа есть, качества нет. Воркер жив и остаётся на своей ветке: правки идут туда же,
+         гейт проходится заново. Ни спавна, ни нового worktree.</p>
+    </div>
+    <div class="bad">
+      <h3>Воркер упал</h3>
+      <p>Работы может не быть вовсе. Решает оркестратор: снять незакоммиченное через
+         <code>worker_wip</code>, закоммитить за воркера и переспавнить. Ветка переживает воркера.</p>
+    </div>
+    <div class="ok">
+      <h3>Мерж в main</h3>
+      <p>Единственный выход из контура — <code>merge_worker</code>, squash. Пока коммит не в
+         <code>main</code>, задача не закрыта, чей бы отчёт о ней ни лежал.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+</body>
+</html>

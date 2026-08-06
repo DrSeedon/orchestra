@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Миграция почтового провайдера — план работ для исполнителя</title>
+<style>
+/* костяк производен от visualize.css, (c) OpenAI, Apache-2.0;
+   изменено: убран внешний JS, добавлены печать и вторая шрифтовая семья */
+:root{
+  color-scheme: light dark;
+  /* акцент: морской синий — почта это транспорт и DNS, холодная инфраструктура,
+     а не деньги и не авария; тёмный тон для светлой темы, светлее для тёмной */
+  --accent: light-dark(#0e6e86, #56c2dd);
+  --fs: 15px;
+  --radius: 12px;
+  --font: ui-sans-serif, system-ui, sans-serif;
+  --font-head: ui-serif, Georgia, "Times New Roman", serif;
+  --bg: light-dark(#fff, #181818);
+  --ink: light-dark(#1a1c1f, #f2f2f0);
+  --mut: color-mix(in srgb, var(--ink) 48%, transparent);
+  --card: color-mix(in oklab, var(--ink) 5%, transparent);
+  --border: color-mix(in srgb, var(--ink) 12%, transparent);
+  --ring: var(--accent);
+  --bad: light-dark(#c0341a, #ff7a63);
+  --fs-sm: max(11px, calc(var(--fs) - 2px));
+  --fs-h3: calc(var(--fs) * 1.29);
+  --fs-h2: calc(var(--fs) * 1.43);
+  --fs-h1: calc(var(--fs) * 1.72);
+  --r-sm: calc(var(--radius) * .6);
+  --r-lg: calc(var(--radius) * 1.6);
+  --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --s1: var(--accent);
+  --s2: light-dark(#c26a1f, #f59a56);
+  --s3: light-dark(#2f7d46, #74d58b);
+  --s4: light-dark(#b8457f, #f08fc0);
+  --s5: light-dark(#6b57c4, #aa91ef);
+  --s6: light-dark(#1f7a72, #5acbc2);
+}
+*{box-sizing:border-box}
+body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
+     font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
+h1{font-size:var(--fs-h1)} h2{font-size:var(--fs-h2)} h3{font-size:var(--fs-h3)}
+small,.sm{font-size:var(--fs-sm)} .mut{color:var(--mut)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 24px 10px 0;border-bottom:1px solid var(--border);
+      text-align:start;vertical-align:top;overflow-wrap:anywhere}
+th{font-weight:600;border-bottom-color:color-mix(in srgb,var(--ink) 16%,transparent)}
+tbody tr:last-child :is(th,td){border-bottom:0}
+.num{text-align:end;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;scrollbar-width:thin}
+.card{padding:12px;border-radius:var(--r-lg);background:var(--card)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(180px,24%),1fr));gap:12px}
+.badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
+       background:color-mix(in srgb,var(--accent) 15%,transparent)}
+code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
+     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+     background:color-mix(in srgb,var(--ink) 10%,transparent);
+     box-decoration-break:clone;-webkit-box-decoration-break:clone;overflow-wrap:anywhere}
+:is(a,button,summary,input,select,[tabindex]):focus-visible{
+     outline:2px solid var(--ring);outline-offset:2px}
+:is([aria-pressed="true"],[aria-selected="true"]){background:var(--accent);color:var(--bg)}
+svg{display:block;max-width:100%;height:auto}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media print{
+  :root{color-scheme:light}
+  body{padding:0;background:#fff;color:#000}
+  .no-print{display:none}
+  tr,li{break-inside:avoid}
+  *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+
+/* ── частное для этого документа ───────────────────────────────────────── */
+main{max-width:1120px;margin:0 auto}
+.eyebrow{font:600 var(--fs-sm)/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+         letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+section{padding:24px 0;border-top:1px solid var(--border)}
+section > .eyebrow{display:block;margin-bottom:6px}
+header{padding-bottom:16px}
+.lede{max-width:68ch;margin:12px 0 0}
+p{margin:8px 0}
+ul{margin:6px 0;padding-inline-start:20px}
+li{margin:4px 0}
+
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(150px,18%),1fr));gap:2px;
+     margin-top:16px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.kpi > div{padding:12px 16px;background:var(--card)}
+.kpi b{display:block;font:500 var(--fs-h2)/1.1 var(--font-head);font-variant-numeric:tabular-nums}
+.kpi span{display:block;margin-top:4px;font-size:var(--fs-sm);color:var(--mut)}
+
+.stage{display:grid;grid-template-columns:minmax(200px,1.1fr) 2fr;gap:16px;
+       padding:16px 0;border-bottom:1px solid var(--border)}
+.stage:last-of-type{border-bottom:0}
+.stage-head{display:flex;flex-direction:column;gap:6px}
+.stage-no{display:inline-flex;align-items:center;justify-content:center;
+          inline-size:26px;aspect-ratio:1;border-radius:9999px;
+          font:600 var(--fs-sm)/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+          color:var(--bg);background:var(--tone,var(--accent))}
+.stage-when{font-size:var(--fs-sm);color:var(--mut)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px}
+@media (max-width:720px){.stage{grid-template-columns:1fr;gap:8px}}
+.col h4{margin:0 0 4px;font:600 var(--fs-sm)/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+        letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.col.risk h4{color:var(--s2)} .col.check h4{color:var(--s3)}
+.col ul{padding-inline-start:16px}
+
+details{margin-top:8px;border-radius:var(--r-sm);background:var(--card);padding:8px 12px}
+details[open]{padding-bottom:12px}
+summary{cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:var(--mut)}
+details pre{margin:8px 0 0;overflow-x:auto;font-size:var(--fs-sm);
+            font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.55}
+
+.pill{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:var(--fs-sm);
+      font-weight:600;color:var(--bg);background:var(--tone,var(--mut))}
+.stop{color:var(--bad);font-weight:600}
+button{font:inherit;padding:6px 12px;border:1px solid var(--border);border-radius:var(--r-sm);
+       background:transparent;color:var(--ink);cursor:pointer}
+button:hover{background:var(--card)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.fill{border:1px dashed color-mix(in srgb,var(--ink) 30%,transparent);border-radius:var(--r-sm);
+      padding:1px 8px;font-size:var(--fs-sm);color:var(--mut)}
+/* .toolbar объявлен ниже костяка, поэтому его display:flex перебивал .no-print */
+@media print{.toolbar{display:none}details{background:none;padding:0}summary{cursor:auto}}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <span class="eyebrow">Рабочий документ · передача исполнителю</span>
+  <h1>Миграция транзакционной и рассылочной почты на нового провайдера</h1>
+  <p class="lede">Сервис на 40 000 пользователей. Переезд делается <b>постепенным переключением доли
+  трафика через фича-флаг</b>, а не «в ночь с субботы на воскресенье»: репутация нового отправителя
+  строится неделями, и единственный способ не сжечь доставляемость — прогрев с откатом на каждом шаге.
+  Пять этапов, у каждого — вход, выход, порог остановки и способ откатиться меньше чем за 5 минут.</p>
+
+  <div class="kpi">
+    <div><b>40 000</b><span>активных получателей</span></div>
+    <div><b>5 этапов</b><span>Э0 → Э4, последовательно</span></div>
+    <div><b>~6 недель</b><span>из них 3-4 — прогрев</span></div>
+    <div><b>&lt; 5 мин</b><span>откат на любом шаге</span></div>
+    <div><b>30 дней</b><span>старый провайдер оплачен после 100%</span></div>
+  </div>
+
+  <div class="toolbar no-print">
+    <button type="button" id="toggle-all" aria-pressed="false">Развернуть все детали</button>
+    <button type="button" id="print">Печать / PDF</button>
+    <span class="sm mut" id="hint"></span>
+  </div>
+</header>
+
+<section>
+  <span class="eyebrow">Перед стартом · заполняет постановщик</span>
+  <h2>Что должно быть вписано до первой строки кода</h2>
+  <p class="mut sm">Пока эти поля пустые, оценка сроков и порогов ниже — шаблонная. Все числа в
+  документе, кроме 40 000 получателей, помечены как расчётные и пересчитываются от этих вводных.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Параметр</th><th style="white-space:nowrap">Значение</th><th>Зачем он в плане</th></tr></thead>
+    <tbody>
+      <tr><td>Текущий провайдер, тариф, дата окончания</td><td><span class="fill">заполнить</span></td><td>Определяет окно «30 дней после 100%» и цену параллельной работы</td></tr>
+      <tr><td>Новый провайдер, тип IP (shared / dedicated)</td><td><span class="fill">заполнить</span></td><td><b>Ключевое.</b> Dedicated IP = обязательный прогрев с нуля. Shared — прогрев короче, но репутация чужая</td></tr>
+      <tr><td>Объём: писем/сутки, пик/час, доля рассылок</td><td><span class="fill">заполнить</span></td><td>Шаг рампы и лимиты. При &lt; 5 000/сутки dedicated IP вообще противопоказан — не наберётся объёма на прогрев</td></tr>
+      <tr><td>Типы писем и их отправители в коде</td><td><span class="fill">заполнить</span></td><td>Список мест, которые придётся перевести на общий интерфейс (Э1)</td></tr>
+      <tr><td>Кто держит DNS зоны домена, SLA на правку</td><td><span class="fill">заполнить</span></td><td>Если правка DNS идёт тикетом на сутки — откат «за 5 минут» перестаёт работать</td></tr>
+      <tr><td>Текущая политика DMARC (<code>p=none/quarantine/reject</code>)</td><td><span class="fill">заполнить</span></td><td>При <code>p=reject</code> ошибка в DKIM/SPF нового потока = полная недоставка, а не спам-папка</td></tr>
+      <tr><td>Домен трекинга ссылок и открытий</td><td><span class="fill">заполнить</span></td><td>Ссылки в уже отправленных письмах ведут на CNAME старого провайдера — его нельзя гасить вместе с аккаунтом</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Как это устроено</span>
+  <h2>Один интерфейс отправки, флаг доли, две ветки провайдера</h2>
+  <p>Код не знает, какой провайдер сейчас работает. Он пишет письмо в собственную таблицу
+  <code>outbox</code>, получает свой <code>message_id</code>, и уже отправщик решает по флагу,
+  куда уйдёт конкретное письмо. Обратный поток (доставлено / отбилось / жалоба) от обоих
+  провайдеров сводится в один обработчик и ложится рядом с исходной записью — это и есть
+  ответ на вопрос «доехало ли».</p>
+
+  <svg viewBox="0 0 880 312" role="img" aria-labelledby="schema-t">
+    <title id="schema-t">Схема маршрутизации: приложение пишет в outbox, отправщик по флагу делит трафик между старым и новым провайдером, вебхуки обоих сводятся в один обработчик событий</title>
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+      </marker>
+      <marker id="ar-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor" opacity=".45"/>
+      </marker>
+    </defs>
+    <g fill="none" stroke="currentColor" stroke-width="1.25">
+      <rect x="8" y="112" width="150" height="60" rx="8" opacity=".55"/>
+      <rect x="205" y="112" width="150" height="60" rx="8" opacity=".55"/>
+      <rect x="400" y="36" width="180" height="56" rx="8" opacity=".45" stroke-dasharray="4 3"/>
+      <rect x="400" y="190" width="180" height="56" rx="8" stroke="var(--accent)" stroke-width="1.75"/>
+      <rect x="640" y="112" width="170" height="60" rx="8" opacity=".55"/>
+      <rect x="180" y="240" width="200" height="50" rx="8" opacity=".55"/>
+    </g>
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="currentColor">
+      <text x="24" y="134" font-weight="600">Приложение</text>
+      <text x="24" y="151" opacity=".6">регистрация, счета,</text>
+      <text x="24" y="165" opacity=".6">рассылка</text>
+
+      <text x="221" y="134" font-weight="600">outbox (наш)</text>
+      <text x="221" y="151" opacity=".6">message_id,</text>
+      <text x="221" y="165" opacity=".6">получатель, тип</text>
+
+      <text x="416" y="60" opacity=".6" font-weight="600">Старый провайдер</text>
+      <text x="416" y="78" opacity=".6">доля 100 − N %</text>
+
+      <text x="416" y="214" font-weight="600" fill="var(--accent)">Новый провайдер</text>
+      <text x="416" y="232" fill="var(--accent)">доля N % (флаг)</text>
+
+      <text x="656" y="138" font-weight="600">Получатели</text>
+      <text x="656" y="156" opacity=".6">40 000 адресов</text>
+
+      <text x="196" y="262" font-weight="600">Обработчик событий</text>
+      <text x="196" y="279" opacity=".6">delivered / bounce / spam</text>
+
+      <text x="362" y="108" font-size="11" opacity=".6">флаг</text>
+    </g>
+    <g fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M158 142 H201" marker-end="url(#ar)"/>
+      <path d="M355 132 C 382 132, 386 62, 396 62" opacity=".45" marker-end="url(#ar-mut)"/>
+      <path d="M355 152 C 382 152, 386 218, 396 218" stroke="var(--accent)" stroke-width="1.75" marker-end="url(#ar)"/>
+      <path d="M580 62 C 612 62, 618 130, 636 130" opacity=".45" marker-end="url(#ar-mut)"/>
+      <path d="M580 218 C 612 218, 618 154, 636 154" stroke="var(--accent)" stroke-width="1.75" marker-end="url(#ar)"/>
+      <path d="M700 172 C 700 268, 540 266, 386 265" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <path d="M270 240 V 176" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+    </g>
+    <text x="400" y="306" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" fill="currentColor" opacity=".6">вебхуки обоих провайдеров — в один обработчик</text>
+  </svg>
+
+  <p class="sm mut">Пунктир — обратный поток событий. Сплошной акцент — путь, который мы наращиваем.
+  Приглушённая ветка — старый провайдер: он остаётся живым до конца Э4 и весь этот срок
+  обслуживает свою долю трафика.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Этапы</span>
+  <h2>Пять этапов: делаем — рискуем — откатываемся — проверяем</h2>
+
+  <div class="stage" style="--tone:var(--s6)">
+    <div class="stage-head">
+      <span class="stage-no">0</span>
+      <h3>Инвентаризация и базовая линия</h3>
+      <span class="stage-when">Неделя 1 · кода не трогаем</span>
+    </div>
+    <div>
+      <div class="cols">
+        <div class="col"><h4>Делаем</h4><ul>
+          <li>Список всех мест отправки: бэкенд, cron, админка, CRM, сторонние интеграции. Grep по SDK старого провайдера и по SMTP-хосту в конфигах</li>
+          <li>Реестр шаблонов: где лежат, на каком движке (Handlebars / Liquid / свои), какие переменные</li>
+          <li>Экспорт списков подавления: hard bounces, жалобы, отписки — <b>полностью, с датами</b></li>
+          <li>Снимок метрик за 30 дней: delivered, bounce, complaint, open — это baseline, с ним сравниваем всё дальше</li>
+        </ul></div>
+        <div class="col risk"><h4>Риск</h4><ul>
+          <li>Забытый отправитель всплывает после отключения старого аккаунта — письма молча пропадают</li>
+          <li>API старого провайдера отдаёт suppression list страницами и обрезает историю глубже N месяцев</li>
+        </ul></div>
+        <div class="col check"><h4>Проверка выхода</h4><ul>
+          <li>Сумма писем по найденным отправителям сходится со счётчиком провайдера за неделю, расхождение &lt; 2 %</li>
+          <li>Файл подавлений выгружен, число строк совпадает с цифрой в интерфейсе провайдера</li>
+        </ul></div>
+      </div>
+      <details><summary>Откат и артефакты этапа</summary>
+        <p class="sm">Откат не нужен — этап только читает. Артефакты: <code>docs/mail/inventory.md</code>,
+        <code>suppression-YYYY-MM-DD.csv</code>, дашборд baseline-метрик со ссылкой в тикете.</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="stage" style="--tone:var(--s5)">
+    <div class="stage-head">
+      <span class="stage-no">1</span>
+      <h3>Абстракция отправки и outbox</h3>
+      <span class="stage-when">Недели 1-2 · трафик 100 % на старом</span>
+    </div>
+    <div>
+      <div class="cols">
+        <div class="col"><h4>Делаем</h4><ul>
+          <li>Единый интерфейс <code>EmailSender.send(msg)</code>, две реализации, выбор — по флагу доли</li>
+          <li>Таблица <code>outbox</code>: свой <code>message_id</code>, получатель, тип письма, провайдер, статус, время. Ключ идемпотентности — чтобы ретрай не удвоил письмо</li>
+          <li>Один обработчик вебхуков на оба провайдера, статусы пишутся в <code>outbox</code></li>
+          <li>Раскатка с флагом <code>0 %</code>: код нового провайдера в проде, но не отправляет</li>
+        </ul></div>
+        <div class="col risk"><h4>Риск</h4><ul>
+          <li>Двойная отправка при переключении флага в момент ретрая — лечится ключом идемпотентности, а не «аккуратностью»</li>
+          <li>Различия API: у провайдеров разные лимиты размера, вложений, заголовков и формат ошибок 4xx/5xx</li>
+        </ul></div>
+        <div class="col check"><h4>Проверка выхода</h4><ul>
+          <li>При флаге 0 % метрики не изменились относительно baseline — рефакторинг ничего не сломал</li>
+          <li>В <code>outbox</code> есть запись на каждое отправленное письмо; сверка с дашбордом старого провайдера за сутки</li>
+          <li>Тест: два одновременных вызова с одним ключом → одна отправка</li>
+        </ul></div>
+      </div>
+      <details><summary>Откат</summary>
+        <p class="sm">Флаг уже стоит на 0 % — откат это откат релиза бэкенда обычным способом.
+        Отдельный аварийный тумблер <code>mail.provider.force=old</code>, читается на каждой отправке,
+        меняется без деплоя.</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="stage" style="--tone:var(--s4)">
+    <div class="stage-head">
+      <span class="stage-no">2</span>
+      <h3>Домены, DNS, перенос подавлений</h3>
+      <span class="stage-when">Неделя 2 · трафик 100 % на старом</span>
+    </div>
+    <div>
+      <div class="cols">
+        <div class="col"><h4>Делаем</h4><ul>
+          <li>Верификация домена у нового провайдера: <b>свой DKIM-селектор</b>, чтобы не столкнуться со старым</li>
+          <li>SPF: добавляем <code>include</code> нового, старый <b>не убираем</b>. Считаем DNS-lookup'ы — лимит 10, за ним <code>permerror</code></li>
+          <li>TTL всех почтовых записей опускаем до 300 c за сутки до первого переключения</li>
+          <li>Импорт списка подавления из Э0 в новый аккаунт — <b>до первой отправки</b></li>
+          <li>DMARC <code>rua</code> на свой адрес, отчёты читаются глазами всю миграцию</li>
+        </ul></div>
+        <div class="col risk"><h4>Риск</h4><ul>
+          <li><b>Самый дорогой отказ плана:</b> подавления не переехали → шлём по мёртвым адресам и тем, кто жаловался → всплеск жалоб → новый аккаунт блокируют в первые дни</li>
+          <li>Превышение 10 DNS-lookup в SPF ломает аутентификацию <b>обоих</b> потоков сразу</li>
+          <li>При <code>p=reject</code> опечатка в DKIM = письма отбиваются, а не падают в спам</li>
+        </ul></div>
+        <div class="col check"><h4>Проверка выхода</h4><ul>
+          <li>Тестовое письмо на почтовые ящики: <code>SPF=pass</code>, <code>DKIM=pass</code>, <code>DMARC=pass</code> в исходном заголовке</li>
+          <li>Валидатор SPF показывает число lookup &lt; 10</li>
+          <li>Число адресов в подавлении нового аккаунта = числу из выгрузки Э0 ± 0</li>
+          <li>DMARC-отчёты за 48 ч не содержат неизвестных источников</li>
+        </ul></div>
+      </div>
+      <details><summary>Откат и проверки DNS одной командой</summary>
+<pre>dig +short TXT example.com | grep spf1
+dig +short TXT sel1._domainkey.example.com
+dig +short TXT _dmarc.example.com
+
+# после отправки тестового — в исходнике письма ждём три pass:
+# Authentication-Results: spf=pass dkim=pass dmarc=pass</pre>
+        <p class="sm">Откат: удалить <code>include</code> нового провайдера из SPF. При TTL 300 c
+        изменение расходится за 5 минут; старый поток при этом не затронут вообще, потому что его
+        запись всё это время оставалась на месте.</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="stage" style="--tone:var(--s2)">
+    <div class="stage-head">
+      <span class="stage-no">3</span>
+      <h3>Прогрев: рампа 1 → 5 → 25 → 50 → 100 %</h3>
+      <span class="stage-when">Недели 3-6 · главный этап</span>
+    </div>
+    <div>
+      <div class="cols">
+        <div class="col"><h4>Делаем</h4><ul>
+          <li>Порядок типов писем: сперва <b>транзакционные активным пользователям</b> (их открывают — репутация растёт быстрее), затем сервисные уведомления, <b>массовые рассылки — последними</b></li>
+          <li>Шаг рампы держим минимум 48 часов, через выходные не переключаем</li>
+          <li>Ежедневный отчёт: bounce, complaint, spam rate в Google Postmaster и Яндекс.Почтовом офисе</li>
+          <li>Seed-адреса на 8-12 почтовых системах, проверяем не «доставлено», а <b>папку</b></li>
+        </ul></div>
+        <div class="col risk"><h4>Риск</h4><ul>
+          <li>Рампа быстрее, чем растёт репутация → троттлинг у Gmail/Mail.ru, задержки в часы, письма в «Промоакции»</li>
+          <li>Рассылка на 40 000 в момент, когда доля уже 50 %, — это разовый всплеск в 20 000 писем с молодого IP</li>
+          <li>Разные шаблонизаторы: письмо уходит с неподставленными <code>{{ }}</code></li>
+        </ul></div>
+        <div class="col check"><h4>Порог остановки</h4><ul>
+          <li>Жалобы <span class="stop">≥ 0,10 %</span> — стоп немедленно, не «понаблюдаем»</li>
+          <li>Hard bounce <span class="stop">≥ 2 %</span> — стоп</li>
+          <li>Spam rate в Postmaster <span class="stop">≥ 0,10 %</span> — откат на шаг назад</li>
+          <li>Delivered ниже baseline более чем на 0,5 п. п. — откат на шаг назад</li>
+        </ul></div>
+      </div>
+      <details><summary>Рампа и стоп-кран</summary>
+        <svg viewBox="0 0 620 150" role="img" aria-labelledby="ramp-t">
+          <title id="ramp-t">Рампа долей трафика: 1, 5, 25, 50 и 100 процентов, минимум 48 часов на шаг</title>
+          <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" fill="currentColor">
+            <g fill="var(--accent)">
+              <rect x="20" y="117" width="80" height="4" rx="2"/>
+              <rect x="130" y="109" width="80" height="12" rx="3"/>
+              <rect x="240" y="87" width="80" height="34" rx="3"/>
+              <rect x="350" y="55" width="80" height="66" rx="3"/>
+              <rect x="460" y="22" width="80" height="99" rx="3"/>
+            </g>
+            <g text-anchor="middle" font-weight="600">
+              <text x="60" y="112">1 %</text>
+              <text x="170" y="104">5 %</text>
+              <text x="280" y="82">25 %</text>
+              <text x="390" y="50">50 %</text>
+              <text x="500" y="17">100 %</text>
+            </g>
+            <g text-anchor="middle" opacity=".6">
+              <text x="60" y="136">48 ч</text>
+              <text x="170" y="136">48 ч</text>
+              <text x="280" y="136">72 ч</text>
+              <text x="390" y="136">72 ч</text>
+              <text x="500" y="136">держим</text>
+            </g>
+          </g>
+          <line x1="20" y1="125" x2="600" y2="125" stroke="currentColor" opacity=".25"/>
+        </svg>
+        <p class="sm">Каждое переключение — отдельная запись в журнале миграции: время, кто, какая
+        доля, метрики на момент. Стоп-кран один: <code>mail.provider.force=old</code>. Возврат к
+        прежней доле после отката — не раньше, чем через 72 часа и только с объяснённой причиной
+        отката, иначе следующий шаг повторит ту же ошибку.</p>
+      </details>
+    </div>
+  </div>
+
+  <div class="stage" style="--tone:var(--s3)">
+    <div class="stage-head">
+      <span class="stage-no">4</span>
+      <h3>Стабилизация и отключение старого</h3>
+      <span class="stage-when">+30 дней после 100 %</span>
+    </div>
+    <div>
+      <div class="cols">
+        <div class="col"><h4>Делаем</h4><ul>
+          <li>30 дней старый аккаунт живой и оплаченный: вебхуки принимаем, отправку не шлём</li>
+          <li>Домен трекинга ссылок старого провайдера <b>не гасим</b> — по ссылкам из уже отправленных писем ещё кликают</li>
+          <li>Финальная выгрузка новых подавлений со старой стороны и досыл в новый аккаунт</li>
+          <li>После 30 дней: убираем <code>include</code> старого из SPF, возвращаем TTL, удаляем вторую реализацию и мёртвый флаг</li>
+        </ul></div>
+        <div class="col risk"><h4>Риск</h4><ul>
+          <li>Ранняя отписка от старого тарифа → теряем вебхуки о жалобах по отправленному ранее и не заносим людей в подавление</li>
+          <li>Домен трекинга отключён вместе с аккаунтом → битые ссылки в письмах последних недель, а виноватым выглядит новый провайдер</li>
+        </ul></div>
+        <div class="col check"><h4>Проверка выхода</h4><ul>
+          <li>7 суток подряд метрики не хуже baseline при 100 % трафика</li>
+          <li>В <code>outbox</code> нет записей с провайдером «старый» за последние 30 дней</li>
+          <li>Grep по коду: SDK и ключи старого провайдера отсутствуют; ключи отозваны</li>
+        </ul></div>
+      </div>
+      <details><summary>Точка невозврата</summary>
+        <p class="sm">До удаления <code>include</code> из SPF откат стоит одно переключение флага.
+        После — откат означает повторную правку DNS и ожидание распространения. Поэтому чистку
+        SPF и удаление кода делаем <b>отдельным релизом</b> после 30 дней тишины, а не «заодно»
+        в день выхода на 100 %.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Проверка доставки</span>
+  <h2>Как убеждаемся, что письма доехали, а не «отправились»</h2>
+  <p>Ответ провайдера <code>202 Accepted</code> не значит ничего: письмо принято к отправке, а не
+  доставлено. Четыре независимых источника — если они расходятся, верим худшему.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Источник</th><th>Что именно показывает</th><th>Частота</th><th>Норма</th></tr></thead>
+    <tbody>
+      <tr><td>Своя таблица <code>outbox</code></td><td>Сколько отправлено нами и сколько закрыто событием провайдера. Записи без финального статуса — потерянные письма</td><td>непрерывно</td><td>без статуса &gt; 1 ч: <span class="stop">&lt; 0,5 %</span></td></tr>
+      <tr><td>Вебхуки провайдера</td><td>delivered / bounce / complaint / deferred по каждому <code>message_id</code></td><td>непрерывно</td><td>bounce &lt; 2 %, complaint &lt; 0,08 %</td></tr>
+      <tr><td>Seed-ящики, 8-12 систем</td><td><b>Папка</b>: «Входящие», «Промоакции» или «Спам». Ни один счётчик этого не покажет</td><td>перед каждым шагом рампы</td><td>во «Входящих» ≥ 10 из 12</td></tr>
+      <tr><td>Google Postmaster + Яндекс.Почтовый офис</td><td>Репутация домена и IP глазами самих почтовиков, spam rate</td><td>ежедневно</td><td>spam rate &lt; 0,10 %, репутация не ниже Medium</td></tr>
+      <tr><td>DMARC <code>rua</code>-отчёты</td><td>Кто ещё шлёт от нашего домена и проходит ли новый поток аутентификацию</td><td>сутки</td><td>pass ≥ 99 %</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sm mut">Сверку «наш <code>outbox</code> против дашборда провайдера» делаем ежедневно всю
+  рампу. Систематическое расхождение больше 0,5 % означает, что часть отправок идёт мимо нашего
+  учёта — то есть остался отправитель, не переведённый на общий интерфейс в Э1.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Откат</span>
+  <h2>Три уровня отката, от самого дешёвого</h2>
+  <div class="grid">
+    <div class="card">
+      <span class="pill" style="--tone:var(--s3)">&lt; 1 мин</span>
+      <h3 style="margin-top:8px">Флаг доли</h3>
+      <p class="sm">Ставим <code>mail.provider.force=old</code>. Весь новый трафик уходит на старого
+      провайдера, деплой не нужен. Покрывает почти всё: всплеск жалоб, рост bounce, падение
+      доставляемости, ошибки API нового провайдера.</p>
+    </div>
+    <div class="card">
+      <span class="pill" style="--tone:var(--s2)">~5 мин</span>
+      <h3 style="margin-top:8px">DNS</h3>
+      <p class="sm">Убираем <code>include</code> нового провайдера из SPF. Нужен только если проблема
+      в аутентификации, а не в отправке. Работает быстро, пока TTL = 300 c — вернуть его обратно
+      на сутки/неделю можно лишь после Э4.</p>
+    </div>
+    <div class="card">
+      <span class="pill" style="--tone:var(--bad)">часы</span>
+      <h3 style="margin-top:8px">Откат релиза</h3>
+      <p class="sm">Только при дефекте в самом слое отправки (дубли, потеря писем, порча шаблонов).
+      Требует внимания к <code>outbox</code>: письма, отправленные новой версией, должны остаться
+      с корректными статусами.</p>
+    </div>
+  </div>
+  <p class="sm mut">Правило одно: <b>откат делает дежурный без согласования</b>, разбор — после.
+  Порог из Э3 достигнут → откатываемся, а потом обсуждаем; репутация отправителя восстанавливается
+  неделями, а решение «понаблюдать ещё день» стоит именно этих недель.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Границы</span>
+  <h2>Чего в этом плане нет</h2>
+  <ul>
+    <li><b>Смена домена отправителя.</b> Мы меняем провайдера, домен остаётся прежним. Смена домена — отдельная миграция со своим прогревом, совмещать нельзя</li>
+    <li><b>Переезд входящей почты</b> (MX, поддержка, ответы пользователей) — здесь не рассматривается, MX-записи не трогаем вообще</li>
+    <li><b>Перенос истории отправок</b> из интерфейса старого провайдера. Если история нужна для поддержки — это отдельная задача до отключения аккаунта</li>
+    <li><b>Переписывание шаблонов под новый движок</b> оценивается отдельно после реестра из Э0: объём зависит от того, совпадают ли шаблонизаторы</li>
+  </ul>
+</section>
+
+<footer style="padding:16px 0;border-top:1px solid var(--border)">
+  <p class="sm mut">Числа сроков и объёмов — расчётные, пересчитываются после заполнения блока
+  «Перед стартом». Проверено: 40 000 получателей — единственная цифра, заданная постановкой.</p>
+</footer>
+
+</main>
+<script>
+(function () {
+  var all = Array.prototype.slice.call(document.querySelectorAll('details'));
+  var btn = document.getElementById('toggle-all');
+  var hint = document.getElementById('hint');
+  hint.textContent = 'скрытых блоков с деталями: ' + all.length;
+  btn.addEventListener('click', function () {
+    var open = btn.getAttribute('aria-pressed') !== 'true';
+    all.forEach(function (d) { d.open = open; });
+    btn.setAttribute('aria-pressed', String(open));
+    btn.textContent = open ? 'Свернуть все детали' : 'Развернуть все детали';
+  });
+  // закрытый <details> не попадает в печать — раскрываем на любой печати, включая Ctrl+P
+  window.addEventListener('beforeprint', function () {
+    all.forEach(function (d) { d.open = true; });
+  });
+  document.getElementById('print').addEventListener('click', function () { window.print(); });
+})();
+</script>
+</body>
+</html>

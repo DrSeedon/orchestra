@@ -457,17 +457,39 @@ class TestHtmlArtifactsSkillInvariants:
         / "pipelines" / "default" / "prompts" / "skills" / "html-artifacts.md"
     )
 
-    def test_no_hardcoded_color_literals(self):
-        """Любой цветовой литерал как КЛАСС, а не только вернувшийся #7c3aed."""
+    def test_accent_is_never_given_a_value(self):
+        """Акцент — единственный цвет, которому нельзя иметь значение в скилле.
+
+        Запрет «никаких цветовых литералов вообще» снят в #128: костяк несёт нейтрали и
+        шесть тонов серий дословно, и это осознанная правка — принцип без значений
+        не исполнялся ни разу из пяти. Защищать надо ровно то, что сломалось в #119:
+        готовый `--accent` делает пять независимых артефактов одноцветными.
+        """
         import re
 
         text = self.SKILL.read_text(encoding="utf-8")
-        literals = re.findall(r"#[0-9a-fA-F]{3,8}\b", text)
-        literals += re.findall(r"\b(?:rgb|hsl)a?\(\s*\d", text)
+        assigned = re.findall(r"--accent\s*:\s*([^;\n]+)", text)
+        literals = [v for v in assigned if re.search(r"#[0-9a-fA-F]{3,8}|(?:rgb|hsl)a?\(\s*\d", v)]
         assert literals == [], (
-            f"в скилле снова зашит цвет: {literals}. Палитра обязана выводиться из предмета "
+            f"акценту снова задано значение: {literals}. Он обязан выводиться из предмета "
             f"артефакта, иначе все артефакты снова станут одного тона"
         )
+
+    def test_skeleton_forces_two_families_and_closed_type_scale(self):
+        """#128: принцип без значений не исполняется — исполняется только закрытый набор.
+
+        Замер по 5 артефактам: шрифтовой пары 0 из 5 (все пять — один системный гротеск
+        начертания 400), различных кеглей 11–22 на файл при трёх заявленных ступенях.
+        """
+        text = self.SKILL.read_text(encoding="utf-8")
+        assert "--font-head" in text, "заголовочная семья обязана быть отдельной ручкой"
+        for weight in ("430", "500", "600"):
+            assert weight in text, f"начертание {weight} пропало — вернулся один вес на всё"
+        for step in ("--fs-sm", "--fs-h3", "--fs-h2", "--fs-h1"):
+            # объявление И использование: одного упоминания мало, ступень без значения
+            # не ступень, а ступень без применения не удержит набор закрытым
+            assert f"{step}:" in text, f"ступень {step} не объявлена"
+            assert f"var({step})" in text, f"ступень {step} объявлена, но нигде не применена"
 
     def test_palette_is_derived_from_subject(self):
         text = self.SKILL.read_text(encoding="utf-8").lower()
@@ -481,4 +503,7 @@ class TestHtmlArtifactsSkillInvariants:
         text = self.SKILL.read_text(encoding="utf-8")
         description = re.search(r"^description:\s*(.*)$", text, re.M).group(1)
         assert len(description) <= 250, f"description {len(description)} симв."
-        assert len(text.split("---", 2)[2].encode()) <= 7000, "тело скилла раздулось"
+        # Потолок поднят в #128 вместе с костяком: тело выросло 6 598 → 11 796 Б.
+        # Платится оно не в каждой сессии — `build_skills_index` кладёт в промпт только
+        # строку «имя — описание — путь», тело агент читает при срабатывании скилла.
+        assert len(text.split("---", 2)[2].encode()) <= 12500, "тело скилла раздулось"
