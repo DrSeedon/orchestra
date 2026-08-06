@@ -1132,7 +1132,10 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
             f"Merge operation {operation_id} is still running on the server after "
             f"{int(_MERGE_WAIT_SECONDS)}s of waiting. "
             f"Call merge_worker again with operation_id='{operation_id}' to pick up this "
-            f"same operation. Do NOT start a new merge and do NOT merge manually."
+            f"same operation. Do NOT start a new merge and do NOT merge manually. "
+            f"If that call is refused because the worker moved to another branch, the "
+            f"refusal names the actual branch — check worker_wip there and start a new "
+            f"operation without operation_id."
             + (f" Server note: {_safe_response_text(reason)}" if reason else "")
         )
         return mcp_tool_result(result, text=text)
@@ -1252,6 +1255,11 @@ async def merge_worker(
     A reply starting with "STILL RUNNING" is NOT a failure: the merge is still going on the
     server and nothing was lost. Call this tool again with the SAME operation_id to pick it
     up. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
+
+    Reusing operation_id picks up THAT operation, not the worker's current state: if the
+    worker moved to another branch meanwhile, the call is refused and names the actual
+    branch — start a new operation without operation_id. Verifying what actually landed
+    (target branch, worker_wip) is always expected and never counts as merging manually.
     """
     operation_id = operation_id or str(uuid.uuid4())
     body = {
