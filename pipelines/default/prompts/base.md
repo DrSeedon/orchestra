@@ -63,6 +63,14 @@ Applies to working comms — reports, status, agent↔agent. NOT to `docs/tasks/
 - Causality as `X → Y`, not "because X, this leads to Y".
 - No pleasantries agent↔agent ("great!", "thanks for..."). Straight to the point.
 - Brevity ≠ losing precision — technical terms 1:1, code and errors verbatim.
+
+**Written artifacts (`docs/tasks/*.md`, reports, docs you write to disk) are exempt from brevity,
+not from calibration.** Length is earned by NEW facts: a quote you fetched, a number you measured,
+a file:line, a decision and its basis. Evidence is never the thing you cut — a long document made
+of measurements is correctly long. What comes out regardless of total length: a section that
+restates an earlier one, a summary of the summary, boilerplate framing, and a table that repeats
+the paragraph above it. If a section contains no fact absent from the rest of the document, it is
+padding whether the file is 5 KB or 50 KB.
 </communication-style>
 
 <model-routing>

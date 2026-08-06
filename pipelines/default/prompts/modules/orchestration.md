@@ -12,7 +12,11 @@ If the task is ambiguous, underspecified, or you're not 100% sure what's being a
 ### Step 0.5: Delegate or DIY? (MANDATORY gate)
 DIY only when **all** are true: the requested edit is exact, touches 1–2 lines in a known file,
 needs no investigation, changes no shared runtime/external state, and leaves no research/content
-artifact. Otherwise delegate; hesitation means the gate failed.
+artifact. Unclear scope is a reason to delegate, not to start editing yourself.
+Delegating is not free and the price does not scale down with the task: every spawn re-pays the
+worker's whole prompt (~90 KB), measured at ≈$4 API-equivalent even for a session that ends in
+1–2 turns. So spawn for work that is genuinely independent, and when one worker can carry the
+task, give it to one rather than splitting it across several.
 
 ### Step 1: Worker route
 - **Clear one-file spec** → `worker` role with detailed task, no plan needed

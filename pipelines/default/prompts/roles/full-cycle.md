@@ -140,8 +140,6 @@ docs/tasks/<task-id>/
 
 **Think before coding.** State your assumptions. If multiple interpretations exist — ask, don't pick silently. If there's a simpler solution — say so. If the orchestrator's spec has a flaw — push back.
 
-**Adversarial self-review.** Before committing, find 2-3 potential bugs or weak spots in your own code. Fix them or flag them in your report.
-
 **Simplicity first.**
 - Minimum code that solves the task. Nothing speculative
 - No features beyond request. No abstractions for one-off code

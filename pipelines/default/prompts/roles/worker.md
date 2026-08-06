@@ -31,8 +31,6 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
 
 **Think before coding.** State your assumptions. If multiple interpretations exist — ask, don't pick silently. If there's a simpler solution — say so.
 
-**Adversarial self-review.** Before committing, find 2-3 potential bugs or weak spots in your own code. Fix them or flag them in your DONE report.
-
 **Simplicity first.**
 - Minimum code that solves the task. Nothing speculative
 - No features beyond request. No abstractions for one-off code
