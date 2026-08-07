@@ -77,8 +77,21 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
     return `<span style="color:${color}">⏳${label}</span>`;
 }
 
-function _miniBar(pct, color) {
-    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
+function _miniBar(pct, color, lockedPct = 0) {
+    // lockedPct — хвост шкалы, который выглядит свободным, но упирается в ДРУГОЙ лимит (#162).
+    // Без него пустое место на полосе читается как «столько ещё можно потратить».
+    const locked = lockedPct > 0
+        ? `<span style="position:absolute;right:0;top:0;height:100%;width:${Math.min(lockedPct, 100)}%;background:repeating-linear-gradient(45deg,rgba(148,163,184,0.5) 0 2px,rgba(148,163,184,0.12) 2px 4px)"></span>`
+        : '';
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span>${locked}</span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
+}
+
+// Недельное окно связывает пятичасовое, только когда остатка недели не хватает
+// даже на полтора пятичасовых расхода. Выше — прибор молчит, вид не меняется.
+function _quotaCap() {
+    const head = _usageData && _usageData.quota_headroom;
+    if (!head || typeof head.windows_left !== 'number' || head.windows_left >= 1.5) return null;
+    return head;
 }
 
 function _codexWindowLabel(windowMinutes) {
@@ -151,7 +164,16 @@ function renderUsageBar() {
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
         const pace = _paceIndicator(fh.utilization, fh.resets_at, 5 * 3600000);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+        const cap = _quotaCap();
+        let capHtml = '';
+        if (cap) {
+            const label = cap.windows_left < 0.05
+                ? 'недельный выбран'
+                : `осталось ${cap.windows_left.toFixed(1)} окна`;
+            const hint = `Недельный лимит: доступно ${cap.available_pct}% из показанных ${(100 - fh.utilization).toFixed(0)}% (курс ${cap.rate} за ${cap.window_hours} ч)`;
+            capHtml = ` <span style="font-size:10px">·</span> <span data-quota-cap style="color:#f59e0b" title="${hint}">${label}</span>`;
+        }
+        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c, cap ? cap.locked_pct : 0)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}${capHtml}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {

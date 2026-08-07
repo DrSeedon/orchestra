@@ -1756,6 +1756,49 @@ def _usage_providers_from_row(row: dict) -> dict:
     return {"anthropic": {"label": "Claude", "windows": windows}} if windows else {}
 
 
+def usage_exchange_rate(hours: int = 72, min_five_hour_pct: float = 30.0) -> dict | None:
+    """Сколько п.п. недельного окна съедает 1 п.п. пятичасового — по своей же истории (#162).
+
+    Оба окна меряют один расход разными знаменателями, но абсолютных величин Anthropic
+    не отдаёт (`limit_dollars: null`), поэтому курс считается по приращениям процентов.
+    Константу зашивать нельзя: за месяц наблюдений курс дважды менялся ровно вдвое
+    (0.145 → 0.069 → 0.138), и протухшее число соврало бы молча.
+
+    Мало расхода за окно → None. Подставлять последнее известное значение нечем и незачем.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT ts, five_hour_pct, seven_day_pct, five_hour_resets_at, seven_day_resets_at"
+            " FROM usage_snapshots WHERE ts > ? ORDER BY ts ASC", (cutoff,)
+        ).fetchall()
+    clean = []
+    for row in rows:
+        if row["five_hour_pct"] is None or row["seven_day_pct"] is None:
+            continue  # #150: источник молчал, ноль не подставляем
+        # Оба процента нулевые И оба resets_at пустые — так выглядит только строка,
+        # записанная до #150 при молчащем источнике. Проверено на 1110 строках, где
+        # anthropic доказанно ответил: ложных срабатываний 0 (docs/tasks/162/research.md).
+        if (row["five_hour_pct"] == 0 and row["seven_day_pct"] == 0
+                and not (row["five_hour_resets_at"] or "")
+                and not (row["seven_day_resets_at"] or "")):
+            continue
+        clean.append((datetime.fromisoformat(row["ts"]),
+                      float(row["five_hour_pct"]), float(row["seven_day_pct"])))
+    five = seven = 0.0
+    for (t1, a5, a7), (t2, b5, b7) in zip(clean, clean[1:]):
+        # Между далёкими снимками мог уместиться сброс окна: там разность процентов
+        # не равна расходу, и знак её ни о чём не говорит.
+        if (t2 - t1).total_seconds() > 1800:
+            continue
+        five += max(0.0, b5 - a5)
+        seven += max(0.0, b7 - a7)
+    if five < min_five_hour_pct or seven <= 0:
+        return None
+    return {"rate": seven / five, "five_hour_pct_sum": five,
+            "seven_day_pct_sum": seven, "window_hours": hours}
+
+
 def usage_history_oldest_ts() -> str:
     """Время самого первого снимка — по нему фронт понимает, есть ли что грузить дальше."""
     with _conn() as c:
