@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.db import _conn, get_session, get_session_by_name
+from app.errtext import err_text
 
 logger = logging.getLogger("orchestra.merge_operations")
 
@@ -462,7 +463,7 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
     try:
         current = _session_snapshot(record["session_id"])
     except Exception as exc:
-        return None, _text(exc, type(exc).__name__)
+        return None, err_text(exc)
     expected = {
         "name": record["worker_name"],
         "scope": record["scope"],
@@ -478,6 +479,77 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
     if mismatches:
         return current, f"session identity changed before merge: {', '.join(mismatches)}"
     return current, ""
+
+
+def _replay_drift(record: dict[str, Any]) -> dict[str, Any] | None:
+    """Отказ, если повтор operation_id пришёл к УЕХАВШЕМУ воркеру; иначе None.
+
+    Fail-closed в обе стороны: расхождение — отказ, и невозможность опросить воркер —
+    тоже отказ. «Не смог проверить» не имеет права читаться как «всё хорошо».
+    """
+    operation_id = record["operation_id"]
+    try:
+        current = _session_snapshot(record["session_id"])
+    except Exception as exc:
+        detail = (
+            f"Cannot verify that the worker is still where this operation was accepted: "
+            f"{err_text(exc)}"
+        )
+        error = _error(
+            "REPLAY_VERIFICATION_FAILED", detail, operation_id=operation_id,
+            status=409, details={"exception_type": type(exc).__name__},
+        )
+        return _base_result(
+            operation_id,
+            "FAILED",
+            target_branch=record["result"]["git"].get("target_branch", ""),
+            worker_branch=record["accepted_worker_branch"],
+            worker_head=record["accepted_worker_head"],
+            error=error,
+            next_action=_action(
+                "VERIFY_WORKER_THEN_NEW_OPERATION",
+                "Check the worker's actual branch and unmerged commits (worker_wip), "
+                "then start a new operation with a fresh operation_id.",
+            ),
+        )
+
+    accepted_branch = record["accepted_worker_branch"]
+    accepted_head = record["accepted_worker_head"]
+    if (
+        current["worker_branch"] == accepted_branch
+        and current["worker_head"] == accepted_head
+    ):
+        return None
+
+    detail = (
+        f"This operation was accepted for branch {accepted_branch} at "
+        f"{accepted_head or '(unknown)'}, but the worker is now on branch "
+        f"{current['worker_branch']} at {current['worker_head']}. The stored result "
+        f"describes the earlier branch and says nothing about the worker's current commits."
+    )
+    error = _error(
+        "REPLAY_WORKER_MOVED", detail, operation_id=operation_id, status=409,
+        details={
+            "exception_type": "ReplayWorkerMoved",
+            "accepted_worker_branch": accepted_branch,
+            "accepted_worker_head": accepted_head,
+            "actual_worker_branch": current["worker_branch"],
+            "actual_worker_head": current["worker_head"],
+        },
+    )
+    return _base_result(
+        operation_id,
+        "FAILED",
+        target_branch=record["result"]["git"].get("target_branch", ""),
+        worker_branch=current["worker_branch"],
+        worker_head=current["worker_head"],
+        error=error,
+        next_action=_action(
+            "VERIFY_WORKER_THEN_NEW_OPERATION",
+            f"Check what is unmerged on {current['worker_branch']} (worker_wip), then "
+            f"start a new operation with a fresh operation_id.",
+        ),
+    )
 
 
 def _link_status(items: Any) -> tuple[str, dict[str, Any], list[str], list[str]]:
@@ -698,7 +770,9 @@ def normalize_merge_result(
         )
         next_action = _blocking_action(
             "FINALIZE_SAME_OPERATION",
-            "Finalize this operation; do not repeat or manually apply the Git merge.",
+            "Finalize this operation; do not manually apply the Git merge. "
+            "Verifying the merged artifact is expected — check the target branch and "
+            "worker_wip before reporting this task done.",
             operation_id,
         )
     elif raw.get("ok") and not primary_failures:
@@ -811,7 +885,7 @@ def _mark_terminal_snapshot_failure(
 ) -> None:
     if result["commit_point"] != "REACHED":
         return
-    detail = f"Cannot verify terminal worker state: {type(exc).__name__}: {_text(exc, type(exc).__name__)}"
+    detail = f"Cannot verify terminal worker state: {err_text(exc)}"
     if result["operation_state"] == "SUCCEEDED":
         result["operation_state"] = "PARTIAL"
         result["retryable"] = False
@@ -834,7 +908,9 @@ def _mark_terminal_snapshot_failure(
             details["terminal_snapshot_error"] = detail
     result["next_action"] = _blocking_action(
         "FINALIZE_SAME_OPERATION",
-        "Verify and finalize this operation; do not repeat or manually apply the Git merge.",
+        "Verify and finalize this operation; do not manually apply the Git merge. "
+        "Verifying the merged artifact is expected — check the target branch and "
+        "worker_wip before reporting this task done.",
         operation_id,
     )
 
@@ -943,7 +1019,7 @@ async def _run_operation(operation_id: str) -> None:
         record = await asyncio.to_thread(get_operation_record, operation_id) or record
         result = _unknown_from_record(
             record,
-            f"Merge operation crashed: {type(exc).__name__}: {_text(exc, type(exc).__name__)}",
+            f"Merge operation crashed: {err_text(exc)}",
             exception_type=type(exc).__name__,
         )
         try:
@@ -1007,7 +1083,17 @@ async def accept_merge_operation(
             return _idempotency_conflict(canonical_id, existing, digest), 409
         if existing["state"] == "PENDING":
             ensure_operation_runner(canonical_id)
-        return existing["result"], 202 if existing["state"] in {"PENDING", "RUNNING"} else 200
+        if existing["state"] in {"PENDING", "RUNNING"}:
+            return existing["result"], 202
+        # Терминальную запись отдавать дословно можно только если воркер ВСЁ ЕЩЁ там,
+        # где его приняли. request_hash состояние воркера не покрывает (в него входят
+        # только name/scope/target/next_task_id), поэтому переезд на другую ветку хеш
+        # не меняет — и агент, повторяющий с тем же operation_id по инструкции тула,
+        # получает отчёт о чужой ветке как о своей (#166).
+        drifted = await asyncio.to_thread(_replay_drift, existing)
+        if drifted is not None:
+            return drifted, 409
+        return existing["result"], 200
 
     row = await asyncio.to_thread(get_session_by_name, request["name"], request["scope"])
     if not row:
@@ -1022,7 +1108,7 @@ async def accept_merge_operation(
     except Exception as exc:
         error = _error(
             "SESSION_SNAPSHOT_FAILED",
-            f"Cannot snapshot worker before merge: {type(exc).__name__}: {_text(exc, type(exc).__name__)}",
+            f"Cannot snapshot worker before merge: {err_text(exc)}",
             operation_id=canonical_id, status=409,
             details={"exception_type": type(exc).__name__},
         )

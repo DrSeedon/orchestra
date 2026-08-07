@@ -28,6 +28,7 @@ from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
 )
 
+from app.errtext import err_text
 from app.events import AgentEvent
 from app.usage_contract import AggregateUsage, TurnUsage, deferred_context
 
@@ -247,13 +248,13 @@ class ClaudeBackend:
                     await self._cleanup_failed_client()
                     logger.error(
                         "ClaudeBackend fresh connect after stale resume failed: %s%s",
-                        fresh_error,
+                        err_text(fresh_error),
                         f" | stderr: {self._stderr_tail[-1000:]}" if self._stderr_tail else "",
                     )
                     raise
             logger.error(
                 "ClaudeBackend connect failed: %s%s",
-                e,
+                err_text(e),
                 f" | stderr: {self._stderr_tail[-1000:]}" if self._stderr_tail else "",
             )
             raise

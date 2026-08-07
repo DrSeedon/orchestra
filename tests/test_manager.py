@@ -1838,6 +1838,7 @@ class TestAutoResume:
         DEFAULT_PIPELINE. Without it ROLE_SYSTEM_PROMPT('') fails loud (fallback
         removed) and pre-pipeline sessions can't resume."""
         from app.db import save_session, get_session_by_name
+        from app.pipeline import DEFAULT_PIPELINE, get_role
         from tests.conftest import make_backend_mock
         save_session({
             "id": "old-empty-pipe", "name": "oldw", "scope": "/tmp", "cwd": "/tmp",
@@ -1852,6 +1853,11 @@ class TestAutoResume:
             session = await mgr._load_from_db(row)  # must NOT raise ValueError
         assert session.name == "oldw"
         assert session.system_prompt  # prompt built from default pipeline
+        # #167: нормализация обязана доехать и до объекта сессии, а не только до
+        # промпта. Пока здесь оставалось '', _refresh_skills падал на «pipeline name
+        # is empty» и агент работал без ВСЕХ скиллов своей роли.
+        assert session.pipeline == DEFAULT_PIPELINE
+        assert get_role(session.pipeline, session.role) is not None
 
 
 
@@ -2855,3 +2861,117 @@ class TestIdentityRefreshOnRename:
         # Повторный вызов — no-op, а не второй перезапуск.
         assert await session._apply_pending_identity_restart() is False
         backend.disconnect.assert_awaited_once()
+
+
+class TestRestartWake:
+    """#160: воркер, прерванный рестартом, обязан получить пинок на старте.
+
+    Баг: shutdown_all() звал stop(), тот безусловно писал в БД 'idle', и следующий
+    старт читал WHERE status='running' по пустому месту — будить было некого.
+    Инверсия: hard kill (stop() не успел) работал, graceful — молча терял работу.
+    """
+
+    def _session(self, mgr, status, sid="w1", name="worker-1", scope="/proj"):
+        from app.session import AgentSession
+        from app.session_state import AgentStatus
+        from app.db import save_session
+        sess = AgentSession(
+            id=sid, name=name, scope=scope, cwd=scope,
+            model="claude-opus-5[1m]", system_prompt="x", session_id=f"sdk-{sid}",
+            created_at=datetime.now(timezone.utc), role="worker", pipeline="default",
+        )
+        sess.status = status
+        sess._disconnect_backend = AsyncMock()
+        mgr.sessions[sess.id] = sess
+        save_session(sess._to_db_dict())
+        return sess
+
+    async def _resume(self, tmp_path, monkeypatch):
+        """Свежий процесс: новый менеджер поверх той же БД. Возвращает разбуженных.
+
+        Джиттер (3 + rand(0,12) с) вырезаем точечно — random, а не asyncio.sleep:
+        подмена самого sleep рвёт вытеснение задач и тест перестаёт видеть пинок,
+        отправленный через spawn_supervised.
+        """
+        from app.manager import SessionManager
+        import app.manager as mgr_mod
+        import random as _random
+        monkeypatch.setattr(_random, "uniform", lambda a, b: 0)
+        real_sleep = asyncio.sleep
+        monkeypatch.setattr(
+            mgr_mod.asyncio, "sleep",
+            lambda d: real_sleep(0) if d and d >= 3 else real_sleep(d),
+        )
+        mgr2 = SessionManager()
+        woken = []
+        mgr2.send = AsyncMock(side_effect=lambda sid, msg: woken.append(sid))
+        await mgr2.auto_resume_all()
+        from app.tasks import _supervised
+        for _ in range(50):
+            await real_sleep(0)
+            if not _supervised:
+                break
+        if _supervised:
+            await asyncio.gather(*list(_supervised), return_exceptions=True)
+        return mgr2, woken
+
+    @pytest.mark.asyncio
+    async def test_graceful_restart_wakes_interrupted_worker(self, mgr, tmp_path, monkeypatch):
+        """АРМ A — systemctl restart. Красный до фикса: пинков было 0."""
+        from app.session_state import AgentStatus
+        proj = tmp_path / "proj"; proj.mkdir()
+        sess = self._session(mgr, AgentStatus.RUNNING, scope=str(proj))
+
+        await mgr.shutdown_all()          # ровно то, что делает lifespan
+        await sess._drain_persist()
+
+        mgr2, woken = await self._resume(tmp_path, monkeypatch)
+        assert "w1" in mgr2.sessions, "сессия обязана восстановиться в списке"
+        assert woken == ["w1"], f"прерванный воркер не разбужен: {woken}"
+
+    @pytest.mark.asyncio
+    async def test_hard_kill_restart_still_wakes_worker(self, mgr, tmp_path, monkeypatch):
+        """АРМ B — SIGKILL/OOM, shutdown_all не отработал. Защита от регрессии."""
+        from app.session_state import AgentStatus
+        proj = tmp_path / "proj"; proj.mkdir()
+        self._session(mgr, AgentStatus.RUNNING, scope=str(proj))
+
+        mgr2, woken = await self._resume(tmp_path, monkeypatch)
+        assert woken == ["w1"], f"hard-kill путь сломан регрессией: {woken}"
+
+    @pytest.mark.asyncio
+    async def test_idle_worker_not_woken_after_restart(self, mgr, tmp_path, monkeypatch):
+        """Fail-closed, ОБРАТНАЯ сторона: честно закончивший ход пинка не получает.
+
+        Без этого теста «будить всех подряд» прошло бы как фикс — та же грабля,
+        что у _verify_mcp_isolation, зелёного в пустой комнате.
+        """
+        from app.session_state import AgentStatus
+        proj = tmp_path / "proj"; proj.mkdir()
+        sess = self._session(mgr, AgentStatus.IDLE, scope=str(proj))
+
+        await mgr.shutdown_all()
+        await sess._drain_persist()
+
+        mgr2, woken = await self._resume(tmp_path, monkeypatch)
+        assert "w1" in mgr2.sessions, "idle-сессия обязана восстановиться"
+        assert woken == [], f"разбудили того, кто честно закончил ход: {woken}"
+
+    @pytest.mark.asyncio
+    async def test_stop_preserves_interrupted_status_in_db(self, mgr, tmp_path):
+        """T1 на уровне БД: признак прерванности переживает запись, у idle — не появляется."""
+        from app.session_state import AgentStatus
+        from app.db import _conn
+        proj = tmp_path / "proj"; proj.mkdir()
+        running = self._session(mgr, AgentStatus.RUNNING, sid="w-run", name="r", scope=str(proj))
+        done = self._session(mgr, AgentStatus.IDLE, sid="w-idle", name="d", scope=str(proj))
+
+        await mgr.shutdown_all()
+        await running._drain_persist()
+        await done._drain_persist()
+
+        with _conn() as c:
+            rows = {r["id"]: r["status"] for r in
+                    c.execute("SELECT id, status FROM sessions").fetchall()}
+        assert rows["w-run"] == "interrupted", f"признак прерванности потерян: {rows}"
+        assert rows["w-idle"] == "idle", f"признак приписан завершившему ход: {rows}"

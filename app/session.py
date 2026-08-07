@@ -35,6 +35,7 @@ from app.usage_contract import KnownContext, current_context
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
 from app.db import add_log, get_logs, save_session, tool_error_add
+from app.errtext import err_text
 
 
 logger = logging.getLogger(__name__)
@@ -940,8 +941,8 @@ class AgentSession:
         try:
             await candidate.connect()
         except Exception as e:
-            logger.error(f"[{self.name}] backend connect failed: {e}")
-            self._log("error", f"connect failed: {e}")
+            logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
+            self._log("error", f"connect failed: {err_text(e)}")
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
             raise
@@ -1008,8 +1009,8 @@ class AgentSession:
                     await self._backend.send("[system] Connection was restored after interruption. Continue your work.")
                 continue
             except Exception as re_err:
-                logger.error(f"[{self.name}] listener reconnect failed: {re_err}")
-                self._log("error", f"listener reconnect failed: {re_err}")
+                logger.error(f"[{self.name}] listener reconnect failed: {err_text(re_err)}")
+                self._log("error", f"listener reconnect failed: {err_text(re_err)}")
                 self._backend = None
                 if self.status == AgentStatus.RUNNING:
                     self.status = AgentStatus.IDLE
@@ -1788,12 +1789,18 @@ class AgentSession:
                 logger.warning(f"[{self.name}] listen task failed on disconnect: {e}")
 
     async def stop(self) -> None:
-        self._log("status", "⏹️ stopped (manual interrupt)")
+        # Единственный вызывающий — shutdown_all(), то есть выключение сервера
+        # (пользовательский стоп идёт через interrupt()). Поэтому агент, застигнутый
+        # в RUNNING, не «закончил ход», а оборван: помечаем это в БД, иначе старт
+        # прочитает 'idle' и не узнает, кого будить (#160).
+        interrupted = self.status == AgentStatus.RUNNING
+        self._log("status", "⏹️ stopped (server shutdown)" if interrupted
+                  else "⏹️ stopped (manual interrupt)")
         self._turns.cancel_auto_report()
         self._cancel_precompact_timer("stop")
         await self._disconnect_backend()
         self._hibernated = False
-        self.status = AgentStatus.IDLE
+        self.status = AgentStatus.INTERRUPTED if interrupted else AgentStatus.IDLE
         self._persist()
         self._turns.publish_turn_finished()
 
@@ -1856,7 +1863,25 @@ class AgentSession:
             event_id,
         )
         self._log_futures.add(future)
-        future.add_done_callback(self._log_futures.discard)
+
+        def completed(done) -> None:
+            # Тот же способ, что у _submit_db_write выше: result() ОБЯЗАН быть забран.
+            # Без него asyncio печатает своё «Future exception was never retrieved» —
+            # без имени агента, без типа записи и без её содержимого (#167).
+            self._log_futures.discard(done)
+            try:
+                done.result()
+            except Exception as error:
+                # logs висят на sessions(id) ON DELETE CASCADE: у записи для мёртвой
+                # сессии нет дома by design, восстанавливать нечего. Но потеря обязана
+                # быть ВИДНОЙ — иначе следующий FK-сбой по другой причине (битая
+                # миграция, гонка при архивации) снова уйдёт в никуда.
+                logger.error(
+                    "[%s] log write lost (%s): %s | %.200s",
+                    self.name, type, err_text(error), content,
+                )
+
+        future.add_done_callback(completed)
 
     def _persist_subagent(self, meta: dict, ended: bool = False) -> None:
         """Upsert sub-agent telemetry from a Task* event. Fire-and-forget.

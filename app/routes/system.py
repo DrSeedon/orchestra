@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from app.auth import is_auth_enabled, is_owner_mode
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
 from app.deps import build_id, manager, templates
+from app.errtext import err_text
 from app.models import (
     MODELS,
     cache_policy_for_runtime,
@@ -1096,11 +1097,6 @@ _DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
 _FILE_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
 
 
-def _bug_error(exc: Exception) -> str:
-    detail = str(exc)
-    return f"{type(exc).__name__}: {detail}" if detail else type(exc).__name__
-
-
 def _nearest_existing(path: Path) -> Path:
     current = path
     while not os.path.lexists(current):
@@ -1392,7 +1388,7 @@ async def report_bug_endpoint(req: Request):
     try:
         record_path, record_id = await asyncio.to_thread(_publish_bug_record, entry)
     except Exception as exc:
-        error = _bug_error(exc)
+        error = err_text(exc)
         logger.exception(f"report_bug failed: {error}")
         return JSONResponse({"error": error}, status_code=500)
     # Запись в стор уже состоялась и не должна зависеть от судьбы уведомления (#56):
@@ -1420,7 +1416,7 @@ async def read_bug_reports():
     try:
         snapshot = await asyncio.to_thread(_bug_snapshot)
     except Exception as exc:
-        error = _bug_error(exc)
+        error = err_text(exc)
         logger.exception(f"report_bug read failed: {error}")
         return JSONResponse({"error": error}, status_code=500)
     return StreamingResponse(

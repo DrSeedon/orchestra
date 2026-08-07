@@ -14,6 +14,7 @@ from app.db import (
     bg_update_config,
     get_all_sessions,
 )
+from app.errtext import err_text
 from app.models import backend_for_model
 from app.session import _subscription_limit_kind
 from app.session_state import AgentStatus
@@ -387,11 +388,7 @@ async def schedule_wake_auto() -> None:
         await schedule_wake_after_reset()
     except Exception as error:
         # Waking is best-effort and must never break the turn that triggered it.
-        logger.warning(
-            "automatic wake scheduling failed: %s: %s",
-            type(error).__name__,
-            error,
-        )
+        logger.warning("automatic wake scheduling failed: %s", err_text(error))
 
 
 async def schedule_wake_after_reset() -> dict:
@@ -425,7 +422,7 @@ async def schedule_wake_after_reset() -> dict:
                 envelopes[provider] = {
                     "fresh": False,
                     "usage": None,
-                    "error": str(error) or type(error).__name__,
+                    "error": err_text(error),
                 }
             else:
                 envelopes[provider] = {
@@ -628,7 +625,7 @@ async def run_wake_job(
                     {
                         "fresh": False,
                         "usage": None,
-                        "error": str(error) or type(error).__name__,
+                        "error": err_text(error),
                     },
                     provider,
                 )

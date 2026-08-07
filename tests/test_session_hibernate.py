@@ -129,7 +129,10 @@ async def test_automatic_teardown_failure_logs_exception_class(monkeypatch, capl
     with caplog.at_level("ERROR", logger="app.session"):
         await HibernateManager(session)._idle_hibernate(300)
 
-    assert "automatic hibernate failed: TimeoutError:" in caplog.text
+    # Требование теста — КЛАСС назван (у TimeoutError пустой str()). Дословную форму
+    # с двоеточием не проверяем: висячее двоеточие и было дефектом #167.
+    assert "automatic hibernate failed: TimeoutError" in caplog.text
+    assert not caplog.text.rstrip().endswith(":")
     assert session._hibernated is False
 
 

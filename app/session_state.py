@@ -11,6 +11,11 @@ class AgentStatus(str, Enum):
     IDLE = "idle"
     RUNNING = "running"
     WAITING = "waiting"
+    # Ход оборван выключением сервера, а не завершён. Живёт в БД от stop() на
+    # shutdown до auto_resume_all, который по нему решает кого будить, и тут же
+    # нормализует в idle. Без него graceful-рестарт писал 'idle' поверх 'running'
+    # и стирал сам факт прерванности — будить было некого (#160).
+    INTERRUPTED = "interrupted"
 
 
 # Orchestrators get 2x idle time: they manage long-running workflows and get TG

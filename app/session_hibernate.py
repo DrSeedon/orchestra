@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from app.session_state import (
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
 )
+from app.errtext import err_text
 from app.runtime_registry import get_runtime
 
 if TYPE_CHECKING:
@@ -59,10 +60,7 @@ class HibernateManager:
         try:
             result = await self.hibernate_now()
         except Exception as exc:
-            logger.error(
-                f"[{s.name}] automatic hibernate failed: "
-                f"{type(exc).__name__}: {exc}"
-            )
+            logger.error(f"[{s.name}] automatic hibernate failed: {err_text(exc)}")
             return
         if not result["ok"] and result["reason"] == "unsafe_backend":
             logger.warning(
@@ -179,8 +177,8 @@ class HibernateManager:
                         await s._backend.send("[system] Connection was restored after interruption. Continue your work.")
                         logger.info(f"[{s.name}] heartbeat reconnect OK")
                     except Exception as e:
-                        logger.error(f"[{s.name}] heartbeat reconnect failed: {e}")
-                        s._log("error", f"heartbeat reconnect failed: {e}")
+                        logger.error(f"[{s.name}] heartbeat reconnect failed: {err_text(e)}")
+                        s._log("error", f"heartbeat reconnect failed: {err_text(e)}")
                         s._backend = None
                         s.status = AgentStatus.IDLE
                         s._persist()

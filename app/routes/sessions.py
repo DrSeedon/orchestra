@@ -15,6 +15,7 @@ from pydantic import BaseModel, field_validator, model_validator
 
 from app.db import get_log, get_logs, get_logs_before, get_logs_sync, get_all_sessions
 from app.deps import manager
+from app.errtext import err_text
 from app.models import resolve_model, MODELS
 from app.session import AgentStatus
 
@@ -811,7 +812,7 @@ async def _persist_lifecycle_quarantine(
                 needs_switch=True,
             )
         except Exception as error:
-            errors.append(str(error) or type(error).__name__)
+            errors.append(err_text(error))
             continue
         status = {"ok": True}
         if errors:
@@ -1085,7 +1086,7 @@ async def execute_merge_session(
                         force=True,
                     )
                 except Exception as switch_error:
-                    detail = str(switch_error) or type(switch_error).__name__
+                    detail = err_text(switch_error)
                     switch_result = {
                         "ok": False,
                         "state": "failed",
@@ -1102,7 +1103,7 @@ async def execute_merge_session(
                             needs_switch=False,
                         )
                     except Exception as persist_error:
-                        detail = str(persist_error) or type(persist_error).__name__
+                        detail = err_text(persist_error)
                         switch_result = {
                             **switch_result,
                             "ok": False,
@@ -1135,7 +1136,7 @@ async def execute_merge_session(
                             status="in_progress",
                         )
                     except Exception as task_error:
-                        detail = str(task_error) or type(task_error).__name__
+                        detail = err_text(task_error)
                         task_status = {"ok": False, "error": detail}
                     if not task_status.get("ok"):
                         quarantine_status = await _persist_lifecycle_quarantine(
@@ -1297,7 +1298,7 @@ async def switch_branch(name: str, req: dict):
                                 needs_switch=False,
                             )
                         except Exception as persist_error:
-                            detail = str(persist_error) or type(persist_error).__name__
+                            detail = err_text(persist_error)
                             result = {
                                 **result,
                                 "ok": False,
@@ -1326,7 +1327,7 @@ async def switch_branch(name: str, req: dict):
                                 status="in_progress",
                             )
                         except Exception as task_error:
-                            detail = str(task_error) or type(task_error).__name__
+                            detail = err_text(task_error)
                             result["task_status"] = {"ok": False, "error": detail}
                         if not result["task_status"].get("ok"):
                             quarantine_status = await _persist_lifecycle_quarantine(
