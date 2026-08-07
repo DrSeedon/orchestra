@@ -115,3 +115,5 @@
 - [ ] **Cross-server messaging** — связь между Orchestra на разных серверах
 - [ ] **Emergency failover** — автопереключение на API ключи если подписка слетела
 - [ ] **Best-of-N solving** — N воркеров, reviewer выбирает лучший (или OpenRouter Fusion)
+
+- [ ] `tests/test_frontend.py`: `expect(chat).to_contain_text("🟠 High")` — подстрочное сравнение, мутация `High`→`Highest` его не роняет (найдено в #145, вне объёма задачи). Сделать ассерт точным.
