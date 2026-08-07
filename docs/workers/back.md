@@ -180,3 +180,13 @@
   срабатываний даёт признак на заведомо хороших строках, и только потом предлагай миграцию.
   Годный признак в этой задаче нашёлся независимым полем той же строки
   (`provider_usage.anthropic.status == "unavailable"`), а не эвристикой.
+
+- **Стенограмму сессии Claude режет штатная `fork_session` из SDK — руками JSONL не трогать.**
+  `from claude_agent_sdk import fork_session, get_session_messages`;
+  `fork_session(sid, directory=<cwd>, up_to_message_id=<uuid>)` создаёт НОВЫЙ файл сессии со
+  свежими UUID, источник не трогает (проверил на живой: 1571 запись → форк 1067, отравленных
+  0). `get_session_messages(sid, directory=...)` даёт список с `uuid`/`message` для выбора точки
+  среза. Файлы лежат в `~/.claude/projects/<путь-с-дефисами>/<session_id>.jsonl`.
+  **Смены `s.session_id` НЕДОСТАТОЧНО:** клиент CLI persistent между ходами и держит старую
+  стенограмму, `_ensure_backend` возвращает живой backend не глядя на id. Нужен
+  `s._spawn_bg(s._disconnect_backend())` — иначе откат остаётся записью в журнале.

@@ -3442,3 +3442,130 @@ class TestAutoCompactKillSwitch:
         from app.session import auto_compact_enabled
         monkeypatch.setenv("AUTO_COMPACT_ENABLED", raw)
         assert auto_compact_enabled() is enabled
+
+
+class TestSafeguardRefusal:
+    """#155: отказ фильтра провайдера — отдельный класс, с автооткатом отравленной истории.
+
+    Замер на живой стенограмме seedon: забракованный текст остаётся в JSONL CLI и едет в
+    КАЖДЫЙ следующий запрос — второй ход на постороннюю тему получил тот же отказ дословно.
+    """
+
+    VERBATIM = (
+        "API Error: claude-opus-5[1m]'s safeguards flagged this message for a "
+        "cybersecurity topic. If your work requires this access, you can apply for an "
+        "exemption: https://claude.com/form/cyber-use-case\n"
+        "Try rephrasing the request in a new session or change your model."
+    )
+
+    def test_verbatim_refusal_is_recognised(self):
+        from app.session import _is_safeguard_refusal
+
+        assert _is_safeguard_refusal(self.VERBATIM) is True
+
+    def test_ordinary_invalid_request_is_not_recognised(self):
+        """Fail-open: по коду ошибки эти случаи неразличимы, значит опора только на текст."""
+        from app.session import _is_safeguard_refusal
+
+        assert _is_safeguard_refusal(
+            "API Error: invalid_request: max_tokens: must be greater than 0"
+        ) is False
+        assert _is_safeguard_refusal("model error: invalid_request") is False
+        assert _is_safeguard_refusal(
+            "I cannot help with that request — it involves cybersecurity harm."
+        ) is False
+
+    def test_guidance_names_three_checkable_signs_and_keeps_the_link(self):
+        from app.session import safeguard_guidance
+
+        text = safeguard_guidance(self.VERBATIM)
+        assert "https://claude.com/form/cyber-use-case" in text
+        assert "СВОЯ" in text
+        assert "убедиться / проверить" in text
+        assert "инструкция к действию" in text
+        assert "Смена Claude-модели не поможет" in text
+
+    def test_text_event_raises_the_flag(self, session):
+        from app.events import AgentEvent
+
+        session._log = lambda *a, **k: None
+        session._handle_event(AgentEvent("text", self.VERBATIM))
+
+        assert session._safeguard_refusal == self.VERBATIM
+
+    @pytest.mark.asyncio
+    async def test_turn_end_rewinds_and_reports(self, session, monkeypatch):
+        from app.events import AgentEvent
+
+        logs = []
+        spawned = []
+        session._spawn_bg = lambda coro: (spawned.append(coro.cr_code.co_name),
+                                          coro.close())[0]
+        session._log = lambda kind, content, **_kw: logs.append((kind, content))
+        session._safeguard_refusal = self.VERBATIM
+        monkeypatch.setattr(
+            "app.session_turns._rewind_past_safeguard_refusal", lambda _s: "4"
+        )
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={"ok": False, "stop_reason": "refusal", "num_turns": 1,
+                      "errors": ["invalid_request"], "model_error": "invalid_request"},
+        ))
+
+        assert any("отрезан: 4" in c for _, c in logs), logs
+        assert any("cyber-use-case" in c for _, c in logs)
+        assert session._safeguard_refusal == ""
+        # Без разрыва живого клиента CLI откат остался бы записью в журнале.
+        assert "_disconnect_backend" in spawned, spawned
+
+    @pytest.mark.asyncio
+    async def test_failed_rewind_is_loud_not_silent(self, session, monkeypatch):
+        from app.events import AgentEvent
+
+        logs = []
+        session._log = lambda kind, content, **_kw: logs.append((kind, content))
+        session._safeguard_refusal = self.VERBATIM
+
+        def _boom(_s):
+            raise RuntimeError("transcript gone")
+
+        monkeypatch.setattr("app.session_turns._rewind_past_safeguard_refusal", _boom)
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={"ok": False, "stop_reason": "refusal", "num_turns": 1,
+                      "errors": ["invalid_request"], "model_error": "invalid_request"},
+        ))
+
+        assert any("нужна новая сессия" in c for kind, c in logs if kind == "error"), logs
+
+    @pytest.mark.asyncio
+    async def test_ordinary_failed_turn_does_not_rewind(self, session, monkeypatch):
+        """Ложная классификация обычной ошибки дороже пропуска — проверяем прямо."""
+        from app.events import AgentEvent
+
+        called = []
+        monkeypatch.setattr(
+            "app.session_turns._rewind_past_safeguard_refusal",
+            lambda _s: called.append(1) or "1",
+        )
+        session._log = lambda *a, **k: None
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={"ok": False, "stop_reason": "error", "num_turns": 1,
+                      "errors": ["invalid_request"], "model_error": "invalid_request"},
+        ))
+
+        assert called == []
+
+    def test_refusal_class_has_no_auto_retry_path(self):
+        """Требование «не повторять» — фактом: ретраи заведены только под другие классы."""
+        import inspect
+
+        from app.session_turns import TurnManager
+
+        source = inspect.getsource(TurnManager.handle_turn_end)
+        assert 'model_error == "server_error"' in source
+        assert "invalid_request" not in source.replace("safeguard", "")

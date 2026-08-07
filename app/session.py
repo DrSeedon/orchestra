@@ -64,6 +64,38 @@ def _is_terminal_subscription_limit(text: str) -> bool:
     return _subscription_limit_kind(text) is not None
 
 
+# Провайдер бракует ФОРМУЛИРОВКУ до модели, а наружу отдаёт тот же безликий
+# `invalid_request`, что и «плохой параметр» — по коду эти случаи неразличимы.
+# Опознаём по дословной фразе. Fail-open: не совпало → ведём себя как раньше;
+# ложно принять обычную ошибку за фильтр хуже, чем не распознать фильтр.
+_SAFEGUARD_MARKER = "safeguards flagged this message"
+
+
+def _is_safeguard_refusal(text: str) -> bool:
+    """Отказ фильтра провайдера на формулировку запроса (#155)."""
+    return _SAFEGUARD_MARKER in text.lower()
+
+
+def safeguard_guidance(verbatim: str) -> str:
+    """Что агенту делать дальше. Признаки проверяемые — агент применяет их к своему тексту.
+
+    Смена Claude-модели не помогает: фильтр общий для семейства. Основание для признаков —
+    два прошедших хода на формально той же теме (поиск утёкшего секрета `git log -S` по всем
+    ревизиям трёх СВОИХ репозиториев, чтение доки GitHub про удаление чувствительных данных):
+    тема «секреты и доступ» фильтр не роняет, роняет залог и чужая собственность.
+    """
+    return (
+        "🛡 Фильтр провайдера забраковал ФОРМУЛИРОВКУ запроса — до модели он не дошёл. "
+        "Смена Claude-модели не поможет: фильтр общий для семейства.\n"
+        "Переформулируй, проверив три признака по своему тексту:\n"
+        "1. система СВОЯ, а не чужая («наши репозитории», «наш сайт»);\n"
+        "2. глагол «убедиться / проверить», а не «получить доступ / обойти»;\n"
+        "3. в задании нет фразы, которая читается как инструкция к действию над защитой.\n"
+        "Не помогло — смени рантайм на не-Anthropic.\n"
+        f"Дословный отказ провайдера:\n{verbatim}"
+    )
+
+
 def _claude_subscription_limit_active() -> bool:
     try:
         from app.routes.system import _usage_cache
@@ -302,6 +334,7 @@ class AgentSession:
     _rate_limit_retries: int = field(default=0, repr=False)
     _server_error_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
+    _safeguard_refusal: str = field(default="", repr=False)
     _manually_interrupted: bool = field(default=False, repr=False)
     _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
     _precompact_timer: dict | None = field(default=None, repr=False)
@@ -725,6 +758,7 @@ class AgentSession:
         if not message.startswith("[system] Retrying after transient server error."):
             self._server_error_retries = 0
             self._session_limit_hit = False
+        self._safeguard_refusal = ""
 
         self._note_next_precompact_activity()
         capabilities = get_runtime(self.backend_type).capabilities
@@ -1106,6 +1140,11 @@ class AgentSession:
             # Subscription limits arrive as text before the generic rate_limit error.
             if _is_terminal_subscription_limit(event.content):
                 self._session_limit_hit = True
+            # Отказ фильтра приходит текстом; относительно события `error` его порядок
+            # НЕПОСТОЯНЕН (замер #155: в одном ходе текст раньше, в другом позже), поэтому
+            # здесь только ставим флаг, а решение принимаем на turn_end — он всегда последний.
+            if _is_safeguard_refusal(event.content):
+                self._safeguard_refusal = event.content
             self._log("text", event.content)
             self._turn_logs.append(event.content)
         elif event.type == "thinking":
