@@ -16,6 +16,7 @@ import re
 import shlex
 import sys
 import uuid
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -537,6 +538,70 @@ def _spawn_delivery_error(
     )
 
 
+# Гейт закрывает ТОЛЬКО рантайм Codex. Anthropic сюда не входит намеренно: при
+# исчерпанной квоте Claude отказ «возьми другую модель» отправил бы агента в пустоту —
+# альтернативы нет, а спавн бы встал совсем. Там работает пробуждение по сбросу.
+_GATED_PROVIDERS = frozenset({"codex", "codex_spark"})
+_QUOTA_ALTERNATIVE = "claude-opus-5[1m]"
+# `codex_review` собирает `codex exec` без `--model`, то есть берёт дефолт из
+# ~/.codex/config.toml. Ключа `model` там нет → семейство codex → лимит-id `codex`.
+# Проверено измерением: живой `codex exec` отказал по квоте, когда Spark был на 1% —
+# в Spark-бакет он не ходит. Этой же моделью тул представляется в докстринге.
+_CODEX_REVIEW_MODEL = "gpt-5.6-sol"
+
+
+async def _quota_refusal(model: str) -> ApiToolError | None:
+    """Отказ, если провайдер модели доказанно исчерпан. Не знаем → None (пропускаем).
+
+    Fail-open здесь не мягкость, а расчёт: ложная блокировка рабочего рантайма дороже
+    одного сгоревшего хода. Поэтому закрыто РОВНО одно состояние — `reset` (исчерпано
+    И известно будущее время сброса).
+
+    Внимание на полярность: `unavailable` у `provider_readiness` значит «не знаю».
+    У `limit_wake` это причина НЕ действовать, здесь — ровно наоборот, причина пропустить.
+    Один и тот же `state`, противоположная трактовка — цена ошибки разная.
+
+    Снятие гейта не требует ничего: как только `resets_at` в прошлом, `provider_readiness`
+    отвечает `unavailable` даже на замороженном 100%-снимке, и мы пропускаем.
+    """
+    try:
+        readiness = await _api("GET", "/api/usage/readiness", params={"model": model})
+    except Exception as error:
+        # Сюда же попадает 404 сервера, который ещё не перезапущен: mcp_stdio.py
+        # подхватывается немедленно, а app/routes/ живёт в памяти systemd до рестарта.
+        logger.warning("quota gate open for %s: readiness unavailable: %s", model, err_text(error))
+        return None
+    if not isinstance(readiness, dict) or readiness.get("state") != "reset":
+        return None
+    provider = str(readiness.get("provider") or "")
+    if provider not in _GATED_PROVIDERS:
+        return None
+    try:
+        reset = datetime.fromisoformat(str(readiness.get("reset_at")).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        logger.warning("quota gate open for %s: unparsable reset_at %r", model, readiness.get("reset_at"))
+        return None
+    if reset.tzinfo is None:
+        reset = reset.replace(tzinfo=timezone.utc)
+    local = reset.astimezone()
+    seconds_left = max(0, int((reset - datetime.now(timezone.utc)).total_seconds()))
+    return ApiToolError(
+        code="quota_exhausted",
+        message=(
+            f"ОТМЕНА: квота Codex исчерпана (провайдер {provider}, модель {model}).\n"
+            f"Рантайм недоступен до {local:%Y-%m-%d %H:%M %Z} "
+            f"({reset:%H:%M}Z).\n"
+            f"Возьми Claude-модель ({_QUOTA_ALTERNATIVE}) или дождись сброса."
+        ),
+        # НЕ retryable: флаг «можно повторить» при сутках до сброса читается агентом как
+        # «подожди», и мы уже видели, как на исчерпанной квоте ретраят вечно. Время
+        # оставляем — оно информативно и без разрешения на ретрай.
+        retryable=False,
+        retry_after_seconds=seconds_left,
+        details={"provider": provider, "model": model, "reset_at": readiness.get("reset_at")},
+    )
+
+
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
@@ -561,6 +626,10 @@ async def spawn_worker(name: str, task: str, repo_path: str,
             message="model is required; choose it by the <model-routing> block in your prompt",
             details={"field": "model"},
         )
+    # До создания сессии: иначе от загодя обречённого воркера останется worktree.
+    refusal = await _quota_refusal(model)
+    if refusal:
+        raise refusal
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
@@ -1042,6 +1111,9 @@ async def update_progress(percent: int, status: str) -> str:
 @mcp.tool()
 async def change_worker_model(name: str, model: str) -> str:
     """Change a worker's model (e.g. sonnet→opus) without losing context. Worker must be idle."""
+    refusal = await _quota_refusal(model)
+    if refusal:
+        raise refusal
     result = await _api("POST", f"/api/sessions/{name}/change-model", json={"scope": SCOPE, "model": model})
     if isinstance(result, dict) and result.get("error"):
         return f"Model change failed: {result['error']}"
@@ -1844,6 +1916,10 @@ async def codex_review(
     resume: continue the previous Codex session for this output (debate round). Falls back to a
         fresh session if none stored. On a resumed round put your counter-arguments / changelog
         in context (e.g. 'I fixed X and Y, re-review')."""
+    # Первым делом: не создавать фоновую джобу, которая гарантированно упадёт по квоте.
+    refusal = await _quota_refusal(_CODEX_REVIEW_MODEL)
+    if refusal:
+        raise refusal
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
     if isinstance(info, dict) and info.get("error"):
         return f"Error resolving worker cwd: {info['error']}"
@@ -2001,7 +2077,9 @@ async def codex_review(
             "success_file": output_abs,
             "success_pattern": r"(?im)^##\s+Verdict\b" if mode == "exec" else "",
         },
-        "message": f"Codex {action} done. Results in {output}",
+        # Без слова "done": то же поле подставляется в провал как
+        # "[Background job FAILED] <message>", и "Codex exec done" читалось как успех.
+        "message": f"Codex {action} → {output}",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
         "timeout_seconds": 600,

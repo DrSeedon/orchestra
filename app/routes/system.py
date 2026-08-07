@@ -1070,6 +1070,53 @@ async def wake_after_reset_endpoint():
     return await schedule_wake_after_reset()
 
 
+@router.get("/api/usage/readiness")
+async def usage_readiness(model: str):
+    """Есть ли у провайдера этой модели ёмкость прямо сейчас — для гейта в MCP (#154).
+
+    Решение НЕ принимается здесь: оно целиком берётся у `provider_readiness` — той же
+    функции, которой пользуются планирование и доставка пробуждений. Этот роут только
+    склеивает модель → провайдера → снимок квот.
+
+    Ответ никогда не содержит ключа `error`: `_api` в MCP бросает исключение на любом
+    непустом `error`, и честное «не знаю» превратилось бы в ложную транспортную ошибку.
+    Причина всегда едет в `reason`.
+
+    Читаем КЕШ (`force_refresh=False`, ~9 мс): свежесть нужна, чтобы заметить новую
+    блокировку, а снимается гейт по часам — исчерпанное окно с прошедшим `resets_at`
+    даёт `unavailable` даже на замороженном снимке.
+    """
+    from app.limit_wake import _provider_for_model, provider_readiness
+    from app.models import resolve_model
+
+    def unknown(reason: str) -> dict:
+        return {"provider": "", "state": "unavailable", "reason": reason, "reset_at": None}
+
+    if not is_owner_mode():
+        # Чужая инсталляция: время сброса НАШЕЙ квоты наружу не отдаём. Побочно это же
+        # и верное поведение гейта — без codex-кредов блокировать нечего.
+        return unknown("owner mode is off")
+    try:
+        provider = _provider_for_model(resolve_model(model))
+    except ValueError as error:
+        return unknown(err_text(error))
+
+    try:
+        snapshot = await current_provider_usage(provider=provider)
+    except Exception as error:
+        envelope = {"fresh": False, "usage": None, "error": err_text(error)}
+    else:
+        envelope = {"fresh": True, "usage": snapshot.get(provider), "error": None}
+
+    readiness = provider_readiness(envelope, provider)
+    return {
+        "provider": provider,
+        "state": readiness["state"],
+        "reason": readiness["reason"],
+        "reset_at": readiness.get("reset_at"),
+    }
+
+
 # ── Misc ──
 
 @router.post("/api/sessions/{name}/hibernate")
