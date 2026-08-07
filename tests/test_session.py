@@ -1357,6 +1357,17 @@ class TestCompactGuards:
 
 
 class TestPrecompactTimer:
+    @pytest.fixture(autouse=True)
+    def _auto_compact_enabled(self, monkeypatch):
+        """#144: планирование компакта проверяется при ВКЛЮЧЁННОМ выключателе (#122).
+
+        Иначе прогон читает `AUTO_COMPACT_ENABLED` из окружения машины — на VPS юнит подаёт
+        `.env`, где стоит `0`, и три теста класса краснели на чужой настройке, а не на дефекте.
+        Фикстура стоит на классе, а не на модуле: `TestAutoCompactKillSwitch` задаёт значение
+        сам, и общая фикстура заглушила бы проверки самого выключателя.
+        """
+        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "1")
+
     @staticmethod
     def _capture_background(session):
         spawned = []
