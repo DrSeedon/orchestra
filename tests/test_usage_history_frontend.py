@@ -70,18 +70,24 @@ def _slot_text(browser: Browser, api_script: str) -> str:
     return result
 
 
-def _history(count: int, *, provider_usage=None, step: int = 30, skip: int = 0):
+def _history(count: int, *, provider_usage=None, step: int = 30, skip: int = 0,
+             nulls: tuple = (), drop: tuple = ()):
     """Ответ /api/usage/history: снимки в текущем 5h-окне с шагом step минут.
 
-    skip — сколько шагов пропустить в середине (провал в данных).
+    skip — сколько шагов пропустить в середине (провал в данных);
+    nulls — индексы снимков, где источник не ответил (`five_hour_pct: null`);
+    drop — индексы снимков, которых в ответе нет вовсе.
     """
     js = []
     for i in range(count):
+        if i in drop:
+            continue
         age = step * (count - i) + (step * skip if i < count // 2 else 0)
+        pct = "null" if i in nulls else str(10 + i * 5)
         js.append(
             "{ts: new Date(Date.now() - %d * 60000).toISOString(),"
-            " five_hour_pct: %d, five_hour_resets_at: resets,"
-            " providers: %s}" % (age, 10 + i * 5, provider_usage or "null")
+            " five_hour_pct: %s, five_hour_resets_at: resets,"
+            " providers: %s}" % (age, pct, provider_usage or "null")
         )
     # Скобки обязательны: `() => {…}` читается как тело функции, а не объект.
     return "({step_minutes: %d, rows: [%s]})" % (step, ",".join(js))
@@ -140,6 +146,24 @@ def test_hole_in_data_breaks_the_line_instead_of_bridging_it(browser):
 
     assert solid["anthropic"].count('stroke="#38bdf8"') == 1, solid["anthropic"]
     assert holed["anthropic"].count('stroke="#38bdf8"') == 2, holed["anthropic"]
+
+
+def test_null_pct_is_a_hole_not_a_zero(browser):
+    """#150: источник не ответил → в колонке null. Ноль нарисовал бы провал в пол.
+
+    Сравниваем с тем же рядом, где серединных снимков просто НЕТ: картинка обязана
+    совпасть — оба случая означают «данных за этот период не было».
+    """
+    prelude = "const resets = new Date(Date.now() + 3600000).toISOString();"
+    nulled = _slot_text(browser, prelude + f"window.api = async () => {_history(8, step=10, nulls=(3, 4))};")
+    missing = _slot_text(browser, prelude + f"window.api = async () => {_history(8, step=10, drop=(3, 4))};")
+
+    # Сравниваем сами линии расхода: разметку целиком нельзя — метка сброса
+    # считается от Date.now() и уезжает на доли пикселя между двумя прогонами
+    line = lambda html: re.findall(r'points="([^"]+)" fill="none" stroke="#38bdf8"', html)
+
+    assert len(line(nulled["anthropic"])) == 2, nulled["anthropic"]
+    assert line(nulled["anthropic"]) == line(missing["anthropic"])
 
 
 def _weekly(count: int, *, first_age_min: int, reset_in_h: int):

@@ -389,12 +389,18 @@ async function _loadSparkline(tipEl) {
 function _historyProviders(row) {
     if (row?.providers && typeof row.providers === 'object') return row.providers;
     const windows = [];
-    if (row?.five_hour_resets_at || Number(row?.five_hour_pct)) {
-        windows.push({id:'five_hour', label:'5h', utilization:Number(row.five_hour_pct) || 0,
+    // null в колонке = источник не ответил (#150). `Number(null)` даёт 0, и окно
+    // с нулём нарисовало бы провал в пол там, где данных нет вовсе
+    const pct = value => (value == null || value === '' || !Number.isFinite(Number(value)))
+        ? null : Number(value);
+    const fiveHour = pct(row?.five_hour_pct);
+    const sevenDay = pct(row?.seven_day_pct);
+    if (fiveHour !== null && (row.five_hour_resets_at || fiveHour)) {
+        windows.push({id:'five_hour', label:'5h', utilization:fiveHour,
             window_minutes:300, resets_at:row.five_hour_resets_at || null});
     }
-    if (row?.seven_day_resets_at || Number(row?.seven_day_pct)) {
-        windows.push({id:'seven_day', label:'7d', utilization:Number(row.seven_day_pct) || 0,
+    if (sevenDay !== null && (row.seven_day_resets_at || sevenDay)) {
+        windows.push({id:'seven_day', label:'7d', utilization:sevenDay,
             window_minutes:10080, resets_at:row.seven_day_resets_at || null});
     }
     return windows.length ? {anthropic:{label:'Claude', windows}} : {};
