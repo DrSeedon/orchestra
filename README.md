@@ -31,10 +31,9 @@ You describe the goal. The orchestrator (Claude) breaks it down, assigns workers
 > 2024: "here's an SDK, build it yourself." 2025: "here's an agent, give it a task." 2026: "here's a TEAM, give it a goal." Orchestra is the third thing.
 
 <p align="center">
-  <!-- TODO: Replace with actual GIF of the dashboard showing agents working in parallel -->
   <img src="docs/dashboard.png" alt="Dashboard showing agents working" width="100%">
   <br>
-  <em>Real-time dashboard: 6 agents working in parallel on a client project</em>
+  <em>Real-time dashboard — a snapshot of 6 agents working in parallel on a client project</em>
 </p>
 
 ## Quick Start
@@ -122,7 +121,19 @@ Code written by one model (Claude) is reviewed by another (GPT). Different model
 One orchestrator per project. Sub-orchestrators manage sub-teams. Workers do the work. Cross-project messaging lets orchestrators coordinate across repos.
 
 ### 🔄 Built by Itself
-Orchestra-orchestrator is the agent that builds Orchestra. 8 workers write the code for the platform they run on. No other framework can say: "our product was built by our product."
+Orchestra-orchestrator is the agent that builds Orchestra: workers write the code for the platform they run on, and this section was edited by one of them.
+
+Numbers below come from the primary installation's own database, measured **2026-08-07** across 75 active days (2026-05-05 → 2026-08-07):
+
+| | |
+|---|---|
+| Agent sessions | **413** (381 workers, 19 orchestrators) |
+| Sub-agents spawned | **3 733** |
+| Messages logged | **113 263** |
+| Agent turns | **3 163** |
+| Tasks tracked | **510** across 15 projects |
+
+These are **cumulative totals, not concurrency** — peak observed parallelism is up to 10 workers at once. A second, newer installation runs on a separate server and is counted separately, never added to these.
 
 ### ⚙️ Per-Role Model Policy
 Every role declares its model in the pipeline manifest, and the orchestrator routes new workers by task class and remaining quota rather than by name or habit. Runtimes are mixable per worker — Claude Code, Codex, Grok and OpenCode all run as workers behind one contract, so a task can be written by one vendor's model and reviewed by another's.
@@ -153,7 +164,7 @@ tail and names its own session, so one agent's history can never bleed into anot
 
 ## Real Projects Built with Orchestra
 
-These aren't demos. They run in production right now, on one server.
+These aren't demos — they run in production. Scale figures are as of 2026-08-07; some of these projects are private client work, so the repositories are not public.
 
 | Project | What it does | Scale |
 |---------|-------------|-------|
@@ -164,7 +175,7 @@ These aren't demos. They run in production right now, on one server.
 | **RimWorld Mods** | 70+ mod translations, C# DLL | 2000+ text keys |
 | **Sensar** (medtech) | Software validation protocol for video laryngoscope | 36 test items, 20 pages |
 | **University** | MSc thesis, lecture notes, ML dashboards | 45 pages, 29 DOI sources |
-| **Orchestra itself** | Self-development: 8 workers build the platform | Recursive self-improvement |
+| **Orchestra itself** | Self-development: workers build the platform they run on | 413 agent sessions, 3 733 sub-agents (see above) |
 
 ## Architecture
 
