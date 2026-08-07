@@ -907,11 +907,15 @@ async def _collect_usage_snapshot() -> None:
     if token:
         try:
             anthropic_data = await _fetch_anthropic_usage(token)
-        except PermissionError:
+        except PermissionError as e:
+            # Причину пишем СРАЗУ: если обновление токена не поможет, дальше её взять
+            # будет неоткуда и отказ станет безымянным.
+            anthropic_error = f"{type(e).__name__}: {e}"
             if refresh_token:
                 new_token = await _refresh_oauth_token(refresh_token)
                 if new_token:
                     anthropic_data = await _fetch_anthropic_usage(new_token)
+                    anthropic_error = ""
         except Exception as e:
             anthropic_data = None
             anthropic_error = f"{type(e).__name__}: {e}"
@@ -961,6 +965,10 @@ async def _collect_usage_snapshot() -> None:
                 "status": "unavailable",
                 "error": error or "no data",
             }
+            logger.warning(
+                "usage snapshot: %s asked and did not answer — %s",
+                provider_id, error or "empty response",
+            )
     if not providers:
         return
 
@@ -968,8 +976,12 @@ async def _collect_usage_snapshot() -> None:
     sd = (anthropic_data or {}).get("seven_day") or {}
     cost = sum(s.cost_usd for s in manager.sessions.values())
     active = sum(1 for s in manager.sessions.values() if s.status.value == "running")
+    # Ноль здесь означал бы «квота не израсходована» — ровно то, чего не знаем, когда
+    # источник молчал. Пишем NULL: агрегаты SQLite такие строки пропускают, а график
+    # рисует разрыв вместо падения в пол. Саму строку оставляем — в ней ещё живут
+    # codex/grok и локальные cost/active, которые от молчания anthropic не пострадали.
     usage_save_snapshot(
-        fh.get("utilization", 0), sd.get("utilization", 0),
+        fh.get("utilization"), sd.get("utilization"),
         fh.get("resets_at", ""), sd.get("resets_at", ""),
         round(cost, 4), active, providers=providers,
     )

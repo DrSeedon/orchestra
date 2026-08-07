@@ -1713,7 +1713,7 @@ def voice_cost_total_usd() -> float:
         ).fetchone()[0])
 
 
-def usage_save_snapshot(five_hour_pct: float, seven_day_pct: float,
+def usage_save_snapshot(five_hour_pct: float | None, seven_day_pct: float | None,
                         five_hour_resets_at: str, seven_day_resets_at: str,
                         total_cost_usd: float, active_agents: int,
                         providers: dict | None = None) -> None:
@@ -1736,17 +1736,20 @@ def _usage_providers_from_row(row: dict) -> dict:
     if providers:
         return providers
     windows = []
-    if row.get("five_hour_resets_at") or row.get("five_hour_pct"):
+    # NULL в колонке = источник молчал (#150). Окно без числа — не точка данных:
+    # отдать его с `utilization: None` значило бы переложить ноль на потребителя.
+    fh_pct, sd_pct = row.get("five_hour_pct"), row.get("seven_day_pct")
+    if fh_pct is not None and (row.get("five_hour_resets_at") or fh_pct):
         windows.append({
             "id": "five_hour", "label": "5h",
-            "utilization": row.get("five_hour_pct", 0),
+            "utilization": fh_pct,
             "window_minutes": 300,
             "resets_at": row.get("five_hour_resets_at") or None,
         })
-    if row.get("seven_day_resets_at") or row.get("seven_day_pct"):
+    if sd_pct is not None and (row.get("seven_day_resets_at") or sd_pct):
         windows.append({
             "id": "seven_day", "label": "7d",
-            "utilization": row.get("seven_day_pct", 0),
+            "utilization": sd_pct,
             "window_minutes": 10080,
             "resets_at": row.get("seven_day_resets_at") or None,
         })

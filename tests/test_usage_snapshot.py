@@ -5,6 +5,7 @@
 ответил → окна с числами (в том числе честные 100% на исчерпанном лимите).
 """
 import json
+import logging
 
 import pytest
 
@@ -147,3 +148,104 @@ def test_history_row_roundtrips_unavailable_marker():
     row = {"five_hour_pct": 0, "provider_usage": json.dumps(marker)}
 
     assert _usage_providers_from_row(row)["codex"]["status"] == "unavailable"
+
+
+# --- #150: молчащий источник не пишет ноль в выделенные колонки ---
+
+
+@pytest.fixture
+def saved_columns(monkeypatch, saved):
+    """Полные аргументы записи снимка — `saved` отдаёт только `providers`."""
+    calls = []
+    import app.db
+
+    monkeypatch.setattr(app.db, "usage_save_snapshot",
+                        lambda *args, **kwargs: calls.append(args))
+    return calls
+
+
+@pytest.mark.asyncio
+async def test_answered_source_writes_the_number(monkeypatch, saved_columns):
+    _anthropic_ok(monkeypatch)  # five_hour: utilization 12, seven_day отсутствует
+    _codex(monkeypatch, error=RuntimeError("no codex"))
+
+    await system._collect_usage_snapshot()
+
+    five_hour, seven_day = saved_columns[0][0], saved_columns[0][1]
+    assert five_hour == 12
+    # Окна, которого в ответе не было, тоже нет — а не ноль.
+    assert seven_day is None
+
+
+@pytest.mark.asyncio
+async def test_real_zero_is_written_as_zero(monkeypatch, saved_columns):
+    """Сброшенное окно — законный ноль, его терять нельзя."""
+    async def _fetch(_token):
+        return {"five_hour": {"utilization": 0, "resets_at": ""},
+                "seven_day": {"utilization": 69, "resets_at": "2026-08-10T00:00:00Z"}}
+
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", _fetch)
+    _codex(monkeypatch, error=RuntimeError("no codex"))
+
+    await system._collect_usage_snapshot()
+
+    assert saved_columns[0][0] == 0
+    assert saved_columns[0][1] == 69
+
+
+@pytest.mark.asyncio
+async def test_silent_source_writes_no_number_and_names_the_cause(
+    monkeypatch, saved_columns, caplog,
+):
+    async def _fetch(_token):
+        raise TimeoutError("read timed out")
+
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", _fetch)
+    _codex(monkeypatch, result={"plan_type": "pro", "rate_limits": {}})
+
+    with caplog.at_level(logging.WARNING, logger="orchestra.system"):
+        await system._collect_usage_snapshot()
+
+    assert saved_columns[0][0] is None
+    assert saved_columns[0][1] is None
+    warned = [r.getMessage() for r in caplog.records if "did not answer" in r.getMessage()]
+    assert len(warned) == 1
+    assert "anthropic" in warned[0]
+    assert "TimeoutError" in warned[0], warned[0]
+
+
+@pytest.mark.asyncio
+async def test_expired_credentials_are_named_not_swallowed(monkeypatch, saved_columns, caplog):
+    """401 без пригодного refresh — отказ обязан остаться именованным."""
+    async def _fetch(_token):
+        raise PermissionError("401 Unauthorized")
+
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", _fetch)
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", "refresh", None))
+
+    async def _refresh(_rt):
+        return ""
+
+    monkeypatch.setattr(system, "_refresh_oauth_token", _refresh)
+    _codex(monkeypatch, result={"plan_type": "pro", "rate_limits": {}})
+
+    with caplog.at_level(logging.WARNING, logger="orchestra.system"):
+        await system._collect_usage_snapshot()
+
+    assert saved_columns[0][0] is None
+    warned = [r.getMessage() for r in caplog.records if "did not answer" in r.getMessage()]
+    assert "PermissionError" in warned[0], warned[0]
+
+
+def test_null_column_yields_no_window(monkeypatch):
+    """Строка с NULL не превращается обратно в точку графика."""
+    from app.db import _usage_providers_from_row
+
+    silent = {"provider_usage": "{}", "five_hour_pct": None, "seven_day_pct": None,
+              "five_hour_resets_at": "2026-08-10T00:00:00Z", "seven_day_resets_at": ""}
+    assert _usage_providers_from_row(silent) == {}
+
+    answered = {"provider_usage": "{}", "five_hour_pct": 0.0, "seven_day_pct": 69.0,
+                "five_hour_resets_at": "2026-08-10T00:00:00Z", "seven_day_resets_at": ""}
+    windows = _usage_providers_from_row(answered)["anthropic"]["windows"]
+    assert [w["utilization"] for w in windows] == [0.0, 69.0]
