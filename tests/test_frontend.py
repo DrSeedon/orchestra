@@ -6,6 +6,7 @@ Run: pytest tests/test_frontend.py -v
 
 import os
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -59,13 +60,33 @@ async def test_raw_non_html_response_has_no_artifact_csp(tmp_path, monkeypatch):
     assert "content-security-policy" not in response.headers
 
 
-def _goto_dashboard_or_skip(page: Page):
-    """Открыть развёрнутый дашборд или пропустить тест, назвав причину.
+# Снимок ДО автоюзной `_hermetic_dashboard_env` (tests/conftest.py:44): она стирает
+# DASHBOARD_* из os.environ, чтобы ВНУТРИПРОЦЕССНЫЕ тесты не подцепили auth хозяина
+# машины. Здесь задача обратная — залогиниться на ВНЕШНЕМ сервере, поэтому креды
+# читаем на импорте модуля, до фикстур. В коде их нет, только имена переменных.
+_ENV_DASHBOARD_AUTH = (os.environ.get("DASHBOARD_USER"),
+                       os.environ.get("DASHBOARD_PASSWORD"))
 
-    Эти проверки требуют РАЗВЁРНУТОГО дашборда без auth (см. докстринг модуля),
-    и до сих пор они об этом молчали: на CI по ``BASE`` нет никого → ERROR на
-    setup, у владельца там живой сервис с включённым auth → отдаётся страница
-    логина. Отсюда красный CI с 9 июня — со дня появления этих тестов.
+
+def _dashboard_credentials():
+    """Логин/пароль из окружения; ручной прогон без юнита — из `.env` рядом."""
+    user, password = _ENV_DASHBOARD_AUTH
+    if password:
+        return user, password
+    try:
+        from dotenv import dotenv_values   # не трогает os.environ, в отличие от load_dotenv
+    except ImportError:
+        return None, None
+    values = dotenv_values()
+    return values.get("DASHBOARD_USER"), values.get("DASHBOARD_PASSWORD")
+
+
+def _goto_dashboard_or_skip(page: Page):
+    """Открыть развёрнутый дашборд, при живом auth — залогиниться.
+
+    Раньше включённый auth означал скип: на боевой машине он включён всегда,
+    и 16 браузерных проверок печатались зелёными, ничего не проверив (#145).
+    Логинимся кредами из окружения; их нет — скип с этой причиной, а не с общей.
 
     Поднять инстанс прямо здесь нельзя: ``app.db.DB_PATH`` вычисляется на
     импорте модуля, поэтому в общем прогоне такой сервер работал бы по БОЕВОЙ
@@ -75,13 +96,22 @@ def _goto_dashboard_or_skip(page: Page):
         resp = page.goto(BASE, wait_until="domcontentloaded")
     except Exception as exc:
         pytest.skip(f"дашборд на {BASE} недоступен ({type(exc).__name__}); "
-                    "укажи ORCHESTRA_TEST_BASE на развёрнутый стенд без auth")
+                    "укажи ORCHESTRA_TEST_BASE на развёрнутый стенд")
     if resp is None or resp.status != 200:
         status = "нет ответа" if resp is None else f"HTTP {resp.status}"
         pytest.skip(f"дашборд на {BASE} ответил {status}")
     if page.locator("#agent-list").count() == 0:
-        pytest.skip(f"на {BASE} нет #agent-list — вероятно включён auth и отдаётся "
-                    "страница логина; этим тестам нужен стенд без auth")
+        if page.locator('input[name="password"]').count() == 0:
+            pytest.skip(f"на {BASE} нет ни #agent-list, ни формы логина — "
+                        "по этому адресу отвечает не дашборд")
+        user, password = _dashboard_credentials()
+        if not user or not password:
+            pytest.skip(f"на {BASE} включён auth, а DASHBOARD_USER/DASHBOARD_PASSWORD "
+                        "нет в окружении — экспортируй их или положи рядом .env")
+        page.fill('input[name="username"]', user)
+        page.fill('input[name="password"]', password)
+        page.click('button[type="submit"]')
+        page.wait_for_selector("#agent-list", timeout=20000)
     return resp
 
 
@@ -119,6 +149,15 @@ def dashboard_page(dashboard_browser: Browser):
     expect(page.locator("#agent-list")).to_be_visible()
     yield page
     page.close()
+
+
+def _repo_scope():
+    """Scope сервера — путь РЕПОЗИТОРИЯ, а не рабочей копии: из worktree они разные."""
+    common = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=Path(__file__).parent, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    return str(Path(common).parent)
 
 
 def test_dashboard_loads(dashboard_page: Page):
@@ -785,25 +824,30 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
         )[0]
     )
     api_page = dashboard_browser.new_page()
-    # Тянет РЕАЛЬНУЮ задачу с развёрнутого сервера, да ещё по пути ноутбука.
-    # Держится на трёх внешних условиях сразу: сервис поднят, auth выключен,
-    # задача 112 существует именно в этом scope. Нет их — это не провал кода.
-    try:
-        response = api_page.request.get(
-            f"{BASE}/api/tm/tasks/112",
-            params={"scope": "/mnt/data/Projects/Python/orchestra"},
-        )
-    except Exception as exc:
+    # Нужен РЕАЛЬНЫЙ длинный текст, а не выдуманный. Раньше тест держался на
+    # задаче 112 в scope ноутбука — на другой машине её нет никогда. Берём любую
+    # длинную из scope этого репозитория, залогинившись как обычный юзер.
+    _goto_dashboard_or_skip(api_page)   # заодно кладёт cookie сессии в контекст
+    scope = _repo_scope()
+    listing = api_page.request.get(f"{BASE}/api/tm/tasks", params={"scope": scope})
+    if listing.status != 200:
         api_page.close()
-        pytest.skip(f"API на {BASE} недоступен ({type(exc).__name__})")
-    if response.status != 200:
-        api_page.close()
-        pytest.skip(f"{BASE}/api/tm/tasks/112 ответил HTTP {response.status} "
-                    "(нужен стенд без auth с этой задачей)")
-    task = response.json()
+        pytest.skip(f"{BASE}/api/tm/tasks?scope={scope} ответил HTTP {listing.status}")
+    task = None
+    for item in listing.json()["tasks"][:25]:
+        detail = api_page.request.get(f"{BASE}/api/tm/tasks/{item['par']}",
+                                      params={"scope": scope})
+        if detail.status == 200 and len(detail.json().get("description") or "") > 180:
+            task = detail.json()
+            break
     api_page.close()
+    if task is None:
+        pytest.skip(f"в scope {scope} нет задачи с описанием длиннее 180 символов — "
+                    "тесту нужен реальный длинный текст")
     assert len(task["description"]) > 180
-    task.update({"assignee": "frontend", "task_id": 987})
+    # Из сервера берём только длинное описание; остальные поля задаём сами —
+    # приоритет и исполнитель у случайной живой задачи любые
+    task.update({"assignee": "frontend", "task_id": 987, "priority": 1})
 
     page = dashboard_browser.new_page(viewport={"width": 1440, "height": 900})
     page.set_content(
