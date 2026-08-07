@@ -3455,7 +3455,16 @@ class TestSafeguardRefusal:
         "API Error: claude-opus-5[1m]'s safeguards flagged this message for a "
         "cybersecurity topic. If your work requires this access, you can apply for an "
         "exemption: https://claude.com/form/cyber-use-case\n"
-        "Try rephrasing the request in a new session or change your model."
+        "Try rephrasing the request in a new session or change your model.\n"
+        "Request ID: req_011CdnzxjQByYxoRQweVSmGK"
+    )
+    # Ход 07.08 16:27:01: агент объясняет инцидент и цитирует фразу отказа внутри
+    # собственного длинного ответа. Ход при этом УСПЕШНЫЙ.
+    AGENT_QUOTING_IT = (
+        "**Пнул. Состояние: все свободны, ничего не потеряно.**\n\n"
+        "Теперь про ту ошибку, которая тебя удивила.\n\n"
+        "`safeguards flagged this message for a cybersecurity topic` — это фильтр на "
+        "стороне Anthropic, он смотрит на формулировку, а не на намерение."
     )
 
     def test_verbatim_refusal_is_recognised(self):
@@ -3475,15 +3484,22 @@ class TestSafeguardRefusal:
             "I cannot help with that request — it involves cybersecurity harm."
         ) is False
 
-    def test_guidance_names_three_checkable_signs_and_keeps_the_link(self):
-        from app.session import safeguard_guidance
+    def test_guidance_names_three_signs_keeps_the_link_and_carries_no_flagged_text(self):
+        """#161 AC: объяснение не должно содержать того, что фильтр забраковал."""
+        from app.session import safeguard_guidance, safeguard_request_id
 
-        text = safeguard_guidance(self.VERBATIM)
+        text = safeguard_guidance(safeguard_request_id(self.VERBATIM), "/tmp/dump.txt")
         assert "https://claude.com/form/cyber-use-case" in text
         assert "СВОЯ" in text
         assert "убедиться / проверить" in text
         assert "инструкция к действию" in text
         assert "Смена Claude-модели не поможет" in text
+        assert "req_011CdnzxjQByYxoRQweVSmGK" in text
+        assert "/tmp/dump.txt" in text
+        # Ни маркера, ни дословной цитаты — иначе объяснение само становится ядом.
+        assert "safeguards flagged" not in text.lower()
+        assert "Try rephrasing" not in text
+        assert self.VERBATIM not in text
 
     def test_text_event_raises_the_flag(self, session):
         from app.events import AgentEvent
@@ -3569,3 +3585,83 @@ class TestSafeguardRefusal:
         source = inspect.getsource(TurnManager.handle_turn_end)
         assert 'model_error == "server_error"' in source
         assert "invalid_request" not in source.replace("safeguard", "")
+
+    def test_agent_quoting_the_refusal_is_not_a_refusal(self):
+        """#161 дефект 1: маркера мало — цитата стоит ВНУТРИ текста, отказ его открывает."""
+        from app.session import _is_safeguard_refusal
+
+        assert _is_safeguard_refusal(self.AGENT_QUOTING_IT) is False
+        assert _is_safeguard_refusal(self.VERBATIM) is True
+
+    def test_refusal_recognised_when_it_is_not_the_last_text(self, session):
+        """Порядок событий непостоянен: сперва длинный обычный текст, отказ следом."""
+        from app.events import AgentEvent
+
+        session._log = lambda *a, **k: None
+        session._handle_event(AgentEvent("text", self.AGENT_QUOTING_IT))
+        assert session._safeguard_refusal == ""
+
+        session._handle_event(AgentEvent("text", self.VERBATIM))
+        assert session._safeguard_refusal == self.VERBATIM
+
+        # …и обратный порядок: отказ первым, обычный текст следом не затирает флаг.
+        session._safeguard_refusal = ""
+        session._handle_event(AgentEvent("text", self.VERBATIM))
+        session._handle_event(AgentEvent("text", self.AGENT_QUOTING_IT))
+        assert session._safeguard_refusal == self.VERBATIM
+
+    @pytest.mark.asyncio
+    async def test_successful_turn_is_never_rewound(self, session, monkeypatch):
+        """Живая регрессия 07.08 16:27:01: `end_turn` + цитата → историю резать нельзя."""
+        from app.events import AgentEvent
+
+        called = []
+        monkeypatch.setattr("app.session_turns._rewind_past_safeguard_refusal",
+                            lambda _s: called.append(1) or "1")
+        session._log = lambda *a, **k: None
+        session._safeguard_refusal = self.VERBATIM  # флаг стоит, но ход УСПЕШНЫЙ
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={"ok": True, "stop_reason": "end_turn", "num_turns": 8},
+        ))
+
+        assert called == []
+
+    @pytest.mark.asyncio
+    async def test_nothing_flagged_reaches_the_agent_after_rewind(self, session, monkeypatch):
+        """#161 главный AC: после отката ни одна строка наружу не несёт забракованного текста."""
+        from app.events import AgentEvent
+
+        logs = []
+        session._spawn_bg = lambda coro: coro.close()
+        session._log = lambda kind, content, **_kw: logs.append((kind, content))
+        session._safeguard_refusal = self.VERBATIM
+        monkeypatch.setattr("app.session_turns._rewind_past_safeguard_refusal", lambda _s: "2")
+
+        session._turns.handle_turn_end(AgentEvent(
+            "turn_end",
+            metadata={"ok": False, "stop_reason": "refusal", "num_turns": 1,
+                      "errors": ["invalid_request"], "model_error": "invalid_request"},
+        ))
+
+        emitted = "\n".join(c for _, c in logs)
+        assert "safeguards flagged" not in emitted.lower(), emitted
+        assert "Try rephrasing" not in emitted
+        assert self.VERBATIM not in emitted
+        # Полезное при этом на месте: класс, признаки, Request ID, путь к сырому тексту.
+        assert "req_011CdnzxjQByYxoRQweVSmGK" in emitted
+        assert "safeguard-refusals" in emitted
+
+    def test_raw_refusal_is_stored_outside_the_worktree(self, tmp_path, monkeypatch):
+        """Хранилище, которое пишется само, не делит рабочее дерево с Git-lifecycle (#114)."""
+        from pathlib import Path
+
+        import app.session as session_mod
+
+        monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
+        path = session_mod.store_safeguard_refusal("probe", self.VERBATIM)
+
+        assert ".local/state/orchestra/safeguard-refusals" in path
+        assert Path(path).read_text(encoding="utf-8") == self.VERBATIM
+        assert "docs/tasks" not in path

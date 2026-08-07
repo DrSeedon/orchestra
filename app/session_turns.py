@@ -334,8 +334,15 @@ class TurnManager:
         else:
             s._auto_continue_count = 0
 
-        if s._safeguard_refusal:
-            from app.session import safeguard_guidance  # noqa: PLC0415 — циклический импорт
+        # Второй гард, независимый от текста: режем историю только у ХОДА, который реально
+        # упал. 07.08 16:27:01 признак по одному тексту сработал на успешном `end_turn` —
+        # агент цитировал фразу отказа, объясняя инцидент, и здоровой сессии срезали ход.
+        if s._safeguard_refusal and not ok:
+            from app.session import (  # noqa: PLC0415 — циклический импорт
+                safeguard_guidance,
+                safeguard_request_id,
+                store_safeguard_refusal,
+            )
 
             verbatim = s._safeguard_refusal
             s._safeguard_refusal = ""
@@ -355,7 +362,12 @@ class TurnManager:
             else:
                 s._log("error", "🛡 сессия отравлена забракованным текстом, откатить не удалось "
                                 "— продолжать в ней нельзя, нужна новая сессия")
-            s._log("error", safeguard_guidance(verbatim))
+            try:
+                dump_path = store_safeguard_refusal(s.name, verbatim)
+            except Exception as e:
+                dump_path = ""
+                logger.error(f"[{s.name}] safeguard dump failed: {type(e).__name__}: {e}")
+            s._log("error", safeguard_guidance(safeguard_request_id(verbatim), dump_path))
 
         server_error_retry = None
         model_error = str(meta.get("model_error") or "")

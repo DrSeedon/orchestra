@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -66,24 +67,45 @@ def _is_terminal_subscription_limit(text: str) -> bool:
 
 # Провайдер бракует ФОРМУЛИРОВКУ до модели, а наружу отдаёт тот же безликий
 # `invalid_request`, что и «плохой параметр» — по коду эти случаи неразличимы.
-# Опознаём по дословной фразе. Fail-open: не совпало → ведём себя как раньше;
-# ложно принять обычную ошибку за фильтр хуже, чем не распознать фильтр.
+# Fail-open: не совпало → ведём себя как раньше; ложно принять обычную ошибку за
+# фильтр хуже, чем не распознать фильтр.
 _SAFEGUARD_MARKER = "safeguards flagged this message"
+# Отказ печатает CLI, и он ВСЕГДА начинается с этого префикса, занимая всё событие целиком.
+# Одной фразы-маркера мало: агент, объясняющий инцидент, цитирует её в своём обычном ответе —
+# так и вышло 07.08 в 16:27:01, когда УСПЕШНЫЙ ход (`end_turn`) был принят за отказ и сессии
+# срезали историю. Признак берём из тела: чужая цитата стоит внутри текста, а не открывает его.
+_SAFEGUARD_PREFIX = "api error:"
+_REQUEST_ID_RE = re.compile(r"\breq_[A-Za-z0-9]+")
 
 
 def _is_safeguard_refusal(text: str) -> bool:
-    """Отказ фильтра провайдера на формулировку запроса (#155)."""
-    return _SAFEGUARD_MARKER in text.lower()
+    """Отказ фильтра провайдера на формулировку запроса (#155, ужесточён в #161)."""
+    lowered = text.lstrip().lower()
+    return lowered.startswith(_SAFEGUARD_PREFIX) and _SAFEGUARD_MARKER in lowered
 
 
-def safeguard_guidance(verbatim: str) -> str:
+def safeguard_request_id(text: str) -> str:
+    """`Request ID` из отказа — единственное, что из него можно безопасно цитировать."""
+    match = _REQUEST_ID_RE.search(text)
+    return match.group(0) if match else ""
+
+
+def safeguard_guidance(request_id: str, dump_path: str) -> str:
     """Что агенту делать дальше. Признаки проверяемые — агент применяет их к своему тексту.
 
-    Смена Claude-модели не помогает: фильтр общий для семейства. Основание для признаков —
-    два прошедших хода на формально той же теме (поиск утёкшего секрета `git log -S` по всем
-    ревизиям трёх СВОИХ репозиториев, чтение доки GitHub про удаление чувствительных данных):
-    тема «секреты и доступ» фильтр не роняет, роняет залог и чужая собственность.
+    ТЕЛА ЗАБРАКОВАННОГО ТЕКСТА ЗДЕСЬ НЕТ И БЫТЬ НЕ ДОЛЖНО. Объяснение едет в контекст
+    следующего хода, поэтому вклеенная цитата травит его заново: агент отвечает, цитируя
+    её, и следующий ход снова срезается. Замер #161 — ровно эта петля у seedon. Наружу
+    только класс отказа, три признака, `Request ID` и ссылка на форму; полный текст лежит
+    файлом, и путь к нему безопасен, а содержимое — нет.
+
+    Основание для признаков — два прошедших хода на формально той же теме (поиск утёкшего
+    секрета `git log -S` по всем ревизиям трёх СВОИХ репозиториев, чтение доки GitHub про
+    удаление чувствительных данных): тема «секреты и доступ» фильтр не роняет, роняет залог
+    и чужая собственность.
     """
+    tail = f"Request ID: {request_id}\n" if request_id else ""
+    where = f"Полный текст отказа (в контекст не втягивать): {dump_path}\n" if dump_path else ""
     return (
         "🛡 Фильтр провайдера забраковал ФОРМУЛИРОВКУ запроса — до модели он не дошёл. "
         "Смена Claude-модели не поможет: фильтр общий для семейства.\n"
@@ -91,9 +113,26 @@ def safeguard_guidance(verbatim: str) -> str:
         "1. система СВОЯ, а не чужая («наши репозитории», «наш сайт»);\n"
         "2. глагол «убедиться / проверить», а не «получить доступ / обойти»;\n"
         "3. в задании нет фразы, которая читается как инструкция к действию над защитой.\n"
+        "Не цитируй забракованную формулировку — цитата вернёт отказ.\n"
         "Не помогло — смени рантайм на не-Anthropic.\n"
-        f"Дословный отказ провайдера:\n{verbatim}"
+        "Форма исключения: https://claude.com/form/cyber-use-case\n"
+        + tail + where
     )
+
+
+def store_safeguard_refusal(session_name: str, text: str) -> str:
+    """Сложить сырой отказ ВНЕ рабочего дерева и вернуть путь.
+
+    Не в `docs/tasks/`: хранилище, которое пишется само, не должно делить рабочее дерево с
+    Git-lifecycle — так `report_bug` пачкал чекаут и блокировал все мержи (#114). Адрес тот же,
+    что у инбокса баг-репортов.
+    """
+    directory = Path.home() / ".local/state/orchestra/safeguard-refusals"
+    directory.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    path = directory / f"{stamp}-{session_name}.txt"
+    path.write_text(text, encoding="utf-8")
+    return str(path)
 
 
 def _claude_subscription_limit_active() -> bool:
