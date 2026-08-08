@@ -400,6 +400,10 @@ _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
 _codex_usage_cache: dict = {"data": None, "ts": 0.0}
 _grok_usage_cache: dict = {"data": None, "ts": 0.0}
 _USAGE_CACHE_TTL = 300
+_quota_refresh_locks = {
+    "anthropic": asyncio.Lock(),
+    "codex": asyncio.Lock(),
+}
 _CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 _GROK_CREDENTIALS_PATH = Path.home() / ".grok" / "auth.json"
 
@@ -767,7 +771,10 @@ async def _get_usage_data(
 
     anthropic_data = None
     anthropic_fetched = False
-    if (
+    skip_anthropic_refresh = bool(required_provider) and required_provider != "anthropic"
+    if skip_anthropic_refresh:
+        anthropic_data = _usage_cache["data"]
+    elif (
         not force_refresh
         and _usage_cache["data"]
         and (now - _usage_cache["ts"]) < _USAGE_CACHE_TTL
@@ -810,7 +817,12 @@ async def _get_usage_data(
             _save_usage_cache()
 
     codex_fetched = False
-    if (
+    skip_codex_refresh = bool(required_provider) and required_provider not in {
+        "codex", "codex_spark",
+    }
+    if skip_codex_refresh:
+        codex_data = _codex_usage_cache["data"]
+    elif (
         not force_refresh
         and _codex_usage_cache["data"]
         and (now - _codex_usage_cache["ts"]) < _USAGE_CACHE_TTL
@@ -820,8 +832,11 @@ async def _get_usage_data(
         try:
             codex_data = await _fetch_codex_usage()
             codex_fetched = codex_data is not None
-            _codex_usage_cache["data"] = codex_data
-            _codex_usage_cache["ts"] = now
+            if codex_fetched:
+                _codex_usage_cache["data"] = codex_data
+                _codex_usage_cache["ts"] = now
+            else:
+                codex_data = _codex_usage_cache["data"]
         except Exception as e:
             logger.warning(f"Codex usage fetch failed: {e}")
             codex_data = _codex_usage_cache["data"]
@@ -830,7 +845,10 @@ async def _get_usage_data(
 
     grok_data = None
     grok_fetched = False
-    if (
+    skip_grok_refresh = bool(required_provider) and required_provider != "grok"
+    if skip_grok_refresh:
+        grok_data = _grok_usage_cache["data"]
+    elif (
         not force_refresh
         and _grok_usage_cache["data"]
         and (now - _grok_usage_cache["ts"]) < _USAGE_CACHE_TTL
@@ -851,7 +869,7 @@ async def _get_usage_data(
         if grok_fetched:
             _grok_usage_cache["data"] = grok_data
             _grok_usage_cache["ts"] = now
-        else:
+        elif not required_provider:
             _grok_usage_cache["data"] = None
             _grok_usage_cache["ts"] = 0.0
     if required_provider == "grok" and not grok_fetched:
@@ -938,6 +956,66 @@ async def current_provider_usage(
         usage.get("codex"),
         usage.get("grok"),
     )
+
+
+def _quota_observation_from_cache() -> dict:
+    return {
+        "providers": _provider_usage_snapshot(
+            _usage_cache.get("data"),
+            _codex_usage_cache.get("data"),
+            _grok_usage_cache.get("data"),
+        ),
+        "observed_at_by_provider": {
+            "anthropic": _usage_cache.get("ts"),
+            "codex": _codex_usage_cache.get("ts"),
+            "codex_spark": _codex_usage_cache.get("ts"),
+        },
+    }
+
+
+async def current_quota_observation(
+    *,
+    required_provider: str,
+    max_age: float = 300.0,
+    timeout: float = 12.0,
+    now: float | None = None,
+) -> dict:
+    """Return quota telemetry, refreshing only the requested provider family."""
+    family = "codex" if required_provider in {"codex", "codex_spark"} else required_provider
+    if family not in _quota_refresh_locks:
+        return _quota_observation_from_cache()
+
+    cache = _usage_cache if family == "anthropic" else _codex_usage_cache
+
+    def fresh() -> bool:
+        timestamp = cache.get("ts")
+        checked_at = time.time() if now is None else float(now)
+        return (
+            isinstance(timestamp, (int, float))
+            and not isinstance(timestamp, bool)
+            and 0 <= checked_at - float(timestamp) < max_age
+            and cache.get("data") is not None
+        )
+
+    if fresh():
+        return _quota_observation_from_cache()
+
+    lock = _quota_refresh_locks[family]
+    async with lock:
+        if fresh():
+            return _quota_observation_from_cache()
+        try:
+            async with asyncio.timeout(timeout):
+                await _get_usage_data(
+                    force_refresh=True,
+                    required_provider=required_provider,
+                )
+        except Exception as error:
+            logger.warning(
+                "quota observation refresh failed for %s: %s: %s",
+                required_provider, type(error).__name__, err_text(error),
+            )
+    return _quota_observation_from_cache()
 
 
 SNAPSHOT_INTERVAL = 300
@@ -1118,49 +1196,14 @@ async def wake_after_reset_endpoint():
 
 @router.get("/api/usage/readiness")
 async def usage_readiness(model: str):
-    """Есть ли у провайдера этой модели ёмкость прямо сейчас — для гейта в MCP (#154).
+    """Return the same weekly worker admission decision used at execution time."""
+    from app.quota_gate import get_worker_admission
 
-    Решение НЕ принимается здесь: оно целиком берётся у `provider_readiness` — той же
-    функции, которой пользуются планирование и доставка пробуждений. Этот роут только
-    склеивает модель → провайдера → снимок квот.
-
-    Ответ никогда не содержит ключа `error`: `_api` в MCP бросает исключение на любом
-    непустом `error`, и честное «не знаю» превратилось бы в ложную транспортную ошибку.
-    Причина всегда едет в `reason`.
-
-    Читаем КЕШ (`force_refresh=False`, ~9 мс): свежесть нужна, чтобы заметить новую
-    блокировку, а снимается гейт по часам — исчерпанное окно с прошедшим `resets_at`
-    даёт `unavailable` даже на замороженном снимке.
-    """
-    from app.limit_wake import _provider_for_model, provider_readiness
-    from app.models import resolve_model
-
-    def unknown(reason: str) -> dict:
-        return {"provider": "", "state": "unavailable", "reason": reason, "reset_at": None}
-
-    if not is_owner_mode():
-        # Чужая инсталляция: время сброса НАШЕЙ квоты наружу не отдаём. Побочно это же
-        # и верное поведение гейта — без codex-кредов блокировать нечего.
-        return unknown("owner mode is off")
-    try:
-        provider = _provider_for_model(resolve_model(model))
-    except ValueError as error:
-        return unknown(err_text(error))
-
-    try:
-        snapshot = await current_provider_usage(provider=provider)
-    except Exception as error:
-        envelope = {"fresh": False, "usage": None, "error": err_text(error)}
-    else:
-        envelope = {"fresh": True, "usage": snapshot.get(provider), "error": None}
-
-    readiness = provider_readiness(envelope, provider)
-    return {
-        "provider": provider,
-        "state": readiness["state"],
-        "reason": readiness["reason"],
-        "reset_at": readiness.get("reset_at"),
-    }
+    decision = await get_worker_admission(
+        model,
+        observation_loader=current_quota_observation,
+    )
+    return {"policy": "worker-weekly-v1", **decision.to_dict()}
 
 
 # ── Misc ──

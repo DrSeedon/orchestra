@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from functools import partial
@@ -18,6 +19,7 @@ from app.prompting import (
     inject_skills_to_worktree, is_orchestrator_role, prompt_template_hash,
     refresh_worker_memory,
 )
+from app.quota_gate import QuotaGateError
 from app.runtime_registry import (
     BackendBuildContext,
     _load_scope_mcp_servers,
@@ -35,6 +37,7 @@ from app.usage_contract import KnownContext, current_context
 
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
+    from app.quota_gate import QuotaDecision
 from app.db import add_log, get_logs, save_session, tool_error_add
 from app.errtext import err_text
 
@@ -348,6 +351,8 @@ class AgentSession:
     _last_msg_time: float = field(default=0.0, repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
+    on_turn_blocked: Optional[callable] = field(default=None, repr=False)
+    _quota_block_notice_signature: str = field(default="", repr=False)
     _hibernate_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _hibernated: bool = field(default=False, repr=False)
     _compacting: bool = field(default=False, repr=False)
@@ -361,6 +366,10 @@ class AgentSession:
     _last_turn_ok: bool = field(default=True, repr=False)
     _last_stop_reason: str = field(default="", repr=False)
     _lifecycle_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    _admission_service: Optional[Callable[[str], Awaitable["QuotaDecision"]]] = field(
+        default=None, repr=False,
+    )
+    _turn_start_cancel_gen: int = field(default=0, repr=False)
     _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _persist_dirty: bool = field(default=False, repr=False)
     _turn_gen: int = field(default=0, repr=False)
@@ -788,20 +797,65 @@ class AgentSession:
             await self._turn_finished_event.wait()
         return self.status == AgentStatus.IDLE
 
+    async def _worker_admission(self, model: str) -> "QuotaDecision":
+        if self._admission_service is not None:
+            return await self._admission_service(model)
+        from app.quota_gate import get_worker_admission
+
+        return await get_worker_admission(model)
+
     async def send(self, message: str) -> None:
         original_user_message = message
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+
+        while True:
+            await self._lifecycle_lock.acquire()
+            if self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator:
+                break
+            if decision is None:
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+                self._lifecycle_lock.release()
+                decision = await self._worker_admission(admitted_model)
+                continue
+            if admitted_stop_gen != self._turn_start_cancel_gen:
+                self._lifecycle_lock.release()
+                raise RuntimeError("new worker turn cancelled by stop")
+            if self.model != admitted_model:
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            if (
+                decision.state in {"available", "blocked"}
+                and decision.valid_until is not None
+                and time.time() >= decision.valid_until
+            ):
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            try:
+                from app.quota_gate import require_worker_admission
+
+                require_worker_admission(decision)
+            except BaseException:
+                self._lifecycle_lock.release()
+                raise
+            break
+
+        try:
         # Retry budgets belong to one logical request. A real new message resets both;
         # each internal retry preserves only its own failure class.
-        if not message.startswith("[system] Retrying after rate limit."):
-            self._rate_limit_retries = 0
-        if not message.startswith("[system] Retrying after transient server error."):
-            self._server_error_retries = 0
-            self._session_limit_hit = False
-        self._safeguard_refusal = ""
+            if not message.startswith("[system] Retrying after rate limit."):
+                self._rate_limit_retries = 0
+            if not message.startswith("[system] Retrying after transient server error."):
+                self._server_error_retries = 0
+                self._session_limit_hit = False
+            self._safeguard_refusal = ""
 
-        self._note_next_precompact_activity()
-        capabilities = get_runtime(self.backend_type).capabilities
-        async with self._lifecycle_lock:
+            self._note_next_precompact_activity()
+            capabilities = get_runtime(self.backend_type).capabilities
             if self._compacting:
                 self._pending_messages.append(message)
                 self._log("user_message", message)
@@ -953,6 +1007,8 @@ class AgentSession:
                     self._turn_event_loop()
                 )
                 self._listen_task.add_done_callback(self._on_task_done)
+        finally:
+            self._lifecycle_lock.release()
 
     async def _refresh_skills(self) -> None:
         """Re-install this role's pipeline skills before the CLI starts.
@@ -1241,11 +1297,74 @@ class AgentSession:
         # Brief delay: let the just-finished turn fully settle (persist, hibernate schedule)
         # before starting the next one — avoids nested lock acquisition from the same coroutine
         await asyncio.sleep(0.3)
-        async with self._lifecycle_lock:
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+        while True:
+            await self._lifecycle_lock.acquire()
             if self._compacting or self.status == AgentStatus.RUNNING:
+                self._lifecycle_lock.release()
                 return
             if not self._pending_messages:
+                self._lifecycle_lock.release()
                 return
+            if self.is_orchestrator:
+                break
+            if decision is None:
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+                self._lifecycle_lock.release()
+                decision = await self._worker_admission(admitted_model)
+                continue
+            if admitted_stop_gen != self._turn_start_cancel_gen:
+                self._lifecycle_lock.release()
+                return
+            if self.model != admitted_model:
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            if (
+                decision.state in {"available", "blocked"}
+                and decision.valid_until is not None
+                and time.time() >= decision.valid_until
+            ):
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            try:
+                from app.quota_gate import QuotaGateError, require_worker_admission
+
+                require_worker_admission(decision)
+            except QuotaGateError as error:
+                retained = len(self._pending_messages)
+                signature = json.dumps({
+                    "provider": error.decision.provider,
+                    "state": error.decision.state,
+                    "utilization": error.decision.weekly_utilization,
+                    "observed_at": error.decision.observed_at,
+                    "count": retained,
+                }, sort_keys=True)
+                should_notify = signature != self._quota_block_notice_signature
+                if should_notify:
+                    self._quota_block_notice_signature = signature
+                self._lifecycle_lock.release()
+                if should_notify:
+                    self._log(
+                        "status",
+                        f"queued messages retained: {error} ({retained} pending)",
+                    )
+                    if self.on_turn_blocked is not None:
+                        try:
+                            await self.on_turn_blocked(self, error, retained)
+                        except Exception as notify_error:
+                            logger.warning(
+                                "[%s] quota-block notification failed: %s: %s",
+                                self.name, type(notify_error).__name__, notify_error,
+                            )
+                return
+            break
+
+        try:
             msgs = list(self._pending_messages)
             self._pending_messages.clear()
             if len(msgs) == 1:
@@ -1275,12 +1394,15 @@ class AgentSession:
                 if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
                     self._listen_task = asyncio.create_task(self._turn_event_loop())
                     self._listen_task.add_done_callback(self._on_task_done)
+                self._quota_block_notice_signature = ""
             except Exception as e:
                 logger.error(f"[{self.name}] flush pending failed: {e}")
                 self._pending_messages[0:0] = msgs
                 self.status = AgentStatus.IDLE
                 self._persist()
                 self._turns.publish_turn_finished()
+        finally:
+            self._lifecycle_lock.release()
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
@@ -1313,7 +1435,10 @@ class AgentSession:
 
     async def interrupt(self) -> None:
         async with self._lifecycle_lock:
-            backend = self._backend if self.status == AgentStatus.RUNNING else None
+            self._turn_start_cancel_gen += 1
+            backend = self._backend if (
+                self.status == AgentStatus.RUNNING or self._compacting
+            ) else None
             # Publish the stop before waiting for the SDK control acknowledgement. This
             # prevents concurrent messages from being injected into the turn being
             # interrupted; they will start a clean turn after this lock is released.
@@ -1332,15 +1457,77 @@ class AgentSession:
                     self._log("error", "interrupt was not acknowledged; disconnecting backend")
                     await self._disconnect_backend()
 
+    async def _compaction_permit(self, *, reserve: bool = False):
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+        while True:
+            async with self._lifecycle_lock:
+                if self.status == AgentStatus.RUNNING:
+                    raise RuntimeError("cannot compact while agent is running")
+                if reserve and self._compacting:
+                    raise RuntimeError("compact already in progress")
+                if self.is_orchestrator:
+                    if reserve:
+                        self._compacting = True
+                    return None, self.model, self._turn_start_cancel_gen
+                if decision is not None:
+                    if admitted_stop_gen != self._turn_start_cancel_gen:
+                        raise RuntimeError("compaction start cancelled by stop")
+                    if self.model != admitted_model:
+                        decision = None
+                        continue
+                    if (
+                        decision.state in {"available", "blocked"}
+                        and decision.valid_until is not None
+                        and time.time() >= decision.valid_until
+                    ):
+                        decision = None
+                        continue
+                    from app.quota_gate import require_worker_admission
+
+                    require_worker_admission(decision)
+                    if reserve:
+                        self._compacting = True
+                    return decision, admitted_model, admitted_stop_gen
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+            decision = await self._worker_admission(admitted_model)
+
+    def _compaction_permit_valid_locked(self, permit) -> bool:
+        decision, model, stop_gen = permit
+        if stop_gen != self._turn_start_cancel_gen:
+            raise RuntimeError("compaction start cancelled by stop")
+        if self.is_orchestrator:
+            return True
+        if self.model != model:
+            return False
+        return not (
+            decision is not None
+            and decision.state in {"available", "blocked"}
+            and decision.valid_until is not None
+            and time.time() >= decision.valid_until
+        )
+
+    async def _run_compaction_start(self, permit, operation):
+        while True:
+            async with self._lifecycle_lock:
+                if self.status == AgentStatus.RUNNING:
+                    raise RuntimeError("cannot compact while agent is running")
+                if self._compaction_permit_valid_locked(permit):
+                    return await operation()
+            permit = await self._compaction_permit()
+
     async def _compact_codex_context(self) -> dict:
-        if self._compacting:
-            return {"ok": False, "error": "compact already in progress"}
-        if self.status == AgentStatus.RUNNING:
-            return {"ok": False, "error": "cannot compact while agent is running"}
+        try:
+            permit = await self._compaction_permit(reserve=True)
+        except QuotaGateError:
+            raise
+        except RuntimeError as error:
+            return {"ok": False, "error": str(error)}
 
         if self._precompact_timer and not self._precompact_timer.get("fired_at"):
             self._cancel_precompact_timer("manual_compact")
-        self._compacting = True
         before_pct = self._last_context.get("percentage", 0)
         thread_id = self.session_id
         self._log(
@@ -1348,13 +1535,16 @@ class AgentSession:
             f"compact started (native Codex, context {before_pct}%, thread={thread_id})",
         )
         try:
-            async with self._lifecycle_lock:
+            async def start_native_compact():
                 backend = await self._ensure_backend()
                 compact_context = getattr(backend, "compact_context", None)
                 if not callable(compact_context):
                     raise RuntimeError("Codex backend does not support native compact")
                 self._hibernated = False
-            result = await compact_context()
+                return asyncio.create_task(compact_context())
+
+            compact_task = await self._run_compaction_start(permit, start_native_compact)
+            result = await compact_task
 
             context_tokens = result.get("context_tokens")
             max_tokens = result.get("max_tokens")
@@ -1391,6 +1581,8 @@ class AgentSession:
                 "thread_id": self.session_id,
                 "context_tokens": context_tokens,
             }
+        except QuotaGateError:
+            raise
         except Exception as exc:
             self._log("error", f"native Codex compact failed: {exc}")
             return {
@@ -1456,16 +1648,22 @@ class AgentSession:
             error = "Claude subscription limit active; compact postponed until quota reset"
             self._log("error", error)
             return {"ok": False, "error": error}
+        try:
+            permit = await self._compaction_permit(reserve=True)
+        except QuotaGateError:
+            raise
+        except RuntimeError as error:
+            return {"ok": False, "error": str(error)}
+        compact_stop_gen = permit[2]
         self._session_limit_hit = False
-        self._compacting = True
         before_pct = self._last_context.get("percentage", 0)
         pre_compact_session_id = self.session_id
         self._log("status", f"compact started (context {before_pct}%, pre_session={pre_compact_session_id})")
 
-        def abort_compact(error: str) -> dict:
+        def abort_compact(error: str, *, flush_pending: bool = True) -> dict:
             self.session_id = pre_compact_session_id
             self._compacting = False
-            if self._pending_messages:
+            if flush_pending and self._pending_messages:
                 self._spawn_bg(self._flush_pending())
             return {"ok": False, "error": error, "before_pct": before_pct}
 
@@ -1481,27 +1679,43 @@ class AgentSession:
         summary = ""
         last_error = ""
         for attempt in range(1, COMPACT_MAX_RETRIES + 1):
+            if attempt > 1:
+                if self._turn_start_cancel_gen != compact_stop_gen:
+                    return abort_compact("compaction cancelled by stop", flush_pending=False)
+                try:
+                    permit = await self._compaction_permit()
+                except QuotaGateError:
+                    abort_compact("weekly quota blocked compact retry", flush_pending=False)
+                    raise
+                if permit[2] != compact_stop_gen:
+                    return abort_compact("compaction cancelled by stop", flush_pending=False)
             summary_parts = []
             backend = self._backend or self._make_backend()
             need_connect = self._backend is None
             try:
-                async with self._lifecycle_lock:
+                async def start_summary_turn():
                     if need_connect:
                         await backend.connect()
+                        self._backend = backend
                     await backend.send(COMPACT_PROMPT)
-                    async for event in backend.events():
-                        if event.type == "text":
-                            summary_parts.append(event.content)
-                        elif event.type == "tool":
-                            self._log("tool", event.content)
-                            summary_parts.append(f"\n[tool] {event.content[:200]}\n")
-                        elif event.type == "tool_result":
-                            self._log("tool_result", event.content[:500])
-                            summary_parts.append(f"\n[tool_result] {event.content[:200]}\n")
-                        elif event.type == "turn_end":
-                            if event.metadata.get("session_id"):
-                                self.session_id = event.metadata["session_id"]
-                            break
+
+                await self._run_compaction_start(permit, start_summary_turn)
+                async for event in backend.events():
+                    if event.type == "text":
+                        summary_parts.append(event.content)
+                    elif event.type == "tool":
+                        self._log("tool", event.content)
+                        summary_parts.append(f"\n[tool] {event.content[:200]}\n")
+                    elif event.type == "tool_result":
+                        self._log("tool_result", event.content[:500])
+                        summary_parts.append(f"\n[tool_result] {event.content[:200]}\n")
+                    elif event.type == "turn_end":
+                        if event.metadata.get("session_id"):
+                            self.session_id = event.metadata["session_id"]
+                        break
+            except QuotaGateError:
+                abort_compact("weekly quota blocked compact summary", flush_pending=False)
+                raise
             except Exception as e:
                 last_error = str(e)
                 self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES} failed: {e}")
@@ -1521,6 +1735,9 @@ class AgentSession:
                 except Exception:
                     pass
                 self._backend = None
+
+            if self._turn_start_cancel_gen != compact_stop_gen:
+                return abort_compact("compaction cancelled by stop", flush_pending=False)
 
             summary = "".join(summary_parts).strip()
 
@@ -1558,10 +1775,29 @@ class AgentSession:
             break
 
         preamble = PREAMBLE.format(summary=summary)
+        if self._turn_start_cancel_gen != compact_stop_gen:
+            return abort_compact("compaction cancelled by stop", flush_pending=False)
+        try:
+            permit = await self._compaction_permit()
+        except QuotaGateError as error:
+            self.last_summary = _bounded_summary(summary)
+            self._persist()
+            await self._drain_persist()
+            result = abort_compact(str(error), flush_pending=False)
+            return {
+                **result,
+                "phase": "ack_deferred",
+                "summary_retained": True,
+                "summary": summary,
+                "quota_error": error.envelope()["error"],
+            }
+        if permit[2] != compact_stop_gen:
+            return abort_compact("compaction cancelled by stop", flush_pending=False)
         self._compact_ack_event = asyncio.Event()
         ack_event = self._compact_ack_event
+        ack_deferred = False
         try:
-            async with self._lifecycle_lock:
+            async def start_ack_turn():
                 self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
@@ -1574,6 +1810,8 @@ class AgentSession:
                 backend = await self._ensure_backend(force_fresh=True)
                 self._log("user_message", preamble + "Acknowledge briefly.")
                 await backend.send(preamble + "Acknowledge briefly.")
+
+            await self._run_compaction_start(permit, start_ack_turn)
 
             try:
                 await asyncio.wait_for(ack_event.wait(), timeout=60)
@@ -1595,11 +1833,24 @@ class AgentSession:
                 self._persist()
                 self._turns.publish_turn_finished()
                 return {"ok": False, "error": error, "before_pct": before_pct}
+        except QuotaGateError as error:
+            ack_deferred = True
+            self.last_summary = _bounded_summary(summary)
+            self._persist()
+            await self._drain_persist()
+            result = abort_compact(str(error), flush_pending=False)
+            return {
+                **result,
+                "phase": "ack_deferred",
+                "summary_retained": True,
+                "summary": summary,
+                "quota_error": error.envelope()["error"],
+            }
         finally:
             self._compact_ack_event = None
             self._compact_ack_gen = -1
             self._compacting = False
-            if self._pending_messages:
+            if self._pending_messages and not ack_deferred:
                 self._spawn_bg(self._flush_pending())
 
         self.last_summary = _bounded_summary(summary)
@@ -1780,6 +2031,12 @@ class AgentSession:
         return "\n\n".join(reversed(blocks))
 
     async def change_model(self, new_model: str) -> dict:
+        async with self._lifecycle_lock:
+            if self._compacting:
+                return {"ok": False, "error": "cannot change model while compacting"}
+            return await self._change_model_locked(new_model)
+
+    async def _change_model_locked(self, new_model: str) -> dict:
         old_model = self.model
         if old_model == new_model:
             return {"ok": True, "model": new_model, "changed": False}

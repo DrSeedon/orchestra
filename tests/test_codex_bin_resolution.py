@@ -13,6 +13,9 @@ import pytest
 def mcp(monkeypatch):
     from app import mcp_stdio
     monkeypatch.delenv("CODEX_BIN", raising=False)
+    async def available(_model):
+        return None
+    monkeypatch.setattr(mcp_stdio, "_quota_refusal", available)
     return mcp_stdio
 
 

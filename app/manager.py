@@ -478,7 +478,8 @@ class SessionManager:
                              pipeline: str = "", profile: str = "",
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
-                             tg_topic: bool = False) -> AgentSession:
+                             tg_topic: bool = False,
+                             planned_initial_turn: bool = False) -> AgentSession:
         normalized_scope = scope.rstrip("/")
         key = (normalized_scope, name)
         lock = self._spawn_locks.setdefault(key, asyncio.Lock())
@@ -504,6 +505,7 @@ class SessionManager:
                 docs_feature=docs_feature,
                 owned_dirs=owned_dirs,
                 tg_topic=tg_topic,
+                planned_initial_turn=planned_initial_turn,
             )
 
     async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
@@ -516,7 +518,8 @@ class SessionManager:
                              pipeline: str = "", profile: str = "",
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
-                             tg_topic: bool = False) -> AgentSession:
+                             tg_topic: bool = False,
+                             planned_initial_turn: bool = False) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -623,6 +626,11 @@ class SessionManager:
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
+        if planned_initial_turn and not is_orch:
+            from app.quota_gate import get_worker_admission, require_worker_admission
+
+            require_worker_admission(await get_worker_admission(model))
+
         # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
         if use_worktree and repo_path:
@@ -708,6 +716,7 @@ class SessionManager:
                     scope=scope, branch=session.branch or session.base_branch,
                 )
                 session.on_idle = self._make_idle_callback(scope)
+                session.on_turn_blocked = self._make_quota_blocked_callback(scope)
 
             await session.start(persist=False)
 
@@ -1503,6 +1512,7 @@ class SessionManager:
         session._template_hash = db_row.get("template_hash") or prompt_template_hash(role)
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])
+            session.on_turn_blocked = self._make_quota_blocked_callback(db_row["scope"])
         await session.start()
         self.sessions[session.id] = session
         return session
@@ -1558,6 +1568,44 @@ class SessionManager:
                     orch_session, error,
                 )
         return _on_worker_idle
+
+    def _make_quota_blocked_callback(self, scope: str):
+        async def _on_turn_blocked(worker, error, retained_count: int) -> None:
+            alternatives = ", ".join(
+                item.get("label", "") for item in error.decision.alternatives
+                if item.get("label")
+            ) or "none"
+            message = (
+                f"[from:{worker.name}] New worker turn blocked by weekly quota; "
+                f"{retained_count} queued message(s) retained. {error} "
+                f"Fresh alternatives: {alternatives}. Stop and model change remain available."
+            )
+            parent = None
+            if worker.parent_id:
+                parent = self.sessions.get(worker.parent_id)
+            if parent is None and worker.parent_name:
+                parent = self.get_by_name(worker.parent_name, worker.scope)
+            if parent is not None and parent.is_orchestrator:
+                try:
+                    await self.send(parent.id, message)
+                    return
+                except Exception as delivery_error:
+                    reason = f"{error}; parent delivery failed: {err_text(delivery_error)}"
+            else:
+                reason = f"{error}; exact parent orchestrator is unavailable"
+
+            from app.notify import report_undelivered
+
+            await report_undelivered(
+                self,
+                scope=worker.scope or scope,
+                worker=worker.name,
+                what=f"quota-block notice ({retained_count} queued message(s))",
+                reason=reason,
+                dedupe_key=f"quota:{worker.id}:{error.decision.provider}",
+            )
+
+        return _on_turn_blocked
 
     async def _record_undelivered_auto_report(
         self, worker_name: str, worker_scope: str, worker_session,

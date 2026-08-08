@@ -538,11 +538,6 @@ def _spawn_delivery_error(
     )
 
 
-# Гейт закрывает ТОЛЬКО рантайм Codex. Anthropic сюда не входит намеренно: при
-# исчерпанной квоте Claude отказ «возьми другую модель» отправил бы агента в пустоту —
-# альтернативы нет, а спавн бы встал совсем. Там работает пробуждение по сбросу.
-_GATED_PROVIDERS = frozenset({"codex", "codex_spark"})
-_QUOTA_ALTERNATIVE = "claude-opus-5[1m]"
 # `codex_review` собирает `codex exec` без `--model`, то есть берёт дефолт из
 # ~/.codex/config.toml. Ключа `model` там нет → семейство codex → лимит-id `codex`.
 # Проверено измерением: живой `codex exec` отказал по квоте, когда Spark был на 1% —
@@ -551,54 +546,64 @@ _CODEX_REVIEW_MODEL = "gpt-5.6-sol"
 
 
 async def _quota_refusal(model: str) -> ApiToolError | None:
-    """Отказ, если провайдер модели доказанно исчерпан. Не знаем → None (пропускаем).
+    """Consume the central worker-weekly decision; unknown is fail-closed."""
+    def unknown(reason: str, details: dict | None = None) -> ApiToolError:
+        return ApiToolError(
+            code="weekly_quota_unknown",
+            message=(
+                f"New Codex worker turn blocked: weekly quota status for {model} "
+                f"is unavailable or stale ({reason}). Stop/model change remain available."
+            ),
+            retryable=False,
+            details={"model": model, "reason": reason, **(details or {})},
+        )
 
-    Fail-open здесь не мягкость, а расчёт: ложная блокировка рабочего рантайма дороже
-    одного сгоревшего хода. Поэтому закрыто РОВНО одно состояние — `reset` (исчерпано
-    И известно будущее время сброса).
-
-    Внимание на полярность: `unavailable` у `provider_readiness` значит «не знаю».
-    У `limit_wake` это причина НЕ действовать, здесь — ровно наоборот, причина пропустить.
-    Один и тот же `state`, противоположная трактовка — цена ошибки разная.
-
-    Снятие гейта не требует ничего: как только `resets_at` в прошлом, `provider_readiness`
-    отвечает `unavailable` даже на замороженном 100%-снимке, и мы пропускаем.
-    """
     try:
         readiness = await _api("GET", "/api/usage/readiness", params={"model": model})
     except Exception as error:
-        # Сюда же попадает 404 сервера, который ещё не перезапущен: mcp_stdio.py
-        # подхватывается немедленно, а app/routes/ живёт в памяти systemd до рестарта.
-        logger.warning("quota gate open for %s: readiness unavailable: %s", model, err_text(error))
+        return unknown(f"{type(error).__name__}: {err_text(error)}")
+    if not isinstance(readiness, dict):
+        return unknown("malformed readiness response")
+    if readiness.get("policy") != "worker-weekly-v1":
+        return unknown("missing or legacy readiness policy", {"response": readiness})
+    state = readiness.get("state")
+    if state in {"available", "not_applicable"}:
         return None
-    if not isinstance(readiness, dict) or readiness.get("state") != "reset":
-        return None
-    provider = str(readiness.get("provider") or "")
-    if provider not in _GATED_PROVIDERS:
-        return None
-    try:
-        reset = datetime.fromisoformat(str(readiness.get("reset_at")).replace("Z", "+00:00"))
-    except (TypeError, ValueError):
-        logger.warning("quota gate open for %s: unparsable reset_at %r", model, readiness.get("reset_at"))
-        return None
-    if reset.tzinfo is None:
-        reset = reset.replace(tzinfo=timezone.utc)
-    local = reset.astimezone()
-    seconds_left = max(0, int((reset - datetime.now(timezone.utc)).total_seconds()))
+    if state == "unknown":
+        return unknown(str(readiness.get("reason") or "unknown observation"), readiness)
+    if state != "blocked":
+        return unknown(f"unrecognized readiness state {state!r}", readiness)
+    provider = str(readiness.get("provider") or "").strip()
+    label = str(readiness.get("provider_label") or provider).strip()
+    utilization = readiness.get("weekly_utilization")
+    threshold = readiness.get("threshold")
+    if (
+        not provider
+        or not isinstance(utilization, (int, float))
+        or isinstance(utilization, bool)
+        or not isinstance(threshold, (int, float))
+        or isinstance(threshold, bool)
+    ):
+        return unknown("blocked response is missing provider/utilization", readiness)
+    alternatives = readiness.get("alternatives")
+    alternative_labels = [
+        str(item.get("label")) for item in alternatives or []
+        if isinstance(item, dict) and item.get("label")
+    ]
+    next_step = (
+        f"Available provider: {', '.join(alternative_labels)}."
+        if alternative_labels
+        else "No fresh alternative provider is currently known; wait for reset/telemetry."
+    )
     return ApiToolError(
-        code="quota_exhausted",
+        code="weekly_quota_blocked",
         message=(
-            f"ОТМЕНА: квота Codex исчерпана (провайдер {provider}, модель {model}).\n"
-            f"Рантайм недоступен до {local:%Y-%m-%d %H:%M %Z} "
-            f"({reset:%H:%M}Z).\n"
-            f"Возьми Claude-модель ({_QUOTA_ALTERNATIVE}) или дождись сброса."
+            f"New Codex worker turn blocked: {label} weekly quota is "
+            f"{utilization:g}% (threshold {threshold:g}%). {next_step} "
+            "Stop/model change remain available."
         ),
-        # НЕ retryable: флаг «можно повторить» при сутках до сброса читается агентом как
-        # «подожди», и мы уже видели, как на исчерпанной квоте ретраят вечно. Время
-        # оставляем — оно информативно и без разрешения на ретрай.
         retryable=False,
-        retry_after_seconds=seconds_left,
-        details={"provider": provider, "model": model, "reset_at": readiness.get("reset_at")},
+        details={"model": model, **readiness},
     )
 
 
@@ -626,10 +631,6 @@ async def spawn_worker(name: str, task: str, repo_path: str,
             message="model is required; choose it by the <model-routing> block in your prompt",
             details={"field": "model"},
         )
-    # До создания сессии: иначе от загодя обречённого воркера останется worktree.
-    refusal = await _quota_refusal(model)
-    if refusal:
-        raise refusal
     scope = SCOPE or repo_path
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
@@ -638,6 +639,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "base_branch": base_branch,
         "role": role,
         "parent_name": WORKER_NAME,
+        "planned_initial_turn": True,
     }
     if mcp_servers:
         import json
@@ -1111,9 +1113,6 @@ async def update_progress(percent: int, status: str) -> str:
 @mcp.tool()
 async def change_worker_model(name: str, model: str) -> str:
     """Change a worker's model (e.g. sonnet→opus) without losing context. Worker must be idle."""
-    refusal = await _quota_refusal(model)
-    if refusal:
-        raise refusal
     result = await _api("POST", f"/api/sessions/{name}/change-model", json={"scope": SCOPE, "model": model})
     if isinstance(result, dict) and result.get("error"):
         return f"Model change failed: {result['error']}"

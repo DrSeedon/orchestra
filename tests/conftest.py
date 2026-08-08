@@ -8,8 +8,44 @@
 """
 
 from unittest.mock import AsyncMock, MagicMock
+import time
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _stable_worker_quota(request, monkeypatch):
+    """Ordinary tests never read live subscription telemetry."""
+    if request.node.path.name in {"test_quota_gate.py", "test_usage_readiness.py"}:
+        return
+    from app import quota_gate
+
+    async def available(model: str, observation_loader=None):
+        try:
+            resolved = quota_gate.evaluate_worker_admission(
+                model,
+                {
+                    "anthropic": {"label": "Claude", "windows": [{
+                        "window_minutes": 10080, "utilization": 0,
+                    }]},
+                    "codex": {"label": "Codex", "windows": [{
+                        "window_minutes": 10080, "utilization": 0,
+                    }]},
+                    "codex_spark": {"label": "Codex Spark", "windows": [{
+                        "window_minutes": 10080, "utilization": 0,
+                    }]},
+                },
+                {
+                    "anthropic": time.time(),
+                    "codex": time.time(),
+                    "codex_spark": time.time(),
+                },
+            )
+        except Exception:
+            raise
+        return resolved
+
+    monkeypatch.setattr(quota_gate, "get_worker_admission", available)
 
 
 async def _empty_events():

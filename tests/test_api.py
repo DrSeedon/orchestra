@@ -2696,3 +2696,73 @@ def test_rename_updates_children_parent_reference(client):
     assert rows["c-1"]["parent_name"] == "new-parent"
     assert rows["c-2"]["parent_name"] == "old-parent"
     assert rows["p-1"]["name"] == "new-parent"
+
+
+def _quota_block_error():
+    import time
+    from app.quota_gate import QuotaDecision, QuotaGateError
+
+    now = time.time()
+    return QuotaGateError(QuotaDecision(
+        state="blocked", model="gpt-5.6-sol", provider="codex",
+        provider_label="Codex", weekly_utilization=95,
+        observed_at=now, valid_until=now + 60, reset_at=None,
+        alternatives=({"provider": "anthropic", "label": "Claude"},),
+        reason="test",
+    ))
+
+
+@pytest.mark.asyncio
+async def test_create_quota_refusal_is_canonical_nonretryable_429(tmp_path, monkeypatch):
+    import json
+    from app.routes import sessions as routes
+    from app.routes import system
+
+    monkeypatch.setattr(system, "_is_safe_path", lambda _path: True)
+    monkeypatch.setattr(routes.manager, "create_session", AsyncMock(side_effect=_quota_block_error()))
+    req = routes.CreateSessionRequest(
+        name="blocked-worker", cwd=str(tmp_path), model="gpt-5.6-sol",
+        planned_initial_turn=True,
+    )
+
+    response = await routes.create_session(req)
+    body = json.loads(response.body)
+    assert response.status_code == 429
+    assert body["error"]["code"] == "weekly_quota_blocked"
+    assert body["error"]["retryable"] is False
+    assert body["error"]["details"]["alternatives"][0]["label"] == "Claude"
+
+
+@pytest.mark.asyncio
+async def test_send_quota_refusal_is_canonical_429(monkeypatch):
+    import json
+    from app.routes import sessions as routes
+
+    found = SimpleNamespace(id="s1", parent_name="root", last_task_sender="")
+    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=found))
+    monkeypatch.setattr(routes.manager, "send", AsyncMock(side_effect=_quota_block_error()))
+
+    response = await routes.send_message(
+        "worker", routes.SendRequest(message="new work", scope="/s", sender="root"),
+    )
+    body = json.loads(response.body)
+    assert response.status_code == 429
+    assert body["error"]["code"] == "weekly_quota_blocked"
+    assert body["error"]["retryable"] is False
+
+
+@pytest.mark.asyncio
+async def test_compact_quota_refusal_is_canonical_429(monkeypatch):
+    import json
+    from app.routes import sessions as routes
+
+    found = SimpleNamespace(
+        status=SimpleNamespace(value="idle"),
+        compact=AsyncMock(side_effect=_quota_block_error()),
+    )
+    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=found))
+
+    response = await routes.compact_session("worker", routes.ScopeRequest(scope="/s"))
+    body = json.loads(response.body)
+    assert response.status_code == 429
+    assert body["error"]["code"] == "weekly_quota_blocked"

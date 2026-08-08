@@ -17,6 +17,7 @@ from app.db import get_log, get_logs, get_logs_before, get_logs_sync, get_all_se
 from app.deps import manager
 from app.errtext import err_text
 from app.models import resolve_model, MODELS
+from app.quota_gate import QuotaGateError
 from app.session import AgentStatus
 
 logger = logging.getLogger("orchestra.sessions")
@@ -125,6 +126,7 @@ class CreateSessionRequest(BaseModel):
     profile: str = ""
     owned_dirs: list[str] = []
     tg_topic: bool = False
+    planned_initial_turn: bool = False
 
     @field_validator("name")
     @classmethod
@@ -196,6 +198,7 @@ async def create_session(req: CreateSessionRequest):
             profile=req.profile,
             owned_dirs=req.owned_dirs,
             tg_topic=req.tg_topic,
+            planned_initial_turn=req.planned_initial_turn,
         )
         d = session.to_dict()
         if req.use_worktree:
@@ -204,6 +207,8 @@ async def create_session(req: CreateSessionRequest):
         if session._spawn_warning:
             d["spawn_warning"] = session._spawn_warning
         return d
+    except QuotaGateError as e:
+        return JSONResponse(e.envelope(), status_code=e.status_code)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=409)
     except sqlite3.IntegrityError:
@@ -477,6 +482,8 @@ async def send_message(name: str, req: SendRequest):
         await manager.send(session.id, msg)
         pn = session.parent_name or ""
         return {"ok": True, "parent_name": pn}
+    except QuotaGateError as e:
+        return JSONResponse(e.envelope(), status_code=e.status_code)
     except (RuntimeError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
@@ -491,7 +498,10 @@ async def compact_session(name: str, req: ScopeRequest):
         return JSONResponse({"error": "not found"}, status_code=404)
     if session.status.value == "running":
         return JSONResponse({"error": "agent is running, wait for idle"}, status_code=400)
-    result = await session.compact()
+    try:
+        result = await session.compact()
+    except QuotaGateError as error:
+        return JSONResponse(error.envelope(), status_code=error.status_code)
     return result
 
 

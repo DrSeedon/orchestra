@@ -48,6 +48,122 @@ def _isolate_pipelines_dir(monkeypatch):
 
 class TestCreateSession:
     @pytest.mark.asyncio
+    async def test_planned_initial_turn_is_refused_before_session_publish(
+        self, mgr, monkeypatch,
+    ):
+        from app.quota_gate import QuotaGateError, evaluate_worker_admission
+
+        async def blocked(_model, observation_loader=None):
+            now = datetime.now(timezone.utc).timestamp()
+            return evaluate_worker_admission(
+                "claude-sonnet-5[1m]",
+                {"anthropic": {"label": "Claude", "windows": [{
+                    "window_minutes": 10080, "utilization": 95,
+                }]}},
+                {"anthropic": now},
+                now=now,
+            )
+
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", blocked)
+        with pytest.raises(QuotaGateError):
+            await mgr.create_session(
+                name="blocked-worker", scope="/s", cwd="/tmp",
+                model="claude-sonnet-5[1m]", planned_initial_turn=True,
+            )
+
+        assert mgr.sessions == {}
+
+    @pytest.mark.asyncio
+    async def test_idle_create_is_control_action_and_does_not_read_quota(
+        self, mgr, monkeypatch,
+    ):
+        gate = AsyncMock(side_effect=AssertionError("idle create read quota"))
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", gate)
+
+        session = await mgr.create_session(
+            name="idle-worker", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]", planned_initial_turn=False,
+        )
+
+        assert session.name == "idle-worker"
+        gate.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_planned_orchestrator_turn_is_exempt_from_preflight(
+        self, mgr, monkeypatch,
+    ):
+        gate = AsyncMock(side_effect=AssertionError("orchestrator read quota"))
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", gate)
+
+        session = await mgr.create_session(
+            name="root-orchestrator", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]", role="orchestrator",
+            is_orchestrator=True, planned_initial_turn=True,
+        )
+
+        assert session.is_orchestrator
+        gate.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_quota_block_notice_targets_exact_parent(self, mgr, monkeypatch):
+        from app.quota_gate import QuotaDecision, QuotaGateError
+        from app.session import AgentSession
+
+        parent = AgentSession(
+            id="parent-id", name="exact-parent", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]", role="orchestrator",
+        )
+        parent.is_orchestrator = True
+        worker = AgentSession(
+            id="worker-id", name="child", scope="/s", cwd="/tmp",
+            model="gpt-5.6-sol", parent_id=parent.id, parent_name=parent.name,
+        )
+        mgr.sessions = {parent.id: parent, worker.id: worker}
+        monkeypatch.setattr(mgr, "send", AsyncMock())
+        now = datetime.now(timezone.utc).timestamp()
+        error = QuotaGateError(QuotaDecision(
+            state="blocked", model=worker.model, provider="codex",
+            provider_label="Codex", weekly_utilization=95,
+            observed_at=now, valid_until=now + 60, reset_at=None,
+            alternatives=({"provider": "anthropic", "label": "Claude"},),
+            reason="test",
+        ))
+
+        await mgr._make_quota_blocked_callback("/s")(worker, error, 2)
+
+        mgr.send.assert_awaited_once()
+        assert mgr.send.await_args.args[0] == parent.id
+        assert "2 queued message(s) retained" in mgr.send.await_args.args[1]
+        assert "Claude" in mgr.send.await_args.args[1]
+
+    @pytest.mark.asyncio
+    async def test_quota_block_notice_falls_back_when_exact_parent_missing(
+        self, mgr, monkeypatch,
+    ):
+        from app.quota_gate import QuotaDecision, QuotaGateError
+        from app.session import AgentSession
+
+        worker = AgentSession(
+            id="worker-id", name="child", scope="/s", cwd="/tmp",
+            model="gpt-5.6-sol", parent_name="missing-parent",
+        )
+        now = datetime.now(timezone.utc).timestamp()
+        error = QuotaGateError(QuotaDecision(
+            state="unknown", model=worker.model, provider="codex",
+            provider_label="Codex", weekly_utilization=None,
+            observed_at=None, valid_until=None, reset_at=None,
+            alternatives=(), reason="stale",
+        ))
+        fallback = AsyncMock(return_value="recorded")
+        monkeypatch.setattr("app.notify.report_undelivered", fallback)
+
+        await mgr._make_quota_blocked_callback("/s")(worker, error, 1)
+
+        fallback.assert_awaited_once()
+        assert fallback.await_args.kwargs["worker"] == "child"
+        assert "exact parent" in fallback.await_args.kwargs["reason"]
+
+    @pytest.mark.asyncio
     async def test_returns_session(self, mgr):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):

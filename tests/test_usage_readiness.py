@@ -1,138 +1,208 @@
-"""GET /api/usage/readiness — источник состояния для гейта по квоте (#154).
-
-Обе стороны решения проверяются на одном и том же снимке: закрыто для исчерпанного
-бакета `codex` и одновременно ОТКРЫТО для `codex_spark`, который живёт в своём окне.
-Гейт «по рантайму codex» прошёл бы первый тест и убил бы рабочий Spark.
-"""
+import asyncio
 
 import pytest
 
 from app.routes import system
 
-FUTURE_RESET = "2026-08-08T05:53:45Z"
 
-# Форма — из живого снимка usage_snapshots (2026-08-07): codex выбран, Spark на 1%.
-LIVE_SNAPSHOT = {
-    "codex": {
-        "label": "Codex",
-        "plan_type": "prolite",
-        "windows": [{
-            "id": "primary", "label": "7d", "utilization": 100,
-            "window_minutes": 10080, "resets_at": FUTURE_RESET,
-        }],
-    },
-    "codex_spark": {
-        "label": "Codex Spark",
-        "plan_type": "prolite",
-        "windows": [{
-            "id": "primary", "label": "7d", "utilization": 1,
-            "window_minutes": 10080, "resets_at": "2026-08-09T07:04:58Z",
-        }],
-    },
-    "anthropic": {
-        "label": "Claude",
-        "windows": [
-            {"id": "five_hour", "label": "5h", "utilization": 65,
-             "window_minutes": 300, "resets_at": "2026-08-07T09:00:00Z"},
-            {"id": "seven_day", "label": "7d", "utilization": 85,
-             "window_minutes": 10080, "resets_at": "2026-08-11T07:00:00Z"},
-        ],
-    },
-}
+NOW = 2_000_000_000.0
+
+
+def _anthropic(utilization=20):
+    return {
+        "five_hour": {"utilization": 1},
+        "seven_day": {"utilization": utilization},
+    }
+
+
+def _codex(utilization=20, spark=10):
+    return {
+        "primary": {"utilization": 1, "window_minutes": 300},
+        "secondary": {"utilization": utilization, "window_minutes": 10080},
+        "spark": {
+            "primary": {"utilization": 1, "window_minutes": 300},
+            "secondary": {"utilization": spark, "window_minutes": 10080},
+        },
+    }
 
 
 @pytest.fixture
-def exhausted_codex(monkeypatch):
-    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
-
-    async def usage(*, provider="", force_refresh=False):
-        assert force_refresh is False, "гейт обязан читать кеш, а не будить app-server"
-        return LIVE_SNAPSHOT
-
-    monkeypatch.setattr(system, "current_provider_usage", usage)
-
-
-@pytest.mark.asyncio
-async def test_exhausted_codex_model_is_closed_with_its_reset(exhausted_codex):
-    result = await system.usage_readiness(model="gpt-5.6-sol")
-
-    assert result["provider"] == "codex"
-    assert result["state"] == "reset"
-    assert result["reset_at"].startswith("2026-08-08T05:53:45")
+def isolated_usage(monkeypatch):
+    monkeypatch.setattr(system, "_usage_cache", {"data": _anthropic(), "ts": NOW - 400, "token": None})
+    monkeypatch.setattr(system, "_codex_usage_cache", {"data": _codex(), "ts": NOW - 400})
+    monkeypatch.setattr(system, "_grok_usage_cache", {"data": None, "ts": 0.0})
+    monkeypatch.setattr(system, "_quota_refresh_locks", {
+        "anthropic": asyncio.Lock(), "codex": asyncio.Lock(),
+    })
+    monkeypatch.setattr(system.time, "time", lambda: NOW)
+    monkeypatch.setattr(system, "_save_usage_cache", lambda: None)
+    monkeypatch.setattr(system, "_get_agents_cost", lambda: {})
+    monkeypatch.setattr(system, "_get_voice_cost_usd", lambda: 0.0)
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", None, None))
+    monkeypatch.setattr(system, "_read_grok_token", lambda: None)
 
 
 @pytest.mark.asyncio
-async def test_spark_stays_open_while_codex_is_exhausted(exhausted_codex):
-    """Разные лимит-id: `codex` и `codex_bengalfox`. Один выбран, второй свободен."""
-    result = await system.usage_readiness(model="gpt-5.3-codex-spark")
+async def test_anthropic_refresh_is_target_isolated_and_singleflight(isolated_usage, monkeypatch):
+    calls = {"anthropic": 0, "codex": 0}
 
-    assert result["provider"] == "codex_spark"
-    assert result["state"] == "available"
-    assert result["reset_at"] is None
+    async def fetch_anthropic(_token):
+        calls["anthropic"] += 1
+        await asyncio.sleep(0)
+        return _anthropic(94)
+
+    async def fetch_codex():
+        calls["codex"] += 1
+        return _codex()
+
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", fetch_anthropic)
+    monkeypatch.setattr(system, "_fetch_codex_usage", fetch_codex)
+
+    results = await asyncio.gather(*[
+        system.current_quota_observation(required_provider="anthropic", now=NOW)
+        for _ in range(8)
+    ])
+
+    assert calls == {"anthropic": 1, "codex": 0}
+    assert all(item["observed_at_by_provider"]["anthropic"] == NOW for item in results)
 
 
 @pytest.mark.asyncio
-async def test_claude_model_is_unaffected_by_codex_exhaustion(exhausted_codex):
-    result = await system.usage_readiness(model="claude-opus-5[1m]")
+async def test_singleflight_waiters_recheck_clock_after_newer_refresh(
+    isolated_usage, monkeypatch,
+):
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls = 0
 
+    def clock():
+        return NOW if calls == 0 else NOW + 2
+
+    async def refresh(*, force_refresh, required_provider):
+        nonlocal calls
+        assert force_refresh is True
+        assert required_provider == "anthropic"
+        started.set()
+        await release.wait()
+        calls += 1
+        system._usage_cache["data"] = _anthropic(94)
+        system._usage_cache["ts"] = NOW + 1
+
+    monkeypatch.setattr(system.time, "time", clock)
+    monkeypatch.setattr(system, "_get_usage_data", refresh)
+    tasks = [
+        asyncio.create_task(system.current_quota_observation(
+            required_provider="anthropic",
+        ))
+        for _ in range(8)
+    ]
+    await started.wait()
+    for _ in range(20):
+        waiters = system._quota_refresh_locks["anthropic"]._waiters or ()
+        if len(waiters) == 7:
+            break
+        await asyncio.sleep(0)
+    assert len(system._quota_refresh_locks["anthropic"]._waiters or ()) == 7
+    release.set()
+
+    results = await asyncio.gather(*tasks)
+
+    assert calls == 1
+    assert all(
+        item["observed_at_by_provider"]["anthropic"] == NOW + 1
+        for item in results
+    )
+
+
+@pytest.mark.asyncio
+async def test_spark_refresh_uses_one_codex_fetch_but_keeps_buckets_separate(
+    isolated_usage, monkeypatch,
+):
+    calls = {"anthropic": 0, "codex": 0}
+
+    async def fetch_anthropic(_token):
+        calls["anthropic"] += 1
+        return _anthropic()
+
+    async def fetch_codex():
+        calls["codex"] += 1
+        await asyncio.sleep(0)
+        return _codex(95, 1)
+
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", fetch_anthropic)
+    monkeypatch.setattr(system, "_fetch_codex_usage", fetch_codex)
+
+    results = await asyncio.gather(*[
+        system.current_quota_observation(required_provider="codex_spark", now=NOW)
+        for _ in range(8)
+    ])
+
+    assert calls == {"anthropic": 0, "codex": 1}
+    providers = results[0]["providers"]
+    assert providers["codex"]["windows"][-1]["utilization"] == 95
+    assert providers["codex_spark"]["windows"][-1]["utilization"] == 1
+    assert results[0]["observed_at_by_provider"]["codex"] == NOW
+    assert results[0]["observed_at_by_provider"]["codex_spark"] == NOW
+
+
+@pytest.mark.asyncio
+async def test_refresh_failure_preserves_stale_observation_timestamp(
+    isolated_usage, monkeypatch,
+):
+    async def fail(_token):
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", fail)
+    result = await system.current_quota_observation(
+        required_provider="anthropic", now=NOW, timeout=0.1,
+    )
+    assert result["observed_at_by_provider"]["anthropic"] == NOW - 400
+
+
+@pytest.mark.asyncio
+async def test_fresh_cache_does_not_fetch_at_age_299_9(isolated_usage, monkeypatch):
+    system._codex_usage_cache["ts"] = NOW - 299.9
+
+    async def fail_if_called():
+        raise AssertionError("fresh cache must not fetch")
+
+    monkeypatch.setattr(system, "_fetch_codex_usage", fail_if_called)
+    result = await system.current_quota_observation(required_provider="codex", now=NOW)
+    assert result["observed_at_by_provider"]["codex"] == NOW - 299.9
+
+
+@pytest.mark.asyncio
+async def test_age_300_refreshes_exactly_at_boundary(isolated_usage, monkeypatch):
+    system._codex_usage_cache["ts"] = NOW - 300
+    calls = 0
+
+    async def fetch_codex():
+        nonlocal calls
+        calls += 1
+        return _codex(3, 4)
+
+    monkeypatch.setattr(system, "_fetch_codex_usage", fetch_codex)
+    result = await system.current_quota_observation(required_provider="codex", now=NOW)
+    assert calls == 1
+    assert result["observed_at_by_provider"]["codex"] == NOW
+
+
+@pytest.mark.asyncio
+async def test_readiness_endpoint_exposes_worker_weekly_policy(isolated_usage):
+    system._usage_cache.update({"data": _anthropic(95), "ts": NOW})
+    result = await system.usage_readiness("claude-opus-5[1m]")
+    assert result["policy"] == "worker-weekly-v1"
     assert result["provider"] == "anthropic"
-    assert result["state"] == "available"
+    assert result["state"] == "blocked"
+    assert result["threshold"] == 95
 
 
 @pytest.mark.asyncio
-async def test_aliases_resolve_to_their_own_buckets(exhausted_codex):
-    """Алиасы `codex` и `spark` ведут в РАЗНЫЕ окна, и вердикт у них разный."""
-    assert await system.usage_readiness(model="codex") == {
-        "provider": "codex", "state": "reset",
-        "reason": "provider capacity is exhausted",
-        "reset_at": "2026-08-08T05:53:45+00:00",
-    }
-    spark = await system.usage_readiness(model="spark")
-    assert (spark["provider"], spark["state"]) == ("codex_spark", "available")
+async def test_unknown_model_endpoint_fails_closed_without_refresh(isolated_usage, monkeypatch):
+    async def fail(**_kwargs):
+        raise AssertionError("unknown model must not refresh an arbitrary provider")
 
-
-@pytest.mark.asyncio
-async def test_unknown_model_answers_unavailable_instead_of_raising(exhausted_codex):
-    result = await system.usage_readiness(model="модели-такой-нет")
-
-    assert result["state"] == "unavailable"
-    assert "модели-такой-нет" in result["reason"]
-    assert result["reset_at"] is None
-
-
-@pytest.mark.asyncio
-async def test_usage_failure_answers_unavailable_and_names_the_exception(monkeypatch):
-    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
-
-    async def broken(*, provider="", force_refresh=False):
-        raise TimeoutError("codex app-server closed")
-
-    monkeypatch.setattr(system, "current_provider_usage", broken)
-
-    result = await system.usage_readiness(model="gpt-5.6-sol")
-
-    assert result["state"] == "unavailable"
-    # Голый текст TimeoutError пуст — без имени класса отказ был бы безымянным.
-    assert "TimeoutError" in result["reason"]
-
-
-@pytest.mark.asyncio
-async def test_client_installation_gets_no_quota_details(monkeypatch):
-    monkeypatch.setattr(system, "is_owner_mode", lambda: False)
-
-    async def unexpected(*, provider="", force_refresh=False):
-        raise AssertionError("чужую инсталляцию нельзя пускать к нашим квотам")
-
-    monkeypatch.setattr(system, "current_provider_usage", unexpected)
-
-    result = await system.usage_readiness(model="gpt-5.6-sol")
-
-    assert result["state"] == "unavailable"
-    assert result["reset_at"] is None
-
-
-@pytest.mark.asyncio
-async def test_response_never_carries_an_error_key(exhausted_codex):
-    """`_api` в MCP бросает на любом непустом `error` — «не знаю» стало бы исключением."""
-    for model in ("gpt-5.6-sol", "модели-такой-нет"):
-        assert "error" not in await system.usage_readiness(model=model)
+    monkeypatch.setattr(system, "current_quota_observation", fail)
+    result = await system.usage_readiness("future-unknown-model")
+    assert result["policy"] == "worker-weekly-v1"
+    assert result["state"] == "unknown"

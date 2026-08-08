@@ -10,6 +10,13 @@ async def test_codex_review_uses_temp_artifact_and_declares_success_contract(tmp
     captured = {}
 
     async def fake_api(method, path, **kwargs):
+        if path == "/api/usage/readiness":
+            return {
+                "policy": "worker-weekly-v1", "state": "available",
+                "provider": "codex", "provider_label": "Codex",
+                "weekly_utilization": 1, "threshold": 95,
+                "alternatives": [], "reason": "test",
+            }
         if method == "GET":
             return {"cwd": str(tmp_path), "worktree_path": str(tmp_path), "scope": str(tmp_path)}
         captured.update(kwargs["json"])
