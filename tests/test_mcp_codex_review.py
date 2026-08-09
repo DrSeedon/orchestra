@@ -13,8 +13,11 @@ async def test_codex_review_uses_temp_artifact_and_declares_success_contract(tmp
         if path == "/api/usage/readiness":
             return {
                 "policy": "worker-weekly-v1", "state": "available",
+                "model": "gpt-5.6-sol",
                 "provider": "codex", "provider_label": "Codex",
                 "weekly_utilization": 1, "threshold": 95,
+                "observed_at": 2_000_000_000,
+                "valid_until": 2_000_000_300,
                 "alternatives": [], "reason": "test",
             }
         if method == "GET":
@@ -25,6 +28,7 @@ async def test_codex_review_uses_temp_artifact_and_declares_success_contract(tmp
     monkeypatch.setattr(mcp, "_api", fake_api)
     monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
     monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+    monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
 
     assert "END YOUR TURN NOW" in mcp.codex_review.__doc__
     result = await mcp.codex_review(

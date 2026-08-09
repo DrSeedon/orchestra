@@ -1,0 +1,39 @@
+{
+  "frozen_at_commit": "95fdbae",
+  "runtime": "codex",
+  "model": "gpt-5.6-sol",
+  "effort": "xhigh",
+  "metrics": [
+    "correct",
+    "lost_work",
+    "active_wall_s",
+    "repeated_reads",
+    "tool_result_bytes",
+    "compactions",
+    "poll_calls"
+  ],
+  "workloads": [
+    {
+      "id": "multi-file-review",
+      "redacted_contract": "redacted multi-file review: inspect three fixed modules and return findings only",
+      "input_hash": "c59bcf19be723a7faab5f3e983de68b0ebcce0b574d953cc6d3c10cc83402ce6"
+    },
+    {
+      "id": "yielded-test-handle",
+      "redacted_contract": "bounded yielded test: one handle, one completion wait, no polling",
+      "input_hash": "57d7e5368bddca23616bf4e405c43dbebf92d8787d1a380194573df43e61fd34"
+    },
+    {
+      "id": "distant-domain",
+      "redacted_contract": "distant-domain household schedule comparison with fixed facts",
+      "input_hash": "0fc95e4d84c5f6f34a46dcd4a9f1aec4eb8fb6cb4b5cb6f9bda3a07141e88b54"
+    }
+  ],
+  "decision_rule": {
+    "minimum_runs_per_arm": 4,
+    "primary": "all runs correct and no lost_work",
+    "secondary": "paired median reduction in repeated_reads or tool_result_bytes must exceed that metric's baseline split-half median absolute noise",
+    "prompt_generalization": "distant-domain workload must also satisfy primary",
+    "unavailable_or_below_noise": "NO_CHANGE"
+  }
+}

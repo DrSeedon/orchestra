@@ -6,7 +6,9 @@ import os
 import re
 import shutil
 import subprocess
+import tomllib
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.workspace import _exclude_worktree_artifacts, tracked_paths
@@ -23,6 +25,26 @@ _SKILLS_DIR = _PROMPTS_DIR / "skills"
 _ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 _IDENTITY_PLACEHOLDERS = re.compile(r"\{(worker_name|orchestrator_name|scope|branch)\}")
 _WORKER_MEMORY_BLOCK = re.compile(r"\n*<worker-memory>.*?</worker-memory>", re.DOTALL)
+
+
+@dataclass(frozen=True)
+class SkillInjectionResult:
+    written: int
+    requested: int
+    home_path: str
+    home_path_is_file: bool = False
+    home_path_tracked: bool = False
+    skipped: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CodexProjectDocPreflight:
+    path: str
+    actual_bytes: int | None
+    budget_bytes: int | None
+    first_truncated_line: int | None
+    instruction: str = ""
+    diagnostic: str = ""
 
 
 def is_orchestrator_role(role: str) -> bool:
@@ -165,9 +187,9 @@ def _run_as_agent(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
-def inject_skills_to_worktree(
+def inject_skills_to_worktree_report(
     skill_names: list[str], worktree_path: str, home_dir: str = ".claude",
-) -> int:
+) -> SkillInjectionResult:
     """Copy resolved pipeline skills into <path>/<home_dir>/skills/ as native CLI skills.
 
     Runs on every backend (re)connect, not just at worktree creation — a long-lived agent
@@ -189,39 +211,57 @@ def inject_skills_to_worktree(
     every merge. Such skills are left alone — the agent reads the repo's own version, which
     the CLI already loads from the same path.
 
-    Returns the number of files actually written (unchanged copies are not rewritten, so a
-    steady state costs zero writes and never swaps a file under a running CLI).
+    Returns enough evidence for the session to distinguish a safe no-op from a
+    repo-owned home-file conflict. The public int wrapper below remains stable.
     """
-    if not skill_names or not _SKILLS_DIR.is_dir():
-        return 0
+    home = Path(worktree_path) / home_dir
+    if not _SKILLS_DIR.is_dir():
+        return SkillInjectionResult(
+            written=0, requested=len(skill_names), home_path=str(home),
+            skipped=("missing_skill_root",),
+        )
     wt = Path(worktree_path)
     rels = {sname: f"{home_dir}/skills/{sname}/SKILL.md" for sname in skill_names}
     try:
-        tracked = tracked_paths(wt, list(rels.values()))
+        tracked = tracked_paths(wt, [home_dir, *rels.values()])
     except RuntimeError as exc:
         # Git failing (not a repo, ownership, broken worktree) proves nothing about who owns
         # these files. Writing on a guess is what dirties someone else's repository.
         logger.warning(f"{exc} — skill injection skipped for {wt}")
-        return 0
-    home = wt / home_dir
+        return SkillInjectionResult(
+            written=0, requested=len(skill_names), home_path=str(home),
+            skipped=("unsafe_git_state",),
+        )
     if home.exists() and not home.is_dir():
         # Measured on a live repo: `Aperant` tracks a read-only zero-byte FILE named `.codex`.
         # `mkdir -p` then fails once per skill per connect. The repo owns that name — bail out
         # quietly rather than log the same failure five times forever or clobber their file.
         logger.info(f"'{home}' exists and is not a directory — skill injection skipped")
-        return 0
+        return SkillInjectionResult(
+            written=0, requested=len(skill_names), home_path=str(home),
+            home_path_is_file=True, home_path_tracked=home_dir in tracked,
+            skipped=("home_path_is_file",),
+        )
+    if not skill_names:
+        return SkillInjectionResult(
+            written=0, requested=0, home_path=str(home), skipped=("no_skills",),
+        )
     injected = 0
+    skipped: list[str] = []
     for sname in skill_names:
         skill_src = _SKILLS_DIR / f"{sname}.md"
         if not skill_src.exists():
             logger.warning(f"Skill '{sname}' not found in {_SKILLS_DIR}")
+            skipped.append(f"missing_source:{sname}")
             continue
         if rels[sname] in tracked:
             logger.info(f"Skill '{sname}' is tracked by the repo at {wt} — injection skipped")
+            skipped.append(f"tracked_skill:{sname}")
             continue
         dest = wt / home_dir / "skills" / sname / "SKILL.md"
         if dest.is_symlink():
             logger.warning(f"Skill '{sname}' at {dest} is a symlink — skipped (copy would clobber its target)")
+            skipped.append(f"symlink:{sname}")
             continue
         try:
             if dest.is_file() and dest.read_bytes() == skill_src.read_bytes():
@@ -237,6 +277,7 @@ def inject_skills_to_worktree(
             moved = _run_as_agent(["mv", "-f", str(tmp), str(dest)], capture_output=True)
             if moved.returncode != 0:
                 logger.warning(f"Skill '{sname}' install failed at {dest}")
+                skipped.append(f"install_failed:{sname}")
                 continue
         finally:
             if tmp.exists():
@@ -256,7 +297,87 @@ def inject_skills_to_worktree(
         # is not something we detect (see ORCHESTRA_CODEX_SKILL_INDEX). If an agent turns out
         # to have no skills, this line is the evidence of where they were put.
         logger.info(f"Injected {injected} skills into {worktree_path}/{home_dir}/skills/")
-    return injected
+    return SkillInjectionResult(
+        written=injected, requested=len(skill_names), home_path=str(home),
+        skipped=tuple(skipped),
+    )
+
+
+def inject_skills_to_worktree(
+    skill_names: list[str], worktree_path: str, home_dir: str = ".claude",
+) -> int:
+    """Backward-compatible count-only wrapper over the diagnostic injector."""
+    return inject_skills_to_worktree_report(
+        skill_names, worktree_path, home_dir,
+    ).written
+
+
+def codex_project_doc_preflight(
+    worktree_path: str,
+    *,
+    codex_home: str | None = None,
+) -> CodexProjectDocPreflight:
+    """Diagnose a provably truncated root AGENTS.md without changing it or config."""
+    doc = Path(worktree_path) / "AGENTS.md"
+    if not doc.exists() or not doc.is_file():
+        return CodexProjectDocPreflight(str(doc), None, None, None)
+    if doc.is_symlink():
+        return CodexProjectDocPreflight(
+            str(doc), None, None, None,
+            diagnostic=f"Codex project-doc preflight skipped unsafe symlink: {doc}",
+        )
+    config_root = Path(
+        codex_home
+        or os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
+    ).expanduser()
+    config = config_root / "config.toml"
+    try:
+        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return CodexProjectDocPreflight(str(doc), None, None, None)
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        return CodexProjectDocPreflight(
+            str(doc), None, None, None,
+            diagnostic=(
+                f"Codex project-doc budget unavailable: {config}: "
+                f"{type(exc).__name__}: {exc}"
+            ),
+        )
+    budget = parsed.get("project_doc_max_bytes")
+    if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+        return CodexProjectDocPreflight(str(doc), None, None, None)
+    try:
+        content = doc.read_bytes()
+    except OSError as exc:
+        return CodexProjectDocPreflight(
+            str(doc), None, budget, None,
+            diagnostic=f"Codex project-doc unreadable: {doc}: {type(exc).__name__}: {exc}",
+        )
+    actual = len(content)
+    if actual <= budget:
+        return CodexProjectDocPreflight(str(doc), actual, budget, None)
+    offset = 0
+    first_truncated_line = 1
+    for line_number, line in enumerate(content.splitlines(keepends=True), 1):
+        if offset + len(line) > budget:
+            first_truncated_line = line_number
+            break
+        offset += len(line)
+    diagnostic = (
+        f"Codex project doc exceeds configured auto-load budget: {doc} is "
+        f"{actual} bytes, project_doc_max_bytes={budget}; first line not fully "
+        f"inside the budget is line {first_truncated_line}."
+    )
+    instruction = (
+        "[Orchestra project-doc warning: Codex auto-load is incomplete. "
+        f"{doc} is {actual} bytes with configured budget {budget}. Before task "
+        f"actions, read {doc} from line {first_truncated_line} through EOF once; "
+        "that line may overlap the auto-loaded prefix. Do not rewrite the file.]"
+    )
+    return CodexProjectDocPreflight(
+        str(doc), actual, budget, first_truncated_line,
+        instruction=instruction, diagnostic=diagnostic,
+    )
 
 
 _SKILL_INDEX_HEADER = """## Available skills (progressive loading)

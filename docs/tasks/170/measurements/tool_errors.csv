@@ -1,0 +1,17 @@
+id,ts_utc,tool,category,error_bytes,runtime
+526,2026-08-09 07:44:43,Bash,missing_path,94,codex
+527,2026-08-09 07:45:05,Bash,other_stderr,271,codex
+529,2026-08-09 07:54:11,Bash,shell_syntax,69,codex
+530,2026-08-09 08:42:27,Bash,python_exception,89,codex
+531,2026-08-09 08:42:47,Bash,other_stderr,798,codex
+538,2026-08-09 09:50:41,Bash,other_stderr,26,codex
+539,2026-08-09 10:41:12,Bash,test_failure,1513,codex
+540,2026-08-09 10:44:03,Bash,test_failure,4017,codex
+541,2026-08-09 10:46:10,Bash,diff_check,1753,codex
+542,2026-08-09 11:17:10,Bash,test_failure,1454,codex
+543,2026-08-09 11:24:37,Bash,test_failure,3859,codex
+544,2026-08-09 11:25:05,Bash,test_failure,1983,codex
+545,2026-08-09 11:25:21,Bash,test_failure,2725,codex
+546,2026-08-09 11:32:18,Bash,test_failure,2425,codex
+548,2026-08-09 11:44:36,Bash,test_failure,1797,codex
+550,2026-08-09 11:56:28,Bash,other_stderr,1314,codex

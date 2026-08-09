@@ -1,0 +1,12 @@
+{
+  "candidate": null,
+  "baseline_runs": [],
+  "candidate_runs": [],
+  "collection_status": "external Sol execution unavailable without bypassing the readiness gate; Claude forbidden by task",
+  "historical_baseline": {
+    "repeated_read_actions": 193,
+    "tool_result_bytes": 2340000,
+    "large_results_gte_16k": 39,
+    "explicit_poll_wall_s": 31.06
+  }
+}

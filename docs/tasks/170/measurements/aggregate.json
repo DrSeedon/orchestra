@@ -1,0 +1,301 @@
+{
+  "background_reviews": {
+    "completed": 20,
+    "duration_s": {
+      "max": 1012.153503,
+      "n": 20,
+      "p50": 54.503282,
+      "p95": 918.95129,
+      "sum": 2917.47155
+    },
+    "failed": 1,
+    "fresh_codex_sessions": 21,
+    "jobs": 21
+  },
+  "codex_review_cutover": {
+    "counts": {
+      "after_cutover:blocked_legacy_readiness": 5,
+      "before_cutover:job_started": 14
+    },
+    "cutover_utc": "2026-08-08T12:54:46+00:00"
+  },
+  "context": {
+    "compaction_duration_s": {
+      "max": 128.514068,
+      "n": 5,
+      "p50": 81.667254,
+      "p95": 128.514068,
+      "sum": 401.905931
+    },
+    "compactions": 5,
+    "precompact_cancelled": 19,
+    "precompact_scheduled": 20
+  },
+  "delivery_ms": {
+    "new_turn_trigger:background_job": {
+      "max": 86.406,
+      "n": 20,
+      "p50": 50.4245,
+      "p95": 83.548,
+      "sum": 1109.668
+    },
+    "new_turn_trigger:seedon_orchestrator": {
+      "max": 1696.473,
+      "n": 6,
+      "p50": 71.759,
+      "p95": 1696.473,
+      "sum": 2013.632
+    },
+    "steered:background_job": {
+      "max": 11712.374,
+      "n": 1,
+      "p50": 11712.374,
+      "p95": 11712.374,
+      "sum": 11712.374
+    },
+    "steered:seedon_orchestrator": {
+      "max": 295573.795,
+      "n": 6,
+      "p50": 68771.005,
+      "p95": 295573.795,
+      "sum": 593779.934
+    },
+    "steered:user_direct": {
+      "max": 5837.959,
+      "n": 1,
+      "p50": 5837.959,
+      "p95": 5837.959,
+      "sum": 5837.959
+    }
+  },
+  "errors": {
+    "tool_errors": {
+      "diff_check": 1,
+      "missing_path": 1,
+      "other_stderr": 4,
+      "python_exception": 1,
+      "shell_syntax": 1,
+      "test_failure": 8
+    },
+    "warnings": {
+      "bubblewrap_system_missing_bundled_fallback": 1,
+      "mcp_cancelled": 1,
+      "precompact_cancelled": 19
+    }
+  },
+  "evidence_cutoff_utc": "2026-08-09T13:54:49.350+00:00",
+  "mcp": {
+    "by_tool_duration_s": {
+      "bg_create": {
+        "max": 0.396194,
+        "n": 21,
+        "p50": 0.233564,
+        "p95": 0.369367,
+        "sum": 5.369922
+      },
+      "bg_list": {
+        "max": 0.138507,
+        "n": 1,
+        "p50": 0.138507,
+        "p95": 0.138507,
+        "sum": 0.138507
+      },
+      "codex_review": {
+        "max": 0.075774,
+        "n": 3,
+        "p50": 0.073924,
+        "p95": 0.075774,
+        "sum": 0.221152
+      },
+      "list_agents": {
+        "max": 0.136828,
+        "n": 1,
+        "p50": 0.136828,
+        "p95": 0.136828,
+        "sum": 0.136828
+      },
+      "search_memory": {
+        "max": 1.942226,
+        "n": 8,
+        "p50": 0.8974,
+        "p95": 1.942226,
+        "sum": 7.827741
+      },
+      "send_message": {
+        "max": 0.124145,
+        "n": 8,
+        "p50": 0.071353,
+        "p95": 0.124145,
+        "sum": 0.60308
+      }
+    },
+    "calls": 42,
+    "duration_s": {
+      "max": 1.942226,
+      "n": 42,
+      "p50": 0.221795,
+      "p95": 0.977142,
+      "sum": 14.29723
+    },
+    "errors": 0
+  },
+  "payloads": {
+    "db_log_content_bytes": 3710133,
+    "db_log_rows": 1386,
+    "read_actions": 193,
+    "tool_result_bytes": 2341954,
+    "tool_results_ge_16k": 39,
+    "tool_results_ge_16k_bytes": 1295215,
+    "unique_read_paths": 67
+  },
+  "session": {
+    "backend": "codex",
+    "branch": "adhoc-1786266809-4/feat-groom-demo",
+    "cli_version": "0.146.0",
+    "context_pct": 82,
+    "context_tokens": 213661,
+    "cost_usd": 68.37410899999999,
+    "created_at": "2026-08-09T07:31:10.215125+00:00",
+    "cwd": "/home/kesha/orchestra/worktrees/home-kesha-projects-seedon/feat-groom-demo",
+    "effort": "xhigh",
+    "id": "313c5206-05fe-4a02-b9ba-0928eed88a98",
+    "model": "gpt-5.6-sol",
+    "model_context_window": 258400,
+    "name": "feat-groom-demo",
+    "role": "full-cycle",
+    "rollout_bytes": 12510869,
+    "rollout_file": "rollout-2026-08-09T09-31-21-019fe56e-f44f-73a3-b92c-48b6ebde1dbc.jsonl",
+    "rollout_lines": 3198,
+    "scope": "/home/kesha/projects/seedon",
+    "status": "archived",
+    "system_prompt_chars": 39607,
+    "total_cache_read_tokens": 90345088,
+    "total_input_tokens": 92517835,
+    "total_output_tokens": 411261
+  },
+  "snapshot_utc": "2026-08-09T14:39:35+00:00",
+  "tools": {
+    "calls": 598,
+    "category_duration_s": {
+      "browser": {
+        "max": 7.224,
+        "n": 15,
+        "p50": 1.408,
+        "p95": 7.224,
+        "sum": 43.949
+      },
+      "file_change": {
+        "max": 6.558,
+        "n": 193,
+        "p50": 0.128,
+        "p95": 0.237,
+        "sum": 37.694
+      },
+      "mcp_wrapper": {
+        "max": 5.02,
+        "n": 42,
+        "p50": 0.352,
+        "p95": 1.206,
+        "sum": 24.645
+      },
+      "native_subagent": {
+        "max": 1.868,
+        "n": 10,
+        "p50": 0.2725,
+        "p95": 1.868,
+        "sum": 6.886
+      },
+      "network": {
+        "max": 0.688,
+        "n": 3,
+        "p50": 0.318,
+        "p95": 0.688,
+        "sum": 1.26
+      },
+      "other_exec": {
+        "max": 4.018,
+        "n": 23,
+        "p50": 0.532,
+        "p95": 3.585,
+        "sum": 23.359
+      },
+      "read_search_git": {
+        "max": 10.246,
+        "n": 189,
+        "p50": 0.176,
+        "p95": 0.477,
+        "sum": 82.485
+      },
+      "shell_other": {
+        "max": 4.705,
+        "n": 28,
+        "p50": 0.276,
+        "p95": 4.617,
+        "sum": 29.231
+      },
+      "test": {
+        "max": 11.099,
+        "n": 48,
+        "p50": 10.823,
+        "p95": 11.094,
+        "sum": 366.598
+      },
+      "test_poll": {
+        "max": 11.1,
+        "n": 11,
+        "p50": 0.219,
+        "p95": 11.1,
+        "sum": 31.055
+      },
+      "tool_discovery": {
+        "max": 0.135,
+        "n": 11,
+        "p50": 0.087,
+        "p95": 0.135,
+        "sum": 0.988
+      },
+      "wait_resume": {
+        "max": 17.017,
+        "n": 25,
+        "p50": 7.507,
+        "p95": 16.668,
+        "sum": 193.767
+      }
+    }
+  },
+  "turns": {
+    "active_wall_s": 18736.803,
+    "completed": 26,
+    "duration_output_token_pearson": 0.944351,
+    "duration_s": {
+      "max": 5207.222,
+      "n": 26,
+      "p50": 102.9225,
+      "p95": 3009.467,
+      "sum": 18736.803
+    },
+    "effective_tool_share_pct": 5.185,
+    "effective_tool_union_s": 971.505,
+    "incomplete": 0,
+    "ok_count": 26,
+    "output_tokens_per_active_second": 21.949369,
+    "residual_share_pct": 94.815,
+    "started": 26,
+    "tool_blocked_union_s": 841.917,
+    "ttft_s": {
+      "max": 52.145,
+      "n": 26,
+      "p50": 5.8585,
+      "p95": 23.232,
+      "sum": 257.219
+    }
+  },
+  "wall_clock": {
+    "active_turn_union_s": 18736.728,
+    "completed_review_union_s": 2917.47155,
+    "first_turn_start_to_last_end_s": 23006.459,
+    "inactive_s": 4269.731,
+    "review_outside_active_s": 2578.729602,
+    "review_overlap_with_active_s": 338.741948
+  }
+}

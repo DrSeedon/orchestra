@@ -16,8 +16,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from app.events import AgentEvent
 from app.models import backend_for_model, get_model_spec
 from app.prompting import (
-    inject_skills_to_worktree, is_orchestrator_role, prompt_template_hash,
-    refresh_worker_memory,
+    codex_project_doc_preflight, inject_skills_to_worktree,
+    inject_skills_to_worktree_report, is_orchestrator_role,
+    prompt_template_hash, refresh_worker_memory,
 )
 from app.quota_gate import QuotaGateError
 from app.runtime_registry import (
@@ -388,6 +389,9 @@ class AgentSession:
     _precompact_timer: dict | None = field(default=None, repr=False)
     # Одна строка в журнал на сессию: решение принимается каждый ход, а причина не меняется.
     _auto_compact_off_logged: bool = field(default=False, repr=False)
+    _codex_skill_index_fallback: bool = field(default=False, repr=False)
+    _codex_project_doc_instruction: str = field(default="", repr=False)
+    _codex_preflight_signatures: set[str] = field(default_factory=set, repr=False)
 
     AUTO_CONTINUE_MAX = 5
     RATE_LIMIT_MAX_RETRIES = 3
@@ -680,11 +684,15 @@ class AgentSession:
 
     def _make_backend(self, force_fresh: bool = False):
         spec = get_model_spec(self.model)
+        system_prompt = self.system_prompt
+        project_doc_instruction = getattr(self, "_codex_project_doc_instruction", "")
+        if self.backend_type == "codex" and project_doc_instruction:
+            system_prompt = f"{system_prompt}\n\n{project_doc_instruction}"
         context = BackendBuildContext(
             model=self.model,
             provider=spec.provider,
             cwd=self.cwd,
-            system_prompt=self.system_prompt,
+            system_prompt=system_prompt,
             resume_session_id=None if force_fresh else self.session_id,
             mcp_servers=self.mcp_servers,
             is_orchestrator=self.is_orchestrator,
@@ -694,6 +702,10 @@ class AgentSession:
             profile=self.profile,
             effort=self.effort,
             context_limit=spec.context_length,
+            codex_skill_index_fallback=(
+                self.backend_type == "codex"
+                and getattr(self, "_codex_skill_index_fallback", False)
+            ),
         )
         return build_backend(self.backend_type, context)
 
@@ -1026,16 +1038,64 @@ class AgentSession:
         path = self.worktree_path or self.cwd
         if not path:
             return
+        if self.backend_type == "codex":
+            self._codex_skill_index_fallback = False
         try:
             from app.pipeline import get_role
             role = get_role(self.pipeline, self.role)
             skills = role.skills if role else None
-            # "all" means the CLI discovers skills itself — nothing to copy.
-            if not skills or skills == "all":
+            if not skills:
                 return
-            await asyncio.to_thread(inject_skills_to_worktree, skills, path, home_dir)
+            if self.backend_type == "codex":
+                requested_skills = [] if skills == "all" else skills
+                result = await asyncio.to_thread(
+                    inject_skills_to_worktree_report,
+                    requested_skills, path, home_dir,
+                )
+                if result.home_path_is_file:
+                    self._codex_skill_index_fallback = True
+                    ownership = "tracked repo file" if result.home_path_tracked else "existing file"
+                    self._log_codex_preflight_once(
+                        "skill-home-file",
+                        f"Codex skill injection unavailable: {result.home_path} is an "
+                        f"{ownership}; file left untouched, bounded prompt skill fallback enabled.",
+                    )
+                # "all" means native CLI discovery; the report call above is only
+                # the home-path guard needed to decide whether that discovery exists.
+            else:
+                if skills == "all":
+                    return
+                await asyncio.to_thread(
+                    inject_skills_to_worktree, skills, path, home_dir,
+                )
         except Exception as e:
             logger.warning(f"[{self.name}] skill refresh failed: {e}")
+
+    def _log_codex_preflight_once(self, signature: str, message: str) -> None:
+        seen = getattr(self, "_codex_preflight_signatures", None)
+        if seen is None:
+            seen = set()
+            self._codex_preflight_signatures = seen
+        if signature in seen:
+            return
+        seen.add(signature)
+        self._log("warning", message)
+
+    async def _refresh_codex_project_doc(self) -> None:
+        self._codex_project_doc_instruction = ""
+        if self.backend_type != "codex":
+            return
+        path = self.worktree_path or self.cwd
+        if not path:
+            return
+        result = await asyncio.to_thread(codex_project_doc_preflight, path)
+        if result.diagnostic:
+            self._log_codex_preflight_once(
+                f"project-doc:{result.path}:{result.actual_bytes}:{result.budget_bytes}",
+                result.diagnostic,
+            )
+        if result.instruction:
+            self._codex_project_doc_instruction = result.instruction
     async def _apply_pending_identity_restart(self) -> bool:
         """Погасить бэкенд, если имя сменилось, — но только на ГРАНИЦЕ хода.
 
@@ -1065,6 +1125,7 @@ class AgentSession:
             except Exception as e:
                 logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
         await self._refresh_skills()
+        await self._refresh_codex_project_doc()
         self._backend = self._make_backend(force_fresh=force_fresh)
         candidate = self._backend
         try:

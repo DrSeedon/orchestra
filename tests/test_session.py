@@ -2284,6 +2284,87 @@ class TestRateLimitClassification:
         session._spawn_bg = capture
         return spawned
 
+    @pytest.mark.asyncio
+    async def test_codex_turn_end_uses_only_codex_quota_windows(
+        self, session, monkeypatch,
+    ):
+        from app.events import AgentEvent
+        from app.routes import system
+
+        sampled_at = 2_000_000_000.0
+        monkeypatch.setattr(system, "_usage_cache", {
+            "data": {
+                "five_hour": {"utilization": 88},
+                "seven_day": {"utilization": 100},
+            },
+            "ts": sampled_at,
+            "token": None,
+        })
+        monkeypatch.setattr(system, "_codex_usage_cache", {
+            "data": {
+                "primary": {"utilization": 33, "window_minutes": 300},
+                "secondary": {"utilization": 44, "window_minutes": 10080},
+            },
+            "ts": sampled_at,
+        })
+        monkeypatch.setattr("app.session_turns.time.time", lambda: sampled_at + 1)
+        logs = []
+        session.backend_type = "codex"
+        session.model = "gpt-5.6-sol"
+        session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+        session._spawn_bg = lambda coro: coro.close()
+        session._hibernate.schedule = MagicMock()
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+        }))
+        await session._drain_persist()
+
+        ended = next(content for kind, content in logs if kind == "status" and "turn ended" in content)
+        assert "Codex 5h:33%" in ended
+        assert "Codex 7d:44%" in ended
+        assert "88%" not in ended
+        assert "100%" not in ended
+
+    @pytest.mark.asyncio
+    async def test_turn_end_persists_and_logs_one_selected_quota_snapshot(
+        self, session, monkeypatch,
+    ):
+        from app.events import AgentEvent
+
+        snapshot = {
+            "state": {
+                "quota_five_hour_pct": None,
+                "quota_seven_day_pct": None,
+                "quota_primary_pct": 33,
+                "quota_sampled_at": "2033-05-18T03:33:20+00:00",
+            },
+            "display": (("Codex 5h", {"utilization": 33}),),
+        }
+        selected = MagicMock(return_value=snapshot)
+        add_usage = MagicMock(return_value=True)
+        monkeypatch.setattr("app.session_turns._cached_quota_snapshot", selected)
+        monkeypatch.setattr("app.session_turns.turn_usage_add", add_usage)
+        logs = []
+        session.backend_type = "codex"
+        session.model = "gpt-5.6-sol"
+        session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+        session._spawn_bg = lambda coro: coro.close()
+        session._hibernate.schedule = MagicMock()
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "event_id": "quota-snapshot-turn",
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+        }))
+        if session._log_futures:
+            await asyncio.gather(*tuple(session._log_futures), return_exceptions=True)
+        await session._drain_persist()
+
+        selected.assert_called_once_with("codex", "gpt-5.6-sol")
+        assert add_usage.call_args.kwargs["quota_primary_pct"] == 33
+        ended = next(content for kind, content in logs if kind == "status" and "turn ended" in content)
+        assert "Codex 5h:33%" in ended
+
     def test_monthly_spend_limit_is_terminal_and_never_retried(self, session):
         from app.events import AgentEvent
         spawned = self._capture_coroutines(session)
@@ -2358,12 +2439,15 @@ class TestRateLimitClassification:
         add_usage = MagicMock(return_value=True)
         monkeypatch.setattr("app.session_turns.turn_usage_add", add_usage)
         monkeypatch.setattr(
-            "app.session_turns._cached_quota_state",
+            "app.session_turns._cached_quota_snapshot",
             lambda runtime, model: {
-                "quota_five_hour_pct": 12.5,
-                "quota_seven_day_pct": 41,
-                "quota_primary_pct": None,
-                "quota_sampled_at": "2026-07-29T08:00:00+00:00",
+                "state": {
+                    "quota_five_hour_pct": 12.5,
+                    "quota_seven_day_pct": 41,
+                    "quota_primary_pct": None,
+                    "quota_sampled_at": "2026-07-29T08:00:00+00:00",
+                },
+                "display": (),
             },
         )
         self._capture_coroutines(session)
@@ -2835,6 +2919,30 @@ class TestFlushPendingDefersDuringCompact:
 
 
 class TestEnsureBackendForceFresh:
+    @pytest.mark.asyncio
+    async def test_codex_preflights_finish_before_backend_is_built_and_connected(
+        self, session,
+    ):
+        order = []
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=lambda: order.append("connect")),
+            has_owned_processes=False,
+        )
+        session.backend_type = "codex"
+        session._refresh_skills = AsyncMock(side_effect=lambda: order.append("skills"))
+        session._refresh_codex_project_doc = AsyncMock(
+            side_effect=lambda: order.append("project-doc"),
+        )
+        session._make_backend = MagicMock(
+            side_effect=lambda **_kwargs: order.append("build") or backend,
+        )
+        session._hibernate.heartbeat_loop = AsyncMock()
+
+        result = await session._ensure_backend()
+
+        assert result is backend
+        assert order == ["skills", "project-doc", "build", "connect"]
+
     @pytest.mark.asyncio
     async def test_force_fresh_rebuilds_existing_backend(self, session):
         # Codex diff #P1: _ensure_backend(force_fresh=True) must rebuild even

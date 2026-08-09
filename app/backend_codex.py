@@ -346,10 +346,9 @@ class CodexBackend(JsonRpcStdioTransport):
         self._last_stderr = ""
         codex_cmd = [CODEX_BIN]
         codex_cmd += ["-c", f"model_reasoning_effort={self._toml_str(self.reasoning_effort)}"]
-        if self._is_orchestrator:
-            # Match Claude: an Orchestra orchestrator delegates through tracked
-            # worktree workers, not invisible native subagents in its own checkout.
-            codex_cmd += ["-c", "features.multi_agent=false"]
+        # Every CodexBackend here is Orchestra-managed. Delegation must use the tracked
+        # Orchestra spawn_worker path, never invisible native agents in this checkout.
+        codex_cmd += ["-c", "features.multi_agent=false"]
         # Managed workers are research/implementation agents, so expose current web
         # results explicitly instead of inheriting a user's cached/disabled setting.
         codex_cmd += ["-c", 'web_search="live"']

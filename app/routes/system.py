@@ -1197,13 +1197,13 @@ async def wake_after_reset_endpoint():
 @router.get("/api/usage/readiness")
 async def usage_readiness(model: str):
     """Return the same weekly worker admission decision used at execution time."""
-    from app.quota_gate import get_worker_admission
+    from app.quota_gate import get_worker_admission, worker_readiness_envelope
 
     decision = await get_worker_admission(
         model,
         observation_loader=current_quota_observation,
     )
-    return {"policy": "worker-weekly-v1", **decision.to_dict()}
+    return worker_readiness_envelope(decision)
 
 
 # ── Misc ──

@@ -6,6 +6,7 @@ from app.quota_gate import (
     QuotaGateError,
     evaluate_worker_admission,
     require_worker_admission,
+    worker_readiness_envelope,
 )
 
 
@@ -54,6 +55,56 @@ def test_exact_weekly_threshold_for_each_bucket(model, bucket):
     decision = evaluate_worker_admission(model, providers, observed, now=NOW)
     assert decision.state == "blocked"
     assert decision.weekly_utilization == 95
+
+
+def test_dual_envelope_preserves_exact_threshold_for_legacy_and_new_clients():
+    providers, observed = _snapshot(codex=94.999)
+    allowed = worker_readiness_envelope(
+        evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW),
+        now=NOW,
+    )
+    assert allowed["decision_state"] == "available"
+    assert allowed["state"] == "available"
+    assert allowed["wire_version"] == 2
+
+    providers["codex"] = _provider("Codex", 95)
+    blocked = worker_readiness_envelope(
+        evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW),
+        now=NOW,
+    )
+    assert blocked["decision_state"] == "blocked"
+    assert blocked["state"] == "reset"
+    assert blocked["decision_reset_at"] == "2033-05-18T04:33:20+00:00"
+    assert blocked["reset_at"] == blocked["decision_reset_at"]
+
+
+def test_dual_envelope_unknown_gets_only_synthetic_legacy_retry():
+    providers, observed = _snapshot()
+    observed["codex"] = None
+    decision = evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW)
+
+    payload = worker_readiness_envelope(decision, now=NOW)
+
+    assert payload["decision_state"] == "unknown"
+    assert payload["state"] == "reset"
+    assert payload["decision_reset_at"] is None
+    expected = datetime.fromtimestamp(
+        NOW + 60, timezone.utc,
+    ).isoformat()
+    assert payload["reset_at"] == expected
+
+
+def test_dual_envelope_not_applicable_has_no_synthetic_timestamps():
+    decision = evaluate_worker_admission("grok-4.5", {}, {}, now=NOW)
+
+    payload = worker_readiness_envelope(decision, now=NOW)
+
+    assert payload["decision_state"] == "not_applicable"
+    assert payload["state"] == "available"
+    assert payload["observed_at"] is None
+    assert payload["valid_until"] is None
+    assert payload["decision_reset_at"] is None
+    assert payload["reset_at"] is None
 
 
 def test_short_window_does_not_block_weekly_headroom():

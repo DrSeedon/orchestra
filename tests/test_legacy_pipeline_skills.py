@@ -9,6 +9,8 @@ _load_from_db: строка 1357 нормализовала '' → 'default' (и
 а конструктор AgentSession получал сырой db_row (''), и _refresh_skills падал.
 """
 
+import subprocess
+
 import pytest
 
 from app.pipeline import DEFAULT_PIPELINE, get_role
@@ -79,3 +81,79 @@ async def test_empty_pipeline_would_inject_nothing(monkeypatch, tmp_path):
     await session._refresh_skills()  # проглатывает FileNotFoundError в warning
 
     assert injected == []
+
+
+@pytest.mark.asyncio
+async def test_tracked_codex_file_enables_visible_prompt_fallback(tmp_path):
+    from app.session import AgentSession
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+    (repo / ".codex").write_bytes(b"repo-owned\x00codex")
+    subprocess.run(["git", "add", ".codex"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "tracked codex file"], cwd=repo, check=True)
+    before = (repo / ".codex").read_bytes()
+    logs = []
+    session = AgentSession(
+        id="codex-file", name="codex-file", scope=str(repo), cwd=str(repo),
+        model="gpt-5.6-sol", system_prompt="BASE", backend_type="codex",
+        worktree_path=str(repo), pipeline="default", role="full-cycle",
+    )
+    session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+
+    await session._refresh_skills()
+    await session._refresh_skills()
+
+    assert session._codex_skill_index_fallback is True
+    fallback_logs = [
+        content for _, content in logs if ".codex" in content and "fallback" in content
+    ]
+    assert len(fallback_logs) == 1
+    backend = session._make_backend()
+    assert backend.system_prompt.count("## Available skills (progressive loading)") == 1
+    assert backend.system_prompt.count("- `codex-debate`") == 1
+    assert len(backend.system_prompt) < 16_100
+    assert (repo / ".codex").read_bytes() == before
+    status = subprocess.run(
+        ["git", "status", "--short"], cwd=repo, capture_output=True, text=True,
+    ).stdout
+    assert status == ""
+
+
+@pytest.mark.asyncio
+async def test_oversized_agents_warning_and_instruction_are_once_per_backend_prompt(
+    tmp_path, monkeypatch,
+):
+    from app.session import AgentSession
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "AGENTS.md").write_text("first\nsecond is omitted\n", encoding="utf-8")
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    (codex_home / "config.toml").write_text(
+        "project_doc_max_bytes = 6\n", encoding="utf-8",
+    )
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+    logs = []
+    session = AgentSession(
+        id="oversized-doc", name="oversized-doc", scope=str(repo), cwd=str(repo),
+        model="gpt-5.6-sol", system_prompt="BASE", backend_type="codex",
+        worktree_path=str(repo), pipeline="default", role="worker",
+    )
+    session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+
+    await session._refresh_codex_project_doc()
+    first = session._make_backend().system_prompt
+    await session._refresh_codex_project_doc()
+    second = session._make_backend().system_prompt
+
+    assert first.count("[Orchestra project-doc warning:") == 1
+    assert second.count("[Orchestra project-doc warning:") == 1
+    assert "from line 2 through EOF once" in first
+    warnings = [content for _, content in logs if "project doc exceeds" in content]
+    assert len(warnings) == 1
+    assert (repo / "AGENTS.md").read_text(encoding="utf-8") == "first\nsecond is omitted\n"

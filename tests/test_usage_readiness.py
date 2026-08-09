@@ -192,8 +192,12 @@ async def test_readiness_endpoint_exposes_worker_weekly_policy(isolated_usage):
     system._usage_cache.update({"data": _anthropic(95), "ts": NOW})
     result = await system.usage_readiness("claude-opus-5[1m]")
     assert result["policy"] == "worker-weekly-v1"
+    assert result["wire_version"] == 2
     assert result["provider"] == "anthropic"
-    assert result["state"] == "blocked"
+    assert result["decision_state"] == "blocked"
+    assert result["state"] == "reset"
+    assert result["decision_reset_at"] is None
+    assert result["reset_at"] is not None
     assert result["threshold"] == 95
 
 
@@ -205,4 +209,5 @@ async def test_unknown_model_endpoint_fails_closed_without_refresh(isolated_usag
     monkeypatch.setattr(system, "current_quota_observation", fail)
     result = await system.usage_readiness("future-unknown-model")
     assert result["policy"] == "worker-weekly-v1"
-    assert result["state"] == "unknown"
+    assert result["decision_state"] == "unknown"
+    assert result["state"] == "reset"

@@ -16,6 +16,9 @@ WEEKLY_WINDOW_MINUTES = 10080
 WORKER_WEEKLY_LIMIT_PCT = 95.0
 QUOTA_OBSERVATION_MAX_AGE = 300.0
 SPARK_MODEL = "gpt-5.3-codex-spark"
+READINESS_POLICY = "worker-weekly-v1"
+READINESS_WIRE_VERSION = 2
+LEGACY_QUOTA_RECHECK_SECONDS = 60.0
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,44 @@ class QuotaDecision:
             "alternatives": [dict(item) for item in self.alternatives],
             "reason": self.reason,
         }
+
+
+def worker_readiness_envelope(
+    decision: QuotaDecision,
+    *,
+    now: float | None = None,
+) -> dict:
+    """Serialize one decision for both strict and pre-v1 MCP clients.
+
+    The old client only blocks ``state=reset`` with a parseable reset timestamp.
+    Canonical fields stay separate so a compatibility retry timestamp can never
+    masquerade as the provider's real reset or as a fresh observation.
+    """
+    checked_at = time.time() if now is None else float(now)
+    canonical = decision.to_dict()
+    decision_state = canonical.pop("state")
+    decision_reset_at = canonical.pop("reset_at")
+    legacy_allowed = decision_state in {"available", "not_applicable"}
+    legacy_reset_at = None
+    if not legacy_allowed:
+        future_reset = _future_reset(decision_reset_at, checked_at)
+        legacy_reset_at = (
+            future_reset[1]
+            if future_reset is not None
+            else datetime.fromtimestamp(
+                checked_at + LEGACY_QUOTA_RECHECK_SECONDS,
+                timezone.utc,
+            ).isoformat()
+        )
+    return {
+        "policy": READINESS_POLICY,
+        "wire_version": READINESS_WIRE_VERSION,
+        **canonical,
+        "decision_state": decision_state,
+        "state": "available" if legacy_allowed else "reset",
+        "decision_reset_at": decision_reset_at,
+        "reset_at": legacy_reset_at,
+    }
 
 
 class QuotaGateError(RuntimeError):

@@ -65,52 +65,6 @@ def _rewind_past_safeguard_refusal(s: "AgentSession") -> str:
     return f"{dropped}"
 
 
-def _format_limits() -> str:
-    """Format current 5h/7d usage limits from cached usage data for turn-ended log."""
-    try:
-        from app.routes.system import _usage_cache
-        data = _usage_cache.get("data")
-        if not data:
-            return ""
-        parts = []
-        fh = data.get("five_hour") or {}
-        sd = data.get("seven_day") or {}
-        fh_pct = fh.get("utilization")
-        sd_pct = sd.get("utilization")
-        if fh_pct is not None:
-            fh_reset = fh.get("resets_at", "")
-            reset_s = ""
-            if fh_reset:
-                from datetime import datetime, timezone
-                try:
-                    dt = datetime.fromisoformat(fh_reset)
-                    remaining = (dt - datetime.now(timezone.utc)).total_seconds()
-                    if remaining > 0:
-                        h, m = divmod(int(remaining) // 60, 60)
-                        reset_s = f" reset {h}h{m:02d}m"
-                except Exception as e:
-                    # Метрика, которая молча теряет часть себя, хуже отсутствующей.
-                    logger.debug(f"5h resets_at unparsable ({fh_reset!r}): {type(e).__name__}: {e}")
-            parts.append(f"5h:{fh_pct:.0f}%{reset_s}")
-        if sd_pct is not None:
-            sd_reset = sd.get("resets_at", "")
-            reset_s = ""
-            if sd_reset:
-                from datetime import datetime, timezone
-                try:
-                    dt = datetime.fromisoformat(sd_reset)
-                    remaining = (dt - datetime.now(timezone.utc)).total_seconds()
-                    if remaining > 0:
-                        d, rem = divmod(int(remaining), 86400)
-                        h = rem // 3600
-                        reset_s = f" reset {d}d{h}h" if d else f" reset {h}h"
-                except Exception as e:
-                    logger.debug(f"7d resets_at unparsable ({sd_reset!r}): {type(e).__name__}: {e}")
-            parts.append(f"7d:{sd_pct:.0f}%{reset_s}")
-        return " | " + " ".join(parts) if parts else ""
-    except Exception:
-        return ""
-
 logger = logging.getLogger("app.session")
 
 
@@ -123,42 +77,82 @@ def _unknown_quota_state() -> dict:
     }
 
 
-def _cached_quota_state(
+def _unknown_quota_snapshot() -> dict:
+    return {"state": _unknown_quota_state(), "display": ()}
+
+
+def _window_label(provider: str, window: object, fallback: str) -> str:
+    minutes = window.get("window_minutes") if isinstance(window, dict) else None
+    if isinstance(minutes, int) and minutes > 0:
+        if minutes % 1440 == 0:
+            span = f"{minutes // 1440}d"
+        elif minutes % 60 == 0:
+            span = f"{minutes // 60}h"
+        else:
+            span = f"{minutes}m"
+    else:
+        span = fallback
+    return f"{provider} {span}"
+
+
+def _cached_quota_snapshot(
     runtime: str,
     model: str,
     *,
     now: float | None = None,
 ) -> dict:
+    """Select one fresh runtime cache for both DB columns and turn-end text."""
     from app.routes import system
 
     if runtime in {"claude", "anthropic"}:
         cache = system._usage_cache
         data = cache.get("data")
+        if not isinstance(data, dict):
+            return _unknown_quota_snapshot()
+        five_hour = data.get("five_hour")
+        seven_day = data.get("seven_day")
         windows = {
-            "quota_five_hour_pct": (data or {}).get("five_hour"),
-            "quota_seven_day_pct": (data or {}).get("seven_day"),
+            "quota_five_hour_pct": five_hour,
+            "quota_seven_day_pct": seven_day,
             "quota_primary_pct": None,
         }
+        display = (("Claude 5h", five_hour), ("Claude 7d", seven_day))
     elif runtime in {"codex", "codex_spark"}:
         cache = system._codex_usage_cache
         data = cache.get("data")
-        if runtime == "codex_spark" or model == "gpt-5.3-codex-spark":
-            data = (data or {}).get("spark")
+        if not isinstance(data, dict):
+            return _unknown_quota_snapshot()
+        is_spark = runtime == "codex_spark" or model == "gpt-5.3-codex-spark"
+        if is_spark:
+            data = data.get("spark")
+        if not isinstance(data, dict):
+            return _unknown_quota_snapshot()
+        primary = data.get("primary")
+        secondary = data.get("secondary")
         windows = {
             "quota_five_hour_pct": None,
             "quota_seven_day_pct": None,
-            "quota_primary_pct": (data or {}).get("primary"),
+            "quota_primary_pct": primary,
         }
+        provider = "Spark" if is_spark else "Codex"
+        display = (
+            (_window_label(provider, primary, "primary"), primary),
+            (_window_label(provider, secondary, "secondary"), secondary),
+        )
     elif runtime == "grok":
         cache = system._grok_usage_cache
         data = cache.get("data")
+        if not isinstance(data, dict):
+            return _unknown_quota_snapshot()
+        primary = data.get("primary")
         windows = {
             "quota_five_hour_pct": None,
             "quota_seven_day_pct": None,
-            "quota_primary_pct": (data or {}).get("primary"),
+            "quota_primary_pct": primary,
         }
+        display = ((_window_label("Grok", primary, "primary"), primary),)
     else:
-        return _unknown_quota_state()
+        return _unknown_quota_snapshot()
 
     sampled_ts = cache.get("ts")
     if (
@@ -166,10 +160,11 @@ def _cached_quota_state(
         or not isinstance(sampled_ts, (int, float))
         or not math.isfinite(sampled_ts)
     ):
-        return _unknown_quota_state()
-    age = (time.time() if now is None else now) - sampled_ts
+        return _unknown_quota_snapshot()
+    checked_at = time.time() if now is None else now
+    age = checked_at - sampled_ts
     if not math.isfinite(age) or age < 0 or age >= system._USAGE_CACHE_TTL:
-        return _unknown_quota_state()
+        return _unknown_quota_snapshot()
 
     state = _unknown_quota_state()
     for column, window in windows.items():
@@ -182,14 +177,61 @@ def _cached_quota_state(
         ):
             state[column] = value
     if all(value is None for key, value in state.items() if key != "quota_sampled_at"):
-        return _unknown_quota_state()
+        return _unknown_quota_snapshot()
     try:
         state["quota_sampled_at"] = datetime.fromtimestamp(
             sampled_ts, timezone.utc,
         ).isoformat()
     except (OSError, OverflowError, ValueError):
-        return _unknown_quota_state()
-    return state
+        return _unknown_quota_snapshot()
+    return {"state": state, "display": display}
+
+
+def _cached_quota_state(
+    runtime: str,
+    model: str,
+    *,
+    now: float | None = None,
+) -> dict:
+    return _cached_quota_snapshot(runtime, model, now=now)["state"]
+
+
+def _format_limits(snapshot: dict, *, now: float | None = None) -> str:
+    checked_at = time.time() if now is None else now
+    parts = []
+    for label, window in snapshot.get("display", ()):
+        if not isinstance(window, dict):
+            continue
+        utilization = window.get("utilization")
+        if (
+            isinstance(utilization, bool)
+            or not isinstance(utilization, (int, float))
+            or not math.isfinite(utilization)
+            or not 0 <= utilization <= 100
+        ):
+            continue
+        reset_s = ""
+        reset_at = window.get("resets_at")
+        if reset_at:
+            try:
+                reset = datetime.fromisoformat(str(reset_at).replace("Z", "+00:00"))
+                if reset.tzinfo is None:
+                    raise ValueError("timezone missing")
+                remaining = reset.timestamp() - checked_at
+                if remaining > 0:
+                    if remaining >= 86400:
+                        days, remainder = divmod(int(remaining), 86400)
+                        reset_s = f" reset {days}d{remainder // 3600}h"
+                    else:
+                        hours, minutes = divmod(int(remaining) // 60, 60)
+                        reset_s = f" reset {hours}h{minutes:02d}m"
+            except (OSError, OverflowError, TypeError, ValueError) as error:
+                logger.debug(
+                    "%s resets_at unparsable (%r): %s: %s",
+                    label, reset_at, type(error).__name__, error,
+                )
+        parts.append(f"{label}:{utilization:g}%{reset_s}")
+    return " | " + " ".join(parts) if parts else ""
 
 
 class TurnManager:
@@ -255,15 +297,15 @@ class TurnManager:
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
+        try:
+            quota_snapshot = _cached_quota_snapshot(s.backend_type, s.model)
+        except Exception as error:
+            logger.warning(
+                f"[{s.name}] quota cache read failed: "
+                f"{type(error).__name__}: {error}"
+            )
+            quota_snapshot = _unknown_quota_snapshot()
         if event_id:
-            try:
-                quota_state = _cached_quota_state(s.backend_type, s.model)
-            except Exception as error:
-                logger.warning(
-                    f"[{s.name}] quota cache read failed: "
-                    f"{type(error).__name__}: {error}"
-                )
-                quota_state = _unknown_quota_state()
             s._submit_db_write(
                 turn_usage_add,
                 event_id=event_id,
@@ -279,7 +321,7 @@ class TurnManager:
                 output_tokens=meta.get("output_tokens", 0),
                 cache_read_tokens=meta.get("cache_read", 0),
                 cache_create_tokens=meta.get("cache_create", 0),
-                **quota_state,
+                **quota_snapshot["state"],
             )
         context_known, context_reason = s._cost.update_context_from_turn(
             meta, event.usage,
@@ -391,7 +433,7 @@ class TurnManager:
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
         def _fc(v):
             return f"{v:.4f}" if v < 0.01 and v > 0 else f"{v:.2f}"
-        limits_s = _format_limits()
+        limits_s = _format_limits(quota_snapshot)
         s._log(
             "status",
             f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, "

@@ -283,6 +283,7 @@ async def test_connect_uses_scope_and_preserves_stdio(monkeypatch):
     )
     assert "--" in args
     assert args[-2:] == ("app-server", "--stdio")
+    assert "features.multi_agent=false" in args
     assert kwargs["stdin"] is asyncio.subprocess.PIPE
     assert kwargs["stdout"] is asyncio.subprocess.PIPE
     assert kwargs["env"]["XDG_RUNTIME_DIR"] == "/run/user/1000"

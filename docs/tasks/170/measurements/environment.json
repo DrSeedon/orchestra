@@ -1,0 +1,46 @@
+{
+  "captured_utc": "2026-08-09T14:16:50+00:00",
+  "codex_cli_version": "0.146.0",
+  "codex_config_project_doc_max_bytes": 65536,
+  "initial_prompt_bytes": {
+    "developer_items": 47654,
+    "project_instructions_received": 68043,
+    "task_message": 5573
+  },
+  "live_orchestra": {
+    "active_enter_timestamp": "2026-08-07T14:13:27+02:00",
+    "main_pid_at_capture": 1174196,
+    "nearest_main_commit_at_start": "2ac42531fe942c37094938ccd47d57afd9505d72",
+    "readiness_response": {
+      "provider": "codex",
+      "reason": "provider capacity is open",
+      "reset_at": null,
+      "state": "available"
+    },
+    "journal_oom_kill_events_in_session_interval": 0
+  },
+  "rollout_negative_event_counts": {
+    "lost_turns": 0,
+    "provider_retries": 0,
+    "usage_limit_errors": 0
+  },
+  "quota_client_cutover": {
+    "commit": "8369737085bbd3ec654238024ba7c492a7703512",
+    "merged_utc": "2026-08-08T12:54:46+00:00",
+    "required_policy": "worker-weekly-v1"
+  },
+  "skill_injection": {
+    "codex_directory_state": "tracked_empty_file",
+    "journal_warning": "skill injection skipped: .codex exists and is not a directory"
+  },
+  "standalone_review_incidents": {
+    "invalid_option_attempts": 1,
+    "read_only_bwrap_failures": 1,
+    "bwrap_error": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted"
+  },
+  "system_bwrap_startup": {
+    "bundled_fallback_warnings": 1,
+    "mcp_cancelled_warnings": 1,
+    "subsequent_mcp_transport_errors": 0
+  }
+}

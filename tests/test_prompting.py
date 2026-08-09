@@ -82,7 +82,6 @@ class TestBuildSkillsIndex:
         assert f"`second` — Second skill — `{second.resolve()}`" in result
         assert result.index("`first`") < result.index("`second`")
         assert "FIRST_BODY_MUST_NOT_BE_IN_PROMPT" not in result
-
     def test_duplicate_name_keeps_required_pipeline_entry(self, tmp_path):
         from app.prompting import build_skills_index
 
@@ -156,6 +155,74 @@ class TestBuildSkillsIndex:
         assert "`required`" in result
         assert str(optional.resolve()) not in result
         assert "optional skill" in caplog.text
+
+
+class TestCodexProjectDocPreflight:
+    def _config(self, root: Path, budget: int) -> Path:
+        root.mkdir(parents=True)
+        (root / "config.toml").write_text(
+            f"project_doc_max_bytes = {budget}\n", encoding="utf-8",
+        )
+        return root
+
+    def test_exact_budget_is_not_reported_as_truncated(self, tmp_path):
+        from app.prompting import codex_project_doc_preflight
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "AGENTS.md").write_bytes(b"1234")
+
+        result = codex_project_doc_preflight(
+            str(repo), codex_home=str(self._config(tmp_path / "codex", 4)),
+        )
+
+        assert result.actual_bytes == 4
+        assert result.budget_bytes == 4
+        assert result.first_truncated_line is None
+        assert result.instruction == ""
+
+    def test_multibyte_overflow_reports_first_incomplete_line_and_bounded_fallback(
+        self, tmp_path,
+    ):
+        from app.prompting import codex_project_doc_preflight
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        content = "α\nβ\nγ\n"
+        (repo / "AGENTS.md").write_text(content, encoding="utf-8")
+
+        result = codex_project_doc_preflight(
+            str(repo), codex_home=str(self._config(tmp_path / "codex", 4)),
+        )
+
+        assert result.actual_bytes == len(content.encode("utf-8"))
+        assert result.first_truncated_line == 2
+        assert "4" in result.diagnostic
+        assert "line 2" in result.diagnostic
+        assert "from line 2 through EOF once" in result.instruction
+        assert len(result.instruction) < 600
+        assert (repo / "AGENTS.md").read_text(encoding="utf-8") == content
+
+    def test_malformed_config_diagnoses_unknown_budget_without_claiming_truncation(
+        self, tmp_path,
+    ):
+        from app.prompting import codex_project_doc_preflight
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "AGENTS.md").write_text("large" * 100, encoding="utf-8")
+        codex_home = tmp_path / "codex"
+        codex_home.mkdir()
+        (codex_home / "config.toml").write_text("not = [toml", encoding="utf-8")
+
+        result = codex_project_doc_preflight(
+            str(repo), codex_home=str(codex_home),
+        )
+
+        assert result.budget_bytes is None
+        assert result.first_truncated_line is None
+        assert result.instruction == ""
+        assert "budget unavailable" in result.diagnostic
 
 
 class TestBuildCodexSkillsIndex:

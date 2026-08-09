@@ -15,6 +15,7 @@ import shutil
 import re
 import shlex
 import sys
+import time
 import uuid
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
@@ -543,36 +544,120 @@ def _spawn_delivery_error(
 # Проверено измерением: живой `codex exec` отказал по квоте, когда Spark был на 1% —
 # в Spark-бакет он не ходит. Этой же моделью тул представляется в докстринге.
 _CODEX_REVIEW_MODEL = "gpt-5.6-sol"
+_READINESS_POLICY = "worker-weekly-v1"
+_READINESS_MAX_AGE_SECONDS = 300.0
+_READINESS_CLOCK_SKEW_SECONDS = 5.0
 
 
-async def _quota_refusal(model: str) -> ApiToolError | None:
-    """Consume the central worker-weekly decision; unknown is fail-closed."""
-    def unknown(reason: str, details: dict | None = None) -> ApiToolError:
+def _readiness_timestamp(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        result = float(value)
+    elif isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return None
+        result = parsed.timestamp()
+    else:
+        return None
+    return result if math.isfinite(result) and result > 0 else None
+
+
+def _weekly_quota_unknown(
+    model: str,
+    reason: str,
+    details: dict | None = None,
+) -> ApiToolError:
+    return ApiToolError(
+        code="weekly_quota_unknown",
+        message=(
+            f"New Codex worker turn blocked: weekly quota status for {model} "
+            f"is unavailable or stale ({reason}). Stop/model change remain available."
+        ),
+        retryable=False,
+        details={"model": model, "reason": reason, **(details or {})},
+    )
+
+
+def _readiness_freshness_error(readiness: dict, *, now: float) -> str | None:
+    observed_at = _readiness_timestamp(readiness.get("observed_at"))
+    valid_until = _readiness_timestamp(readiness.get("valid_until"))
+    if observed_at is None or valid_until is None:
+        return "missing or malformed freshness timestamps"
+    if observed_at > now + _READINESS_CLOCK_SKEW_SECONDS:
+        return "observation timestamp is in the future"
+    if valid_until <= now:
+        return "readiness observation has expired"
+    validity = valid_until - observed_at
+    if validity <= 0 or validity > _READINESS_MAX_AGE_SECONDS:
+        return "readiness validity exceeds the 300s policy budget"
+    return None
+
+
+def _quota_refusal_from_readiness(
+    model: str,
+    readiness: object,
+    *,
+    now: float,
+) -> ApiToolError | None:
+    if not isinstance(readiness, dict):
+        return _weekly_quota_unknown(model, "malformed readiness response")
+    if readiness.get("policy") != _READINESS_POLICY:
         return ApiToolError(
-            code="weekly_quota_unknown",
+            code="weekly_quota_upgrade_required",
             message=(
-                f"New Codex worker turn blocked: weekly quota status for {model} "
-                f"is unavailable or stale ({reason}). Stop/model change remain available."
+                "New Codex worker turn blocked: the FastAPI readiness server does not "
+                f"provide {_READINESS_POLICY}. Deploy the compatible FastAPI server "
+                "before this MCP client; stop/model change remain available."
             ),
             retryable=False,
-            details={"model": model, "reason": reason, **(details or {})},
+            details={"model": model, "required_policy": _READINESS_POLICY,
+                     "response": readiness},
         )
-
-    try:
-        readiness = await _api("GET", "/api/usage/readiness", params={"model": model})
-    except Exception as error:
-        return unknown(f"{type(error).__name__}: {err_text(error)}")
-    if not isinstance(readiness, dict):
-        return unknown("malformed readiness response")
-    if readiness.get("policy") != "worker-weekly-v1":
-        return unknown("missing or legacy readiness policy", {"response": readiness})
-    state = readiness.get("state")
-    if state in {"available", "not_applicable"}:
-        return None
+    wire_version = readiness.get("wire_version")
+    if wire_version is None:
+        if "decision_state" in readiness:
+            return _weekly_quota_unknown(
+                model, "decision_state requires readiness wire version 2", readiness,
+            )
+        state = readiness.get("state")
+    elif (
+        isinstance(wire_version, bool)
+        or not isinstance(wire_version, int)
+        or wire_version != 2
+    ):
+        return _weekly_quota_unknown(
+            model, f"unsupported readiness wire version {wire_version!r}", readiness,
+        )
+    else:
+        if "decision_state" not in readiness:
+            return _weekly_quota_unknown(
+                model, "wire version 2 is missing decision_state", readiness,
+            )
+        state = readiness.get("decision_state")
+    if state == "not_applicable":
+        if readiness.get("provider") == "grok" and readiness.get("model") == model:
+            return None
+        return _weekly_quota_unknown(
+            model, "not_applicable does not match the requested runtime", readiness,
+        )
     if state == "unknown":
-        return unknown(str(readiness.get("reason") or "unknown observation"), readiness)
-    if state != "blocked":
-        return unknown(f"unrecognized readiness state {state!r}", readiness)
+        return _weekly_quota_unknown(
+            model, str(readiness.get("reason") or "unknown observation"), readiness,
+        )
+    if state not in {"available", "blocked"}:
+        return _weekly_quota_unknown(
+            model, f"unrecognized readiness state {state!r}", readiness,
+        )
+    freshness_error = _readiness_freshness_error(readiness, now=now)
+    if freshness_error:
+        return _weekly_quota_unknown(model, freshness_error, readiness)
+    if state == "available":
+        return None
     provider = str(readiness.get("provider") or "").strip()
     label = str(readiness.get("provider_label") or provider).strip()
     utilization = readiness.get("weekly_utilization")
@@ -584,7 +669,9 @@ async def _quota_refusal(model: str) -> ApiToolError | None:
         or not isinstance(threshold, (int, float))
         or isinstance(threshold, bool)
     ):
-        return unknown("blocked response is missing provider/utilization", readiness)
+        return _weekly_quota_unknown(
+            model, "blocked response is missing provider/utilization", readiness,
+        )
     alternatives = readiness.get("alternatives")
     alternative_labels = [
         str(item.get("label")) for item in alternatives or []
@@ -604,6 +691,19 @@ async def _quota_refusal(model: str) -> ApiToolError | None:
         ),
         retryable=False,
         details={"model": model, **readiness},
+    )
+
+
+async def _quota_refusal(model: str) -> ApiToolError | None:
+    """Consume the central worker-weekly decision; unknown is fail-closed."""
+    try:
+        readiness = await _api("GET", "/api/usage/readiness", params={"model": model})
+    except Exception as error:
+        return _weekly_quota_unknown(
+            model, f"{type(error).__name__}: {err_text(error)}",
+        )
+    return _quota_refusal_from_readiness(
+        model, readiness, now=time.time(),
     )
 
 

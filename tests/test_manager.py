@@ -1066,9 +1066,17 @@ class TestCodexSkillHome:
         `.codex`. Without this guard `mkdir -p` fails once per skill on every connect — the
         count is 0 either way, so the assertion is on the noise, not just the result."""
         import logging
-        from app.prompting import inject_skills_to_worktree
+        import subprocess
+        from app.prompting import (
+            inject_skills_to_worktree, inject_skills_to_worktree_report,
+        )
         wt = _git_repo(tmp_path)
         (wt / ".codex").write_text("")
+        subprocess.run(["git", "add", ".codex"], cwd=wt, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "tracked codex file"],
+            cwd=wt, capture_output=True, check=True,
+        )
 
         with caplog.at_level(logging.WARNING, logger="app.prompting"):
             written = inject_skills_to_worktree(
@@ -1077,6 +1085,15 @@ class TestCodexSkillHome:
 
         assert written == 0
         assert (wt / ".codex").read_text() == "", "the repo's own file must be untouched"
+        report = inject_skills_to_worktree_report(
+            ["codex-debate"], str(wt), ".codex",
+        )
+        assert report.home_path_is_file is True
+        assert report.home_path_tracked is True
+        assert report.skipped == ("home_path_is_file",)
+        assert subprocess.run(
+            ["git", "status", "--short"], cwd=wt, capture_output=True, text=True,
+        ).stdout == ""
         failures = [r for r in caplog.records if "install failed" in r.message]
         assert not failures, f"bailed out noisily: {[r.message for r in failures]}"
 

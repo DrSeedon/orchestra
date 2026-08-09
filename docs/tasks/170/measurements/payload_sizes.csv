@@ -1,0 +1,10 @@
+type,count,total_bytes,p50_bytes,p95_bytes,max_bytes
+error,2,134,67,70,70
+plan,7,4995,730,881,881
+status,136,15695,71,298,516
+subagent_progress,5,437,88,90,90
+text,94,37993,412,703,1232
+tool,560,1212166,888,7796,54910
+tool_result,546,2341954,186,22044,87948
+user_message,34,96483,3247,4850,5573
+warning,2,276,138,246,246
