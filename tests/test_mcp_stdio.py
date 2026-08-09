@@ -448,6 +448,45 @@ async def test_task_create_returns_fields_needed_by_dashboard_card(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_task_get_and_update_prefer_explicit_project_over_scope(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/lower")
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {"project": "Seedon", "par": "1", "updated": ["title"]}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.task_get("1", project="Seedon")
+        await m.task_update("1", title="changed", project="Seedon")
+
+    assert calls[0][2]["params"] == {"project": "Seedon"}
+    assert calls[1][2]["params"] == {"project": "Seedon"}
+    assert calls[1][2]["json"] == {"title": "changed"}
+
+
+@pytest.mark.asyncio
+async def test_task_get_and_update_fall_back_to_authoritative_scope(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/lower")
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {"project": "seedon", "par": "1", "updated": ["status"]}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.task_get("1")
+        await m.task_update("1", status="done")
+
+    assert calls[0][2]["params"] == {"scope": "/lower"}
+    assert calls[1][2]["params"] == {"scope": "/lower"}
+
+
+@pytest.mark.asyncio
 async def test_spawn_passes_base_branch(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")

@@ -96,22 +96,45 @@ def _generate_prefix(conn: sqlite3.Connection, project_id: str) -> str:
     return base + "X"
 
 
+def resolve_project_id(conn: sqlite3.Connection, project_id: str) -> dict | None:
+    """Resolve an explicit project id without collapsing exact legacy variants."""
+    exact = conn.execute(
+        "SELECT * FROM tm_projects WHERE id = ?", (project_id,)
+    ).fetchone()
+    if exact:
+        return dict(exact)
+
+    folded = project_id.casefold()
+    matches = [
+        dict(row)
+        for row in conn.execute("SELECT * FROM tm_projects").fetchall()
+        if row["id"].casefold() == folded
+    ]
+    if len(matches) > 1:
+        variants = ", ".join(sorted(row["id"] for row in matches))
+        raise ValueError(
+            f"Ambiguous project '{project_id}' — matches: {variants}. Use exact project id."
+        )
+    return matches[0] if matches else None
+
+
 def ensure_project(conn: sqlite3.Connection, project_id: str, name: str = "",
                    scope: str | None = None, yougile_project_id: str = "",
                    yougile_board_id: str = "",
                    yougile_enabled: bool = False,
                    prefix: str = "") -> dict:
-    existing = conn.execute("SELECT * FROM tm_projects WHERE id = ?", (project_id,)).fetchone()
+    existing = resolve_project_id(conn, project_id)
     if existing:
-        return dict(existing)
+        return existing
+    canonical_id = project_id.casefold()
     now = _now()
-    pfx = prefix.upper() if prefix else _generate_prefix(conn, project_id)
+    pfx = prefix.upper() if prefix else _generate_prefix(conn, canonical_id)
     conn.execute(
         "INSERT INTO tm_projects (id, name, prefix, scope, yougile_project_id, yougile_board_id, yougile_enabled, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (project_id, name or project_id, pfx, scope, yougile_project_id, yougile_board_id, int(yougile_enabled), now),
+        (canonical_id, name or project_id, pfx, scope, yougile_project_id, yougile_board_id, int(yougile_enabled), now),
     )
-    return {"id": project_id, "name": name or project_id, "prefix": pfx, "scope": scope,
+    return {"id": canonical_id, "name": name or project_id, "prefix": pfx, "scope": scope,
             "yougile_enabled": yougile_enabled, "created_at": now}
 
 
@@ -313,15 +336,21 @@ def get_task_by_par(conn: sqlite3.Connection, par_number: int,
     return dict(row) if row else None
 
 
-def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str = "") -> dict | None:
-    """Resolve '42', '#42', or 'PAR-42' (legacy) to a task dict."""
+def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str) -> dict | None:
+    """Resolve a task reference inside one authoritative project."""
+    if not project_id:
+        raise ValueError("project authority is required")
+    project = resolve_project_id(conn, project_id)
+    if not project:
+        raise ValueError(f"project '{project_id}' not found")
     prefix, num = _parse_task_ref(ref)
-    if prefix:
-        proj = get_project_by_prefix(conn, prefix)
-        if proj:
-            return get_task_by_par(conn, num, proj["id"])
-        return None
-    return get_task_by_par(conn, num, project_id)
+    expected_prefix = (project.get("prefix") or "").upper()
+    if prefix and prefix != "TASK" and prefix != expected_prefix:
+        raise ValueError(
+            f"task '{ref}' belongs to project prefix {prefix}, "
+            f"not authoritative project {project['id']}"
+        )
+    return get_task_by_par(conn, num, project["id"])
 
 
 def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
@@ -361,11 +390,13 @@ def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
     return str(task["par_number"])
 
 
-def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str = "") -> dict:
+def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) -> dict:
     """Link commits to a task by ref (e.g. '192', '#192', or 'PAR-192' legacy).
     commits: list of dicts with at least 'hash' key. Deduplicates by hash.
-    project_id: narrow search to this project to avoid ambiguous matches across projects.
+    project_id: authoritative project for every task reference.
     Returns a stable result DTO for merge/MCP callers."""
+    if not project_id:
+        raise ValueError("project authority is required for commit linking")
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
@@ -844,14 +875,19 @@ def api_create_task(project_id: str, title: str, price: int = 0,
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
+            existing_project = resolve_project_id(conn, project_id)
+            resolved_project_id = (
+                existing_project["id"] if existing_project else project_id.casefold()
+            )
             eff_scope = scope or None
             if eff_scope:
                 existing_by_scope = get_project_by_scope(conn, eff_scope)
-                if existing_by_scope and existing_by_scope["id"] != project_id:
+                if existing_by_scope and existing_by_scope["id"] != resolved_project_id:
                     eff_scope = None
-            ensure_project(conn, project_id, scope=eff_scope)
+            project = ensure_project(conn, project_id, scope=eff_scope)
+            resolved_project_id = project["id"]
             task = create_task(
-                conn, project_id, title,
+                conn, resolved_project_id, title,
                 price_rub=price,
                 description=description,
                 assignee=assignee,
@@ -867,7 +903,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
         "par": str(task["par_number"]),
         "id": task["id"],
         "title": task["title"],
-        "project": project_id,
+        "project": resolved_project_id,
         "price_rub": task["price_rub"],
         "status": task["status"],
     }
@@ -910,6 +946,7 @@ def api_update_task(par: str, title: str | None = None,
     _fire_sync(task_id)
     return {
         "par": task_ref,
+        "project": updated["project_id"],
         "updated": result["changed"],
         "old_status": result.get("old_status", updated["status"]),
         "new_status": updated["status"],
@@ -986,7 +1023,15 @@ def api_update_task_if_current(
 def api_list_tasks(project: str = "", status: str = "",
                    assignee: str = "") -> dict:
     with _conn() as conn:
-        tasks = list_tasks(conn, project_id=project, status=status, assignee=assignee)
+        resolved_project = ""
+        if project:
+            project_row = resolve_project_id(conn, project)
+            if not project_row:
+                raise ValueError(f"project '{project}' not found")
+            resolved_project = project_row["id"]
+        tasks = list_tasks(
+            conn, project_id=resolved_project, status=status, assignee=assignee,
+        )
 
     total_debt = sum(
         t["price_rub"] - t["paid_rub"]

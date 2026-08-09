@@ -53,10 +53,25 @@ def _resolve_client_id(client: str, scope: str) -> str:
     raise ValueError("No client specified and no client found for project scope")
 
 
-def _resolve_project_id(scope: str) -> str:
+def _resolve_scope_project_id(scope: str) -> str:
     with _tm._conn() as conn:
         p = _tm.get_project_by_scope(conn, scope)
         return p["id"] if p else ""
+
+
+def _resolve_task_project_id(project: str, scope: str) -> str:
+    if project:
+        with _tm._conn() as conn:
+            resolved = _tm.resolve_project_id(conn, project)
+        if not resolved:
+            raise ValueError(f"project '{project}' not found")
+        return resolved["id"]
+    if not scope:
+        raise ValueError("explicit project or mapped scope is required")
+    resolved = _resolve_scope_project_id(scope)
+    if not resolved:
+        raise ValueError(f"scope '{scope}' has no task project")
+    return resolved
 
 
 @router.post("/tasks")
@@ -74,35 +89,41 @@ async def tm_create_task(req: TmTaskCreate):
 @router.get("/tasks")
 async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
                         scope: str = ""):
-    def _do():
-        proj = project
-        if not proj and scope:
-            proj = _resolve_project_id(scope)
-            if not proj:
-                return {"tasks": [], "count": 0, "total_debt": "0"}
-        return _tm.api_list_tasks(proj, status, assignee)
-    return await asyncio.to_thread(_do)
+    try:
+        def _do():
+            proj = project
+            if project:
+                proj = _resolve_task_project_id(project, "")
+            elif scope:
+                proj = _resolve_scope_project_id(scope)
+                if not proj:
+                    return {"tasks": [], "count": 0, "total_debt": "0"}
+            return _tm.api_list_tasks(proj, status, assignee)
+        return await asyncio.to_thread(_do)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
 
 
 @router.get("/tasks/{par}")
-async def tm_get_task(par: str, scope: str = ""):
+async def tm_get_task(par: str, project: str = "", scope: str = ""):
     try:
         def _do():
-            project = _resolve_project_id(scope) if scope else ""
-            return _tm.api_get_task(par, project=project)
+            resolved_project = _resolve_task_project_id(project, scope)
+            return _tm.api_get_task(par, project=resolved_project)
         return await asyncio.to_thread(_do)
     except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=404)
+        code = 404 if "not found" in str(e).lower() else 400
+        return JSONResponse({"error": str(e)}, status_code=code)
 
 
 @router.put("/tasks/{par}")
-async def tm_update_task(par: str, req: TmTaskUpdate, scope: str = ""):
+async def tm_update_task(par: str, req: TmTaskUpdate, project: str = "", scope: str = ""):
     try:
         def _do():
-            project = _resolve_project_id(scope) if scope else ""
+            resolved_project = _resolve_task_project_id(project, scope)
             return _tm.api_update_task(
                 par, req.title, req.description, req.price, req.status, req.assignee,
-                project=project, priority=req.priority,
+                project=resolved_project, priority=req.priority,
             )
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:

@@ -1007,14 +1007,14 @@ class TestProfilesCRUD:
         # сид остаётся на месте
         assert get_profile("personal") is not None
 class TestChangeScope:
-    def _orch(self, scope="/old/proj", name="orch", sid="orch-uuid-1"):
+    def _orch(self, scope="/old/proj", name="orch", sid="orch-uuid-1", task_id=""):
         return {
             "id": sid, "name": name, "scope": scope, "cwd": scope,
             "model": "claude-opus-5", "system_prompt": "orch",
             "status": "idle", "session_id": "sdk-abc", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": True,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
-            "finished_at": None, "role": "orchestrator",
+            "finished_at": None, "role": "orchestrator", "task_id": task_id,
         }
 
     def test_updates_scope_and_cwd(self, db):
@@ -1072,6 +1072,53 @@ class TestChangeScope:
             old = c.execute("SELECT scope FROM tm_projects WHERE id='p_old'").fetchone()
         assert old["scope"] == "/old/proj"  # not migrated (collision)
         assert res.get("tm_project_migrated") is False
+
+    def test_tm_project_collision_rejects_task_association_atomically(self, db):
+        from app.db import (
+            _conn, acquire_test_lock, bg_save_job, change_scope, get_session,
+            get_test_lock, save_session,
+        )
+        from app.tm import create_task, ensure_project
+
+        save_session(self._orch(task_id="1"))
+        with _conn() as c:
+            ensure_project(c, "p_old", scope="/old/proj", prefix="OLD")
+            ensure_project(c, "p_new", scope="/new/proj", prefix="NEW")
+            old_task = create_task(c, "p_old", "old", par_number=1)
+            new_task = create_task(c, "p_new", "new", par_number=1)
+        now = datetime.now(timezone.utc)
+        bg_save_job({
+            "id": "j-active", "type": "timer", "status": "active",
+            "config": "{}", "message": "", "target_session_id": "orch-uuid-1",
+            "target_name": "orch", "target_scope": "/old/proj",
+            "created_by_name": "", "expires_at": (now + timedelta(hours=1)).isoformat(),
+            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+        })
+        acquire_test_lock("/old/proj", "orch", "running suite")
+
+        res = change_scope("orch-uuid-1", "/old/proj", "/new/proj", "/new/proj")
+
+        assert res.get("ok") is not True
+        assert "target scope belongs to task project 'p_new'" in res["error"]
+        session = get_session("orch-uuid-1")
+        assert (session["scope"], session["cwd"], session["task_id"]) == (
+            "/old/proj", "/old/proj", "1",
+        )
+        with _conn() as c:
+            scopes = {
+                row["id"]: row["scope"]
+                for row in c.execute(
+                    "SELECT id, scope FROM tm_projects WHERE id IN ('p_old', 'p_new')"
+                ).fetchall()
+            }
+            job_scope = c.execute(
+                "SELECT target_scope FROM bg_jobs WHERE id='j-active'"
+            ).fetchone()["target_scope"]
+            assert (old_task["project_id"], new_task["project_id"]) == ("p_old", "p_new")
+        assert scopes == {"p_old": "/old/proj", "p_new": "/new/proj"}
+        assert job_scope == "/old/proj"
+        assert get_test_lock("/old/proj")["holder"] == "orch"
+        assert get_test_lock("/new/proj") is None
 
     def test_migrates_active_bg_jobs(self, db):
         from app.db import save_session, change_scope, bg_save_job, _conn

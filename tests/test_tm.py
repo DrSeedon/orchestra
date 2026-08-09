@@ -12,6 +12,29 @@ def db(tmp_path, monkeypatch):
     return tmp_path
 
 
+def _insert_legacy_project(conn, project_id, prefix, scope=None):
+    from app.tm import _now
+
+    conn.execute(
+        "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
+        (project_id, project_id, prefix, scope, _now()),
+    )
+
+
+def _create_case_variant_tasks(conn, *, price=100, status="new"):
+    from app import tm
+
+    _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
+    _insert_legacy_project(conn, "seedon", "LOW", "/lower")
+    upper = tm.create_task(
+        conn, "Seedon", "upper", price_rub=price, status=status, par_number=1,
+    )
+    lower = tm.create_task(
+        conn, "seedon", "lower", price_rub=price, status=status, par_number=1,
+    )
+    return upper, lower
+
+
 def test_next_par_skips_existing_docs_tasks_dir(db):
     """Occupied docs/tasks/<n>/ must not be issued even when free in DB."""
     from app import tm
@@ -67,6 +90,280 @@ def test_explicit_par_number_still_honoured(db):
         tm.ensure_project(conn, "proj", scope=str(repo))
         task = tm.create_task(conn, "proj", "import", par_number=5)
         assert task["par_number"] == 5
+
+
+def test_project_resolution_preserves_exact_legacy_case_variants(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
+        _insert_legacy_project(conn, "seedon", "LOW", "/lower")
+        before = [
+            tuple(row)
+            for row in conn.execute(
+                "SELECT * FROM tm_projects WHERE id IN ('Seedon', 'seedon') ORDER BY id"
+            ).fetchall()
+        ]
+
+        assert tm.ensure_project(conn, "Seedon")["id"] == "Seedon"
+        assert tm.ensure_project(conn, "seedon")["id"] == "seedon"
+        tm.create_task(conn, "Seedon", "upper", par_number=1)
+        tm.create_task(conn, "seedon", "lower", par_number=1)
+        after = [
+            tuple(row)
+            for row in conn.execute(
+                "SELECT * FROM tm_projects WHERE id IN ('Seedon', 'seedon') ORDER BY id"
+            ).fetchall()
+        ]
+
+    assert after == before
+
+
+def test_project_resolution_rejects_ambiguous_nonexact_alias_before_create(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
+        _insert_legacy_project(conn, "seedon", "LOW", "/lower")
+
+    with pytest.raises(ValueError, match="Ambiguous project"):
+        tm.api_create_task("SEEDON", "must not exist", scope="/lower")
+
+    with tm._conn() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM tm_projects").fetchone()[0] == 2
+        assert conn.execute("SELECT COUNT(*) FROM tm_tasks").fetchone()[0] == 0
+
+
+def test_project_resolution_reuses_unique_alias_and_canonicalizes_new_id(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
+        assert tm.ensure_project(conn, "seedon")["id"] == "Seedon"
+        created = tm.ensure_project(conn, "MixedCase", name="Display Name", scope="/mixed")
+        reused = tm.ensure_project(conn, "MIXEDCASE")
+        rows = conn.execute(
+            "SELECT id, name FROM tm_projects ORDER BY id"
+        ).fetchall()
+
+    assert created["id"] == "mixedcase"
+    assert created["name"] == "Display Name"
+    assert reused["id"] == "mixedcase"
+    assert [(row["id"], row["name"]) for row in rows] == [
+        ("Seedon", "Seedon"),
+        ("mixedcase", "Display Name"),
+    ]
+
+
+def test_api_create_uses_resolved_exact_project_without_rebinding_scope(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        _insert_legacy_project(conn, "Seedon", "UPR")
+        _insert_legacy_project(conn, "seedon", "LOW", "/lower")
+
+    result = tm.api_create_task("Seedon", "upper", scope="/lower")
+
+    assert result["project"] == "Seedon"
+    with tm._conn() as conn:
+        task = tm.get_task_by_id(conn, result["id"])
+        assert task["project_id"] == "Seedon"
+        assert tm.get_project_by_scope(conn, "/lower")["id"] == "seedon"
+        assert conn.execute("SELECT COUNT(*) FROM tm_projects").fetchone()[0] == 2
+
+
+def test_api_create_reuses_unique_project_alias(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
+
+    result = tm.api_create_task("seedon", "same project", scope="/upper")
+
+    assert result["project"] == "Seedon"
+    with tm._conn() as conn:
+        assert tm.get_task_by_id(conn, result["id"])["project_id"] == "Seedon"
+        assert conn.execute("SELECT COUNT(*) FROM tm_projects").fetchone()[0] == 1
+
+
+def test_yougile_import_uses_resolved_project_id(db, monkeypatch, tmp_path):
+    from app import tm
+    from app import tm_import_yougile as importer
+
+    with tm._conn() as conn:
+        _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
+
+    monkeypatch.setattr(importer, "PROJECT_ID", "seedon")
+    monkeypatch.setattr(importer, "PROJECT_SCOPE", "/upper")
+    monkeypatch.setattr(importer, "CLIENT_ID", "client")
+    monkeypatch.setattr(importer, "COLUMN_TO_STATUS", {"column": "new"})
+    monkeypatch.setattr(importer, "CONFLICTS_PATH", tmp_path / "conflicts.json")
+    monkeypatch.setattr(
+        importer,
+        "fetch_all_tasks_for_column",
+        lambda _column: [{"id": "yg-1", "idTaskProject": "", "title": "Imported"}],
+    )
+
+    result = importer.run_import()
+
+    assert result["imported"] == 1
+    with tm._conn() as conn:
+        client = tm.get_client(conn, "client")
+        task = tm.get_task_by_yougile_id(conn, "yg-1")
+        assert client["project_id"] == "Seedon"
+        assert task["project_id"] == "Seedon"
+        assert conn.execute("SELECT COUNT(*) FROM tm_projects").fetchone()[0] == 1
+
+
+def test_task_core_requires_project_and_rejects_foreign_prefix(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        upper, lower = _create_case_variant_tasks(conn)
+
+    with pytest.raises(ValueError, match="project authority is required"):
+        tm.api_get_task("1")
+    with pytest.raises(ValueError, match="project authority is required"):
+        tm.api_update_task("1", title="unqualified")
+    with pytest.raises(ValueError, match="not authoritative project"):
+        tm.api_get_task("UPR-1", project="seedon")
+    with pytest.raises(ValueError, match="not authoritative project"):
+        tm.api_update_task("UPR-1", title="escaped", project="seedon")
+
+    with tm._conn() as conn:
+        assert tm.get_task_by_id(conn, upper["id"])["title"] == "upper"
+        assert tm.get_task_by_id(conn, lower["id"])["title"] == "lower"
+
+
+def test_unqualified_core_update_fails_before_side_effects(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        project = tm.ensure_project(conn, "only-project")
+        task = tm.create_task(conn, project["id"], "original", par_number=99)
+
+    with pytest.raises(ValueError, match="project authority is required"):
+        tm.api_update_task("99", title="unqualified")
+
+    with tm._conn() as conn:
+        row = tm.get_task_by_id(conn, task["id"])
+        assert (row["title"], row["sync_revision"]) == ("original", 0)
+
+
+def test_status_prepayment_uses_resolved_task_db_id(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        upper, lower = _create_case_variant_tasks(conn)
+        tm.ensure_client(conn, "upper-client", "Upper", "Seedon")
+        tm.ensure_client(conn, "lower-client", "Lower", "seedon")
+        tm.receive_payment(conn, "upper-client", 70)
+        tm.receive_payment(conn, "lower-client", 40)
+
+    result = tm.api_update_task("1", status="done", project="Seedon")
+
+    assert result["project"] == "Seedon"
+    assert result["paid_rub"] == 70
+    with tm._conn() as conn:
+        upper_row = tm.get_task_by_id(conn, upper["id"])
+        lower_row = tm.get_task_by_id(conn, lower["id"])
+        allocations = conn.execute(
+            "SELECT task_id, amount_rub FROM tm_payment_allocations ORDER BY id"
+        ).fetchall()
+        assert (upper_row["status"], upper_row["paid_rub"]) == ("done", 70)
+        assert (lower_row["status"], lower_row["paid_rub"]) == ("new", 0)
+        assert [(row["task_id"], row["amount_rub"]) for row in allocations] == [
+            (upper["id"], 70),
+        ]
+        assert tm.get_client(conn, "lower-client")["balance_rub"] == 40
+
+
+def test_direct_payment_stays_in_client_project_with_duplicate_par(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        upper, lower = _create_case_variant_tasks(conn, price=50, status="done")
+        tm.ensure_client(conn, "lower-client", "Lower", "seedon")
+
+    result = tm.api_receive_payment(50, "lower-client")
+
+    assert [item["task_id"] for item in result["distributions"]] == [lower["id"]]
+    with tm._conn() as conn:
+        upper_row = tm.get_task_by_id(conn, upper["id"])
+        lower_row = tm.get_task_by_id(conn, lower["id"])
+        assert (upper_row["status"], upper_row["paid_rub"]) == ("done", 0)
+        assert (lower_row["status"], lower_row["paid_rub"]) == ("paid", 50)
+
+
+def test_commit_link_rejects_blank_authority_before_opening_db(monkeypatch):
+    from app import tm
+
+    monkeypatch.setattr(
+        tm,
+        "_conn",
+        lambda: (_ for _ in ()).throw(AssertionError("DB must not open")),
+    )
+
+    with pytest.raises(ValueError, match="project authority is required"):
+        tm.link_commits_to_task("1", [{"hash": "a" * 40}], "")
+
+
+def test_commit_link_is_scoped_and_rejects_foreign_prefix(db):
+    import json
+    from app import tm
+
+    with tm._conn() as conn:
+        upper, lower = _create_case_variant_tasks(conn)
+
+    with pytest.raises(ValueError, match="not authoritative project"):
+        tm.link_commits_to_task("UPR-1", [{"hash": "a" * 40}], "seedon")
+    result = tm.link_commits_to_task("1", [{"hash": "b" * 40}], "seedon")
+
+    assert result == {"ok": True, "added": 1, "task_id": lower["id"]}
+    with tm._conn() as conn:
+        upper_row = tm.get_task_by_id(conn, upper["id"])
+        lower_row = tm.get_task_by_id(conn, lower["id"])
+        assert json.loads(upper_row["git_commits"]) == []
+        assert [item["hash"] for item in json.loads(lower_row["git_commits"])] == ["b" * 40]
+
+
+def test_conditional_task_update_rejects_project_identity_change(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "original", scope="/original")
+        tm.ensure_project(conn, "foreign", scope="/foreign")
+        task = tm.create_task(conn, "original", "task", par_number=6)
+    identity = tm.resolve_scoped_task_identity("/original", "6")
+    with tm._conn() as conn:
+        conn.execute(
+            "UPDATE tm_tasks SET project_id='foreign' WHERE id=?", (task["id"],),
+        )
+
+    result = tm.api_update_task_if_current(identity, status="in_progress")
+
+    assert result["ok"] is False
+    assert "identity changed" in result["error"]
+    with tm._conn() as conn:
+        assert tm.get_task_by_id(conn, task["id"])["status"] == "new"
+
+
+def test_conditional_task_update_rejects_par_identity_change(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "project", scope="/project")
+        task = tm.create_task(conn, "project", "task", par_number=6)
+    identity = tm.resolve_scoped_task_identity("/project", "6")
+    with tm._conn() as conn:
+        conn.execute("UPDATE tm_tasks SET par_number=7 WHERE id=?", (task["id"],))
+
+    result = tm.api_update_task_if_current(identity, status="in_progress")
+
+    assert result["ok"] is False
+    assert "identity changed" in result["error"]
+    with tm._conn() as conn:
+        assert tm.get_task_by_id(conn, task["id"])["status"] == "new"
 
 
 def test_scoped_task_identity_selects_duplicate_number_in_session_project(db):

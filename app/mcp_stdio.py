@@ -1628,10 +1628,12 @@ async def task_create(title: str, project: str, price: int = 0,
 @mcp.tool()
 async def task_update(par: str, title: str = "", description: str = "",
                       price: int = -1, status: str = "",
-                      assignee: str = "", priority: int = -1) -> str:
+                      assignee: str = "", priority: int = -1,
+                      project: str = "") -> str:
     """Update an existing task. Only provided fields are changed.
     par: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).
-    Empty string = don't change for text fields. priority: 0-3 or -1=don't change."""
+    Empty string = don't change for text fields. priority: 0-3 or -1=don't change.
+    project: explicit project returned by task_list; omitted uses the caller's mapped scope."""
     body: dict = {}
     if title:
         body["title"] = title
@@ -1647,7 +1649,8 @@ async def task_update(par: str, title: str = "", description: str = "",
         body["priority"] = priority
     if not body:
         return "Nothing to update"
-    result = await _api("PUT", f"/api/tm/tasks/{par}", json=body, params={"scope": SCOPE} if SCOPE else None)
+    params = {"project": project} if project else ({"scope": SCOPE} if SCOPE else None)
+    result = await _api("PUT", f"/api/tm/tasks/{par}", json=body, params=params)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)
@@ -1673,9 +1676,10 @@ async def task_list(project: str = "", status: str = "",
 
 
 @mcp.tool()
-async def task_get(par: str) -> str:
-    """Get full task details including payment history and linked commits."""
-    result = await _api("GET", f"/api/tm/tasks/{par}", params={"scope": SCOPE} if SCOPE else None)
+async def task_get(par: str, project: str = "") -> str:
+    """Get task details. project overrides scope and should come from task_list output."""
+    params = {"project": project} if project else ({"scope": SCOPE} if SCOPE else None)
+    result = await _api("GET", f"/api/tm/tasks/{par}", params=params)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)

@@ -510,7 +510,13 @@
   ]
  ],
  [
-  "/api/usage/history",
+ "/api/usage/history",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/usage/readiness",
   [
    "GET"
   ]

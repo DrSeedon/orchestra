@@ -88,11 +88,12 @@ def run_import():
     conn.execute("BEGIN IMMEDIATE")
 
     try:
-        tm.ensure_project(
+        project = tm.ensure_project(
             conn, PROJECT_ID, PROJECT_NAME, PROJECT_SCOPE,
             YOUGILE_PROJECT_ID, YOUGILE_BOARD_ID, yougile_enabled=True, prefix="PAR",
         )
-        tm.ensure_client(conn, CLIENT_ID, CLIENT_NAME, PROJECT_ID)
+        project_id = project["id"]
+        tm.ensure_client(conn, CLIENT_ID, CLIENT_NAME, project_id)
 
         conflicts = []
         imported = 0
@@ -146,7 +147,7 @@ def run_import():
             status = yt["_status"]
 
             task = tm.create_task(
-                conn, PROJECT_ID, title,
+                conn, project_id, title,
                 price_rub=price_rub,
                 description=description,
                 status=status,

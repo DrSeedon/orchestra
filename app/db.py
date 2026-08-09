@@ -819,11 +819,15 @@ def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) 
     session_id (Claude resume token) is left intact — context survives.
 
     Rejected if another session with the same name already lives in new_scope
-    (UNIQUE(name, scope)). tm_projects/test_lock migration is skipped on UNIQUE
-    collision (target already taken) but the session move still succeeds.
+    (UNIQUE(name, scope)). A task-associated session also rejects a target task-project
+    collision; without a task association, tm_projects/test_lock migration is skipped
+    on UNIQUE collision and the explicit session move still succeeds.
     """
     with _conn() as c:
-        row = c.execute("SELECT name FROM sessions WHERE id=?", (session_id,)).fetchone()
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            "SELECT name, task_id FROM sessions WHERE id=?", (session_id,)
+        ).fetchone()
         if not row:
             return {"error": f"session not found: {session_id}"}
         name = row["name"]
@@ -834,6 +838,24 @@ def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) 
         if clash:
             return {"error": f"session '{name}' already exists in scope '{new_scope}'"}
 
+        source_project = c.execute(
+            "SELECT id FROM tm_projects WHERE scope=?", (old_scope,)
+        ).fetchone()
+        target_project = c.execute(
+            "SELECT id FROM tm_projects WHERE scope=?", (new_scope,)
+        ).fetchone()
+        if (
+            row["task_id"]
+            and target_project
+            and (not source_project or source_project["id"] != target_project["id"])
+        ):
+            return {
+                "error": (
+                    f"cannot change scope with task #{row['task_id']}: target scope "
+                    f"belongs to task project '{target_project['id']}'"
+                )
+            }
+
         cur = c.execute(
             "UPDATE sessions SET scope=?, cwd=? WHERE id=? AND scope=?",
             (new_scope, new_cwd, session_id, old_scope),
@@ -842,8 +864,7 @@ def change_scope(session_id: str, old_scope: str, new_scope: str, new_cwd: str) 
             return {"error": f"session no longer in scope '{old_scope}' (stale or concurrent move)"}
 
         tm_migrated = False
-        target_taken = c.execute("SELECT 1 FROM tm_projects WHERE scope=?", (new_scope,)).fetchone()
-        if not target_taken:
+        if not target_project:
             cur = c.execute("UPDATE tm_projects SET scope=? WHERE scope=?", (new_scope, old_scope))
             tm_migrated = cur.rowcount > 0
 

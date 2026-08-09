@@ -100,11 +100,131 @@ def _prepare_detached_merge(monkeypatch, session, *, head: str = "a" * 40):
     return local_manager
 
 
+def _seed_case_variant_tasks(*, price=100, par=1):
+    from app import tm
+
+    with tm._conn() as conn:
+        now = tm._now()
+        conn.execute(
+            "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
+            ("Seedon", "Seedon", "UPR", "/upper", now),
+        )
+        conn.execute(
+            "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
+            ("seedon", "seedon", "LOW", "/lower", now),
+        )
+        upper = tm.create_task(conn, "Seedon", "upper", price_rub=price, par_number=par)
+        lower = tm.create_task(conn, "seedon", "lower", price_rub=price, par_number=par)
+    return upper, lower
+
+
 class TestDashboard:
     def test_root_returns_html(self, client):
         r = client.get("/")
         assert r.status_code == 200
         assert "text/html" in r.headers["content-type"]
+
+
+class TestTaskProjectIdentity:
+    def test_explicit_project_wins_over_scope_for_read(self, client):
+        _seed_case_variant_tasks()
+
+        read = client.get(
+            "/api/tm/tasks/1", params={"project": "Seedon", "scope": "/lower"},
+        )
+
+        assert read.status_code == 200
+        assert (read.json()["project"], read.json()["title"]) == ("Seedon", "upper")
+
+    def test_explicit_project_wins_over_scope_for_write(self, client):
+        from app import tm
+
+        upper, lower = _seed_case_variant_tasks()
+
+        write = client.put(
+            "/api/tm/tasks/1",
+            params={"project": "Seedon", "scope": "/lower"},
+            json={"title": "upper changed"},
+        )
+
+        assert write.status_code == 200
+        assert write.json()["project"] == "Seedon"
+        with tm._conn() as conn:
+            assert tm.get_task_by_id(conn, upper["id"])["title"] == "upper changed"
+            assert tm.get_task_by_id(conn, lower["id"])["title"] == "lower"
+
+    def test_scope_fallback_and_missing_authority_fail_closed(self, client):
+        from app import tm
+
+        upper, lower = _seed_case_variant_tasks()
+
+        scoped = client.get("/api/tm/tasks/1", params={"scope": "/lower"})
+        missing_get = client.get("/api/tm/tasks/1")
+        missing_put = client.put("/api/tm/tasks/1", json={"title": "must not change"})
+        unmapped = client.put(
+            "/api/tm/tasks/1", params={"scope": "/missing"}, json={"status": "done"},
+        )
+
+        assert scoped.status_code == 200
+        assert (scoped.json()["project"], scoped.json()["title"]) == ("seedon", "lower")
+        assert missing_get.status_code == 400
+        assert missing_put.status_code == 400
+        assert unmapped.status_code == 400
+        with tm._conn() as conn:
+            assert tm.get_task_by_id(conn, upper["id"])["title"] == "upper"
+            lower_row = tm.get_task_by_id(conn, lower["id"])
+            assert (lower_row["title"], lower_row["status"], lower_row["sync_revision"]) == (
+                "lower", "new", 0,
+            )
+            assert conn.execute("SELECT COUNT(*) FROM tm_payment_allocations").fetchone()[0] == 0
+
+    def test_ambiguous_alias_and_foreign_prefix_fail_closed(self, client):
+        from app import tm
+
+        upper, lower = _seed_case_variant_tasks()
+
+        ambiguous = client.put(
+            "/api/tm/tasks/1", params={"project": "SEEDON"}, json={"title": "bad"},
+        )
+        escaped = client.put(
+            "/api/tm/tasks/UPR-1", params={"project": "seedon"}, json={"title": "bad"},
+        )
+
+        assert ambiguous.status_code == 400
+        assert escaped.status_code == 400
+        with tm._conn() as conn:
+            assert tm.get_task_by_id(conn, upper["id"])["title"] == "upper"
+            assert tm.get_task_by_id(conn, lower["id"])["title"] == "lower"
+
+    def test_status_prepayment_uses_explicit_project_not_scope(self, client):
+        from app import tm
+
+        upper, lower = _seed_case_variant_tasks()
+        with tm._conn() as conn:
+            tm.ensure_client(conn, "upper-client", "Upper", "Seedon")
+            tm.ensure_client(conn, "lower-client", "Lower", "seedon")
+            tm.receive_payment(conn, "upper-client", 70)
+            tm.receive_payment(conn, "lower-client", 40)
+
+        response = client.put(
+            "/api/tm/tasks/1",
+            params={"project": "Seedon", "scope": "/lower"},
+            json={"status": "done"},
+        )
+
+        assert response.status_code == 200
+        assert (response.json()["project"], response.json()["paid_rub"]) == ("Seedon", 70)
+        with tm._conn() as conn:
+            upper_row = tm.get_task_by_id(conn, upper["id"])
+            lower_row = tm.get_task_by_id(conn, lower["id"])
+            allocations = conn.execute(
+                "SELECT task_id, amount_rub FROM tm_payment_allocations ORDER BY id"
+            ).fetchall()
+            assert (upper_row["status"], upper_row["paid_rub"]) == ("done", 70)
+            assert (lower_row["status"], lower_row["paid_rub"]) == ("new", 0)
+            assert [(row["task_id"], row["amount_rub"]) for row in allocations] == [
+                (upper["id"], 70),
+            ]
 
 
 class TestCreateSession:
@@ -895,6 +1015,47 @@ async def test_merge_links_commits_with_normalized_sqlite_results(db, monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_merge_links_duplicate_par_only_in_worker_scope_project(db, monkeypatch):
+    import json
+    import app.routes.sessions as sessmod
+    from app import tm
+
+    upper, lower = _seed_case_variant_tasks()
+    session = type("Session", (), {
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "worktree_path": "/wt",
+        "scope": "/lower",
+        "id": "case-link",
+        "name": "worker",
+        "branch": "task-1/worker",
+        "base_branch": "main",
+    })()
+    _prepare_detached_merge(monkeypatch, session)
+    monkeypatch.setattr(
+        "app.workspace.merge_worktree_to_main",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "commits_merged": 1,
+            "branch": session.branch,
+            "merged_commits": {
+                "1": [{"hash": "abc123", "message": "#1: work"}],
+            },
+        },
+    )
+
+    result = await sessmod.merge_session("worker", {"scope": "/lower"})
+
+    assert result["linked_tasks"]["1"] == {
+        "ok": True, "added": 1, "task_id": lower["id"],
+    }
+    with tm._conn() as conn:
+        assert json.loads(tm.get_task_by_id(conn, upper["id"])["git_commits"]) == []
+        linked = json.loads(tm.get_task_by_id(conn, lower["id"])["git_commits"])
+        assert [item["hash"] for item in linked] == ["abc123"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("next_task_id", ["not-a-task", "999"])
 async def test_merge_rejects_invalid_or_missing_next_task_before_git(
     db, monkeypatch, next_task_id,
@@ -1184,6 +1345,45 @@ async def test_merge_revision_change_keeps_git_success_and_skips_task_update(
 
 
 @pytest.mark.asyncio
+async def test_merge_next_updates_only_case_variant_in_worker_scope(db, monkeypatch):
+    import app.routes.sessions as sessmod
+    from app import tm
+
+    upper, lower = _seed_case_variant_tasks(par=43)
+    session = type("Session", (), {
+        "loaded": False,
+        "status": type("Status", (), {"value": "idle"})(),
+        "worktree_path": "/wt",
+        "scope": "/lower",
+        "id": "case-next",
+        "name": "worker",
+        "branch": "task-42/worker",
+        "base_branch": "main",
+    })()
+    _prepare_detached_merge(monkeypatch, session)
+    monkeypatch.setattr(
+        "app.workspace.merge_worktree_to_main",
+        lambda *_args, **_kwargs: {
+            "ok": True, "commits_merged": 1, "branch": session.branch,
+            "merged_commits": {},
+        },
+    )
+    monkeypatch.setattr(
+        "app.workspace.switch_worktree_branch",
+        lambda *_args, **_kwargs: {"ok": True, "branch": "task-43/worker"},
+    )
+
+    result = await sessmod.merge_session(
+        "worker", {"scope": "/lower", "next_task_id": "43"},
+    )
+
+    assert result["task_status"]["ok"] is True
+    with tm._conn() as conn:
+        assert tm.get_task_by_id(conn, upper["id"])["status"] == "new"
+        assert tm.get_task_by_id(conn, lower["id"])["status"] == "in_progress"
+
+
+@pytest.mark.asyncio
 async def test_merge_switch_failure_stays_merge_success_and_keeps_quarantine(
     db, monkeypatch,
 ):
@@ -1325,7 +1525,7 @@ async def test_merge_quarantine_persistence_retries_before_returning(
 
     assert result["ok"] is True
     assert result["lifecycle_status"] == {
-        "ok": True, "recovered": True, "warning": "transient DB failure",
+        "ok": True, "recovered": True, "warning": "RuntimeError: transient DB failure",
     }
     assert persist_calls == 2
     row = get_session(session.id)
@@ -1801,15 +2001,11 @@ async def test_switch_updates_duplicate_task_number_only_in_session_project(db, 
     from app import tm
     from app.manager import SessionManager
 
-    with tm._conn() as conn:
-        tm.ensure_project(conn, "project-a", scope="/a")
-        tm.ensure_project(conn, "project-b", scope="/b")
-        task_a = tm.create_task(conn, "project-a", "A", par_number=91)
-        task_b = tm.create_task(conn, "project-b", "B", par_number=91)
+    task_a, task_b = _seed_case_variant_tasks(par=91)
     session = type("Session", (), {
         "id": "scoped-switch",
         "name": "w",
-        "scope": "/b",
+        "scope": "/lower",
         "loaded": False,
         "status": type("Status", (), {"value": "idle"})(),
         "worktree_path": "/wt",
@@ -1819,7 +2015,7 @@ async def test_switch_updates_duplicate_task_number_only_in_session_project(db, 
     })()
     _save_merge_session_record(session)
     local_manager = SessionManager()
-    found = local_manager.get_by_name("w", "/b")
+    found = local_manager.get_by_name("w", "/lower")
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: found)
     monkeypatch.setattr(
         mainmod.manager, "get_session_lock", local_manager.get_session_lock,
@@ -1834,7 +2030,7 @@ async def test_switch_updates_duplicate_task_number_only_in_session_project(db, 
     )
 
     result = await sessmod.switch_branch(
-        "w", {"scope": "/b", "task_id": "91", "force": True},
+        "w", {"scope": "/lower", "task_id": "91", "force": True},
     )
 
     assert result["ok"] is True

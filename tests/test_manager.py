@@ -633,13 +633,20 @@ class TestAtomicSpawnLifecycle:
         from app.db import get_session
 
         with tm._conn() as conn:
-            tm.ensure_project(conn, "a", scope="/a")
-            tm.ensure_project(conn, "b", scope="/b")
-            task_a = tm.create_task(conn, "a", "A", par_number=93)
-            task_b = tm.create_task(conn, "b", "B", par_number=93)
+            now = tm._now()
+            conn.execute(
+                "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
+                ("Seedon", "Seedon", "UPR", "/upper", now),
+            )
+            conn.execute(
+                "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
+                ("seedon", "seedon", "LOW", "/lower", now),
+            )
+            task_a = tm.create_task(conn, "Seedon", "A", par_number=93)
+            task_b = tm.create_task(conn, "seedon", "B", par_number=93)
 
         session = await mgr.create_session(
-            name="scoped-task", scope="/b", cwd="/tmp",
+            name="scoped-task", scope="/lower", cwd="/tmp",
             model="claude-sonnet-5[1m]", task_id="93",
         )
 

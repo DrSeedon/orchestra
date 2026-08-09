@@ -814,7 +814,9 @@ def test_task_not_found_marker_comes_from_the_task_manager(tmp_path, monkeypatch
 
     monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "tm.db")
     dbmod.init_db()
-    outcome = tm.link_commits_to_task("18", [{"hash": "a" * 40}], "")
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "project")
+    outcome = tm.link_commits_to_task("18", [{"hash": "a" * 40}], "project")
     assert outcome["ok"] is False
     assert outcome["reason"] == "TASK_NOT_FOUND"
 
