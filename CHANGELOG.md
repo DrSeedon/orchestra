@@ -4,6 +4,13 @@
 > независимо, поэтому номера версий 2.31.0-2.33.0 использованы ДВАЖДЫ для разного
 > содержания: ниже сперва блок VPS, затем блок ноутбука. Формат чинится задачей #52.
 
+## v2.36.1 — 2026-08-10 — #173 P0 prompt correctness
+
+### Fixed
+- **Reload больше не смешивает personal memory с custom/ownership overlay** (`app/manager.py`, `app/prompting.py`, `sessions.prompt_overlay`). Новый nullable-компонент отличает legacy assembled prompt от явно пустого overlay; reload удаляет все старые `<worker-memory>` и добавляет ровно один текущий. Rename и ручная замена полного prompt обновляют тот же persistence contract. *Triggered case:* аудит #172 воспроизвёл рост full-cycle prompt `84 652 → 129 655 B` и поздний stale memory после обычного reload.
+- **`codex_review` больше не приписывает каждому проекту `small team, MVP stage`** (`app/mcp_stdio.py`, `codex-debate.md`). Caller обязан передать собственный `PROJECT CONTEXT`; пустой/безконтекстный вызов падает до readiness/API, а оба режима review получают один нейтральный rubric. *Triggered case:* high-load проекты получали заниженную severity calibration из безусловной константы.
+- **Codex guidance сверена с текущим runtime/config** (`CLAUDE.md`, `compact_worker`). Зафиксированы machine-local `project_doc_max_bytes = 131072` с обязательной повторной проверкой config, native `.codex/skills` и native same-thread compact для auto/manual Codex; Claude summary→fresh описан отдельно. *Triggered case:* #172 нашёл три правила, уже противоречившие текущему коду и конфигурации.
+
 
 ## v2.36.0 — 2026-08-06 — #127 промпты подчищены под Opus 5, #119 скилл артефактов переписан
 

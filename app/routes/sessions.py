@@ -659,10 +659,18 @@ async def rename_session(name: str, req: dict):
     new_branch = None
     from app.db import _conn
     with _conn() as c:
-        row = c.execute("SELECT branch, system_prompt FROM sessions WHERE id=?", (sid,)).fetchone()
+        row = c.execute(
+            "SELECT branch, system_prompt, prompt_overlay FROM sessions WHERE id=?", (sid,),
+        ).fetchone()
         updates = {"name": new_name}
         if row and row["system_prompt"]:
             updates["system_prompt"] = row["system_prompt"].replace(
+                f"Worker name: {name}", f"Worker name: {new_name}"
+            ).replace(
+                f"Orchestrator: {name}", f"Orchestrator: {new_name}"
+            )
+        if row and row["prompt_overlay"] is not None:
+            updates["prompt_overlay"] = row["prompt_overlay"].replace(
                 f"Worker name: {name}", f"Worker name: {new_name}"
             ).replace(
                 f"Orchestrator: {name}", f"Orchestrator: {new_name}"
@@ -680,6 +688,13 @@ async def rename_session(name: str, req: dict):
         session.name = new_name
         if updates.get("system_prompt"):
             session.system_prompt = updates["system_prompt"]
+            session._current_prompt = session._current_prompt.replace(
+                f"Worker name: {name}", f"Worker name: {new_name}"
+            ).replace(
+                f"Orchestrator: {name}", f"Orchestrator: {new_name}"
+            )
+        if "prompt_overlay" in updates:
+            session.prompt_overlay = updates["prompt_overlay"]
         if new_branch:
             session.branch = new_branch
         session._persist()

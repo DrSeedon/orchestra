@@ -195,17 +195,17 @@ Every feature should minimize agent overhead: fewer tool calls, less context was
 - Финальное ревью на Spark пропускает баги → в A/B Spark прошляпил реальный double-count, который поймал Sol → финальные ревью не роутить на дешёвую модель
 
 **Codex / Sol**
-- Свежие правила «не работают» у Sol-воркеров → Codex режет `AGENTS.md` по `project_doc_max_bytes` ПОСРЕДИ фразы (дефолт 32 KiB, кириллица = 2 байта/символ). **Страховка стоит: ноут 96 KiB, VPS 64 KiB** — сверяйся с `~/.codex/config.toml`, а не жми файл вслепую; на новой машине выставить заново
+- Свежие правила «не работают» у Sol-воркеров → Codex режет `AGENTS.md` по `project_doc_max_bytes` ПОСРЕДИ фразы (дефолт 32 KiB, кириллица = 2 байта/символ). Текущий machine-local ceiling в `~/.codex/config.toml` — `131072`; это не вечный snapshot: перед выводом читай фактический config, а не режь файл вслепую
 - Codex-воркер видит правила месячной давности → `AGENTS.md` — зеркало `CLAUDE.md`, обновляется при коннекте бэкенда (`workspace.sync_agents_md`); если репозиторий ТРЕКАЕТ свой `AGENTS.md`, зеркало не трогает его
 - Codex жжёт время в `sleep` (74 сна на 1579 вызовов, у Claude — ноль) → формулировка «do NOT poll, just wait» читается им буквально → в описаниях тулов писать END YOUR TURN NOW; глобально `sleep` не блокировать
 - Codex ретраит вечно на исчерпанной квоте → «You've hit your usage limit» не матчилось паттернами, и Codex НЕ шлёт отдельный text-event перед error → терминальный лимит проверять прямо в error handler
 - Codex падает на длинном JSONL → не баг Codex: `asyncio.StreamReader` по умолчанию 64KB → `limit=16MB` + fail-soft readline
 - Планируешь Sol задачу под 1M контекста → при ChatGPT-auth эффективный контекст 258K → считать бюджет от 258K
-- precompact на Codex делает хуже → у Codex cache TTL ≈30 мин и 10× cold penalty, precompact убивает cache key → precompact только для Claude
+- Codex compact идёт нативно в том же thread и для auto, и для ручного `compact_worker`; текущая auto-policy взводится от 60% с задержкой 25 минут. Custom summary → fresh session относится к Claude. Перед настройкой сверяй `_precompact_policy()` и `compact()` с текущим кодом
 - `codex_review` — это bg job (type=run), возвращается сразу и будит воркера → не ждать его, закончить ход
 - `codex_review(mode="review")` на закоммиченной работе отвечает «no changes to review» и раунд сгорает → для закоммиченного: `git diff <merge-base> HEAD > /tmp/x.diff` + `mode="exec"`
 - Ревью уползает читать посторонние файлы / Serena-онбординг и падает по таймауту → ограничивать ПЕРВЫЙ вызов: точные файлы/хунки, запрет logs/BUGS/TODO/git-history. Три одинаковых инфраструктурных падения → стоп, честная запись «вердикта нет», self-review, один повтор на другом артефакте
-- Sol не видит проектные скиллы (`.claude/skills/` — механизм Claude) → в промпт Codex идёт СГЕНЕРИРОВАННОЕ оглавление (имя/описание/путь), тело читает сам. Замер: 9/9 нужных чтений, 0/8 посторонних, промпт −90% (10 424 → 1 080 симв.)
+- Sol получает project skills нативно из `.codex/skills/`, которые Orchestra синхронизирует перед backend connect. Bounded generated index — только fallback, когда native skill home недоступен (например, путь занят файлом); `.claude/skills/` остаётся механизмом Claude
 - Переключил воркера Claude→Sol — он «не знает проект» → зеркало `AGENTS.md` и скиллы создаются при КОННЕКТЕ бэкенда; до реконнекта у бывшего Claude-воркера их нет вовсе
 
 **Воркеры и оркестрация**

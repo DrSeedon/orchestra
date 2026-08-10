@@ -1999,6 +1999,95 @@ class TestAutoResume:
         assert session.pipeline == DEFAULT_PIPELINE
         assert get_role(session.pipeline, session.role) is not None
 
+    @staticmethod
+    def _reload_row(tmp_path, *, system_prompt, prompt_overlay):
+        return {
+            "id": "prompt-reload", "name": "w1", "scope": str(tmp_path),
+            "cwd": str(tmp_path), "model": "claude-sonnet-5[1m]",
+            "system_prompt": system_prompt, "prompt_overlay": prompt_overlay,
+            "status": "idle", "session_id": "native-1", "cost_usd": 0.0,
+            "worktree_path": None, "branch": "task-173/w1", "base_branch": "main",
+            "is_orchestrator": False, "role": "worker", "pipeline": "default",
+            "owned_dirs": '["app/prompting"]', "color": "#fff",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        }
+
+    @pytest.mark.asyncio
+    async def test_reload_migrates_legacy_matching_base_without_memory_precedence(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        from app.manager import SessionManager
+
+        base = "BASE for {worker_name}"
+        formatted_base = "BASE for w1"
+        overlay = "\n\nCUSTOM EXACT" + SessionManager._ownership_prompt(["app/prompting"])
+        old_prompt = formatted_base + overlay + "\n\n<worker-memory>\nOLD\n</worker-memory>"
+        row = self._reload_row(
+            tmp_path, system_prompt=old_prompt, prompt_overlay=None,
+        )
+        monkeypatch.setattr("app.manager.ROLE_SYSTEM_PROMPT", lambda *_args: base)
+        monkeypatch.setattr("app.prompting.load_worker_memory", lambda *_args: "NEW")
+        monkeypatch.setattr("app.session.AgentSession.start", AsyncMock())
+
+        session = await mgr._load_from_db(row)
+
+        expected = formatted_base + overlay + "\n\n<worker-memory>\nNEW\n</worker-memory>"
+        assert session.system_prompt == expected
+        assert session._current_prompt == expected
+        assert session.prompt_overlay == overlay
+        assert session.system_prompt.count("<worker-memory>") == 1
+        assert "OLD" not in session.system_prompt
+
+    @pytest.mark.asyncio
+    async def test_reload_changed_base_preserves_stored_overlay_ownership_and_refreshes_once(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        from app.manager import SessionManager
+        from app.prompting import refresh_worker_memory
+
+        overlay = "\n\nCUSTOM EXACT" + SessionManager._ownership_prompt(["app/prompting"])
+        old_prompt = "OLD BASE" + overlay + "\n\n<worker-memory>\nOLD\n</worker-memory>"
+        row = self._reload_row(
+            tmp_path, system_prompt=old_prompt, prompt_overlay=overlay,
+        )
+        monkeypatch.setattr("app.manager.ROLE_SYSTEM_PROMPT", lambda *_args: "NEW BASE")
+        monkeypatch.setattr("app.prompting.load_worker_memory", lambda *_args: "NEW")
+        monkeypatch.setattr("app.session.AgentSession.start", AsyncMock())
+
+        session = await mgr._load_from_db(row)
+        refreshed = refresh_worker_memory(
+            session._current_prompt, session.name, session.role, session.scope,
+        )
+
+        expected = "NEW BASE" + overlay + "\n\n<worker-memory>\nNEW\n</worker-memory>"
+        assert session.system_prompt == expected
+        assert refreshed == expected
+        assert session.prompt_overlay == overlay
+        assert expected.count("CUSTOM EXACT") == 1
+        assert expected.count("## Directory ownership") == 1
+        assert expected.count("<worker-memory>") == 1
+        assert "OLD BASE" not in expected and "\nOLD\n" not in expected
+
+    @pytest.mark.asyncio
+    async def test_reload_changed_base_preserves_unseparated_legacy_prompt(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        old_prompt = "LEGACY FULL OVERRIDE\n\n<worker-memory>\nOLD\n</worker-memory>"
+        row = self._reload_row(
+            tmp_path, system_prompt=old_prompt, prompt_overlay=None,
+        )
+        monkeypatch.setattr("app.manager.ROLE_SYSTEM_PROMPT", lambda *_args: "NEW BASE")
+        monkeypatch.setattr("app.prompting.load_worker_memory", lambda *_args: "NEW")
+        monkeypatch.setattr("app.session.AgentSession.start", AsyncMock())
+
+        session = await mgr._load_from_db(row)
+
+        assert session.system_prompt == (
+            "LEGACY FULL OVERRIDE\n\n<worker-memory>\nNEW\n</worker-memory>"
+        )
+        assert session.prompt_overlay is None
+        assert "OLD" not in session.system_prompt
+
 
 
 class TestCanSpawn:
@@ -2644,16 +2733,21 @@ class TestProfileInheritance:
 class TestSystemPromptAppend:
     @pytest.mark.asyncio
     async def test_worker_custom_prompt_appended(self, mgr):
+        from app.db import get_session_by_name
+        from app.manager import SessionManager
         from tests.conftest import make_backend_mock
         with patch("app.manager.ROLE_SYSTEM_PROMPT", return_value="ROLE_BASE"):
             with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
                 session = await mgr.create_session(
                     name="w-sp1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
-                    role="worker", system_prompt="CUSTOM",
+                    role="worker", system_prompt="CUSTOM", owned_dirs=["app/prompting"],
                 )
+        expected_overlay = "\n\nCUSTOM" + SessionManager._ownership_prompt(["app/prompting"])
         assert "ROLE_BASE" in session.system_prompt
         assert "CUSTOM" in session.system_prompt
         assert session.system_prompt.index("ROLE_BASE") < session.system_prompt.index("CUSTOM")
+        assert session.prompt_overlay == expected_overlay
+        assert get_session_by_name("w-sp1", "/s")["prompt_overlay"] == expected_overlay
 
     @pytest.mark.asyncio
     async def test_orchestrator_custom_prompt_appended(self, mgr):

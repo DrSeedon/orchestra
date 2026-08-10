@@ -357,6 +357,14 @@ DONE WHEN: наблюдаемое условие завершения.
   отдаёшь артефакт с ссылками в пустоту. Заодно так узнаёшь, что твой дефект уже починили —
   описывать его как открытый после этого нельзя.
 
+## Разделение сохранённого assembled blob (#173)
+
+- Выносишь компонент из сохранённого assembled prompt/state → одновременно проверь create,
+  hydrate, serializer/upsert, list payload и ВСЕ mutators (rename и full replacement здесь
+  иначе воскресили бы старый overlay). Для миграции `NULL` должен значить «граница legacy
+  неизвестна», а `""` — «компонент явно пуст»; неизвестную границу сохраняй целиком, не угадывай
+  и не теряй authority-текст.
+
 ## Антипаттерны и замена
 
 - `be careful / use judgment / when familiar` → observable trigger + action + completion bar.

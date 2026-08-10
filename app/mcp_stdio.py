@@ -1080,7 +1080,9 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
 
 @mcp.tool()
 async def compact_worker(name: str) -> str:
-    """Compact a worker's context — summarize, reset session, continue fresh. Use when worker context >80%. Returns summary. Takes ~30-60s."""
+    """Manually compact an idle worker's context. Codex compacts natively in the same thread;
+    Claude creates a summary, reconnects fresh, and retains that handoff. This is a manual escape
+    hatch, not the auto-compact policy. Returns the runtime result; may take 30-60s."""
     result = await _api("POST", f"/api/sessions/{name}/compact", json={"scope": SCOPE}, timeout=120)
     if isinstance(result, dict) and result.get("error"):
         return f"Compact failed: {result['error']}"
@@ -1973,11 +1975,9 @@ _CODEX_MISSING_HINT = (
     "Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. "
     "Проверить: `which codex`"
 )
-_REVIEW_CONTEXT = (
-    "PROJECT CONTEXT (calibrate review severity):\n"
-    "- Scale: small team, MVP stage\n"
-    "- Philosophy: simple, flat, minimal abstractions\n"
-    "- blocking = crash/corrupt/security. suggestion = real improvement. nit = skip\n"
+_REVIEW_RUBRIC = (
+    "Review calibration: blocking = crash/corrupt/security; "
+    "suggestion = real improvement; nit = skip."
 )
 
 
@@ -2003,9 +2003,9 @@ def _read_codex_uuid(sessions_path: str, slug: str) -> str:
 
 @mcp.tool()
 async def codex_review(
+    context: str,
     target: str = "",
     output: str = "CODEX_REVIEW.md",
-    context: str = "",
     mode: str = "review",
     resume: bool = False,
 ) -> str:
@@ -2014,12 +2014,24 @@ async def codex_review(
     target: file path for review, or empty for git diff review.
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
         output filename to continue a debate.
-    context: extra instructions for the review prompt.
+    context: task instructions plus a caller-supplied PROJECT CONTEXT block from the current repo.
     mode: 'review' (git diff, default) or 'exec' (review specific file).
     resume: continue the previous Codex session for this output (debate round). Falls back to a
         fresh session if none stored. On a resumed round put your counter-arguments / changelog
         in context (e.g. 'I fixed X and Y, re-review')."""
-    # Первым делом: не создавать фоновую джобу, которая гарантированно упадёт по квоте.
+    context = context.strip()
+    if not context or "PROJECT CONTEXT" not in context.upper():
+        raise ApiToolError(
+            code="invalid_argument",
+            message="context must include caller-supplied task instructions and PROJECT CONTEXT",
+            details={"field": "context"},
+        )
+    review_context = (
+        "CALLER-SUPPLIED PROJECT CONTEXT AND REVIEW INSTRUCTIONS:\n"
+        f"{context}\n\n{_REVIEW_RUBRIC}"
+    )
+
+    # Первым делом после валидации: не создавать фоновую джобу, которая гарантированно упадёт по квоте.
     refusal = await _quota_refusal(_CODEX_REVIEW_MODEL)
     if refusal:
         raise refusal
@@ -2056,22 +2068,25 @@ async def codex_review(
         return _CODEX_MISSING_HINT
 
     if mode == "review":
+        review_prompt = (
+            f"{review_context}\n\nReview the current uncommitted diff. "
+            "Find bugs, security issues, breaking changes, and race conditions."
+        )
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
         fresh_review = (
             f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec review"
             f" --uncommitted --skip-git-repo-check --full-auto --json"
-            f" -o {q(codex_out)}"
+            f" -o {q(codex_out)} - < {q(prompt_file)}"
         )
         if is_resume:
             # resume inherits sandbox from original session — do NOT pass -s. Re-review the diff.
             resume_prompt = (
+                f"{review_context}\n\n"
                 "Re-review the current uncommitted diff (run git diff yourself). "
                 "For each prior finding: FIXED / STILL BROKEN / NEW BUG. "
                 "Output a concise re-review (Re-review status, new findings, verdict)."
             )
-            if context:
-                resume_prompt += f"\nAuthor notes: {context}"
             # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
             codex = (
                 f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
@@ -2081,7 +2096,7 @@ async def codex_review(
                 f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
             )
         else:
-            codex = fresh_review
+            codex = f"printf '%s' {q(review_prompt)} > {q(prompt_file)}; {fresh_review}"
     elif mode == "exec":
         if not target and not is_resume:
             raise ApiToolError(
@@ -2089,9 +2104,7 @@ async def codex_review(
                 message="target file required for mode='exec'",
                 details={"field": "target"},
             )
-        prompt_parts_exec = [_REVIEW_CONTEXT]
-        if context:
-            prompt_parts_exec.append(f"Additional context: {context}\n")
+        prompt_parts_exec = [review_context]
         # Keep the target in the prompt even on resume — the stale-UUID fresh-exec fallback
         # reuses this same prompt file and would otherwise review nothing concrete.
         if target:

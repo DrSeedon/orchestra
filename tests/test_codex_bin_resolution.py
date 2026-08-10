@@ -64,7 +64,9 @@ def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypat
     monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
     monkeypatch.setattr(mcp, "SCOPE", "/home/kesha/orchestra")
 
-    out = asyncio.run(mcp.codex_review(target="", output="CODEX_REVIEW.md"))
+    out = asyncio.run(mcp.codex_review(
+        context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+    ))
 
     assert "codex не найден" in out
     assert "CODEX_BIN" in out and "which codex" in out
@@ -85,7 +87,9 @@ def test_resolved_binary_reaches_the_shell_command(mcp, monkeypatch, tmp_path):
     monkeypatch.setattr(mcp, "_start_codex_job", fake_bg, raising=False)
 
     try:
-        asyncio.run(mcp.codex_review(target="", output="CODEX_REVIEW.md"))
+        asyncio.run(mcp.codex_review(
+            context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+        ))
     except Exception:
         pass  # до фонового запуска может не дойти в тестовом окружении — важна команда
 

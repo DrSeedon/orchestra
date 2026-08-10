@@ -89,22 +89,35 @@ class TestGetByNameUnion:
 class TestUpdateSessionFields:
     @pytest.mark.asyncio
     async def test_live_path_sets_attr(self, mgr):
-        await _spawn(mgr)
+        session = await _spawn(mgr)
+        session.prompt_overlay = "OLD OVERLAY"
         res = mgr.update_session_fields("worker-1", "/test/scope", description="hi")
         assert res is not None and res.loaded
         assert mgr.get_by_name("worker-1", "/test/scope").description == "hi"
+        assert session.prompt_overlay == "OLD OVERLAY"
+
+        mgr.update_session_fields(
+            "worker-1", "/test/scope", system_prompt="FULL REPLACEMENT",
+        )
+        assert session.system_prompt == "FULL REPLACEMENT"
+        assert session.prompt_overlay is None
+        assert session._current_prompt == "FULL REPLACEMENT"
 
     @pytest.mark.asyncio
     async def test_detached_path_updates_db(self, mgr):
-        await _spawn(mgr)
+        session = await _spawn(mgr)
+        session.prompt_overlay = "OLD OVERLAY"
+        session._persist()
         fresh = SessionManager()
         res = fresh.update_session_fields("worker-1", "/test/scope", description="from-db",
-                                          tg_topic=True)
+                                          tg_topic=True, system_prompt="FULL REPLACEMENT")
         assert res is not None and not res.loaded
         from app.db import get_session_by_name
         row = get_session_by_name("worker-1", "/test/scope")
         assert row["description"] == "from-db"
         assert row["tg_topic"] == 1
+        assert row["system_prompt"] == "FULL REPLACEMENT"
+        assert row["prompt_overlay"] is None
 
     def test_miss_returns_none(self, mgr):
         assert mgr.update_session_fields("ghost", "/nowhere", description="x") is None

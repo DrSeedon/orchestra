@@ -36,7 +36,8 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    - Affected files, risks, edge cases (for the code to come)
 5. **Second opinion (Codex).** For non-trivial research, run a Codex debate to challenge your
    key conclusions — "second opinion on my research conclusions" (codex-debate skill, or
-   `codex_review(mode="exec", target="docs/tasks/<id>/research.md")` if no Bash). Feed it the
+   `codex_review(mode="exec", target="docs/tasks/<id>/research.md",
+   context="<task + current PROJECT CONTEXT>")` if no Bash). Feed it the
    findings you're most confident about and ask it to falsify them. If Codex surfaces a
    blocking hole in a load-bearing finding → verify via code/measurement, then resume the
    session to debate (do NOT just note it and move on — see the second-opinion rule below).

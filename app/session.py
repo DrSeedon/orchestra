@@ -283,6 +283,7 @@ class AgentSession:
     cwd: str
     model: str = "claude-sonnet-5[1m]"
     system_prompt: str = ""
+    prompt_overlay: str | None = None
     status: AgentStatus = AgentStatus.IDLE
     session_id: str | None = None
     session_id_history: list = field(default_factory=list, repr=False)
@@ -2307,6 +2308,7 @@ class AgentSession:
         return {
             "id": self.id, "name": self.name, "scope": self.scope, "cwd": self.cwd,
             "model": self.model, "system_prompt": self.system_prompt,
+            "prompt_overlay": self.prompt_overlay,
             "status": self.status.value, "session_id": self.session_id,
             "cost_usd": self.cost_usd, "cost_usd_cached": self.cost_usd_cached,
             "context_cost": self._context_cost,

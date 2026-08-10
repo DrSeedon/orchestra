@@ -86,15 +86,15 @@ def refresh_worker_memory(prompt: str, name: str, role: str, scope: str) -> str:
     was at the last server restart — measured in #137 as 11 of 13 live sessions
     carrying a stale block, the worst missing 61% of its own file.
     """
+    prompt_without_memory = strip_worker_memory(prompt)
     mem = load_worker_memory(name, role, scope)
     block = f"<worker-memory>\n{mem}\n</worker-memory>" if mem else ""
-    if _WORKER_MEMORY_BLOCK.search(prompt):
-        # Replacement is a callable on purpose: memory is arbitrary user text and a
-        # plain string would have its backslash escapes (\1, \g) expanded by re.
-        # The pattern eats the leading newlines, so put the separator back with it.
-        sep = f"\n\n{block}" if block else ""
-        return _WORKER_MEMORY_BLOCK.sub(lambda _: sep, prompt, count=1).rstrip()
-    return f"{prompt}\n\n{block}".rstrip() if block else prompt
+    return f"{prompt_without_memory}\n\n{block}" if block else prompt_without_memory
+
+
+def strip_worker_memory(prompt: str) -> str:
+    """Remove every persisted memory block while preserving all other prompt bytes."""
+    return _WORKER_MEMORY_BLOCK.sub("", prompt)
 
 
 def read_prompt(name: str) -> str:

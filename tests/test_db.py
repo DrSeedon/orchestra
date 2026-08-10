@@ -907,6 +907,31 @@ class TestLifecycleColumns:
         assert {"base_branch", "needs_switch"} <= cols
 
 
+class TestPromptOverlayColumn:
+    def test_new_column_is_nullable_for_legacy_rows(self, db):
+        from app.db import _conn
+
+        with _conn() as c:
+            c.execute(
+                """INSERT INTO sessions
+                   (id, name, scope, cwd, model, status, created_at)
+                   VALUES ('legacy-overlay', 'legacy-overlay', '/scope', '/cwd', 'model',
+                           'idle', '2026-08-10T00:00:00+00:00')"""
+            )
+            row = c.execute(
+                "SELECT prompt_overlay FROM sessions WHERE id='legacy-overlay'"
+            ).fetchone()
+        assert row[0] is None
+
+    def test_prompt_overlay_round_trip_distinguishes_explicit_empty(self, db, sample_session):
+        from app.db import get_session, save_session
+
+        sample_session["prompt_overlay"] = ""
+        save_session(sample_session)
+
+        assert get_session(sample_session["id"])["prompt_overlay"] == ""
+
+
 # ── Этап 6, чанк 1: профили Claude (таблица profiles + sessions.profile) ──
 
 class TestProfilesMigration:

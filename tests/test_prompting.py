@@ -602,6 +602,25 @@ class TestRefreshWorkerMemory:
             "re-injection happens on every resume — it must be idempotent"
         )
 
+    def test_removes_all_stale_blocks_before_appending_one_fresh_block(self, tmp_path):
+        from app.prompting import refresh_worker_memory
+
+        self._mem(tmp_path, "w1.md", "FRESH")
+        duplicated = (
+            "ROLE: worker.\n\n<worker-memory>\nOLD-1\n</worker-memory>"
+            "\n\nCUSTOM-OVERLAY"
+            "\n\n<worker-memory>\nOLD-2\n</worker-memory>"
+        )
+
+        out = refresh_worker_memory(duplicated, "w1", "worker", str(tmp_path))
+
+        assert out == (
+            "ROLE: worker.\n\nCUSTOM-OVERLAY"
+            "\n\n<worker-memory>\nFRESH\n</worker-memory>"
+        )
+        assert out.count("<worker-memory>") == 1
+        assert refresh_worker_memory(out, "w1", "worker", str(tmp_path)) == out
+
     def test_missing_unreadable_or_bad_scope_empties_the_block_without_raising(
         self, tmp_path
     ):

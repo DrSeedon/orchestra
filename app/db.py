@@ -54,6 +54,7 @@ def init_db() -> None:
                 cwd TEXT NOT NULL,
                 model TEXT NOT NULL,
                 system_prompt TEXT DEFAULT '',
+                prompt_overlay TEXT,
                 status TEXT DEFAULT 'starting',
                 session_id TEXT,
                 cost_usd REAL DEFAULT 0.0,
@@ -596,6 +597,10 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN base_branch TEXT DEFAULT ''")
     if "needs_switch" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN needs_switch INTEGER DEFAULT 0")
+    if "prompt_overlay" not in cols:
+        # NULL distinguishes a legacy assembled prompt from a new, explicitly separated
+        # overlay. _load_from_db migrates an empty or current-base legacy prompt safely.
+        c.execute("ALTER TABLE sessions ADD COLUMN prompt_overlay TEXT")
     log_cols = {row[1] for row in c.execute("PRAGMA table_info(logs)").fetchall()}
     if log_cols and "event_id" not in log_cols:
         c.execute("ALTER TABLE logs ADD COLUMN event_id TEXT NOT NULL DEFAULT ''")
@@ -700,12 +705,13 @@ def save_session(
     s.setdefault("last_summary", "")
     s.setdefault("base_branch", "")
     s.setdefault("needs_switch", 0)
+    s.setdefault("prompt_overlay", None)
     connection_scope = (
         nullcontext(_connection) if _connection is not None else _conn()
     )
     with connection_scope as c:
         c.execute("""
-            INSERT INTO sessions (id, name, scope, cwd, model, system_prompt,
+            INSERT INTO sessions (id, name, scope, cwd, model, system_prompt, prompt_overlay,
                 status, session_id, cost_usd, worktree_path, branch, base_branch,
                 needs_switch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
@@ -716,7 +722,7 @@ def save_session(
                 template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline,
                 profile, owned_dirs, tg_topic, session_id_history, effort, runtime_handoff,
                 last_summary)
-            VALUES (:id, :name, :scope, :cwd, :model, :system_prompt,
+            VALUES (:id, :name, :scope, :cwd, :model, :system_prompt, :prompt_overlay,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :base_branch,
                 :needs_switch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
@@ -731,6 +737,7 @@ def save_session(
                 name=excluded.name,
                 model=excluded.model,
                 system_prompt=excluded.system_prompt,
+                prompt_overlay=excluded.prompt_overlay,
                 status=excluded.status,
                 session_id=excluded.session_id,
                 cost_usd=excluded.cost_usd,

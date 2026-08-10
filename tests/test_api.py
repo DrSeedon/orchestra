@@ -2864,7 +2864,10 @@ def test_rename_updates_children_parent_reference(client):
 
     now = datetime.now(timezone.utc).isoformat()
     base = {
-        "cwd": "/s", "model": "m", "system_prompt": "", "status": "idle",
+        "cwd": "/s", "model": "m",
+        "system_prompt": "Worker name: old-parent\nOrchestrator: old-parent",
+        "prompt_overlay": "Worker name: old-parent\nOrchestrator: old-parent",
+        "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
         "base_branch": "main", "is_orchestrator": False, "color": "",
         "created_at": now, "finished_at": None, "task_id": "", "needs_switch": 0,
@@ -2892,6 +2895,12 @@ def test_rename_updates_children_parent_reference(client):
     assert rows["c-1"]["parent_name"] == "new-parent"
     assert rows["c-2"]["parent_name"] == "old-parent"
     assert rows["p-1"]["name"] == "new-parent"
+    assert rows["p-1"]["system_prompt"] == (
+        "Worker name: new-parent\nOrchestrator: new-parent"
+    )
+    assert rows["p-1"]["prompt_overlay"] == (
+        "Worker name: new-parent\nOrchestrator: new-parent"
+    )
 
 
 def _quota_block_error():

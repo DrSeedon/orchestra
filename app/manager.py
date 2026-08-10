@@ -20,6 +20,7 @@ from app.session import AgentSession, AgentStatus
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
+    refresh_worker_memory, strip_worker_memory,
 )
 
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
@@ -603,10 +604,13 @@ class SessionManager:
                 profile = get_active_profile(scope, parent_profile=parent_profile)
 
         if is_orch:
-            prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope) + ("\n\n" + system_prompt if system_prompt else "")
+            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
+            prompt_overlay = "\n\n" + system_prompt if system_prompt else ""
         else:
-            prompt = ROLE_SYSTEM_PROMPT(pipeline, role) + ("\n\n" + system_prompt if system_prompt else "")
-            prompt += self._ownership_prompt(owned_dirs)
+            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role)
+            prompt_overlay = ("\n\n" + system_prompt if system_prompt else "")
+            prompt_overlay += self._ownership_prompt(owned_dirs)
+        prompt = base_prompt + prompt_overlay
 
         # Worker persistent memory: docs/workers/{name}.md or docs/workers/{role}.md
         # Survives kill/respawn/compact — worker writes rules here, they auto-inject next time
@@ -659,7 +663,7 @@ class SessionManager:
         session_id = str(uuid.uuid4())
         session = AgentSession(
             id=session_id, name=name, scope=scope, cwd=cwd, model=model,
-            system_prompt=prompt, role=role,
+            system_prompt=prompt, prompt_overlay=prompt_overlay, role=role,
             parent_id=parent_id, parent_name=parent_name,
             pipeline=pipeline, profile=profile,
             color="" if is_orch else self._pick_color(),
@@ -712,6 +716,11 @@ class SessionManager:
                 orch_name = parent_name or self._find_orchestrator_name(scope)
                 session.system_prompt = safe_format_prompt(
                     session.system_prompt,
+                    worker_name=name, orchestrator_name=orch_name or "orchestrator",
+                    scope=scope, branch=session.branch or session.base_branch,
+                )
+                session.prompt_overlay = safe_format_prompt(
+                    session.prompt_overlay or "",
                     worker_name=name, orchestrator_name=orch_name or "orchestrator",
                     scope=scope, branch=session.branch or session.base_branch,
                 )
@@ -1167,6 +1176,7 @@ class SessionManager:
             cwd=row.get("cwd") or row["scope"],
             model=row.get("model") or "",
             system_prompt=row.get("system_prompt") or "",
+            prompt_overlay=row.get("prompt_overlay"),
             status=status,
             session_id=row.get("session_id"),
             cost_usd=row.get("cost_usd") or 0.0,
@@ -1229,11 +1239,19 @@ class SessionManager:
         if found.loaded:
             for k, v in fields.items():
                 setattr(found, k, v)
+            if "system_prompt" in fields:
+                # The endpoint replaces the complete assembled prompt, so no older
+                # separated overlay may override it on the next reload.
+                found.prompt_overlay = None
+                found._current_prompt = fields["system_prompt"]
             found._persist()
         else:
             from app.db import _conn
-            sets = ", ".join(f"{k}=?" for k in fields)
-            vals = [int(v) if isinstance(v, bool) else v for v in fields.values()]
+            db_fields = dict(fields)
+            if "system_prompt" in fields:
+                db_fields["prompt_overlay"] = None
+            sets = ", ".join(f"{k}=?" for k in db_fields)
+            vals = [int(v) if isinstance(v, bool) else v for v in db_fields.values()]
             with _conn() as c:
                 cur = c.execute(
                     f"UPDATE sessions SET {sets} WHERE id=?", (*vals, found.id),
@@ -1416,10 +1434,9 @@ class SessionManager:
         except FileNotFoundError:
             is_orch = bool(db_row.get("is_orchestrator")) or is_orchestrator_role(role)
         old_prompt = db_row.get("system_prompt", "")
-        current_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
-        worker_memory = load_worker_memory(db_row["name"], role, db_row["scope"])
-        if worker_memory:
-            current_prompt += f"\n\n<worker-memory>\n{worker_memory}\n</worker-memory>"
+        current_base = ROLE_SYSTEM_PROMPT(
+            pipeline, role, db_row["scope"]
+        ) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
@@ -1444,10 +1461,43 @@ class SessionManager:
                     m = _TASK_BRANCH_RE.match(actual_branch)
                     db_task_id = m.group(1) if m else ""
 
+        orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None
+        if not is_orch:
+            current_base = safe_format_prompt(
+                current_base,
+                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
+                scope=db_row["scope"],
+                branch=db_row.get("branch") or db_row.get("base_branch") or "",
+            )
+        stored_overlay = db_row.get("prompt_overlay")
+        if stored_overlay is None:
+            old_without_memory = strip_worker_memory(old_prompt)
+            if not old_without_memory:
+                prompt_overlay = self._ownership_prompt(
+                    parse_owned_dirs(db_row.get("owned_dirs"))
+                )
+                prompt_without_memory = current_base + prompt_overlay
+            elif old_without_memory.startswith(current_base):
+                prompt_overlay = old_without_memory[len(current_base):]
+                prompt_without_memory = current_base + prompt_overlay
+            else:
+                # A legacy/full-prompt override has no component boundary to recover.
+                # Preserve it byte-for-byte instead of guessing and dropping authority.
+                prompt_overlay = None
+                prompt_without_memory = old_without_memory
+        else:
+            prompt_overlay = strip_worker_memory(stored_overlay)
+            prompt_without_memory = current_base + prompt_overlay
+        current_prompt = refresh_worker_memory(
+            prompt_without_memory,
+            db_row["name"], role, db_row["scope"],
+        )
+
         custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
-            model=db_row["model"], system_prompt=old_prompt or current_prompt,
+            model=db_row["model"], system_prompt=current_prompt,
+            prompt_overlay=prompt_overlay,
             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
             cost_usd_cached=db_row.get("cost_usd_cached", 0),
             _context_cost=db_row.get("context_cost", 0),
@@ -1490,24 +1540,6 @@ class SessionManager:
         if pct or tokens:
             max_t = get_model_spec(db_row["model"]).context_length
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
-        orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None
-        if not is_orch:
-            current_prompt = safe_format_prompt(
-                current_prompt,
-                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
-                scope=db_row["scope"],
-                branch=db_row.get("branch") or db_row.get("base_branch") or "",
-            )
-        if old_prompt and old_prompt != current_prompt:
-            formatted_base = safe_format_prompt(
-                ROLE_SYSTEM_PROMPT(pipeline, role, db_row["scope"]) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role),
-                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
-                scope=db_row["scope"],
-                branch=db_row.get("branch") or db_row.get("base_branch") or "",
-            )
-            if old_prompt.startswith(formatted_base) and len(old_prompt) > len(formatted_base):
-                custom_part = old_prompt[len(formatted_base):]
-                current_prompt = current_prompt + custom_part
         session._current_prompt = current_prompt
         session._template_hash = db_row.get("template_hash") or prompt_template_hash(role)
         if not is_orch:
@@ -1666,7 +1698,7 @@ class SessionManager:
     # а `last_summary` нужен только серверу (`runtime_handoff`).
     # Понадобилось поле в списке — добавляй осознанно и перемеряй вес: tests/test_manager.py::TestListSessions
     # держит потолок.
-    _LIST_OMIT = ("system_prompt", "last_summary")
+    _LIST_OMIT = ("system_prompt", "prompt_overlay", "last_summary")
 
     def list_sessions(self, scope: str | None = None) -> list[dict]:
         from app.db import get_last_turn_map

@@ -70,7 +70,10 @@ async def _spawn(api):
 
 
 async def _review(api):
-    return await mcp.codex_review(target="research.md", output="r.md", mode="exec")
+    return await mcp.codex_review(
+        context="PROJECT CONTEXT: quota-gate test fixture",
+        target="research.md", output="r.md", mode="exec",
+    )
 
 
 @pytest.mark.asyncio

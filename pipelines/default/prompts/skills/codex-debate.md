@@ -36,7 +36,7 @@ Codex — другая модель с другими bias'ами. Часто п
 ## MCP tool: codex_review
 
 ```
-codex_review(target, output, mode, context, resume)
+codex_review(context, target, output, mode, resume)
 ```
 - `target` — файл для review (для `mode="exec"`). Пусто → git diff (`mode="review"`)
 - `output` — путь для результата, всегда под `docs/tasks/<id>/`
@@ -61,7 +61,7 @@ codex_review(target="docs/tasks/<id>/plan.md", mode="exec", output="docs/tasks/<
 **Debate / re-review (тот же output, resume):**
 ```
 codex_review(output="docs/tasks/<id>/codex-review-impl.md", resume=True,
-             context="I fixed X and Y. Re-review: for each prior blocking → FIXED / STILL BROKEN / NEW BUG. Append ## Round N.")
+             context="<task + current PROJECT CONTEXT>. I fixed X and Y. Re-review: for each prior blocking → FIXED / STILL BROKEN / NEW BUG. Append ## Round N.")
 ```
 
 ## Правила вызова
@@ -95,7 +95,7 @@ codex_review(output="docs/tasks/<id>/codex-review-impl.md", resume=True,
 2. Каждое **blocking** → проверь через код (grep/cat/read). Решение: ACK / DISAGREE / PARTIAL
 3. **Эскалируй** (адресат — выше) если Codex хочет: удалить функционал / существенно менять архитектуру рабочих компонентов / что-то с неясными последствиями
 4. Почини ACK'нутые (Edit)
-5. `codex_review(..., resume=True, context="фиксы: <changelog>, re-review")`
+5. `codex_review(..., resume=True, context="<task + current PROJECT CONTEXT>; фиксы: <changelog>, re-review")`
 6. Codex дописывает Round N
 7. Луп пока: Codex пишет "APPROVED"/"no blockers" → готово; сработала эскалация → стоп, запроси решение
 
