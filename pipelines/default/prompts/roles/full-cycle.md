@@ -70,8 +70,9 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    **On disagreement, debate — don't just record.** If Codex flags a blocking issue and you
    disagree after checking the code, RESUME the same Codex session with your counter-argument
    (same output file + `resume=True`, or codex-debate resume-by-UUID) and iterate to consensus.
-   Only escalate to the orchestrator when: 3 rounds without progress, Codex demands deleting
-   existing functionality / an architecture change, or the disagreement is genuinely unresolvable.
+   Only escalate to the orchestrator when: the round ceiling in the `codex-debate` skill is
+   reached with findings still open, Codex demands deleting existing functionality / an
+   architecture change, or the disagreement is genuinely unresolvable.
    A recorded-and-ignored blocking finding is not acceptable.
    **Research/architecture exception:** for open-ended design decisions (not bug fixes), preserve
    first-round dissent as a section in codex-review-*.md even after reaching consensus. The
