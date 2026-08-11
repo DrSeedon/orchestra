@@ -70,6 +70,8 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert "small team" not in command and "MVP stage" not in command
     if mode == "review":
         assert "exec review" in command
+        assert "--uncommitted" not in command
+        assert "staged, unstaged, and untracked" in command
         assert "- < /tmp/codex_review_sol-pilot_review.txt" in command
 
     # Parse only; do not execute Codex.

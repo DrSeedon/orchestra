@@ -2099,7 +2099,8 @@ async def codex_review(
 
     if mode == "review":
         review_prompt = (
-            f"{review_context}\n\nReview the current uncommitted diff. "
+            f"{review_context}\n\nReview all current uncommitted changes in this worktree "
+            "(staged, unstaged, and untracked). Inspect them with git status and git diff. "
             "Find bugs, security issues, breaking changes, and race conditions."
         )
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
@@ -2107,7 +2108,7 @@ async def codex_review(
         fresh_review = (
             f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
             f" -s danger-full-access -a never exec review"
-            f" --uncommitted --skip-git-repo-check --json"
+            f" --skip-git-repo-check --json"
             f" -o {q(codex_out)} - < {q(prompt_file)}"
         )
         if is_resume:

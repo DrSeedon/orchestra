@@ -203,3 +203,20 @@ exit 0
     assert result.returncode == 0
     assert resume_uuid in args_file.read_text().splitlines()
     assert not injected.exists()
+
+
+def test_installed_codex_rejects_multiple_review_targets(tmp_path):
+    import app.mcp_stdio as mcp
+
+    codex_bin = mcp._codex_bin()
+    if not codex_bin:
+        pytest.skip("Codex CLI is not installed; generated-command test remains mandatory")
+
+    result = subprocess.run(
+        [codex_bin, "exec", "review", "--uncommitted", "-"],
+        cwd=tmp_path, input="", capture_output=True, text=True, timeout=10,
+    )
+
+    assert result.returncode == 2
+    assert "--uncommitted" in result.stderr
+    assert "cannot be used with '[PROMPT]'" in result.stderr
