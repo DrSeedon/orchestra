@@ -9,7 +9,7 @@ import logging
 import os
 import re
 import time
-from collections import OrderedDict, deque
+from collections import Counter, OrderedDict, deque
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -536,6 +536,120 @@ async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_heade
         MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
     ] + tool_ents + result_ents
     await _tg_edit_message_safe(chat_id, msg, text, entities)
+
+
+# ── Свёртка хода (#189) ────────────────────────────────────────────────────
+# Тул-вызовы не отправляются отдельными сообщениями: они складываются в одну строку
+# каждый и живут внутри правящегося на месте ⚙️, а ход закрывается коротким якорем.
+# Замер, из которого это выросло: 2905 порождённых отправок за сутки, 9% из них —
+# слова оркестратора (docs/tasks/189/research.md).
+_PROGRESS_MIN_INTERVAL = 5.0     # не чаще одной правки ⚙️ в 5 с: правки едят тот же
+                                 # бюджет, что и отправки, ≈20 правок в минуту на группу
+_PROGRESS_MAX_LINES = 40         # сколько последних действий видно в свёртке
+_PROGRESS_MAX_CHARS = 3500
+_ANCHOR_MAX_CHARS = 300
+_ACTION_LINE_MAX = 70
+_BASH_WRAPPER = re.compile(r"""^/bin/bash\s+-lc\s+(['"])(.*)\1$""", re.S)
+
+
+def _shorten(text: str, limit: int) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[:limit - 1] + "…"
+
+
+def _tail_path(path: str, limit: int) -> str:
+    """Хвост пути важнее начала: видно файл, а не общий префикс worktree."""
+    path = path.strip()
+    return path if len(path) <= limit else "…" + path[-(limit - 1):]
+
+
+def _human_size(n: int) -> str:
+    if n < 1024:
+        return f"{n} б"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.1f} КБ"
+    return f"{n / (1024 * 1024):.1f} МБ"
+
+
+def _plural(n: int, one: str, few: str, many: str) -> str:
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+def _tool_target(tool_name: str, body: str) -> str:
+    """Что именно сделал тул — то, ради чего юзер и смотрит строку."""
+    try:
+        params = json.loads(body.strip())
+        if not isinstance(params, dict):
+            params = {}
+    except Exception:
+        params = {}
+    short = _tg_tool_short(tool_name)
+    if tool_name == "Bash":
+        cmd = str(params.get("command", "")).strip()
+        m = _BASH_WRAPPER.match(cmd)
+        return (m.group(2) if m else cmd) or short
+    if tool_name in ("Read", "Write", "Edit", "NotebookEdit"):
+        return _tail_path(str(params.get("file_path", "")), _ACTION_LINE_MAX - 4) or short
+    if tool_name in ("Grep", "Glob"):
+        return str(params.get("pattern", "")) or short
+    if tool_name in ("WebSearch", "WebFetch"):
+        return str(params.get("query") or params.get("url", "")) or short
+    if "send_message" in tool_name:
+        return f"→ {params.get('to', '?')}: «{params.get('message', '')}»"
+    if "spawn_worker" in tool_name:
+        model = _MODEL_SHORT.get(params.get("model", ""), params.get("model", ""))
+        return f"{params.get('name', '?')} ({model})"
+    named = params.get("name") or params.get("par") or params.get("query") or ""
+    return f"{short} {named}".strip()
+
+
+def _tool_line(tool_name: str, body: str) -> str:
+    return _shorten(f"{_tg_tool_icon(tool_name)} {_tool_target(tool_name, body)}",
+                    _ACTION_LINE_MAX)
+
+
+def _result_mark(result: str, is_error: bool | None) -> str:
+    """Хвост строки действия: чем кончилось. Размер — по сырому ответу тула."""
+    if is_error:
+        first = next((ln for ln in result.splitlines() if ln.strip()), "ошибка")
+        return f"✗ {_shorten(first, 18)}"
+    return f"{_human_size(len(result))} ✓"
+
+
+def _progress_text(lines: list[str], total: int, seconds: float) -> str:
+    """Тело ⚙️: заголовок со счётчиком и свёрнутый список действий."""
+    head = f"⚙️ {total} {_plural(total, 'действие', 'действия', 'действий')}"
+    if seconds >= 60:
+        head += f" · {int(seconds // 60)} мин"
+    shown = lines[-_PROGRESS_MAX_LINES:]
+    if len(lines) > len(shown):
+        shown = [f"…ещё {len(lines) - len(shown)} выше"] + shown
+    body = "\n".join(shown)
+    if len(body) > _PROGRESS_MAX_CHARS:
+        body = body[-_PROGRESS_MAX_CHARS:]
+    return f"{head}\n{body}"
+
+
+def _turn_anchor(actions: list[str], seconds: float, status: str) -> str:
+    """Якорь конца хода. КОРОТКИЙ намеренно: он идёт по надёжной полосе, и длинный
+    текст `_formatted_chunks` порежет на пачку надёжных отправок — ровно то, чем
+    однажды встала вся исходящая очередь."""
+    n = len(actions)
+    parts = [f"ход окончен · {int(seconds // 60)} мин"
+             if seconds >= 60 else "ход окончен",
+             f"{n} {_plural(n, 'действие', 'действия', 'действий')}"]
+    tally = Counter(line.split(" ", 1)[0] for line in actions)
+    if tally:
+        parts.append(" · ".join(f"{icon}×{cnt}" for icon, cnt in tally.most_common(3)))
+    cost = re.search(r"\$[\d.]+ turn", status)
+    if cost:
+        parts.append(cost.group(0).replace(" turn", ""))
+    return _shorten("━━━━━━━━━━━━━━━━━━━━\n" + " · ".join(parts),
+                    _ANCHOR_MAX_CHARS).replace("━ ", "━\n", 1)
 
 
 # Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
